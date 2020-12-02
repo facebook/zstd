@@ -37,7 +37,7 @@ size_t zstd_dctx_workspace_bound(void)
 }
 EXPORT_SYMBOL(zstd_dctx_workspace_bound);
 
-zstd_dctx* zstd_init_dctx(void *workspace, size_t workspace_size)
+zstd_dctx *zstd_init_dctx(void *workspace, size_t workspace_size)
 {
 	if (workspace == NULL)
 		return NULL;
@@ -45,7 +45,8 @@ zstd_dctx* zstd_init_dctx(void *workspace, size_t workspace_size)
 }
 EXPORT_SYMBOL(zstd_init_dctx);
 
-size_t zstd_decompress_dctx(zstd_dctx *dctx, void *dst, size_t dst_capacity, const void *src, size_t src_size)
+size_t zstd_decompress_dctx(zstd_dctx *dctx, void *dst, size_t dst_capacity,
+	const void *src, size_t src_size)
 {
 	return ZSTD_decompressDCtx(dctx, dst, dst_capacity, src, src_size);
 }
@@ -57,7 +58,8 @@ size_t zstd_dstream_workspace_bound(size_t max_window_size)
 }
 EXPORT_SYMBOL(zstd_dstream_workspace_bound);
 
-zstd_dstream *zstd_init_dstream(size_t max_window_size, void *workspace, size_t workspace_size)
+zstd_dstream *zstd_init_dstream(size_t max_window_size, void *workspace,
+	size_t workspace_size)
 {
 	if (workspace == NULL)
 		return NULL;
@@ -72,7 +74,8 @@ size_t zstd_reset_dstream(zstd_dstream *dstream)
 }
 EXPORT_SYMBOL(zstd_reset_dstream);
 
-size_t zstd_decompress_stream(zstd_dstream *dstream, struct zstd_out_buffer *output, struct zstd_in_buffer *input)
+size_t zstd_decompress_stream(zstd_dstream *dstream,
+	struct zstd_out_buffer *output, struct zstd_in_buffer *input)
 {
 	ZSTD_outBuffer o;
 	ZSTD_inBuffer i;
@@ -93,7 +96,8 @@ size_t zstd_find_frame_compressed_size(const void *src, size_t src_size)
 }
 EXPORT_SYMBOL(zstd_find_frame_compressed_size);
 
-size_t zstd_get_frame_params(struct zstd_frame_params *params, const void *src, size_t src_size)
+size_t zstd_get_frame_params(struct zstd_frame_params *params, const void *src,
+	size_t src_size)
 {
 	ZSTD_frameHeader h;
 	const size_t ret = ZSTD_getFrameHeader(&h, src, src_size);

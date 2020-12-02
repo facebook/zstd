@@ -58,7 +58,7 @@ int zstd_get_error_code(size_t code);
  *
  * Return: An error string corresponding to the error code.
  */
-const char* zstd_get_error_name(size_t code);
+const char *zstd_get_error_name(size_t code);
 
 /* ======   Parameter Selection   ====== */
 
@@ -136,7 +136,7 @@ struct zstd_parameters {
  * @level:              The compression level
  * @estimated_src_size: The estimated source size to compress or 0
  *                      if unknown.
- * 
+ *
  * Return:              The selected zstd_parameters.
  */
 struct zstd_parameters zstd_get_params(int level,
@@ -185,7 +185,7 @@ zstd_cctx *zstd_init_cctx(void *workspace, size_t workspace_size);
  *                zstd_is_error().
  */
 size_t zstd_compress_cctx(zstd_cctx *cctx, void *dst, size_t dst_capacity,
-	const void *src, size_t src_size, const struct zstd_parameters* parameters);
+	const void *src, size_t src_size, const struct zstd_parameters *parameters);
 
 /* ======   Single-pass Decompression   ====== */
 
@@ -375,7 +375,7 @@ size_t zstd_dstream_workspace_bound(size_t max_window_size);
  *
  * Return:           The zstd streaming decompression context.
  */
-zstd_dstream *zstd_init_dstream(size_t max_window_size, void* workspace,
+zstd_dstream *zstd_init_dstream(size_t max_window_size, void *workspace,
 	size_t workspace_size);
 
 /**

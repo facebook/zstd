@@ -11,22 +11,37 @@
 
 static void zstd_check_structs(void) {
 	/* Check that the structs have the same size. */
-	ZSTD_STATIC_ASSERT(sizeof(ZSTD_parameters) == sizeof(struct zstd_parameters));
-	ZSTD_STATIC_ASSERT(sizeof(ZSTD_compressionParameters) == sizeof(struct zstd_compression_parameters));
-	ZSTD_STATIC_ASSERT(sizeof(ZSTD_frameParameters) == sizeof(struct zstd_frame_parameters));
+	ZSTD_STATIC_ASSERT(sizeof(ZSTD_parameters) ==
+		sizeof(struct zstd_parameters));
+	ZSTD_STATIC_ASSERT(sizeof(ZSTD_compressionParameters) ==
+		sizeof(struct zstd_compression_parameters));
+	ZSTD_STATIC_ASSERT(sizeof(ZSTD_frameParameters) ==
+		sizeof(struct zstd_frame_parameters));
 	/* Zstd guarantees that the layout of the structs never change. Verify it. */
-	ZSTD_STATIC_ASSERT(offsetof(ZSTD_parameters, cParams) == offsetof(struct zstd_parameters, cparams));
-	ZSTD_STATIC_ASSERT(offsetof(ZSTD_parameters, fParams) == offsetof(struct zstd_parameters, fparams));
-	ZSTD_STATIC_ASSERT(offsetof(ZSTD_compressionParameters, windowLog) == offsetof(struct zstd_compression_parameters, window_log));
-	ZSTD_STATIC_ASSERT(offsetof(ZSTD_compressionParameters, chainLog) == offsetof(struct zstd_compression_parameters, chain_log));
-	ZSTD_STATIC_ASSERT(offsetof(ZSTD_compressionParameters, hashLog) == offsetof(struct zstd_compression_parameters, hash_log));
-	ZSTD_STATIC_ASSERT(offsetof(ZSTD_compressionParameters, searchLog) == offsetof(struct zstd_compression_parameters, search_log));
-	ZSTD_STATIC_ASSERT(offsetof(ZSTD_compressionParameters, minMatch) == offsetof(struct zstd_compression_parameters, search_length));
-	ZSTD_STATIC_ASSERT(offsetof(ZSTD_compressionParameters, targetLength) == offsetof(struct zstd_compression_parameters, target_length));
-	ZSTD_STATIC_ASSERT(offsetof(ZSTD_compressionParameters, strategy) == offsetof(struct zstd_compression_parameters, strategy));
-	ZSTD_STATIC_ASSERT(offsetof(ZSTD_frameParameters, contentSizeFlag) == offsetof(struct zstd_frame_parameters, content_size_flag));
-	ZSTD_STATIC_ASSERT(offsetof(ZSTD_frameParameters, checksumFlag) == offsetof(struct zstd_frame_parameters, checksum_flag));
-	ZSTD_STATIC_ASSERT(offsetof(ZSTD_frameParameters, noDictIDFlag) == offsetof(struct zstd_frame_parameters, no_dict_id_flag));
+	ZSTD_STATIC_ASSERT(offsetof(ZSTD_parameters, cParams) ==
+		offsetof(struct zstd_parameters, cparams));
+	ZSTD_STATIC_ASSERT(offsetof(ZSTD_parameters, fParams) ==
+		offsetof(struct zstd_parameters, fparams));
+	ZSTD_STATIC_ASSERT(offsetof(ZSTD_compressionParameters, windowLog) ==
+		offsetof(struct zstd_compression_parameters, window_log));
+	ZSTD_STATIC_ASSERT(offsetof(ZSTD_compressionParameters, chainLog) ==
+		offsetof(struct zstd_compression_parameters, chain_log));
+	ZSTD_STATIC_ASSERT(offsetof(ZSTD_compressionParameters, hashLog) ==
+		offsetof(struct zstd_compression_parameters, hash_log));
+	ZSTD_STATIC_ASSERT(offsetof(ZSTD_compressionParameters, searchLog) ==
+		offsetof(struct zstd_compression_parameters, search_log));
+	ZSTD_STATIC_ASSERT(offsetof(ZSTD_compressionParameters, minMatch) ==
+		offsetof(struct zstd_compression_parameters, search_length));
+	ZSTD_STATIC_ASSERT(offsetof(ZSTD_compressionParameters, targetLength) ==
+		offsetof(struct zstd_compression_parameters, target_length));
+	ZSTD_STATIC_ASSERT(offsetof(ZSTD_compressionParameters, strategy) ==
+		offsetof(struct zstd_compression_parameters, strategy));
+	ZSTD_STATIC_ASSERT(offsetof(ZSTD_frameParameters, contentSizeFlag) ==
+		offsetof(struct zstd_frame_parameters, content_size_flag));
+	ZSTD_STATIC_ASSERT(offsetof(ZSTD_frameParameters, checksumFlag) ==
+		offsetof(struct zstd_frame_parameters, checksum_flag));
+	ZSTD_STATIC_ASSERT(offsetof(ZSTD_frameParameters, noDictIDFlag) ==
+		offsetof(struct zstd_frame_parameters, no_dict_id_flag));
 	/* Check that the strategies are the same. This can change. */
 	ZSTD_STATIC_ASSERT((int)ZSTD_fast == (int)zstd_fast);
 	ZSTD_STATIC_ASSERT((int)ZSTD_dfast == (int)zstd_dfast);
@@ -39,14 +54,21 @@ static void zstd_check_structs(void) {
 	ZSTD_STATIC_ASSERT((int)ZSTD_btultra2 == (int)zstd_btultra2);
 	/* Check input buffer */
 	ZSTD_STATIC_ASSERT(sizeof(ZSTD_inBuffer) == sizeof(struct zstd_in_buffer));
-	ZSTD_STATIC_ASSERT(offsetof(ZSTD_inBuffer, src) == offsetof(struct zstd_in_buffer, src));
-	ZSTD_STATIC_ASSERT(offsetof(ZSTD_inBuffer, size) == offsetof(struct zstd_in_buffer, size));
-	ZSTD_STATIC_ASSERT(offsetof(ZSTD_inBuffer, pos) == offsetof(struct zstd_in_buffer, pos));
+	ZSTD_STATIC_ASSERT(offsetof(ZSTD_inBuffer, src) ==
+		offsetof(struct zstd_in_buffer, src));
+	ZSTD_STATIC_ASSERT(offsetof(ZSTD_inBuffer, size) ==
+		offsetof(struct zstd_in_buffer, size));
+	ZSTD_STATIC_ASSERT(offsetof(ZSTD_inBuffer, pos) ==
+		offsetof(struct zstd_in_buffer, pos));
 	/* Check output buffer */
-	ZSTD_STATIC_ASSERT(sizeof(ZSTD_outBuffer) == sizeof(struct zstd_out_buffer));
-	ZSTD_STATIC_ASSERT(offsetof(ZSTD_outBuffer, dst) == offsetof(struct zstd_out_buffer, dst));
-	ZSTD_STATIC_ASSERT(offsetof(ZSTD_outBuffer, size) == offsetof(struct zstd_out_buffer, size));
-	ZSTD_STATIC_ASSERT(offsetof(ZSTD_outBuffer, pos) == offsetof(struct zstd_out_buffer, pos));
+	ZSTD_STATIC_ASSERT(sizeof(ZSTD_outBuffer) ==
+		sizeof(struct zstd_out_buffer));
+	ZSTD_STATIC_ASSERT(offsetof(ZSTD_outBuffer, dst) ==
+		offsetof(struct zstd_out_buffer, dst));
+	ZSTD_STATIC_ASSERT(offsetof(ZSTD_outBuffer, size) ==
+		offsetof(struct zstd_out_buffer, size));
+	ZSTD_STATIC_ASSERT(offsetof(ZSTD_outBuffer, pos) ==
+		offsetof(struct zstd_out_buffer, pos));
 }
 
 size_t zstd_compress_bound(size_t src_size)
@@ -55,7 +77,8 @@ size_t zstd_compress_bound(size_t src_size)
 }
 EXPORT_SYMBOL(zstd_compress_bound);
 
-struct zstd_parameters zstd_get_params(int level, unsigned long long estimated_src_size)
+struct zstd_parameters zstd_get_params(int level,
+	unsigned long long estimated_src_size)
 {
 	const ZSTD_parameters params = ZSTD_getParams(level, estimated_src_size, 0);
 	struct zstd_parameters out;
@@ -67,7 +90,8 @@ struct zstd_parameters zstd_get_params(int level, unsigned long long estimated_s
 }
 EXPORT_SYMBOL(zstd_get_params);
 
-size_t zstd_cctx_workspace_bound(const struct zstd_compression_parameters *cparams)
+size_t zstd_cctx_workspace_bound(
+	const struct zstd_compression_parameters *cparams)
 {
 	ZSTD_compressionParameters p;
 
@@ -84,7 +108,8 @@ zstd_cctx *zstd_init_cctx(void *workspace, size_t workspace_size)
 }
 EXPORT_SYMBOL(zstd_init_cctx);
 
-size_t zstd_compress_cctx(zstd_cctx *cctx, void *dst, size_t dst_capacity, const void *src, size_t src_size, const struct zstd_parameters* parameters)
+size_t zstd_compress_cctx(zstd_cctx *cctx, void *dst, size_t dst_capacity,
+	const void *src, size_t src_size, const struct zstd_parameters *parameters)
 {
 	ZSTD_parameters p;
 
@@ -93,7 +118,8 @@ size_t zstd_compress_cctx(zstd_cctx *cctx, void *dst, size_t dst_capacity, const
 }
 EXPORT_SYMBOL(zstd_compress_cctx);
 
-size_t zstd_cstream_workspace_bound(const struct zstd_compression_parameters *cparams)
+size_t zstd_cstream_workspace_bound(
+	const struct zstd_compression_parameters *cparams)
 {
 	ZSTD_compressionParameters p;
 
@@ -102,7 +128,8 @@ size_t zstd_cstream_workspace_bound(const struct zstd_compression_parameters *cp
 }
 EXPORT_SYMBOL(zstd_cstream_workspace_bound);
 
-zstd_cstream *zstd_init_cstream(const struct zstd_parameters *parameters, unsigned long long pledged_src_size, void *workspace, size_t workspace_size)
+zstd_cstream *zstd_init_cstream(const struct zstd_parameters *parameters,
+	unsigned long long pledged_src_size, void *workspace, size_t workspace_size)
 {
 	ZSTD_parameters p;
 	zstd_cstream *cstream;
@@ -128,13 +155,15 @@ zstd_cstream *zstd_init_cstream(const struct zstd_parameters *parameters, unsign
 }
 EXPORT_SYMBOL(zstd_init_cstream);
 
-size_t zstd_reset_cstream(zstd_cstream *cstream, unsigned long long pledged_src_size)
+size_t zstd_reset_cstream(zstd_cstream *cstream,
+	unsigned long long pledged_src_size)
 {
 	return ZSTD_resetCStream(cstream, pledged_src_size);
 }
 EXPORT_SYMBOL(zstd_reset_cstream);
 
-size_t zstd_compress_stream(zstd_cstream *cstream, struct zstd_out_buffer *output, struct zstd_in_buffer *input)
+size_t zstd_compress_stream(zstd_cstream *cstream,
+	struct zstd_out_buffer *output, struct zstd_in_buffer *input)
 {
 	ZSTD_outBuffer o;
 	ZSTD_inBuffer i;

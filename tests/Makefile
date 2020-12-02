@@ -94,23 +94,20 @@ allnothread: fullbench fuzzer paramgrill datagen decodecorpus
 # note : broken : requires symbols unavailable from dynamic library
 dll: fuzzer-dll zstreamtest-dll
 
-PHONY: zstd zstd32 zstd-nolegacy  # phony: only external makefile knows how to build or update them
+.PHONY: zstd zstd32 zstd-nolegacy  # only external makefile knows how to build or update them
 zstd zstd32 zstd-nolegacy:
-	$(MAKE) -C $(PRGDIR) $@ MOREFLAGS+="$(DEBUGFLAGS)" DEBUGLEVEL=$(DEBUGLEVEL)
-
-gzstd:
-	$(MAKE) -C $(PRGDIR) $@ HAVE_ZLIB=1 MOREFLAGS+="$(DEBUGFLAGS)" DEBUGLEVEL=$(DEBUGLEVEL)
+	$(MAKE) -C $(PRGDIR) $@ MOREFLAGS+="$(DEBUGFLAGS)"
 
 .PHONY: libzstd
 libzstd :
-	$(MAKE) -C $(ZSTDDIR) libzstd DEBUGLEVEL=$(DEBUGLEVEL)
+	$(MAKE) -C $(ZSTDDIR) libzstd
 
 %-dll : libzstd
-%-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd
+%-dll : LDFLAGS += -L$(ZSTDDIR) -lzstd
 
 .PHONY: zstd-staticLib
 zstd-staticLib :
-	$(MAKE) -C $(ZSTDDIR) libzstd.a DEBUGLEVEL=$(DEBUGLEVEL)
+	$(MAKE) -C $(ZSTDDIR) libzstd.a
 
 zstdm_%.o : $(ZSTDDIR)/common/%.c
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
@@ -326,35 +323,6 @@ test-zstd-nolegacy: zstd-nolegacy
 test-zstd test-zstd32 test-zstd-nolegacy: datagen
 	file $(ZSTD)
 	EXE_PREFIX="$(QEMU_SYS)" ZSTD_BIN="$(ZSTD)" DATAGEN_BIN=./datagen ./playTests.sh $(ZSTDRTTEST)
-
-
-test-gzstd: gzstd
-	$(PRGDIR)/zstd -f README.md test-zstd-speed.py
-	gzip -f README.md test-zstd-speed.py
-	cat README.md.zst test-zstd-speed.py.gz >zstd_gz.zst
-	cat README.md.gz test-zstd-speed.py.zst >gz_zstd.gz
-	$(PRGDIR)/zstd -df README.md.gz -o README2.md
-	$(PRGDIR)/zstd -df README.md.gz test-zstd-speed.py.gz
-	$(PRGDIR)/zstd -df zstd_gz.zst gz_zstd.gz
-	$(DIFF) -q zstd_gz gz_zstd
-	echo Hello World ZSTD | $(PRGDIR)/zstd -c - >hello.zst
-	echo Hello World GZIP | gzip -c - >hello.gz
-	echo Hello World TEXT >hello.txt
-	cat hello.zst hello.gz hello.txt >hello_zst_gz_txt.gz
-	$(PRGDIR)/zstd -dcf hello.*
-	$(PRGDIR)/zstd -dcf - <hello_zst_gz_txt.gz
-	$(RM) *.gz *.zst README2.md gz_zstd zstd_gz hello.txt
-
-test-zstdgrep: gzstd
-	-[ -f /tmp/zstdcat ] || ln -s $(PWD)/$(PRGDIR)/zstd /tmp/zstdcat
-	echo a | $(PRGDIR)/zstd | env ZCAT=/tmp/zstdcat $(PRGDIR)/zstdgrep a
-	echo a | $(PRGDIR)/zstd | env ZCAT=/tmp/zstdcat $(PRGDIR)/zstdgrep b && return 1 || return 0
-	-echo 'hello world' > test.txt && $(PRGDIR)/zstd test.txt
-	env ZCAT=/tmp/zstdcat $(PRGDIR)/zstdgrep hello test.txt.zst
-	env ZCAT=/tmp/zstdcat $(PRGDIR)/zstdgrep weird test.txt.zst && return 1 || return 0
-	-echo 'hello' > pattern.txt
-	env ZCAT=/tmp/zstdcat $(PRGDIR)/zstdgrep -f pattern.txt test.txt.zst
-	$(RM) test.txt test.txt.zst pattern.txt
 
 test-fullbench: fullbench datagen
 	$(QEMU_SYS) ./fullbench -i1

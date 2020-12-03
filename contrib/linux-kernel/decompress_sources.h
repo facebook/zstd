@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-only
+/* SPDX-License-Identifier: GPL-2.0-only */
 
 /*
  * This file includes every .c file needed for decompression.
@@ -16,3 +16,4 @@
 #include "decompress/zstd_ddict.c"
 #include "decompress/zstd_decompress.c"
 #include "decompress/zstd_decompress_block.c"
+#include "zstd_decompress_module.c"

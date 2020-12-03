@@ -31,13 +31,13 @@ static const char kEmptyZstdFrame[] = {
 static void test_decompress_unzstd() {
     fprintf(stderr, "Testing decompress unzstd... ");
     {
-        size_t const wkspSize = ZSTD_estimateDCtxSize();
+        size_t const wkspSize = zstd_dctx_workspace_bound();
         void* wksp = malloc(wkspSize);
         CONTROL(wksp != NULL);
-        ZSTD_DCtx* dctx = ZSTD_initStaticDCtx(wksp, wkspSize);
+        ZSTD_DCtx* dctx = zstd_init_dctx(wksp, wkspSize);
         CONTROL(dctx != NULL);
-        size_t const dSize = ZSTD_decompressDCtx(dctx, NULL, 0, kEmptyZstdFrame, sizeof(kEmptyZstdFrame));
-        CONTROL(!ZSTD_isError(dSize));
+        size_t const dSize = zstd_decompress_dctx(dctx, NULL, 0, kEmptyZstdFrame, sizeof(kEmptyZstdFrame));
+        CONTROL(!zstd_is_error(dSize));
         CONTROL(dSize == 0);
         free(wksp);
     }

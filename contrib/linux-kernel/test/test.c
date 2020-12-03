@@ -37,7 +37,7 @@ test_data_t create_test_data(void) {
   CONTROL(data.data != NULL);
   data.data2 = malloc(data.dataSize);
   CONTROL(data.data2 != NULL);
-  data.compSize = ZSTD_compressBound(data.dataSize);
+  data.compSize = zstd_compress_bound(data.dataSize);
   data.comp = malloc(data.compSize);
   CONTROL(data.comp != NULL);
   memset(data.data, 0, data.dataSize);
@@ -57,11 +57,11 @@ static void test_btrfs(test_data_t const *data) {
   fprintf(stderr, "testing btrfs use cases... ");
   size_t const size = MIN(data->dataSize, 128 * 1024);
   for (int level = -1; level < 16; ++level) {
-    ZSTD_parameters params = ZSTD_getParams(level, size, 0);
-    CONTROL(params.cParams.windowLog <= 17);
+    struct zstd_parameters params = zstd_get_params(level, size);
+    CONTROL(params.cparams.window_log <= 17);
     size_t const workspaceSize =
-        MAX(ZSTD_estimateCStreamSize_usingCParams(params.cParams),
-            ZSTD_estimateDStreamSize(size));
+        MAX(zstd_cstream_workspace_bound(&params.cparams),
+            zstd_dstream_workspace_bound(size));
     void *workspace = malloc(workspaceSize);
     CONTROL(workspace != NULL);
 
@@ -70,12 +70,10 @@ static void test_btrfs(test_data_t const *data) {
     char *op = data->comp;
     char *oend = op + data->compSize;
     {
-      ZSTD_CStream *cctx = ZSTD_initStaticCStream(workspace, workspaceSize);
+      zstd_cstream *cctx = zstd_init_cstream(&params, size, workspace, workspaceSize);
       CONTROL(cctx != NULL);
-      CONTROL(!ZSTD_isError(
-          ZSTD_initCStream_advanced(cctx, NULL, 0, params, size)));
-      ZSTD_outBuffer out = {NULL, 0, 0};
-      ZSTD_inBuffer in = {NULL, 0, 0};
+      struct zstd_out_buffer out = {NULL, 0, 0};
+      struct zstd_in_buffer in = {NULL, 0, 0};
       for (;;) {
         if (in.pos == in.size) {
           in.src = ip;
@@ -92,10 +90,10 @@ static void test_btrfs(test_data_t const *data) {
         }
 
         if (ip != iend || in.pos < in.size) {
-          CONTROL(!ZSTD_isError(ZSTD_compressStream(cctx, &out, &in)));
+          CONTROL(!zstd_is_error(zstd_compress_stream(cctx, &out, &in)));
         } else {
-          size_t const ret = ZSTD_endStream(cctx, &out);
-          CONTROL(!ZSTD_isError(ret));
+          size_t const ret = zstd_end_stream(cctx, &out);
+          CONTROL(!zstd_is_error(ret));
           if (ret == 0) {
             break;
           }
@@ -109,10 +107,10 @@ static void test_btrfs(test_data_t const *data) {
     op = data->data2;
     oend = op + size;
     {
-      ZSTD_DStream *dctx = ZSTD_initStaticDStream(workspace, workspaceSize);
+      zstd_dstream *dctx = zstd_init_dstream(1ULL << params.cparams.window_log, workspace, workspaceSize);
       CONTROL(dctx != NULL);
-      ZSTD_outBuffer out = {NULL, 0, 0};
-      ZSTD_inBuffer in = {NULL, 0, 0};
+      struct zstd_out_buffer out = {NULL, 0, 0};
+      struct zstd_in_buffer in = {NULL, 0, 0};
       for (;;) {
         if (in.pos == in.size) {
           in.src = ip;
@@ -128,8 +126,8 @@ static void test_btrfs(test_data_t const *data) {
           op += out.size;
         }
 
-        size_t const ret = ZSTD_decompressStream(dctx, &out, &in);
-        CONTROL(!ZSTD_isError(ret));
+        size_t const ret = zstd_decompress_stream(dctx, &out, &in);
+        CONTROL(!zstd_is_error(ret));
         if (ret == 0) {
           break;
         }
@@ -146,23 +144,24 @@ static void test_decompress_unzstd(test_data_t const *data) {
     fprintf(stderr, "Testing decompress unzstd... ");
     size_t cSize;
     {
-        size_t const wkspSize = ZSTD_estimateCCtxSize(19);
+        struct zstd_parameters params = zstd_get_params(19, 0);
+        size_t const wkspSize = zstd_cctx_workspace_bound(&params.cparams);
         void* wksp = malloc(wkspSize);
         CONTROL(wksp != NULL);
-        ZSTD_CCtx* cctx = ZSTD_initStaticCCtx(wksp, wkspSize);
+        zstd_cctx* cctx = zstd_init_cctx(wksp, wkspSize);
         CONTROL(cctx != NULL);
-        cSize = ZSTD_compressCCtx(cctx, data->comp, data->compSize, data->data, data->dataSize, 19);
-        CONTROL(!ZSTD_isError(cSize));
+        cSize = zstd_compress_cctx(cctx, data->comp, data->compSize, data->data, data->dataSize, &params);
+        CONTROL(!zstd_is_error(cSize));
         free(wksp);
     }
     {
-        size_t const wkspSize = ZSTD_estimateDCtxSize();
+        size_t const wkspSize = zstd_dctx_workspace_bound();
         void* wksp = malloc(wkspSize);
         CONTROL(wksp != NULL);
-        ZSTD_DCtx* dctx = ZSTD_initStaticDCtx(wksp, wkspSize);
+        zstd_dctx* dctx = zstd_init_dctx(wksp, wkspSize);
         CONTROL(dctx != NULL);
-        size_t const dSize = ZSTD_decompressDCtx(dctx, data->data2, data->dataSize, data->comp, cSize);
-        CONTROL(!ZSTD_isError(dSize));
+        size_t const dSize = zstd_decompress_dctx(dctx, data->data2, data->dataSize, data->comp, cSize);
+        CONTROL(!zstd_is_error(dSize));
         CONTROL(dSize == data->dataSize);
         CONTROL(!memcmp(data->data, data->data2, data->dataSize));
         free(wksp);

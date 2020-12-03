@@ -100,7 +100,9 @@ endif()
 # Label the "Medium" set of tests (see TESTING.md)
 set_property(TEST fuzzer zstreamtest playTests APPEND PROPERTY LABELS Medium)
 
+add_executable(paramgrill ${PROGRAMS_DIR}/benchfn.c ${PROGRAMS_DIR}/benchzstd.c ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/timefn.c ${TESTS_DIR}/paramgrill.c)
 if (UNIX)
-    add_executable(paramgrill ${PROGRAMS_DIR}/benchfn.c ${PROGRAMS_DIR}/benchzstd.c ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/timefn.c ${TESTS_DIR}/paramgrill.c)
     target_link_libraries(paramgrill libzstd_static m) #m is math library
+else()
+    target_link_libraries(paramgrill libzstd_static)
 endif ()

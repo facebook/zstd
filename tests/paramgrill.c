@@ -462,8 +462,8 @@ static paramValues_t emptyParams(void)
 static winnerInfo_t initWinnerInfo(const paramValues_t p)
 {
     winnerInfo_t w1;
-    w1.result.cSpeed = 0.;
-    w1.result.dSpeed = 0.;
+    w1.result.cSpeed = 0;
+    w1.result.dSpeed = 0;
     w1.result.cMem = (size_t)-1;
     w1.result.cSize = (size_t)-1;
     w1.params = p;
@@ -581,7 +581,7 @@ resultScore(const BMK_benchResult_t res, const size_t srcSize, const constraint_
 static double
 resultDistLvl(const BMK_benchResult_t result1, const BMK_benchResult_t lvlRes)
 {
-    double normalizedCSpeedGain1 = (result1.cSpeed / lvlRes.cSpeed) - 1;
+    double normalizedCSpeedGain1 = ((double)result1.cSpeed / lvlRes.cSpeed) - 1;
     double normalizedRatioGain1 = ((double)lvlRes.cSize / result1.cSize) - 1;
     if(normalizedRatioGain1 < 0 || normalizedCSpeedGain1 < 0) {
         return 0.0;
@@ -1133,7 +1133,7 @@ typedef struct {
 } contexts_t;
 
 static void freeNonSrcBuffers(const buffers_t b) {
-    free(b.srcPtrs);
+    free((void*)b.srcPtrs);
     free(b.srcSizes);
 
     if(b.dstPtrs != NULL) {
@@ -1669,7 +1669,7 @@ BMK_benchMemInvertible( buffers_t buf, contexts_t ctx,
     }
 
    /* Bench */
-    bResult.cMem = (1 << (comprParams->vals[wlog_ind])) + ZSTD_sizeof_CCtx(cctx);
+    bResult.cMem = ((U64)1 << (comprParams->vals[wlog_ind])) + ZSTD_sizeof_CCtx(cctx);
 
     {   BMK_benchOutcome_t bOut;
         bOut.tag = 0;
@@ -1804,7 +1804,7 @@ static void BMK_init_level_constraints(int bytePerSec_level1)
     assert(NB_LEVELS_TRACKED >= ZSTD_maxCLevel());
     memset(g_level_constraint, 0, sizeof(g_level_constraint));
     g_level_constraint[1].cSpeed_min = bytePerSec_level1;
-    g_level_constraint[1].dSpeed_min = 0.;
+    g_level_constraint[1].dSpeed_min = 0;
     g_level_constraint[1].windowLog_max = 19;
     g_level_constraint[1].strategy_max = ZSTD_fast;
 
@@ -1812,7 +1812,7 @@ static void BMK_init_level_constraints(int bytePerSec_level1)
     {   int l;
         for (l=2; l<=NB_LEVELS_TRACKED; l++) {
             g_level_constraint[l].cSpeed_min = (g_level_constraint[l-1].cSpeed_min * 49) / 64;
-            g_level_constraint[l].dSpeed_min = 0.;
+            g_level_constraint[l].dSpeed_min = 0;
             g_level_constraint[l].windowLog_max = (l<20) ? 23 : l+5;   /* only --ultra levels >= 20 can use windowlog > 23 */
             g_level_constraint[l].strategy_max = ZSTD_STRATEGY_MAX;
     }   }
@@ -1837,7 +1837,7 @@ static int BMK_seed(winnerInfo_t* winners,
             continue;   /* not fast enough for this level */
         if (params.vals[wlog_ind] > g_level_constraint[cLevel].windowLog_max)
             continue;   /* too much memory for this level */
-        if (params.vals[strt_ind] > g_level_constraint[cLevel].strategy_max)
+        if (params.vals[strt_ind] > (U32)g_level_constraint[cLevel].strategy_max)
             continue;   /* forbidden strategy for this level */
         if (winners[cLevel].result.cSize==0) {
             /* first solution for this cLevel */
@@ -1859,16 +1859,16 @@ static int BMK_seed(winnerInfo_t* winners,
             double W_DMemUsed_note = W_ratioNote * ( 40 + 9*cLevel) - log((double)W_DMemUsed);
             double O_DMemUsed_note = O_ratioNote * ( 40 + 9*cLevel) - log((double)O_DMemUsed);
 
-            size_t W_CMemUsed = (1 << params.vals[wlog_ind]) + ZSTD_estimateCCtxSize_usingCParams(pvalsToCParams(params));
-            size_t O_CMemUsed = (1 << winners[cLevel].params.vals[wlog_ind]) + ZSTD_estimateCCtxSize_usingCParams(pvalsToCParams(winners[cLevel].params));
+            size_t W_CMemUsed = (1ULL << params.vals[wlog_ind]) + ZSTD_estimateCCtxSize_usingCParams(pvalsToCParams(params));
+            size_t O_CMemUsed = (1ULL << winners[cLevel].params.vals[wlog_ind]) + ZSTD_estimateCCtxSize_usingCParams(pvalsToCParams(winners[cLevel].params));
             double W_CMemUsed_note = W_ratioNote * ( 50 + 13*cLevel) - log((double)W_CMemUsed);
             double O_CMemUsed_note = O_ratioNote * ( 50 + 13*cLevel) - log((double)O_CMemUsed);
 
-            double W_CSpeed_note = W_ratioNote * ( 30 + 10*cLevel) + log(testResult.cSpeed);
-            double O_CSpeed_note = O_ratioNote * ( 30 + 10*cLevel) + log(winners[cLevel].result.cSpeed);
+            double W_CSpeed_note = W_ratioNote * (double)( 30 + 10*cLevel) + log(testResult.cSpeed);
+            double O_CSpeed_note = O_ratioNote * (double)( 30 + 10*cLevel) + log(winners[cLevel].result.cSpeed);
 
-            double W_DSpeed_note = W_ratioNote * ( 20 + 2*cLevel) + log(testResult.dSpeed);
-            double O_DSpeed_note = O_ratioNote * ( 20 + 2*cLevel) + log(winners[cLevel].result.dSpeed);
+            double W_DSpeed_note = W_ratioNote * (double)( 20 + 2*cLevel) + log(testResult.dSpeed);
+            double O_DSpeed_note = O_ratioNote * (double)( 20 + 2*cLevel) + log(winners[cLevel].result.dSpeed);
 
             if (W_DMemUsed_note < O_DMemUsed_note) {
                 /* uses too much Decompression memory for too little benefit */
@@ -2227,7 +2227,7 @@ static winnerInfo_t climbOnce(const constraint_t target,
             }
 
             for (dist = 2; dist < varLen + 2; dist++) { /* varLen is # dimensions */
-                for (i = 0; i < (1 << varLen) / varLen + 2; i++) {
+                for (i = 0; i < (1ULL << varLen) / varLen + 2; i++) {
                     int res;
                     CHECKTIME(winnerInfo);
                     candidateInfo.params = cparam;

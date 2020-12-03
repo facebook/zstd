@@ -13,7 +13,7 @@ ZSTDLIB_PATH = ../../../lib
 ZSTDLIB_NAME = libzstd.a
 ZSTDLIB = $(ZSTDLIB_PATH)/$(ZSTDLIB_NAME)
 
-CPPFLAGS += -I../ -I../../../lib -I../../../lib/common
+CPPFLAGS += -I../ -I$(ZSTDLIB_PATH) -I$(ZSTDLIB_PATH)/common
 
 CFLAGS ?= -O3
 CFLAGS += -g
@@ -22,15 +22,15 @@ SEEKABLE_OBJS = ../zstdseek_compress.c ../zstdseek_decompress.c $(ZSTDLIB)
 
 .PHONY: default clean test
 
-default: test
+default: seekable_tests
 
 test: seekable_tests
+	./seekable_tests
 
 $(ZSTDLIB):
-	make -C $(ZSTDLIB_PATH) $(ZSTDLIB_NAME)
+	$(MAKE) -C $(ZSTDLIB_PATH) $(ZSTDLIB_NAME)
 
 seekable_tests : seekable_tests.c $(SEEKABLE_OBJS)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 clean:
 	@rm -f core *.o tmp* result* *.zst \

@@ -89,7 +89,11 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: cmake build and test check
-      run: make cmakebuild
+      run: |
+        make cmakebuild
+        cp -r ./ "../zstd source"
+        cd "../zstd source"
+        make cmakebuild
 
   gcc-8-asan-ubsan-fuzz:
     runs-on: ubuntu-latest

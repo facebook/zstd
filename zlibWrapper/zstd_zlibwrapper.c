@@ -182,7 +182,7 @@ static ZWRAP_CCtx* ZWRAP_createCCtx(z_streamp strm)
 {
     ZWRAP_CCtx* zwc;
     ZSTD_customMem customMem = { NULL, NULL, NULL };
-    
+
     if (strm->zalloc && strm->zfree) {
         customMem.customAlloc = ZWRAP_allocFunction;
         customMem.customFree = ZWRAP_freeFunction;
@@ -246,6 +246,10 @@ int ZWRAP_setPledgedSrcSize(z_streamp strm, unsigned long long pledgedSrcSize)
     return Z_OK;
 }
 
+static struct internal_state* convert_into_sis(void* ptr)
+{
+    return (struct internal_state*) ptr;
+}
 
 ZEXTERN int ZEXPORT z_deflateInit_ OF((z_streamp strm, int level,
                                      const char *version, int stream_size))
@@ -266,7 +270,7 @@ ZEXTERN int ZEXPORT z_deflateInit_ OF((z_streamp strm, int level,
     zwc->streamEnd = 0;
     zwc->totalInBytes = 0;
     zwc->compressionLevel = level;
-    strm->state = (struct internal_state*) zwc; /* use state which in not used by user */
+    strm->state = convert_into_sis(zwc); /* use state which in not used by user */
     strm->total_in = 0;
     strm->total_out = 0;
     strm->adler = 0;
@@ -593,7 +597,7 @@ ZEXTERN int ZEXPORT z_inflateInit_ OF((z_streamp strm,
 
         zwd->stream_size = stream_size;
         zwd->totalInBytes = 0;
-        strm->state = (struct internal_state*) zwd;
+        strm->state = convert_into_sis(zwd);
         strm->total_in = 0;
         strm->total_out = 0;
         strm->reserved = ZWRAP_UNKNOWN_STREAM;

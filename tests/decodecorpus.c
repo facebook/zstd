@@ -199,7 +199,7 @@ typedef struct {
     int hufInit;
     /* the distribution used in the previous block for repeat mode */
     BYTE hufDist[DISTSIZE];
-    U32 hufTable [256]; /* HUF_CElt is an incomplete type */
+    HUF_CElt hufTable [256];
 
     int fseInit;
     FSE_CTable offcodeCTable  [FSE_CTABLE_SIZE_U32(OffFSELog, MaxOff)];
@@ -535,7 +535,7 @@ static size_t writeLiteralsBlockCompressed(U32* seed, frame_t* frame, size_t con
                  * actual data to avoid bugs with symbols that were in the
                  * distribution but never showed up in the output */
                 hufHeaderSize = writeHufHeader(
-                        seed, (HUF_CElt*)frame->stats.hufTable, op, opend - op,
+                        seed, frame->stats.hufTable, op, opend - op,
                         frame->stats.hufDist, DISTSIZE);
                 CHECKERR(hufHeaderSize);
                 /* repeat until a valid header is written */
@@ -558,10 +558,10 @@ static size_t writeLiteralsBlockCompressed(U32* seed, frame_t* frame, size_t con
                     sizeFormat == 0
                             ? HUF_compress1X_usingCTable(
                                       op, opend - op, LITERAL_BUFFER, litSize,
-                                      (HUF_CElt*)frame->stats.hufTable)
+                                      frame->stats.hufTable)
                             : HUF_compress4X_usingCTable(
                                       op, opend - op, LITERAL_BUFFER, litSize,
-                                      (HUF_CElt*)frame->stats.hufTable);
+                                      frame->stats.hufTable);
             CHECKERR(compressedSize);
             /* this only occurs when it could not compress or similar */
         } while (compressedSize <= 0);

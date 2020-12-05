@@ -155,6 +155,7 @@ size_t HUF_readCTable (HUF_CElt* CTable, unsigned* maxSymbolValuePtr, const void
 
     /* get symbol weights */
     CHECK_V_F(readSize, HUF_readStats(huffWeight, HUF_SYMBOLVALUE_MAX+1, rankVal, &nbSymbols, &tableLog, src, srcSize));
+    *hasZeroWeights = (rankVal[0] > 0);
 
     /* check result */
     if (tableLog > HUF_TABLELOG_MAX) return ERROR(tableLog_tooLarge);
@@ -169,10 +170,8 @@ size_t HUF_readCTable (HUF_CElt* CTable, unsigned* maxSymbolValuePtr, const void
     }   }
 
     /* fill nbBits */
-    *hasZeroWeights = 0;
     {   U32 n; for (n=0; n<nbSymbols; n++) {
             const U32 w = huffWeight[n];
-            *hasZeroWeights |= (w == 0);
             CTable[n].nbBits = (BYTE)(tableLog + 1 - w) & -(w != 0);
     }   }
 

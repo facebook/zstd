@@ -261,11 +261,12 @@ size_t HUF_readStats(BYTE* huffWeight, size_t hwSize, U32* rankStats,
     return HUF_readStats_wksp(huffWeight, hwSize, rankStats, nbSymbolsPtr, tableLogPtr, src, srcSize, wksp, sizeof(wksp), /* bmi2 */ 0);
 }
 
-FORCE_INLINE_TEMPLATE size_t HUF_readStats_body(BYTE* huffWeight, size_t hwSize, U32* rankStats,
-                     U32* nbSymbolsPtr, U32* tableLogPtr,
-                     const void* src, size_t srcSize,
-                     void* workSpace, size_t wkspSize,
-                     int bmi2)
+FORCE_INLINE_TEMPLATE size_t
+HUF_readStats_body(BYTE* huffWeight, size_t hwSize, U32* rankStats,
+                   U32* nbSymbolsPtr, U32* tableLogPtr,
+                   const void* src, size_t srcSize,
+                   void* workSpace, size_t wkspSize,
+                   int bmi2)
 {
     U32 weightTotal;
     const BYTE* ip = (const BYTE*) src;
@@ -289,7 +290,8 @@ FORCE_INLINE_TEMPLATE size_t HUF_readStats_body(BYTE* huffWeight, size_t hwSize,
     }   }   }
     else  {   /* header compressed with FSE (normal case) */
         if (iSize+1 > srcSize) return ERROR(srcSize_wrong);
-        oSize = FSE_decompress_wksp_bmi2(huffWeight, hwSize-1, ip+1, iSize, 6, workSpace, wkspSize, bmi2);   /* max (hwSize-1) values decoded, as last one is implied */
+        /* max (hwSize-1) values decoded, as last one is implied */
+        oSize = FSE_decompress_wksp_bmi2(huffWeight, hwSize-1, ip+1, iSize, 6, workSpace, wkspSize, bmi2);
         if (FSE_isError(oSize)) return oSize;
     }
 

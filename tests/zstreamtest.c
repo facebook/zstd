@@ -2299,6 +2299,7 @@ static int fuzzerTests_newAPI(U32 seed, int nbTests, int startTest,
                             /* Ensure maximal forward progress for determinism */
                             forwardProgress = (inBuff.pos != ipos) || (outBuff.pos != opos);
                         } while (forwardProgress);
+                        assert(inBuff.pos == inBuff.size);
 
                         XXH64_update(&xxhState, srcBuffer+srcStart, inBuff.pos);
                         memcpy(copyBuffer+totalTestSize, srcBuffer+srcStart, inBuff.pos);

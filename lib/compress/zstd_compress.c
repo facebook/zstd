@@ -485,6 +485,11 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
         bounds.lowerBound = 0;
         bounds.upperBound = 1;
         return bounds;
+    
+    case ZSTD_c_splitBlocks:
+        bounds.lowerBound = 0;
+        bounds.upperBound = 1;
+        return bounds;
 
     default:
         bounds.error = ERROR(parameter_unsupported);
@@ -547,6 +552,7 @@ static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
     case ZSTD_c_stableOutBuffer:
     case ZSTD_c_blockDelimiters:
     case ZSTD_c_validateSequences:
+    case ZSTD_c_splitBlocks:
     default:
         return 0;
     }
@@ -599,6 +605,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value)
     case ZSTD_c_stableOutBuffer:
     case ZSTD_c_blockDelimiters:
     case ZSTD_c_validateSequences:
+    case ZSTD_c_splitBlocks:
         break;
 
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
@@ -810,6 +817,11 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
         CCtxParams->validateSequences = value;
         return CCtxParams->validateSequences;
 
+    case ZSTD_c_splitBlocks:
+        BOUNDCHECK(ZSTD_c_splitBlocks, value);
+        CCtxParams->splitBlocks = value;
+        return CCtxParams->splitBlocks;
+
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
     }
 }
@@ -932,6 +944,9 @@ size_t ZSTD_CCtxParams_getParameter(
         break;
     case ZSTD_c_validateSequences :
         *value = (int)CCtxParams->validateSequences;
+        break;
+    case ZSTD_c_splitBlocks :
+        *value = (int)CCtxParams->splitBlocks;
         break;
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
     }
@@ -3293,14 +3308,15 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
         nbSeq = (size_t)(zc->seqStore.sequences - zc->seqStore.sequencesStart);
     }
 
-    if (nbSeq >= 2) {
+    zc->appliedParams.splitBlocks = 1; /* remove */
+    if (zc->appliedParams.splitBlocks && nbSeq >= 2) {
         size_t splitBlocksCompressedSize;
         splitBlocksCompressedSize = ZSTD_compressBlock_splitBlock(zc, dst, dstCapacity, src, srcSize, frame, lastBlock, nbSeq);
         if (splitBlocksCompressedSize != 0) {
             return splitBlocksCompressedSize;
         }
     }
-    
+
     /* encode sequences and literals */
     cSize = ZSTD_entropyCompressSequences(&zc->seqStore,
             &zc->blockState.prevCBlock->entropy, &zc->blockState.nextCBlock->entropy,

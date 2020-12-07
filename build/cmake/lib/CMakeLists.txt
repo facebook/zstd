@@ -157,14 +157,14 @@ if (UNIX OR MINGW)
 
     add_custom_target(libzstd.pc ALL
             ${CMAKE_COMMAND}
-            -DIN="${LIBRARY_DIR}/libzstd.pc.in"
+            -DIN=${LIBRARY_DIR}/libzstd.pc.in
             -DOUT="libzstd.pc"
             -DPREFIX="${PREFIX}"
             -DEXEC_PREFIX="${EXEC_PREFIX}"
             -DINCLUDEDIR="${INCLUDEDIR_PREFIX}${INCLUDEDIR_SUFFIX}"
             -DLIBDIR="${LIBDIR_PREFIX}${LIBDIR_SUFFIX}"
             -DVERSION="${VERSION}"
-            -P "${CMAKE_CURRENT_SOURCE_DIR}/pkgconfig.cmake"
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/pkgconfig.cmake
             COMMENT "Creating pkg-config file")
 
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libzstd.pc" DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")

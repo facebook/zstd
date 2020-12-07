@@ -273,10 +273,10 @@ ln -sf "$ZSTD_BIN" zstdcat
 rm -f tmp_grep
 echo "1234" > tmp_grep
 zstd -f tmp_grep
-lines=$(ZCAT=./zstdcat $ZSTDGREP 2>&1 "1234" tmp_grep tmp_grep.zst | wc -l)
+lines=$(ZCAT=./zstdcat "$ZSTDGREP" 2>&1 "1234" tmp_grep tmp_grep.zst | wc -l)
 test 2 -eq $lines
-ZCAT=./zstdcat $ZSTDGREP 2>&1 "1234" tmp_grep_bad.zst && die "Should have failed"
-ZCAT=./zstdcat $ZSTDGREP 2>&1 "1234" tmp_grep_bad.zst | grep "No such file or directory" || true
+ZCAT=./zstdcat "$ZSTDGREP" 2>&1 "1234" tmp_grep_bad.zst && die "Should have failed"
+ZCAT=./zstdcat "$ZSTDGREP" 2>&1 "1234" tmp_grep_bad.zst | grep "No such file or directory" || true
 rm -f tmp_grep*
 
 println "\n===>  --exclude-compressed flag"

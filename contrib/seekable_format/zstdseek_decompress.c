@@ -79,6 +79,8 @@
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
+#define ZSTD_SEEKABLE_NO_OUTPUT_PROGRESS_MAX 16
+
 /* Special-case callbacks for FILE* and in-memory modes, so that we can treat
  * them the same way as the advanced API */
 static int ZSTD_seekable_read_FILE(void* opaque, void* buffer, size_t n)
@@ -380,6 +382,7 @@ size_t ZSTD_seekable_initAdvanced(ZSTD_seekable* zs, ZSTD_seekable_customFile sr
 size_t ZSTD_seekable_decompress(ZSTD_seekable* zs, void* dst, size_t len, unsigned long long offset)
 {
     U32 targetFrame = ZSTD_seekable_offsetToFrameIndex(zs, offset);
+    U32 noOutputProgressCount = 0;
     do {
         /* check if we can continue from a previous decompress job */
         if (targetFrame != zs->curFrame || offset != zs->decompressedOffset) {
@@ -398,6 +401,7 @@ size_t ZSTD_seekable_decompress(ZSTD_seekable* zs, void* dst, size_t len, unsign
             size_t toRead;
             ZSTD_outBuffer outTmp;
             size_t prevOutPos;
+            size_t forwardProgress;
             if (zs->decompressedOffset < offset) {
                 /* dummy decompressions until we get to the target offset */
                 outTmp = (ZSTD_outBuffer){zs->outBuff, MIN(SEEKABLE_BUFF_SIZE, offset - zs->decompressedOffset), 0};
@@ -415,7 +419,15 @@ size_t ZSTD_seekable_decompress(ZSTD_seekable* zs, void* dst, size_t len, unsign
                 XXH64_update(&zs->xxhState, (BYTE*)outTmp.dst + prevOutPos,
                              outTmp.pos - prevOutPos);
             }
-            zs->decompressedOffset += outTmp.pos - prevOutPos;
+            forwardProgress = outTmp.pos - prevOutPos;
+            if (forwardProgress == 0) {
+                if (noOutputProgressCount++ > ZSTD_SEEKABLE_NO_OUTPUT_PROGRESS_MAX) {
+                    return ERROR(seekableIO);
+                }
+            } else {
+                noOutputProgressCount = 0;
+            }
+            zs->decompressedOffset += forwardProgress;
 
             if (toRead == 0) {
                 /* frame complete */

@@ -86,7 +86,7 @@ add_test(NAME zstreamtest COMMAND zstreamtest ${ZSTD_ZSTREAM_FLAGS})
 #
 AddTestFlagsOption(ZSTD_PLAYTESTS_FLAGS "--test-large-data"
     "Semicolon-separated list of flags to pass to the playTests.sh test")
-add_test(NAME playTests COMMAND sh -c "${TESTS_DIR}/playTests.sh" ${ZSTD_PLAYTESTS_FLAGS})
+add_test(NAME playTests COMMAND sh -c "\"${TESTS_DIR}/playTests.sh\" ${ZSTD_PLAYTESTS_FLAGS}")
 if (ZSTD_BUILD_PROGRAMS)
     set_property(TEST playTests APPEND PROPERTY ENVIRONMENT
         "ZSTD_BIN=$<TARGET_FILE:zstd>"

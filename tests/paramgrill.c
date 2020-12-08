@@ -1240,7 +1240,7 @@ static int createBuffers(buffers_t* buff, const char* const * const fileNamesTab
                           size_t nbFiles) {
     size_t pos = 0;
     size_t n;
-    size_t totalSizeToLoad = UTIL_getTotalFileSize(fileNamesTable, (U32)nbFiles);
+    size_t totalSizeToLoad = (size_t)UTIL_getTotalFileSize(fileNamesTable, (U32)nbFiles);
     size_t benchedSize = MIN(BMK_findMaxMem(totalSizeToLoad * 3) / 3, totalSizeToLoad);
     size_t* fileSizes = calloc(sizeof(size_t), nbFiles);
     void* srcBuffer = NULL;
@@ -1325,7 +1325,7 @@ static int createContexts(contexts_t* ctx, const char* dictFileName) {
     }
     {   U64 const dictFileSize = UTIL_getFileSize(dictFileName);
         assert(dictFileSize != UTIL_FILESIZE_UNKNOWN);
-        ctx->dictSize = dictFileSize;
+        ctx->dictSize = (size_t)dictFileSize;
         assert((U64)ctx->dictSize == dictFileSize); /* check overflow */
     }
     ctx->dictBuffer = malloc(ctx->dictSize);
@@ -1492,7 +1492,7 @@ createMemoTableArray(const paramValues_t p,
 
         if(memoTableLog != PARAM_UNSET && mtl > (1ULL << memoTableLog)) { /* use hash table */ /* provide some option to only use hash tables? */
             mtAll[i].tableType = xxhashMap;
-            mtl = (1ULL << memoTableLog);
+            mtl = ((size_t)1 << memoTableLog);
         }
 
         mtAll[i].table = (BYTE*)calloc(sizeof(BYTE), mtl);
@@ -1669,7 +1669,7 @@ BMK_benchMemInvertible( buffers_t buf, contexts_t ctx,
     }
 
    /* Bench */
-    bResult.cMem = ((U64)1 << (comprParams->vals[wlog_ind])) + ZSTD_sizeof_CCtx(cctx);
+    bResult.cMem = ((size_t)1 << (comprParams->vals[wlog_ind])) + ZSTD_sizeof_CCtx(cctx);
 
     {   BMK_benchOutcome_t bOut;
         bOut.tag = 0;
@@ -1859,8 +1859,8 @@ static int BMK_seed(winnerInfo_t* winners,
             double W_DMemUsed_note = W_ratioNote * ( 40 + 9*cLevel) - log((double)W_DMemUsed);
             double O_DMemUsed_note = O_ratioNote * ( 40 + 9*cLevel) - log((double)O_DMemUsed);
 
-            size_t W_CMemUsed = (1ULL << params.vals[wlog_ind]) + ZSTD_estimateCCtxSize_usingCParams(pvalsToCParams(params));
-            size_t O_CMemUsed = (1ULL << winners[cLevel].params.vals[wlog_ind]) + ZSTD_estimateCCtxSize_usingCParams(pvalsToCParams(winners[cLevel].params));
+            size_t W_CMemUsed = ((size_t)1 << params.vals[wlog_ind]) + ZSTD_estimateCCtxSize_usingCParams(pvalsToCParams(params));
+            size_t O_CMemUsed = ((size_t)1 << winners[cLevel].params.vals[wlog_ind]) + ZSTD_estimateCCtxSize_usingCParams(pvalsToCParams(winners[cLevel].params));
             double W_CMemUsed_note = W_ratioNote * ( 50 + 13*cLevel) - log((double)W_CMemUsed);
             double O_CMemUsed_note = O_ratioNote * ( 50 + 13*cLevel) - log((double)O_CMemUsed);
 

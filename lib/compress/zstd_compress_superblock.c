@@ -727,7 +727,7 @@ size_t ZSTD_compressSuperBlock(ZSTD_CCtx* zc,
                                unsigned lastBlock) {
     ZSTD_entropyCTablesMetadata_t entropyMetadata;
 
-    FORWARD_IF_ERROR(ZSTD_buildSuperBlockEntropy(&zc->seqStore,
+    FORWARD_IF_ERROR(ZSTD_buildBlockEntropyStats(&zc->seqStore,
           &zc->blockState.prevCBlock->entropy,
           &zc->blockState.nextCBlock->entropy,
           &zc->appliedParams,

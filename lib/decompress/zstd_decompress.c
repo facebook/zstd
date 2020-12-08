@@ -763,7 +763,7 @@ size_t ZSTD_insertBlock(ZSTD_DCtx* dctx, const void* blockStart, size_t blockSiz
 static size_t ZSTD_copyRawBlock(void* dst, size_t dstCapacity,
                           const void* src, size_t srcSize)
 {
-    DEBUGLOG(2, "ZSTD_copyRawBlock: %u", srcSize);
+    DEBUGLOG(5, "ZSTD_copyRawBlock");
     RETURN_ERROR_IF(srcSize > dstCapacity, dstSize_tooSmall, "");
     if (dst == NULL) {
         if (srcSize == 0) return 0;
@@ -847,7 +847,6 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
 
     /* Loop on each block */
     while (1) {
-        DEBUGLOG(2, "Remaining dstCap: %u", (size_t)(oend-op));
         size_t decodedSize;
         blockProperties_t blockProperties;
         size_t const cBlockSize = ZSTD_getcBlockSize(ip, remainingSrcSize, &blockProperties);
@@ -876,10 +875,8 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
         if (ZSTD_isError(decodedSize)) return decodedSize;
         if (dctx->validateChecksum)
             XXH64_update(&dctx->xxhState, op, decodedSize);
-        if (decodedSize != 0) {
-            DEBUGLOG(2, "Decoded: %u", decodedSize);
+        if (decodedSize != 0)
             op += decodedSize;
-        }
         assert(ip != NULL);
         ip += cBlockSize;
         remainingSrcSize -= cBlockSize;
@@ -1192,7 +1189,7 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
             }
             FORWARD_IF_ERROR(rSize, "");
             RETURN_ERROR_IF(rSize > dctx->fParams.blockSizeMax, corruption_detected, "Decompressed Block Size Exceeds Maximum");
-            DEBUGLOG(2, "ZSTD_decompressContinue: decoded size from block : %u", (unsigned)rSize);
+            DEBUGLOG(5, "ZSTD_decompressContinue: decoded size from block : %u", (unsigned)rSize);
             dctx->decodedSize += rSize;
             if (dctx->validateChecksum) XXH64_update(&dctx->xxhState, dst, rSize);
             dctx->previousDstEnd = (char*)dst + rSize;

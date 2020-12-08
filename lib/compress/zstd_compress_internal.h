@@ -89,7 +89,7 @@ typedef struct {
  *  Stores Literals Block Type for a super-block in hType, and
  *  huffman tree description in hufDesBuffer.
  *  hufDesSize refers to the size of huffman tree description in bytes.
- *  This metadata is populated in ZSTD_buildSuperBlockEntropy_literal() */
+ *  This metadata is populated in ZSTD_buildBlockEntropyStats_literals() */
 typedef struct {
     symbolEncodingType_e hType;
     BYTE hufDesBuffer[ZSTD_MAX_HUF_HEADER_SIZE];
@@ -100,7 +100,7 @@ typedef struct {
  *  Stores symbol compression modes for a super-block in {ll, ol, ml}Type, and
  *  fse tables in fseTablesBuffer.
  *  fseTablesSize refers to the size of fse tables in bytes.
- *  This metadata is populated in ZSTD_buildSuperBlockEntropy_sequences() */
+ *  This metadata is populated in ZSTD_buildBlockEntropyStats_sequences() */
 typedef struct {
     symbolEncodingType_e llType;
     symbolEncodingType_e ofType;
@@ -115,10 +115,10 @@ typedef struct {
     ZSTD_fseCTablesMetadata_t fseMetadata;
 } ZSTD_entropyCTablesMetadata_t;
 
-/** ZSTD_buildSuperBlockEntropy() :
+/** ZSTD_buildBlockEntropyStats() :
  *  Builds entropy for the super-block.
  *  @return : 0 on success or error code */
-size_t ZSTD_buildSuperBlockEntropy(seqStore_t* seqStorePtr,
+size_t ZSTD_buildBlockEntropyStats(seqStore_t* seqStorePtr,
                              const ZSTD_entropyCTables_t* prevEntropy,
                                    ZSTD_entropyCTables_t* nextEntropy,
                              const ZSTD_CCtx_params* cctxParams,

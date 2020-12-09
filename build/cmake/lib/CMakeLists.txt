@@ -137,12 +137,33 @@ endif ()
 if (UNIX OR MINGW)
     # pkg-config
     set(PREFIX "${CMAKE_INSTALL_PREFIX}")
-    set(LIBDIR "${CMAKE_INSTALL_LIBDIR}")
-    set(INCLUDEDIR "${CMAKE_INSTALL_INCLUDEDIR}")
+    set(EXEC_PREFIX "\\$$\{prefix}")
+    set(LIBDIR "${CMAKE_INSTALL_FULL_LIBDIR}")
+    set(INCLUDEDIR "${CMAKE_INSTALL_FULL_INCLUDEDIR}")
     set(VERSION "${zstd_VERSION}")
+
+    string(LENGTH "${PREFIX}" PREFIX_LENGTH)
+    string(SUBSTRING "${LIBDIR}" 0 ${PREFIX_LENGTH} LIBDIR_PREFIX)
+    string(SUBSTRING "${LIBDIR}" ${PREFIX_LENGTH} -1 LIBDIR_SUFFIX)
+    string(SUBSTRING "${INCLUDEDIR}" 0 ${PREFIX_LENGTH} INCLUDEDIR_PREFIX)
+    string(SUBSTRING "${INCLUDEDIR}" ${PREFIX_LENGTH} -1 INCLUDEDIR_SUFFIX)
+
+    if ("${INCLUDEDIR_PREFIX}" STREQUAL "${PREFIX}")
+        set(INCLUDEDIR_PREFIX "\\$$\{prefix}")
+    endif()
+    if ("${LIBDIR_PREFIX}" STREQUAL "${PREFIX}")
+        set(LIBDIR_PREFIX "\\$$\{exec_prefix}")
+    endif()
+
     add_custom_target(libzstd.pc ALL
-            ${CMAKE_COMMAND} -DIN="${LIBRARY_DIR}/libzstd.pc.in" -DOUT="libzstd.pc"
-            -DPREFIX="${PREFIX}" -DLIBDIR="${LIBDIR}" -DINCLUDEDIR="${INCLUDEDIR}" -DVERSION="${VERSION}"
+            ${CMAKE_COMMAND}
+            -DIN="${LIBRARY_DIR}/libzstd.pc.in"
+            -DOUT="libzstd.pc"
+            -DPREFIX="${PREFIX}"
+            -DEXEC_PREFIX="${EXEC_PREFIX}"
+            -DINCLUDEDIR="${INCLUDEDIR_PREFIX}${INCLUDEDIR_SUFFIX}"
+            -DLIBDIR="${LIBDIR_PREFIX}${LIBDIR_SUFFIX}"
+            -DVERSION="${VERSION}"
             -P "${CMAKE_CURRENT_SOURCE_DIR}/pkgconfig.cmake"
             COMMENT "Creating pkg-config file")
 

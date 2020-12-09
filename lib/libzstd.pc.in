@@ -3,9 +3,9 @@
 #   BSD 2-Clause License (http://www.opensource.org/licenses/bsd-license.php)
 
 prefix=@PREFIX@
-exec_prefix=${prefix}
-includedir=${prefix}/@INCLUDEDIR@
-libdir=${exec_prefix}/@LIBDIR@
+exec_prefix=@EXEC_PREFIX@
+includedir=@INCLUDEDIR@
+libdir=@LIBDIR@
 
 Name: zstd
 Description: fast lossless compression algorithm library

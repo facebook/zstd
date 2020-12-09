@@ -353,6 +353,8 @@ ifneq (,$(filter $(UNAME),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD D
 
 all: libzstd.pc
 
+HAS_EXPLICIT_EXEC_PREFIX := $(if $(or $(EXEC_PREFIX),$(exec_prefix)),1,)
+
 DESTDIR     ?=
 # directory variables : GNU conventions prefer lowercase
 # see https://www.gnu.org/prep/standards/html_node/Makefile-Conventions.html
@@ -366,24 +368,17 @@ LIBDIR      ?= $(libdir)
 includedir  ?= $(PREFIX)/include
 INCLUDEDIR  ?= $(includedir)
 
-PCLIBDIR ?= $(shell echo "$(LIBDIR)" | sed -n $(SED_ERE_OPT) -e "s@^$(EXEC_PREFIX)(/|$$)@@p")
-PCINCDIR ?= $(shell echo "$(INCLUDEDIR)" | sed -n $(SED_ERE_OPT) -e "s@^$(PREFIX)(/|$$)@@p")
+PCINCDIR := $(patsubst $(PREFIX)%,%,$(INCLUDEDIR))
+PCLIBDIR := $(patsubst $(EXEC_PREFIX)%,%,$(LIBDIR))
 
-ifeq (,$(PCLIBDIR))
-# Additional prefix check is required, since the empty string is technically a
-# valid PCLIBDIR
-ifeq (,$(shell echo "$(LIBDIR)" | sed -n $(SED_ERE_OPT) -e "\\@^$(EXEC_PREFIX)(/|$$)@ p"))
-$(error configured libdir ($(LIBDIR)) is outside of prefix ($(EXEC_PREFIX)), can't generate pkg-config file)
-endif
-endif
+# If we successfully stripped off a prefix, we'll add a reference to the
+# relevant pc variable.
+PCINCPREFIX := $(if $(findstring $(INCLUDEDIR),$(PCINCDIR)),,$${prefix})
+PCLIBPREFIX := $(if $(findstring $(LIBDIR),$(PCLIBDIR)),,$${exec_prefix})
 
-ifeq (,$(PCINCDIR))
-# Additional prefix check is required, since the empty string is technically a
-# valid PCINCDIR
-ifeq (,$(shell echo "$(INCLUDEDIR)" | sed -n $(SED_ERE_OPT) -e "\\@^$(PREFIX)(/|$$)@ p"))
-$(error configured includedir ($(INCLUDEDIR)) is outside of exec_prefix ($(PREFIX)), can't generate pkg-config file)
-endif
-endif
+# If no explicit EXEC_PREFIX was set by the caller, write it out as a reference
+# to PREFIX, rather than as a resolved value.
+PCEXEC_PREFIX := $(if $(HAS_EXPLICIT_EXEC_PREFIX),$(EXEC_PREFIX),$${prefix})
 
 ifneq (,$(filter $(UNAME),FreeBSD NetBSD DragonFly))
   PKGCONFIGDIR ?= $(PREFIX)/libdata/pkgconfig
@@ -404,9 +399,11 @@ INSTALL_DATA    ?= $(INSTALL) -m 644
 libzstd.pc:
 libzstd.pc: libzstd.pc.in
 	@echo creating pkgconfig
-	@sed $(SED_ERE_OPT) -e 's|@PREFIX@|$(PREFIX)|' \
-          -e 's|@LIBDIR@|$(PCLIBDIR)|' \
-          -e 's|@INCLUDEDIR@|$(PCINCDIR)|' \
+	@sed $(SED_ERE_OPT) \
+	        -e 's|@PREFIX@|$(PREFIX)|' \
+	        -e 's|@EXEC_PREFIX@|$(PCEXEC_PREFIX)|' \
+          -e 's|@INCLUDEDIR@|$(PCINCPREFIX)$(PCINCDIR)|' \
+          -e 's|@LIBDIR@|$(PCLIBPREFIX)$(PCLIBDIR)|' \
           -e 's|@VERSION@|$(VERSION)|' \
           $< >$@
 

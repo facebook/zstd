@@ -109,7 +109,7 @@ ZSTD_CCtx* ZSTD_initStaticCCtx(void* workspace, size_t workspaceSize)
     ZSTD_CCtx* cctx;
     if (workspaceSize <= sizeof(ZSTD_CCtx)) return NULL;  /* minimum size */
     if ((size_t)workspace & 7) return NULL;  /* must be 8-aligned */
-    ZSTD_cwksp_init(&ws, workspace, workspaceSize, 1 /* static */);
+    ZSTD_cwksp_init(&ws, workspace, workspaceSize, ZSTD_cwksp_static_alloc);
 
     cctx = (ZSTD_CCtx*)ZSTD_cwksp_reserve_object(&ws, sizeof(ZSTD_CCtx));
     if (cctx == NULL) return NULL;
@@ -3692,7 +3692,7 @@ static ZSTD_CDict* ZSTD_createCDict_advanced_internal(size_t dictSize,
             return NULL;
         }
 
-        ZSTD_cwksp_init(&ws, workspace, workspaceSize, 0 /* not static */);
+        ZSTD_cwksp_init(&ws, workspace, workspaceSize, ZSTD_cwksp_dynamic_alloc);
 
         cdict = (ZSTD_CDict*)ZSTD_cwksp_reserve_object(&ws, sizeof(ZSTD_CDict));
         assert(cdict != NULL);
@@ -3836,7 +3836,7 @@ const ZSTD_CDict* ZSTD_initStaticCDict(
 
     {
         ZSTD_cwksp ws;
-        ZSTD_cwksp_init(&ws, workspace, workspaceSize, 1 /* static */);
+        ZSTD_cwksp_init(&ws, workspace, workspaceSize, ZSTD_cwksp_static_alloc);
         cdict = (ZSTD_CDict*)ZSTD_cwksp_reserve_object(&ws, sizeof(ZSTD_CDict));
         if (cdict == NULL) return NULL;
         ZSTD_cwksp_move(&cdict->workspace, &ws);

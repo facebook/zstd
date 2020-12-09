@@ -109,7 +109,7 @@ ZSTD_CCtx* ZSTD_initStaticCCtx(void* workspace, size_t workspaceSize)
     ZSTD_CCtx* cctx;
     if (workspaceSize <= sizeof(ZSTD_CCtx)) return NULL;  /* minimum size */
     if ((size_t)workspace & 7) return NULL;  /* must be 8-aligned */
-    ZSTD_cwksp_init(&ws, workspace, workspaceSize);
+    ZSTD_cwksp_init(&ws, workspace, workspaceSize, ZSTD_cwksp_static_alloc);
 
     cctx = (ZSTD_CCtx*)ZSTD_cwksp_reserve_object(&ws, sizeof(ZSTD_CCtx));
     if (cctx == NULL) return NULL;
@@ -457,12 +457,12 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
         bounds.lowerBound = (int)ZSTD_bm_buffered;
         bounds.upperBound = (int)ZSTD_bm_stable;
         return bounds;
-    
+
     case ZSTD_c_blockDelimiters:
         bounds.lowerBound = (int)ZSTD_sf_noBlockDelimiters;
         bounds.upperBound = (int)ZSTD_sf_explicitBlockDelimiters;
         return bounds;
-    
+
     case ZSTD_c_validateSequences:
         bounds.lowerBound = 0;
         bounds.upperBound = 1;
@@ -781,12 +781,12 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
         BOUNDCHECK(ZSTD_c_stableOutBuffer, value);
         CCtxParams->outBufferMode = (ZSTD_bufferMode_e)value;
         return CCtxParams->outBufferMode;
-    
+
     case ZSTD_c_blockDelimiters:
         BOUNDCHECK(ZSTD_c_blockDelimiters, value);
         CCtxParams->blockDelimiters = (ZSTD_sequenceFormat_e)value;
         return CCtxParams->blockDelimiters;
-    
+
     case ZSTD_c_validateSequences:
         BOUNDCHECK(ZSTD_c_validateSequences, value);
         CCtxParams->validateSequences = value;
@@ -3692,7 +3692,7 @@ static ZSTD_CDict* ZSTD_createCDict_advanced_internal(size_t dictSize,
             return NULL;
         }
 
-        ZSTD_cwksp_init(&ws, workspace, workspaceSize);
+        ZSTD_cwksp_init(&ws, workspace, workspaceSize, ZSTD_cwksp_dynamic_alloc);
 
         cdict = (ZSTD_CDict*)ZSTD_cwksp_reserve_object(&ws, sizeof(ZSTD_CDict));
         assert(cdict != NULL);
@@ -3836,7 +3836,7 @@ const ZSTD_CDict* ZSTD_initStaticCDict(
 
     {
         ZSTD_cwksp ws;
-        ZSTD_cwksp_init(&ws, workspace, workspaceSize);
+        ZSTD_cwksp_init(&ws, workspace, workspaceSize, ZSTD_cwksp_static_alloc);
         cdict = (ZSTD_CDict*)ZSTD_cwksp_reserve_object(&ws, sizeof(ZSTD_CDict));
         if (cdict == NULL) return NULL;
         ZSTD_cwksp_move(&cdict->workspace, &ws);
@@ -4635,10 +4635,10 @@ static size_t ZSTD_copySequencesToSeqStoreExplicitBlockDelim(ZSTD_CCtx* cctx, ZS
 /* Returns the number of bytes to move the current read position back by. Only non-zero
  * if we ended up splitting a sequence. Otherwise, it may return a ZSTD error if something
  * went wrong.
- * 
+ *
  * This function will attempt to scan through blockSize bytes represented by the sequences
- * in inSeqs, storing any (partial) sequences. 
- * 
+ * in inSeqs, storing any (partial) sequences.
+ *
  * Occasionally, we may want to change the actual number of bytes we consumed from inSeqs to
  * avoid splitting a match, or to avoid splitting a match such that it would produce a match
  * smaller than MINMATCH. In this case, we return the number of bytes that we didn't read from this block.
@@ -4659,7 +4659,7 @@ static size_t ZSTD_copySequencesToSeqStoreNoBlockDelim(ZSTD_CCtx* cctx, ZSTD_seq
     U32 matchLength;
     U32 rawOffset;
     U32 offCode;
-    
+
     if (cctx->cdict) {
         dictSize = cctx->cdict->dictContentSize;
     } else if (cctx->prefixDict.dict) {
@@ -4793,7 +4793,7 @@ static size_t ZSTD_compressSequences_internal(ZSTD_CCtx* cctx,
     size_t compressedSeqsSize;
     size_t remaining = srcSize;
     ZSTD_sequencePosition seqPos = {0, 0, 0};
-    
+
     BYTE const* ip = (BYTE const*)src;
     BYTE* op = (BYTE*)dst;
     ZSTD_sequenceCopier sequenceCopier = ZSTD_selectSequenceCopier(cctx->appliedParams.blockDelimiters);
@@ -4879,7 +4879,7 @@ static size_t ZSTD_compressSequences_internal(ZSTD_CCtx* cctx,
 
         cSize += cBlockSize;
         DEBUGLOG(4, "cSize running total: %zu", cSize);
-        
+
         if (lastBlock) {
             break;
         } else {
@@ -4890,7 +4890,7 @@ static size_t ZSTD_compressSequences_internal(ZSTD_CCtx* cctx,
             cctx->isFirstBlock = 0;
         }
     }
-    
+
     return cSize;
 }
 

@@ -90,10 +90,10 @@ jobs:
     - uses: actions/checkout@v2
     - name: cmake build and test check
       run: |
-        make cmakebuild
+        FUZZERTEST=-T1mn ZSTREAM_TESTTIME=-T1mn make cmakebuild
         cp -r ./ "../zstd source"
         cd "../zstd source"
-        make cmakebuild
+        FUZZERTEST=-T1mn ZSTREAM_TESTTIME=-T1mn make cmakebuild
 
   gcc-8-asan-ubsan-fuzz:
     runs-on: ubuntu-latest

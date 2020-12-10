@@ -243,7 +243,7 @@ $(ZSTD_STATLIB): $(ZSTD_STATLIB_OBJ)
 	$(AR) $(ARFLAGS) $@ $^
 
 libzstd.a: $(ZSTD_STATLIB)
-	ln -sf $< $@
+	cp -f $< $@
 
 endif
 
@@ -283,7 +283,7 @@ $(ZSTD_DYNLIB): $(ZSTD_DYNLIB_OBJ)
 	ln -sf $@ libzstd.$(SHARED_EXT)
 
 $(LIBZSTD): $(ZSTD_DYNLIB)
-	ln -sf $< $@
+	cp -f $< $@
 
 endif  # ifndef BUILD_DIR
 endif  # if windows

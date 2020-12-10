@@ -233,7 +233,7 @@ $(BUILD_DIR)/zstd : $(ZSTD_OBJ)
 	$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
 
 zstd : $(BUILD_DIR)/zstd
-	ln -sf $< $@
+	cp -f $< $@
 	@echo zstd build completed
 
 endif  # BUILD_DIR

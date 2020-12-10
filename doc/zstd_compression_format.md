@@ -16,7 +16,7 @@ Distribution of this document is unlimited.
 
 ### Version
 
-0.3.6 (25/05/20)
+0.3.7 (2020-12-09)
 
 
 Introduction
@@ -918,38 +918,41 @@ Note that blocks which are not `Compressed_Block` are skipped, they do not contr
 
 ###### Offset updates rules
 
-The newest offset takes the lead in offset history,
-shifting others back by one rank,
-up to the previous rank of the new offset _if it was present in history_.
+During the execution of the sequences of a `Compressed_Block`, the
+`Repeated_Offsets`' values are kept up to date, so that they always represent
+the three most-recently used offsets. In order to achieve that, they are
+updated after executing each sequence in the following way:
 
-__Examples__ :
+When the sequence's `offset_value` does not refer to one of the
+`Repeated_Offsets`--when it has value greater than 3, or when it has value 3
+and the sequence's `literals_length` is zero--the `Repeated_Offsets`' values
+are shifted back one, and `Repeated_Offset1` takes on the value of the
+just-used offset.
 
-In the common case, when new offset is not part of history :
-`Repeated_Offset3` = `Repeated_Offset2`
-`Repeated_Offset2` = `Repeated_Offset1`
-`Repeated_Offset1` = `NewOffset`
+Otherwise, when the sequence's `offset_value` refers to one of the
+`Repeated_Offsets`--when it has value 1 or 2, or when it has value 3 and the
+sequence's `literals_length` is non-zero--the `Repeated_Offsets` are re-ordered
+so that `Repeated_Offset1` takes on the value of the used Repeated_Offset, and
+the existing values are pushed back from the first `Repeated_Offset` through to
+the `Repeated_Offset` selected by the `offset_value`. This effectively performs
+a single-stepped wrapping rotation of the values of these offsets, so that
+their order again reflects the recency of their use.
 
-When the new offset _is_ part of history, there may be specific adjustments.
+The following table shows the values of the `Repeated_Offsets` as a series of
+sequences are applied to them:
 
-When `NewOffset` == `Repeated_Offset1`, offset history remains actually unmodified.
-
-When `NewOffset` == `Repeated_Offset2`,
-`Repeated_Offset1` and `Repeated_Offset2` ranks are swapped.
-`Repeated_Offset3` is unmodified.
-
-When `NewOffset` == `Repeated_Offset3`,
-there is actually no difference with the common case :
-all offsets are shifted by one rank,
-`NewOffset` (== `Repeated_Offset3`) becomes the new `Repeated_Offset1`.
-
-Also worth mentioning, the specific corner case when `offset_value` == 3,
-and the literal length of the current sequence is zero.
-In which case , `NewOffset` = `Repeated_Offset1` - 1_byte.
-Here also, from an offset history update perspective, it's just a common case :
-`Repeated_Offset3` = `Repeated_Offset2`
-`Repeated_Offset2` = `Repeated_Offset1`
-`Repeated_Offset1` = `NewOffset` ( == `Repeated_Offset1` - 1_byte )
-
+| `offset_value` | `literals_length` | `Repeated_Offset1` | `Repeated_Offset2` | `Repeated_Offset3` | Comment                 |
+|:--------------:|:-----------------:|:------------------:|:------------------:|:------------------:|:-----------------------:|
+|                |                   |                  1 |                  4 |                  8 | starting values         |
+|           1114 |                11 |               1111 |                  1 |                  4 | non-repeat              |
+|              1 |                22 |               1111 |                  1 |                  4 | repeat 1; no change     |
+|           2225 |                22 |               2222 |               1111 |                  1 | non-repeat              |
+|           1114 |               111 |               1111 |               2222 |               1111 | non-repeat              |
+|           3336 |                33 |               3333 |               1111 |               2222 | non-repeat              |
+|              2 |                22 |               1111 |               3333 |               2222 | repeat 2; swap 1 & 2    |
+|              3 |                33 |               2222 |               1111 |               3333 | repeat 3; rotate 3 to 1 |
+|              3 |                 0 |               2221 |               2222 |               1111 | insert resolved offset  |
+|              1 |                 0 |               2222 |               2221 |               3333 | repeat 2                |
 
 
 Skippable Frames
@@ -1666,6 +1669,7 @@ or at least provide a meaningful error code explaining for which reason it canno
 
 Version changes
 ---------------
+- 0.3.7 : clarifications for Repeat_Offsets
 - 0.3.6 : clarifications for Dictionary_ID
 - 0.3.5 : clarifications for Block_Maximum_Size
 - 0.3.4 : clarifications for FSE decoding table

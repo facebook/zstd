@@ -162,6 +162,8 @@
   - if [%TEST%]==[cmake] (
       mkdir build\cmake\build &&
       cd build\cmake\build &&
+      SET FUZZERTEST=-T2mn &&
+      SET ZSTREAM_TESTTIME=-T2mn &&
       cmake -G "Visual Studio 14 2015 Win64" .. &&
       cd ..\..\.. &&
       make clean

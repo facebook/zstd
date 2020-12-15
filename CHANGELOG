@@ -13,6 +13,8 @@ api : new sequence ingestion API, by @senhuang42
 api : shared thread pool: control total nb of threads used by multiple compression jobs, by @marxin
 api : new ZSTD_getDictID_fromCDict(), by @LuAPi
 api : zlibWrapper only uses public API, and is compatible with dynamic library, by @terrelln
+api : fix : multithreaded compression has predictable output even in special cases (see #2327) (issue not accessible from cli)
+api : fix : dictionary compression correctly respects dictionary compression level (see #2303) (issue not accessible from cli)
 build: fix cmake script when using path with spaces, by @terrelln
 build: improved compile-time detection of aarch64/neon platforms, by @bsdimp
 build: Fix building on AIX 5.1, by @likema

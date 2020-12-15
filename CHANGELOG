@@ -1,3 +1,24 @@
+v1.4.7
+perf: stronger --long mode at high compression levels, by @senhuang42
+perf: stronger --patch-from at high compression levels, thanks to --long improvements
+perf: faster dictionary compression at medium compression levels, by @felixhandte
+perf: small speed & memory usage improvements for ZSTD_compress2(), by @terrelln
+perf: improved fast compression speeds with Visual Studio, by @animalize
+cli : Set nb of threads with environment variable ZSTD_NBTHREADS, by @senhuang42
+cli : accept decompressing files with *.zstd suffix
+cli : provide a condensed summary by default when processing multiple files
+cli : fix : stdin input no longer confused as user prompt
+cli : improve accuracy of several error messages
+api : new sequence ingestion API, by @senhuang42
+api : shared thread pool: control total nb of threads used by multiple compression jobs, by @marxin
+api : new ZSTD_getDictID_fromCDict(), by @LuAPi
+api : zlibWrapper only uses public API, and is compatible with dynamic library, by @terrelln
+build: fix cmake script when using path with spaces, by @terrelln
+build: improved compile-time detection of aarch64/neon platforms, by @bsdimp
+build: Fix building on AIX 5.1, by @likema
+build: compile paramgrill with cmake on Windows, requested by @mirh
+doc : clarify repcode updates in format specification, by @felixhandte
+
 v1.4.6
 fix : Always return dstSize_tooSmall when that is the case
 fix : Fix ZSTD_initCStream_advanced() with static allocation and no dictionary

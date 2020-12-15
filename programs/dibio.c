@@ -301,7 +301,7 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
         DISPLAYLEVEL(2, "!  Alternatively, split files into fixed-size blocks representative of samples, with -B# \n");
         EXM_THROW(14, "nb of samples too low");   /* we now clearly forbid this case */
     }
-    if (fs.totalSizeToLoad < (unsigned long long)(8 * maxDictSize)) {
+    if (fs.totalSizeToLoad < (unsigned long long)maxDictSize * 8) {
         DISPLAYLEVEL(2, "!  Warning : data size of samples too small for target dictionary size \n");
         DISPLAYLEVEL(2, "!  Samples should be about 100x larger than target dictionary size \n");
     }

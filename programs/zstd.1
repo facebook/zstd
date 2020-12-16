@@ -1,5 +1,5 @@
 .
-.TH "ZSTD" "1" "July 2020" "zstd 1.4.5" "User Commands"
+.TH "ZSTD" "1" "December 2020" "zstd 1.4.7" "User Commands"
 .
 .SH "NAME"
 \fBzstd\fR \- zstd, zstdmt, unzstd, zstdcat \- Compress or decompress \.zst files
@@ -165,7 +165,7 @@ This is also used during compression when using with \-\-patch\-from=\. In this 
 \fB\-\-[no\-]sparse\fR: enable / disable sparse FS support, to make files with many zeroes smaller on disk\. Creating sparse files may save disk space and speed up decompression by reducing the amount of disk I/O\. default: enabled when output is into a file, and disabled when output is stdout\. This setting overrides default and can force sparse mode over stdout\.
 .
 .IP "\(bu" 4
-\fB\-\-rm\fR: remove source file(s) after successful compression or decompression
+\fB\-\-rm\fR: remove source file(s) after successful compression or decompression\. If used in combination with \-o, will trigger a confirmation prompt (which can be silenced with \-f), as this is a destructive operation\.
 .
 .IP "\(bu" 4
 \fB\-k\fR, \fB\-\-keep\fR: keep source file(s) after successful compression or decompression\. This is the default behavior\.
@@ -212,7 +212,16 @@ If input directory contains "\.\.", the files in this directory will be ignored\
 .IP "" 0
 .
 .SS "Restricted usage of Environment Variables"
-Using environment variables to set parameters has security implications\. Therefore, this avenue is intentionally restricted\. Only \fBZSTD_CLEVEL\fR is supported currently, for setting compression level\. \fBZSTD_CLEVEL\fR can be used to set the level between 1 and 19 (the "normal" range)\. If the value of \fBZSTD_CLEVEL\fR is not a valid integer, it will be ignored with a warning message\. \fBZSTD_CLEVEL\fR just replaces the default compression level (\fB3\fR)\. It can be overridden by corresponding command line arguments\.
+Using environment variables to set parameters has security implications\. Therefore, this avenue is intentionally restricted\. Only \fBZSTD_CLEVEL\fR and \fBZSTD_NBTHREADS\fR are currently supported\. They set the compression level and number of threads to use during compression, respectively\.
+.
+.P
+\fBZSTD_CLEVEL\fR can be used to set the level between 1 and 19 (the "normal" range)\. If the value of \fBZSTD_CLEVEL\fR is not a valid integer, it will be ignored with a warning message\. \fBZSTD_CLEVEL\fR just replaces the default compression level (\fB3\fR)\.
+.
+.P
+\fBZSTD_NBTHREADS\fR can be used to set the number of threads \fBzstd\fR will attempt to use during compression\. If the value of \fBZSTD_NBTHREADS\fR is not a valid unsigned integer, it will be ignored with a warning message\. \'ZSTD_NBTHREADS\fBhas a default value of (\fR1\fB), and is capped at ZSTDMT_NBWORKERS_MAX==200\.\fRzstd` must be compiled with multithread support for this to have any effect\.
+.
+.P
+They can both be overridden by corresponding command line arguments: \fB\-#\fR for compression level and \fB\-T#\fR for number of compression threads\.
 .
 .SH "DICTIONARY BUILDER"
 \fBzstd\fR offers \fIdictionary\fR compression, which greatly improves efficiency on small files and messages\. It\'s possible to train \fBzstd\fR with a set of samples, the result of which is saved into a file called a \fBdictionary\fR\. Then during compression and decompression, reference the same dictionary, using command \fB\-D dictionaryFileName\fR\. Compression of small files similar to the sample set will be greatly improved\.

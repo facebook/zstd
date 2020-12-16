@@ -101,10 +101,10 @@ automated_benchmarking:
 .PHONY: benchmarking
 benchmarking: automated_benchmarking
 
-## examples: build all examples in `/examples` directory
+## examples: build all examples in `examples/` directory
 .PHONY: examples
 examples: lib
-	CPPFLAGS=-I../lib LDFLAGS=-L../lib $(MAKE) -C examples/ all
+	$(MAKE) -C examples all
 
 ## manual: generate API documentation in html format
 .PHONY: manual

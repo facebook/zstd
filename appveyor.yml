@@ -14,7 +14,7 @@
     - COMPILER: "gcc"
       HOST:     "mingw"
       PLATFORM: "x64"
-      SCRIPT:   "make allzstd MOREFLAGS=-static && make -C tests fullbench-lib"
+      SCRIPT:   "make allzstd MOREFLAGS=-static"
       ARTIFACT: "true"
       BUILD:    "true"
     - COMPILER: "gcc"

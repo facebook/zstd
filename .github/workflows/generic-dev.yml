@@ -42,7 +42,7 @@ jobs:
     - name: make check on 32-bit
       run: |
         make libc6install
-        CFLAGS="-m32 -O1 -fstack-protector" make test V=1
+        CFLAGS="-m32 -O1 -fstack-protector" make check V=1
 
   gcc-6-7-libzstd:
     runs-on: ubuntu-latest

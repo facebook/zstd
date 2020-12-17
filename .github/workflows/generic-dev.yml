@@ -2,14 +2,13 @@ name: generic-dev
 
 on:
   pull_request:
-    branches: [ dev, master, actionsTest ]
+    branches: [ dev, release, actionsTest ]
 
 jobs:
 
 # Dev PR jobs that still have to be migrated from travis
 #
-# icc (need self-hosted)
-# versionTag
+# versionTag (only on release tags)
 # valgrindTest (keeps failing for some reason. need investigation)
 # staticAnalyze (need trusty so need self-hosted)
 # pcc-fuzz: (need trusty so need self-hosted)
@@ -19,7 +18,7 @@ jobs:
 # I need admins permissions to the repo for that it looks like
 # So I'm tabling that for now
 #
-# The master branch exclusive jobs will be in a separate
+# The release branch exclusive jobs will be in a separate
 # workflow file (the osx tests and meson build that is)
 
   benchmarking:
@@ -35,6 +34,13 @@ jobs:
     - uses: actions/checkout@v2
     - name: make test
       run: make test
+
+  check-32bit: # designed to catch https://github.com/facebook/zstd/issues/2428
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: make check on 32-bit
+      run: CFLAGS="-m32 -O1 -fstack-protector" make test V=1
 
   gcc-6-7-libzstd:
     runs-on: ubuntu-latest

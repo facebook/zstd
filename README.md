@@ -193,7 +193,7 @@ Zstandard is dual-licensed under [BSD](LICENSE) and [GPLv2](COPYING).
 
 ## Contributing
 
-The "dev" branch is the one where all contributions are merged before reaching "master".
-If you plan to propose a patch, please commit into the "dev" branch, or its own feature branch.
-Direct commit to "master" are not permitted.
+The `dev` branch is the one where all contributions are merged before reaching `release`.
+If you plan to propose a patch, please commit into the `dev` branch, or its own feature branch.
+Direct commit to `release` are not permitted.
 For more information, please read [CONTRIBUTING](CONTRIBUTING.md).

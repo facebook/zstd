@@ -1,13 +1,13 @@
-# Following tests are run _only_ on master branch
-# To reproduce these tests, it's possible to push into a branch `appveyorTest`
-# or a branch `visual*`, they will intentionnally trigger `master` tests
+# Following tests are run _only_ on `release` branch
+# and on selected feature branch named `appveyorTest` or `visual*`
 
 -
   version: 1.0.{build}
   branches:
     only:
+    - release
     - master
-    - appveyorTest
+    - /appveyor*/
     - /visual*/
   environment:
     matrix:
@@ -92,9 +92,9 @@
           cd programs\ && 7z a -tzip -mx9 zstd-win-binary-%PLATFORM%.zip zstd.exe &&
           appveyor PushArtifact zstd-win-binary-%PLATFORM%.zip &&
           cp zstd.exe ..\bin\zstd.exe &&
-          git clone --depth 1 --branch master https://github.com/facebook/zstd &&
+          git clone --depth 1 --branch release https://github.com/facebook/zstd &&
           cd zstd &&
-          git archive --format=tar master -o zstd-src.tar &&
+          git archive --format=tar release -o zstd-src.tar &&
           ..\zstd -19 zstd-src.tar &&
           appveyor PushArtifact zstd-src.tar.zst &&
           certUtil -hashfile zstd-src.tar.zst SHA256 > zstd-src.tar.zst.sha256.sig &&

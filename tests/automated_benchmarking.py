@@ -20,7 +20,7 @@ import urllib.request
 
 GITHUB_API_PR_URL = "https://api.github.com/repos/facebook/zstd/pulls?state=open"
 GITHUB_URL_TEMPLATE = "https://github.com/{}/zstd"
-MASTER_BUILD = {"user": "facebook", "branch": "dev", "hash": None}
+RELEASE_BUILD = {"user": "facebook", "branch": "dev", "hash": None}
 
 # check to see if there are any new PRs every minute
 DEFAULT_MAX_API_CALL_FREQUENCY_SEC = 60
@@ -264,11 +264,11 @@ def main(filenames, levels, iterations, builds=None, emails=None, continuous=Fal
         for test_build in builds:
             if dictionary_filename == None:
                 regressions = get_regressions(
-                    MASTER_BUILD, test_build, iterations, filenames, levels
+                    RELEASE_BUILD, test_build, iterations, filenames, levels
                 )
             else:
                 regressions = get_regressions_dictionary(
-                    MASTER_BUILD, test_build, filenames, dictionary_filename, levels, iterations
+                    RELEASE_BUILD, test_build, filenames, dictionary_filename, levels, iterations
                 )
             body = "\n".join(regressions)
             if len(regressions) > 0:
@@ -320,7 +320,7 @@ if __name__ == "__main__":
         builds = [{"user": None, "branch": "None", "hash": None}]
         main(filenames, levels, iterations, builds, frequency=frequency, dictionary_filename=dictionary_filename)
     elif mode == "fastmode":
-        builds = [{"user": "facebook", "branch": "master", "hash": None}]
+        builds = [{"user": "facebook", "branch": "release", "hash": None}]
         main(filenames, levels, iterations, builds, frequency=frequency, dictionary_filename=dictionary_filename)
     else:
         main(filenames, levels, iterations, None, emails, True, frequency=frequency, dictionary_filename=dictionary_filename)

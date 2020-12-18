@@ -58,6 +58,10 @@ jobs:
         LDFLAGS=-Wl,--no-undefined make -C lib libzstd-mt
         make -C tests zbufftest-dll
 
+    # candidate test (to check) : underlink test
+    # LDFLAGS=-Wl,--no-undefined : will make the linker fail if dll is underlinked
+    # zbufftest-dll : test that a user program can link to multi-threaded libzstd without specifying -pthread
+
   gcc-8-asan-ubsan-testzstd:
     runs-on: ubuntu-16.04 # fails on 18.04
     steps:
@@ -91,6 +95,10 @@ jobs:
         sudo apt-get update
         sudo apt-get install clang-3.8
         CC=clang-3.8 make clean msan-test-zstd HAVE_ZLIB=0 HAVE_LZ4=0 HAVE_LZMA=0
+
+    # Note : external libraries must be turned off when using MSAN tests,
+    # because they are not msan-instrumented,
+    # so any data coming from these libraries is always considered "uninitialized"
 
   cmake-build-and-test-check:
     runs-on: ubuntu-latest
@@ -155,7 +163,7 @@ jobs:
         make clean
         make c99build
         make clean
-        make travis-install
+        make travis-install   # just ensures `make install` works
 
   mingw-cross-compilation:
     runs-on: ubuntu-latest

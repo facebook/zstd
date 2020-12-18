@@ -93,11 +93,6 @@ matrix:
         - make test
         - make -C lib all
 
-    - name: zbuff test
-      if: branch = release
-      script:
-        - make -C tests test-zbuff
-
     - name: Versions Compatibility Test   # 11.5mn
       if: branch = release
       script:
@@ -131,24 +126,6 @@ matrix:
       script:
         - make arminstall
         - make aarch64fuzz
-
-    - name: zlib wrapper test    # ~7.5mn
-      if: branch = release
-      script:
-        - make gpp6install valgrindinstall
-        - make -C zlibWrapper test
-        - make -C zlibWrapper valgrindTest
-
-    - name: LZ4, thread pool, and partial libs tests    # ~4mn
-      if: branch = release
-      script:
-        - make lz4install
-        - make -C tests test-lz4
-        - make check < /dev/null | tee    # mess with lz4 console detection
-        - make clean
-        - make -C tests test-pool
-        - make clean
-        - bash tests/libzstd_partial_builds.sh
 
     # meson dedicated test
     - name: Xenial (Meson + clang)    # ~15mn

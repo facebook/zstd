@@ -8,6 +8,7 @@ git:
 branches:
   only:
   - dev
+  - release
   - master
   - travisTest
 
@@ -162,33 +163,33 @@ matrix:
         - make -C tests checkTag
         - tests/checkTag "$TRAVIS_BRANCH"
 
-    # tests for master branch and cron job only
+    # tests for release branch and cron job only
     - name: OS-X    # ~13mn
-      if: branch = master
+      if: branch = release
       os: osx
       script:
         - make test
         - make -C lib all
 
     - name: zbuff test
-      if: branch = master
+      if: branch = release
       script:
         - make -C tests test-zbuff
 
     - name: Versions Compatibility Test   # 11.5mn
-      if: branch = master
+      if: branch = release
       script:
         - make -C tests versionsTest
 
     - name: thread sanitizer   # ~29mn
-      if: branch = master
+      if: branch = release
       script:
         - make clang38install
         - CC=clang-3.8 make tsan-test-zstream
         - CC=clang-3.8 make tsan-fuzztest
 
     - name: PPC64LE + Fuzz test  # ~13mn
-      if: branch = master
+      if: branch = release
       arch: ppc64le
       script:
         - cat /proc/cpuinfo
@@ -196,28 +197,28 @@ matrix:
 
     - name: Qemu PPC64 + Fuzz test  # ~13mn, presumed Big-Endian (?)
       dist: trusty  # note : PPC64 cross-compilation for Qemu tests seems broken on Xenial
-      if: branch = master
+      if: branch = release
       script:
         - make ppcinstall
         - make ppc64fuzz
 
     # note : we already have aarch64 tests on hardware
     - name: Qemu aarch64 + Fuzz Test (on Xenial)    # ~14mn
-      if: branch = master
+      if: branch = release
       dist: xenial
       script:
         - make arminstall
         - make aarch64fuzz
 
     - name: zlib wrapper test    # ~7.5mn
-      if: branch = master
+      if: branch = release
       script:
         - make gpp6install valgrindinstall
         - make -C zlibWrapper test
         - make -C zlibWrapper valgrindTest
 
     - name: LZ4, thread pool, and partial libs tests    # ~4mn
-      if: branch = master
+      if: branch = release
       script:
         - make lz4install
         - make -C tests test-lz4
@@ -229,7 +230,7 @@ matrix:
 
     # meson dedicated test
     - name: Xenial (Meson + clang)    # ~15mn
-      if: branch = master
+      if: branch = release
       dist: xenial
       language: cpp
       compiler: clang

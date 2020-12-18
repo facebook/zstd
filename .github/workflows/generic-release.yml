@@ -2,10 +2,10 @@ name: generic-release
 
 on:
   pull_request:
-    # This will eventually only be for pushes to master
+    # This will eventually only be for pushes to release
     # but for dogfooding purposes, I'm running it even
     # on dev pushes
-    branches: [ dev, master, actionsTest ]
+    branches: [ dev, release, actionsTest ]
 
 jobs:
   # missing jobs

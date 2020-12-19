@@ -2,7 +2,7 @@ name: linux-kernel
 
 on:
   pull_request:
-    branches: [ dev, master, actionsTest ]
+    branches: [ dev, release, actionsTest ]
 
 jobs:
   test:

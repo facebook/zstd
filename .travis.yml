@@ -8,6 +8,7 @@ git:
 branches:
   only:
   - dev
+  - release
   - master
   - travisTest
 
@@ -31,48 +32,10 @@ matrix:
       script:
         - make check
 
-    - name: make benchmarking
-      script:
-        - make benchmarking
-
     - name: make test (complete)
       script:
         # DEVNULLRIGHTS : will request sudo rights to test permissions on /dev/null
         - DEVNULLRIGHTS=test make test
-
-    - name: gcc-6 + gcc-7 + libzstdmt compilation   # ~ 6mn
-      script:
-        - make gcc6install gcc7install
-        - CC=gcc-6 CFLAGS=-Werror make -j all
-        - make clean
-        - CC=gcc-7 CFLAGS=-Werror make -j all
-        - make clean
-        - LDFLAGS=-Wl,--no-undefined make -C lib libzstd-mt
-        - make -C tests zbufftest-dll
-        # LDFLAGS=-Wl,--no-undefined : will make the linker fail if dll is underlinked
-        # zbufftest-dll : test that a user program can link to multi-threaded libzstd without specifying -pthread
-
-    - name: gcc-8 + ASan + UBSan + Test Zstd   # ~6.5mn
-      script:
-        - make gcc8install
-        - CC=gcc-8 CFLAGS="-Werror" make -j all
-        - make clean
-        - CC=gcc-8 make -j uasan-test-zstd </dev/null   # test when stdin is not a tty
-
-    - name: gcc-6 + ASan + UBSan + Test Zstd, 32bit mode    # ~4mn
-      script:
-        - make gcc6install libc6install
-        - CC=gcc-6 CFLAGS="-Werror -m32" make -j all32
-        - make clean
-        - CC=gcc-6 make -j uasan-test-zstd32   # note : can complain about pointer overflow
-
-    - name: clang-3.8 + MSan + Test Zstd    # ~3.5mn
-      script:
-        - make clang38install
-        # External libraries must be turned off when using MSAN tests,
-        # because they are not msan-instrumented,
-        # so any data coming from these libraries is always considered "uninitialized"
-        - CC=clang-3.8 make clean msan-test-zstd HAVE_ZLIB=0 HAVE_LZ4=0 HAVE_LZMA=0
 
     - name: Minimal Decompressor Macros    # ~5mn
       script:
@@ -85,50 +48,10 @@ matrix:
         - make clean && make -j all MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
         - make clean && make check MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
 
-    - name: cmake build and test check    # ~6mn
-      script:
-        - make cmakebuild
-
     - name: static analyzer scanbuild    # ~26mn
       dist: trusty  # note : it's important to pin down a version of static analyzer, since different versions report different false positives
       script:
         - make staticAnalyze
-
-    - name: gcc-8 + ASan + UBSan + Fuzz Test    # ~19mn
-      script:
-        - make gcc8install
-        - CC=gcc-8 make clean uasan-fuzztest
-
-    - name: gcc-6 + ASan + UBSan + Fuzz Test 32bit    # ~15.5mn
-      script:
-        - make gcc6install libc6install
-        - CC=gcc-6 CFLAGS="-O2 -m32" make uasan-fuzztest   # can complain about pointer overflow
-
-    - name: clang-3.8 + MSan + Fuzz Test     # ~14.5mn
-      script:
-        - make clang38install
-        - CC=clang-3.8 make clean msan-fuzztest
-
-    - name: ASan + UBSan + MSan + Regression Test    # ~ 4.5mn
-      script:
-        - make -j uasanregressiontest
-        - make clean
-        - make -j msanregressiontest
-
-    - name: C++, gnu90 and c99 compatibility   # ~3mn
-      script:
-        - make cxxtest
-        - make clean
-        - make gnu90build
-        - make clean
-        - make c99build
-        - make clean
-        - make travis-install    # just ensures `make install` works
-
-    - name: mingw cross-compilation
-      script :
-        - sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix;
-        - CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ CFLAGS="-Werror -O1" make zstd
 
     - name: Valgrind + Fuzz Test Stack Mode    # ~ 7mn
       script:
@@ -162,33 +85,28 @@ matrix:
         - make -C tests checkTag
         - tests/checkTag "$TRAVIS_BRANCH"
 
-    # tests for master branch and cron job only
+    # tests for release branch and cron job only
     - name: OS-X    # ~13mn
-      if: branch = master
+      if: branch = release
       os: osx
       script:
         - make test
         - make -C lib all
 
-    - name: zbuff test
-      if: branch = master
-      script:
-        - make -C tests test-zbuff
-
     - name: Versions Compatibility Test   # 11.5mn
-      if: branch = master
+      if: branch = release
       script:
         - make -C tests versionsTest
 
     - name: thread sanitizer   # ~29mn
-      if: branch = master
+      if: branch = release
       script:
         - make clang38install
         - CC=clang-3.8 make tsan-test-zstream
         - CC=clang-3.8 make tsan-fuzztest
 
     - name: PPC64LE + Fuzz test  # ~13mn
-      if: branch = master
+      if: branch = release
       arch: ppc64le
       script:
         - cat /proc/cpuinfo
@@ -196,40 +114,22 @@ matrix:
 
     - name: Qemu PPC64 + Fuzz test  # ~13mn, presumed Big-Endian (?)
       dist: trusty  # note : PPC64 cross-compilation for Qemu tests seems broken on Xenial
-      if: branch = master
+      if: branch = release
       script:
         - make ppcinstall
         - make ppc64fuzz
 
     # note : we already have aarch64 tests on hardware
     - name: Qemu aarch64 + Fuzz Test (on Xenial)    # ~14mn
-      if: branch = master
+      if: branch = release
       dist: xenial
       script:
         - make arminstall
         - make aarch64fuzz
 
-    - name: zlib wrapper test    # ~7.5mn
-      if: branch = master
-      script:
-        - make gpp6install valgrindinstall
-        - make -C zlibWrapper test
-        - make -C zlibWrapper valgrindTest
-
-    - name: LZ4, thread pool, and partial libs tests    # ~4mn
-      if: branch = master
-      script:
-        - make lz4install
-        - make -C tests test-lz4
-        - make check < /dev/null | tee    # mess with lz4 console detection
-        - make clean
-        - make -C tests test-pool
-        - make clean
-        - bash tests/libzstd_partial_builds.sh
-
     # meson dedicated test
     - name: Xenial (Meson + clang)    # ~15mn
-      if: branch = master
+      if: branch = release
       dist: xenial
       language: cpp
       compiler: clang

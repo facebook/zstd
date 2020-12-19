@@ -1342,8 +1342,6 @@ optCSize19=$(datagen -g2M | zstd -19 -c | wc -c)
 longCSize19=$(datagen -g2M | zstd -19 --long -c | wc -c)
 optCSize19wlog23=$(datagen -g2M | zstd -19 -c  --zstd=wlog=23 | wc -c)
 longCSize19wlog23=$(datagen -g2M | zstd -19 -c --long=23 | wc -c)
-optCSize22=$(datagen -g900K | zstd -22 --ultra -c | wc -c)
-longCSize22=$(datagen -g900K | zstd -22 --ultra --long -c | wc -c)
 if [ "$longCSize16" -gt "$optCSize16" ]; then
     echo using --long on compression level 16 should not cause compressed size regression
     exit 1
@@ -1352,9 +1350,6 @@ elif [ "$longCSize19" -gt "$optCSize19" ]; then
     exit 1
 elif [ "$longCSize19wlog23" -gt "$optCSize19wlog23" ]; then
     echo using --long on compression level 19 with wLog=23 should not cause compressed size regression
-    exit 1
-elif [ "$longCSize22" -gt "$optCSize22" ]; then
-    echo using --long on compression level 22 should not cause compressed size regression
     exit 1
 fi
 

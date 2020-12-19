@@ -27,7 +27,7 @@ They consist of the following tests:
 
 Long Tests
 ----------
-Long tests run on all commits to `master` branch,
+Long tests run on all commits to `release` branch,
 and once a day on the current version of `dev` branch,
 on TravisCI.
 They consist of the following tests:

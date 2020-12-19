@@ -1,4 +1,7 @@
-v1.4.7
+v1.4.8  (Dec 18, 2020)
+hotfix: wrong alignment of an internal buffer
+
+v1.4.7  (Dec 16, 2020)
 perf: stronger --long mode at high compression levels, by @senhuang42
 perf: stronger --patch-from at high compression levels, thanks to --long improvements
 perf: faster dictionary compression at medium compression levels, by @felixhandte

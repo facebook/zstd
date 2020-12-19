@@ -3258,7 +3258,7 @@ size_t ZSTD_loadCEntropy(ZSTD_compressedBlockState_t* bs, void* workspace,
 
 /* Dictionary format :
  * See :
- * https://github.com/facebook/zstd/blob/master/doc/zstd_compression_format.md#dictionary-format
+ * https://github.com/facebook/zstd/blob/release/doc/zstd_compression_format.md#dictionary-format
  */
 /*! ZSTD_loadZstdDictionary() :
  * @return : dictID, or an error code

@@ -69,7 +69,7 @@ static size_t HUF_compressWeights (void* dst, size_t dstSize, const void* weight
     U32 tableLog = MAX_FSE_TABLELOG_FOR_HUFF_HEADER;
 
     FSE_CTable CTable[FSE_CTABLE_SIZE_U32(MAX_FSE_TABLELOG_FOR_HUFF_HEADER, HUF_TABLELOG_MAX)];
-    BYTE scratchBuffer[FSE_BUILD_CTABLE_WORKSPACE_SIZE(HUF_TABLELOG_MAX, MAX_FSE_TABLELOG_FOR_HUFF_HEADER)];
+    U32 scratchBuffer[FSE_BUILD_CTABLE_WORKSPACE_SIZE_U32(HUF_TABLELOG_MAX, MAX_FSE_TABLELOG_FOR_HUFF_HEADER)];
 
     unsigned count[HUF_TABLELOG_MAX+1];
     S16 norm[HUF_TABLELOG_MAX+1];
@@ -736,25 +736,26 @@ typedef struct {
 } HUF_compress_tables_t;
 
 /* HUF_compress_internal() :
- * `workSpace` must a table of at least HUF_WORKSPACE_SIZE_U32 unsigned */
+ * `workSpace_align4` must be aligned on 4-bytes boundaries,
+ * and occupies the same space as a table of HUF_WORKSPACE_SIZE_U32 unsigned */
 static size_t
 HUF_compress_internal (void* dst, size_t dstSize,
                  const void* src, size_t srcSize,
                        unsigned maxSymbolValue, unsigned huffLog,
                        HUF_nbStreams_e nbStreams,
-                       void* workSpace, size_t wkspSize,
+                       void* workSpace_align4, size_t wkspSize,
                        HUF_CElt* oldHufTable, HUF_repeat* repeat, int preferRepeat,
                  const int bmi2)
 {
-    HUF_compress_tables_t* const table = (HUF_compress_tables_t*)workSpace;
+    HUF_compress_tables_t* const table = (HUF_compress_tables_t*)workSpace_align4;
     BYTE* const ostart = (BYTE*)dst;
     BYTE* const oend = ostart + dstSize;
     BYTE* op = ostart;
 
     HUF_STATIC_ASSERT(sizeof(*table) <= HUF_WORKSPACE_SIZE);
+    assert(((size_t)workSpace_align4 & 3) == 0);   /* must be aligned on 4-bytes boundaries */
 
     /* checks & inits */
-    if (((size_t)workSpace & 3) != 0) return ERROR(GENERIC);  /* must be aligned on 4-bytes boundaries */
     if (wkspSize < HUF_WORKSPACE_SIZE) return ERROR(workSpace_tooSmall);
     if (!srcSize) return 0;  /* Uncompressed */
     if (!dstSize) return 0;  /* cannot fit anything within dst budget */
@@ -772,7 +773,7 @@ HUF_compress_internal (void* dst, size_t dstSize,
     }
 
     /* Scan input and build symbol stats */
-    {   CHECK_V_F(largest, HIST_count_wksp (table->count, &maxSymbolValue, (const BYTE*)src, srcSize, workSpace, wkspSize) );
+    {   CHECK_V_F(largest, HIST_count_wksp (table->count, &maxSymbolValue, (const BYTE*)src, srcSize, workSpace_align4, wkspSize) );
         if (largest == srcSize) { *ostart = ((const BYTE*)src)[0]; return 1; }   /* single symbol, rle */
         if (largest <= (srcSize >> 7)+4) return 0;   /* heuristic : probably not compressible enough */
     }

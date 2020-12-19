@@ -53,7 +53,7 @@ __`Frame_Size`__
 The total size of the skippable frame, not including the `Skippable_Magic_Number` or `Frame_Size`.
 This is for compatibility with [Zstandard skippable frames].
 
-[Zstandard skippable frames]: https://github.com/facebook/zstd/blob/master/doc/zstd_compression_format.md#skippable-frames
+[Zstandard skippable frames]: https://github.com/facebook/zstd/blob/release/doc/zstd_compression_format.md#skippable-frames
 
 #### `Seek_Table_Footer`
 The seek table footer format is as follows:

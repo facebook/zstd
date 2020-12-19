@@ -28,7 +28,7 @@ desktop machine for every pull request that is made to the zstd repo but can als
 be run on any machine via the command line interface.
 
 There are three modes of usage for this script: fastmode will just run a minimal single
-build comparison (between facebook:dev and facebook:master), onetime will pull all the current
+build comparison (between facebook:dev and facebook:release), onetime will pull all the current
 pull requests from the zstd repo and compare facebook:dev to all of them once, continuous
 will continuously get pull requests from the zstd repo and run benchmarks against facebook:dev.
 

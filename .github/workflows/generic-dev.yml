@@ -2,14 +2,13 @@ name: generic-dev
 
 on:
   pull_request:
-    branches: [ dev, master, actionsTest ]
+    branches: [ dev, release, actionsTest ]
 
 jobs:
 
 # Dev PR jobs that still have to be migrated from travis
 #
-# icc (need self-hosted)
-# versionTag
+# versionTag (only on release tags)
 # valgrindTest (keeps failing for some reason. need investigation)
 # staticAnalyze (need trusty so need self-hosted)
 # pcc-fuzz: (need trusty so need self-hosted)
@@ -19,7 +18,7 @@ jobs:
 # I need admins permissions to the repo for that it looks like
 # So I'm tabling that for now
 #
-# The master branch exclusive jobs will be in a separate
+# The release branch exclusive jobs will be in a separate
 # workflow file (the osx tests and meson build that is)
 
   benchmarking:
@@ -36,6 +35,15 @@ jobs:
     - name: make test
       run: make test
 
+  check-32bit: # designed to catch https://github.com/facebook/zstd/issues/2428
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: make check on 32-bit
+      run: |
+        make libc6install
+        CFLAGS="-m32 -O1 -fstack-protector" make check V=1
+
   gcc-6-7-libzstd:
     runs-on: ubuntu-latest
     steps:
@@ -49,6 +57,10 @@ jobs:
         make clean
         LDFLAGS=-Wl,--no-undefined make -C lib libzstd-mt
         make -C tests zbufftest-dll
+
+    # candidate test (to check) : underlink test
+    # LDFLAGS=-Wl,--no-undefined : will make the linker fail if dll is underlinked
+    # zbufftest-dll : test that a user program can link to multi-threaded libzstd without specifying -pthread
 
   gcc-8-asan-ubsan-testzstd:
     runs-on: ubuntu-16.04 # fails on 18.04
@@ -83,6 +95,10 @@ jobs:
         sudo apt-get update
         sudo apt-get install clang-3.8
         CC=clang-3.8 make clean msan-test-zstd HAVE_ZLIB=0 HAVE_LZ4=0 HAVE_LZMA=0
+
+    # Note : external libraries must be turned off when using MSAN tests,
+    # because they are not msan-instrumented,
+    # so any data coming from these libraries is always considered "uninitialized"
 
   cmake-build-and-test-check:
     runs-on: ubuntu-latest
@@ -147,7 +163,7 @@ jobs:
         make clean
         make c99build
         make clean
-        make travis-install
+        make travis-install   # just ensures `make install` works
 
   mingw-cross-compilation:
     runs-on: ubuntu-latest

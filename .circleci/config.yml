@@ -143,8 +143,9 @@ workflows:
           filters:
             branches:
               only:
-                - master
+                - release
                 - dev
+                - master
     jobs:
       # Run daily long regression tests
       - regression-test

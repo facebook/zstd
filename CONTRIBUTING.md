@@ -5,7 +5,7 @@ possible.
 ## Our Development Process
 New versions are being developed in the "dev" branch,
 or in their own feature branch.
-When they are deemed ready for a release, they are merged into "master".
+When they are deemed ready for a release, they are merged into "release".
 
 As a consequences, all contributions must stage first through "dev"
 or their own feature branch.
@@ -383,7 +383,7 @@ CI tests run every time a pull request (PR) is created or updated. The exact tes
 that get run will depend on the destination branch you specify. Some tests take
 longer to run than others. Currently, our CI is set up to run a short
 series of tests when creating a PR to the dev branch and a longer series of tests
-when creating a PR to the master branch. You can look in the configuration files
+when creating a PR to the release branch. You can look in the configuration files
 of the respective CI platform for more information on what gets run when.
 
 Most people will just want to create a PR with the destination set to their local dev

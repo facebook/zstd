@@ -51,7 +51,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: zlib wrapper test
       run: |
-        make gpp6install valgrindinstall
+        make valgrindinstall
         make -C zlibWrapper test
         make -C zlibWrapper valgrindTest
 

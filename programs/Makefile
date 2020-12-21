@@ -61,8 +61,10 @@ DEBUGFLAGS+=-Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
             -Wstrict-prototypes -Wundef -Wpointer-arith \
             -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings \
             -Wredundant-decls -Wmissing-prototypes -Wc++-compat
-CFLAGS   += $(DEBUGFLAGS) $(MOREFLAGS)
-FLAGS     = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
+CFLAGS   += $(DEBUGFLAGS)
+CPPFLAGS += $(MOREFLAGS)
+LDFLAGS  += $(MOREFLAGS)
+FLAGS     = $(CFLAGS) $(CPPFLAGS) $(LDFLAGS)
 
 ZSTDLIB_COMMON := $(ZSTDDIR)/common
 ZSTDLIB_COMPRESS := $(ZSTDDIR)/compress

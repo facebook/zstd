@@ -71,7 +71,7 @@ jobs:
         make gcc8install
         CC=gcc-8 CFLAGS="-Werror" make -j all
         make clean
-        CC=gcc-8 make -j uasan-test-zstd </dev/null
+        CC=gcc-8 make -j uasan-test-zstd </dev/null V=1
 
   gcc-6-asan-ubsan-testzstd-32bit:
     runs-on: ubuntu-latest

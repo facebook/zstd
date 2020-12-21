@@ -84,17 +84,15 @@ jobs:
         make clean
         CC=gcc-6 make -j uasan-test-zstd32
 
-  clang-38-msan-testzstd:
-    runs-on: ubuntu-16.04 # fails on 18.04
+  clang-msan-testzstd:
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: clang-3.8 + MSan + Test Zstd
+    - name: clang + MSan + Test Zstd
       run: |
-        # make clang38install (doesn't work)
-        sudo apt-add-repository "deb http://llvm.org/apt/trusty/ llvm-toolchain-trusty-3.8 main"
         sudo apt-get update
-        sudo apt-get install clang-3.8
-        CC=clang-3.8 make clean msan-test-zstd HAVE_ZLIB=0 HAVE_LZ4=0 HAVE_LZMA=0
+        sudo apt-get install clang
+        CC=clang make msan-test-zstd HAVE_ZLIB=0 HAVE_LZ4=0 HAVE_LZMA=0 V=1
 
     # Note : external libraries must be turned off when using MSAN tests,
     # because they are not msan-instrumented,

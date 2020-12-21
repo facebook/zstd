@@ -196,7 +196,8 @@ SET_CACHE_DIRECTORY = \
     BUILD_DIR=obj/$(HASH_DIR) \
     CPPFLAGS="$(CPPFLAGS)" \
     CFLAGS="$(CFLAGS)" \
-    LDFLAGS="$(LDFLAGS)"
+    LDFLAGS="$(LDFLAGS)" \
+    LDLIBS="$(LDLIBS)"
 
 
 .PHONY: all
@@ -207,7 +208,8 @@ allVariants: zstd zstd-compress zstd-decompress zstd-small zstd-nolegacy zstd-di
 
 .PHONY: zstd  # must always be run
 zstd : CPPFLAGS += $(THREAD_CPP) $(ZLIBCPP) $(LZMACPP) $(LZ4CPP)
-zstd : LDFLAGS += $(THREAD_LD) $(ZLIBLD) $(LZMALD) $(LZ4LD) $(DEBUGFLAGS_LD)
+zstd : LDFLAGS += $(THREAD_LD) $(DEBUGFLAGS_LD)
+zstd : LDLIBS += $(ZLIBLD) $(LZMALD) $(LZ4LD)
 zstd : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 ifneq (,$(filter Windows%,$(OS)))
 zstd : $(RES_FILE)
@@ -229,7 +231,7 @@ $(BUILD_DIR)/zstd : $(ZSTD_OBJ)
 	@echo "$(LZMA_MSG)"
 	@echo "$(LZ4_MSG)"
 	@echo LINK $@
-	$(LINK.o) $^ -o $(LDLIBS) $@$(EXT)
+	$(LINK.o) $^ $(LDLIBS) -o $@$(EXT)
 
 ifeq ($(HAVE_HASH),1)
 SRCBIN_HASH = $(shell cat $(BUILD_DIR)/zstd 2> $(VOID) | $(HASH) | cut -f 1 -d " ")

@@ -41,7 +41,8 @@ jobs:
     - uses: actions/checkout@v2
     - name: make check on 32-bit
       run: |
-        make libc6install
+        sudo apt update
+        APT_PACKAGES="gcc-multilib" make apt-install
         CFLAGS="-m32 -O1 -fstack-protector" make check V=1
 
   gcc-6-7-libzstd:

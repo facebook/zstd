@@ -1372,6 +1372,22 @@ ZSTDLIB_API size_t ZSTD_compressSequences(ZSTD_CCtx* const cctx, void* dst, size
                                   const void* src, size_t srcSize);
 
 
+/*! ZSTD_generateSkippableFrame() :
+ * Generates a zstd skippable frame containing data given by src, and writes it to dst buffer.
+ * 
+ * Skippable frames have a 4-byte magic number, which can range from ZSTD_MAGIC_SKIPPABLE_START to ZSTD_MAGIC_SKIPPABLE_START+15.
+ * As such, the parameter magicVariant controls the exact skippable frame magic number variant used, so
+ * the final magic number will be ZSTD_MAGIC_SKIPPABLE_START + magicVariant.
+ * 
+ * Returns an error if destination buffer is not large enough, if the source size is not representable
+ * with a 4-byte unsigned int, or if the magicVariant is greater than 15.
+ * 
+ * @return : number of bytes written or a ZSTD error.
+ */
+ZSTDLIB_API size_t ZSTD_generateSkippableFrame(void* dst, size_t dstCapacity,
+                                               const void* src, size_t srcSize, unsigned magicVariant);
+
+
 /***************************************
 *  Memory management
 ***************************************/

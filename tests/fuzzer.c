@@ -1583,7 +1583,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
             off += r;
             if (i == segs/2) {
                 /* insert skippable frame */
-                skippableSize = ZSTD_generateSkippableFrame(compressedBuffer + off, compressedBufferSize, skipBuff, skipLen, seed % 15);
+                skippableSize = ZSTD_writeSkippableFrame(compressedBuffer + off, compressedBufferSize, skipBuff, skipLen, seed % 15);
                 CHECK_Z(skippableSize);
                 off += skippableSize;
             }

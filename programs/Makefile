@@ -229,7 +229,7 @@ $(BUILD_DIR)/zstd : $(ZSTD_OBJ)
 	@echo "$(LZMA_MSG)"
 	@echo "$(LZ4_MSG)"
 	@echo LINK $@
-	$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
+	$(LINK.o) $^ -o $(LDLIBS) $@$(EXT)
 
 ifeq ($(HAVE_HASH),1)
 SRCBIN_HASH = $(shell cat $(BUILD_DIR)/zstd 2> $(VOID) | $(HASH) | cut -f 1 -d " ")

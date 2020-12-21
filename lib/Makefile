@@ -215,12 +215,9 @@ SET_CACHE_DIRECTORY = \
     LDFLAGS="$(LDFLAGS)"
 
 
-.PHONY: lib-all all clean install uninstall
-
-# alias
-lib-all: all
-
+.PHONY: all
 all: lib
+
 
 .PHONY: libzstd.a  # must be run every time
 
@@ -339,6 +336,7 @@ libzstd-nomt: $(ZSTD_NOMT_FILES)
 	@echo files : $(ZSTD_NOMT_FILES)
 	$(CC) $(FLAGS) $^ $(LDFLAGS) $(SONAME_FLAGS) -o $@
 
+.PHONY: clean
 clean:
 	$(RM) -r *.dSYM   # macOS-specific
 	$(RM) core *.o *.a *.gcda *.$(SHARED_EXT) *.$(SHARED_EXT).* libzstd.pc
@@ -407,6 +405,7 @@ libzstd.pc: libzstd.pc.in
           -e 's|@VERSION@|$(VERSION)|' \
           $< >$@
 
+.PHONY: install
 install: install-pc install-static install-shared install-includes
 	@echo zstd static and shared library installed
 
@@ -437,6 +436,7 @@ install-includes:
 	$(INSTALL_DATA) common/zstd_errors.h $(DESTDIR)$(INCLUDEDIR)
 	$(INSTALL_DATA) dictBuilder/zdict.h $(DESTDIR)$(INCLUDEDIR)
 
+.PHONY: uninstall
 uninstall:
 	$(RM) $(DESTDIR)$(LIBDIR)/libzstd.a
 	$(RM) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT)

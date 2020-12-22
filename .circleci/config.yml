@@ -31,9 +31,9 @@ jobs:
           command: |
             make gnu90build; make clean
             make gnu99build; make clean
-            make ppc64build; make clean
-            make ppcbuild  ; make clean
-            make armbuild  ; make clean
+            make ppc64build V=1; make clean
+            make ppcbuild   V=1; make clean
+            make armbuild   V=1; make clean
             make -C tests test-legacy test-longmatch; make clean
             make -C lib libzstd-nomt; make clean
   # This step is only run on release tags.

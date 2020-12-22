@@ -26,7 +26,7 @@
     - COMPILER: "clang"
       HOST:     "mingw"
       PLATFORM: "x64"
-      SCRIPT:   "MOREFLAGS='--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion' make allzstd"
+      SCRIPT:   "MOREFLAGS='--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion' make -j allzstd V=1"
       BUILD:    "true"
 
     - COMPILER: "gcc"
@@ -204,7 +204,7 @@
     - COMPILER: "clang"
       HOST:     "mingw"
       PLATFORM: "x64"
-      SCRIPT:   "CFLAGS='--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion' make -j allzstd"
+      SCRIPT:   "CFLAGS='--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion' make -j allzstd V=1"
 
     - COMPILER: "visual"
       HOST:     "visual"

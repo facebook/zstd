@@ -48,7 +48,7 @@ allmost: allzstd zlibwrapper
 
 # skip zwrapper, can't build that on alternate architectures without the proper zlib installed
 .PHONY: allzstd
-allzstd: lib-all
+allzstd: lib
 	$(Q)$(MAKE) -C $(PRGDIR) all
 	$(Q)$(MAKE) -C $(TESTDIR) all
 
@@ -57,9 +57,8 @@ all32:
 	$(MAKE) -C $(PRGDIR) zstd32
 	$(MAKE) -C $(TESTDIR) all32
 
-.PHONY: lib lib-release libzstd.a
-lib-all : lib
-lib lib-release lib-all :
+.PHONY: lib lib-release
+lib lib-release :
 	$(Q)$(MAKE) -C $(ZSTDDIR) $@
 
 .PHONY: zstd zstd-release
@@ -225,10 +224,10 @@ aarch64build: clean
 	CC=aarch64-linux-gnu-gcc CFLAGS="-Werror" $(MAKE) allzstd
 
 ppcbuild: clean
-	CC=powerpc-linux-gnu-gcc CFLAGS="-m32 -Wno-attributes -Werror" $(MAKE) allzstd
+	CC=powerpc-linux-gnu-gcc CFLAGS="-m32 -Wno-attributes -Werror" $(MAKE) -j allzstd
 
 ppc64build: clean
-	CC=powerpc-linux-gnu-gcc CFLAGS="-m64 -Werror" $(MAKE) allzstd
+	CC=powerpc-linux-gnu-gcc CFLAGS="-m64 -Werror" $(MAKE) -j allzstd
 
 armfuzz: clean
 	CC=arm-linux-gnueabi-gcc QEMU_SYS=qemu-arm-static MOREFLAGS="-static" FUZZER_FLAGS=--no-big-tests $(MAKE) -C $(TESTDIR) fuzztest

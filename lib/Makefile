@@ -252,14 +252,14 @@ ifneq (,$(filter Windows%,$(TARGET_SYSTEM)))
 LIBZSTD = dll/libzstd.dll
 $(LIBZSTD): $(ZSTD_FILES)
 	@echo compiling dynamic library $(LIBVER)
-	$(CC) $(FLAGS) -DZSTD_DLL_EXPORT=1 -Wl,--out-implib,dll/libzstd.dll.a -shared $^ -o $@
+	$(CC) $(FLAGS) -DZSTD_DLL_EXPORT=1 -Wl,--defsym=ZSTD_getSequences=ZSTD_generateSequences -Wl,--out-implib,dll/libzstd.dll.a -shared $^ -o $@
 
 else  # not Windows
 
 LIBZSTD = libzstd.$(SHARED_EXT_VER)
 .PHONY: $(LIBZSTD)  # must be run every time
-$(LIBZSTD): CFLAGS += -fPIC
-$(LIBZSTD): LDFLAGS += -shared -fvisibility=hidden
+$(LIBZSTD): CFLAGS += -fPIC -fvisibility=hidden
+$(LIBZSTD): LDFLAGS += -shared -Wl,--defsym=ZSTD_getSequences=ZSTD_generateSequences
 
 ifndef BUILD_DIR
 # determine BUILD_DIR from compilation flags

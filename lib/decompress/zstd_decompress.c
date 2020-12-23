@@ -1307,6 +1307,100 @@ size_t ZSTD_freeDStream(ZSTD_DStream* zds)
 size_t ZSTD_DStreamInSize(void)  { return ZSTD_BLOCKSIZE_MAX + ZSTD_blockHeaderSize; }
 size_t ZSTD_DStreamOutSize(void) { return ZSTD_BLOCKSIZE_MAX; }
 
+
+/***************************
+ * Multiple DDicts HashSet *
+ ***************************/
+
+#define DDICT_HASHSET_MAX_LOAD_FACTOR 0.75
+#define DDICT_HASHSET_TABLE_BASE_SIZE 64
+#define DDICT_HASHSET_RESIZE_FACTOR 2
+
+/* Hashset using linear probing */
+typedef struct {
+    ZSTD_DDict** ddictPtrTable;
+    size_t ddictPtrTableSize;
+    size_t ddictPtrCount;
+} ZSTD_DDictHashSet;
+
+/* Hash function to determine starting position of dict insertion */
+static size_t ZSTD_DDictHashSet_getIndex(const ZSTD_DDictHashSet* hashSet, size_t seed) {
+    return seed % hashSet->ddictPtrTableSize;
+}
+
+/* Adds ddict to a hashset without any chance of resizing it 
+ * Returns 0 on success or a zstd error code
+ */
+static size_t ZSTD_DDictHashSet_emplaceDDict(ZSTD_DDictHashSet* hashSet, ZSTD_DDict* ddict, int dictID) {
+    RETURN_ERROR_IF(hashSet->ddictPtrCount == hashSet->ddictPtrTableSize, GENERIC, "Hash set is full!");
+    size_t idx = ZSTD_DDictHashSet_getIndex(hashSet, dictID);
+    while (hashSet->ddictPtrTable[idx] != NULL) {
+        /* Replace existing ddict if inserting ddict with same dictID */
+        if (ZSTD_getDictID_fromDDict(hashSet->ddictPtrTable[idx]) == dictID) break;
+        idx++;
+    }
+    hashSet->ddictPtrTable[idx] = ddict;
+    hashSet->ddictPtrCount++;
+    return 0;
+}
+
+/* Expands hash table by factor of DDICT_HASHSET_RESIZE_FACTOR and rehashes all values */
+static size_t ZSTD_DDictHashSet_expand(ZSTD_DDictHashSet* hashSet, ZSTD_customMem customMem) {
+    size_t newTableSize = hashSet->ddictPtrTableSize * DDICT_HASHSET_RESIZE_FACTOR;
+    ZSTD_DDict** newTable = (ZSTD_DDict**)ZSTD_customCalloc(sizeof(ZSTD_DDict*) * newTableSize, customMem);
+    ZSTD_DDict** oldTable = hashSet->ddictPtrTable;
+    size_t oldTableSize = hashSet->ddictPtrTableSize;
+    size_t i = 0;
+    
+    RETURN_ERROR_IF(!newTable, memory_allocation, "Expanded hashset allocation failed!");
+    hashSet->ddictPtrTable = newTable;
+    hashSet->ddictPtrTableSize = newTableSize;
+    hashSet->ddictPtrCount = 0;
+    for (i = 0; i < oldTableSize; ++i) {
+        if (oldTable[i] != NULL) {
+            FORWARD_IF_ERROR(ZSTD_DDictHashSet_emplaceDDict(hashSet, oldTable[i], ZSTD_getDictID_fromDDict(oldTable[i])), "");
+        }
+    }
+    ZSTD_customFree(oldTable, customMem);
+    return 0;
+}
+
+/* Adds a DDict into the ZSTD_DDictHashSet, possibly triggering a resize of the hash set.
+ * Returns 0 on success, or a ZSTD error.
+ */
+static size_t ZSTD_DDictHashSet_addDDict(ZSTD_DDictHashSet* hashSet, ZSTD_DDict* ddict, int dictID, ZSTD_customMem customMem) {
+    if ((float)hashSet->ddictPtrCount / (float)hashSet->ddictPtrTableSize > DDICT_HASHSET_MAX_LOAD_FACTOR) {
+        FORWARD_IF_ERROR(ZSTD_DDictHashSet_expand(hashSet, customMem), "");
+    }
+    FORWARD_IF_ERROR(ZSTD_DDictHashSet_emplaceDDict(hashSet, ddict, dictID), "");
+    return 0;
+}
+
+/* Fetches a DDict with the given dictID */
+static ZSTD_DDict* ZSTD_DDictHashSet_getDDict(ZSTD_DDictHashSet* hashSet, int dictID) {
+    size_t idx = ZSTD_DDictHashSet_getIndex(hashSet, dictID);
+    for (;;) {
+        size_t currDictID = ZSTD_getDictID_fromDDict(hashSet->ddictPtrTable[idx]);
+        if (currDictID == dictID || currDictID == 0) {
+            /* currDictID == 0 implies a NULL ddict entry */
+            break;
+        } else {
+            idx++;
+        }
+    }
+    return hashSet->ddictPtrTable[idx];
+}
+
+/* Allocates space for and returns a ddict hash set */
+static ZSTD_DDictHashSet* ZSTD_createDDictHashSet(ZSTD_customMem customMem) {
+    ZSTD_DDictHashSet* ret = (ZSTD_DDictHashSet*)ZSTD_customMalloc(sizeof(ZSTD_DDictHashSet), customMem);
+    ret->ddictPtrTable = (ZSTD_DDict**)ZSTD_customCalloc(DDICT_HASHSET_TABLE_BASE_SIZE * sizeof(ZSTD_DDict*), customMem);
+    ret->ddictPtrTableSize = DDICT_HASHSET_TABLE_BASE_SIZE;
+    ret->ddictPtrCount = 0;
+    return ret;
+}
+
+
 size_t ZSTD_DCtx_loadDictionary_advanced(ZSTD_DCtx* dctx,
                                    const void* dict, size_t dictSize,
                                          ZSTD_dictLoadMethod_e dictLoadMethod,

@@ -122,6 +122,8 @@ static void ZSTD_initDCtx_internal(ZSTD_DCtx* dctx)
     dctx->bmi2 = ZSTD_cpuid_bmi2(ZSTD_cpuid());
     ZSTD_DCtx_resetParameters(dctx);
     dctx->validateChecksum = 1;
+    dctx->refMultipleDDicts = 0;
+    dctx->ddictSet = NULL;
 #ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
     dctx->dictContentEndForFuzzing = NULL;
 #endif
@@ -178,6 +180,10 @@ size_t ZSTD_freeDCtx(ZSTD_DCtx* dctx)
         if (dctx->legacyContext)
             ZSTD_freeLegacyStreamContext(dctx->legacyContext, dctx->previousLegacyVersion);
 #endif
+        if (dctx->ddictSet) {
+            ZSTD_freeDDictHashSet(dctx->ddictSet, cMem);
+            dctx->ddictSet = NULL;
+        }
         ZSTD_customFree(dctx, cMem);
         return 0;
     }
@@ -1400,6 +1406,10 @@ static ZSTD_DDictHashSet* ZSTD_createDDictHashSet(ZSTD_customMem customMem) {
     return ret;
 }
 
+static void ZSTD_freeDDictHashSet(ZSTD_DDictHashSet* hashSet, ZSTD_customMem customMem) {
+    if (hashSet->ddictPtrTable) ZSTD_customFree(hashSet->ddictPtrTable, customMem);
+    ZSTD_customFree(hashSet, customMem);
+}
 
 size_t ZSTD_DCtx_loadDictionary_advanced(ZSTD_DCtx* dctx,
                                    const void* dict, size_t dictSize,
@@ -1602,6 +1612,18 @@ size_t ZSTD_DCtx_setParameter(ZSTD_DCtx* dctx, ZSTD_dParameter dParam, int value
         case ZSTD_d_refMultipleDDicts:
             CHECK_DBOUNDS(ZSTD_d_refMultipleDDicts, value);
             dctx->refMultipleDDicts = (ZSTD_refMultipleDDicts_e)value;
+            if (dctx->refMultipleDDicts == ZSTD_d_refMultipleDicts) {
+                if (dctx->ddictSet == NULL) {
+                    if (dctx->staticSize != 0) {
+                        RETURN_ERROR(memory_allocation, "Multiple DDicts are not allowed with static dctx!");
+                    }
+                    dctx->ddictSet = ZSTD_createDDictHashSet(dctx->customMem);
+                }
+            } else {
+                ZSTD_freeDDictHashSet(dctx->ddictSet, dctx->customMem);
+                dctx->ddictSet = NULL;
+            }
+            return 0;
         default:;
     }
     RETURN_ERROR(parameter_unsupported, "");

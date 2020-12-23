@@ -546,12 +546,14 @@ typedef enum {
      * ZSTD_d_format
      * ZSTD_d_stableOutBuffer
      * ZSTD_d_forceIgnoreChecksum
+     * ZSTD_d_refMultipleDDicts
      * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
      * note : never ever use experimentalParam? names directly
      */
      ZSTD_d_experimentalParam1=1000,
      ZSTD_d_experimentalParam2=1001,
-     ZSTD_d_experimentalParam3=1002
+     ZSTD_d_experimentalParam3=1002,
+     ZSTD_d_experimentalParam4=1003
 
 } ZSTD_dParameter;
 
@@ -1204,6 +1206,12 @@ typedef enum {
     ZSTD_d_validateChecksum = 0,
     ZSTD_d_ignoreChecksum = 1
 } ZSTD_forceIgnoreChecksum_e;
+
+typedef enum {
+    /* Note: this enum controls ZSTD_d_refMultipleDDicts */
+    ZSTD_d_refSingleDict = 0,
+    ZSTD_d_refMultipleDicts = 1,
+} ZSTD_refMultipleDDicts_e;
 
 typedef enum {
     /* Note: this enum and the behavior it controls are effectively internal
@@ -1999,6 +2007,19 @@ ZSTDLIB_API size_t ZSTD_DCtx_getParameter(ZSTD_DCtx* dctx, ZSTD_dParameter param
  * Param has values of type ZSTD_forceIgnoreChecksum_e
  */
 #define ZSTD_d_forceIgnoreChecksum ZSTD_d_experimentalParam3
+
+/* ZSTD_d_refMultipleDDicts
+ * Experimental parameter.
+ * Default is 0 == disabled. Set to 1 to enable
+ *
+ * If enabled and dctx is allocated on the heap, then additional memory will be allocated
+ * to store references to multiple ZSTD_DDict. That is, multiple calls of ZSTD_refDDict()
+ * using a given ZSTD_DCtx, rather than overwriting the previous DCtx referenced, will
+ * store all references, and at decompression time, the appropriate dictID is selected
+ * from the set of DDicts based on the dictID in the frame. 
+ */
+#define ZSTD_d_refMultipleDDicts ZSTD_d_experimentalParam4
+
 
 /*! ZSTD_DCtx_setFormat() :
  *  Instruct the decoder context about what kind of data to decode next.

@@ -1001,6 +1001,13 @@ ZSTDLIB_API size_t ZSTD_DCtx_loadDictionary(ZSTD_DCtx* dctx, const void* dict, s
 /*! ZSTD_DCtx_refDDict() :
  *  Reference a prepared dictionary, to be used to decompress next frames.
  *  The dictionary remains active for decompression of future frames using same DCtx.
+ * 
+ *  If called with ZSTD_d_refMultipleDDicts enabled, repeated calls of this function
+ *  will store the DDict references in a table, and the DDict used for decompression
+ *  will be determined at decompression time, as per the dict ID in the frame.
+ *  The memory for the table is allocated on the first call to refDDict, and can be
+ *  freed with ZSTD_freeDCtx().
+ * 
  * @result : 0, or an error code (which can be tested with ZSTD_isError()).
  *  Note 1 : Currently, only one dictionary can be managed.
  *           Referencing a new dictionary effectively "discards" any previous one.
@@ -1209,8 +1216,8 @@ typedef enum {
 
 typedef enum {
     /* Note: this enum controls ZSTD_d_refMultipleDDicts */
-    ZSTD_d_refSingleDict = 0,
-    ZSTD_d_refMultipleDicts = 1,
+    ZSTD_rmd_refSingleDDict = 0,
+    ZSTD_rmd_refMultipleDDicts = 1
 } ZSTD_refMultipleDDicts_e;
 
 typedef enum {
@@ -2014,13 +2021,20 @@ ZSTDLIB_API size_t ZSTD_DCtx_getParameter(ZSTD_DCtx* dctx, ZSTD_dParameter param
  *
  * If enabled and dctx is allocated on the heap, then additional memory will be allocated
  * to store references to multiple ZSTD_DDict. That is, multiple calls of ZSTD_refDDict()
- * using a given ZSTD_DCtx, rather than overwriting the previous DCtx referenced, will
- * store all references, and at decompression time, the appropriate dictID is selected
- * from the set of DDicts based on the dictID in the frame. 
+ * using a given ZSTD_DCtx, rather than overwriting the previous DDict reference, will instead
+ * store all references. At decompression time, the appropriate dictID is selected
+ * from the set of DDicts based on the dictID in the frame.
  * 
- * WARNING: Enabling this parameter will trigger memory allocation for the hash table, and disabling
- * this parameter will free the memory allocated for the hashtable. Memory is allocated as per
- * ZSTD_DCtx::customMem.
+ * Usage is simply calling ZSTD_refDDict() on multiple dict buffers.
+ * 
+ * Param has values of byte ZSTD_refMultipleDDicts_e
+ * 
+ * WARNING: Enabling this parameter and calling ZSTD_DCtx_refDDict(), will trigger memory
+ * allocation for the hash table. ZSTD_freeDCtx() also frees this memory.
+ * Memory is allocated as per ZSTD_DCtx::customMem.
+ * 
+ * Although this function allocates memory for the table, the user is still responsible for
+ * memory management of the underlying ZSTD_DDict* themselves.
  */
 #define ZSTD_d_refMultipleDDicts ZSTD_d_experimentalParam4
 

@@ -99,6 +99,13 @@ typedef enum {
     ZSTD_use_once = 1            /* Use the dictionary once and set to ZSTD_dont_use */
 } ZSTD_dictUses_e;
 
+/* Hashset for storing references to multiple ZSTD_DDict within ZSTD_DCtx */
+typedef struct {
+    const ZSTD_DDict** ddictPtrTable;
+    size_t ddictPtrTableSize;
+    size_t ddictPtrCount;
+} ZSTD_DDictHashSet;
+
 struct ZSTD_DCtx_s
 {
     const ZSTD_seqSymbol* LLTptr;

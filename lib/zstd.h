@@ -2017,6 +2017,9 @@ ZSTDLIB_API size_t ZSTD_DCtx_getParameter(ZSTD_DCtx* dctx, ZSTD_dParameter param
  * using a given ZSTD_DCtx, rather than overwriting the previous DCtx referenced, will
  * store all references, and at decompression time, the appropriate dictID is selected
  * from the set of DDicts based on the dictID in the frame. 
+ * 
+ * WARNING: Enabling this parameter will trigger memory allocation for the hash table, and disabling
+ * this parameter will trigger memory freeing for the hashtable. 
  */
 #define ZSTD_d_refMultipleDDicts ZSTD_d_experimentalParam4
 

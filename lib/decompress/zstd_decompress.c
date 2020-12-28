@@ -72,6 +72,108 @@
 #endif
 
 
+
+/***************************
+ * Multiple DDicts Hashset *
+ ***************************/
+
+#define DDICT_HASHSET_MAX_LOAD_FACTOR 0.75
+#define DDICT_HASHSET_TABLE_BASE_SIZE 64
+#define DDICT_HASHSET_RESIZE_FACTOR 2
+
+/* Hash function to determine starting position of dict insertion */
+static size_t ZSTD_DDictHashSet_getIndex(const ZSTD_DDictHashSet* hashSet, size_t seed) {
+    return seed % hashSet->ddictPtrTableSize;
+}
+
+/* Adds ddict to a hashset without any chance of resizing it 
+ * Returns 0 on success or a zstd error code
+ */
+static size_t ZSTD_DDictHashSet_emplaceDDict(ZSTD_DDictHashSet* hashSet, const ZSTD_DDict* ddict, int dictID) {
+    RETURN_ERROR_IF(hashSet->ddictPtrCount == hashSet->ddictPtrTableSize, GENERIC, "Hash set is full!");
+    size_t idx = ZSTD_DDictHashSet_getIndex(hashSet, dictID);
+    DEBUGLOG(2, "Hashed index: for dictID: %d is %zu", dictID, idx);
+    while (hashSet->ddictPtrTable[idx] != NULL) {
+        /* Replace existing ddict if inserting ddict with same dictID */
+        if (ZSTD_getDictID_fromDDict(hashSet->ddictPtrTable[idx]) == dictID) {
+            DEBUGLOG(2, "DictID already resides here!");
+            break;
+        }
+        idx++;
+    }
+    DEBUGLOG(2, "Final idx after probing for dictID %d is: %zu", dictID, idx);
+    hashSet->ddictPtrTable[idx] = ddict;
+    hashSet->ddictPtrCount++;
+    return 0;
+}
+
+/* Expands hash table by factor of DDICT_HASHSET_RESIZE_FACTOR and rehashes all values */
+static size_t ZSTD_DDictHashSet_expand(ZSTD_DDictHashSet* hashSet, ZSTD_customMem customMem) {
+    size_t newTableSize = hashSet->ddictPtrTableSize * DDICT_HASHSET_RESIZE_FACTOR;
+    const ZSTD_DDict** newTable = (const ZSTD_DDict**)ZSTD_customCalloc(sizeof(ZSTD_DDict*) * newTableSize, customMem);
+    const ZSTD_DDict** oldTable = hashSet->ddictPtrTable;
+    size_t oldTableSize = hashSet->ddictPtrTableSize;
+    size_t i = 0;
+
+    DEBUGLOG(2, "Expanding DDict hash table! Old size: %zu new size: %zu", oldTableSize, newTableSize);
+    RETURN_ERROR_IF(!newTable, memory_allocation, "Expanded hashset allocation failed!");
+    hashSet->ddictPtrTable = newTable;
+    hashSet->ddictPtrTableSize = newTableSize;
+    hashSet->ddictPtrCount = 0;
+    for (i = 0; i < oldTableSize; ++i) {
+        if (oldTable[i] != NULL) {
+            FORWARD_IF_ERROR(ZSTD_DDictHashSet_emplaceDDict(hashSet, oldTable[i], ZSTD_getDictID_fromDDict(oldTable[i])), "");
+        }
+    }
+    ZSTD_customFree(oldTable, customMem);
+    return 0;
+}
+
+/* Adds a DDict into the ZSTD_DDictHashSet, possibly triggering a resize of the hash set.
+ * Returns 0 on success, or a ZSTD error.
+ */
+static size_t ZSTD_DDictHashSet_addDDict(ZSTD_DDictHashSet* hashSet, const ZSTD_DDict* ddict, int dictID, ZSTD_customMem customMem) {
+    DEBUGLOG(2, "Adding dict ID: %d to set. Count: %zu Tablesize: %zu", dictID, hashSet->ddictPtrCount, hashSet->ddictPtrTableSize);
+    if ((float)hashSet->ddictPtrCount / (float)hashSet->ddictPtrTableSize > DDICT_HASHSET_MAX_LOAD_FACTOR) {
+        FORWARD_IF_ERROR(ZSTD_DDictHashSet_expand(hashSet, customMem), "");
+    }
+    FORWARD_IF_ERROR(ZSTD_DDictHashSet_emplaceDDict(hashSet, ddict, dictID), "");
+    return 0;
+}
+
+/* Fetches a DDict with the given dictID */
+static const ZSTD_DDict* ZSTD_DDictHashSet_getDDict(ZSTD_DDictHashSet* hashSet, int dictID) {
+    size_t idx = ZSTD_DDictHashSet_getIndex(hashSet, dictID);
+    DEBUGLOG(2, "Hashed index: for dictID: %d is %zu", dictID, idx);
+    for (;;) {
+        size_t currDictID = ZSTD_getDictID_fromDDict(hashSet->ddictPtrTable[idx]);
+        if (currDictID == dictID || currDictID == 0) {
+            /* currDictID == 0 implies a NULL ddict entry */
+            break;
+        } else {
+            idx++;
+        }
+    }
+    DEBUGLOG(2, "Final idx after probing for dictID %d is: %zu", dictID, idx);
+    return hashSet->ddictPtrTable[idx];
+}
+
+/* Allocates space for and returns a ddict hash set */
+static ZSTD_DDictHashSet* ZSTD_createDDictHashSet(ZSTD_customMem customMem) {
+    ZSTD_DDictHashSet* ret = (ZSTD_DDictHashSet*)ZSTD_customMalloc(sizeof(ZSTD_DDictHashSet), customMem);
+    ret->ddictPtrTable = (const ZSTD_DDict**)ZSTD_customCalloc(DDICT_HASHSET_TABLE_BASE_SIZE * sizeof(ZSTD_DDict*), customMem);
+    ret->ddictPtrTableSize = DDICT_HASHSET_TABLE_BASE_SIZE;
+    ret->ddictPtrCount = 0;
+    return ret;
+}
+
+static void ZSTD_freeDDictHashSet(ZSTD_DDictHashSet* hashSet, ZSTD_customMem customMem) {
+    if (hashSet->ddictPtrTable) ZSTD_customFree(hashSet->ddictPtrTable, customMem);
+    ZSTD_customFree(hashSet, customMem);
+}
+
+
+
 /*-*************************************************************
 *   Context management
 ***************************************************************/
@@ -447,12 +549,25 @@ unsigned long long ZSTD_getDecompressedSize(const void* src, size_t srcSize)
 
 /** ZSTD_decodeFrameHeader() :
  * `headerSize` must be the size provided by ZSTD_frameHeaderSize().
+ * If multiple DDict references are enabled, also will choose the correct DDict to use.
  * @return : 0 if success, or an error code, which can be tested using ZSTD_isError() */
 static size_t ZSTD_decodeFrameHeader(ZSTD_DCtx* dctx, const void* src, size_t headerSize)
 {
     size_t const result = ZSTD_getFrameHeader_advanced(&(dctx->fParams), src, headerSize, dctx->format);
     if (ZSTD_isError(result)) return result;    /* invalid header */
     RETURN_ERROR_IF(result>0, srcSize_wrong, "headerSize too small");
+    /* Reference DDict requested by frame if dctx references multiple ddicts */
+    if (dctx->refMultipleDDicts && dctx->ddictSet) {
+        DEBUGLOG(2, "Choosing the correct DDict at decompression time!");
+        const ZSTD_DDict* frameDDict = ZSTD_DDictHashSet_getDDict(dctx->ddictSet, dctx->fParams.dictID);
+        if (frameDDict) {
+            DEBUGLOG(2, "DDict found!");
+            ZSTD_clearDict(dctx);
+            dctx->dictID = dctx->fParams.dictID;
+            dctx->ddict = frameDDict;
+            dctx->dictUses = ZSTD_use_indefinitely;
+        }
+    }
 #ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
     /* Skip the dictID check in fuzzing mode, because it makes the search
      * harder.
@@ -574,7 +689,6 @@ unsigned long long ZSTD_decompressBound(const void* src, size_t srcSize)
     return bound;
 }
 
-
 /*-*************************************************************
  *   Frame decoding
  ***************************************************************/
@@ -646,16 +760,6 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
                         srcSize_wrong, "");
         FORWARD_IF_ERROR( ZSTD_decodeFrameHeader(dctx, ip, frameHeaderSize) , "");
         ip += frameHeaderSize; remainingSrcSize -= frameHeaderSize;
-    }
-
-    /* Reference DDict requested by frame if dctx references multiple ddicts */
-    if (dctx->refMultipleDDicts && dctx->ddictSet) {
-        ZSTD_DDict* frameDDict = ZSTD_DDictHashSet_getDDict(dctx->ddictSet, dctx->fParams.dictID);
-        if (frameDDict) {
-            ZSTD_clearDict(dctx);
-            dctx->ddict = frameDDict;
-            dctx->dictUses = ZSTD_use_indefinitely;
-        }
     }
 
     /* Loop on each block */
@@ -1323,104 +1427,6 @@ size_t ZSTD_freeDStream(ZSTD_DStream* zds)
 size_t ZSTD_DStreamInSize(void)  { return ZSTD_BLOCKSIZE_MAX + ZSTD_blockHeaderSize; }
 size_t ZSTD_DStreamOutSize(void) { return ZSTD_BLOCKSIZE_MAX; }
 
-
-/***************************
- * Multiple DDicts HashSet *
- ***************************/
-
-#define DDICT_HASHSET_MAX_LOAD_FACTOR 0.75
-#define DDICT_HASHSET_TABLE_BASE_SIZE 64
-#define DDICT_HASHSET_RESIZE_FACTOR 2
-
-/* Hashset using linear probing */
-typedef struct {
-    ZSTD_DDict** ddictPtrTable;
-    size_t ddictPtrTableSize;
-    size_t ddictPtrCount;
-} ZSTD_DDictHashSet;
-
-/* Hash function to determine starting position of dict insertion */
-static size_t ZSTD_DDictHashSet_getIndex(const ZSTD_DDictHashSet* hashSet, size_t seed) {
-    return seed % hashSet->ddictPtrTableSize;
-}
-
-/* Adds ddict to a hashset without any chance of resizing it 
- * Returns 0 on success or a zstd error code
- */
-static size_t ZSTD_DDictHashSet_emplaceDDict(ZSTD_DDictHashSet* hashSet, ZSTD_DDict* ddict, int dictID) {
-    RETURN_ERROR_IF(hashSet->ddictPtrCount == hashSet->ddictPtrTableSize, GENERIC, "Hash set is full!");
-    size_t idx = ZSTD_DDictHashSet_getIndex(hashSet, dictID);
-    while (hashSet->ddictPtrTable[idx] != NULL) {
-        /* Replace existing ddict if inserting ddict with same dictID */
-        if (ZSTD_getDictID_fromDDict(hashSet->ddictPtrTable[idx]) == dictID) break;
-        idx++;
-    }
-    hashSet->ddictPtrTable[idx] = ddict;
-    hashSet->ddictPtrCount++;
-    return 0;
-}
-
-/* Expands hash table by factor of DDICT_HASHSET_RESIZE_FACTOR and rehashes all values */
-static size_t ZSTD_DDictHashSet_expand(ZSTD_DDictHashSet* hashSet, ZSTD_customMem customMem) {
-    size_t newTableSize = hashSet->ddictPtrTableSize * DDICT_HASHSET_RESIZE_FACTOR;
-    ZSTD_DDict** newTable = (ZSTD_DDict**)ZSTD_customCalloc(sizeof(ZSTD_DDict*) * newTableSize, customMem);
-    ZSTD_DDict** oldTable = hashSet->ddictPtrTable;
-    size_t oldTableSize = hashSet->ddictPtrTableSize;
-    size_t i = 0;
-    
-    RETURN_ERROR_IF(!newTable, memory_allocation, "Expanded hashset allocation failed!");
-    hashSet->ddictPtrTable = newTable;
-    hashSet->ddictPtrTableSize = newTableSize;
-    hashSet->ddictPtrCount = 0;
-    for (i = 0; i < oldTableSize; ++i) {
-        if (oldTable[i] != NULL) {
-            FORWARD_IF_ERROR(ZSTD_DDictHashSet_emplaceDDict(hashSet, oldTable[i], ZSTD_getDictID_fromDDict(oldTable[i])), "");
-        }
-    }
-    ZSTD_customFree(oldTable, customMem);
-    return 0;
-}
-
-/* Adds a DDict into the ZSTD_DDictHashSet, possibly triggering a resize of the hash set.
- * Returns 0 on success, or a ZSTD error.
- */
-static size_t ZSTD_DDictHashSet_addDDict(ZSTD_DDictHashSet* hashSet, ZSTD_DDict* ddict, int dictID, ZSTD_customMem customMem) {
-    if ((float)hashSet->ddictPtrCount / (float)hashSet->ddictPtrTableSize > DDICT_HASHSET_MAX_LOAD_FACTOR) {
-        FORWARD_IF_ERROR(ZSTD_DDictHashSet_expand(hashSet, customMem), "");
-    }
-    FORWARD_IF_ERROR(ZSTD_DDictHashSet_emplaceDDict(hashSet, ddict, dictID), "");
-    return 0;
-}
-
-/* Fetches a DDict with the given dictID */
-static ZSTD_DDict* ZSTD_DDictHashSet_getDDict(ZSTD_DDictHashSet* hashSet, int dictID) {
-    size_t idx = ZSTD_DDictHashSet_getIndex(hashSet, dictID);
-    for (;;) {
-        size_t currDictID = ZSTD_getDictID_fromDDict(hashSet->ddictPtrTable[idx]);
-        if (currDictID == dictID || currDictID == 0) {
-            /* currDictID == 0 implies a NULL ddict entry */
-            break;
-        } else {
-            idx++;
-        }
-    }
-    return hashSet->ddictPtrTable[idx];
-}
-
-/* Allocates space for and returns a ddict hash set */
-static ZSTD_DDictHashSet* ZSTD_createDDictHashSet(ZSTD_customMem customMem) {
-    ZSTD_DDictHashSet* ret = (ZSTD_DDictHashSet*)ZSTD_customMalloc(sizeof(ZSTD_DDictHashSet), customMem);
-    ret->ddictPtrTable = (ZSTD_DDict**)ZSTD_customCalloc(DDICT_HASHSET_TABLE_BASE_SIZE * sizeof(ZSTD_DDict*), customMem);
-    ret->ddictPtrTableSize = DDICT_HASHSET_TABLE_BASE_SIZE;
-    ret->ddictPtrCount = 0;
-    return ret;
-}
-
-static void ZSTD_freeDDictHashSet(ZSTD_DDictHashSet* hashSet, ZSTD_customMem customMem) {
-    if (hashSet->ddictPtrTable) ZSTD_customFree(hashSet->ddictPtrTable, customMem);
-    ZSTD_customFree(hashSet, customMem);
-}
-
 size_t ZSTD_DCtx_loadDictionary_advanced(ZSTD_DCtx* dctx,
                                    const void* dict, size_t dictSize,
                                          ZSTD_dictLoadMethod_e dictLoadMethod,
@@ -1507,7 +1513,8 @@ size_t ZSTD_DCtx_refDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict)
         dctx->dictUses = ZSTD_use_indefinitely;
         if (dctx->refMultipleDDicts && dctx->ddictSet) {
             assert(!dctx->staticSize);  /* Impossible: ddictSet cannot have been allocated if static dctx */
-            ZSTD_DDictHashSet_addDDict(dctx->ddictSet, ddict, ZSTD_getDictID_fromDDict(ddict), dctx->customMem);
+            FORWARD_IF_ERROR(ZSTD_DDictHashSet_addDDict(dctx->ddictSet, ddict,
+                                                        ZSTD_getDictID_fromDDict(ddict), dctx->customMem), "");
         }
     }
     return 0;
@@ -1557,6 +1564,7 @@ ZSTD_bounds ZSTD_dParam_getBounds(ZSTD_dParameter dParam)
         case ZSTD_d_refMultipleDDicts:
             bounds.lowerBound = (int)ZSTD_d_refSingleDict;
             bounds.upperBound = (int)ZSTD_d_refMultipleDicts;
+            return bounds;
         default:;
     }
     bounds.error = ERROR(parameter_unsupported);
@@ -1625,11 +1633,13 @@ size_t ZSTD_DCtx_setParameter(ZSTD_DCtx* dctx, ZSTD_dParameter dParam, int value
             return 0;
         case ZSTD_d_refMultipleDDicts:
             CHECK_DBOUNDS(ZSTD_d_refMultipleDDicts, value);
+            DEBUGLOG(2, "Referencing multiple ddicts param enabled");
             if (dctx->staticSize != 0) {
                 RETURN_ERROR(parameter_unsupported, "Static dctx does not support multiple DDicts!");
             }
             dctx->refMultipleDDicts = (ZSTD_refMultipleDDicts_e)value;
             if (dctx->refMultipleDDicts == ZSTD_d_refMultipleDicts && dctx->ddictSet == NULL) {
+                DEBUGLOG(2, "Allocating new hash set");
                 dctx->ddictSet = ZSTD_createDDictHashSet(dctx->customMem);
             } else {
                 ZSTD_freeDDictHashSet(dctx->ddictSet, dctx->customMem);
@@ -1818,9 +1828,10 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
 #endif
             {   size_t const hSize = ZSTD_getFrameHeader_advanced(&zds->fParams, zds->headerBuffer, zds->lhSize, zds->format);
                 if (zds->refMultipleDDicts && zds->ddictSet) {
-                    ZSTD_DDict* frameDDict = ZSTD_DDictHashSet_getDDict(zds->ddictSet, zds->fParams.dictID);
+                    const ZSTD_DDict* frameDDict = ZSTD_DDictHashSet_getDDict(zds->ddictSet, zds->fParams.dictID);
                     if (frameDDict) {
                         ZSTD_clearDict(zds);
+                        zds->dictID = zds->fParams.dictID;
                         zds->ddict = frameDDict;
                         zds->dictUses = ZSTD_use_indefinitely;
                     }

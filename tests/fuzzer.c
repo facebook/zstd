@@ -1570,6 +1570,11 @@ static int basicUnitTests(U32 const seed, double compressibility)
         int const segs = 4;
         /* only use the first half so we don't push against size limit of compressedBuffer */
         size_t const segSize = (CNBuffSize / 2) / segs;
+
+        U32 skippableSize;
+        const U32 skipLen = 129 KB;
+        char* skipBuff = (char*)malloc(skipLen);
+        memset(skipBuff, 0, skipLen);
         for (i = 0; i < segs; i++) {
             CHECK_NEWV(r, ZSTD_compress(
                             (BYTE*)compressedBuffer + off, CNBuffSize - off,
@@ -1578,13 +1583,13 @@ static int basicUnitTests(U32 const seed, double compressibility)
             off += r;
             if (i == segs/2) {
                 /* insert skippable frame */
-                const U32 skipLen = 129 KB;
-                MEM_writeLE32((BYTE*)compressedBuffer + off, ZSTD_MAGIC_SKIPPABLE_START);
-                MEM_writeLE32((BYTE*)compressedBuffer + off + 4, skipLen);
-                off += skipLen + ZSTD_SKIPPABLEHEADERSIZE;
+                skippableSize = ZSTD_writeSkippableFrame(compressedBuffer + off, compressedBufferSize, skipBuff, skipLen, seed % 15);
+                CHECK_Z(skippableSize);
+                off += skippableSize;
             }
         }
         cSize = off;
+        free(skipBuff);
     }
     DISPLAYLEVEL(3, "OK \n");
 

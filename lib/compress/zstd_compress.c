@@ -2954,6 +2954,26 @@ static size_t ZSTD_writeFrameHeader(void* dst, size_t dstCapacity,
     return pos;
 }
 
+/* ZSTD_writeSkippableFrame_advanced() :
+ * Writes out a skippable frame with the specified magic number variant (16 are supported), 
+ * from ZSTD_MAGIC_SKIPPABLE_START to ZSTD_MAGIC_SKIPPABLE_START+15, and the desired source data.
+ * 
+ * Returns the total number of bytes written, or a ZSTD error code.
+ */
+size_t ZSTD_writeSkippableFrame(void* dst, size_t dstCapacity,
+                                const void* src, size_t srcSize, unsigned magicVariant) {
+    BYTE* op = (BYTE*)dst;
+    RETURN_ERROR_IF(dstCapacity < srcSize + ZSTD_SKIPPABLEHEADERSIZE /* Skippable frame overhead */,
+                    dstSize_tooSmall, "Not enough room for skippable frame");
+    RETURN_ERROR_IF(srcSize > (unsigned)0xFFFFFFFF, srcSize_wrong, "Src size too large for skippable frame");
+    RETURN_ERROR_IF(magicVariant > 15, parameter_outOfBound, "Skippable frame magic number variant not supported");
+
+    MEM_writeLE32(op, (U32)(ZSTD_MAGIC_SKIPPABLE_START + magicVariant));
+    MEM_writeLE32(op+4, (U32)srcSize);
+    ZSTD_memcpy(op+8, src, srcSize);
+    return srcSize + ZSTD_SKIPPABLEHEADERSIZE;
+}
+
 /* ZSTD_writeLastEmptyBlock() :
  * output an empty Block with end-of-frame mark to complete a frame
  * @return : size of data written into `dst` (== ZSTD_blockHeaderSize (defined in zstd_internal.h))

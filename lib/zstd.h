@@ -2019,7 +2019,8 @@ ZSTDLIB_API size_t ZSTD_DCtx_getParameter(ZSTD_DCtx* dctx, ZSTD_dParameter param
  * from the set of DDicts based on the dictID in the frame. 
  * 
  * WARNING: Enabling this parameter will trigger memory allocation for the hash table, and disabling
- * this parameter will trigger memory freeing for the hashtable. 
+ * this parameter will free the memory allocated for the hashtable. Memory is allocated as per
+ * ZSTD_DCtx::customMem.
  */
 #define ZSTD_d_refMultipleDDicts ZSTD_d_experimentalParam4
 

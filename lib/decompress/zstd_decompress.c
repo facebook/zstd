@@ -648,6 +648,16 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
         ip += frameHeaderSize; remainingSrcSize -= frameHeaderSize;
     }
 
+    /* Reference DDict requested by frame if dctx references multiple ddicts */
+    if (dctx->refMultipleDDicts && dctx->ddictSet) {
+        ZSTD_DDict* frameDDict = ZSTD_DDictHashSet_getDDict(dctx->ddictSet, dctx->fParams.dictID);
+        if (frameDDict) {
+            ZSTD_clearDict(dctx);
+            dctx->ddict = frameDDict;
+            dctx->dictUses = ZSTD_use_indefinitely;
+        }
+    }
+
     /* Loop on each block */
     while (1) {
         size_t decodedSize;
@@ -1495,6 +1505,10 @@ size_t ZSTD_DCtx_refDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict)
     if (ddict) {
         dctx->ddict = ddict;
         dctx->dictUses = ZSTD_use_indefinitely;
+        if (dctx->refMultipleDDicts && dctx->ddictSet) {
+            assert(!dctx->staticSize);  /* Impossible: ddictSet cannot have been allocated if static dctx */
+            ZSTD_DDictHashSet_addDDict(dctx->ddictSet, ddict, ZSTD_getDictID_fromDDict(ddict), dctx->customMem);
+        }
     }
     return 0;
 }
@@ -1611,14 +1625,12 @@ size_t ZSTD_DCtx_setParameter(ZSTD_DCtx* dctx, ZSTD_dParameter dParam, int value
             return 0;
         case ZSTD_d_refMultipleDDicts:
             CHECK_DBOUNDS(ZSTD_d_refMultipleDDicts, value);
+            if (dctx->staticSize != 0) {
+                RETURN_ERROR(parameter_unsupported, "Static dctx does not support multiple DDicts!");
+            }
             dctx->refMultipleDDicts = (ZSTD_refMultipleDDicts_e)value;
-            if (dctx->refMultipleDDicts == ZSTD_d_refMultipleDicts) {
-                if (dctx->ddictSet == NULL) {
-                    if (dctx->staticSize != 0) {
-                        RETURN_ERROR(memory_allocation, "Multiple DDicts are not allowed with static dctx!");
-                    }
-                    dctx->ddictSet = ZSTD_createDDictHashSet(dctx->customMem);
-                }
+            if (dctx->refMultipleDDicts == ZSTD_d_refMultipleDicts && dctx->ddictSet == NULL) {
+                dctx->ddictSet = ZSTD_createDDictHashSet(dctx->customMem);
             } else {
                 ZSTD_freeDDictHashSet(dctx->ddictSet, dctx->customMem);
                 dctx->ddictSet = NULL;
@@ -1805,6 +1817,14 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             }   }
 #endif
             {   size_t const hSize = ZSTD_getFrameHeader_advanced(&zds->fParams, zds->headerBuffer, zds->lhSize, zds->format);
+                if (zds->refMultipleDDicts && zds->ddictSet) {
+                    ZSTD_DDict* frameDDict = ZSTD_DDictHashSet_getDDict(zds->ddictSet, zds->fParams.dictID);
+                    if (frameDDict) {
+                        ZSTD_clearDict(zds);
+                        zds->ddict = frameDDict;
+                        zds->dictUses = ZSTD_use_indefinitely;
+                    }
+                }
                 DEBUGLOG(5, "header size : %u", (U32)hSize);
                 if (ZSTD_isError(hSize)) {
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)

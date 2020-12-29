@@ -1584,7 +1584,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
             if (i == segs/2) {
                 /* insert skippable frame */
                 size_t const skippableSize =
-                    ZSTD_writeSkippableFrame(compressedBuffer + off, compressedBufferSize,
+                    ZSTD_writeSkippableFrame((BYTE*)compressedBuffer + off, compressedBufferSize,
                                              skipBuff, skipLen, seed % 15);
                 CHECK_Z(skippableSize);
                 off += skippableSize;

@@ -968,6 +968,9 @@ static size_t ZDICT_addEntropyTablesFromBuffer_advanced(
 }
 
 /* Hidden declaration for dbio.c */
+#if defined(ZSTD_PROGRAMS_LINK_SHARED)
+ZSTDLIB_API
+#endif
 size_t ZDICT_trainFromBuffer_unsafe_legacy(
                             void* dictBuffer, size_t maxDictSize,
                             const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,

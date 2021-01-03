@@ -60,6 +60,9 @@ CPPFLAGS += -DXXH_NAMESPACE=ZSTD_ -DDEBUGLEVEL=$(DEBUGLEVEL)
 ifeq ($(TARGET_SYSTEM),Windows_NT)   # MinGW assumed
   CPPFLAGS += -D__USE_MINGW_ANSI_STDIO   # compatibility with %zu formatting
 endif
+ifdef ZSTD_PROGRAMS_LINK_SHARED
+  CPPFLAGS += -DZSTD_PROGRAMS_LINK_SHARED
+endif
 DEBUGFLAGS= -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
             -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
             -Wstrict-prototypes -Wundef -Wpointer-arith \

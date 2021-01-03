@@ -213,6 +213,10 @@ zstd : CPPFLAGS += $(THREAD_CPP) $(ZLIBCPP) $(LZMACPP) $(LZ4CPP)
 zstd : LDFLAGS += $(THREAD_LD) $(DEBUGFLAGS_LD)
 zstd : LDLIBS += $(ZLIBLD) $(LZMALD) $(LZ4LD)
 zstd : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
+ifdef ZSTD_PROGRAMS_LINK_SHARED
+zstd : LDFLAGS+= -L$(ZSTDDIR) -lzstd
+zstd : ZSTDLIB_FULL_SRC =
+endif
 ifneq (,$(filter Windows%,$(OS)))
 zstd : $(RES_FILE)
 endif
@@ -226,7 +230,11 @@ zstd:
 else
 # BUILD_DIR is defined
 
+ifndef ZSTD_PROGRAMS_LINK_SHARED
 ZSTD_OBJ := $(addprefix $(BUILD_DIR)/, $(ZSTD_ALL_OBJ))
+else
+ZSTD_OBJ := $(addprefix $(BUILD_DIR)/, $(ZSTD_CLI_OBJ))
+endif
 $(BUILD_DIR)/zstd : $(ZSTD_OBJ)
 	@echo "$(THREAD_MSG)"
 	@echo "$(ZLIB_MSG)"
@@ -287,20 +295,6 @@ zstd-noxz : LZMACPP :=
 zstd-noxz : LZMALD  :=
 zstd-noxz : LZMA_MSG := - xz/lzma support is disabled
 zstd-noxz : zstd
-
-## zstd-dll: zstd executable linked to dynamic library libzstd (must already exist)
-# note : the following target doesn't link
-#        because zstd uses non-public symbols from libzstd
-#        such as XXH64 (for benchmark),
-#        ZDICT_trainFromBuffer_unsafe_legacy (for dictionary builder)
-#        and ZSTD_cycleLog (likely for --patch-from).
-#        It's unclear at this stage if this is a scenario that must be supported
-.PHONY: zstd-dll
-zstd-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd
-zstd-dll : ZSTDLIB_FULL_SRC =
-zstd-dll : $(ZSTD_CLI_OBJ)
-	$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
-
 
 ## zstd-pgo: zstd executable optimized with PGO.
 zstd-pgo :

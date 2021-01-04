@@ -1188,15 +1188,30 @@ ZSTD_adjustCParams_internal(ZSTD_compressionParameters cPar,
     const U64 maxWindowResize = 1ULL << (ZSTD_WINDOWLOG_MAX-1);
     assert(ZSTD_checkCParams(cPar)==0);
 
-    if (dictSize && srcSize == ZSTD_CONTENTSIZE_UNKNOWN)
-        srcSize = minSrcSize;
-
     switch (mode) {
     case ZSTD_cpm_noAttachDict:
+        /* If we don't know the source size, don't make any
+         * assumptions about it. We will already have selected
+         * smaller parameters if a dictionary is in use.
+         */
+        break;
     case ZSTD_cpm_unknown:
+        /* Keep the legacy behavior of assuming small source
+         * sizes when the cparam mode is unkown.
+         */
+        /* fall-through */
     case ZSTD_cpm_createCDict:
+        /* Assume a small source size when creating a dictionary
+         * with an unkown source size.
+         */
+        if (dictSize && srcSize == ZSTD_CONTENTSIZE_UNKNOWN)
+            srcSize = minSrcSize;
         break;
     case ZSTD_cpm_attachDict:
+        /* Dictionary has its own dedicated parameters which have
+         * already been selected. We are selecting parameters
+         * for only the source.
+         */
         dictSize = 0;
         break;
     default:
@@ -1213,7 +1228,8 @@ ZSTD_adjustCParams_internal(ZSTD_compressionParameters cPar,
                             ZSTD_highbit32(tSize-1) + 1;
         if (cPar.windowLog > srcLog) cPar.windowLog = srcLog;
     }
-    {   U32 const dictAndWindowLog = ZSTD_dictAndWindowLog(cPar.windowLog, (U64)srcSize, (U64)dictSize);
+    if (srcSize != ZSTD_CONTENTSIZE_UNKNOWN) {
+        U32 const dictAndWindowLog = ZSTD_dictAndWindowLog(cPar.windowLog, (U64)srcSize, (U64)dictSize);
         U32 const cycleLog = ZSTD_cycleLog(cPar.chainLog, cPar.strategy);
         if (cPar.hashLog > dictAndWindowLog+1) cPar.hashLog = dictAndWindowLog+1;
         if (cycleLog > dictAndWindowLog)
@@ -2955,9 +2971,9 @@ static size_t ZSTD_writeFrameHeader(void* dst, size_t dstCapacity,
 }
 
 /* ZSTD_writeSkippableFrame_advanced() :
- * Writes out a skippable frame with the specified magic number variant (16 are supported), 
+ * Writes out a skippable frame with the specified magic number variant (16 are supported),
  * from ZSTD_MAGIC_SKIPPABLE_START to ZSTD_MAGIC_SKIPPABLE_START+15, and the desired source data.
- * 
+ *
  * Returns the total number of bytes written, or a ZSTD error code.
  */
 size_t ZSTD_writeSkippableFrame(void* dst, size_t dstCapacity,

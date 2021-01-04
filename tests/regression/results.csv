@@ -216,7 +216,7 @@ github.tar,                         level 16 with dict,                 zstdcli,
 github.tar,                         level 19,                           zstdcli,                            32841
 github.tar,                         level 19 with dict,                 zstdcli,                            32899
 github.tar,                         no source size,                     zstdcli,                            38442
-github.tar,                         no source size with dict,           zstdcli,                            213380
+github.tar,                         no source size with dict,           zstdcli,                            38004
 github.tar,                         long distance mode,                 zstdcli,                            39680
 github.tar,                         multithreaded,                      zstdcli,                            38445
 github.tar,                         multithreaded long distance mode,   zstdcli,                            39680
@@ -618,7 +618,7 @@ github.tar,                         level 16 with dict,                 advanced
 github.tar,                         level 19,                           advanced streaming,                 32837
 github.tar,                         level 19 with dict,                 advanced streaming,                 32895
 github.tar,                         no source size,                     advanced streaming,                 38438
-github.tar,                         no source size with dict,           advanced streaming,                 214381
+github.tar,                         no source size with dict,           advanced streaming,                 38000
 github.tar,                         long distance mode,                 advanced streaming,                 39676
 github.tar,                         multithreaded,                      advanced streaming,                 38441
 github.tar,                         multithreaded long distance mode,   advanced streaming,                 39676
@@ -695,7 +695,7 @@ github,                             level 16 with dict,                 old stre
 github,                             level 19,                           old streaming,                      134064
 github,                             level 19 with dict,                 old streaming,                      37576
 github,                             no source size,                     old streaming,                      140632
-github,                             no source size with dict,           old streaming,                      40678
+github,                             no source size with dict,           old streaming,                      40654
 github,                             uncompressed literals,              old streaming,                      136335
 github,                             uncompressed literals optimal,      old streaming,                      134064
 github,                             huffman literals,                   old streaming,                      175568
@@ -728,7 +728,7 @@ github.tar,                         level 16 with dict,                 old stre
 github.tar,                         level 19,                           old streaming,                      32837
 github.tar,                         level 19 with dict,                 old streaming,                      32895
 github.tar,                         no source size,                     old streaming,                      38438
-github.tar,                         no source size with dict,           old streaming,                      214384
+github.tar,                         no source size with dict,           old streaming,                      38000
 github.tar,                         uncompressed literals,              old streaming,                      38441
 github.tar,                         uncompressed literals optimal,      old streaming,                      32837
 github.tar,                         huffman literals,                   old streaming,                      42465
@@ -813,7 +813,7 @@ github,                             level 16 with dict,                 old stre
 github,                             level 19,                           old streaming advanced,             134064
 github,                             level 19 with dict,                 old streaming advanced,             37576
 github,                             no source size,                     old streaming advanced,             140632
-github,                             no source size with dict,           old streaming advanced,             40643
+github,                             no source size with dict,           old streaming advanced,             40608
 github,                             long distance mode,                 old streaming advanced,             141104
 github,                             multithreaded,                      old streaming advanced,             141104
 github,                             multithreaded long distance mode,   old streaming advanced,             141104
@@ -854,7 +854,7 @@ github.tar,                         level 16 with dict,                 old stre
 github.tar,                         level 19,                           old streaming advanced,             32837
 github.tar,                         level 19 with dict,                 old streaming advanced,             32876
 github.tar,                         no source size,                     old streaming advanced,             38438
-github.tar,                         no source size with dict,           old streaming advanced,             214384
+github.tar,                         no source size with dict,           old streaming advanced,             38015
 github.tar,                         long distance mode,                 old streaming advanced,             38441
 github.tar,                         multithreaded,                      old streaming advanced,             38441
 github.tar,                         multithreaded long distance mode,   old streaming advanced,             38441
@@ -880,7 +880,7 @@ github,                             level 9 with dict,                  old stre
 github,                             level 13 with dict,                 old streaming cdcit,                39743
 github,                             level 16 with dict,                 old streaming cdcit,                37577
 github,                             level 19 with dict,                 old streaming cdcit,                37576
-github,                             no source size with dict,           old streaming cdcit,                40678
+github,                             no source size with dict,           old streaming cdcit,                40654
 github.tar,                         level -5 with dict,                 old streaming cdcit,                45018
 github.tar,                         level -3 with dict,                 old streaming cdcit,                41886
 github.tar,                         level -1 with dict,                 old streaming cdcit,                41636
@@ -895,7 +895,7 @@ github.tar,                         level 9 with dict,                  old stre
 github.tar,                         level 13 with dict,                 old streaming cdcit,                36372
 github.tar,                         level 16 with dict,                 old streaming cdcit,                39353
 github.tar,                         level 19 with dict,                 old streaming cdcit,                32676
-github.tar,                         no source size with dict,           old streaming cdcit,                214384
+github.tar,                         no source size with dict,           old streaming cdcit,                38000
 github,                             level -5 with dict,                 old streaming advanced cdict,       49562
 github,                             level -3 with dict,                 old streaming advanced cdict,       44956
 github,                             level -1 with dict,                 old streaming advanced cdict,       42383
@@ -910,7 +910,7 @@ github,                             level 9 with dict,                  old stre
 github,                             level 13 with dict,                 old streaming advanced cdict,       39731
 github,                             level 16 with dict,                 old streaming advanced cdict,       40789
 github,                             level 19 with dict,                 old streaming advanced cdict,       37576
-github,                             no source size with dict,           old streaming advanced cdict,       40643
+github,                             no source size with dict,           old streaming advanced cdict,       40608
 github.tar,                         level -5 with dict,                 old streaming advanced cdict,       44307
 github.tar,                         level -3 with dict,                 old streaming advanced cdict,       41359
 github.tar,                         level -1 with dict,                 old streaming advanced cdict,       41322
@@ -925,4 +925,4 @@ github.tar,                         level 9 with dict,                  old stre
 github.tar,                         level 13 with dict,                 old streaming advanced cdict,       36035
 github.tar,                         level 16 with dict,                 old streaming advanced cdict,       38736
 github.tar,                         level 19 with dict,                 old streaming advanced cdict,       32876
-github.tar,                         no source size with dict,           old streaming advanced cdict,       214384
+github.tar,                         no source size with dict,           old streaming advanced cdict,       38015

@@ -2,7 +2,7 @@
 # THIS BENCHMARK IS BEING REPLACED BY automated-bencmarking.py
 
 # ################################################################
-# Copyright (c) 2016-2020, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
+# Copyright (c) 2016-2021, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
 # All rights reserved.
 #
 # This source code is licensed under both the BSD-style license (found in the

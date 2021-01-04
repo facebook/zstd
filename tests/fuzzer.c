@@ -3051,6 +3051,32 @@ static int basicUnitTests(U32 const seed, double compressibility)
         free(dict);
     }
     DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : ZSTD_getCParams() + dictionary ", testNb++);
+    {
+        ZSTD_compressionParameters const medium = ZSTD_getCParams(1, 16*1024-1, 0);
+        ZSTD_compressionParameters const large = ZSTD_getCParams(1, 128*1024-1, 0);
+        ZSTD_compressionParameters const smallDict = ZSTD_getCParams(1, 0, 400);
+        ZSTD_compressionParameters const mediumDict = ZSTD_getCParams(1, 0, 10000);
+        ZSTD_compressionParameters const largeDict = ZSTD_getCParams(1, 0, 100000);
+
+        assert(!memcmp(&smallDict, &mediumDict, sizeof(smallDict)));
+        assert(!memcmp(&medium, &mediumDict, sizeof(medium)));
+        assert(!memcmp(&large, &largeDict, sizeof(large)));
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : ZSTD_adjustCParams() + dictionary ", testNb++);
+    {
+        ZSTD_compressionParameters const cParams = ZSTD_getCParams(1, 0, 0);
+        ZSTD_compressionParameters const smallDict = ZSTD_adjustCParams(cParams, 0, 400);
+        ZSTD_compressionParameters const smallSrcAndDict = ZSTD_adjustCParams(cParams, 500, 400);
+
+        assert(smallSrcAndDict.windowLog == 10);
+        assert(!memcmp(&cParams, &smallDict, sizeof(cParams)));
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
 #endif
 
 _end:

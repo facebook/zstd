@@ -1189,17 +1189,13 @@ ZSTD_adjustCParams_internal(ZSTD_compressionParameters cPar,
     assert(ZSTD_checkCParams(cPar)==0);
 
     switch (mode) {
+    case ZSTD_cpm_unknown:
     case ZSTD_cpm_noAttachDict:
         /* If we don't know the source size, don't make any
          * assumptions about it. We will already have selected
          * smaller parameters if a dictionary is in use.
          */
         break;
-    case ZSTD_cpm_unknown:
-        /* Keep the legacy behavior of assuming small source
-         * sizes when the cparam mode is unkown.
-         */
-        /* fall-through */
     case ZSTD_cpm_createCDict:
         /* Assume a small source size when creating a dictionary
          * with an unkown source size.

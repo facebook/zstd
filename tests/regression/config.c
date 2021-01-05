@@ -59,6 +59,14 @@ static config_t no_pledged_src_size = {
     .no_pledged_src_size = 1,
 };
 
+static config_t no_pledged_src_size_with_dict = {
+    .name = "no source size with dict",
+    .cli_args = "",
+    .param_values = PARAM_VALUES(level_0_param_values),
+    .no_pledged_src_size = 1,
+    .use_dictionary = 1,
+};
+
 static param_value_t const ldm_param_values[] = {
     {.param = ZSTD_c_enableLongDistanceMatching, .value = 1},
 };
@@ -192,6 +200,7 @@ static config_t const* g_configs[] = {
 #undef FAST_LEVEL
 
     &no_pledged_src_size,
+    &no_pledged_src_size_with_dict,
     &ldm,
     &mt,
     &mt_ldm,

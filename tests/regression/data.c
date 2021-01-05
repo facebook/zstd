@@ -67,10 +67,27 @@ data_t github = {
         },
 };
 
+data_t github_tar = {
+    .name = "github.tar",
+    .type = data_type_file,
+    .data =
+        {
+            .url = REGRESSION_RELEASE("github.tar.zst"),
+            .xxhash64 = 0xa9b1b44b020df292LL,
+        },
+    .dict =
+        {
+            .url = REGRESSION_RELEASE("github.dict.zst"),
+            .xxhash64 = 0x1eddc6f737d3cb53LL,
+
+        },
+};
+
 static data_t* g_data[] = {
     &silesia,
     &silesia_tar,
     &github,
+    &github_tar,
     NULL,
 };
 

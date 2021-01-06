@@ -1374,15 +1374,15 @@ ZSTDLIB_API size_t ZSTD_compressSequences(ZSTD_CCtx* const cctx, void* dst, size
 
 /*! ZSTD_writeSkippableFrame() :
  * Generates a zstd skippable frame containing data given by src, and writes it to dst buffer.
- * 
+ *
  * Skippable frames begin with a a 4-byte magic number. There are 16 possible choices of magic number,
  * ranging from ZSTD_MAGIC_SKIPPABLE_START to ZSTD_MAGIC_SKIPPABLE_START+15.
  * As such, the parameter magicVariant controls the exact skippable frame magic number variant used, so
  * the magic number used will be ZSTD_MAGIC_SKIPPABLE_START + magicVariant.
- * 
+ *
  * Returns an error if destination buffer is not large enough, if the source size is not representable
  * with a 4-byte unsigned int, or if the parameter magicVariant is greater than 15 (and therefore invalid).
- * 
+ *
  * @return : number of bytes written or a ZSTD error.
  */
 ZSTDLIB_API size_t ZSTD_writeSkippableFrame(void* dst, size_t dstCapacity,
@@ -1530,6 +1530,7 @@ ZSTDLIB_API ZSTD_threadPool* ZSTD_createThreadPool(size_t numThreads);
 ZSTDLIB_API void ZSTD_freeThreadPool (ZSTD_threadPool* pool);
 ZSTDLIB_API size_t ZSTD_CCtx_refThreadPool(ZSTD_CCtx* cctx, ZSTD_threadPool* pool);
 
+
 /*
  * This API is temporary and is expected to change or disappear in the future!
  */
@@ -1540,10 +1541,12 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced2(
     const ZSTD_CCtx_params* cctxParams,
     ZSTD_customMem customMem);
 
-ZSTDLIB_API ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize,
-                                                  ZSTD_dictLoadMethod_e dictLoadMethod,
-                                                  ZSTD_dictContentType_e dictContentType,
-                                                  ZSTD_customMem customMem);
+ZSTDLIB_API ZSTD_DDict* ZSTD_createDDict_advanced(
+    const void* dict, size_t dictSize,
+    ZSTD_dictLoadMethod_e dictLoadMethod,
+    ZSTD_dictContentType_e dictContentType,
+    ZSTD_customMem customMem);
+
 
 /***************************************
 *  Advanced compression functions

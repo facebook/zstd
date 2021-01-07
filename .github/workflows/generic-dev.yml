@@ -128,18 +128,6 @@ jobs:
         make gcc6install libc6install
         CC=gcc-6 CFLAGS="-O2 -m32" FUZZER_FLAGS="--long-tests" make uasan-fuzztest
 
-  clang-38-msan-fuzz:
-    runs-on: ubuntu-16.04 # fails on 18.04
-    steps:
-    - uses: actions/checkout@v2
-    - name: clang-3.8 + MSan + Fuzz Test
-      run: |
-        # make clang38install (doesn't work)
-        sudo apt-add-repository "deb http://llvm.org/apt/trusty/ llvm-toolchain-trusty-3.8 main"
-        sudo apt-get update
-        sudo apt-get install clang-3.8
-        CC=clang-3.8 make clean msan-fuzztest
-
   asan-ubsan-msan-regression:
     runs-on: ubuntu-latest
     steps:

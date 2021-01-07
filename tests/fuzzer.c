@@ -2382,6 +2382,14 @@ static int basicUnitTests(U32 const seed, double compressibility)
                 CHECK_Z( ZSTD_DCtx_refDDict(dctx, ddictTable[i]));
             }
             CHECK_Z( ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize) );
+            /* Streaming decompression should also work */
+            {
+                ZSTD_inBuffer in = {compressedBuffer, cSize, 0};
+                ZSTD_outBuffer out = {decodedBuffer, CNBuffSize, 0};
+                while (in.pos < in.size) {
+                    CHECK_Z(ZSTD_decompressStream(dctx, &out, &in));
+                }
+            }
             ZSTD_freeDCtx(dctx);
             for (i = 0; i < numDicts; ++i) {
                 ZSTD_freeCDict(cdictTable[i]);

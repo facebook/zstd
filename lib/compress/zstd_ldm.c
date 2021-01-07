@@ -620,7 +620,7 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
 
     assert(rawSeqStore->pos <= rawSeqStore->size);
     assert(rawSeqStore->size <= rawSeqStore->capacity);
-    /* Loop through each sequence and apply the block compressor to the lists */
+    /* Loop through each sequence and apply the block compressor to the literals */
     while (rawSeqStore->pos < rawSeqStore->size && ip < iend) {
         /* maybeSplitSequence updates rawSeqStore->pos */
         rawSeq const sequence = maybeSplitSequence(rawSeqStore,

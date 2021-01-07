@@ -62,6 +62,7 @@
 #include "../common/fse.h"
 #define HUF_STATIC_LINKING_ONLY
 #include "../common/huf.h"
+#include "../common/xxhash.h" /* XXH64_reset, XXH64_update, XXH64_digest, XXH64 */
 #include "../common/zstd_internal.h"  /* blockProperties_t */
 #include "zstd_decompress_internal.h"   /* ZSTD_DCtx */
 #include "zstd_ddict.h"  /* ZSTD_DDictDictContent */
@@ -77,7 +78,13 @@
  * Multiple DDicts Hashset internals *
  *************************************/
 
-#define DDICT_HASHSET_MAX_LOAD_FACTOR 0.75
+#define DDICT_HASHSET_MAX_LOAD_FACTOR_COUNT_MULT 4
+#define DDICT_HASHSET_MAX_LOAD_FACTOR_SIZE_MULT 3   /* These two constants represent SIZE_MULT/COUNT_MULT load factor without using a float.
+                                                     * Currently, that means a 0.75 load factor. 
+                                                     * So, if count * COUNT_MULT / size * SIZE_MULT != 0, then we've exceeded
+                                                     * the load factor of the ddict hash set.
+                                                     */
+
 #define DDICT_HASHSET_TABLE_BASE_SIZE 64
 #define DDICT_HASHSET_RESIZE_FACTOR 2
 
@@ -90,17 +97,19 @@ static size_t ZSTD_DDictHashSet_getIndex(const ZSTD_DDictHashSet* hashSet, U32 d
     return hash & (hashSet->ddictPtrTableSize - 1);
 }
 
-/* Adds ddict to a hashset resizing it 
- * Returns 0 if successful (ddict may or may not have actually been added), or a zstd error code if something went wrong
+/* Adds DDict to a hashset without resizing it.
+ * If inserting a DDict with a dictID that already exists in the set, replaces the one in the set.
+ * Returns 0 if successful, or a zstd error code if something went wrong.
  */
-static size_t ZSTD_DDictHashSet_emplaceDDict(ZSTD_DDictHashSet* hashSet, const ZSTD_DDict* ddict, U32 dictID) {
+static size_t ZSTD_DDictHashSet_emplaceDDict(ZSTD_DDictHashSet* hashSet, const ZSTD_DDict* ddict) {
+    U32 dictID = ZSTD_getDictID_fromDDict(ddict);
     size_t idx = ZSTD_DDictHashSet_getIndex(hashSet, dictID);
     RETURN_ERROR_IF(hashSet->ddictPtrCount == hashSet->ddictPtrTableSize, GENERIC, "Hash set is full!");
     DEBUGLOG(4, "Hashed index: for dictID: %u is %zu", dictID, idx);
     while (hashSet->ddictPtrTable[idx] != NULL) {
         /* Replace existing ddict if inserting ddict with same dictID */
         if (ZSTD_getDictID_fromDDict(hashSet->ddictPtrTable[idx]) == dictID) {
-            DEBUGLOG(2, "DictID already exists, replacing rather than adding");
+            DEBUGLOG(4, "DictID already exists, replacing rather than adding");
             hashSet->ddictPtrTable[idx] = ddict;
             return 0;
         }
@@ -134,7 +143,7 @@ static size_t ZSTD_DDictHashSet_expand(ZSTD_DDictHashSet* hashSet, ZSTD_customMe
     hashSet->ddictPtrCount = 0;
     for (i = 0; i < oldTableSize; ++i) {
         if (oldTable[i] != NULL) {
-            FORWARD_IF_ERROR(ZSTD_DDictHashSet_emplaceDDict(hashSet, oldTable[i], ZSTD_getDictID_fromDDict(oldTable[i])), "");
+            FORWARD_IF_ERROR(ZSTD_DDictHashSet_emplaceDDict(hashSet, oldTable[i]), "");
         }
     }
     ZSTD_customFree(oldTable, customMem);
@@ -154,10 +163,7 @@ static const ZSTD_DDict* ZSTD_DDictHashSet_getDDict(ZSTD_DDictHashSet* hashSet, 
             /* currDictID == 0 implies a NULL ddict entry */
             break;
         } else {
-            if (idx == hashSet->ddictPtrTableSize - 1) {
-                idx = 0;
-                continue;
-            }
+            idx &= (hashSet->ddictPtrTableSize - 1);    /* Goes to start of table when we reach the end */
             idx++;
         }
     }
@@ -197,12 +203,12 @@ static void ZSTD_freeDDictHashSet(ZSTD_DDictHashSet* hashSet, ZSTD_customMem cus
 /* Public function: Adds a DDict into the ZSTD_DDictHashSet, possibly triggering a resize of the hash set.
  * Returns 0 on success, or a ZSTD error.
  */
-static size_t ZSTD_DDictHashSet_addDDict(ZSTD_DDictHashSet* hashSet, const ZSTD_DDict* ddict, U32 dictID, ZSTD_customMem customMem) {
+static size_t ZSTD_DDictHashSet_addDDict(ZSTD_DDictHashSet* hashSet, const ZSTD_DDict* ddict, ZSTD_customMem customMem) {
     DEBUGLOG(4, "Adding dict ID: %d to hashset with - Count: %zu Tablesize: %zu", dictID, hashSet->ddictPtrCount, hashSet->ddictPtrTableSize);
-    if ((float)hashSet->ddictPtrCount / (float)hashSet->ddictPtrTableSize >= DDICT_HASHSET_MAX_LOAD_FACTOR) {
+    if (hashSet->ddictPtrCount * DDICT_HASHSET_MAX_LOAD_FACTOR_COUNT_MULT / hashSet->ddictPtrTableSize * DDICT_HASHSET_MAX_LOAD_FACTOR_SIZE_MULT != 0) {
         FORWARD_IF_ERROR(ZSTD_DDictHashSet_expand(hashSet, customMem), "");
     }
-    FORWARD_IF_ERROR(ZSTD_DDictHashSet_emplaceDDict(hashSet, ddict, dictID), "");
+    FORWARD_IF_ERROR(ZSTD_DDictHashSet_emplaceDDict(hashSet, ddict), "");
     return 0;
 }
 
@@ -1568,8 +1574,7 @@ size_t ZSTD_DCtx_refDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict)
                 }
             }
             assert(!dctx->staticSize);  /* Impossible: ddictSet cannot have been allocated if static dctx */
-            FORWARD_IF_ERROR(ZSTD_DDictHashSet_addDDict(dctx->ddictSet, ddict,
-                                                        ZSTD_getDictID_fromDDict(ddict), dctx->customMem), "");
+            FORWARD_IF_ERROR(ZSTD_DDictHashSet_addDDict(dctx->ddictSet, ddict, dctx->customMem), "");
         }
     }
     return 0;

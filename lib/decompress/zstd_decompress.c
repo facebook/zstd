@@ -92,7 +92,7 @@
  * Returns an index between [0, hashSet->ddictPtrTableSize]
  */
 static size_t ZSTD_DDictHashSet_getIndex(const ZSTD_DDictHashSet* hashSet, U32 dictID) {
-    U32 hash = XXH64(&dictID, sizeof(U32), 0);
+    const U64 hash = XXH64(&dictID, sizeof(U32), 0);
     /* DDict ptr table size is a multiple of 2, use size - 1 as mask to get index within [0, hashSet->ddictPtrTableSize) */
     return hash & (hashSet->ddictPtrTableSize - 1);
 }
@@ -102,8 +102,9 @@ static size_t ZSTD_DDictHashSet_getIndex(const ZSTD_DDictHashSet* hashSet, U32 d
  * Returns 0 if successful, or a zstd error code if something went wrong.
  */
 static size_t ZSTD_DDictHashSet_emplaceDDict(ZSTD_DDictHashSet* hashSet, const ZSTD_DDict* ddict) {
-    U32 dictID = ZSTD_getDictID_fromDDict(ddict);
+    const U32 dictID = ZSTD_getDictID_fromDDict(ddict);
     size_t idx = ZSTD_DDictHashSet_getIndex(hashSet, dictID);
+    const size_t idxRangeMask = hashSet->ddictPtrTableSize - 1;
     RETURN_ERROR_IF(hashSet->ddictPtrCount == hashSet->ddictPtrTableSize, GENERIC, "Hash set is full!");
     DEBUGLOG(4, "Hashed index: for dictID: %u is %zu", dictID, idx);
     while (hashSet->ddictPtrTable[idx] != NULL) {
@@ -113,10 +114,7 @@ static size_t ZSTD_DDictHashSet_emplaceDDict(ZSTD_DDictHashSet* hashSet, const Z
             hashSet->ddictPtrTable[idx] = ddict;
             return 0;
         }
-        if (idx == hashSet->ddictPtrTableSize - 1) {
-            idx = 0;
-            continue;
-        }
+        idx &= idxRangeMask;
         idx++;
     }
     DEBUGLOG(4, "Final idx after probing for dictID %u is: %zu", dictID, idx);
@@ -146,7 +144,7 @@ static size_t ZSTD_DDictHashSet_expand(ZSTD_DDictHashSet* hashSet, ZSTD_customMe
             FORWARD_IF_ERROR(ZSTD_DDictHashSet_emplaceDDict(hashSet, oldTable[i]), "");
         }
     }
-    ZSTD_customFree(oldTable, customMem);
+    ZSTD_customFree((void*)oldTable, customMem);
     DEBUGLOG(4, "Finished re-hash");
     return 0;
 }
@@ -156,6 +154,7 @@ static size_t ZSTD_DDictHashSet_expand(ZSTD_DDictHashSet* hashSet, ZSTD_customMe
  */
 static const ZSTD_DDict* ZSTD_DDictHashSet_getDDict(ZSTD_DDictHashSet* hashSet, U32 dictID) {
     size_t idx = ZSTD_DDictHashSet_getIndex(hashSet, dictID);
+    const size_t idxRangeMask = hashSet->ddictPtrTableSize - 1;
     DEBUGLOG(4, "Hashed index: for dictID: %u is %zu", dictID, idx);
     for (;;) {
         size_t currDictID = ZSTD_getDictID_fromDDict(hashSet->ddictPtrTable[idx]);
@@ -163,7 +162,7 @@ static const ZSTD_DDict* ZSTD_DDictHashSet_getDDict(ZSTD_DDictHashSet* hashSet, 
             /* currDictID == 0 implies a NULL ddict entry */
             break;
         } else {
-            idx &= (hashSet->ddictPtrTableSize - 1);    /* Goes to start of table when we reach the end */
+            idx &= idxRangeMask;    /* Goes to start of table when we reach the end */
             idx++;
         }
     }
@@ -193,7 +192,7 @@ static ZSTD_DDictHashSet* ZSTD_createDDictHashSet(ZSTD_customMem customMem) {
 static void ZSTD_freeDDictHashSet(ZSTD_DDictHashSet* hashSet, ZSTD_customMem customMem) {
     DEBUGLOG(4, "Freeing ddict hash set");
     if (hashSet && hashSet->ddictPtrTable) {
-        ZSTD_customFree(hashSet->ddictPtrTable, customMem);
+        ZSTD_customFree((void*)hashSet->ddictPtrTable, customMem);
     }
     if (hashSet) {
         ZSTD_customFree(hashSet, customMem);
@@ -204,7 +203,7 @@ static void ZSTD_freeDDictHashSet(ZSTD_DDictHashSet* hashSet, ZSTD_customMem cus
  * Returns 0 on success, or a ZSTD error.
  */
 static size_t ZSTD_DDictHashSet_addDDict(ZSTD_DDictHashSet* hashSet, const ZSTD_DDict* ddict, ZSTD_customMem customMem) {
-    DEBUGLOG(4, "Adding dict ID: %d to hashset with - Count: %zu Tablesize: %zu", dictID, hashSet->ddictPtrCount, hashSet->ddictPtrTableSize);
+    DEBUGLOG(4, "Adding dict ID: %u to hashset with - Count: %zu Tablesize: %zu", ZSTD_getDictID_fromDDict(ddict), hashSet->ddictPtrCount, hashSet->ddictPtrTableSize);
     if (hashSet->ddictPtrCount * DDICT_HASHSET_MAX_LOAD_FACTOR_COUNT_MULT / hashSet->ddictPtrTableSize * DDICT_HASHSET_MAX_LOAD_FACTOR_SIZE_MULT != 0) {
         FORWARD_IF_ERROR(ZSTD_DDictHashSet_expand(hashSet, customMem), "");
     }

@@ -2345,7 +2345,6 @@ static int basicUnitTests(U32 const seed, double compressibility)
             char* dictBufferMulti = (char*)malloc(sizeof(char) * dictBufferFixedSize);  /* Modifiable copy of fixed full dict buffer */
 
             ZSTD_memcpy(dictBufferMulti, dictBufferFixed, dictBufferFixedSize);
-            cSize = 0;
             /* Create a bunch of DDicts with random dict IDs */
             for (i = 0; i < numDicts; ++i) {
                 U32 currDictID = FUZ_rand(&dictIDSeed);

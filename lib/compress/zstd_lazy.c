@@ -845,6 +845,153 @@ FORCE_INLINE_TEMPLATE size_t ZSTD_HcFindBestMatch_extDict_selectMLS (
     }
 }
 
+#include <emmintrin.h>
+#include <smmintrin.h>
+#include <immintrin.h>
+
+typedef __m128i ZS_Vec128;
+typedef uint32_t ZS_VecMask;
+
+static ZS_Vec128 ZS_Vec128_read(void const* ptr) {
+  return _mm_loadu_si128((ZS_Vec128 const*)ptr);
+}
+
+static void ZS_Vec128_write(void* ptr, ZS_Vec128 vec) {
+  return _mm_storeu_si128((ZS_Vec128*)ptr, vec);
+}
+
+static ZS_Vec128 ZS_Vec128_set8(uint8_t val) {
+  return _mm_set1_epi8((char)val);
+}
+
+static ZS_Vec128 ZS_Vec128_set32(U32 val) {
+  return _mm_set1_epi32((int)val);
+}
+
+static ZS_Vec128 ZS_Vec128_cmp8(ZS_Vec128 x, ZS_Vec128 y) {
+  return _mm_cmpeq_epi8(x, y);
+}
+
+static ZS_Vec128 ZS_Vec128_cmp32(ZS_Vec128 x, ZS_Vec128 y) {
+  return _mm_cmpeq_epi32(x, y);
+}
+
+// ~x & y
+static ZS_Vec128 ZS_Vec128_andnot(ZS_Vec128 x, ZS_Vec128 y) {
+  return _mm_andnot_si128(x, y);
+}
+
+static ZS_Vec128 ZS_Vec128_and(ZS_Vec128 x, ZS_Vec128 y) {
+  return _mm_and_si128(x, y);
+}
+
+static ZS_VecMask ZS_Vec128_mask8(ZS_Vec128 v) {
+  return (ZS_VecMask)_mm_movemask_epi8(v);
+}
+
+static U32 ZS_VecMask_ffs(ZS_VecMask mask) {
+    return (U32)__builtin_ffs((int)mask);
+}
+
+typedef ZS_Vec128 ZS_Repcode;
+
+static void ZS_Repcode_save(ZS_Repcode repcodes, U32 rep[ZSTD_REP_NUM]) {
+    U32 tmp[4];
+    ZS_Vec128_write(tmp, repcodes);
+    memcpy(rep, tmp + 1, sizeof(U32) * 3);
+}
+
+static ZS_Vec128 ZS_Repcode_update(ZS_Vec128 repcodes, U32 offset) {
+    repcodes = _mm_shuffle_epi32(repcodes, 0b10010000);
+    return _mm_insert_epi32(repcodes, -(int)offset, 1);
+}
+
+static ZS_Vec128 ZS_Repcode_shuffle(ZS_Vec128 repcodes, U32 repIndex) {
+    switch (repIndex) {
+    case 0:
+        return repcodes;
+    case 1:
+        return _mm_shuffle_epi32(repcodes, 0b11011000);
+    case 2:
+        return _mm_shuffle_epi32(repcodes, 0b10011100);
+    default:
+        assert(0);
+        return repcodes;
+    }
+}
+
+static ZS_Vec128 ZS_Repcode_shuffleLL0(ZS_Vec128 repcodes, U32 repIndex, int offset) {
+    switch (repIndex) {
+    case 0:
+        return ZS_Repcode_shuffle(repcodes, 1);
+    case 1:
+        return ZS_Repcode_shuffle(repcodes, 2);
+    case 2:
+        assert(offset < 0);
+        return ZS_Repcode_update(repcodes, (U32)-offset);
+    default:
+        assert(0);
+        return repcodes;
+    }
+}
+
+// Stash repcode 0 in the extra slot
+static ZS_Repcode ZS_Repcode_exclusion(ZS_Repcode repcodes) {
+    ZS_Vec128 const add = _mm_set_epi32(1, 0, 0, 0);
+    repcodes = _mm_shuffle_epi32(repcodes, 0b01111000);
+    return _mm_add_epi32(repcodes, add);
+}
+
+typedef union {
+    ZS_Vec128 v;
+    int s[4];
+} ZS_Extractor;
+
+static int ZS_Repcode_get(ZS_Repcode repcodes, U32 rep) {
+    ZS_Extractor ext;
+    assert(rep < 4);
+    ext.v = repcodes;
+    return ext.s[rep];
+}
+
+static ZS_Vec128 ZS_Repcode_gather32(ZS_Repcode repcodes, void const* ip) {
+#if 1
+    return _mm_i32gather_epi32((int const*)ip, repcodes, 1);
+#else
+    int const offsets[4];
+    ZS_Vec128_write(offsets, repcodes);
+    return _mm_set_epi32(
+        MEM_read32(ip + offsets[2]),
+        MEM_read32(ip + offsets[1]),
+        MEM_read32(ip + offsets[0]),
+        0);
+#endif
+}
+
+// 0 -> no match, 1 -> rep0, 2 -> rep1, 3 -> rep2
+static U32 ZS_Repcode_search(ZS_Repcode repcodes, ZS_Vec128 data, BYTE const* ip) {
+    ZS_Vec128 const zero = ZS_Vec128_set32(0);
+    ZS_Vec128 const dataV = ZS_Vec128_set32(MEM_read32(ip));
+    ZS_Vec128 const matchV = ZS_Vec128_cmp32(dataV, data);
+    ZS_Vec128 const repV = ZS_Vec128_cmp32(zero, repcodes);
+    ZS_VecMask const match = ZS_Vec128_mask8(ZS_Vec128_andnot(repV, matchV));
+    assert(ZS_Repcode_get(repcodes, 0) == 0);
+    assert((match & 0xf) == 0);
+    // 5, 9, 13
+    U32 const repcode = ZS_VecMask_ffs(match) >> 2;
+    assert(repcode <= 3);
+    return repcode;
+}
+
+static ZS_Repcode ZS_Repcode_init(U32 rep[ZSTD_REP_NUM], U32 dictLimit, BYTE const* base, BYTE const* ip) {
+    U32 const current = (U32)(ip - base);
+    U32 const maxRep = current - dictLimit;
+    int rep0 = rep[0] <= maxRep ? -rep[0] : 0;
+    int rep1 = rep[1] <= maxRep ? -rep[1] : 0;
+    int rep2 = rep[2] <= maxRep ? -rep[2] : 0;
+    return _mm_set_epi32(rep2, rep1, rep0, 0);
+}
+
 
 /* *******************************
 *  Common parser - lazy strategy
@@ -898,7 +1045,7 @@ ZSTD_compressBlock_lazy_generic(
     };
 
     searchMax_f const searchMax = searchFuncs[dictMode][searchMethod == search_binaryTree];
-    U32 offset_1 = rep[0], offset_2 = rep[1], savedOffset=0;
+    // U32 offset_1 = rep[0], offset_2 = rep[1], savedOffset=0;
 
     const int isDMS = dictMode == ZSTD_dictMatchState;
     const int isDDS = dictMode == ZSTD_dedicatedDictSearch;
@@ -919,19 +1066,21 @@ ZSTD_compressBlock_lazy_generic(
 
     /* init */
     ip += (dictAndPrefixLength == 0);
-    if (dictMode == ZSTD_noDict) {
-        U32 const curr = (U32)(ip - base);
-        U32 const windowLow = ZSTD_getLowestPrefixIndex(ms, curr, ms->cParams.windowLog);
-        U32 const maxRep = curr - windowLow;
-        if (offset_2 > maxRep) savedOffset = offset_2, offset_2 = 0;
-        if (offset_1 > maxRep) savedOffset = offset_1, offset_1 = 0;
-    }
-    if (isDxS) {
-        /* dictMatchState repCode checks don't currently handle repCode == 0
-         * disabling. */
-        assert(offset_1 <= dictAndPrefixLength);
-        assert(offset_2 <= dictAndPrefixLength);
-    }
+    ZS_Repcode reps = ZS_Repcode_init(rep, ZSTD_getLowestPrefixIndex(ms, (U32)(ip - base), ms->cParams.windowLog), base, ip);
+    assert(dictMode == ZSTD_noDict);
+    // if (dictMode == ZSTD_noDict) {
+    //     U32 const curr = (U32)(ip - base);
+    //     U32 const windowLow = ZSTD_getLowestPrefixIndex(ms, curr, ms->cParams.windowLog);
+    //     U32 const maxRep = curr - windowLow;
+    //     if (offset_2 > maxRep) savedOffset = offset_2, offset_2 = 0;
+    //     if (offset_1 > maxRep) savedOffset = offset_1, offset_1 = 0;
+    // }
+    // if (isDxS) {
+    //     /* dictMatchState repCode checks don't currently handle repCode == 0
+    //      * disabling. */
+    //     assert(offset_1 <= dictAndPrefixLength);
+    //     assert(offset_2 <= dictAndPrefixLength);
+    // }
 
     /* Match Loop */
 #if defined(__GNUC__) && defined(__x86_64__)
@@ -940,29 +1089,48 @@ ZSTD_compressBlock_lazy_generic(
      */
     __asm__(".p2align 5");
 #endif
+    // ZS_Vec128 nextRep32 = ZS_Repcode_gather32(reps, ip + 1);
     while (ip < ilimit) {
         size_t matchLength=0;
         size_t offset=0;
         const BYTE* start=ip+1;
+        // ZS_Vec128 rep32 = nextRep32;
+        // nextRep32 = ZS_Repcode_gather32(reps, ip + 2);
 
-        /* check repCode */
-        if (isDxS) {
-            const U32 repIndex = (U32)(ip - base) + 1 - offset_1;
-            const BYTE* repMatch = ((dictMode == ZSTD_dictMatchState || dictMode == ZSTD_dedicatedDictSearch)
-                                && repIndex < prefixLowestIndex) ?
-                                   dictBase + (repIndex - dictIndexDelta) :
-                                   base + repIndex;
-            if (((U32)((prefixLowestIndex-1) - repIndex) >= 3 /* intentional underflow */)
-                && (MEM_read32(repMatch) == MEM_read32(ip+1)) ) {
-                const BYTE* repMatchEnd = repIndex < prefixLowestIndex ? dictEnd : iend;
-                matchLength = ZSTD_count_2segments(ip+1+4, repMatch+4, iend, repMatchEnd, prefixLowest) + 4;
+        {
+            ZS_Vec128 const rep32 = ZS_Repcode_gather32(reps, ip + 1);
+            BYTE const* const rip = ip + 1;
+            U32 const repcode = ZS_Repcode_search(reps, rep32, rip);
+            if (repcode != 0) {
+                BYTE const* repMatch = rip + ZS_Repcode_get(reps, repcode);
+                assert(MEM_read32(repMatch) == (U32)ZS_Repcode_get(rep32, repcode));
+                assert(MEM_read32(rip) == (U32)ZS_Repcode_get(rep32, repcode));
+                assert(MEM_read32(rip) == MEM_read32(repMatch));
+                matchLength = ZSTD_count(rip+4, repMatch + 4, iend) + 4;
+                offset = repcode - 1;
                 if (depth==0) goto _storeSequence;
             }
         }
-        if ( dictMode == ZSTD_noDict
-          && ((offset_1 > 0) & (MEM_read32(ip+1-offset_1) == MEM_read32(ip+1)))) {
-            matchLength = ZSTD_count(ip+1+4, ip+1+4-offset_1, iend) + 4;
-            if (depth==0) goto _storeSequence;
+        /* check repCode */
+        // if (isDxS) {
+        //     const U32 repIndex = (U32)(ip - base) + 1 - offset_1;
+        //     const BYTE* repMatch = ((dictMode == ZSTD_dictMatchState || dictMode == ZSTD_dedicatedDictSearch)
+        //                         && repIndex < prefixLowestIndex) ?
+        //                            dictBase + (repIndex - dictIndexDelta) :
+        //                            base + repIndex;
+        //     if (((U32)((prefixLowestIndex-1) - repIndex) >= 3 /* intentional underflow */)
+        //         && (MEM_read32(repMatch) == MEM_read32(ip+1)) ) {
+        //         const BYTE* repMatchEnd = repIndex < prefixLowestIndex ? dictEnd : iend;
+        //         matchLength = ZSTD_count_2segments(ip+1+4, repMatch+4, iend, repMatchEnd, prefixLowest) + 4;
+        //         if (depth==0) goto _storeSequence;
+        //     }
+        // }
+        // if ( dictMode == ZSTD_noDict
+        //   && ((offset_1 > 0) & (MEM_read32(ip+1-offset_1) == MEM_read32(ip+1)))) {
+        //     matchLength = ZSTD_count(ip+1+4, ip+1+4-offset_1, iend) + 4;
+        //     if (depth==0) goto _storeSequence;
+        // }
+        {
         }
 
         /* first search (depth 0) */
@@ -973,7 +1141,11 @@ ZSTD_compressBlock_lazy_generic(
         }
 
         if (matchLength < 4) {
-            ip += ((ip-anchor) >> kSearchStrength) + 1;   /* jump faster over incompressible sections */
+            size_t const skip = ((ip-anchor) >> kSearchStrength) + 1;   /* jump faster over incompressible sections */
+            ip += skip;
+            // if (skip > 1) {
+            //     nextRep32 = ZS_Repcode_gather32(reps, ip + 1);
+            // }
             continue;
         }
 
@@ -981,29 +1153,43 @@ ZSTD_compressBlock_lazy_generic(
         if (depth>=1)
         while (ip<ilimit) {
             ip ++;
-            if ( (dictMode == ZSTD_noDict)
-              && (offset) && ((offset_1>0) & (MEM_read32(ip) == MEM_read32(ip - offset_1)))) {
-                size_t const mlRep = ZSTD_count(ip+4, ip+4-offset_1, iend) + 4;
-                int const gain2 = (int)(mlRep * 3);
-                int const gain1 = (int)(matchLength*3 - ZSTD_highbit32((U32)offset+1) + 1);
-                if ((mlRep >= 4) && (gain2 > gain1))
-                    matchLength = mlRep, offset = 0, start = ip;
-            }
-            if (isDxS) {
-                const U32 repIndex = (U32)(ip - base) - offset_1;
-                const BYTE* repMatch = repIndex < prefixLowestIndex ?
-                               dictBase + (repIndex - dictIndexDelta) :
-                               base + repIndex;
-                if (((U32)((prefixLowestIndex-1) - repIndex) >= 3 /* intentional underflow */)
-                    && (MEM_read32(repMatch) == MEM_read32(ip)) ) {
-                    const BYTE* repMatchEnd = repIndex < prefixLowestIndex ? dictEnd : iend;
-                    size_t const mlRep = ZSTD_count_2segments(ip+4, repMatch+4, iend, repMatchEnd, prefixLowest) + 4;
+            {
+                ZS_Vec128 const rep32 = ZS_Repcode_gather32(reps, ip);
+                BYTE const* const rip = ip;
+                U32 const repcode = ZS_Repcode_search(reps, rep32, rip);
+                if (repcode != 0) {
+                    BYTE const* repMatch = rip + ZS_Repcode_get(reps, repcode);
+                    size_t const mlRep = ZSTD_count(rip+4, repMatch + 4, iend) + 4;
                     int const gain2 = (int)(mlRep * 3);
                     int const gain1 = (int)(matchLength*3 - ZSTD_highbit32((U32)offset+1) + 1);
-                    if ((mlRep >= 4) && (gain2 > gain1))
-                        matchLength = mlRep, offset = 0, start = ip;
+                    if (gain2 > gain1) {
+                        matchLength = mlRep; offset = repcode - 1; start = rip;
+                    }
                 }
             }
+            // if ( (dictMode == ZSTD_noDict)
+            //   && (offset) && ((offset_1>0) & (MEM_read32(ip) == MEM_read32(ip - offset_1)))) {
+            //     size_t const mlRep = ZSTD_count(ip+4, ip+4-offset_1, iend) + 4;
+            //     int const gain2 = (int)(mlRep * 3);
+            //     int const gain1 = (int)(matchLength*3 - ZSTD_highbit32((U32)offset+1) + 1);
+            //     if ((mlRep >= 4) && (gain2 > gain1))
+            //         matchLength = mlRep, offset = 0, start = ip;
+            // }
+            // if (isDxS) {
+            //     const U32 repIndex = (U32)(ip - base) - offset_1;
+            //     const BYTE* repMatch = repIndex < prefixLowestIndex ?
+            //                    dictBase + (repIndex - dictIndexDelta) :
+            //                    base + repIndex;
+            //     if (((U32)((prefixLowestIndex-1) - repIndex) >= 3 /* intentional underflow */)
+            //         && (MEM_read32(repMatch) == MEM_read32(ip)) ) {
+            //         const BYTE* repMatchEnd = repIndex < prefixLowestIndex ? dictEnd : iend;
+            //         size_t const mlRep = ZSTD_count_2segments(ip+4, repMatch+4, iend, repMatchEnd, prefixLowest) + 4;
+            //         int const gain2 = (int)(mlRep * 3);
+            //         int const gain1 = (int)(matchLength*3 - ZSTD_highbit32((U32)offset+1) + 1);
+            //         if ((mlRep >= 4) && (gain2 > gain1))
+            //             matchLength = mlRep, offset = 0, start = ip;
+            //     }
+            // }
             {   size_t offset2=999999999;
                 size_t const ml2 = searchMax(ms, ip, iend, &offset2);
                 int const gain2 = (int)(ml2*4 - ZSTD_highbit32((U32)offset2+1));   /* raw approx */
@@ -1016,29 +1202,43 @@ ZSTD_compressBlock_lazy_generic(
             /* let's find an even better one */
             if ((depth==2) && (ip<ilimit)) {
                 ip ++;
-                if ( (dictMode == ZSTD_noDict)
-                  && (offset) && ((offset_1>0) & (MEM_read32(ip) == MEM_read32(ip - offset_1)))) {
-                    size_t const mlRep = ZSTD_count(ip+4, ip+4-offset_1, iend) + 4;
-                    int const gain2 = (int)(mlRep * 4);
-                    int const gain1 = (int)(matchLength*4 - ZSTD_highbit32((U32)offset+1) + 1);
-                    if ((mlRep >= 4) && (gain2 > gain1))
-                        matchLength = mlRep, offset = 0, start = ip;
-                }
-                if (isDxS) {
-                    const U32 repIndex = (U32)(ip - base) - offset_1;
-                    const BYTE* repMatch = repIndex < prefixLowestIndex ?
-                                   dictBase + (repIndex - dictIndexDelta) :
-                                   base + repIndex;
-                    if (((U32)((prefixLowestIndex-1) - repIndex) >= 3 /* intentional underflow */)
-                        && (MEM_read32(repMatch) == MEM_read32(ip)) ) {
-                        const BYTE* repMatchEnd = repIndex < prefixLowestIndex ? dictEnd : iend;
-                        size_t const mlRep = ZSTD_count_2segments(ip+4, repMatch+4, iend, repMatchEnd, prefixLowest) + 4;
+                {
+                    ZS_Repcode const rep32 = ZS_Repcode_gather32(reps, ip);
+                    BYTE const* const rip = ip;
+                    U32 const repcode = ZS_Repcode_search(reps, rep32, rip);
+                    if (repcode != 0) {
+                        BYTE const* repMatch = rip + ZS_Repcode_get(reps, repcode);
+                        size_t const mlRep = ZSTD_count(rip+4, repMatch + 4, iend) + 4;
                         int const gain2 = (int)(mlRep * 4);
                         int const gain1 = (int)(matchLength*4 - ZSTD_highbit32((U32)offset+1) + 1);
-                        if ((mlRep >= 4) && (gain2 > gain1))
-                            matchLength = mlRep, offset = 0, start = ip;
+                        if (gain2 > gain1) {
+                            matchLength = mlRep; offset = repcode - 1; start = rip;
+                        }
                     }
                 }
+                // if ( (dictMode == ZSTD_noDict)
+                //   && (offset) && ((offset_1>0) & (MEM_read32(ip) == MEM_read32(ip - offset_1)))) {
+                //     size_t const mlRep = ZSTD_count(ip+4, ip+4-offset_1, iend) + 4;
+                //     int const gain2 = (int)(mlRep * 4);
+                //     int const gain1 = (int)(matchLength*4 - ZSTD_highbit32((U32)offset+1) + 1);
+                //     if ((mlRep >= 4) && (gain2 > gain1))
+                //         matchLength = mlRep, offset = 0, start = ip;
+                // }
+                // if (isDxS) {
+                //     const U32 repIndex = (U32)(ip - base) - offset_1;
+                //     const BYTE* repMatch = repIndex < prefixLowestIndex ?
+                //                    dictBase + (repIndex - dictIndexDelta) :
+                //                    base + repIndex;
+                //     if (((U32)((prefixLowestIndex-1) - repIndex) >= 3 /* intentional underflow */)
+                //         && (MEM_read32(repMatch) == MEM_read32(ip)) ) {
+                //         const BYTE* repMatchEnd = repIndex < prefixLowestIndex ? dictEnd : iend;
+                //         size_t const mlRep = ZSTD_count_2segments(ip+4, repMatch+4, iend, repMatchEnd, prefixLowest) + 4;
+                //         int const gain2 = (int)(mlRep * 4);
+                //         int const gain1 = (int)(matchLength*4 - ZSTD_highbit32((U32)offset+1) + 1);
+                //         if ((mlRep >= 4) && (gain2 > gain1))
+                //             matchLength = mlRep, offset = 0, start = ip;
+                //     }
+                // }
                 {   size_t offset2=999999999;
                     size_t const ml2 = searchMax(ms, ip, iend, &offset2);
                     int const gain2 = (int)(ml2*4 - ZSTD_highbit32((U32)offset2+1));   /* raw approx */
@@ -1056,7 +1256,7 @@ ZSTD_compressBlock_lazy_generic(
          * overflows the pointer, which is undefined behavior.
          */
         /* catch up */
-        if (offset) {
+        if (offset > ZSTD_REP_MOVE) {
             if (dictMode == ZSTD_noDict) {
                 while ( ((start > anchor) & (start - (offset-ZSTD_REP_MOVE) > prefixLowest))
                      && (start[-1] == (start-(offset-ZSTD_REP_MOVE))[-1]) )  /* only search for offset within prefix */
@@ -1068,52 +1268,87 @@ ZSTD_compressBlock_lazy_generic(
                 const BYTE* const mStart = (matchIndex < prefixLowestIndex) ? dictLowest : prefixLowest;
                 while ((start>anchor) && (match>mStart) && (start[-1] == match[-1])) { start--; match--; matchLength++; }  /* catch up */
             }
-            offset_2 = offset_1; offset_1 = (U32)(offset - ZSTD_REP_MOVE);
+            assert(MEM_read32(start) == MEM_read32(start - (offset - ZSTD_REP_MOVE)));
+            {
+                // U32 rep0 = ZS_Repcode_get(reps, 0);
+                // U32 rep1 = ZS_Repcode_get(reps, 1);
+                reps = ZS_Repcode_update(reps, offset - ZSTD_REP_MOVE);
+                // assert(offset - ZSTD_REP_MOVE == -ZS_Repcode_get(reps, 0));
+                // assert(rep0 == ZS_Repcode_get(reps, 1));
+                // assert(rep1 == ZS_Repcode_get(reps, 2));
+            }
         }
         /* store sequence */
 _storeSequence:
+        if (offset <= ZSTD_REP_MOVE) {
+            reps = ZS_Repcode_shuffle(reps, offset);
+        }
+        // ZS_Repcode ll0 = ZS_Repcode_exclusion(reps);
+        // ZS_Repcode data = ZS_Repcode_gather32(ll0, start + matchLength);
         {   size_t const litLength = start - anchor;
             ZSTD_storeSeq(seqStore, litLength, anchor, iend, (U32)offset, matchLength-MINMATCH);
             anchor = ip = start + matchLength;
         }
-
-        /* check immediate repcode */
-        if (isDxS) {
-            while (ip <= ilimit) {
-                U32 const current2 = (U32)(ip-base);
-                U32 const repIndex = current2 - offset_2;
-                const BYTE* repMatch = repIndex < prefixLowestIndex ?
-                        dictBase - dictIndexDelta + repIndex :
-                        base + repIndex;
-                if ( ((U32)((prefixLowestIndex-1) - (U32)repIndex) >= 3 /* intentional overflow */)
-                   && (MEM_read32(repMatch) == MEM_read32(ip)) ) {
-                    const BYTE* const repEnd2 = repIndex < prefixLowestIndex ? dictEnd : iend;
-                    matchLength = ZSTD_count_2segments(ip+4, repMatch+4, iend, repEnd2, prefixLowest) + 4;
-                    offset = offset_2; offset_2 = offset_1; offset_1 = (U32)offset;   /* swap offset_2 <=> offset_1 */
-                    ZSTD_storeSeq(seqStore, 0, anchor, iend, 0, matchLength-MINMATCH);
-                    ip += matchLength;
-                    anchor = ip;
-                    continue;
-                }
-                break;
-            }
-        }
-
-        if (dictMode == ZSTD_noDict) {
-            while ( ((ip <= ilimit) & (offset_2>0))
-                 && (MEM_read32(ip) == MEM_read32(ip - offset_2)) ) {
-                /* store sequence */
-                matchLength = ZSTD_count(ip+4, ip+4-offset_2, iend) + 4;
-                offset = offset_2; offset_2 = offset_1; offset_1 = (U32)offset; /* swap repcodes */
-                ZSTD_storeSeq(seqStore, 0, anchor, iend, 0, matchLength-MINMATCH);
+        while (ip <= ilimit) {
+            ZS_Repcode ll0 = ZS_Repcode_exclusion(reps);
+            ZS_Repcode data = ZS_Repcode_gather32(ll0, ip);
+            U32 const repcode = ZS_Repcode_search(ll0, data, ip);
+            if (repcode != 0) {
+                int const repOff = ZS_Repcode_get(ll0, repcode);
+                BYTE const* repMatch = ip + repOff;
+                assert(MEM_read32(repMatch) == (U32)ZS_Repcode_get(data, repcode));
+                assert(MEM_read32(ip) == (U32)ZS_Repcode_get(data, repcode));
+                assert(MEM_read32(ip) == MEM_read32(repMatch));
+                matchLength = ZSTD_count(ip+4, repMatch + 4, iend) + 4;
+                ZSTD_storeSeq(seqStore, 0, anchor, iend, repcode - 1, matchLength-MINMATCH);
                 ip += matchLength;
                 anchor = ip;
+                reps = ZS_Repcode_shuffleLL0(reps, repcode - 1, repOff);
                 continue;   /* faster when present ... (?) */
-    }   }   }
+            }
+            // nextRep32 = ZS_Repcode_gather32(reps, ip + 1);
+            break;
+        }
+
+        /* check immediate repcode */
+        // if (isDxS) {
+        //     while (ip <= ilimit) {
+        //         U32 const current2 = (U32)(ip-base);
+        //         U32 const repIndex = current2 - offset_2;
+        //         const BYTE* repMatch = repIndex < prefixLowestIndex ?
+        //                 dictBase - dictIndexDelta + repIndex :
+        //                 base + repIndex;
+        //         if ( ((U32)((prefixLowestIndex-1) - (U32)repIndex) >= 3 /* intentional overflow */)
+        //            && (MEM_read32(repMatch) == MEM_read32(ip)) ) {
+        //             const BYTE* const repEnd2 = repIndex < prefixLowestIndex ? dictEnd : iend;
+        //             matchLength = ZSTD_count_2segments(ip+4, repMatch+4, iend, repEnd2, prefixLowest) + 4;
+        //             offset = offset_2; offset_2 = offset_1; offset_1 = (U32)offset;   /* swap offset_2 <=> offset_1 */
+        //             ZSTD_storeSeq(seqStore, 0, anchor, iend, 0, matchLength-MINMATCH);
+        //             ip += matchLength;
+        //             anchor = ip;
+        //             continue;
+        //         }
+        //         break;
+        //     }
+        // }
+
+        // if (dictMode == ZSTD_noDict) {
+        //     while ( ((ip <= ilimit) & (offset_2>0))
+        //          && (MEM_read32(ip) == MEM_read32(ip - offset_2)) ) {
+        //         /* store sequence */
+        //         matchLength = ZSTD_count(ip+4, ip+4-offset_2, iend) + 4;
+        //         offset = offset_2; offset_2 = offset_1; offset_1 = (U32)offset; /* swap repcodes */
+        //         ZSTD_storeSeq(seqStore, 0, anchor, iend, 0, matchLength-MINMATCH);
+        //         ip += matchLength;
+        //         anchor = ip;
+        //         continue;   /* faster when present ... (?) */
+        // }   }
+    }
 
     /* Save reps for next block */
-    rep[0] = offset_1 ? offset_1 : savedOffset;
-    rep[1] = offset_2 ? offset_2 : savedOffset;
+    ZS_Repcode_save(reps, rep);
+    // rep[0] = offset_1 ? offset_1 : savedOffset;
+    // rep[1] = offset_2 ? offset_2 : savedOffset;
 
     /* Return the last literals size */
     return (size_t)(iend - anchor);

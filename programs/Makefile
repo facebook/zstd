@@ -289,7 +289,7 @@ zstd-noxz : LZMALD  :=
 zstd-noxz : LZMA_MSG := - xz/lzma support is disabled
 zstd-noxz : zstd
 
-## zstd-dll: zstd executable linked to dynamic library libzstd (must already exist)
+## zstd-dll: zstd executable linked to dynamic library libzstd (must have same version)
 .PHONY: zstd-dll
 zstd-dll : LDFLAGS+= -L$(ZSTDDIR)
 zstd-dll : LDLIBS += -lzstd

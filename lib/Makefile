@@ -255,8 +255,8 @@ else  # not Windows
 
 LIBZSTD = libzstd.$(SHARED_EXT_VER)
 .PHONY: $(LIBZSTD)  # must be run every time
-$(LIBZSTD): CFLAGS += -fPIC
-$(LIBZSTD): LDFLAGS += -shared -fvisibility=hidden
+$(LIBZSTD): CFLAGS += -fPIC -fvisibility=hidden
+$(LIBZSTD): LDFLAGS += -shared
 
 ifndef BUILD_DIR
 # determine BUILD_DIR from compilation flags

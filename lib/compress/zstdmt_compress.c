@@ -486,10 +486,10 @@ ZSTDMT_serialState_reset(serialState_t* serialState,
         size_t const hashSize = ((size_t)1 << hashLog) * sizeof(ldmEntry_t);
         unsigned const bucketLog =
             params.ldmParams.hashLog - params.ldmParams.bucketSizeLog;
-        size_t const bucketSize = (size_t)1 << bucketLog;
         unsigned const prevBucketLog =
             serialState->params.ldmParams.hashLog -
             serialState->params.ldmParams.bucketSizeLog;
+        size_t const numBuckets = (size_t)1 << bucketLog;
         /* Size the seq pool tables */
         ZSTDMT_setNbSeq(seqPool, ZSTD_ldm_getMaxNbSeq(params.ldmParams, jobSize));
         /* Reset the window */
@@ -501,13 +501,13 @@ ZSTDMT_serialState_reset(serialState_t* serialState,
         }
         if (serialState->ldmState.bucketOffsets == NULL || prevBucketLog < bucketLog) {
             ZSTD_customFree(serialState->ldmState.bucketOffsets, cMem);
-            serialState->ldmState.bucketOffsets = (BYTE*)ZSTD_customMalloc(bucketSize, cMem);
+            serialState->ldmState.bucketOffsets = (BYTE*)ZSTD_customMalloc(numBuckets, cMem);
         }
         if (!serialState->ldmState.hashTable || !serialState->ldmState.bucketOffsets)
             return 1;
         /* Zero the tables */
         ZSTD_memset(serialState->ldmState.hashTable, 0, hashSize);
-        ZSTD_memset(serialState->ldmState.bucketOffsets, 0, bucketSize);
+        ZSTD_memset(serialState->ldmState.bucketOffsets, 0, numBuckets);
 
         /* Update window state and fill hash table with dict */
         serialState->ldmState.loadedDictEnd = 0;

@@ -104,6 +104,24 @@ static int g_displayLevel = DISPLAY_LEVEL_DEFAULT;   /* 0 : no display,  1: erro
 
 
 /*-************************************
+*  Check Version (when CLI linked to dynamic library)
+**************************************/
+
+/* Due to usage of experimental symbols and capabilities by the CLI,
+ * the CLI must be linked against a dynamic library of same version */
+static void checkLibVersion(void)
+{
+    if (strcmp(ZSTD_VERSION_STRING, ZSTD_versionString())) {
+        DISPLAYLEVEL(1, "Error : incorrect library version (expecting : %s ; actual : %s ) \n",
+                    ZSTD_VERSION_STRING, ZSTD_versionString());
+        DISPLAYLEVEL(1, "Please update library to version %s, or use stand-alone zstd binary \n",
+                    ZSTD_VERSION_STRING);
+        exit(1);
+    }
+}
+
+
+/*-************************************
 *  Command Line
 **************************************/
 /* print help either in `stderr` or `stdout` depending on originating request
@@ -753,6 +771,7 @@ int main(int const argCount, const char* argv[])
 
 
     /* init */
+    checkLibVersion();
     (void)recursive; (void)cLevelLast;    /* not used when ZSTD_NOBENCH set */
     (void)memLimit;
     assert(argCount >= 1);
@@ -1281,15 +1300,15 @@ int main(int const argCount, const char* argv[])
         DISPLAY("error : can't use --patch-from=# on multiple files \n");
         CLEAN_RETURN(1);
     }
-    
-    /* No status message in pipe mode (stdin - stdout) */	
+
+    /* No status message in pipe mode (stdin - stdout) */
     hasStdout = outFileName && !strcmp(outFileName,stdoutmark);
 
     if (hasStdout && (g_displayLevel==2)) g_displayLevel=1;
 
     /* IO Stream/File */
     FIO_setHasStdoutOutput(fCtx, hasStdout);
-    FIO_setNbFilesTotal(fCtx, (int)filenames->tableSize); 
+    FIO_setNbFilesTotal(fCtx, (int)filenames->tableSize);
     FIO_determineHasStdinInput(fCtx, filenames);
     FIO_setNotificationLevel(g_displayLevel);
     FIO_setPatchFromMode(prefs, patchFromDictFileName != NULL);

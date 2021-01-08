@@ -90,13 +90,13 @@ endif
 
 # Sort files in alphabetical order for reproducible builds
 ZSTDLIB_FULL_SRC = $(sort $(ZSTDLIB_CORE_SRC) $(ZSTDLEGACY_SRC) $(ZDICT_SRC))
-ZSTDLIB_LOCAL_SRC := $(notdir $(ZSTDLIB_FULL_SRC))
+ZSTDLIB_LOCAL_SRC = $(notdir $(ZSTDLIB_FULL_SRC))
 ZSTDLIB_LOCAL_OBJ := $(ZSTDLIB_LOCAL_SRC:.c=.o)
 
 ZSTD_CLI_SRC := $(wildcard *.c)
 ZSTD_CLI_OBJ := $(ZSTD_CLI_SRC:.c=.o)
 
-ZSTD_ALL_SRC := $(ZSTDLIB_LOCAL_SRC) $(ZSTD_CLI_SRC)
+ZSTD_ALL_SRC = $(ZSTDLIB_LOCAL_SRC) $(ZSTD_CLI_SRC)
 ZSTD_ALL_OBJ := $(ZSTD_ALL_SRC:.c=.o)
 
 UNAME := $(shell uname)
@@ -111,7 +111,7 @@ HASH ?= md5sum
 HAVE_HASH :=$(shell echo 1 | $(HASH) > /dev/null && echo 1 || echo 0)
 
 ifndef BUILD_DIR
-HASH_DIR = conf_$(shell echo $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(ZSTD_FILES) | $(HASH) | cut -f 1 -d " ")
+HASH_DIR = conf_$(shell echo $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(LDLIBS) $(ZSTD_FILES) | $(HASH) | cut -f 1 -d " ")
 ifeq ($(HAVE_HASH),0)
   $(info warning : could not find HASH ($(HASH)), needed to differentiate builds using different flags)
   BUILD_DIR := obj/generic_noconf
@@ -199,7 +199,8 @@ SET_CACHE_DIRECTORY = \
     CPPFLAGS="$(CPPFLAGS)" \
     CFLAGS="$(CFLAGS)" \
     LDFLAGS="$(LDFLAGS)" \
-    LDLIBS="$(LDLIBS)"
+    LDLIBS="$(LDLIBS)" \
+    ZSTD_ALL_SRC="$(ZSTD_ALL_SRC)"
 
 
 .PHONY: all
@@ -288,18 +289,12 @@ zstd-noxz : LZMALD  :=
 zstd-noxz : LZMA_MSG := - xz/lzma support is disabled
 zstd-noxz : zstd
 
-## zstd-dll: zstd executable linked to dynamic library libzstd (must already exist)
-# note : the following target doesn't link
-#        because zstd uses non-public symbols from libzstd
-#        such as XXH64 (for benchmark),
-#        ZDICT_trainFromBuffer_unsafe_legacy (for dictionary builder)
-#        and ZSTD_cycleLog (likely for --patch-from).
-#        It's unclear at this stage if this is a scenario that must be supported
+## zstd-dll: zstd executable linked to dynamic library libzstd (must have same version)
 .PHONY: zstd-dll
-zstd-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd
-zstd-dll : ZSTDLIB_FULL_SRC =
-zstd-dll : $(ZSTD_CLI_OBJ)
-	$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
+zstd-dll : LDFLAGS+= -L$(ZSTDDIR)
+zstd-dll : LDLIBS += -lzstd
+zstd-dll : ZSTDLIB_LOCAL_SRC = xxhash.c
+zstd-dll : zstd
 
 
 ## zstd-pgo: zstd executable optimized with PGO.
@@ -350,9 +345,11 @@ endif
 .PHONY: clean
 clean:
 	$(RM) core *.o tmp* result* *.gcda dictionary *.zst \
-        zstd$(EXT) zstd32$(EXT) zstd-compress$(EXT) zstd-decompress$(EXT) \
+        zstd$(EXT) zstd32$(EXT) zstd-dll$(EXT) \
+        zstd-compress$(EXT) zstd-decompress$(EXT) \
         zstd-small$(EXT) zstd-frugal$(EXT) zstd-nolegacy$(EXT) zstd4$(EXT) \
-        zstd-dictBuilder$(EXT) *.gcda default*.profraw default.profdata have_zlib$(EXT)
+        zstd-dictBuilder$(EXT) \
+        *.gcda default*.profraw default.profdata have_zlib$(EXT)
 	$(RM) -r obj/*
 	@echo Cleaning completed
 

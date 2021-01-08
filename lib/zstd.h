@@ -948,7 +948,7 @@ ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, s
  *  Reference a prepared dictionary, to be used for all next compressed frames.
  *  Note that compression parameters are enforced from within CDict,
  *  and supersede any compression parameter previously set within CCtx.
- *  The parameters ignored are labled as "superseded-by-cdict" in the ZSTD_cParameter enum docs.
+ *  The parameters ignored are labelled as "superseded-by-cdict" in the ZSTD_cParameter enum docs.
  *  The ignored parameters will be used again if the CCtx is returned to no-dictionary mode.
  *  The dictionary will remain valid for future compressed frames using same CCtx.
  * @result : 0, or an error code (which can be tested with ZSTD_isError()).
@@ -1286,7 +1286,7 @@ ZSTDLIB_API unsigned long long ZSTD_findDecompressedSize(const void* src, size_t
  *  `srcSize` must be the _exact_ size of this series
  *       (i.e. there should be a frame boundary at `src + srcSize`)
  *  @return : - upper-bound for the decompressed size of all data in all successive frames
- *            - if an error occured: ZSTD_CONTENTSIZE_ERROR
+ *            - if an error occurred: ZSTD_CONTENTSIZE_ERROR
  *
  *  note 1  : an error can occur if `src` contains an invalid or incorrectly formatted frame.
  *  note 2  : the upper-bound is exact when the decompressed size field is available in every ZSTD encoded frame of `src`.

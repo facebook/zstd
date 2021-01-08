@@ -242,7 +242,7 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
     assert(endIndex - prefixStartIndex <= maxDistance);
     (void)maxDistance; (void)endIndex;   /* these variables are not used when assert() is disabled */
 
-    /* ensure there will be no no underflow
+    /* ensure there will be no underflow
      * when translating a dict index into a local index */
     assert(prefixStartIndex >= (U32)(dictEnd - dictBase));
 

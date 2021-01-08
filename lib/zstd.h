@@ -546,12 +546,14 @@ typedef enum {
      * ZSTD_d_format
      * ZSTD_d_stableOutBuffer
      * ZSTD_d_forceIgnoreChecksum
+     * ZSTD_d_refMultipleDDicts
      * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
      * note : never ever use experimentalParam? names directly
      */
      ZSTD_d_experimentalParam1=1000,
      ZSTD_d_experimentalParam2=1001,
-     ZSTD_d_experimentalParam3=1002
+     ZSTD_d_experimentalParam3=1002,
+     ZSTD_d_experimentalParam4=1003
 
 } ZSTD_dParameter;
 
@@ -999,6 +1001,13 @@ ZSTDLIB_API size_t ZSTD_DCtx_loadDictionary(ZSTD_DCtx* dctx, const void* dict, s
 /*! ZSTD_DCtx_refDDict() :
  *  Reference a prepared dictionary, to be used to decompress next frames.
  *  The dictionary remains active for decompression of future frames using same DCtx.
+ * 
+ *  If called with ZSTD_d_refMultipleDDicts enabled, repeated calls of this function
+ *  will store the DDict references in a table, and the DDict used for decompression
+ *  will be determined at decompression time, as per the dict ID in the frame.
+ *  The memory for the table is allocated on the first call to refDDict, and can be
+ *  freed with ZSTD_freeDCtx().
+ * 
  * @result : 0, or an error code (which can be tested with ZSTD_isError()).
  *  Note 1 : Currently, only one dictionary can be managed.
  *           Referencing a new dictionary effectively "discards" any previous one.
@@ -1204,6 +1213,12 @@ typedef enum {
     ZSTD_d_validateChecksum = 0,
     ZSTD_d_ignoreChecksum = 1
 } ZSTD_forceIgnoreChecksum_e;
+
+typedef enum {
+    /* Note: this enum controls ZSTD_d_refMultipleDDicts */
+    ZSTD_rmd_refSingleDDict = 0,
+    ZSTD_rmd_refMultipleDDicts = 1
+} ZSTD_refMultipleDDicts_e;
 
 typedef enum {
     /* Note: this enum and the behavior it controls are effectively internal
@@ -2002,6 +2017,30 @@ ZSTDLIB_API size_t ZSTD_DCtx_getParameter(ZSTD_DCtx* dctx, ZSTD_dParameter param
  * Param has values of type ZSTD_forceIgnoreChecksum_e
  */
 #define ZSTD_d_forceIgnoreChecksum ZSTD_d_experimentalParam3
+
+/* ZSTD_d_refMultipleDDicts
+ * Experimental parameter.
+ * Default is 0 == disabled. Set to 1 to enable
+ *
+ * If enabled and dctx is allocated on the heap, then additional memory will be allocated
+ * to store references to multiple ZSTD_DDict. That is, multiple calls of ZSTD_refDDict()
+ * using a given ZSTD_DCtx, rather than overwriting the previous DDict reference, will instead
+ * store all references. At decompression time, the appropriate dictID is selected
+ * from the set of DDicts based on the dictID in the frame.
+ * 
+ * Usage is simply calling ZSTD_refDDict() on multiple dict buffers.
+ * 
+ * Param has values of byte ZSTD_refMultipleDDicts_e
+ * 
+ * WARNING: Enabling this parameter and calling ZSTD_DCtx_refDDict(), will trigger memory
+ * allocation for the hash table. ZSTD_freeDCtx() also frees this memory.
+ * Memory is allocated as per ZSTD_DCtx::customMem.
+ * 
+ * Although this function allocates memory for the table, the user is still responsible for
+ * memory management of the underlying ZSTD_DDict* themselves.
+ */
+#define ZSTD_d_refMultipleDDicts ZSTD_d_experimentalParam4
+
 
 /*! ZSTD_DCtx_setFormat() :
  *  Instruct the decoder context about what kind of data to decode next.

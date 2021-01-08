@@ -99,6 +99,13 @@ typedef enum {
     ZSTD_use_once = 1            /* Use the dictionary once and set to ZSTD_dont_use */
 } ZSTD_dictUses_e;
 
+/* Hashset for storing references to multiple ZSTD_DDict within ZSTD_DCtx */
+typedef struct {
+    const ZSTD_DDict** ddictPtrTable;
+    size_t ddictPtrTableSize;
+    size_t ddictPtrCount;
+} ZSTD_DDictHashSet;
+
 struct ZSTD_DCtx_s
 {
     const ZSTD_seqSymbol* LLTptr;
@@ -136,6 +143,8 @@ struct ZSTD_DCtx_s
     U32 dictID;
     int ddictIsCold;             /* if == 1 : dictionary is "new" for working context, and presumed "cold" (not in cpu cache) */
     ZSTD_dictUses_e dictUses;
+    ZSTD_DDictHashSet* ddictSet;                    /* Hash set for multiple ddicts */
+    ZSTD_refMultipleDDicts_e refMultipleDDicts;     /* User specified: if == 1, will allow references to multiple DDicts. Default == 0 (disabled) */
 
     /* streaming */
     ZSTD_dStreamStage streamStage;

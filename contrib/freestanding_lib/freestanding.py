@@ -576,7 +576,7 @@ class Freestanding(object):
             )
         if self._xxh64_prefix is not None:
             replacements.append(
-                (re.compile(r"([^\w]|^)(?P<orig>XXH64)_"), self._xxh64_prefix)
+                (re.compile(r"([^\w]|^)(?P<orig>XXH64)[\(_]"), self._xxh64_prefix)
             )
         for filepath in self._dst_lib_file_paths():
             file = FileLines(filepath)

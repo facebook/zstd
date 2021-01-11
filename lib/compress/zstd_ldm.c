@@ -77,7 +77,7 @@ static U32 ZSTD_ldm_getChecksum(U64 hash, U32 numBitsToDiscard)
  *  checked. */
 static U64 ZSTD_ldm_getTagMask(U32 hbits, U32 hashRateLog)
 {
-    assert(numTagBits < 32 && hbits <= 32);
+    assert(hashRateLog < 32 && hbits <= 32);
     if (32 - hbits < hashRateLog) {
         return (((U64)1 << hashRateLog) - 1);
     } else {

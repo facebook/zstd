@@ -500,9 +500,9 @@ static size_t ZSTD_compressSubBlock_sequences(const ZSTD_fseCTables_t* fseTables
          * block, since it isn't worth optimizing.
          */
 #ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
-        if (writeEntropy && fseMetadata->lastNCount && (op - fseMetadata->lastNCount) < 4) {
+        if (writeEntropy && fseMetadata->lastCountSize && (bitstreamSize + fseMetadata->lastCountSize) < 4) {
             /* NCountSize >= 2 && bitstreamSize > 0 ==> lastCountSize == 3 */
-            assert(op - fseMetadata->lastNCount == 3);
+            assert(bitstreamSize + fseMetadata->lastCountSize == 3);
             DEBUGLOG(5, "Avoiding bug in zstd decoder in versions <= 1.3.4 by "
                         "emitting an uncompressed block.");
             return 0;

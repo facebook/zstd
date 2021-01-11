@@ -2208,7 +2208,7 @@ static int ZSTD_useBlockSplitting(const ZSTD_CCtx_params* cctxParams)
  */
 MEM_STATIC size_t
 ZSTD_buildSequencesStatistics(seqStore_t* seqStorePtr, size_t nbSeq,
-                              U32* LLtype, U32* Offtype, U32* MLtype, BYTE** lastNCount,
+                              U32* LLtype, U32* Offtype, U32* MLtype, size_t* lastCountSize,
                         const ZSTD_fseCTables_t* prevEntropy, ZSTD_fseCTables_t* nextEntropy,
                               BYTE* dst, const BYTE* const dstEnd,
                               ZSTD_strategy strategy,
@@ -2252,7 +2252,7 @@ ZSTD_buildSequencesStatistics(seqStore_t* seqStorePtr, size_t nbSeq,
                 entropyWorkspace, entropyWkspSize);
             FORWARD_IF_ERROR(countSize, "ZSTD_buildCTable for LitLens failed");
             if (*LLtype == set_compressed)
-                *lastNCount = op;
+                *lastCountSize = countSize;
             op += countSize;
             assert(op <= oend);
     }   }
@@ -2280,7 +2280,7 @@ ZSTD_buildSequencesStatistics(seqStore_t* seqStorePtr, size_t nbSeq,
                 entropyWorkspace, entropyWkspSize);
             FORWARD_IF_ERROR(countSize, "ZSTD_buildCTable for Offsets failed");
             if (*Offtype == set_compressed)
-                *lastNCount = op;
+                *lastCountSize = countSize;
             op += countSize;
             assert(op <= oend);
     }   }
@@ -2306,7 +2306,7 @@ ZSTD_buildSequencesStatistics(seqStore_t* seqStorePtr, size_t nbSeq,
                 entropyWorkspace, entropyWkspSize);
             FORWARD_IF_ERROR(countSize, "ZSTD_buildCTable for MatchLengths failed");
             if (*MLtype == set_compressed)
-                *lastNCount = op;
+                *lastCountSize = countSize;
             op += countSize;
             assert(op <= oend);
     }   }
@@ -2339,8 +2339,7 @@ ZSTD_entropyCompressSequences_internal(seqStore_t* seqStorePtr,
     BYTE* const ostart = (BYTE*)dst;
     BYTE* const oend = ostart + dstCapacity;
     BYTE* op = ostart;
-    BYTE* lastNCount = NULL;
-    BYTE* seqHead;
+    size_t lastCountSize = 0;
 
     entropyWorkspace = count + (MaxSeq + 1);
     entropyWkspSize -= (MaxSeq + 1) * sizeof(*count);
@@ -2385,15 +2384,14 @@ ZSTD_entropyCompressSequences_internal(seqStore_t* seqStorePtr,
         ZSTD_memcpy(&nextEntropy->fse, &prevEntropy->fse, sizeof(prevEntropy->fse));
         return (size_t)(op - ostart);
     }
-
     {
         U32 LLtype;
         U32 Offtype;
         U32 MLtype;
-        seqHead = op++;
+        BYTE* seqHead = op++;
         /* build stats for sequences */
         entropyStatisticsSize = ZSTD_buildSequencesStatistics(seqStorePtr, nbSeq,
-                                                 &LLtype, &Offtype, &MLtype, &lastNCount,
+                                                 &LLtype, &Offtype, &MLtype, &lastCountSize,
                                                  &prevEntropy->fse, &nextEntropy->fse,
                                                  op, oend,
                                                  strategy,
@@ -2421,9 +2419,9 @@ ZSTD_entropyCompressSequences_internal(seqStore_t* seqStorePtr,
          * In this exceedingly rare case, we will simply emit an uncompressed
          * block, since it isn't worth optimizing.
          */
-        if (lastNCount && (op - lastNCount) < 4) {
-            /* NCountSize >= 2 && bitstreamSize > 0 ==> lastCountSize == 3 */
-            assert(op - lastNCount == 3);
+        if (lastCountSize && (lastCountSize + bitstreamSize) < 4) {
+            /* lastCountSize >= 2 && bitstreamSize > 0 ==> lastCountSize == 3 */
+            assert(lastCountSize + bitstreamSize == 3);
             DEBUGLOG(5, "Avoiding bug in zstd decoder in versions <= 1.3.4 by "
                         "emitting an uncompressed block.");
             return 0;
@@ -2886,20 +2884,20 @@ static size_t ZSTD_buildBlockEntropyStats_sequences(seqStore_t* seqStorePtr,
     BYTE* const ostart = fseMetadata->fseTablesBuffer;
     BYTE* const oend = ostart + sizeof(fseMetadata->fseTablesBuffer);
     BYTE* op = ostart;
-    BYTE* lastNCount = NULL;
     size_t hSize;
-    U32 LLtype;
-    U32 Offtype;
-    U32 MLtype;
+
+    /* ZSTD_buildSequencesStatistics() is guaranteed to overwrite these values */
+    U32 LLtype = set_basic;
+    U32 Offtype = set_basic;
+    U32 MLtype = set_basic;
 
     DEBUGLOG(5, "ZSTD_buildBlockEntropyStats_sequences (nbSeq=%zu)", nbSeq);
     ZSTD_memset(workspace, 0, wkspSize);
     hSize = ZSTD_buildSequencesStatistics(seqStorePtr, nbSeq,
-                                    &LLtype, &Offtype, &MLtype, &lastNCount,
+                                    &LLtype, &Offtype, &MLtype, &fseMetadata->lastCountSize,
                                     prevEntropy, nextEntropy, op, oend,
                                     strategy,
                                     workspace, wkspSize);
-    fseMetadata->lastNCount = lastNCount;
     fseMetadata->llType = (symbolEncodingType_e) LLtype;
     fseMetadata->ofType = (symbolEncodingType_e) Offtype;
     fseMetadata->mlType = (symbolEncodingType_e) MLtype;
@@ -3104,8 +3102,8 @@ static size_t ZSTD_countSeqStoreMatchBytes(const seqStore_t* seqStore) {
 static void ZSTD_deriveSeqStoreChunk(seqStore_t* resultSeqStore, const seqStore_t* originalSeqStore,
                                      size_t startIdx, size_t endIdx) {
     BYTE* const litEnd = originalSeqStore->lit;
-    U32 literalsBytes;
-    U32 literalsBytesPreceding = 0;
+    size_t literalsBytes;
+    size_t literalsBytesPreceding = 0;
 
     *resultSeqStore = *originalSeqStore;
     if (startIdx > 0) {
@@ -3118,7 +3116,7 @@ static void ZSTD_deriveSeqStoreChunk(seqStore_t* resultSeqStore, const seqStore_
         if (originalSeqStore->longLengthPos < startIdx || originalSeqStore->longLengthPos > endIdx) {
             resultSeqStore->longLengthID = 0;
         } else {
-            resultSeqStore->longLengthPos -= startIdx;
+            resultSeqStore->longLengthPos -= (U32)startIdx;
         }
     }
     resultSeqStore->sequencesStart = originalSeqStore->sequencesStart + startIdx;
@@ -3240,7 +3238,7 @@ static void ZSTD_deriveBlockSplitsHelper(seqStoreSplits* splits, size_t startIdx
     }
     if (estimatedFirstHalfSize + estimatedSecondHalfSize < estimatedOriginalSize) {
         ZSTD_deriveBlockSplitsHelper(splits, startIdx, midIdx, zc, origSeqStore);
-        splits->splitLocations[splits->idx] = midIdx;
+        splits->splitLocations[splits->idx] = (U32)midIdx;
         splits->idx++;
         ZSTD_deriveBlockSplitsHelper(splits, midIdx, endIdx, zc, origSeqStore);
     }
@@ -3322,21 +3320,20 @@ static size_t ZSTD_compressBlock_splitBlock(ZSTD_CCtx* zc,
                                         const void* src, size_t srcSize, U32 lastBlock) {
     const BYTE* ip = (const BYTE*)src;
     BYTE* op = (BYTE*)dst;
-    size_t nbSeq;
+    U32 nbSeq;
     size_t cSize;
     DEBUGLOG(4, "ZSTD_compressBlock_splitBlock");
 
     {   const size_t bss = ZSTD_buildSeqStore(zc, src, srcSize);
         FORWARD_IF_ERROR(bss, "ZSTD_buildSeqStore failed");
         if (bss == ZSTDbss_noCompress) {
-            cSize = 0;
             if (zc->blockState.prevCBlock->entropy.fse.offcode_repeatMode == FSE_repeat_valid)
                 zc->blockState.prevCBlock->entropy.fse.offcode_repeatMode = FSE_repeat_check;
             cSize = ZSTD_noCompressBlock(op, dstCapacity, ip, srcSize, lastBlock);
             FORWARD_IF_ERROR(cSize, "ZSTD_noCompressBlock failed");
             return cSize;
         }
-        nbSeq = (size_t)(zc->seqStore.sequences - zc->seqStore.sequencesStart);
+        nbSeq = (U32)(zc->seqStore.sequences - zc->seqStore.sequencesStart);
     }
 
     assert(zc->appliedParams.splitBlocks == 1);

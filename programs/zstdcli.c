@@ -144,7 +144,8 @@ static void usage(FILE* f, const char* programName)
 #endif
     DISPLAY_F(f, " -D DICT: use DICT as Dictionary for compression or decompression \n");
     DISPLAY_F(f, " -o file: result stored into `file` (only 1 output file) \n");
-    DISPLAY_F(f, " -f     : overwrite output without prompting, also (de)compress links \n");
+    DISPLAY_F(f, " -f     : disable input and output checks. Allows overwriting existing files,\n");
+    DISPLAY_F(f, "          input from console, output to stdout, operating on links, etc.\n");
     DISPLAY_F(f, "--rm    : remove source file(s) after successful de/compression \n");
     DISPLAY_F(f, " -k     : preserve source file(s) (default) \n");
     DISPLAY_F(f, " -h/-H  : display help/long help and exit \n");
@@ -714,6 +715,7 @@ int main(int const argCount, const char* argv[])
 {
     int argNb,
         followLinks = 0,
+        forceStdin = 0,
         forceStdout = 0,
         hasStdout = 0,
         ldmFlag = 0,
@@ -826,7 +828,7 @@ int main(int const argCount, const char* argv[])
                 if (!strcmp(argument, "--compress")) { operation=zom_compress; continue; }
                 if (!strcmp(argument, "--decompress")) { operation=zom_decompress; continue; }
                 if (!strcmp(argument, "--uncompress")) { operation=zom_decompress; continue; }
-                if (!strcmp(argument, "--force")) { FIO_overwriteMode(prefs); forceStdout=1; followLinks=1; continue; }
+                if (!strcmp(argument, "--force")) { FIO_overwriteMode(prefs); forceStdin=1; forceStdout=1; followLinks=1; continue; }
                 if (!strcmp(argument, "--version")) { printVersion(); CLEAN_RETURN(0); }
                 if (!strcmp(argument, "--help")) { usage_advanced(programName); CLEAN_RETURN(0); }
                 if (!strcmp(argument, "--verbose")) { g_displayLevel++; continue; }
@@ -1007,7 +1009,7 @@ int main(int const argCount, const char* argv[])
                 case 'D': argument++; NEXT_FIELD(dictFileName); break;
 
                     /* Overwrite */
-                case 'f': FIO_overwriteMode(prefs); forceStdout=1; followLinks=1; argument++; break;
+                case 'f': FIO_overwriteMode(prefs); forceStdin=1; forceStdout=1; followLinks=1; argument++; break;
 
                     /* Verbose mode */
                 case 'v': g_displayLevel++; argument++; break;
@@ -1262,7 +1264,9 @@ int main(int const argCount, const char* argv[])
         outFileName = stdoutmark;  /* when input is stdin, default output is stdout */
 
     /* Check if input/output defined as console; trigger an error in this case */
-    if (!strcmp(filenames->fileNames[0], stdinmark) && IS_CONSOLE(stdin) ) {
+    if (!forceStdin
+     && !strcmp(filenames->fileNames[0], stdinmark)
+     && IS_CONSOLE(stdin) ) {
         DISPLAYLEVEL(1, "stdin is a console, aborting\n");
         CLEAN_RETURN(1);
     }

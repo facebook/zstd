@@ -201,7 +201,8 @@ the last one takes effect.
 * `-o FILE`:
     save result into `FILE`
 * `-f`, `--force`:
-    overwrite output without prompting, and (de)compress symbolic links
+    disable input and output checks. Allows overwriting existing files, input
+    from console, output to stdout, operating on links, etc.
 * `-c`, `--stdout`:
     force write to standard output, even if it is the console
 * `--[no-]sparse`:

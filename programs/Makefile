@@ -194,7 +194,7 @@ endif
 endif
 
 SET_CACHE_DIRECTORY = \
-	$(MAKE) --no-print-directory $@ \
+   +$(MAKE) --no-print-directory $@ \
     BUILD_DIR=obj/$(HASH_DIR) \
     CPPFLAGS="$(CPPFLAGS)" \
     CFLAGS="$(CFLAGS)" \

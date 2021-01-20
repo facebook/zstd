@@ -103,7 +103,7 @@ static void ZSTD_ldm_insertEntry(ldmState_t* ldmState,
     unsigned const offset = *pOffset;
 
     *(ZSTD_ldm_getBucket(ldmState, hash, ldmParams) + offset) = entry;
-    *pOffset = (offset + 1) & (((U32)1 << ldmParams.bucketSizeLog) - 1);
+    *pOffset = (BYTE)((offset + 1) & ((1u << ldmParams.bucketSizeLog) - 1));
 
 }
 
@@ -295,11 +295,12 @@ static size_t ZSTD_ldm_generateSequences_internal(
     U64 rollingHash = 0;
 
     while (ip <= ilimit) {
+        U32 const currentOffset = (U32)(ip - base);
         U32 hash, checksum;
         size_t mLength;
-        U32 const curr = (U32)(ip - base);
         size_t forwardMatchLength = 0, backwardMatchLength = 0;
         ldmEntry_t const* bestEntry = NULL;
+        ldmEntry_t newEntry;
 
         if (ip != istart) {
             rollingHash = ZSTD_rollingHash_rotate(rollingHash, lastHashed[0],
@@ -318,6 +319,9 @@ static size_t ZSTD_ldm_generateSequences_internal(
 
         hash = ZSTD_ldm_getSmallHash(rollingHash, hBits);
         checksum = ZSTD_ldm_getChecksum(rollingHash, hBits);
+
+        newEntry.offset = currentOffset;
+        newEntry.checksum = checksum;
 
         /* Get the best entry and compute the match lengths */
         {
@@ -376,11 +380,7 @@ static size_t ZSTD_ldm_generateSequences_internal(
 
         /* No match found -- continue searching */
         if (bestEntry == NULL) {
-            ldmEntry_t entry;
-
-            entry.offset = curr;
-            entry.checksum = checksum;
-            ZSTD_ldm_insertEntry(ldmState, hash, entry, *params);
+            ZSTD_ldm_insertEntry(ldmState, hash, newEntry, *params);
             ip++;
             continue;
         }
@@ -391,11 +391,11 @@ static size_t ZSTD_ldm_generateSequences_internal(
 
         {
             /* Store the sequence:
-             * ip = curr - backwardMatchLength
+             * ip = currentOffset - backwardMatchLength
              * The match is at (bestEntry->offset - backwardMatchLength)
              */
             U32 const matchIndex = bestEntry->offset;
-            U32 const offset = curr - matchIndex;
+            U32 const offset = currentOffset - matchIndex;
             rawSeq* const seq = rawSeqStore->seq + rawSeqStore->size;
 
             /* Out of sequence storage */
@@ -407,10 +407,9 @@ static size_t ZSTD_ldm_generateSequences_internal(
             rawSeqStore->size++;
         }
 
-        /* Insert the current entry into the hash table */
-        ZSTD_ldm_makeEntryAndInsertByTag(ldmState, rollingHash, hBits,
-                                         (U32)(lastHashed - base),
-                                         *params);
+        /* Insert the current entry into the hash table --- it must be
+         * done after the previous block to avoid clobbering bestEntry */
+        ZSTD_ldm_insertEntry(ldmState, hash, newEntry, *params);
 
         assert(ip + backwardMatchLength == lastHashed);
 

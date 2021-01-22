@@ -1723,11 +1723,11 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         /* ldm bucketOffsets table */
         if (params.ldmParams.enableLdm) {
             /* TODO: avoid memset? */
-            size_t const ldmBucketSize =
+            size_t const numBuckets =
                   ((size_t)1) << (params.ldmParams.hashLog -
                                   params.ldmParams.bucketSizeLog);
-            zc->ldmState.bucketOffsets = ZSTD_cwksp_reserve_buffer(ws, ldmBucketSize);
-            ZSTD_memset(zc->ldmState.bucketOffsets, 0, ldmBucketSize);
+            zc->ldmState.bucketOffsets = ZSTD_cwksp_reserve_buffer(ws, numBuckets);
+            ZSTD_memset(zc->ldmState.bucketOffsets, 0, numBuckets);
         }
 
         /* sequences storage */

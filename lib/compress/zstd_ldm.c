@@ -295,7 +295,7 @@ static size_t ZSTD_ldm_generateSequences_internal(
     U64 rollingHash = 0;
 
     while (ip <= ilimit) {
-        U32 const currentOffset = (U32)(ip - base);
+        U32 const currentIndex = (U32)(ip - base);
         U32 hash, checksum;
         size_t mLength;
         size_t forwardMatchLength = 0, backwardMatchLength = 0;
@@ -320,7 +320,7 @@ static size_t ZSTD_ldm_generateSequences_internal(
         hash = ZSTD_ldm_getSmallHash(rollingHash, hBits);
         checksum = ZSTD_ldm_getChecksum(rollingHash, hBits);
 
-        newEntry.offset = currentOffset;
+        newEntry.offset = currentIndex;
         newEntry.checksum = checksum;
 
         /* Get the best entry and compute the match lengths */
@@ -391,11 +391,11 @@ static size_t ZSTD_ldm_generateSequences_internal(
 
         {
             /* Store the sequence:
-             * ip = currentOffset - backwardMatchLength
+             * ip = currentIndex - backwardMatchLength
              * The match is at (bestEntry->offset - backwardMatchLength)
              */
             U32 const matchIndex = bestEntry->offset;
-            U32 const offset = currentOffset - matchIndex;
+            U32 const offset = currentIndex - matchIndex;
             rawSeq* const seq = rawSeqStore->seq + rawSeqStore->size;
 
             /* Out of sequence storage */

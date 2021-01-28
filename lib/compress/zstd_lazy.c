@@ -985,7 +985,8 @@ static uint32_t ZS_row_nextIndex(uint32_t* row, uint32_t rowMask) {
 FORCE_INLINE_TEMPLATE ZS_RowHash ZS_row_hash(BYTE const* ip, U32 const hashLog, U32 const mls) {
     ZS_RowHash hash;
     size_t const hashS = ZSTD_hashPtr(ip, hashLog + kShortBits, mls);
-    hash.row = (hashS >> kShortBits) * kRowSizeU32;
+    hash.row = (hashS >> kShortBits) * kRowSizeU32 + 1;
+    hash.tagRow = (hashS >> kShortBits) * 16;
     if (kLongBits > 0) {
         size_t const hashL = ZSTD_hashPtr(ip, kLongBits, kLongLength) << kShortBits;
         hash.tag = hashL | (hashS & kShortMask);
@@ -1029,6 +1030,7 @@ FORCE_INLINE_TEMPLATE ZS_RowHash ZS_row_nextCachedHash(ZS_RowHash* cache, U32 co
 FORCE_INLINE_TEMPLATE void ZS_row_update(ZSTD_matchState_t* ms, const BYTE* ip, U32 const mls)
 {
     U32* const hashTable = ms->hashTable;
+    BYTE* const tagTable = ms->tagTable;
     U32 const hashLog = ms->hashLog3;
     const BYTE* const base = ms->window.base;
     const U32 target = (U32)(ip - base);
@@ -1037,11 +1039,13 @@ FORCE_INLINE_TEMPLATE void ZS_row_update(ZSTD_matchState_t* ms, const BYTE* ip, 
     for (; idx < target; ++idx) {
         ZS_RowHash const hash = ZS_row_nextCachedHash(ms->hashCache, hashTable, base, idx, hashLog, mls);
         U32* const row = hashTable + hash.row;
+        BYTE* const tagRow = (BYTE*)tagTable + hash.tagRow;
         if (kUseHead) {
             U32 const pos = ZS_row_nextIndex(row, kRowMask);
             assert(pos < kRowEntries);
             if (kUseHash)
-                ((BYTE*)(row + kHashOffset))[pos] = hash.tag;
+                //((BYTE*)(row + kHashOffset))[pos] = hash.tag;
+                ((BYTE*)(tagRow))[pos] = hash.tag;
             row[kEntriesOffset + pos] = idx;
         } else {
             if (kRowEntries == 4) {
@@ -1068,6 +1072,7 @@ size_t ZSTD_RowFindBestMatch_generic (
                         const U32 mls, const ZSTD_dictMode_e dictMode)
 {
     U32* const hashTable = ms->hashTable;
+    BYTE* const tagTable = ms->tagTable;
     const U32 hashLog = ms->hashLog3;
     const ZSTD_compressionParameters* const cParams = &ms->cParams;
     const BYTE* const base = ms->window.base;
@@ -1086,6 +1091,7 @@ size_t ZSTD_RowFindBestMatch_generic (
 
     ZS_RowHash hash = ZS_row_hash(ip, hashLog, mls);
     U32* const row = hashTable + hash.row;
+    BYTE* const tagRow = (BYTE*)tagTable + hash.tagRow;
     // PREFETCH_L1(row);
 
     /* HC4 match finder */
@@ -1098,7 +1104,8 @@ size_t ZSTD_RowFindBestMatch_generic (
         if (kUseHash) {
             ZS_VecMask matches;
             if (kRowEntries == 16) {
-                ZS_Vec128 hashes = ZS_Vec128_read(row + kHashOffset);
+                ZS_Vec128 hashes = ZS_Vec128_read(tagRow);
+                //ZS_Vec128 hashes = ZS_Vec128_read(tagRow + kHashOffset);
                 ZS_Vec128 hash1  = ZS_Vec128_set8(hash.tag);
                 ZS_Vec128 cmpeq  = ZS_Vec128_cmp8(hashes, hash1);
                 matches                = ZS_Vec128_mask8(cmpeq);
@@ -1110,7 +1117,8 @@ size_t ZSTD_RowFindBestMatch_generic (
                     matches                = ZS_Vec128_mask8(cmpeq);
                 }
             } else if (kRowEntries == 32) {
-                ZS_Vec256 hashes = ZS_Vec256_read(row + kHashOffset);
+                ZS_Vec256 hashes = ZS_Vec256_read(tagRow);
+                //ZS_Vec256 hashes = ZS_Vec256_read(tagRow + kHashOffset);
                 ZS_Vec256 hash1  = ZS_Vec256_set8(hash.tag);
                 ZS_Vec256 cmpeq  = ZS_Vec256_cmp8(hashes, hash1);
                 matches                = ZS_Vec256_mask8(cmpeq);
@@ -1307,8 +1315,6 @@ ZSTD_compressBlock_lazy_generic(
     assert(searchMax != NULL);
 
     DEBUGLOG(5, "ZSTD_compressBlock_lazy_generic (dictMode=%u)", (U32)dictMode);
-
-    /* init */
     ip += (dictAndPrefixLength == 0);
     if (dictMode == ZSTD_noDict) {
         U32 const curr = (U32)(ip - base);

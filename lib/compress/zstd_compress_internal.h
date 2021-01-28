@@ -37,9 +37,11 @@ static const U32 kRowMask = kRowEntries - 1;
 static const U32 kHashSizeU32 = kUseHash ? kRowEntries / sizeof(U32) : 0;
 static const U32 kHeadSizeU32 = kUseHead ? 1 : 0;
 static const U32 kHeadOffset = 0;
-static const U32 kHashOffset = kHeadOffset + kHeadSizeU32;
-static const U32 kEntriesOffset = kHashOffset + kHashSizeU32;
-static const U32 kRowSizeU32 = kHeadSizeU32 + kHashSizeU32 + kRowEntries;
+//static const U32 kHashOffset = kHeadOffset + kHeadSizeU32;
+static const U32 kHashOffset = 0;
+//static const U32 kEntriesOffset = kHashOffset + kHashSizeU32;
+static const U32 kEntriesOffset = 1;
+static const U32 kRowSizeU32 = kHeadSizeU32 + /* kHashSizeU32 */ + kRowEntries;
 
 static const U32 kShortBits = 8;
 static const U32 kShortMask = (1u << kShortBits) - 1;
@@ -176,6 +178,7 @@ typedef struct {
 
 typedef struct {
     U32 row;
+    U32 tagRow;
     U32 tag;
 } ZS_RowHash;
 
@@ -202,6 +205,7 @@ struct ZSTD_matchState_t {
     ZSTD_compressionParameters cParams;
     const rawSeqStore_t* ldmSeqStore;
     ZS_RowHash hashCache[kPrefetchAdv];
+    BYTE* tagTable;
 };
 
 typedef struct {

@@ -169,6 +169,7 @@ size_t ZSTD_freeCCtx(ZSTD_CCtx* cctx)
         if (!cctxInWorkspace) {
             ZSTD_customFree(cctx, cctx->customMem);
         }
+        ZSTD_customFree(cctx->blockState.matchState.tagTable, ZSTD_defaultCMem);
     }
     return 0;
 }
@@ -1784,6 +1785,9 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             ZSTD_window_clear(&zc->ldmState.window);
             zc->ldmState.loadedDictEnd = 0;
         }
+
+        size_t const hSize = ((size_t)1) << zc->appliedParams.cParams.hashLog;
+        zc->blockState.matchState.tagTable = ZSTD_customCalloc(hSize*sizeof(U32), ZSTD_defaultCMem);
 
         /* Due to alignment, when reusing a workspace, we can actually consume
          * up to 3 extra bytes for alignment. See the comments in zstd_cwksp.h

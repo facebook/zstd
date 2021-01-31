@@ -180,8 +180,12 @@ write_basic_package_version_file(
     )
 
 # A Package Config file that works from the build directory
-export(EXPORT zstdExports
-    FILE "${CMAKE_CURRENT_BINARY_DIR}/zstdTargets.cmake"
+export(EXPORT zstdExportsShared
+    FILE "${CMAKE_CURRENT_BINARY_DIR}/zstdTargetsShared.cmake"
+    NAMESPACE zstd::
+    )
+export(EXPORT zstdExportsStatic
+    FILE "${CMAKE_CURRENT_BINARY_DIR}/zstdTargetsStatic.cmake"
     NAMESPACE zstd::
     )
 configure_file(zstdConfig.cmake
@@ -191,8 +195,13 @@ configure_file(zstdConfig.cmake
 
 # A Package Config file that works from the installation directory
 set(ConfigPackageLocation ${CMAKE_INSTALL_LIBDIR}/cmake/zstd)
-install(EXPORT zstdExports
-    FILE zstdTargets.cmake
+install(EXPORT zstdExportsShared
+    FILE zstdTargetsShared.cmake
+    NAMESPACE zstd::
+    DESTINATION ${ConfigPackageLocation}
+    )
+install(EXPORT zstdExportsStatic
+    FILE zstdTargetsStatic.cmake
     NAMESPACE zstd::
     DESTINATION ${ConfigPackageLocation}
     )

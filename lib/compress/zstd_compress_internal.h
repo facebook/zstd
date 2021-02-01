@@ -38,10 +38,10 @@ static const U32 kHashSizeU32 = kUseHash ? kRowEntries / sizeof(U32) : 0;
 static const U32 kHeadSizeU32 = kUseHead ? 1 : 0;
 static const U32 kHeadOffset = 0;
 //static const U32 kHashOffset = kHeadOffset + kHeadSizeU32;
-static const U32 kHashOffset = 0;
+static const U32 kHashOffset = kHeadSizeU32;
 //static const U32 kEntriesOffset = kHashOffset + kHashSizeU32;
-static const U32 kEntriesOffset = 1;
-static const U32 kRowSizeU32 = kHeadSizeU32 + /* kHashSizeU32 */ + kRowEntries;
+static const U32 kEntriesOffset = 0;
+static const U32 kRowSizeU32 = /* kHeadSizeU32 + kHashSizeU32 */ + kRowEntries;
 
 static const U32 kShortBits = 8;
 static const U32 kShortMask = (1u << kShortBits) - 1;

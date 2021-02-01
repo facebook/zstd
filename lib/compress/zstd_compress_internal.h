@@ -194,6 +194,7 @@ struct ZSTD_matchState_t {
                              */
     U32 nextToUpdate;       /* index from which to continue table update */
     U32 hashLog3;           /* dispatch table for matches of len==3 : larger == faster, more memory */
+    U32 numRows;
     U32* hashTable;
     U32* hashTable3;
     U32* chainTable;

@@ -1,5 +1,5 @@
 # ################################################################
-# Copyright (c) 2015-2021, Yann Collet, Facebook, Inc.
+# Copyright (c) 2015-2020, Yann Collet, Facebook, Inc.
 # All rights reserved.
 #
 # This source code is licensed under both the BSD-style license (found in the
@@ -31,9 +31,9 @@ VOID = /dev/null
 TARGET_SYSTEM ?= $(OS)
 
 ifneq (,$(filter Windows%,$(TARGET_SYSTEM)))
-  EXT =.exe
+EXT =.exe
 else
-  EXT =
+EXT =
 endif
 
 ## default: Build lib-release and zstd-release
@@ -48,7 +48,7 @@ allmost: allzstd zlibwrapper
 
 # skip zwrapper, can't build that on alternate architectures without the proper zlib installed
 .PHONY: allzstd
-allzstd: lib
+allzstd: lib-all
 	$(Q)$(MAKE) -C $(PRGDIR) all
 	$(Q)$(MAKE) -C $(TESTDIR) all
 
@@ -57,14 +57,15 @@ all32:
 	$(MAKE) -C $(PRGDIR) zstd32
 	$(MAKE) -C $(TESTDIR) all32
 
-.PHONY: lib lib-release
-lib lib-release :
+.PHONY: lib lib-release libzstd.a
+lib-all : lib
+lib lib-release lib-all :
 	$(Q)$(MAKE) -C $(ZSTDDIR) $@
 
 .PHONY: zstd zstd-release
 zstd zstd-release:
 	$(Q)$(MAKE) -C $(PRGDIR) $@
-	$(Q)ln -sf $(PRGDIR)/zstd$(EXT) zstd$(EXT)
+	$(Q)cp $(PRGDIR)/zstd$(EXT) .
 
 .PHONY: zstdmt
 zstdmt:
@@ -78,9 +79,9 @@ zlibwrapper: lib
 ## test: run long-duration tests
 .PHONY: test
 DEBUGLEVEL ?= 1
-test: MOREFLAGS += -g -Werror
+test: MOREFLAGS += -g -DDEBUGLEVEL=$(DEBUGLEVEL) -Werror
 test:
-	DEBUGLEVEL=$(DEBUGLEVEL) MOREFLAGS="$(MOREFLAGS)" $(MAKE) -j -C $(PRGDIR) allVariants
+	MOREFLAGS="$(MOREFLAGS)" $(MAKE) -j -C $(PRGDIR) allVariants
 	$(MAKE) -C $(TESTDIR) $@
 	ZSTD=../../programs/zstd $(MAKE) -C doc/educational_decoder $@
 
@@ -100,10 +101,10 @@ automated_benchmarking:
 .PHONY: benchmarking
 benchmarking: automated_benchmarking
 
-## examples: build all examples in `examples/` directory
+## examples: build all examples in `/examples` directory
 .PHONY: examples
 examples: lib
-	$(MAKE) -C examples all
+	CPPFLAGS=-I../lib LDFLAGS=-L../lib $(MAKE) -C examples/ all
 
 ## manual: generate API documentation in html format
 .PHONY: manual
@@ -120,7 +121,6 @@ man:
 contrib: lib
 	$(MAKE) -C contrib/pzstd all
 	$(MAKE) -C contrib/seekable_format/examples all
-	$(MAKE) -C contrib/seekable_format/tests test
 	$(MAKE) -C contrib/largeNbDicts all
 	cd contrib/single_file_libs/ ; ./build_decoder_test.sh
 	cd contrib/single_file_libs/ ; ./build_library_test.sh
@@ -139,7 +139,6 @@ clean:
 	$(Q)$(MAKE) -C contrib/gen_html $@ > $(VOID)
 	$(Q)$(MAKE) -C contrib/pzstd $@ > $(VOID)
 	$(Q)$(MAKE) -C contrib/seekable_format/examples $@ > $(VOID)
-	$(Q)$(MAKE) -C contrib/seekable_format/tests $@ > $(VOID)
 	$(Q)$(MAKE) -C contrib/largeNbDicts $@ > $(VOID)
 	$(Q)$(RM) zstd$(EXT) zstdmt$(EXT) tmp*
 	$(Q)$(RM) -r lz4
@@ -224,10 +223,10 @@ aarch64build: clean
 	CC=aarch64-linux-gnu-gcc CFLAGS="-Werror" $(MAKE) allzstd
 
 ppcbuild: clean
-	CC=powerpc-linux-gnu-gcc CFLAGS="-m32 -Wno-attributes -Werror" $(MAKE) -j allzstd
+	CC=powerpc-linux-gnu-gcc CFLAGS="-m32 -Wno-attributes -Werror" $(MAKE) allzstd
 
 ppc64build: clean
-	CC=powerpc-linux-gnu-gcc CFLAGS="-m64 -Werror" $(MAKE) -j allzstd
+	CC=powerpc-linux-gnu-gcc CFLAGS="-m64 -Werror" $(MAKE) allzstd
 
 armfuzz: clean
 	CC=arm-linux-gnueabi-gcc QEMU_SYS=qemu-arm-static MOREFLAGS="-static" FUZZER_FLAGS=--no-big-tests $(MAKE) -C $(TESTDIR) fuzztest

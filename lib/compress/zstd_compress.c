@@ -1246,7 +1246,7 @@ ZSTD_adjustCParams_internal(ZSTD_compressionParameters cPar,
     if (srcSize != ZSTD_CONTENTSIZE_UNKNOWN) {
         U32 const dictAndWindowLog = ZSTD_dictAndWindowLog(cPar.windowLog, (U64)srcSize, (U64)dictSize);
         U32 const cycleLog = ZSTD_cycleLog(cPar.chainLog, cPar.strategy);
-        if (cPar.hashLog > dictAndWindowLog+6) cPar.hashLog = dictAndWindowLog+1;
+        if (cPar.hashLog > dictAndWindowLog+1) cPar.hashLog = dictAndWindowLog+1;
         if (cycleLog > dictAndWindowLog)
             cPar.chainLog -= (cycleLog - dictAndWindowLog);
     }
@@ -1573,11 +1573,10 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
     }
 
     if (cParams->strategy < ZSTD_btopt) {
-        ms->hashLog3 = ZSTD_highbit32((1u << cParams->hashLog) / kRowSizeU32);
-        assert((1u << ms->hashLog3) * kRowSizeU32 <= (1u << cParams->hashLog));
-    } else {
-        ms->hashLog3 = hashLog3;
+        ms->numRows = ZSTD_highbit32((1u << cParams->hashLog) / kRowSizeU32);
+        assert((1u << ms->numRows) * kRowSizeU32 <= (1u << cParams->hashLog));
     }
+    ms->hashLog3 = hashLog3;
 
     ZSTD_invalidateMatchState(ms);
 
@@ -1593,7 +1592,7 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
     RETURN_ERROR_IF(ZSTD_cwksp_reserve_failed(ws), memory_allocation,
                     "failed a workspace allocation in ZSTD_reset_matchState");
     
-    // memset(ms->hashTable, 0, sizeof(U32) * (1u << cParams->hashLog));
+    memset(ms->hashTable, 0, sizeof(U32) * (1u << cParams->hashLog));
 
     DEBUGLOG(4, "reset table : %u", crp!=ZSTDcrp_leaveDirty);
     if (crp!=ZSTDcrp_leaveDirty) {

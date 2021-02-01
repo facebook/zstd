@@ -1020,7 +1020,7 @@ static void ZS_row_fillHashCache(ZSTD_matchState_t* ms, const BYTE* istart, U32 
 {
     U32 const* const hashTable = ms->hashTable;
     BYTE const* const tagTable = ms->tagTable;
-    U32 const hashLog = ms->hashLog3;
+    U32 const hashLog = ms->numRows;
     size_t idx;
     for (idx = 0; idx < kPrefetchAdv; ++idx) {
         ZS_RowHash const hash = ZS_row_hash(istart + idx, hashLog, mls);
@@ -1044,7 +1044,7 @@ FORCE_INLINE_TEMPLATE void ZS_row_update(ZSTD_matchState_t* ms, const BYTE* ip, 
 {
     U32* const hashTable = ms->hashTable;
     BYTE* const tagTable = ms->tagTable;
-    U32 const hashLog = ms->hashLog3;
+    U32 const hashLog = ms->numRows;
     const BYTE* const base = ms->window.base;
     const U32 target = (U32)(ip - base);
     U32 idx = ms->nextToUpdate;
@@ -1086,7 +1086,7 @@ size_t ZSTD_RowFindBestMatch_generic (
 {
     U32* const hashTable = ms->hashTable;
     BYTE* const tagTable = ms->tagTable;
-    const U32 hashLog = ms->hashLog3;
+    const U32 hashLog = ms->numRows;
     const ZSTD_compressionParameters* const cParams = &ms->cParams;
     const BYTE* const base = ms->window.base;
     const BYTE* const dictBase = ms->window.dictBase;

@@ -998,21 +998,15 @@ FORCE_INLINE_TEMPLATE ZS_RowHash ZS_row_hash(BYTE const* ip, U32 const hashLog, 
 
 FORCE_INLINE_TEMPLATE void ZS_row_prefetch(U32 const* hashTable, U32 row) {
     PREFETCH_L1(hashTable + row);
-    if (kUseHash) {
-        PREFETCH_L1(hashTable + row + 16);
-    }
     if (kRowLog == 5) {
-        PREFETCH_L1(hashTable + row + 32);
+        PREFETCH_L1(hashTable + row + 16);
     }
 }
 
 FORCE_INLINE_TEMPLATE void ZS_tagRow_prefetch(BYTE const* tagTable, U32 row) {
     PREFETCH_L1(tagTable + row);
-    if (kUseHash) {
-        PREFETCH_L1(tagTable + row + 16);
-    }
     if (kRowLog == 5) {
-        PREFETCH_L1(tagTable + row + 32);
+        PREFETCH_L1(tagTable + row + 64);
     }
 }
 
@@ -1057,7 +1051,6 @@ FORCE_INLINE_TEMPLATE void ZS_row_update(ZSTD_matchState_t* ms, const BYTE* ip, 
             U32 const pos = ZS_row_nextIndex(tagRow, kRowMask);
             assert(pos < kRowEntries);
             if (kUseHash)
-                //((BYTE*)(row + kHashOffset))[pos] = hash.tag;
                 ((BYTE*)(tagRow))[pos + kHashOffset] = hash.tag;
             row[kEntriesOffset + pos] = idx;
         } else {
@@ -1118,7 +1111,6 @@ size_t ZSTD_RowFindBestMatch_generic (
             ZS_VecMask matches;
             if (kRowEntries == 16) {
                 ZS_Vec128 hashes = ZS_Vec128_read(tagRow + kHashOffset);
-                //ZS_Vec128 hashes = ZS_Vec128_read(tagRow + kHashOffset);
                 ZS_Vec128 hash1  = ZS_Vec128_set8(hash.tag);
                 ZS_Vec128 cmpeq  = ZS_Vec128_cmp8(hashes, hash1);
                 matches                = ZS_Vec128_mask8(cmpeq);
@@ -1131,7 +1123,6 @@ size_t ZSTD_RowFindBestMatch_generic (
                 }
             } else if (kRowEntries == 32) {
                 ZS_Vec256 hashes = ZS_Vec256_read(tagRow + kHashOffset);
-                //ZS_Vec256 hashes = ZS_Vec256_read(tagRow + kHashOffset);
                 ZS_Vec256 hash1  = ZS_Vec256_set8(hash.tag);
                 ZS_Vec256 cmpeq  = ZS_Vec256_cmp8(hashes, hash1);
                 matches                = ZS_Vec256_mask8(cmpeq);

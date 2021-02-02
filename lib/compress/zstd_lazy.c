@@ -1005,6 +1005,7 @@ FORCE_INLINE_TEMPLATE void ZS_row_prefetch(U32 const* hashTable, U32 row) {
 
 FORCE_INLINE_TEMPLATE void ZS_tagRow_prefetch(BYTE const* tagTable, U32 row) {
     PREFETCH_L1(tagTable + row);
+    //PREFETCH_L1(tagTable + row + 16);
     if (kRowLog == 5) {
         PREFETCH_L1(tagTable + row + 64);
     }
@@ -1068,7 +1069,6 @@ FORCE_INLINE_TEMPLATE void ZS_row_update(ZSTD_matchState_t* ms, const BYTE* ip, 
     ms->nextToUpdate = target;
 }
 
-
 /* inlining is important to hardwire a hot branch (template emulation) */
 FORCE_INLINE_TEMPLATE
 size_t ZSTD_RowFindBestMatch_generic (
@@ -1102,6 +1102,7 @@ size_t ZSTD_RowFindBestMatch_generic (
 
     /* HC4 match finder */
     ZS_row_update(ms, ip, mls);
+    //printf("ptr row: %zu tagrow: %zu\n", (uint64_t)row & 63, (uint64_t)tagRow & 63);
 
     if (kUseHead) {
         U32 const head = tagRow[kHeadOffset];

@@ -194,7 +194,7 @@ MEM_STATIC size_t ZSTD_cwksp_alloc_size(size_t size) {
 #if ZSTD_ADDRESS_SANITIZER && !defined (ZSTD_ASAN_DONT_POISON_WORKSPACE)
     return size + 2 * ZSTD_CWKSP_ASAN_REDZONE_SIZE;
 #else
-    return size + 64;
+    return size;
 #endif
 }
 
@@ -287,7 +287,7 @@ MEM_STATIC BYTE* ZSTD_cwksp_reserve_buffer(ZSTD_cwksp* ws, size_t bytes) {
  */
 MEM_STATIC void* ZSTD_cwksp_reserve_aligned(ZSTD_cwksp* ws, size_t bytes) {
     assert((bytes & (sizeof(U32)-1)) == 0);
-    return ZSTD_cwksp_reserve_internal(ws, ZSTD_cwksp_align(bytes, 64), ZSTD_cwksp_alloc_aligned);
+    return ZSTD_cwksp_reserve_internal(ws, ZSTD_cwksp_align(bytes, sizeof(U32)), ZSTD_cwksp_alloc_aligned);
 }
 
 /**
@@ -298,7 +298,6 @@ MEM_STATIC void* ZSTD_cwksp_reserve_aligned(ZSTD_cwksp* ws, size_t bytes) {
 MEM_STATIC void* ZSTD_cwksp_reserve_table(ZSTD_cwksp* ws, size_t bytes) {
     const ZSTD_cwksp_alloc_phase_e phase = ZSTD_cwksp_alloc_aligned;
     void* alloc = ws->tableEnd;
-    alloc = (void*)(((uintptr_t)alloc + 63) & ~63);
     void* end = (BYTE *)alloc + bytes;
     void* top = ws->allocStart;
 

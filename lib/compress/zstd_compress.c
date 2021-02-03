@@ -169,7 +169,6 @@ size_t ZSTD_freeCCtx(ZSTD_CCtx* cctx)
         if (!cctxInWorkspace) {
             ZSTD_customFree(cctx, cctx->customMem);
         }
-        ZSTD_customFree(cctx->blockState.matchState.tagTable, ZSTD_defaultCMem);
     }
     return 0;
 }
@@ -1318,12 +1317,15 @@ ZSTD_sizeof_matchState(const ZSTD_compressionParameters* const cParams,
       + ZSTD_cwksp_alloc_size((1<<Litbits) * sizeof(U32))
       + ZSTD_cwksp_alloc_size((ZSTD_OPT_NUM+1) * sizeof(ZSTD_match_t))
       + ZSTD_cwksp_alloc_size((ZSTD_OPT_NUM+1) * sizeof(ZSTD_optimal_t));
+    size_t const lazyAdditionalSpace = cParams->strategy < ZSTD_btopt && cParams->strategy > ZSTD_dfast
+                                ? 64 + (hSize*sizeof(BYTE)*2) /* tagTable space */
+                                : 0;
     size_t const optSpace = (forCCtx && (cParams->strategy >= ZSTD_btopt))
                                 ? optPotentialSpace
                                 : 0;
     DEBUGLOG(4, "chainSize: %u - hSize: %u - h3Size: %u",
                 (U32)chainSize, (U32)hSize, (U32)h3Size);
-    return tableSpace + optSpace;
+    return tableSpace + optSpace + lazyAdditionalSpace;
 }
 
 static size_t ZSTD_estimateCCtxSize_usingCCtxParams_internal(
@@ -1586,7 +1588,13 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
 
     DEBUGLOG(5, "reserving table space");
     /* table Space */
-    ms->hashTable = (U32*)ZSTD_cwksp_reserve_table(ws, hSize * sizeof(U32));
+    if (cParams->strategy < ZSTD_btopt && cParams->strategy > ZSTD_dfast) {
+        /* Align to 64 bytes for lazy matchfinder */
+        ms->hashTable = (U32*)ZSTD_cwksp_reserve_table(ws, hSize * sizeof(U32) + 64);
+        ms->hashTable = (U32*)(((uintptr_t)ms->hashTable + 63) & ~63);
+    } else {
+        ms->hashTable = (U32*)ZSTD_cwksp_reserve_table(ws, hSize * sizeof(U32));
+    }
     ms->chainTable = (U32*)ZSTD_cwksp_reserve_table(ws, chainSize * sizeof(U32));
     ms->hashTable3 = (U32*)ZSTD_cwksp_reserve_table(ws, h3Size * sizeof(U32));
     RETURN_ERROR_IF(ZSTD_cwksp_reserve_failed(ws), memory_allocation,
@@ -1609,6 +1617,11 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
         ms->opt.offCodeFreq = (unsigned*)ZSTD_cwksp_reserve_aligned(ws, (MaxOff+1) * sizeof(unsigned));
         ms->opt.matchTable = (ZSTD_match_t*)ZSTD_cwksp_reserve_aligned(ws, (ZSTD_OPT_NUM+1) * sizeof(ZSTD_match_t));
         ms->opt.priceTable = (ZSTD_optimal_t*)ZSTD_cwksp_reserve_aligned(ws, (ZSTD_OPT_NUM+1) * sizeof(ZSTD_optimal_t));
+    }
+
+    if (cParams->strategy < ZSTD_btopt && cParams->strategy > ZSTD_dfast) {
+        size_t const tagTableSize = hSize*sizeof(BYTE)*2;
+        ms->tagTable = ZSTD_cwksp_reserve_aligned(ws, tagTableSize);
     }
 
     ms->cParams = *cParams;
@@ -1784,9 +1797,6 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             ZSTD_window_clear(&zc->ldmState.window);
             zc->ldmState.loadedDictEnd = 0;
         }
-
-        size_t const hSize = ((size_t)1) << zc->appliedParams.cParams.hashLog;
-        zc->blockState.matchState.tagTable = ZSTD_customCalloc(hSize*sizeof(BYTE)*((kHeadSizeU32 + kRowEntries)/kRowEntries), ZSTD_defaultCMem);
 
         /* Due to alignment, when reusing a workspace, we can actually consume
          * up to 3 extra bytes for alignment. See the comments in zstd_cwksp.h

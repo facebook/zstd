@@ -985,8 +985,9 @@ static uint32_t ZS_row_nextIndex(BYTE* row, uint32_t rowMask) {
 FORCE_INLINE_TEMPLATE ZS_RowHash ZS_row_hash(BYTE const* ip, U32 const hashLog, U32 const mls) {
     ZS_RowHash hash;
     size_t const hashS = ZSTD_hashPtr(ip, hashLog + kShortBits, mls);
-    hash.row = (hashS >> kShortBits) << kRowLog;
-    hash.tagRow = (hashS >> kShortBits) * 17;
+    size_t const rowBase = hashS >> kShortBits;
+    hash.row = rowBase << kRowLog;
+    hash.tagRow = rowBase * 32;
     if (kLongBits > 0) {
         size_t const hashL = ZSTD_hashPtr(ip, kLongBits, kLongLength) << kShortBits;
         hash.tag = hashL | (hashS & kShortMask);
@@ -1069,6 +1070,7 @@ FORCE_INLINE_TEMPLATE void ZS_row_update(ZSTD_matchState_t* ms, const BYTE* ip, 
     ms->nextToUpdate = target;
 }
 
+#include <stdio.h>
 /* inlining is important to hardwire a hot branch (template emulation) */
 FORCE_INLINE_TEMPLATE
 size_t ZSTD_RowFindBestMatch_generic (

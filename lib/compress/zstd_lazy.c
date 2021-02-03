@@ -987,7 +987,6 @@ FORCE_INLINE_TEMPLATE ZS_RowHash ZS_row_hash(BYTE const* ip, U32 const hashLog, 
     size_t const hashS = ZSTD_hashPtr(ip, hashLog + kShortBits, mls);
     size_t const rowBase = hashS >> kShortBits;
     hash.row = rowBase << kRowLog;
-    hash.tagRow = rowBase * 32;
     if (kLongBits > 0) {
         size_t const hashL = ZSTD_hashPtr(ip, kLongBits, kLongLength) << kShortBits;
         hash.tag = hashL | (hashS & kShortMask);
@@ -1006,7 +1005,6 @@ FORCE_INLINE_TEMPLATE void ZS_row_prefetch(U32 const* hashTable, U32 row) {
 
 FORCE_INLINE_TEMPLATE void ZS_tagRow_prefetch(BYTE const* tagTable, U32 row) {
     PREFETCH_L1(tagTable + row);
-    //PREFETCH_L1(tagTable + row + 16);
     if (kRowLog == 5) {
         PREFETCH_L1(tagTable + row + 64);
     }
@@ -1021,7 +1019,7 @@ static void ZS_row_fillHashCache(ZSTD_matchState_t* ms, const BYTE* istart, U32 
     for (idx = 0; idx < kPrefetchAdv; ++idx) {
         ZS_RowHash const hash = ZS_row_hash(istart + idx, hashLog, mls);
         ZS_row_prefetch(hashTable, hash.row);
-        ZS_tagRow_prefetch(tagTable, hash.tagRow);
+        ZS_tagRow_prefetch(tagTable, hash.row*2);
         ms->hashCache[idx] = hash;
     }
 }
@@ -1031,7 +1029,7 @@ FORCE_INLINE_TEMPLATE ZS_RowHash ZS_row_nextCachedHash(ZS_RowHash* cache, U32 co
     ZS_RowHash const newHash = ZS_row_hash(base + idx + kPrefetchAdv, hashLog, mls);
     ZS_RowHash const hash = cache[idx & kPrefetchMask];
     ZS_row_prefetch(hashTable, newHash.row);
-    ZS_tagRow_prefetch(tagTable, newHash.tagRow);
+    ZS_tagRow_prefetch(tagTable, newHash.row*2);
     cache[idx & kPrefetchMask] = newHash;
     return hash;
 }
@@ -1048,7 +1046,7 @@ FORCE_INLINE_TEMPLATE void ZS_row_update(ZSTD_matchState_t* ms, const BYTE* ip, 
     for (; idx < target; ++idx) {
         ZS_RowHash const hash = ZS_row_nextCachedHash(ms->hashCache, hashTable, tagTable, base, idx, hashLog, mls);
         U32* const row = hashTable + hash.row;
-        BYTE* const tagRow = (BYTE*)tagTable + hash.tagRow;
+        BYTE* const tagRow = (BYTE*)tagTable + hash.row*2;
         if (kUseHead) {
             U32 const pos = ZS_row_nextIndex(tagRow, kRowMask);
             assert(pos < kRowEntries);
@@ -1099,7 +1097,7 @@ size_t ZSTD_RowFindBestMatch_generic (
 
     ZS_RowHash hash = ZS_row_hash(ip, hashLog, mls);
     U32* const row = hashTable + hash.row;
-    BYTE* const tagRow = (BYTE*)tagTable + hash.tagRow;
+    BYTE* const tagRow = (BYTE*)tagTable + hash.row*2;
     // PREFETCH_L1(row);
 
     /* HC4 match finder */
@@ -1229,7 +1227,7 @@ size_t ZSTD_RowFindBestMatch_generic (
                 *offsetPtr = curr - matchIndex + ZSTD_REP_MOVE;
                 if (ip+currentMl == iLimit) break; /* best possible, avoids read overflow on next attempt */
             }
-        } 
+        }
     }
 
     return ml;

@@ -178,7 +178,6 @@ typedef struct {
 
 typedef struct {
     U32 row;
-    U32 tagRow;
     U32 tag;
 } ZS_RowHash;
 

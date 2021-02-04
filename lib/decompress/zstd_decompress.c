@@ -58,6 +58,7 @@
 #include "../common/zstd_deps.h"   /* ZSTD_memcpy, ZSTD_memmove, ZSTD_memset */
 #include "../common/cpu.h"         /* bmi2 */
 #include "../common/mem.h"         /* low level memory routines */
+#include "../common/zstd_trace.h"
 #define FSE_STATIC_LINKING_ONLY
 #include "../common/fse.h"
 #define HUF_STATIC_LINKING_ONLY
@@ -630,6 +631,7 @@ static size_t ZSTD_decodeFrameHeader(ZSTD_DCtx* dctx, const void* src, size_t he
 #endif
     dctx->validateChecksum = (dctx->fParams.checksumFlag && !dctx->forceIgnoreChecksum) ? 1 : 0;
     if (dctx->validateChecksum) XXH64_reset(&dctx->xxhState, 0);
+    dctx->processedCSize += headerSize;
     return 0;
 }
 
@@ -784,6 +786,31 @@ static size_t ZSTD_setRleBlock(void* dst, size_t dstCapacity,
     return regenSize;
 }
 
+static void ZSTD_DCtx_trace_end(ZSTD_DCtx const* dctx, U64 uncompressedSize, U64 compressedSize, unsigned streaming)
+{
+#if ZSTD_TRACE
+    if (dctx->tracingEnabled) {
+        ZSTD_trace trace;
+        ZSTD_memset(&trace, 0, sizeof(trace));
+        trace.version = ZSTD_VERSION_NUMBER;
+        trace.streaming = streaming;
+        if (dctx->ddict) {
+            trace.dictionaryID = ZSTD_getDictID_fromDDict(dctx->ddict);
+            trace.dictionarySize = ZSTD_DDict_dictSize(dctx->ddict);
+            trace.dictionaryIsCold = dctx->ddictIsCold;
+        }
+        trace.uncompressedSize = (size_t)uncompressedSize;
+        trace.compressedSize = (size_t)compressedSize;
+        ZSTD_trace_decompress_end(dctx, &trace);
+    }
+#else
+    (void)dctx;
+    (void)uncompressedSize;
+    (void)compressedSize;
+    (void)streaming;
+#endif
+}
+
 
 /*! ZSTD_decompressFrame() :
  * @dctx must be properly initialized
@@ -793,7 +820,8 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
                                    void* dst, size_t dstCapacity,
                              const void** srcPtr, size_t *srcSizePtr)
 {
-    const BYTE* ip = (const BYTE*)(*srcPtr);
+    const BYTE* const istart = (const BYTE*)(*srcPtr);
+    const BYTE* ip = istart;
     BYTE* const ostart = (BYTE*)dst;
     BYTE* const oend = dstCapacity != 0 ? ostart + dstCapacity : ostart;
     BYTE* op = ostart;
@@ -869,7 +897,7 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
         ip += 4;
         remainingSrcSize -= 4;
     }
-
+    ZSTD_DCtx_trace_end(dctx, (U64)(op-ostart), (U64)(ip-istart), /* streaming */ 0);
     /* Allow caller to get size read */
     *srcPtr = ip;
     *srcSizePtr = remainingSrcSize;
@@ -1075,6 +1103,8 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
     RETURN_ERROR_IF(srcSize != ZSTD_nextSrcSizeToDecompressWithInputSize(dctx, srcSize), srcSize_wrong, "not allowed");
     ZSTD_checkContinuity(dctx, dst, dstCapacity);
 
+    dctx->processedCSize += srcSize;
+
     switch (dctx->stage)
     {
     case ZSTDds_getFrameHeaderSize :
@@ -1178,6 +1208,7 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
                     dctx->expected = 4;
                     dctx->stage = ZSTDds_checkChecksum;
                 } else {
+                    ZSTD_DCtx_trace_end(dctx, dctx->decodedSize, dctx->processedCSize, /* streaming */ 1);
                     dctx->expected = 0;   /* ends here */
                     dctx->stage = ZSTDds_getFrameHeaderSize;
                 }
@@ -1197,6 +1228,7 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
                 DEBUGLOG(4, "ZSTD_decompressContinue: checksum : calculated %08X :: %08X read", (unsigned)h32, (unsigned)check32);
                 RETURN_ERROR_IF(check32 != h32, checksum_wrong, "");
             }
+            ZSTD_DCtx_trace_end(dctx, dctx->decodedSize, dctx->processedCSize, /* streaming */ 1);
             dctx->expected = 0;
             dctx->stage = ZSTDds_getFrameHeaderSize;
             return 0;
@@ -1350,8 +1382,12 @@ static size_t ZSTD_decompress_insertDictionary(ZSTD_DCtx* dctx, const void* dict
 size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx)
 {
     assert(dctx != NULL);
+#if ZSTD_TRACE
+    dctx->tracingEnabled = ZSTD_trace_decompress_begin(dctx);
+#endif
     dctx->expected = ZSTD_startingInputLength(dctx->format);  /* dctx->format must be properly set */
     dctx->stage = ZSTDds_getFrameHeaderSize;
+    dctx->processedCSize = 0;
     dctx->decodedSize = 0;
     dctx->previousDstEnd = NULL;
     dctx->prefixStart = NULL;

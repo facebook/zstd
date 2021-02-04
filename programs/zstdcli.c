@@ -42,6 +42,9 @@
 #ifndef ZSTD_NODICT
 #  include "dibio.h"  /* ZDICT_cover_params_t, DiB_trainFromFiles() */
 #endif
+#ifndef ZSTD_NOTRACE
+#  include "zstdcli_trace.h"
+#endif
 #include "../lib/zstd.h"  /* ZSTD_VERSION_STRING, ZSTD_minCLevel, ZSTD_maxCLevel */
 
 
@@ -186,6 +189,10 @@ static void usage_advanced(const char* programName)
     DISPLAYOUT( "--[no-]check : during decompression, ignore/validate checksums in compressed frame (default: validate).");
 #endif
 #endif /* ZSTD_NOCOMPRESS */
+
+#ifndef ZSTD_NOTRACE
+    DISPLAYOUT( "--trace FILE : log tracing information to FILE.");
+#endif
     DISPLAYOUT( "\n");
 
     DISPLAYOUT( "--      : All arguments after \"--\" are treated as files \n");
@@ -919,6 +926,9 @@ int main(int const argCount, const char* argv[])
 #ifdef UTIL_HAS_MIRRORFILELIST
                 if (longCommandWArg(&argument, "--output-dir-mirror")) { NEXT_FIELD(outMirroredDirName); continue; }
 #endif
+#ifndef ZSTD_NOTRACE
+                if (longCommandWArg(&argument, "--trace")) { char const* traceFile; NEXT_FIELD(traceFile); TRACE_enable(traceFile); continue; }
+#endif
                 if (longCommandWArg(&argument, "--patch-from")) { NEXT_FIELD(patchFromDictFileName); continue; }
                 if (longCommandWArg(&argument, "--long")) {
                     unsigned ldmWindowLog = 0;
@@ -1397,6 +1407,9 @@ _end:
     if (main_pause) waitEnter();
     UTIL_freeFileNamesTable(filenames);
     UTIL_freeFileNamesTable(file_of_names);
+#ifndef ZSTD_NOTRACE
+    TRACE_finish();
+#endif
 
     return operationResult;
 }

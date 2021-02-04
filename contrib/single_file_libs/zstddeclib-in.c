@@ -38,6 +38,7 @@
 #define XXH_INLINE_ALL
 #define ZSTD_LEGACY_SUPPORT 0
 #define ZSTD_STRIP_ERROR_STRINGS
+#define ZSTD_TRACE 0
 
 /* Include zstd_deps.h first with all the options we need enabled. */
 #define ZSTD_DEPS_NEED_MALLOC

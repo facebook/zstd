@@ -205,7 +205,7 @@ struct ZSTD_matchState_t {
     const ZSTD_matchState_t* dictMatchState;
     ZSTD_compressionParameters cParams;
     const rawSeqStore_t* ldmSeqStore;
-    ZS_RowHash hashCache[kPrefetchAdv];
+    U32 hashCache[kPrefetchAdv];
     BYTE* tagTable;
 };
 

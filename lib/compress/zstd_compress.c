@@ -1318,7 +1318,7 @@ ZSTD_sizeof_matchState(const ZSTD_compressionParameters* const cParams,
       + ZSTD_cwksp_alloc_size((ZSTD_OPT_NUM+1) * sizeof(ZSTD_match_t))
       + ZSTD_cwksp_alloc_size((ZSTD_OPT_NUM+1) * sizeof(ZSTD_optimal_t));
     size_t const lazyAdditionalSpace = cParams->strategy < ZSTD_btopt && cParams->strategy > ZSTD_dfast
-                                ? 64 + (hSize*sizeof(BYTE)*2) /* tagTable space */
+                                ? 64 + 64 + (hSize*sizeof(BYTE)*2) /* tagTable space */
                                 : 0;
     size_t const optSpace = (forCCtx && (cParams->strategy >= ZSTD_btopt))
                                 ? optPotentialSpace
@@ -1599,7 +1599,7 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
     ms->hashTable3 = (U32*)ZSTD_cwksp_reserve_table(ws, h3Size * sizeof(U32));
     RETURN_ERROR_IF(ZSTD_cwksp_reserve_failed(ws), memory_allocation,
                     "failed a workspace allocation in ZSTD_reset_matchState");
-    
+
     memset(ms->hashTable, 0, sizeof(U32) * (1u << cParams->hashLog));
 
     DEBUGLOG(4, "reset table : %u", crp!=ZSTDcrp_leaveDirty);
@@ -1621,7 +1621,8 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
 
     if (cParams->strategy < ZSTD_btopt && cParams->strategy > ZSTD_dfast) {
         size_t const tagTableSize = hSize*sizeof(BYTE)*2;
-        ms->tagTable = ZSTD_cwksp_reserve_aligned(ws, tagTableSize);
+        ms->tagTable = ZSTD_cwksp_reserve_aligned(ws, tagTableSize + 64);
+        ms->tagTable = (BYTE*)(((uintptr_t)ms->tagTable + 63) & ~63);
     }
 
     ms->cParams = *cParams;

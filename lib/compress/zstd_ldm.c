@@ -328,6 +328,9 @@ static size_t ZSTD_ldm_generateSequences_internal(
     } candidates[LDM_LOOKAHEAD_SPLITS];
     unsigned numSplits;
 
+    if (srcSize < minMatchLength)
+        return iend - anchor;
+
     /* Initialize the rolling hash state with the first minMatchLength bytes */
     ZSTD_ldm_gear_init(&hashState, params);
     {

@@ -691,10 +691,7 @@ HINT_INLINE void ZSTD_overlapCopy8(BYTE** op, BYTE const** ip, size_t offset) {
         static const U32 dec32table[] = { 0, 1, 2, 1, 4, 4, 4, 4 };   /* added */
         static const int dec64table[] = { 8, 8, 8, 7, 8, 9,10,11 };   /* subtracted */
         int const sub2 = dec64table[offset];
-        (*op)[0] = (*ip)[0];
-        (*op)[1] = (*ip)[1];
-        (*op)[2] = (*ip)[2];
-        (*op)[3] = (*ip)[3];
+        ZSTD_copy4(*op, *ip);
         *ip += dec32table[offset];
         ZSTD_copy4(*op+4, *ip);
         *ip -= sub2;

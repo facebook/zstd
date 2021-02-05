@@ -80,7 +80,7 @@
 
 #define DDICT_HASHSET_MAX_LOAD_FACTOR_COUNT_MULT 4
 #define DDICT_HASHSET_MAX_LOAD_FACTOR_SIZE_MULT 3   /* These two constants represent SIZE_MULT/COUNT_MULT load factor without using a float.
-                                                     * Currently, that means a 0.75 load factor. 
+                                                     * Currently, that means a 0.75 load factor.
                                                      * So, if count * COUNT_MULT / size * SIZE_MULT != 0, then we've exceeded
                                                      * the load factor of the ddict hash set.
                                                      */
@@ -337,9 +337,9 @@ void ZSTD_copyDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
 /* Given a dctx with a digested frame params, re-selects the correct ZSTD_DDict based on
  * the requested dict ID from the frame. If there exists a reference to the correct ZSTD_DDict, then
  * accordingly sets the ddict to be used to decompress the frame.
- * 
+ *
  * If no DDict is found, then no action is taken, and the ZSTD_DCtx::ddict remains as-is.
- * 
+ *
  * ZSTD_d_refMultipleDDicts must be enabled for this function to be called.
  */
 static void ZSTD_DCtx_selectFrameDDict(ZSTD_DCtx* dctx) {
@@ -794,7 +794,7 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
                              const void** srcPtr, size_t *srcSizePtr)
 {
     const BYTE* ip = (const BYTE*)(*srcPtr);
-    BYTE* const ostart = (BYTE* const)dst;
+    BYTE* const ostart = (BYTE*)dst;
     BYTE* const oend = dstCapacity != 0 ? ostart + dstCapacity : ostart;
     BYTE* op = ostart;
     size_t remainingSrcSize = *srcSizePtr;

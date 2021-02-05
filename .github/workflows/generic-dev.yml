@@ -45,15 +45,13 @@ jobs:
         APT_PACKAGES="gcc-multilib" make apt-install
         CFLAGS="-m32 -O1 -fstack-protector" make check V=1
 
-  gcc-6-7-libzstd:
+  gcc-7-libzstd:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: gcc-6 + gcc-7 + libzstdmt compilation
+    - name: gcc-7 + libzstdmt compilation
       run: |
-        make gcc6install gcc7install
-        CC=gcc-6 CFLAGS=-Werror make -j all
-        make clean
+        make gcc7install
         CC=gcc-7 CFLAGS=-Werror make -j all
         make clean
         LDFLAGS=-Wl,--no-undefined make -C lib libzstd-mt
@@ -74,16 +72,16 @@ jobs:
         make clean
         CC=gcc-8 make -j uasan-test-zstd </dev/null V=1
 
-  gcc-6-asan-ubsan-testzstd-32bit:
+  gcc-asan-ubsan-testzstd-32bit:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: gcc-6 + ASan + UBSan + Test Zstd, 32bit mode
+    - name: ASan + UBSan + Test Zstd, 32bit mode
       run: |
-        make gcc6install libc6install
-        CC=gcc-6 CFLAGS="-Werror -m32" make -j all32
+        make libc6install
+        CFLAGS="-Werror -m32" make -j all32
         make clean
-        CC=gcc-6 make -j uasan-test-zstd32
+        make -j uasan-test-zstd32
 
   clang-msan-testzstd:
     runs-on: ubuntu-latest
@@ -119,14 +117,14 @@ jobs:
         make gcc8install
         CC=gcc-8 FUZZER_FLAGS="--long-tests" make clean uasan-fuzztest
 
-  gcc-6-asan-ubsan-fuzz32:
+  gcc-asan-ubsan-fuzz32:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: gcc-6 + ASan + UBSan + Fuzz Test 32bit
+    - name: ASan + UBSan + Fuzz Test 32bit
       run: |
-        make gcc6install libc6install
-        CC=gcc-6 CFLAGS="-O2 -m32" FUZZER_FLAGS="--long-tests" make uasan-fuzztest
+        make libc6install
+        CFLAGS="-O2 -m32" FUZZER_FLAGS="--long-tests" make uasan-fuzztest
 
   asan-ubsan-msan-regression:
     runs-on: ubuntu-latest

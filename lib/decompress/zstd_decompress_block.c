@@ -577,7 +577,7 @@ static size_t ZSTD_buildSeqTable(ZSTD_seqSymbol* DTableSpace, const ZSTD_seqSymb
 size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
                              const void* src, size_t srcSize)
 {
-    const BYTE* const istart = (const BYTE* const)src;
+    const BYTE* const istart = (const BYTE*)src;
     const BYTE* const iend = istart + srcSize;
     const BYTE* ip = istart;
     int nbSeq;
@@ -1108,7 +1108,7 @@ ZSTD_decompressSequences_body( ZSTD_DCtx* dctx,
 {
     const BYTE* ip = (const BYTE*)seqStart;
     const BYTE* const iend = ip + seqSize;
-    BYTE* const ostart = (BYTE* const)dst;
+    BYTE* const ostart = (BYTE*)dst;
     BYTE* const oend = ostart + maxDstSize;
     BYTE* op = ostart;
     const BYTE* litPtr = dctx->litPtr;
@@ -1242,7 +1242,7 @@ ZSTD_decompressSequencesLong_body(
 {
     const BYTE* ip = (const BYTE*)seqStart;
     const BYTE* const iend = ip + seqSize;
-    BYTE* const ostart = (BYTE* const)dst;
+    BYTE* const ostart = (BYTE*)dst;
     BYTE* const oend = ostart + maxDstSize;
     BYTE* op = ostart;
     const BYTE* litPtr = dctx->litPtr;

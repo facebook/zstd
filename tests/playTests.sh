@@ -1322,6 +1322,21 @@ zstd -f --no-check tmp1
 zstd -l tmp1.zst
 zstd -lv tmp1.zst
 
+println "\n===>  zstd trace tests "
+zstd -f --trace tmp.trace tmp1
+zstd -f --trace tmp.trace tmp1 tmp2 tmp3
+zstd -f --trace tmp.trace tmp1 tmp2 tmp3 -o /dev/null
+zstd -f --trace tmp.trace tmp1 tmp2 tmp3 --single-thread
+zstd -f --trace tmp.trace -D tmp1 tmp2 tmp3 -o /dev/null
+zstd -f --trace tmp.trace -D tmp1 tmp2 tmp3 -o /dev/null --single-thread
+zstd --trace tmp.trace -t tmp1.zst
+zstd --trace tmp.trace -t tmp1.zst tmp2.zst
+zstd -f --trace tmp.trace -d tmp1.zst
+zstd -f --trace tmp.trace -d tmp1.zst tmp2.zst tmp3.zst
+zstd -D tmp1 tmp2 -c | zstd --trace tmp.trace -t -D tmp1
+zstd -b1e10i0 --trace tmp.trace tmp1
+zstd -b1e10i0 --trace tmp.trace tmp1 tmp2 tmp3
+
 rm tmp*
 
 

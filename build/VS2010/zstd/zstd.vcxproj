@@ -63,6 +63,7 @@
     <ClCompile Include="..\..\..\programs\dibio.c" />
     <ClCompile Include="..\..\..\programs\fileio.c" />
     <ClCompile Include="..\..\..\programs\zstdcli.c" />
+    <ClCompile Include="..\..\..\programs\zstdcli_trace.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\lib\common\pool.h" />

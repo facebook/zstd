@@ -270,6 +270,7 @@ struct ZSTD_CCtx_s {
     ZSTD_CCtx_params requestedParams;
     ZSTD_CCtx_params appliedParams;
     U32   dictID;
+    size_t dictContentSize;
 
     ZSTD_cwksp workspace; /* manages buffer for dynamic allocations */
     size_t blockSize;
@@ -321,6 +322,9 @@ struct ZSTD_CCtx_s {
 #ifdef ZSTD_MULTITHREAD
     ZSTDMT_CCtx* mtctx;
 #endif
+
+    /* Tracing */
+    int tracingEnabled;
 };
 
 typedef enum { ZSTD_dtlm_fast, ZSTD_dtlm_full } ZSTD_dictTableLoadMethod_e;

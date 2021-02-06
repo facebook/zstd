@@ -481,6 +481,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\programs\zstdcli_trace.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\lib\compress\zstdmt_compress.c"
 				>
 			</File>

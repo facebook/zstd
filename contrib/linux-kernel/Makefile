@@ -45,7 +45,9 @@ libzstd:
 		-U_MSC_VER \
 		-U_WIN32 \
 		-RZSTDLIB_VISIBILITY= \
-		-RZSTDERRORLIB_VISIBILITY=
+		-RZSTDERRORLIB_VISIBILITY= \
+		-DZSTD_HAVE_WEAK_SYMBOLS=0 \
+		-DZSTD_TRACE=0
 	cp linux_zstd.h linux/include/linux/zstd.h
 	cp zstd_compress_module.c linux/lib/zstd
 	cp zstd_decompress_module.c linux/lib/zstd

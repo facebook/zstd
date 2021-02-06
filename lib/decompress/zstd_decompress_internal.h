@@ -120,6 +120,7 @@ struct ZSTD_DCtx_s
     const void* dictEnd;          /* end of previous segment */
     size_t expected;
     ZSTD_frameHeader fParams;
+    U64 processedCSize;
     U64 decodedSize;
     blockType_e bType;            /* used in ZSTD_decompressContinue(), store blockType between block header decoding and block decompression stages */
     ZSTD_dStage stage;
@@ -175,6 +176,9 @@ struct ZSTD_DCtx_s
     void const* dictContentBeginForFuzzing;
     void const* dictContentEndForFuzzing;
 #endif
+
+    /* Tracing */
+    int tracingEnabled;
 };  /* typedef'd to ZSTD_DCtx within "zstd.h" */
 
 

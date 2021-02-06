@@ -193,7 +193,7 @@ size_t ZSTD_loadDEntropy(ZSTD_entropyDTables_t* entropy,
  *  If yes, do nothing (continue on current segment).
  *  If not, classify previous segment as "external dictionary", and start a new segment.
  *  This function cannot fail. */
-void ZSTD_checkContinuity(ZSTD_DCtx* dctx, const void* dst);
+void ZSTD_checkContinuity(ZSTD_DCtx* dctx, const void* dst, size_t dstSize);
 
 
 #endif /* ZSTD_DECOMPRESS_INTERNAL_H */

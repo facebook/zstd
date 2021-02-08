@@ -264,7 +264,7 @@ void ZSTD_ldm_fillHashTable(
             if (ip + splits[n] >= istart + minMatchLength) {
                 BYTE const* const split = ip + splits[n] - minMatchLength;
                 U64 const xxhash = XXH64(split, minMatchLength, 0);
-                U64 const hash = xxhash & (((U32)1 << hBits) - 1);
+                U32 const hash = (U32)(xxhash & (((U32)1 << hBits) - 1));
                 ldmEntry_t entry;
 
                 entry.offset = (U32)(split - base);
@@ -355,7 +355,7 @@ static size_t ZSTD_ldm_generateSequences_internal(
         for (n = 0; n < numSplits; n++) {
             BYTE const* const split = ip + splits[n] - minMatchLength;
             U64 const xxhash = XXH64(split, minMatchLength, 0);
-            U64 const hash = xxhash & (((U32)1 << hBits) - 1);
+            U32 const hash = (U32)(xxhash & (((U32)1 << hBits) - 1));
 
             candidates[n].split = split;
             candidates[n].hash = hash;
@@ -368,8 +368,8 @@ static size_t ZSTD_ldm_generateSequences_internal(
             size_t forwardMatchLength = 0, backwardMatchLength = 0,
                    bestMatchLength = 0, mLength;
             BYTE const* const split = candidates[n].split;
-            U64 const checksum = candidates[n].checksum;
-            U64 const hash = candidates[n].hash;
+            U32 const checksum = candidates[n].checksum;
+            U32 const hash = candidates[n].hash;
             ldmEntry_t* const bucket = candidates[n].bucket;
             ldmEntry_t const* cur;
             ldmEntry_t const* bestEntry = NULL;

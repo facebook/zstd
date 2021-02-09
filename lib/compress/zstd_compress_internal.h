@@ -19,6 +19,7 @@
 *  Dependencies
 ***************************************/
 #include "../common/zstd_internal.h"
+#include "../common/zstd_trace.h"  /* ZSTD_TraceCtx */
 #include "zstd_cwksp.h"
 #ifdef ZSTD_MULTITHREAD
 #  include "zstdmt_compress.h"
@@ -324,7 +325,9 @@ struct ZSTD_CCtx_s {
 #endif
 
     /* Tracing */
-    int tracingEnabled;
+#if ZSTD_TRACE
+    ZSTD_TraceCtx traceCtx;
+#endif
 };
 
 typedef enum { ZSTD_dtlm_fast, ZSTD_dtlm_full } ZSTD_dictTableLoadMethod_e;
@@ -1203,5 +1206,10 @@ size_t ZSTD_referenceExternalSequences(ZSTD_CCtx* cctx, rawSeq* seq, size_t nbSe
 /** ZSTD_cycleLog() :
  *  condition for correct operation : hashLog > 1 */
 U32 ZSTD_cycleLog(U32 hashLog, ZSTD_strategy strat);
+
+/** ZSTD_CCtx_trace() :
+ *  Trace the end of a compression call.
+ */
+void ZSTD_CCtx_trace(ZSTD_CCtx* cctx, size_t extraCSize);
 
 #endif /* ZSTD_COMPRESS_H */

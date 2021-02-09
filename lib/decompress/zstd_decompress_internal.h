@@ -21,6 +21,7 @@
  *********************************************************/
 #include "../common/mem.h"             /* BYTE, U16, U32 */
 #include "../common/zstd_internal.h"   /* ZSTD_seqSymbol */
+#include "../common/zstd_trace.h"      /* ZSTD_TraceCtx */
 
 
 
@@ -178,7 +179,9 @@ struct ZSTD_DCtx_s
 #endif
 
     /* Tracing */
-    int tracingEnabled;
+#if ZSTD_TRACE
+    ZSTD_TraceCtx traceCtx;
+#endif
 };  /* typedef'd to ZSTD_DCtx within "zstd.h" */
 
 

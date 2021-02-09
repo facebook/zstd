@@ -789,8 +789,8 @@ static size_t ZSTD_setRleBlock(void* dst, size_t dstCapacity,
 static void ZSTD_DCtx_trace_end(ZSTD_DCtx const* dctx, U64 uncompressedSize, U64 compressedSize, unsigned streaming)
 {
 #if ZSTD_TRACE
-    if (dctx->tracingEnabled) {
-        ZSTD_trace trace;
+    if (dctx->traceCtx) {
+        ZSTD_Trace trace;
         ZSTD_memset(&trace, 0, sizeof(trace));
         trace.version = ZSTD_VERSION_NUMBER;
         trace.streaming = streaming;
@@ -801,7 +801,8 @@ static void ZSTD_DCtx_trace_end(ZSTD_DCtx const* dctx, U64 uncompressedSize, U64
         }
         trace.uncompressedSize = (size_t)uncompressedSize;
         trace.compressedSize = (size_t)compressedSize;
-        ZSTD_trace_decompress_end(dctx, &trace);
+        trace.dctx = dctx;
+        ZSTD_trace_decompress_end(dctx->traceCtx, &trace);
     }
 #else
     (void)dctx;
@@ -1383,7 +1384,7 @@ size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx)
 {
     assert(dctx != NULL);
 #if ZSTD_TRACE
-    dctx->tracingEnabled = ZSTD_trace_decompress_begin(dctx);
+    dctx->traceCtx = ZSTD_trace_decompress_begin(dctx);
 #endif
     dctx->expected = ZSTD_startingInputLength(dctx->format);  /* dctx->format must be properly set */
     dctx->stage = ZSTDds_getFrameHeaderSize;

@@ -77,41 +77,67 @@ typedef struct {
      * The fully resolved CCtx parameters (NULL on decompression).
      */
     struct ZSTD_CCtx_params_s const* params;
-} ZSTD_trace;
+    /**
+     * The ZSTD_CCtx pointer (NULL on decompression).
+     */
+    struct ZSTD_CCtx_s const* cctx;
+    /**
+     * The ZSTD_DCtx pointer (NULL on compression).
+     */
+    struct ZSTD_DCtx_s const* dctx;
+} ZSTD_Trace;
+
+/**
+ * A tracing context. It must be 0 when tracing is disabled.
+ * Otherwise, any non-zero value returned by a tracing begin()
+ * function is presented to any subsequent calls to end().
+ *
+ * Any non-zero value is treated as tracing is enabled and not
+ * interpreted by the library.
+ *
+ * Two possible uses are:
+ * * A timestamp for when the begin() function was called.
+ * * A unique key identifying the (de)compression, like the
+ *   address of the [dc]ctx pointer if you need to track
+ *   more information than just a timestamp.
+ */
+typedef unsigned long long ZSTD_TraceCtx;
 
 /**
  * Trace the beginning of a compression call.
  * @param cctx The dctx pointer for the compression.
  *             It can be used as a key to map begin() to end().
- * @returns Non-zero if tracing is enabled.
+ * @returns Non-zero if tracing is enabled. The return value is
+ *          passed to ZSTD_trace_compress_end().
  */
-int ZSTD_trace_compress_begin(struct ZSTD_CCtx_s const* cctx);
+ZSTD_TraceCtx ZSTD_trace_compress_begin(struct ZSTD_CCtx_s const* cctx);
 
 /**
  * Trace the end of a compression call.
- * @param cctx The dctx pointer for the decompression.
+ * @param ctx The return value of ZSTD_trace_compress_begin().
  * @param trace The zstd tracing info.
  */
 void ZSTD_trace_compress_end(
-    struct ZSTD_CCtx_s const* cctx,
-    ZSTD_trace const* trace);
+    ZSTD_TraceCtx ctx,
+    ZSTD_Trace const* trace);
 
 /**
  * Trace the beginning of a decompression call.
  * @param dctx The dctx pointer for the decompression.
  *             It can be used as a key to map begin() to end().
- * @returns Non-zero if tracing is enabled.
+ * @returns Non-zero if tracing is enabled. The return value is
+ *          passed to ZSTD_trace_compress_end().
  */
-int ZSTD_trace_decompress_begin(struct ZSTD_DCtx_s const* dctx);
+ZSTD_TraceCtx ZSTD_trace_decompress_begin(struct ZSTD_DCtx_s const* dctx);
 
 /**
  * Trace the end of a decompression call.
- * @param dctx The dctx pointer for the decompression.
+ * @param ctx The return value of ZSTD_trace_decompress_begin().
  * @param trace The zstd tracing info.
  */
 void ZSTD_trace_decompress_end(
-    struct ZSTD_DCtx_s const* dctx,
-    ZSTD_trace const* trace);
+    ZSTD_TraceCtx ctx,
+    ZSTD_Trace const* trace);
 
 #endif /* ZSTD_TRACE */
 

@@ -15,27 +15,27 @@
 
 #if ZSTD_TRACE && ZSTD_HAVE_WEAK_SYMBOLS
 
-ZSTD_WEAK_ATTR int ZSTD_trace_compress_begin(ZSTD_CCtx const* cctx)
+ZSTD_WEAK_ATTR ZSTD_TraceCtx ZSTD_trace_compress_begin(ZSTD_CCtx const* cctx)
 {
     (void)cctx;
     return 0;
 }
 
-ZSTD_WEAK_ATTR void ZSTD_trace_compress_end(ZSTD_CCtx const* cctx, ZSTD_trace const* trace)
+ZSTD_WEAK_ATTR void ZSTD_trace_compress_end(ZSTD_TraceCtx ctx, ZSTD_Trace const* trace)
 {
-    (void)cctx;
+    (void)ctx;
     (void)trace;
 }
 
-ZSTD_WEAK_ATTR int ZSTD_trace_decompress_begin(ZSTD_DCtx const* dctx)
+ZSTD_WEAK_ATTR ZSTD_TraceCtx ZSTD_trace_decompress_begin(ZSTD_DCtx const* dctx)
 {
     (void)dctx;
     return 0;
 }
 
-ZSTD_WEAK_ATTR void ZSTD_trace_decompress_end(ZSTD_DCtx const* dctx, ZSTD_trace const* trace)
+ZSTD_WEAK_ATTR void ZSTD_trace_decompress_end(ZSTD_TraceCtx ctx, ZSTD_Trace const* trace)
 {
-    (void)dctx;
+    (void)ctx;
     (void)trace;
 }
 

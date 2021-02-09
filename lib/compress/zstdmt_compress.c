@@ -683,6 +683,8 @@ static void ZSTDMT_compressionJob(void* jobDescription)
     if (job->jobID != 0) jobParams.fParams.checksumFlag = 0;
     /* Don't run LDM for the chunks, since we handle it externally */
     jobParams.ldmParams.enableLdm = 0;
+    /* Correct nbWorkers to 0. */
+    jobParams.nbWorkers = 0;
 
 
     /* init */
@@ -750,6 +752,7 @@ static void ZSTDMT_compressionJob(void* jobDescription)
             if (ZSTD_isError(cSize)) JOB_ERROR(cSize);
             lastCBlockSize = cSize;
     }   }
+    ZSTD_CCtx_trace(cctx, 0);
 
 _endJob:
     ZSTDMT_serialState_ensureFinished(job->serial, job->jobID, job->cSize);

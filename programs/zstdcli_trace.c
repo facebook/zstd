@@ -30,6 +30,7 @@
 static FILE* g_traceFile = NULL;
 static int g_mutexInit = 0;
 static ZSTD_pthread_mutex_t g_mutex;
+static UTIL_time_t g_enableTime = UTIL_TIME_INITIALIZER;
 
 void TRACE_enable(char const* filename)
 {
@@ -54,6 +55,7 @@ void TRACE_enable(char const* filename)
         */
         fprintf(g_traceFile, "Algorithm, Version, Method, Mode, Level, Workers, Dictionary Size, Uncompressed Size, Compressed Size, Duration Nanos, Compression Ratio, Speed MB/s\n");
     }
+    g_enableTime = UTIL_getTime();
     if (!g_mutexInit) {
         if (!ZSTD_pthread_mutex_init(&g_mutex, NULL)) {
             g_mutexInit = 1;
@@ -75,7 +77,7 @@ void TRACE_finish(void)
     }
 }
 
-static void TRACE_log(char const* method, PTime duration, ZSTD_trace const* trace)
+static void TRACE_log(char const* method, PTime duration, ZSTD_Trace const* trace)
 {
     int level = 0;
     int workers = 0;
@@ -87,6 +89,7 @@ static void TRACE_log(char const* method, PTime duration, ZSTD_trace const* trac
     }
     assert(g_traceFile != NULL);
 
+    ZSTD_pthread_mutex_lock(&g_mutex);
     /* Fields:
      * algorithm
      * version
@@ -114,70 +117,47 @@ static void TRACE_log(char const* method, PTime duration, ZSTD_trace const* trac
         (unsigned long long)duration,
         ratio,
         speed);
+    ZSTD_pthread_mutex_unlock(&g_mutex);
 }
-
-static ZSTD_CCtx const* g_cctx;
-static ZSTD_DCtx const* g_dctx;
-static UTIL_time_t g_begin = UTIL_TIME_INITIALIZER;
 
 /**
  * These symbols override the weak symbols provided by the library.
  */
 
-int ZSTD_trace_compress_begin(ZSTD_CCtx const* cctx)
+ZSTD_TraceCtx ZSTD_trace_compress_begin(ZSTD_CCtx const* cctx)
 {
-    int enabled = 0;
+    (void)cctx;
     if (g_traceFile == NULL)
         return 0;
-    ZSTD_pthread_mutex_lock(&g_mutex);
-    if (g_cctx == NULL) {
-        g_cctx = cctx;
-        g_dctx = NULL;
-        g_begin = UTIL_getTime();
-        enabled = 1;
-    }
-    ZSTD_pthread_mutex_unlock(&g_mutex);
-    return enabled;
+    return (ZSTD_TraceCtx)UTIL_clockSpanNano(g_enableTime);
 }
 
-void ZSTD_trace_compress_end(ZSTD_CCtx const* cctx, ZSTD_trace const* trace)
+void ZSTD_trace_compress_end(ZSTD_TraceCtx ctx, ZSTD_Trace const* trace)
 {
+    PTime const beginNanos = (PTime)ctx;
+    PTime const endNanos = UTIL_clockSpanNano(g_enableTime);
+    PTime const durationNanos = endNanos > beginNanos ? endNanos - beginNanos : 0;
     assert(g_traceFile != NULL);
-    ZSTD_pthread_mutex_lock(&g_mutex);
-    assert(g_cctx == cctx);
-    assert(g_dctx == NULL);
-    if (cctx == g_cctx && trace->version == ZSTD_VERSION_NUMBER)
-        TRACE_log("compress", UTIL_clockSpanNano(g_begin), trace);
-    g_cctx = NULL;
-    ZSTD_pthread_mutex_unlock(&g_mutex);
+    assert(trace->version == ZSTD_VERSION_NUMBER); /* CLI version must match. */
+    TRACE_log("compress", durationNanos, trace);
 }
 
-int ZSTD_trace_decompress_begin(ZSTD_DCtx const* dctx)
+ZSTD_TraceCtx ZSTD_trace_decompress_begin(ZSTD_DCtx const* dctx)
 {
-    int enabled = 0;
+    (void)dctx;
     if (g_traceFile == NULL)
         return 0;
-    ZSTD_pthread_mutex_lock(&g_mutex);
-    if (g_dctx == NULL) {
-        g_cctx = NULL;
-        g_dctx = dctx;
-        g_begin = UTIL_getTime();
-        enabled = 1;
-    }
-    ZSTD_pthread_mutex_unlock(&g_mutex);
-    return enabled;
+    return (ZSTD_TraceCtx)UTIL_clockSpanNano(g_enableTime);
 }
 
-void ZSTD_trace_decompress_end(ZSTD_DCtx const* dctx, ZSTD_trace const* trace)
+void ZSTD_trace_decompress_end(ZSTD_TraceCtx ctx, ZSTD_Trace const* trace)
 {
+    PTime const beginNanos = (PTime)ctx;
+    PTime const endNanos = UTIL_clockSpanNano(g_enableTime);
+    PTime const durationNanos = endNanos > beginNanos ? endNanos - beginNanos : 0;
     assert(g_traceFile != NULL);
-    ZSTD_pthread_mutex_lock(&g_mutex);
-    assert(g_cctx == NULL);
-    assert(g_dctx == dctx);
-    if (dctx == g_dctx && trace->version == ZSTD_VERSION_NUMBER)
-        TRACE_log("decompress", UTIL_clockSpanNano(g_begin), trace);
-    g_dctx = NULL;
-    ZSTD_pthread_mutex_unlock(&g_mutex);
+    assert(trace->version == ZSTD_VERSION_NUMBER); /* CLI version must match. */
+    TRACE_log("decompress", durationNanos, trace);
 }
 
 #else /* ZSTD_TRACE */

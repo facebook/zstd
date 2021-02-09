@@ -11,6 +11,14 @@
 #include "zstd_compress_internal.h"
 #include "zstd_lazy.h"
 
+/* Constants for row-based hash */
+#define kRowMask16 kRowEntries16 - 1           /* bitmask to constrain numbers between [0, kRowEntries16] */
+#define kRowMask32 kRowEntries32 - 1
+#define kHashOffset 1                          /* offset of hashes in the match state's tagTable */
+#define kShortBits 8                           /* nb bits to hash by */
+#define kShortMask ((1u << kShortBits) - 1)
+#define kPrefetchMask (kPrefetchNb - 1)
+
 /*-*************************************
 *  Binary Tree search
 ***************************************/
@@ -844,62 +852,47 @@ FORCE_INLINE_TEMPLATE size_t ZSTD_HcFindBestMatch_extDict_selectMLS (
     }
 }
 
+
+/* Functions to take advantage of SIMD */
 #include <emmintrin.h>
+typedef __m128i ZSTD_Vec128;
+typedef U32 ZSTD_VecMask;
 
-typedef __m128i ZS_Vec128;
-typedef uint32_t ZS_VecMask;
-
-static ZS_Vec128 ZS_Vec128_read(void const* ptr) {
-  return _mm_loadu_si128((ZS_Vec128 const*)ptr);
+static ZSTD_Vec128 ZSTD_Vec128_read(void const* ptr) {
+  return _mm_loadu_si128((ZSTD_Vec128 const*)ptr);
 }
 
-static void ZS_Vec128_write(void* ptr, ZS_Vec128 vec) {
-  return _mm_storeu_si128((ZS_Vec128*)ptr, vec);
-}
-
-static ZS_Vec128 ZS_Vec128_set8(uint8_t val) {
+static ZSTD_Vec128 ZSTD_Vec128_set8(BYTE val) {
   return _mm_set1_epi8((char)val);
 }
 
-static ZS_Vec128 ZS_Vec128_cmp8(ZS_Vec128 x, ZS_Vec128 y) {
+static ZSTD_Vec128 ZSTD_Vec128_cmp8(ZSTD_Vec128 x, ZSTD_Vec128 y) {
   return _mm_cmpeq_epi8(x, y);
 }
 
-static ZS_Vec128 ZS_Vec128_and(ZS_Vec128 x, ZS_Vec128 y) {
-  return _mm_and_si128(x, y);
-}
-
-static ZS_VecMask ZS_Vec128_mask8(ZS_Vec128 v) {
-  return (ZS_VecMask)_mm_movemask_epi8(v);
+static ZSTD_VecMask ZSTD_Vec128_mask8(ZSTD_Vec128 v) {
+  return (ZSTD_VecMask)_mm_movemask_epi8(v);
 }
 
 #ifdef __AVX2__
 
 #include <immintrin.h>
-typedef __m256i ZS_Vec256;
+typedef __m256i ZSTD_Vec256;
 
-static ZS_Vec256 ZS_Vec256_read(void const* ptr) {
-  return _mm256_loadu_si256((ZS_Vec256 const*)ptr);
+static ZSTD_Vec256 ZSTD_Vec256_read(void const* ptr) {
+  return _mm256_loadu_si256((ZSTD_Vec256 const*)ptr);
 }
 
-static void ZS_Vec256_write(void* ptr, ZS_Vec256 vec) {
-  return _mm256_storeu_si256((ZS_Vec256*)ptr, vec);
-}
-
-static ZS_Vec256 ZS_Vec256_set8(uint8_t val) {
+static ZSTD_Vec256 ZSTD_Vec256_set8(BYTE val) {
   return _mm256_set1_epi8((char)val);
 }
 
-static ZS_Vec256 ZS_Vec256_cmp8(ZS_Vec256 x, ZS_Vec256 y) {
+static ZSTD_Vec256 ZSTD_Vec256_cmp8(ZSTD_Vec256 x, ZSTD_Vec256 y) {
   return _mm256_cmpeq_epi8(x, y);
 }
 
-static ZS_VecMask ZS_Vec256_mask8(ZS_Vec256 v) {
-  return (ZS_VecMask)_mm256_movemask_epi8(v);
-}
-
-static ZS_Vec256 ZS_Vec256_and(ZS_Vec256 x, ZS_Vec256 y) {
-  return _mm256_and_si256(x, y);
+static ZSTD_VecMask ZSTD_Vec256_mask8(ZSTD_Vec256 v) {
+  return (ZSTD_VecMask)_mm256_movemask_epi8(v);
 }
 
 #else
@@ -907,192 +900,177 @@ static ZS_Vec256 ZS_Vec256_and(ZS_Vec256 x, ZS_Vec256 y) {
 typedef struct {
   __m128i fst;
   __m128i snd;
-} ZS_Vec256;
+} ZSTD_Vec256;
 
-static ZS_Vec256 ZS_Vec256_read(void const* ptr) {
-  ZS_Vec256 v;
-  v.fst = ZS_Vec128_read(ptr);
-  v.snd = ZS_Vec128_read((ZS_Vec128 const*)ptr + 1);
+static ZSTD_Vec256 ZSTD_Vec256_read(void const* ptr) {
+  ZSTD_Vec256 v;
+  v.fst = ZSTD_Vec128_read(ptr);
+  v.snd = ZSTD_Vec128_read((ZSTD_Vec128 const*)ptr + 1);
   return v;
 }
 
-static void ZS_Vec256_write(void* ptr, ZS_Vec256 v) {
-  ZS_Vec128_write(ptr, v.fst);
-  ZS_Vec128_write((ZS_Vec128*)ptr + 1, v.snd);
-}
-
-static ZS_Vec256 ZS_Vec256_set8(uint8_t val) {
-  ZS_Vec256 v;
-  v.fst = ZS_Vec128_set8(val);
-  v.snd = ZS_Vec128_set8(val);
+static ZSTD_Vec256 ZSTD_Vec256_set8(BYTE val) {
+  ZSTD_Vec256 v;
+  v.fst = ZSTD_Vec128_set8(val);
+  v.snd = ZSTD_Vec128_set8(val);
   return v;
 }
 
-static ZS_Vec256 ZS_Vec256_cmp8(ZS_Vec256 x, ZS_Vec256 y) {
-  ZS_Vec256 v;
-  v.fst = ZS_Vec128_cmp8(x.fst, y.fst);
-  v.snd = ZS_Vec128_cmp8(x.snd, y.snd);
+static ZSTD_Vec256 ZSTD_Vec256_cmp8(ZSTD_Vec256 x, ZSTD_Vec256 y) {
+  ZSTD_Vec256 v;
+  v.fst = ZSTD_Vec128_cmp8(x.fst, y.fst);
+  v.snd = ZSTD_Vec128_cmp8(x.snd, y.snd);
   return v;
 }
 
-static ZS_VecMask ZS_Vec256_mask8(ZS_Vec256 v) {
-  return ZS_Vec128_mask8(v.fst) | (ZS_Vec128_mask8(v.snd) << 16);
-}
-
-static ZS_Vec256 ZS_Vec256_and(ZS_Vec256 x, ZS_Vec256 y) {
-  ZS_Vec256 v;
-  v.fst = ZS_Vec128_and(x.fst, y.fst);
-  v.snd = ZS_Vec128_and(x.snd, y.snd);
-  return v;
+static ZSTD_VecMask ZSTD_Vec256_mask8(ZSTD_Vec256 v) {
+  return ZSTD_Vec128_mask8(v.fst) | (ZSTD_Vec128_mask8(v.snd) << 16);
 }
 
 #endif
 
-/**
- * while (m) {
- *   int const bit = ZS_VecMask_next(m);
- *   m &= m - 1;
- * }
+/* ZSTD_VecMask_next():
+ * Starting from the LSB, returns the idx of the next non-zero bit
  */
-static uint32_t ZS_VecMask_next(ZS_VecMask m) {
-  return (uint32_t)__builtin_ffs((int)m) - 1;
+static U32 ZSTD_VecMask_next(ZSTD_VecMask m) {
+  return (U32)__builtin_ffs((int)m) - 1;
 }
 
-static ZS_VecMask
-ZS_VecMask_rotateRight(ZS_VecMask mask, uint32_t rotation, uint32_t totalBits) {
-  assert(rotation < totalBits);
+/* ZSTD_VecMask_rotateRight():
+ * Rotates a bitfield to the right by "rotation" bits.
+ * If the rotation is greater than totalBits, the returned mask is 0.
+ */
+FORCE_INLINE_TEMPLATE ZSTD_VecMask
+ZSTD_VecMask_rotateRight(ZSTD_VecMask mask, U32 const rotation, U32 const totalBits) {
   if (rotation == 0)
     return mask;
   switch (totalBits) {
-    case 8:
-      return (mask >> rotation) | (uint8_t)(mask << (8 - rotation));
-    case 16:
-      return (mask >> rotation) | (uint16_t)(mask << (16 - rotation));
-    case 32:
-      return (mask >> rotation) | (uint32_t)(mask << (32 - rotation));
     default:
-      return (mask >> rotation) |
-          ((mask << (totalBits - rotation)) & ((1u << totalBits) - 1));
+    case 16:
+      return (mask >> rotation) | (U16)(mask << (16 - rotation));
+    case 32:
+      return (mask >> rotation) | (U32)(mask << (32 - rotation));
   }
 }
 
-static uint32_t ZS_row_nextIndex(BYTE* row, uint32_t rowMask) {
-  uint32_t const next = (row[kHeadOffset] - 1) & rowMask;
-  row[kHeadOffset]               = next;
+/* ZSTD_row_nextIndex():
+ * Returns the next index to insert at within a row, and updates the "head"
+ * value to reflect the update. Essentially cycles backwards from [0, {entries per row})
+ */
+FORCE_INLINE_TEMPLATE U32 ZSTD_row_nextIndex(BYTE* const row, U32 const rowMask) {
+  U32 const next = (*row - 1) & rowMask;
+  *row = next;
   return next;
 }
 
-FORCE_INLINE_TEMPLATE ZS_RowHash ZS_row_hash(BYTE const* ip, U32 const hashLog, U32 const mls) {
-    ZS_RowHash hash;
-    size_t const hashS = ZSTD_hashPtr(ip, hashLog + kShortBits, mls);
-    size_t const rowBase = hashS >> kShortBits;
-    hash.row = rowBase << kRowLog;
-    if (kLongBits > 0) {
-        size_t const hashL = ZSTD_hashPtr(ip, kLongBits, kLongLength) << kShortBits;
-        hash.tag = hashL | (hashS & kShortMask);
-    } else {
-        hash.tag = hashS & kShortMask;
-    }
-    return hash;
-}
-
-FORCE_INLINE_TEMPLATE void ZS_row_prefetch(U32 const* hashTable, U32 row) {
+/* ZSTD_row_prefetch():
+ * Performs prefetching for the hashTable at a given row.
+ */
+FORCE_INLINE_TEMPLATE void ZSTD_row_prefetch(U32 const* hashTable, U32 const row, U32 const rowLog) {
     PREFETCH_L1(hashTable + row);
-    if (kRowLog == 5) {
+    if (rowLog == 5) {
         PREFETCH_L1(hashTable + row + 16);
     }
 }
 
-FORCE_INLINE_TEMPLATE void ZS_tagRow_prefetch(U16 const* tagTable, U32 row) {
+/* ZSTD_tagRow_prefetch():
+ * Performs prefetching for the tagTable at a given row.
+ */
+FORCE_INLINE_TEMPLATE void ZSTD_tagRow_prefetch(U16 const* tagTable, U32 const row, U32 const rowLog) {
     PREFETCH_L1(tagTable + row);
-    if (kRowLog == 5) {
+    if (rowLog == 5) {
         PREFETCH_L1(tagTable + row + 64);
     }
 }
 
-static void ZS_row_fillHashCache(ZSTD_matchState_t* ms, const BYTE* base, U32 const mls, U32 idx)
+/* ZSTD_row_fillHashCache():
+ * Fill up the hash cache starting at idx, prefetching kPrefetchNb entries.
+ */
+static void ZSTD_row_fillHashCache(ZSTD_matchState_t* ms, const BYTE* base, U32 const rowLog, U32 const mls, U32 idx)
 {
     U32 const* const hashTable = ms->hashTable;
     U16 const* const tagTable = ms->tagTable;
-    U32 const hashLog = ms->numRows;
-    U32 lim = idx + kPrefetchAdv;
+    U32 const hashLog = ms->nbRows;
+    U32 const lim = idx + kPrefetchNb;
 
     for (; idx < lim; ++idx) {
         U32 const hashS = ZSTD_hashPtr(base + idx, hashLog + kShortBits, mls);
-        U32 const row = (hashS >> kShortBits) << kRowLog;
-        ZS_row_prefetch(hashTable, row);
-        ZS_tagRow_prefetch(tagTable, row);
+        U32 const row = (hashS >> kShortBits) << rowLog;
+        ZSTD_row_prefetch(hashTable, row, rowLog);
+        ZSTD_tagRow_prefetch(tagTable, row, rowLog);
         ms->hashCache[idx & kPrefetchMask] = hashS;
     }
 }
 
-FORCE_INLINE_TEMPLATE U32 ZS_row_nextCachedHash(U32* cache, U32 const* hashTable, U16 const* tagTable, BYTE const* base, U32 idx, U32 hashLog, U32 const mls)
+/* ZSTD_row_nextCachedHash():
+ * Returns the hash of base + idx, and replaces the hash in the hash cache with the byte at 
+ * base + idx + kPrefetchNb. Also prefetches the appropriate rows from hashTable and tagTable.
+ */
+FORCE_INLINE_TEMPLATE U32 ZSTD_row_nextCachedHash(U32* cache, U32 const* hashTable, U16 const* tagTable, BYTE const* base, U32 idx, U32 const hashLog, U32 const rowLog, U32 const mls)
 {
-    U32 const newHashS = ZSTD_hashPtr(base+idx+kPrefetchAdv, hashLog + kShortBits, mls);
-    U32 const row = (newHashS >> kShortBits) << kRowLog;
-    ZS_row_prefetch(hashTable, row);
-    ZS_tagRow_prefetch(tagTable, row);
+    U32 const newHashS = ZSTD_hashPtr(base+idx+kPrefetchNb, hashLog + kShortBits, mls);
+    U32 const row = (newHashS >> kShortBits) << rowLog;
+    ZSTD_row_prefetch(hashTable, row, rowLog);
+    ZSTD_tagRow_prefetch(tagTable, row, rowLog);
     {   U32 const hash = cache[idx & kPrefetchMask];
         cache[idx & kPrefetchMask] = newHashS;
         return hash;
     }
 }
 
-FORCE_INLINE_TEMPLATE void ZS_row_update(ZSTD_matchState_t* ms, const BYTE* ip, U32 const mls)
+/* ZSTD_row_update():
+ * Inserts the byte at ip into the appropriate position in the hash table.
+ * Determines the relative row, and the position within the {16, 32} entry row to insert at.
+ */
+FORCE_INLINE_TEMPLATE void ZSTD_row_update(ZSTD_matchState_t* ms, const BYTE* ip, U32 const mls, U32 const rowLog, U32 const rowMask)
 {
     U32* const hashTable = ms->hashTable;
     U16* const tagTable = ms->tagTable;
-    U32 const hashLog = ms->numRows;
+    U32 const hashLog = ms->nbRows;
     const BYTE* const base = ms->window.base;
     const U32 target = (U32)(ip - base);
     U32 idx = ms->nextToUpdate;
 
     for (; idx < target; ++idx) {
-        U32 const hash = ZS_row_nextCachedHash(ms->hashCache, hashTable, tagTable, base, idx, hashLog, mls);
-        U32 const relRow = (hash >> kShortBits) << kRowLog;
+        U32 const hash = ZSTD_row_nextCachedHash(ms->hashCache, hashTable, tagTable, base, idx, hashLog, rowLog, mls);
+        U32 const relRow = (hash >> kShortBits) << rowLog;
         U32* const row = hashTable + relRow;
         BYTE* const tagRow = (BYTE* const)(tagTable + relRow);
-        /*if (hash != ZSTD_hashPtr(base + idx, hashLog + kShortBits, mls)) {
-            DEBUGLOG(2, " NOT EQUAL ");
-            DEBUGLOG(2, "cache: [%u %u %u %u %u %u %u %u]", ms->hashCache[0],ms->hashCache[1],ms->hashCache[2],ms->hashCache[3],ms->hashCache[4],ms->hashCache[5],ms->hashCache[6],ms->hashCache[7]);
-            DEBUGLOG(2, "hash actual: %u cached: %u", ZSTD_hashPtr(base + idx, hashLog + kShortBits, mls), hash);
-            DEBUGLOG(2, "base + idx: %zu idx: %u cache pos: %u newly inserted pos: %u", base+idx, idx, (U64)(base+idx) & kPrefetchMask, (U64)(base+idx+kPrefetchAdv) & kPrefetchMask);
-            exit(1);
-        }*/
-        assert(hash == ZSTD_hashPtr(base + idx, hashLog + kShortBits, mls));
-        if (kUseHead) {
-            U32 const pos = ZS_row_nextIndex(tagRow, kRowMask);
-            assert(pos < kRowEntries);
-            if (kUseHash)
-                ((BYTE*)(tagRow))[pos + kHashOffset] = hash & kShortMask;
-            row[kEntriesOffset + pos] = idx;
-        } else {
-            if (kRowEntries == 4) {
-                ZS_Vec128_write(row + kEntriesOffset, ZS_Vec128_read(row + kEntriesOffset - 1));
-            } else if (kRowEntries == 8) {
-                ZS_Vec256_write(row + kEntriesOffset, ZS_Vec256_read(row + kEntriesOffset - 1));
-            } else {
-                assert(0);
-            }
-            row[kEntriesOffset] = idx;
-        }
-    }
+        U32 const pos = ZSTD_row_nextIndex(tagRow, rowMask);
 
+        assert(hash == ZSTD_hashPtr(base + idx, hashLog + kShortBits, mls));
+
+        ((BYTE*)tagRow)[pos + kHashOffset] = hash & kShortMask;
+        row[pos] = idx;
+    }
     ms->nextToUpdate = target;
 }
 
-/* inlining is important to hardwire a hot branch (template emulation) */
+/* The high-level approach of the SIMD row based match finder is as follows:
+ * - Figure out where to insert the new entry:
+ *      - Generate a hash from a byte along with an additional 1-byte "short hash". The additional byte is our "tag"
+ *      - The hashTable is effectively split into groups or "rows" of 16 or 32 entries of U32, and the hash determines
+ *        which row to insert into.
+ *      - Determine the correct position within the row to insert the entry into. Each row of 16 or 32 can
+ *        be considered as a circular buffer with a "head" index that resides in the tagTable.
+ *      - Also insert the "tag" into the equivalent row and position in the tagTable.
+ *          - Note: The tagTable has 17 or 33 entries per row, due to 16 or 32 tags, and 1 "head" entry
+ * - Use SIMD to efficiently compare the tags in the tagTable to the 1-byte "short hash" and
+ *   generate a bitfield that we can cycle through to check the collisions in the hash table.
+ * - Pick the longest match.
+ */
 FORCE_INLINE_TEMPLATE
 size_t ZSTD_RowFindBestMatch_generic (
                         ZSTD_matchState_t* ms,
                         const BYTE* const ip, const BYTE* const iLimit,
                         size_t* offsetPtr,
-                        const U32 mls, const ZSTD_dictMode_e dictMode)
+                        const U32 mls, const ZSTD_dictMode_e dictMode,
+                        const U32 rowLog, const U32 rowEntries, const U32 rowMask)
 {
     U32* const hashTable = ms->hashTable;
     U16* const tagTable = ms->tagTable;
     U32* const hashCache = ms->hashCache;
-    const U32 hashLog = ms->numRows;
+    const U32 hashLog = ms->nbRows;
     const ZSTD_compressionParameters* const cParams = &ms->cParams;
     const BYTE* const base = ms->window.base;
     const BYTE* const dictBase = ms->window.dictBase;
@@ -1109,161 +1087,146 @@ size_t ZSTD_RowFindBestMatch_generic (
     size_t ml=4-1;
 
     /* Update the hashTable and tagTable up to (but not including) ip */
-    ZS_row_update(ms, ip, mls);
+    ZSTD_row_update(ms, ip, mls, rowLog, rowMask);
     {
-        U32 const hash = ZS_row_nextCachedHash(hashCache, hashTable, tagTable, base, curr, hashLog, mls);
-        U32 const relRow = (hash >> kShortBits) << kRowLog;
+        /* Get the hash for ip, compute the appropriate row */
+        U32 const hash = ZSTD_row_nextCachedHash(hashCache, hashTable, tagTable, base, curr, hashLog, rowLog, mls);
+        U32 const relRow = (hash >> kShortBits) << rowLog;
         U32 const tag = hash & kShortMask;
         U32* const row = hashTable + relRow;
         BYTE* const tagRow = (BYTE* const)(tagTable + relRow);
+        U32 const head = (*tagRow);
+        U32 matchBuffer[kRowEntries32];
+        size_t numMatches = 0;
+        size_t m = 0;
+        ZSTD_VecMask matches = 0;
 
-        if (kUseHead) {
-            U32 const head = tagRow[kHeadOffset];
-            U32 matchBuffer[1u << kRowLog];
-            size_t numMatches = 0;
-            size_t m = 0;
-            if (kUseHash) {
-                ZS_VecMask matches;
-                if (kRowEntries == 16) {
-                    ZS_Vec128 hashes = ZS_Vec128_read(tagRow + kHashOffset);
-                    ZS_Vec128 hash1  = ZS_Vec128_set8(tag);
-                    ZS_Vec128 cmpeq  = ZS_Vec128_cmp8(hashes, hash1);
-                    matches                = ZS_Vec128_mask8(cmpeq);
-                    if (kLongBits > 0 && matches == 0) {
-                        ZS_Vec128 const mask = ZS_Vec128_set8(kShortMask);
-                        hashes = ZS_Vec128_and(hashes, mask);
-                        hash1 = ZS_Vec128_and(hash1, mask);
-                        cmpeq  = ZS_Vec128_cmp8(hashes, hash1);
-                        matches                = ZS_Vec128_mask8(cmpeq);
-                    }
-                } else if (kRowEntries == 32) {
-                    ZS_Vec256 hashes = ZS_Vec256_read(tagRow + kHashOffset);
-                    ZS_Vec256 hash1  = ZS_Vec256_set8(tag);
-                    ZS_Vec256 cmpeq  = ZS_Vec256_cmp8(hashes, hash1);
-                    matches                = ZS_Vec256_mask8(cmpeq);
-                    if (kLongBits > 0 && matches == 0) {
-                        ZS_Vec256 const mask = ZS_Vec256_set8(kShortMask);
-                        hashes = ZS_Vec256_and(hashes, mask);
-                        hash1 = ZS_Vec256_and(hash1, mask);
-                        cmpeq  = ZS_Vec256_cmp8(hashes, hash1);
-                        matches                = ZS_Vec256_mask8(cmpeq);
-                    }
-                } else {
-                    assert(0);
-                }
-                assert(head < kRowEntries);
-                assert((U64)matches < (1ull << kRowEntries));
-                matches = ZS_VecMask_rotateRight(matches, head, kRowEntries);
-                assert((U64)matches < (1ull << kRowEntries));
-                //PREFETCH_L1(matchBuffer);
-                for (; (matches > 0) && (nbAttempts > 0); --nbAttempts, matches &= (matches - 1)) {
-                    U32 const matchPos = (head + ZS_VecMask_next(matches)) & kRowMask;
-                    U32 const matchIndex = row[kEntriesOffset + matchPos];
-                    if (matchIndex < lowLimit)
-                        break;
-                    if ((dictMode != ZSTD_extDict) || matchIndex >= dictLimit) {
-                        PREFETCH_L1(base + matchIndex);
-                    } else {
-                        PREFETCH_L1(dictBase + matchIndex);
-                    }
-                    matchBuffer[numMatches++] = matchIndex;
-                }
-            } else {
-                U32 matchPos = head;
-                assert(nbAttempts <= kRowEntries);
-                for (; nbAttempts > 0; --nbAttempts, matchPos = (matchPos + 1) & kRowMask) {
-                    U32 const matchIndex = row[kEntriesOffset + matchPos];
-                    if (matchIndex < lowLimit)
-                        break;
-                    if ((dictMode != ZSTD_extDict) || matchIndex >= dictLimit) {
-                        PREFETCH_L1(base + matchIndex);
-                    } else {
-                        PREFETCH_L1(dictBase + matchIndex);
-                    }
-                    matchBuffer[numMatches++] = matchIndex;
-                }
-            }
-            
-            {   /* Insert current position into hashtable. */
-                U32 const pos = ZS_row_nextIndex(tagRow, kRowMask);
-                tagRow[pos + kHashOffset] = tag;
-                row[kEntriesOffset + pos] = ms->nextToUpdate++;
-            }
-
-            for (; m < numMatches; ++m) {
-                U32 const matchIndex = matchBuffer[m];
-                size_t currentMl=0;
-                assert(matchIndex < curr);
-                assert(matchIndex >= lowLimit);
-
-                if ((dictMode != ZSTD_extDict) || matchIndex >= dictLimit) {
-                    const BYTE* const match = base + matchIndex;
-                    assert(matchIndex >= dictLimit);   /* ensures this is true if dictMode != ZSTD_extDict */
-                    if (match[ml] == ip[ml])   /* potentially better */
-                        currentMl = ZSTD_count(ip, match, iLimit);
-                } else {
-                    const BYTE* const match = dictBase + matchIndex;
-                    assert(match+4 <= dictEnd);
-                    if (MEM_read32(match) == MEM_read32(ip))   /* assumption : matchIndex <= dictLimit-4 (by table construction) */
-                        currentMl = ZSTD_count_2segments(ip+4, match+4, iLimit, dictEnd, prefixStart) + 4;
-                }
-
-                /* save best solution */
-                if (currentMl > ml) {
-                    ml = currentMl;
-                    *offsetPtr = curr - matchIndex + ZSTD_REP_MOVE;
-                    if (ip+currentMl == iLimit) break; /* best possible, avoids read overflow on next attempt */
-                }
-            }
+        /* Generate a "matches" bitfield. The nth bit == 1 if the newly-computed "tag" matches the hash at the nth
+           position in a row of the tagTable */
+        if (rowEntries == 16) {
+            ZSTD_Vec128 hashes = ZSTD_Vec128_read(tagRow + kHashOffset);
+            ZSTD_Vec128 hash1  = ZSTD_Vec128_set8(tag);
+            ZSTD_Vec128 cmpeq  = ZSTD_Vec128_cmp8(hashes, hash1);
+            matches            = ZSTD_Vec128_mask8(cmpeq);
+        } else if (rowEntries == 32) {
+            ZSTD_Vec256 hashes = ZSTD_Vec256_read(tagRow + kHashOffset);
+            ZSTD_Vec256 hash1  = ZSTD_Vec256_set8(tag);
+            ZSTD_Vec256 cmpeq  = ZSTD_Vec256_cmp8(hashes, hash1);
+            matches            = ZSTD_Vec256_mask8(cmpeq);
         } else {
-            size_t m;
-            assert(nbAttempts == kRowEntries);
-            for (m = 0; m < nbAttempts; ++m) {
-                U32 const matchIndex = row[kEntriesOffset + m];
-                size_t currentMl=0;
-                assert(matchIndex < curr);
-                assert(matchIndex >= lowLimit);
+            assert(0);
+        }
 
-                if (matchIndex < lowLimit)
-                    break;
+        /* Each row is a circular buffer beginning at the value of "head". So we must rotate the "matches" bitfield
+           to match up with the actual layout of the entries within the hashTable */
+        matches = ZSTD_VecMask_rotateRight(matches, head, rowEntries);
 
-                if ((dictMode != ZSTD_extDict) || matchIndex >= dictLimit) {
-                    const BYTE* const match = base + matchIndex;
-                    assert(matchIndex >= dictLimit);   /* ensures this is true if dictMode != ZSTD_extDict */
-                    if (match[ml] == ip[ml])   /* potentially better */
-                        currentMl = ZSTD_count(ip, match, iLimit);
-                } else {
-                    const BYTE* const match = dictBase + matchIndex;
-                    assert(match+4 <= dictEnd);
-                    if (MEM_read32(match) == MEM_read32(ip))   /* assumption : matchIndex <= dictLimit-4 (by table construction) */
-                        currentMl = ZSTD_count_2segments(ip+4, match+4, iLimit, dictEnd, prefixStart) + 4;
-                }
+        /* Cycle through the matches and prefetch */
+        for (; (matches > 0) && (nbAttempts > 0); --nbAttempts, matches &= (matches - 1)) {
+            U32 const matchPos = (head + ZSTD_VecMask_next(matches)) & rowMask;
+            U32 const matchIndex = row[matchPos];
+            if (matchIndex < lowLimit)
+                break;
+            if ((dictMode != ZSTD_extDict) || matchIndex >= dictLimit) {
+                PREFETCH_L1(base + matchIndex);
+            } else {
+                PREFETCH_L1(dictBase + matchIndex);
+            }
+            matchBuffer[numMatches++] = matchIndex;
+        }
+        
+        /* Speed opt: insert current byte into hashtable too. This allows us to avoid one iteration of the loop
+           in ZSTD_row_update() at the next search. */
+        {
+            U32 const pos = ZSTD_row_nextIndex(tagRow, rowMask);
+            tagRow[pos + kHashOffset] = tag;
+            row[pos] = ms->nextToUpdate++;
+        }
 
-                /* save best solution */
-                if (currentMl > ml) {
-                    ml = currentMl;
-                    *offsetPtr = curr - matchIndex + ZSTD_REP_MOVE;
-                    if (ip+currentMl == iLimit) break; /* best possible, avoids read overflow on next attempt */
-                }
+        /* Return the longest match */
+        for (; m < numMatches; ++m) {
+            U32 const matchIndex = matchBuffer[m];
+            size_t currentMl=0;
+            assert(matchIndex < curr);
+            assert(matchIndex >= lowLimit);
+
+            if ((dictMode != ZSTD_extDict) || matchIndex >= dictLimit) {
+                const BYTE* const match = base + matchIndex;
+                assert(matchIndex >= dictLimit);   /* ensures this is true if dictMode != ZSTD_extDict */
+                if (match[ml] == ip[ml])   /* potentially better */
+                    currentMl = ZSTD_count(ip, match, iLimit);
+            } else {
+                const BYTE* const match = dictBase + matchIndex;
+                assert(match+4 <= dictEnd);
+                if (MEM_read32(match) == MEM_read32(ip))   /* assumption : matchIndex <= dictLimit-4 (by table construction) */
+                    currentMl = ZSTD_count_2segments(ip+4, match+4, iLimit, dictEnd, prefixStart) + 4;
+            }
+
+            /* Save best solution */
+            if (currentMl > ml) {
+                ml = currentMl;
+                *offsetPtr = curr - matchIndex + ZSTD_REP_MOVE;
+                if (ip+currentMl == iLimit) break; /* best possible, avoids read overflow on next attempt */
             }
         }
     }
     return ml;
 }
 
-
-FORCE_INLINE_TEMPLATE size_t ZSTD_RowFindBestMatch_selectMLS (
+/* Inlining is important to hardwire a hot branch (template emulation) */
+FORCE_INLINE_TEMPLATE size_t ZSTD_RowFindBestMatch_16entries_selectMLS (
                         ZSTD_matchState_t* ms,
                         const BYTE* ip, const BYTE* const iLimit,
-                        size_t* offsetPtr)
+                        const ZSTD_dictMode_e dictMode, size_t* offsetPtr)
 {
     switch(ms->cParams.minMatch)
     {
     default : /* includes case 3 */
-    case 4 : return ZSTD_RowFindBestMatch_generic(ms, ip, iLimit, offsetPtr, 4, ZSTD_noDict);
-    case 5 : return ZSTD_RowFindBestMatch_generic(ms, ip, iLimit, offsetPtr, 5, ZSTD_noDict);
+    case 4 : return ZSTD_RowFindBestMatch_generic(ms, ip, iLimit, offsetPtr, 4, dictMode, kRowLog16, kRowEntries16, kRowMask16);
+    case 5 : return ZSTD_RowFindBestMatch_generic(ms, ip, iLimit, offsetPtr, 5, dictMode, kRowLog16, kRowEntries16, kRowMask16);
     case 7 :
-    case 6 : return ZSTD_RowFindBestMatch_generic(ms, ip, iLimit, offsetPtr, 6, ZSTD_noDict);
+    case 6 : return ZSTD_RowFindBestMatch_generic(ms, ip, iLimit, offsetPtr, 6, dictMode, kRowLog16, kRowEntries16, kRowMask16);
+    }
+}
+
+FORCE_INLINE_TEMPLATE size_t ZSTD_RowFindBestMatch_32entries_selectMLS (
+                        ZSTD_matchState_t* ms,
+                        const BYTE* ip, const BYTE* const iLimit,
+                        const ZSTD_dictMode_e dictMode, size_t* offsetPtr)
+{
+    switch(ms->cParams.minMatch)
+    {
+    default : /* includes case 3 */
+    case 4 : return ZSTD_RowFindBestMatch_generic(ms, ip, iLimit, offsetPtr, 4, dictMode, kRowLog32, kRowEntries32, kRowMask32);
+    case 5 : return ZSTD_RowFindBestMatch_generic(ms, ip, iLimit, offsetPtr, 5, dictMode, kRowLog32, kRowEntries32, kRowMask32);
+    case 7 :
+    case 6 : return ZSTD_RowFindBestMatch_generic(ms, ip, iLimit, offsetPtr, 6, dictMode, kRowLog32, kRowEntries32, kRowMask32);
+    }
+}
+
+FORCE_INLINE_TEMPLATE size_t ZSTD_RowFindBestMatch_selectEntries (
+                        ZSTD_matchState_t* ms,
+                        const BYTE* ip, const BYTE* const iLimit,
+                        size_t* offsetPtr)
+{
+    switch(ms->cParams.searchLog)
+    {
+    default :
+    case 4 : return ZSTD_RowFindBestMatch_16entries_selectMLS(ms, ip, iLimit, ZSTD_noDict, offsetPtr);
+    case 5 : return ZSTD_RowFindBestMatch_32entries_selectMLS(ms, ip, iLimit, ZSTD_noDict, offsetPtr);
+    }
+}
+
+FORCE_INLINE_TEMPLATE size_t ZSTD_RowFindBestMatch_extDict_selectEntries (
+                        ZSTD_matchState_t* ms,
+                        const BYTE* ip, const BYTE* const iLimit,
+                        size_t* offsetPtr)
+{
+    switch(ms->cParams.searchLog)
+    {
+    default :
+    case 4 : return ZSTD_RowFindBestMatch_16entries_selectMLS(ms, ip, iLimit, ZSTD_extDict, offsetPtr);
+    case 5 : return ZSTD_RowFindBestMatch_32entries_selectMLS(ms, ip, iLimit, ZSTD_extDict, offsetPtr);
     }
 }
 
@@ -1289,6 +1252,7 @@ ZSTD_compressBlock_lazy_generic(
     const BYTE* const base = ms->window.base;
     const U32 prefixLowestIndex = ms->window.dictLimit;
     const BYTE* const prefixLowest = base + prefixLowestIndex;
+    const U32 rowLog = ms->cParams.searchLog < 5 ? kRowLog16 : kRowLog32;
 
     typedef size_t (*searchMax_f)(
                         ZSTD_matchState_t* ms,
@@ -1302,7 +1266,7 @@ ZSTD_compressBlock_lazy_generic(
      */
     const searchMax_f searchFuncs[4][2] = {
         {
-            ZSTD_RowFindBestMatch_selectMLS,
+            ZSTD_RowFindBestMatch_selectEntries,
             ZSTD_BtFindBestMatch_selectMLS
         },
         {
@@ -1353,7 +1317,7 @@ ZSTD_compressBlock_lazy_generic(
         assert(offset_2 <= dictAndPrefixLength);
     }
 
-    ZS_row_fillHashCache(ms, base, ms->cParams.minMatch, ms->nextToUpdate);
+    ZSTD_row_fillHashCache(ms, base, rowLog, ms->cParams.minMatch, ms->nextToUpdate);
 
     /* Match Loop */
 #if defined(__GNUC__) && defined(__x86_64__)
@@ -1644,7 +1608,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
     typedef size_t (*searchMax_f)(
                         ZSTD_matchState_t* ms,
                         const BYTE* ip, const BYTE* iLimit, size_t* offsetPtr);
-    searchMax_f searchMax = searchMethod==search_binaryTree ? ZSTD_BtFindBestMatch_extDict_selectMLS : ZSTD_HcFindBestMatch_extDict_selectMLS;
+    searchMax_f searchMax = searchMethod==search_binaryTree ? ZSTD_BtFindBestMatch_extDict_selectMLS : ZSTD_RowFindBestMatch_extDict_selectEntries;
 
     U32 offset_1 = rep[0], offset_2 = rep[1];
 

@@ -387,8 +387,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
         params.hashLog = 19;
         params.chainLog = 19;
         params = ZSTD_adjustCParams(params, 1000, 100000);
-        /*if (params.hashLog != 18) goto _output_error;
-        if (params.chainLog != 17) goto _output_error;*/
+        if (params.hashLog != 18) goto _output_error;
+        if (params.chainLog != 17) goto _output_error;
     }
     DISPLAYLEVEL(3, "OK \n");
 

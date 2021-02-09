@@ -1555,6 +1555,9 @@ typedef enum {
     ZSTD_resetTarget_CCtx
 } ZSTD_resetTarget_e;
 
+/* Aligns a buffer to a 64-byte boundary */
+#define ALIGN_TO_64_BYTES(ptr) (((long)ptr + 63) & ~63)
+
 static size_t
 ZSTD_reset_matchState(ZSTD_matchState_t* ms,
                       ZSTD_cwksp* ws,
@@ -1575,8 +1578,8 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
     }
 
     if (cParams->strategy < ZSTD_btopt) {
-        ms->numRows = ZSTD_highbit32((1u << cParams->hashLog) / kRowSizeU32);
-        assert((1u << ms->numRows) * kRowSizeU32 <= (1u << cParams->hashLog));
+        U32 const rowEntries = cParams->searchLog < 5 ? kRowEntries16 : kRowEntries32;
+        ms->nbRows = ZSTD_highbit32((1u << cParams->hashLog) / rowEntries);
     }
     ms->hashLog3 = hashLog3;
 
@@ -1591,7 +1594,7 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
     if (cParams->strategy < ZSTD_btopt && cParams->strategy > ZSTD_dfast) {
         /* Align to 64 bytes for lazy matchfinder */
         ms->hashTable = (U32*)ZSTD_cwksp_reserve_table(ws, hSize * sizeof(U32) + 64);
-        ms->hashTable = (U32*)(((uintptr_t)ms->hashTable + 63) & ~63);
+        ms->hashTable = (U32*)ALIGN_TO_64_BYTES(ms->hashTable);
     } else {
         ms->hashTable = (U32*)ZSTD_cwksp_reserve_table(ws, hSize * sizeof(U32));
     }
@@ -1599,8 +1602,6 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
     ms->hashTable3 = (U32*)ZSTD_cwksp_reserve_table(ws, h3Size * sizeof(U32));
     RETURN_ERROR_IF(ZSTD_cwksp_reserve_failed(ws), memory_allocation,
                     "failed a workspace allocation in ZSTD_reset_matchState");
-
-    //memset(ms->hashTable, 0, sizeof(U32) * (1u << cParams->hashLog));
 
     DEBUGLOG(4, "reset table : %u", crp!=ZSTDcrp_leaveDirty);
     if (crp!=ZSTDcrp_leaveDirty) {
@@ -1622,7 +1623,7 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
     if (cParams->strategy < ZSTD_btopt && cParams->strategy > ZSTD_dfast) {
         size_t const tagTableSize = hSize*sizeof(U16);
         ms->tagTable = (U16*)ZSTD_cwksp_reserve_aligned(ws, tagTableSize + 64);
-        ms->tagTable = (U16*)(((uintptr_t)ms->tagTable + 63) & ~63);
+        ms->tagTable = (U16*)ALIGN_TO_64_BYTES(ms->tagTable);
     }
 
     ms->cParams = *cParams;
@@ -5109,13 +5110,13 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
     { 18, 13, 14,  1,  6,  0, ZSTD_fast    },  /* level  1 */
     { 18, 14, 14,  1,  5,  0, ZSTD_dfast   },  /* level  2 */
     { 18, 16, 16,  1,  4,  0, ZSTD_dfast   },  /* level  3 */
-    { 18, 16, 17+1,  2,  5,  2, ZSTD_greedy  },  /* level  4.*/
-    { 18, 18, 18+1,  3,  5,  2, ZSTD_greedy  },  /* level  5.*/
-    { 18, 18, 19+1,  3,  5,  4, ZSTD_lazy    },  /* level  6.*/
-    { 18, 18, 19+2,  4,  4,  4, ZSTD_lazy    },  /* level  7 */
-    { 18, 18, 19+3,  4,  4,  8, ZSTD_lazy2   },  /* level  8 */
-    { 18, 18, 19+4,  5,  4,  8, ZSTD_lazy2   },  /* level  9 */
-    { 18, 18, 19+5,  5,  4,  8, ZSTD_lazy2   },  /* level 10 */
+    { 18, 16, 17,  2,  5,  2, ZSTD_greedy  },  /* level  4.*/
+    { 18, 18, 18,  3,  5,  2, ZSTD_greedy  },  /* level  5.*/
+    { 18, 18, 19,  3,  5,  4, ZSTD_lazy    },  /* level  6.*/
+    { 18, 18, 19+1,  4,  4,  4, ZSTD_lazy    },  /* level  7 */
+    { 18, 18, 19+2,  4,  4,  8, ZSTD_lazy2   },  /* level  8 */
+    { 18, 18, 19+3,  5,  4,  8, ZSTD_lazy2   },  /* level  9 */
+    { 18, 18, 19+4,  5,  4,  8, ZSTD_lazy2   },  /* level 10 */
     { 18, 18, 19,  5,  4, 12, ZSTD_btlazy2 },  /* level 11.*/
     { 18, 19, 19,  7,  4, 12, ZSTD_btlazy2 },  /* level 12.*/
     { 18, 18, 19,  4,  4, 16, ZSTD_btopt   },  /* level 13 */
@@ -5136,9 +5137,9 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
     { 17, 13, 15,  1,  5,  0, ZSTD_fast    },  /* level  2 */
     { 17, 15, 16,  2,  5,  0, ZSTD_dfast   },  /* level  3 */
     { 17, 17, 17,  2,  4,  0, ZSTD_dfast   },  /* level  4 */
-    { 17, 16, 17+3,  3,  4,  2, ZSTD_greedy  },  /* level  5 */
-    { 17, 17, 17+3,  3,  4,  4, ZSTD_lazy    },  /* level  6 */
-    { 17, 17, 17+3,  3,  4,  8, ZSTD_lazy2   },  /* level  7 */
+    { 17, 16, 17+2,  3,  4,  2, ZSTD_greedy  },  /* level  5 */
+    { 17, 17, 17+2,  3,  4,  4, ZSTD_lazy    },  /* level  6 */
+    { 17, 17, 17+2,  3,  4,  8, ZSTD_lazy2   },  /* level  7 */
     { 17, 17, 17,  4,  4,  8, ZSTD_lazy2   },  /* level  8 */
     { 17, 17, 17,  5,  4,  8, ZSTD_lazy2   },  /* level  9 */
     { 17, 17, 17,  6,  4,  8, ZSTD_lazy2   },  /* level 10 */

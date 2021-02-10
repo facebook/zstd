@@ -26,6 +26,7 @@ extern "C" {
 #define ZSTD_LAZY_DDSS_BUCKET_LOG 2
 
 U32 ZSTD_insertAndFindFirstIndex(ZSTD_matchState_t* ms, const BYTE* ip);
+void ZSTD_row_update(ZSTD_matchState_t* const ms, const BYTE* ip);
 
 void ZSTD_dedicatedDictSearch_lazy_loadDictionary(ZSTD_matchState_t* ms, const BYTE* const ip);
 

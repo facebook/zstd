@@ -35,6 +35,11 @@ extern "C" {
 #define ZSTD_CWKSP_ASAN_REDZONE_SIZE 128
 #endif
 
+/* Constant for 64-byte table alignment */
+#ifndef ZSTD_CWKSP_ALIGN_TABLES_BYTES
+#define ZSTD_CWKSP_ALIGN_TABLES_BYTES 64
+#endif
+
 /*-*************************************
 *  Structures
 ***************************************/
@@ -321,6 +326,14 @@ MEM_STATIC void* ZSTD_cwksp_reserve_table(ZSTD_cwksp* ws, size_t bytes) {
 #endif
 
     return alloc;
+}
+
+/**
+ * Returns additional nb bytes to reserve in order to align the beginning of the
+ * tables to ZSTD_CWKSP_ALIGN_TABLES_BYTES bytes.
+ */
+MEM_STATIC size_t ZSTD_cwksp_bytes_to_align_tables(ZSTD_cwksp* ws) {
+    return (ZSTD_CWKSP_ALIGN_TABLES_BYTES - ((size_t)ws->objectEnd & (ZSTD_CWKSP_ALIGN_TABLES_BYTES - 1)));
 }
 
 /**

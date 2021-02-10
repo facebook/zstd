@@ -1318,7 +1318,7 @@ ZSTD_sizeof_matchState(const ZSTD_compressionParameters* const cParams,
       + ZSTD_cwksp_alloc_size((ZSTD_OPT_NUM+1) * sizeof(ZSTD_match_t))
       + ZSTD_cwksp_alloc_size((ZSTD_OPT_NUM+1) * sizeof(ZSTD_optimal_t));
     size_t const lazyAdditionalSpace = cParams->strategy < ZSTD_btopt && cParams->strategy > ZSTD_dfast
-                                ? 64 + 64 + (hSize*sizeof(U16)) /* tagTable space */
+                                ? 64 + (hSize*sizeof(U16)) /* tagTable space */
                                 : 0;
     size_t const optSpace = (forCCtx && (cParams->strategy >= ZSTD_btopt))
                                 ? optPotentialSpace
@@ -1358,6 +1358,8 @@ static size_t ZSTD_estimateCCtxSize_usingCCtxParams_internal(
 
     size_t const cctxSpace = isStatic ? ZSTD_cwksp_alloc_size(sizeof(ZSTD_CCtx)) : 0;
 
+    size_t const alignSpace = ZSTD_CWKSP_ALIGN_TABLES_BYTES;
+
     size_t const neededSpace =
         cctxSpace +
         entropySpace +
@@ -1366,6 +1368,7 @@ static size_t ZSTD_estimateCCtxSize_usingCCtxParams_internal(
         ldmSeqSpace +
         matchStateSize +
         tokenSpace +
+        alignSpace + 
         bufferSpace;
 
     DEBUGLOG(5, "estimate workspace : %u", (U32)neededSpace);
@@ -1589,15 +1592,8 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
 
     ZSTD_cwksp_clear_tables(ws);
 
-    DEBUGLOG(5, "reserving table space");
     /* table Space */
-    if (cParams->strategy < ZSTD_btopt && cParams->strategy > ZSTD_dfast) {
-        /* Align to 64 bytes for lazy matchfinder */
-        ms->hashTable = (U32*)ZSTD_cwksp_reserve_table(ws, hSize * sizeof(U32) + 64);
-        ms->hashTable = (U32*)ALIGN_TO_64_BYTES(ms->hashTable);
-    } else {
-        ms->hashTable = (U32*)ZSTD_cwksp_reserve_table(ws, hSize * sizeof(U32));
-    }
+    ms->hashTable = (U32*)ZSTD_cwksp_reserve_table(ws, hSize * sizeof(U32));
     ms->chainTable = (U32*)ZSTD_cwksp_reserve_table(ws, chainSize * sizeof(U32));
     ms->hashTable3 = (U32*)ZSTD_cwksp_reserve_table(ws, h3Size * sizeof(U32));
     RETURN_ERROR_IF(ZSTD_cwksp_reserve_failed(ws), memory_allocation,
@@ -1624,6 +1620,7 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
         size_t const tagTableSize = hSize*sizeof(U16);
         ms->tagTable = (U16*)ZSTD_cwksp_reserve_aligned(ws, tagTableSize + 64);
         ms->tagTable = (U16*)ALIGN_TO_64_BYTES(ms->tagTable);
+        ZSTD_memset(ms->tagTable, 0, tagTableSize); /* TODO: Try to optimize this out */
     }
 
     ms->cParams = *cParams;
@@ -1724,6 +1721,12 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                 RETURN_ERROR_IF(zc->blockState.nextCBlock == NULL, memory_allocation, "couldn't allocate nextCBlock");
                 zc->entropyWorkspace = (U32*) ZSTD_cwksp_reserve_object(ws, ENTROPY_WORKSPACE_SIZE);
                 RETURN_ERROR_IF(zc->blockState.nextCBlock == NULL, memory_allocation, "couldn't allocate entropyWorkspace");
+                {   /* Align the tables section to 64 bytes */
+                    U32 const bytesToAlignTables = ZSTD_cwksp_bytes_to_align_tables(ws);
+                    BYTE* dummyObjForAlignment = (BYTE*)ZSTD_cwksp_reserve_object(ws, bytesToAlignTables);
+                    RETURN_ERROR_IF(dummyObjForAlignment == NULL, memory_allocation, "couldn't allocate dummy object for 64-byte alignment");
+                    zc->alignmentBytes = bytesToAlignTables;
+                }
         }   }
 
         ZSTD_cwksp_clear(ws);
@@ -1798,6 +1801,12 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             ZSTD_window_init(&zc->ldmState.window);
             ZSTD_window_clear(&zc->ldmState.window);
             zc->ldmState.loadedDictEnd = 0;
+        }
+
+        {
+            size_t const extraBytes = ZSTD_CWKSP_ALIGN_TABLES_BYTES - zc->alignmentBytes;
+            BYTE* dummyObjForEstimation = (BYTE*)ZSTD_cwksp_reserve_aligned(ws, MIN(ZSTD_cwksp_available_space(ws), extraBytes)*sizeof(BYTE));
+            RETURN_ERROR_IF(dummyObjForEstimation == NULL, memory_allocation, "Failed to allocate dummy aligned buffer");
         }
 
         /* Due to alignment, when reusing a workspace, we can actually consume
@@ -3158,6 +3167,8 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
     const BYTE* ip = (const BYTE*) src;
     const BYTE* const iend = ip + srcSize;
 
+    DEBUGLOG(4, "ZSTD_loadDictionaryContent()");
+
     ZSTD_window_update(&ms->window, src, srcSize);
     ms->loadedDictEnd = params->forceWindow ? 0 : (U32)(iend - ms->window.base);
 
@@ -3197,7 +3208,8 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
                 assert(chunk == remaining); /* must load everything in one go */
                 ZSTD_dedicatedDictSearch_lazy_loadDictionary(ms, ichunk-HASH_READ_SIZE);
             } else if (chunk >= HASH_READ_SIZE) {
-                ZSTD_insertAndFindFirstIndex(ms, ichunk-HASH_READ_SIZE);
+                ZSTD_memset(ms->tagTable, 0, (1u << params->cParams.hashLog) * sizeof(U16));
+                ZSTD_row_update(ms, ichunk-HASH_READ_SIZE);
             }
             break;
 
@@ -5142,7 +5154,7 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
     { 17, 17, 17+2,  3,  4,  8, ZSTD_lazy2   },  /* level  7 */
     { 17, 17, 17,  4,  4,  8, ZSTD_lazy2   },  /* level  8 */
     { 17, 17, 17,  5,  4,  8, ZSTD_lazy2   },  /* level  9 */
-    { 17, 17, 17,  6,  4,  8, ZSTD_lazy2   },  /* level 10 */
+    { 17, 17, 17,  6-1,  4,  8, ZSTD_lazy2   },  /* level 10 */
     { 17, 17, 17,  5,  4,  8, ZSTD_btlazy2 },  /* level 11 */
     { 17, 18, 17,  7,  4, 12, ZSTD_btlazy2 },  /* level 12 */
     { 17, 18, 17,  3,  4, 12, ZSTD_btopt   },  /* level 13.*/
@@ -5165,8 +5177,8 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
     { 14, 14, 14,  4,  4,  2, ZSTD_greedy  },  /* level  4 */
     { 14, 14, 14,  3,  4,  4, ZSTD_lazy    },  /* level  5.*/
     { 14, 14, 14,  4,  4,  8, ZSTD_lazy2   },  /* level  6 */
-    { 14, 14, 14,  6,  4,  8, ZSTD_lazy2   },  /* level  7 */
-    { 14, 14, 14,  8,  4,  8, ZSTD_lazy2   },  /* level  8.*/
+    { 14, 14, 14,  6-1,  4,  8, ZSTD_lazy2   },  /* level  7 */
+    { 14, 14, 14,  8-3,  4,  8, ZSTD_lazy2   },  /* level  8.*/
     { 14, 15, 14,  5,  4,  8, ZSTD_btlazy2 },  /* level  9.*/
     { 14, 15, 14,  9,  4,  8, ZSTD_btlazy2 },  /* level 10.*/
     { 14, 15, 14,  3,  4, 12, ZSTD_btopt   },  /* level 11.*/

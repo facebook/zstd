@@ -472,8 +472,6 @@ ZSTDMT_serialState_reset(serialState_t* serialState,
         ZSTD_ldm_adjustParameters(&params.ldmParams, &params.cParams);
         assert(params.ldmParams.hashLog >= params.ldmParams.bucketSizeLog);
         assert(params.ldmParams.hashRateLog < 32);
-        serialState->ldmState.hashPower =
-                ZSTD_rollingHash_primePower(params.ldmParams.minMatchLength);
     } else {
         ZSTD_memset(&params.ldmParams, 0, sizeof(params.ldmParams));
     }

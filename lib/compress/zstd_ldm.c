@@ -19,7 +19,6 @@
 #define LDM_BUCKET_SIZE_LOG 3
 #define LDM_MIN_MATCH_LENGTH 64
 #define LDM_HASH_RLOG 7
-#define LDM_LOOKAHEAD_SPLITS 64
 
 typedef struct {
     U64 rolling;
@@ -62,8 +61,8 @@ static void ZSTD_ldm_gear_init(ldmRollingHashState_t* state, ldmParams_t const* 
  *
  * Registers in the splits array all the split points found in the first
  * size bytes following the data pointer. This function terminates when
- * either all the data has been processed or LDM_LOOKAHEAD_SPLITS splits
- * are present in the splits array.
+ * either all the data has been processed or LDM_BATCH_SIZE splits are
+ * present in the splits array.
  *
  * Precondition: The splits array must not be full.
  * Returns: The number of bytes processed. */
@@ -84,7 +83,7 @@ static size_t ZSTD_ldm_gear_feed(ldmRollingHashState_t* state,
         if (UNLIKELY((hash & mask) == 0)) { \
             splits[*numSplits] = n; \
             *numSplits += 1; \
-            if (*numSplits == LDM_LOOKAHEAD_SPLITS) \
+            if (*numSplits == LDM_BATCH_SIZE) \
                 goto done; \
         } \
     } while (0)
@@ -247,7 +246,7 @@ void ZSTD_ldm_fillHashTable(
     BYTE const* const base = ldmState->window.base;
     BYTE const* const istart = ip;
     ldmRollingHashState_t hashState;
-    size_t splits[LDM_LOOKAHEAD_SPLITS];
+    size_t* const splits = ldmState->splitIndices;
     unsigned numSplits;
 
     DEBUGLOG(5, "ZSTD_ldm_fillHashTable");
@@ -319,13 +318,8 @@ static size_t ZSTD_ldm_generateSequences_internal(
     /* Rolling hash state */
     ldmRollingHashState_t hashState;
     /* Arrays for staged-processing */
-    size_t splits[LDM_LOOKAHEAD_SPLITS];
-    struct {
-        BYTE const* split;
-        U32 hash;
-        U32 checksum;
-        ldmEntry_t* bucket;
-    } candidates[LDM_LOOKAHEAD_SPLITS];
+    size_t* const splits = ldmState->splitIndices;
+    ldmMatchCandidate_t* const candidates = ldmState->matchCandidates;
     unsigned numSplits;
 
     if (srcSize < minMatchLength)

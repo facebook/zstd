@@ -159,6 +159,15 @@ int UTIL_chmod(char const* filename, const stat_t* statbuf, mode_t permissions)
     return chmod(filename, permissions);
 }
 
+int UTIL_umask(int mode) {
+#if PLATFORM_POSIX_VERSION > 0
+    return umask(mode);
+#else
+    /* do nothing, fake return value */
+    return mode;
+#endif
+}
+
 int UTIL_setFileStat(const char *filename, const stat_t *statbuf)
 {
     int res = 0;

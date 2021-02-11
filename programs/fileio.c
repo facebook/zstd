@@ -679,14 +679,11 @@ FIO_openDstFile(FIO_ctx_t* fCtx, FIO_prefs_t* const prefs,
             FIO_removeFile(dstFileName);
     }   }
 
-    {   FILE* const f = fopen( dstFileName, "wb" );
+    {   const int old_umask = UTIL_umask(0177); /* u-x,go-rwx */
+        FILE* const f = fopen( dstFileName, "wb" );
+        UTIL_umask(old_umask);
         if (f == NULL) {
             DISPLAYLEVEL(1, "zstd: %s: %s\n", dstFileName, strerror(errno));
-        } else if (srcFileName != NULL
-               && strcmp (srcFileName, stdinmark)
-               && strcmp(dstFileName, nulmark) ) {
-            /* reduce rights on newly created dst file while compression is ongoing */
-            UTIL_chmod(dstFileName, NULL, 00600);
         }
         return f;
     }

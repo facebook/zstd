@@ -509,6 +509,11 @@ static size_t ZSTD_cParam_clampBounds(ZSTD_cParameter cParam, int* value)
                     parameter_outOfBound, "Param out of bounds"); \
 }
 
+/* Checks if strategy is one of greedy, lazy, or lazy2 */
+#define STRATEGY_USES_ROW_BASED_MATCHFINDER(strategy) (strategy < ZSTD_btlazy2 && strategy > ZSTD_dfast)
+
+/* Aligns a buffer to a 64-byte boundary */
+#define ALIGN_TO_64_BYTES(ptr) (((size_t)ptr + 63) & ~63)
 
 static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
 {
@@ -1317,7 +1322,7 @@ ZSTD_sizeof_matchState(const ZSTD_compressionParameters* const cParams,
       + ZSTD_cwksp_alloc_size((1<<Litbits) * sizeof(U32))
       + ZSTD_cwksp_alloc_size((ZSTD_OPT_NUM+1) * sizeof(ZSTD_match_t))
       + ZSTD_cwksp_alloc_size((ZSTD_OPT_NUM+1) * sizeof(ZSTD_optimal_t));
-    size_t const lazyAdditionalSpace = cParams->strategy < ZSTD_btopt && cParams->strategy > ZSTD_dfast
+    size_t const lazyAdditionalSpace = STRATEGY_USES_ROW_BASED_MATCHFINDER(cParams->strategy)
                                 ? 64 + (hSize*sizeof(U16)) /* tagTable space */
                                 : 0;
     size_t const optSpace = (forCCtx && (cParams->strategy >= ZSTD_btopt))
@@ -1558,9 +1563,6 @@ typedef enum {
     ZSTD_resetTarget_CCtx
 } ZSTD_resetTarget_e;
 
-/* Aligns a buffer to a 64-byte boundary */
-#define ALIGN_TO_64_BYTES(ptr) (((long)ptr + 63) & ~63)
-
 static size_t
 ZSTD_reset_matchState(ZSTD_matchState_t* ms,
                       ZSTD_cwksp* ws,
@@ -1580,7 +1582,7 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
         ZSTD_cwksp_mark_tables_dirty(ws);
     }
 
-    if (cParams->strategy < ZSTD_btopt) {
+    if (STRATEGY_USES_ROW_BASED_MATCHFINDER(cParams->strategy)) {
         U32 const rowEntries = cParams->searchLog < 5 ? kRowEntries16 : kRowEntries32;
         ms->nbRows = ZSTD_highbit32((1u << cParams->hashLog) / rowEntries);
     }
@@ -1592,6 +1594,7 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
 
     ZSTD_cwksp_clear_tables(ws);
 
+    DEBUGLOG(5, "reserving table space");
     /* table Space */
     ms->hashTable = (U32*)ZSTD_cwksp_reserve_table(ws, hSize * sizeof(U32));
     ms->chainTable = (U32*)ZSTD_cwksp_reserve_table(ws, chainSize * sizeof(U32));
@@ -1616,7 +1619,7 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
         ms->opt.priceTable = (ZSTD_optimal_t*)ZSTD_cwksp_reserve_aligned(ws, (ZSTD_OPT_NUM+1) * sizeof(ZSTD_optimal_t));
     }
 
-    if (cParams->strategy < ZSTD_btopt && cParams->strategy > ZSTD_dfast) {
+    if (STRATEGY_USES_ROW_BASED_MATCHFINDER(cParams->strategy)) {
         size_t const tagTableSize = hSize*sizeof(U16);
         ms->tagTable = (U16*)ZSTD_cwksp_reserve_aligned(ws, tagTableSize + 64);
         ms->tagTable = (U16*)ALIGN_TO_64_BYTES(ms->tagTable);
@@ -1721,7 +1724,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                 RETURN_ERROR_IF(zc->blockState.nextCBlock == NULL, memory_allocation, "couldn't allocate nextCBlock");
                 zc->entropyWorkspace = (U32*) ZSTD_cwksp_reserve_object(ws, ENTROPY_WORKSPACE_SIZE);
                 RETURN_ERROR_IF(zc->blockState.nextCBlock == NULL, memory_allocation, "couldn't allocate entropyWorkspace");
-                {   /* Align the tables section to 64 bytes */
+                {   /* Align the tables section to 64 bytes by reserving an extra dummy object of [0, 64) bytes */
                     U32 const bytesToAlignTables = ZSTD_cwksp_bytes_to_align_tables(ws);
                     BYTE* dummyObjForAlignment = (BYTE*)ZSTD_cwksp_reserve_object(ws, bytesToAlignTables);
                     RETURN_ERROR_IF(dummyObjForAlignment == NULL, memory_allocation, "couldn't allocate dummy object for 64-byte alignment");
@@ -1803,7 +1806,9 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             zc->ldmState.loadedDictEnd = 0;
         }
 
-        {
+        {   /* Earlier, we reserved an n = [0, 64) byte object to align the tables. Now, we reserve a (64 - n) byte 'align' buffer
+             * so that we always reserve an extra 64 bytes for alignment. This allows the CCtx size estimation to remain accurate.
+             */
             size_t const extraBytes = ZSTD_CWKSP_ALIGN_TABLES_BYTES - zc->alignmentBytes;
             BYTE* dummyObjForEstimation = (BYTE*)ZSTD_cwksp_reserve_aligned(ws, MIN(ZSTD_cwksp_available_space(ws), extraBytes)*sizeof(BYTE));
             RETURN_ERROR_IF(dummyObjForEstimation == NULL, memory_allocation, "Failed to allocate dummy aligned buffer");

@@ -352,7 +352,7 @@ struct ZSTD_CCtx_s {
     ZSTD_TraceCtx traceCtx;
 #endif
 
-    U32 alignmentBytes;
+    U32 alignmentBytes;     /* Size of extra object reserved to align the workspace's tables to 64-bytes */
 };
 
 typedef enum { ZSTD_dtlm_fast, ZSTD_dtlm_full } ZSTD_dictTableLoadMethod_e;

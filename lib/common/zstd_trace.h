@@ -11,6 +11,10 @@
 #ifndef ZSTD_TRACE_H
 #define ZSTD_TRACE_H
 
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 #include <stddef.h>
 
 /* weak symbol support */
@@ -140,5 +144,9 @@ void ZSTD_trace_decompress_end(
     ZSTD_Trace const* trace);
 
 #endif /* ZSTD_TRACE */
+
+#if defined (__cplusplus)
+}
+#endif
 
 #endif /* ZSTD_TRACE_H */

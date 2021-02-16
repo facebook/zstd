@@ -735,29 +735,6 @@ static ZSTD_VecMask ZSTD_Vec256_scalarCmp(ZSTD_Vec256 x, ZSTD_Vec256 y) {
 }
 
 #endif /* __SSE2__ */
-/*
-#ifdef __AVX2__
-
-#include <immintrin.h>
-typedef __m256i ZSTD_Vec256;
-
-static ZSTD_Vec256 ZSTD_Vec256_read(void const* ptr) {
-  return _mm256_loadu_si256((ZSTD_Vec256 const*)ptr);
-}
-
-static ZSTD_Vec256 ZSTD_Vec256_set8(BYTE val) {
-  return _mm256_set1_epi8((char)val);
-}
-
-static ZSTD_Vec256 ZSTD_Vec256_cmp8(ZSTD_Vec256 x, ZSTD_Vec256 y) {
-  return _mm256_cmpeq_epi8(x, y);
-}
-
-static ZSTD_VecMask ZSTD_Vec256_mask8(ZSTD_Vec256 v) {
-  return (ZSTD_VecMask)_mm256_movemask_epi8(v);
-}
-
-#else*/
 
 /* ZSTD_VecMask_next():
  * Starting from the LSB, returns the idx of the next non-zero bit
@@ -871,8 +848,8 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_update_internal(ZSTD_matchState_t* ms, const
         U32* const row = hashTable + relRow;
         BYTE* tagRow = (BYTE*)(tagTable + relRow);
         U32 const pos = ZSTD_row_nextIndex(tagRow, rowMask);
-
-        //assert(hash == ZSTD_hashPtr(base + idx, hashLog + kShortBits, mls));
+        
+        assert(hash == ZSTD_hashPtr(base + idx, hashLog + kShortBits, mls));
 
         ((BYTE*)tagRow)[pos + kHashOffset] = hash & kShortMask;
         row[pos] = idx;
@@ -887,7 +864,7 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_update_internal(ZSTD_matchState_t* ms, const
 void ZSTD_row_update(ZSTD_matchState_t* const ms, const BYTE* ip) {
     const U32 rowLog = ms->cParams.searchLog < 5 ? 4 : 5;
     const U32 rowMask = (1u << rowLog) - 1;
-    const U32 mls = ms->cParams.minMatch;
+    const U32 mls = MIN(ms->cParams.minMatch, 6 /* mls caps out at 6 */);
     
     ZSTD_row_fillHashCache(ms, ms->window.base, rowLog, mls, 0 /* don't prefetch dict tables */, ms->nextToUpdate);
     ZSTD_row_update_internal(ms, ip, mls, rowLog, rowMask, 0 /* don't prefetch dict tables */);
@@ -1365,7 +1342,9 @@ ZSTD_compressBlock_lazy_generic(
         assert(offset_2 <= dictAndPrefixLength);
     }
 
-    ZSTD_row_fillHashCache(ms, base, rowLog, ms->cParams.minMatch, shouldPrefetch, ms->nextToUpdate);
+    ZSTD_row_fillHashCache(ms, base, rowLog,
+                           MIN(ms->cParams.minMatch, 6 /* mls caps out at 6 */),
+                           shouldPrefetch, ms->nextToUpdate);
 
     /* Match Loop */
 #if defined(__GNUC__) && defined(__x86_64__)
@@ -1666,7 +1645,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
 
     /* init */
     ip += (ip == prefixStart);
-    ZSTD_row_fillHashCache(ms, base, rowLog, ms->cParams.minMatch, shouldPrefetch, ms->nextToUpdate);
+    ZSTD_row_fillHashCache(ms, base, rowLog, MIN(ms->cParams.minMatch, 6 /* mls caps out at 6 */), shouldPrefetch, ms->nextToUpdate);
 
     /* Match Loop */
 #if defined(__GNUC__) && defined(__x86_64__)

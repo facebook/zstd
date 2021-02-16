@@ -1363,6 +1363,7 @@ static size_t ZSTD_estimateCCtxSize_usingCCtxParams_internal(
 
     size_t const cctxSpace = isStatic ? ZSTD_cwksp_alloc_size(sizeof(ZSTD_CCtx)) : 0;
 
+    /* Require two allocations for alignment to 64 bytes, call ZSTD_cwksp_alloc_size() twice. */
     size_t const alignSpace = ZSTD_cwksp_alloc_size(ZSTD_CWKSP_ALIGN_TABLES_BYTES/2)
                             + ZSTD_cwksp_alloc_size(ZSTD_CWKSP_ALIGN_TABLES_BYTES/2);
 

@@ -602,48 +602,33 @@ void ZSTD_dedicatedDictSearch_lazy_loadDictionary(ZSTD_matchState_t* ms, const B
 }
 
 /* Functions to take advantage of SIMD */
-#include <emmintrin.h>
-typedef __m128i ZSTD_Vec128;
 typedef U32 ZSTD_VecMask;
 
-static ZSTD_Vec128 ZSTD_Vec128_read(void const* ptr) {
-  return _mm_loadu_si128((ZSTD_Vec128 const*)ptr);
+#ifdef __SSE2__
+
+#include <emmintrin.h>
+typedef __m128i ZSTD_Vec128;
+
+/* Returns a 128-bit container with 128-bits from src */
+static ZSTD_Vec128 ZSTD_Vec128_read(void const* src) {
+  return _mm_loadu_si128((ZSTD_Vec128 const*)src);
 }
 
+/* Returns a ZSTD_Vec128 with the byte "val" packed 16 times */
 static ZSTD_Vec128 ZSTD_Vec128_set8(BYTE val) {
   return _mm_set1_epi8((char)val);
 }
 
+/* Returns a bitfield that is the byte-by-byte comparison result of x and y */
 static ZSTD_Vec128 ZSTD_Vec128_cmp8(ZSTD_Vec128 x, ZSTD_Vec128 y) {
   return _mm_cmpeq_epi8(x, y);
 }
 
+/* Collapses the 128-bit comparison mask into a 32-bit container that is the 
+   most significant bit of each BYTE. */
 static ZSTD_VecMask ZSTD_Vec128_mask8(ZSTD_Vec128 v) {
   return (ZSTD_VecMask)_mm_movemask_epi8(v);
 }
-
-#ifdef __AVX2__
-
-#include <immintrin.h>
-typedef __m256i ZSTD_Vec256;
-
-static ZSTD_Vec256 ZSTD_Vec256_read(void const* ptr) {
-  return _mm256_loadu_si256((ZSTD_Vec256 const*)ptr);
-}
-
-static ZSTD_Vec256 ZSTD_Vec256_set8(BYTE val) {
-  return _mm256_set1_epi8((char)val);
-}
-
-static ZSTD_Vec256 ZSTD_Vec256_cmp8(ZSTD_Vec256 x, ZSTD_Vec256 y) {
-  return _mm256_cmpeq_epi8(x, y);
-}
-
-static ZSTD_VecMask ZSTD_Vec256_mask8(ZSTD_Vec256 v) {
-  return (ZSTD_VecMask)_mm256_movemask_epi8(v);
-}
-
-#else
 
 typedef struct {
   __m128i fst;
@@ -675,7 +660,104 @@ static ZSTD_VecMask ZSTD_Vec256_mask8(ZSTD_Vec256 v) {
   return ZSTD_Vec128_mask8(v.fst) | (ZSTD_Vec128_mask8(v.snd) << 16);
 }
 
-#endif
+#else
+
+/* Scalar versions of the SIMD row-hash code */
+
+#define VEC128_NUM_SIZE_T 16 / sizeof(size_t)
+typedef size_t ZSTD_Vec128[VEC128_NUM_SIZE_T];
+
+static void ZSTD_Vec128_scalarRead(size_t const* src, ZSTD_Vec128 dst) {
+  ZSTD_memcpy(dst, src, VEC128_NUM_SIZE_T*sizeof(size_t));
+}
+
+static void ZSTD_Vec128_scalarSet(size_t val, ZSTD_Vec128 dst) {
+  int startBit = sizeof(size_t) * 8 - 8;
+  for (;startBit >= 0; startBit -= 8) {
+      unsigned j = 0;
+      for (;j < VEC128_NUM_SIZE_T; ++j) {
+          dst[j] |= (val << startBit);
+      }
+  }
+}
+
+/* Compare x to y, byte by byte, generating a "matches" bitfield */
+static ZSTD_VecMask ZSTD_Vec128_scalarCmp(ZSTD_Vec128 x, ZSTD_Vec128 y) {
+    ZSTD_VecMask res = 0;
+    unsigned i = 0;
+    unsigned l = 0;
+    for (; i < VEC128_NUM_SIZE_T; ++i) {
+        const size_t cmp1 = x[i];
+        const size_t cmp2 = y[i];
+        unsigned j = 0;
+        for (; j < sizeof(size_t); ++j, ++l) {
+            if (((cmp1 >> j*8) & 0xFF) == ((cmp2 >> j*8) & 0xFF)) {
+                res |= (1 << (j+i*sizeof(size_t)));
+            }
+        }
+    }
+    return res;
+}
+
+#define VEC256_NUM_SIZE_T 2*VEC128_NUM_SIZE_T
+typedef size_t ZSTD_Vec256[VEC256_NUM_SIZE_T];
+
+static void ZSTD_Vec256_scalarRead(size_t const* src, ZSTD_Vec256 dst) {
+  ZSTD_memcpy(dst, src, VEC256_NUM_SIZE_T*sizeof(size_t));
+}
+
+static void ZSTD_Vec256_scalarSet(size_t val, ZSTD_Vec256 dst) {
+  int startBit = sizeof(size_t) * 8 - 8;
+  for (;startBit >= 0; startBit -= 8) {
+      unsigned j = 0;
+      for (;j < VEC256_NUM_SIZE_T; ++j) {
+          dst[j] |= (val << startBit);
+      }
+  }
+}
+
+/* Compare x to y, byte by byte, generating a "matches" bitfield */
+static ZSTD_VecMask ZSTD_Vec256_scalarCmp(ZSTD_Vec256 x, ZSTD_Vec256 y) {
+    ZSTD_VecMask res = 0;
+    unsigned i = 0;
+    unsigned l = 0;
+    for (; i < VEC256_NUM_SIZE_T; ++i) {
+        const size_t cmp1 = x[i];
+        const size_t cmp2 = y[i];
+        unsigned j = 0;
+        for (; j < sizeof(size_t); ++j, ++l) {
+            if (((cmp1 >> j*8) & 0xFF) == ((cmp2 >> j*8) & 0xFF)) {
+                res |= (1 << (j+i*sizeof(size_t)));
+            }
+        }
+    }
+    return res;
+}
+
+#endif /* __SSE2__ */
+/*
+#ifdef __AVX2__
+
+#include <immintrin.h>
+typedef __m256i ZSTD_Vec256;
+
+static ZSTD_Vec256 ZSTD_Vec256_read(void const* ptr) {
+  return _mm256_loadu_si256((ZSTD_Vec256 const*)ptr);
+}
+
+static ZSTD_Vec256 ZSTD_Vec256_set8(BYTE val) {
+  return _mm256_set1_epi8((char)val);
+}
+
+static ZSTD_Vec256 ZSTD_Vec256_cmp8(ZSTD_Vec256 x, ZSTD_Vec256 y) {
+  return _mm256_cmpeq_epi8(x, y);
+}
+
+static ZSTD_VecMask ZSTD_Vec256_mask8(ZSTD_Vec256 v) {
+  return (ZSTD_VecMask)_mm256_movemask_epi8(v);
+}
+
+#else*/
 
 /* ZSTD_VecMask_next():
  * Starting from the LSB, returns the idx of the next non-zero bit
@@ -790,7 +872,7 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_update_internal(ZSTD_matchState_t* ms, const
         BYTE* tagRow = (BYTE*)(tagTable + relRow);
         U32 const pos = ZSTD_row_nextIndex(tagRow, rowMask);
 
-        assert(hash == ZSTD_hashPtr(base + idx, hashLog + kShortBits, mls));
+        //assert(hash == ZSTD_hashPtr(base + idx, hashLog + kShortBits, mls));
 
         ((BYTE*)tagRow)[pos + kHashOffset] = hash & kShortMask;
         row[pos] = idx;
@@ -878,6 +960,7 @@ size_t ZSTD_RowFindBestMatch_generic (
 
         /* Generate a "matches" bitfield. The nth bit == 1 if the newly-computed "tag" matches the hash at the nth
            position in a row of the tagTable */
+#ifdef __SSE2__
         if (rowEntries == 16) {
             ZSTD_Vec128 hashes = ZSTD_Vec128_read(tagRow + kHashOffset);
             ZSTD_Vec128 hash1  = ZSTD_Vec128_set8(tag);
@@ -891,6 +974,21 @@ size_t ZSTD_RowFindBestMatch_generic (
         } else {
             assert(0);
         }
+#else
+        if (rowEntries == 16) {
+            ZSTD_Vec128 hashes = {0};
+            ZSTD_Vec128 vec = {0};
+            ZSTD_Vec128_scalarRead((size_t*)(tagRow + kHashOffset), hashes);
+            ZSTD_Vec128_scalarSet(tag, vec);
+            matches  = ZSTD_Vec128_scalarCmp(hashes, vec);
+        } else if (rowEntries == 32) {
+            ZSTD_Vec256 hashes = {0};
+            ZSTD_Vec256 vec = {0};
+            ZSTD_Vec256_scalarRead((size_t*)(tagRow + kHashOffset), hashes);
+            ZSTD_Vec256_scalarSet(tag, vec);
+            matches  = ZSTD_Vec256_scalarCmp(hashes, vec);
+        }
+#endif /* __SSE2__ */
 
         /* Each row is a circular buffer beginning at the value of "head". So we must rotate the "matches" bitfield
            to match up with the actual layout of the entries within the hashTable */

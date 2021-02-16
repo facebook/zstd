@@ -1323,7 +1323,7 @@ ZSTD_sizeof_matchState(const ZSTD_compressionParameters* const cParams,
       + ZSTD_cwksp_alloc_size((ZSTD_OPT_NUM+1) * sizeof(ZSTD_match_t))
       + ZSTD_cwksp_alloc_size((ZSTD_OPT_NUM+1) * sizeof(ZSTD_optimal_t));
     size_t const lazyAdditionalSpace = STRATEGY_USES_ROW_BASED_MATCHFINDER(cParams->strategy)
-                                ? 64 + (hSize*sizeof(U16)) /* tagTable space */
+                                ? ZSTD_cwksp_alloc_size(hSize*sizeof(U16) + ZSTD_CWKSP_ALIGN_TABLES_BYTES)
                                 : 0;
     size_t const optSpace = (forCCtx && (cParams->strategy >= ZSTD_btopt))
                                 ? optPotentialSpace
@@ -1363,7 +1363,8 @@ static size_t ZSTD_estimateCCtxSize_usingCCtxParams_internal(
 
     size_t const cctxSpace = isStatic ? ZSTD_cwksp_alloc_size(sizeof(ZSTD_CCtx)) : 0;
 
-    size_t const alignSpace = ZSTD_CWKSP_ALIGN_TABLES_BYTES;
+    size_t const alignSpace = ZSTD_cwksp_alloc_size(ZSTD_CWKSP_ALIGN_TABLES_BYTES/2)
+                            + ZSTD_cwksp_alloc_size(ZSTD_CWKSP_ALIGN_TABLES_BYTES/2);
 
     size_t const neededSpace =
         cctxSpace +
@@ -1621,7 +1622,7 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
 
     if (STRATEGY_USES_ROW_BASED_MATCHFINDER(cParams->strategy)) {
         size_t const tagTableSize = hSize*sizeof(U16);
-        ms->tagTable = (U16*)ZSTD_cwksp_reserve_aligned(ws, tagTableSize + 64);
+        ms->tagTable = (U16*)ZSTD_cwksp_reserve_aligned(ws, tagTableSize + ZSTD_CWKSP_ALIGN_TABLES_BYTES);
         ms->tagTable = (U16*)ALIGN_TO_64_BYTES(ms->tagTable);
         ZSTD_memset(ms->tagTable, 0, tagTableSize); /* TODO: Try to optimize this out */
     }
@@ -1810,7 +1811,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
              * so that we always reserve an extra 64 bytes for alignment. This allows the CCtx size estimation to remain accurate.
              */
             size_t const extraBytes = ZSTD_CWKSP_ALIGN_TABLES_BYTES - zc->alignmentBytes;
-            BYTE* dummyObjForEstimation = (BYTE*)ZSTD_cwksp_reserve_aligned(ws, MIN(ZSTD_cwksp_available_space(ws), extraBytes)*sizeof(BYTE));
+            BYTE* dummyObjForEstimation = (BYTE*)ZSTD_cwksp_reserve_aligned(ws, extraBytes);
             RETURN_ERROR_IF(dummyObjForEstimation == NULL, memory_allocation, "Failed to allocate dummy aligned buffer");
         }
 

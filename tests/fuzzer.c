@@ -675,6 +675,41 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    {
+        ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        ZSTD_CDict* const cdict = ZSTD_createCDict(CNBuffer, 100, 1);
+        ZSTD_parameters const params = ZSTD_getParams(1, 0, 0);
+        CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_format, ZSTD_f_zstd1_magicless) );
+
+        DISPLAYLEVEL(3, "test%3i : ZSTD_compressCCtx() doesn't use advanced parameters", testNb++);
+        CHECK_Z(ZSTD_compressCCtx(cctx, compressedBuffer, compressedBufferSize, NULL, 0, 1));
+        if (MEM_readLE32(compressedBuffer) != ZSTD_MAGICNUMBER) goto _output_error;
+        DISPLAYLEVEL(3, "OK \n");
+
+        DISPLAYLEVEL(3, "test%3i : ZSTD_compress_usingDict() doesn't use advanced parameters: ", testNb++);
+        CHECK_Z(ZSTD_compress_usingDict(cctx, compressedBuffer, compressedBufferSize, NULL, 0, NULL, 0, 1));
+        if (MEM_readLE32(compressedBuffer) != ZSTD_MAGICNUMBER) goto _output_error;
+        DISPLAYLEVEL(3, "OK \n");
+
+        DISPLAYLEVEL(3, "test%3i : ZSTD_compress_usingCDict() doesn't use advanced parameters: ", testNb++);
+        CHECK_Z(ZSTD_compress_usingCDict(cctx, compressedBuffer, compressedBufferSize, NULL, 0, cdict));
+        if (MEM_readLE32(compressedBuffer) != ZSTD_MAGICNUMBER) goto _output_error;
+        DISPLAYLEVEL(3, "OK \n");
+
+        DISPLAYLEVEL(3, "test%3i : ZSTD_compress_advanced() doesn't use advanced parameters: ", testNb++);
+        CHECK_Z(ZSTD_compress_advanced(cctx, compressedBuffer, compressedBufferSize, NULL, 0, NULL, 0, params));
+        if (MEM_readLE32(compressedBuffer) != ZSTD_MAGICNUMBER) goto _output_error;
+        DISPLAYLEVEL(3, "OK \n");
+
+        DISPLAYLEVEL(3, "test%3i : ZSTD_compress_usingCDict_advanced() doesn't use advanced parameters: ", testNb++);
+        CHECK_Z(ZSTD_compress_usingCDict_advanced(cctx, compressedBuffer, compressedBufferSize, NULL, 0, cdict, params.fParams));
+        if (MEM_readLE32(compressedBuffer) != ZSTD_MAGICNUMBER) goto _output_error;
+        DISPLAYLEVEL(3, "OK \n");
+
+        ZSTD_freeCDict(cdict);
+        ZSTD_freeCCtx(cctx);
+    }
+
     DISPLAYLEVEL(3, "test%3i : ldm fill dict out-of-bounds check", testNb++);
     {
         ZSTD_CCtx* const cctx = ZSTD_createCCtx();

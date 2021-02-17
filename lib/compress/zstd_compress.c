@@ -3212,11 +3212,13 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
         case ZSTD_lazy:
         case ZSTD_lazy2:
             if (chunk >= HASH_READ_SIZE && ms->dedicatedDictSearch) {
-                assert(chunk == remaining); /* must load everything in one go */
-                ZSTD_dedicatedDictSearch_lazy_loadDictionary(ms, ichunk-HASH_READ_SIZE);
-            } else if (chunk >= HASH_READ_SIZE) {
-                ZSTD_memset(ms->tagTable, 0, (1u << params->cParams.hashLog) * sizeof(U16));
-                ZSTD_row_update(ms, ichunk-HASH_READ_SIZE);
+                if (ms->dedicatedDictSearch) {
+                    assert(chunk == remaining); /* must load everything in one go */
+                    ZSTD_dedicatedDictSearch_lazy_loadDictionary(ms, ichunk-HASH_READ_SIZE);
+                } else {
+                    ZSTD_memset(ms->tagTable, 0, (1u << params->cParams.hashLog) * sizeof(U16));
+                    ZSTD_row_update(ms, ichunk-HASH_READ_SIZE);
+                }
             }
             break;
 

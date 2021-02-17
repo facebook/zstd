@@ -71,9 +71,9 @@ DEBUGFLAGS= -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
 CFLAGS   += $(DEBUGFLAGS) $(MOREFLAGS)
 FLAGS     = $(CPPFLAGS) $(CFLAGS)
 
-CPPFLAGS_DYNLIB  = -DZSTD_MULTITHREAD # dynamic library build defaults to multi-threaded
-LDFLAGS_DYNLIB   = -pthread
-CPPFLAGS_STATLIB =                    # static library build defaults to single-threaded
+CPPFLAGS_DYNLIB  += -DZSTD_MULTITHREAD # dynamic library build defaults to multi-threaded
+LDFLAGS_DYNLIB   += -pthread
+CPPFLAGS_STATLIB +=                    # static library build defaults to single-threaded
 
 HAVE_COLORNEVER = $(shell echo a | grep --color=never a > /dev/null 2> /dev/null && echo 1 || echo 0)
 GREP_OPTIONS ?=

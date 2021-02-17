@@ -3211,7 +3211,7 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
         case ZSTD_greedy:
         case ZSTD_lazy:
         case ZSTD_lazy2:
-            if (chunk >= HASH_READ_SIZE && ms->dedicatedDictSearch) {
+            if (chunk >= HASH_READ_SIZE) {
                 if (ms->dedicatedDictSearch) {
                     assert(chunk == remaining); /* must load everything in one go */
                     ZSTD_dedicatedDictSearch_lazy_loadDictionary(ms, ichunk-HASH_READ_SIZE);

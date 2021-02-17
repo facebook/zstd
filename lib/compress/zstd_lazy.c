@@ -1343,9 +1343,11 @@ ZSTD_compressBlock_lazy_generic(
         assert(offset_2 <= dictAndPrefixLength);
     }
 
-    ZSTD_row_fillHashCache(ms, base, rowLog,
-                           MIN(ms->cParams.minMatch, 6 /* mls caps out at 6 */),
-                           shouldPrefetch, ms->nextToUpdate);
+    if (searchMethod != search_binaryTree) {
+        ZSTD_row_fillHashCache(ms, base, rowLog,
+                            MIN(ms->cParams.minMatch, 6 /* mls caps out at 6 */),
+                            shouldPrefetch, ms->nextToUpdate);
+    }
 
     /* Match Loop */
 #if defined(__GNUC__) && defined(__x86_64__)
@@ -1646,7 +1648,11 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
 
     /* init */
     ip += (ip == prefixStart);
-    ZSTD_row_fillHashCache(ms, base, rowLog, MIN(ms->cParams.minMatch, 6 /* mls caps out at 6 */), shouldPrefetch, ms->nextToUpdate);
+    if (searchMethod != search_binaryTree) {
+        ZSTD_row_fillHashCache(ms, base, rowLog,
+                               MIN(ms->cParams.minMatch, 6 /* mls caps out at 6 */),
+                               shouldPrefetch, ms->nextToUpdate);
+    }
 
     /* Match Loop */
 #if defined(__GNUC__) && defined(__x86_64__)

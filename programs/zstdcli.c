@@ -191,6 +191,7 @@ static void usage_advanced(const char* programName)
 #endif /* ZSTD_NOCOMPRESS */
 
 #ifndef ZSTD_NOTRACE
+    DISPLAYOUT( "\n");
     DISPLAYOUT( "--trace FILE : log tracing information to FILE.");
 #endif
     DISPLAYOUT( "\n");

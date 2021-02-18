@@ -793,12 +793,13 @@ FORCE_INLINE_TEMPLATE void ZSTD_tagRow_prefetch(U16 const* tagTable, U32 const r
 /* ZSTD_row_fillHashCache():
  * Fill up the hash cache starting at idx, prefetching kPrefetchNb entries.
  */
-static void ZSTD_row_fillHashCache(ZSTD_matchState_t* ms, const BYTE* base, U32 const rowLog, U32 const mls, U32 const shouldPrefetch, U32 idx)
+static void ZSTD_row_fillHashCache(ZSTD_matchState_t* ms, const BYTE* base, U32 const rowLog, U32 const mls, U32 const shouldPrefetch, U32 idx, const BYTE* const iend)
 {
     U32 const* const hashTable = ms->hashTable;
     U16 const* const tagTable = ms->tagTable;
     U32 const hashLog = ms->nbRows;
-    U32 const lim = idx + kPrefetchNb;
+    U32 const maxElemsToPrefetch = (base + idx) >= iend ? 0 : iend - (base + idx);
+    U32 const lim = idx + MIN(kPrefetchNb, maxElemsToPrefetch);
 
     for (; idx < lim; ++idx) {
         U32 const hashS = (U32)ZSTD_hashPtr(base + idx, hashLog + kShortBits, mls);
@@ -1351,7 +1352,7 @@ ZSTD_compressBlock_lazy_generic(
     if (searchMethod != search_binaryTree) {
         ZSTD_row_fillHashCache(ms, base, rowLog,
                             MIN(ms->cParams.minMatch, 6 /* mls caps out at 6 */),
-                            shouldPrefetch, ms->nextToUpdate);
+                            shouldPrefetch, ms->nextToUpdate, ilimit);
     }
 
     /* Match Loop */
@@ -1656,7 +1657,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
     if (searchMethod != search_binaryTree) {
         ZSTD_row_fillHashCache(ms, base, rowLog,
                                MIN(ms->cParams.minMatch, 6 /* mls caps out at 6 */),
-                               shouldPrefetch, ms->nextToUpdate);
+                               shouldPrefetch, ms->nextToUpdate, ilimit);
     }
 
     /* Match Loop */

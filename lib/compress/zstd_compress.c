@@ -1731,7 +1731,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                     BYTE* dummyObjForAlignment = (BYTE*)ZSTD_cwksp_reserve_object(ws, bytesToAlignTables);
                     DEBUGLOG(5, "Reserving additional %zu bytes object to align hashTable", bytesToAlignTables);
                     RETURN_ERROR_IF(dummyObjForAlignment == NULL, memory_allocation, "couldn't allocate dummy object for 64-byte alignment");
-                    zc->alignmentBytes = bytesToAlignTables;
+                    zc->alignmentBytes = (U32)bytesToAlignTables;
                 }
         }   }
 

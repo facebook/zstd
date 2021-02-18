@@ -766,7 +766,7 @@ ZSTD_VecMask_rotateRight(ZSTD_VecMask mask, U32 const rotation, U32 const totalB
  */
 FORCE_INLINE_TEMPLATE U32 ZSTD_row_nextIndex(BYTE* const row, U32 const rowMask) {
   U32 const next = (*row - 1) & rowMask;
-  *row = next;
+  *row = (BYTE)next;
   return next;
 }
 
@@ -801,7 +801,7 @@ static void ZSTD_row_fillHashCache(ZSTD_matchState_t* ms, const BYTE* base, U32 
     U32 const lim = idx + kPrefetchNb;
 
     for (; idx < lim; ++idx) {
-        U32 const hashS = ZSTD_hashPtr(base + idx, hashLog + kShortBits, mls);
+        U32 const hashS = (U32)ZSTD_hashPtr(base + idx, hashLog + kShortBits, mls);
         if (shouldPrefetch) {
             U32 const row = (hashS >> kShortBits) << rowLog;
             ZSTD_row_prefetch(hashTable, row, rowLog);
@@ -821,7 +821,7 @@ static void ZSTD_row_fillHashCache(ZSTD_matchState_t* ms, const BYTE* base, U32 
  */
 FORCE_INLINE_TEMPLATE U32 ZSTD_row_nextCachedHash(U32* cache, U32 const* hashTable, U16 const* tagTable, BYTE const* base, U32 idx, U32 const hashLog, U32 const rowLog, U32 const mls, U32 const shouldPrefetch)
 {
-    U32 const newHashS = ZSTD_hashPtr(base+idx+kPrefetchNb, hashLog + kShortBits, mls);
+    U32 const newHashS = (U32)ZSTD_hashPtr(base+idx+kPrefetchNb, hashLog + kShortBits, mls);
     if (shouldPrefetch) {
         U32 const row = (newHashS >> kShortBits) << rowLog;
         ZSTD_row_prefetch(hashTable, row, rowLog);
@@ -946,12 +946,12 @@ size_t ZSTD_RowFindBestMatch_generic (
 #ifdef __SSE2__
         if (rowEntries == 16) {
             ZSTD_Vec128 hashes = ZSTD_Vec128_read(tagRow + kHashOffset);
-            ZSTD_Vec128 hash1  = ZSTD_Vec128_set8(tag);
+            ZSTD_Vec128 hash1  = ZSTD_Vec128_set8((BYTE)tag);
             ZSTD_Vec128 cmpeq  = ZSTD_Vec128_cmp8(hashes, hash1);
             matches            = ZSTD_Vec128_mask8(cmpeq);
         } else if (rowEntries == 32) {
             ZSTD_Vec256 hashes = ZSTD_Vec256_read(tagRow + kHashOffset);
-            ZSTD_Vec256 hash1  = ZSTD_Vec256_set8(tag);
+            ZSTD_Vec256 hash1  = ZSTD_Vec256_set8((BYTE)tag);
             ZSTD_Vec256 cmpeq  = ZSTD_Vec256_cmp8(hashes, hash1);
             matches            = ZSTD_Vec256_mask8(cmpeq);
         } else {
@@ -997,7 +997,7 @@ size_t ZSTD_RowFindBestMatch_generic (
            in ZSTD_row_update_internal() at the next search. */
         {
             U32 const pos = ZSTD_row_nextIndex(tagRow, rowMask);
-            tagRow[pos + kHashOffset] = tag;
+            tagRow[pos + kHashOffset] = (BYTE)tag;
             row[pos] = ms->nextToUpdate++;
         }
 

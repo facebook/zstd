@@ -1729,6 +1729,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                 {   /* Align the tables section to 64 bytes by reserving an extra dummy object of [0, 64) bytes */
                     U32 const bytesToAlignTables = ZSTD_cwksp_bytes_to_align_tables(ws);
                     BYTE* dummyObjForAlignment = (BYTE*)ZSTD_cwksp_reserve_object(ws, bytesToAlignTables);
+                    DEBUGLOG(5, "Reserving additional %u bytes object to align hashTable", bytesToAlignTables);
                     RETURN_ERROR_IF(dummyObjForAlignment == NULL, memory_allocation, "couldn't allocate dummy object for 64-byte alignment");
                     zc->alignmentBytes = bytesToAlignTables;
                 }
@@ -1813,6 +1814,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
              */
             size_t const extraBytes = ZSTD_CWKSP_ALIGN_TABLES_BYTES - zc->alignmentBytes;
             BYTE* dummyObjForEstimation = (BYTE*)ZSTD_cwksp_reserve_aligned(ws, extraBytes);
+            DEBUGLOG(5, "Reserving additional %u bytes objects to make alignment cost 64 bytes. Complement: %u", extraBytes, zc->alignmentBytes);
             RETURN_ERROR_IF(dummyObjForEstimation == NULL, memory_allocation, "Failed to allocate dummy aligned buffer");
         }
 
@@ -2888,6 +2890,7 @@ static void ZSTD_overflowCorrectIfNeeded(ZSTD_matchState_t* ms,
         ZSTD_STATIC_ASSERT(ZSTD_CHAINLOG_MAX <= 30);
         ZSTD_STATIC_ASSERT(ZSTD_WINDOWLOG_MAX_32 <= 30);
         ZSTD_STATIC_ASSERT(ZSTD_WINDOWLOG_MAX <= 31);
+        DEBUGLOG(4, "ZSTD_overflowCorrectIfNeeded(): Correcting for overflow!");
         ZSTD_cwksp_mark_tables_dirty(ws);
         ZSTD_reduceIndex(ms, params, correction);
         ZSTD_cwksp_mark_tables_clean(ws);
@@ -3175,7 +3178,6 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
     const BYTE* const iend = ip + srcSize;
 
     DEBUGLOG(4, "ZSTD_loadDictionaryContent()");
-
     ZSTD_window_update(&ms->window, src, srcSize);
     ms->loadedDictEnd = params->forceWindow ? 0 : (U32)(iend - ms->window.base);
 
@@ -3772,6 +3774,7 @@ static size_t ZSTD_initCDict_internal(
     /* (Maybe) load the dictionary
      * Skips loading the dictionary if it is < 8 bytes.
      */
+
     {   params.compressionLevel = ZSTD_CLEVEL_DEFAULT;
         params.fParams.contentSizeFlag = 1;
         {   size_t const dictID = ZSTD_compress_insertDictionary(

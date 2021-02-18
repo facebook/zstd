@@ -809,6 +809,10 @@ static void ZSTD_row_fillHashCache(ZSTD_matchState_t* ms, const BYTE* base, U32 
         }
         ms->hashCache[idx & kPrefetchMask] = hashS;
     }
+
+    DEBUGLOG(5, "ZSTD_row_fillHashCache(): [%u %u %u %u %u %u %u %u]", ms->hashCache[0], ms->hashCache[1],
+                                                     ms->hashCache[2], ms->hashCache[3], ms->hashCache[4],
+                                                     ms->hashCache[5], ms->hashCache[6], ms->hashCache[7]);
 }
 
 /* ZSTD_row_nextCachedHash():
@@ -833,7 +837,7 @@ FORCE_INLINE_TEMPLATE U32 ZSTD_row_nextCachedHash(U32* cache, U32 const* hashTab
  * Inserts the byte at ip into the appropriate position in the hash table.
  * Determines the relative row, and the position within the {16, 32} entry row to insert at.
  */
-FORCE_INLINE_TEMPLATE void ZSTD_row_update_internal(ZSTD_matchState_t* ms, const BYTE* ip, U32 const mls, U32 const rowLog, U32 const rowMask, U32 const shouldPrefetch)
+FORCE_INLINE_TEMPLATE void ZSTD_row_update_internal(ZSTD_matchState_t* ms, const BYTE* ip, U32 const mls, U32 const rowLog, U32 const rowMask, U32 const shouldPrefetch, U32 const useCache)
 {
     U32* const hashTable = ms->hashTable;
     U16* const tagTable = ms->tagTable;
@@ -844,7 +848,8 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_update_internal(ZSTD_matchState_t* ms, const
 
     DEBUGLOG(5, "ZSTD_row_update_internal(): nextToUpdate=%u, current=%u", idx, target);
     for (; idx < target; ++idx) {
-        U32 const hash = ZSTD_row_nextCachedHash(ms->hashCache, hashTable, tagTable, base, idx, hashLog, rowLog, mls, shouldPrefetch);
+        U32 const hash = useCache ? ZSTD_row_nextCachedHash(ms->hashCache, hashTable, tagTable, base, idx, hashLog, rowLog, mls, shouldPrefetch)
+                                  : ZSTD_hashPtr(base + idx, hashLog + kShortBits, mls);
         U32 const relRow = (hash >> kShortBits) << rowLog;
         U32* const row = hashTable + relRow;
         BYTE* tagRow = (BYTE*)(tagTable + relRow);
@@ -867,8 +872,8 @@ void ZSTD_row_update(ZSTD_matchState_t* const ms, const BYTE* ip) {
     const U32 rowMask = (1u << rowLog) - 1;
     const U32 mls = MIN(ms->cParams.minMatch, 6 /* mls caps out at 6 */);
     
-    ZSTD_row_fillHashCache(ms, ms->window.base, rowLog, mls, 0 /* don't prefetch dict tables */, ms->nextToUpdate);
-    ZSTD_row_update_internal(ms, ip, mls, rowLog, rowMask, 0 /* don't prefetch dict tables */);
+    DEBUGLOG(5, "ZSTD_row_update()");
+    ZSTD_row_update_internal(ms, ip, mls, rowLog, rowMask, 0 /* don't prefetch dict tables */, 0 /* dont use cache */);
 }
 
 /* The high-level approach of the SIMD row based match finder is as follows:
@@ -922,7 +927,7 @@ size_t ZSTD_RowFindBestMatch_generic (
     }
 
     /* Update the hashTable and tagTable up to (but not including) ip */
-    ZSTD_row_update_internal(ms, ip, mls, rowLog, rowMask, shouldPrefetch);
+    ZSTD_row_update_internal(ms, ip, mls, rowLog, rowMask, shouldPrefetch, 1);
     {
         /* Get the hash for ip, compute the appropriate row */
         U32 const hash = ZSTD_row_nextCachedHash(hashCache, hashTable, tagTable, base, curr, hashLog, rowLog, mls, shouldPrefetch);
@@ -1626,7 +1631,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
     const BYTE* ip = istart;
     const BYTE* anchor = istart;
     const BYTE* const iend = istart + srcSize;
-    const BYTE* const ilimit = iend - 8;
+    const BYTE* const ilimit = iend - 16;
     const BYTE* const base = ms->window.base;
     const U32 dictLimit = ms->window.dictLimit;
     const BYTE* const prefixStart = base + dictLimit;

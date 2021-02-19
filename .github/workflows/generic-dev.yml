@@ -81,7 +81,7 @@ jobs:
         make libc6install
         CFLAGS="-Werror -m32" make -j all32
         make clean
-        make -j uasan-test-zstd32
+        make -j uasan-test-zstd32 V=1
 
   clang-msan-testzstd:
     runs-on: ubuntu-latest

@@ -2109,7 +2109,7 @@ FIO_decompressZstdFrame(FIO_ctx_t* const fCtx, dRess_t* ress, FILE* finput,
         if (srcFileLength>20) srcFileName += srcFileLength-20;
     }
 
-    ZSTD_resetDStream(ress->dctx);
+    ZSTD_DCtx_reset(ress->dctx, ZSTD_reset_session_only);
 
     /* Header loading : ensures ZSTD_getFrameHeader() will succeed */
     {   size_t const toDecode = ZSTD_FRAMEHEADERSIZE_MAX;

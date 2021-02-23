@@ -190,21 +190,25 @@ jobs:
         tar -xf shellcheck-v0.7.1.linux.x86_64.tar.xz
         shellcheck-v0.7.1/shellcheck --shell=sh --severity=warning --exclude=SC2010 tests/playTests.sh
 
-  icc:
-    name: icc-check
-    runs-on: ubuntu-latest
-    steps:
-    - name: install icc
-      run: |
-        export DEBIAN_FRONTEND=noninteractive
-        sudo apt-get -qqq update
-        sudo apt-get install -y wget build-essential pkg-config cmake ca-certificates gnupg
-        sudo wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
-        sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
-        sudo add-apt-repository "deb https://apt.repos.intel.com/oneapi all main"
-        sudo apt-get update
-        sudo apt-get install -y intel-basekit intel-hpckit
-    - uses: actions/checkout@v2
-    - name: make check
-      run: |
-        make CC=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/icc check
+# For reference : icc tests
+# icc tests are currently failing on Github Actions, likely to issues during installation stage
+# To be fixed later
+#
+#  icc:
+#    name: icc-check
+#    runs-on: ubuntu-latest
+#    steps:
+#    - name: install icc
+#      run: |
+#        export DEBIAN_FRONTEND=noninteractive
+#        sudo apt-get -qqq update
+#        sudo apt-get install -y wget build-essential pkg-config cmake ca-certificates gnupg
+#        sudo wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
+#        sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
+#        sudo add-apt-repository "deb https://apt.repos.intel.com/oneapi all main"
+#        sudo apt-get update
+#        sudo apt-get install -y intel-basekit intel-hpckit
+#    - uses: actions/checkout@v2
+#    - name: make check
+#      run: |
+#        make CC=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/icc check

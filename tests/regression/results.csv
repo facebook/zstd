@@ -111,9 +111,9 @@ silesia,                            level 9,                            zstdcli,
 silesia,                            level 13,                           zstdcli,                            4482183
 silesia,                            level 16,                           zstdcli,                            4377513
 silesia,                            level 19,                           zstdcli,                            4293378
-silesia,                            long distance mode,                 zstdcli,                            4839756
+silesia,                            long distance mode,                 zstdcli,                            4840792
 silesia,                            multithreaded,                      zstdcli,                            4849600
-silesia,                            multithreaded long distance mode,   zstdcli,                            4839756
+silesia,                            multithreaded long distance mode,   zstdcli,                            4840792
 silesia,                            small window log,                   zstdcli,                            7111012
 silesia,                            small hash log,                     zstdcli,                            6555069
 silesia,                            small chain log,                    zstdcli,                            4931196
@@ -137,9 +137,9 @@ silesia.tar,                        level 13,                           zstdcli,
 silesia.tar,                        level 16,                           zstdcli,                            4381336
 silesia.tar,                        level 19,                           zstdcli,                            4281609
 silesia.tar,                        no source size,                     zstdcli,                            4861508
-silesia.tar,                        long distance mode,                 zstdcli,                            4853190
+silesia.tar,                        long distance mode,                 zstdcli,                            4853153
 silesia.tar,                        multithreaded,                      zstdcli,                            4861512
-silesia.tar,                        multithreaded long distance mode,   zstdcli,                            4853190
+silesia.tar,                        multithreaded long distance mode,   zstdcli,                            4853153
 silesia.tar,                        small window log,                   zstdcli,                            7101576
 silesia.tar,                        small hash log,                     zstdcli,                            6587959
 silesia.tar,                        small chain log,                    zstdcli,                            4943310
@@ -217,9 +217,9 @@ github.tar,                         level 19,                           zstdcli,
 github.tar,                         level 19 with dict,                 zstdcli,                            32899
 github.tar,                         no source size,                     zstdcli,                            38442
 github.tar,                         no source size with dict,           zstdcli,                            38004
-github.tar,                         long distance mode,                 zstdcli,                            39680
+github.tar,                         long distance mode,                 zstdcli,                            39726
 github.tar,                         multithreaded,                      zstdcli,                            38445
-github.tar,                         multithreaded long distance mode,   zstdcli,                            39680
+github.tar,                         multithreaded long distance mode,   zstdcli,                            39726
 github.tar,                         small window log,                   zstdcli,                            199432
 github.tar,                         small hash log,                     zstdcli,                            129874
 github.tar,                         small chain log,                    zstdcli,                            41673

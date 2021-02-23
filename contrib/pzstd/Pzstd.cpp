@@ -274,7 +274,7 @@ static void compress(
     return;
   }
   {
-    auto err = ZSTD_resetCStream(ctx.get(), 0);
+    auto err = ZSTD_CCtx_reset(ctx.get(), ZSTD_reset_session_only);
     if (!errorHolder.check(!ZSTD_isError(err), ZSTD_getErrorName(err))) {
       return;
     }
@@ -432,7 +432,7 @@ static void decompress(
     return;
   }
   {
-    auto err = ZSTD_resetDStream(ctx.get());
+    auto err = ZSTD_DCtx_reset(ctx.get(), ZSTD_reset_session_only);
     if (!errorHolder.check(!ZSTD_isError(err), ZSTD_getErrorName(err))) {
       return;
     }

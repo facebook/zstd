@@ -223,7 +223,7 @@ size_t ZSTD_seekable_endFrame(ZSTD_seekable_CStream* zcs, ZSTD_outBuffer* output
     zcs->frameCSize = 0;
     zcs->frameDSize = 0;
 
-    ZSTD_resetCStream(zcs->cstream, 0);
+    ZSTD_CCtx_reset(zcs->cstream, ZSTD_reset_session_only);
     if (zcs->framelog.checksumFlag)
         XXH64_reset(&zcs->xxhState, 0);
 

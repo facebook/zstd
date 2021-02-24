@@ -82,9 +82,9 @@ typedef struct {
     ZSTD_fseCTables_t fse;
 } ZSTD_entropyCTables_t;
 
-/*-*************************************
-*  Entropy buffer statistics structs
-***************************************/
+/***********************************************
+*  Entropy buffer statistics structs and funcs *
+***********************************************/
 /** ZSTD_hufCTablesMetadata_t :
  *  Stores Literals Block Type for a super-block in hType, and
  *  huffman tree description in hufDesBuffer.
@@ -116,7 +116,7 @@ typedef struct {
 } ZSTD_entropyCTablesMetadata_t;
 
 /** ZSTD_buildBlockEntropyStats() :
- *  Builds entropy for the super-block.
+ *  Builds entropy for the block.
  *  @return : 0 on success or error code */
 size_t ZSTD_buildBlockEntropyStats(seqStore_t* seqStorePtr,
                              const ZSTD_entropyCTables_t* prevEntropy,
@@ -125,18 +125,9 @@ size_t ZSTD_buildBlockEntropyStats(seqStore_t* seqStorePtr,
                                    ZSTD_entropyCTablesMetadata_t* entropyMetadata,
                                    void* workspace, size_t wkspSize);
 
-/** ZSTD_estimateSubBlockSize() :
- *  Estimates the size that the block will be, based on literals and sequences.
- *  @return : estimated size or error code */
-size_t ZSTD_estimateSubBlockSize(const BYTE* literals, size_t litSize,
-                                 const BYTE* ofCodeTable,
-                                 const BYTE* llCodeTable,
-                                 const BYTE* mlCodeTable,
-                                 size_t nbSeq,
-                                 const ZSTD_entropyCTables_t* entropy,
-                                 const ZSTD_entropyCTablesMetadata_t* entropyMetadata,
-                                 void* workspace, size_t wkspSize,
-                                 int writeLitEntropy, int writeSeqEntropy);
+/*********************************
+*  Compression internals structs *
+*********************************/
 
 typedef struct {
     U32 off;            /* Offset code (offset + ZSTD_REP_MOVE) for the match */

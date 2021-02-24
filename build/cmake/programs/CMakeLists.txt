@@ -7,7 +7,7 @@
 # in the COPYING file in the root directory of this source tree).
 # ################################################################
 
-project(programs)
+project(programs C)
 
 set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 

@@ -104,6 +104,8 @@ ifeq ($(UNAME), Darwin)
   HASH ?= md5
 else ifeq ($(UNAME), FreeBSD)
   HASH ?= gmd5sum
+else ifeq ($(UNAME), NetBSD)
+  HASH ?= md5 -n
 else ifeq ($(UNAME), OpenBSD)
   HASH ?= md5
 endif

@@ -255,13 +255,16 @@ ZSTDLIB_API size_t ZSTD_decompressDCtx(ZSTD_DCtx* dctx,
 /* Compression strategies, listed from fastest to strongest */
 typedef enum { ZSTD_fast=1,
                ZSTD_dfast=2,
-               ZSTD_greedy=3,
-               ZSTD_lazy=4,
-               ZSTD_lazy2=5,
-               ZSTD_btlazy2=6,
-               ZSTD_btopt=7,
-               ZSTD_btultra=8,
-               ZSTD_btultra2=9
+               ZSTD_greedy_row=3,
+               ZSTD_lazy_row=4,
+               ZSTD_lazy2_row=5,
+               ZSTD_greedy=6,
+               ZSTD_lazy=7,
+               ZSTD_lazy2=8,
+               ZSTD_btlazy2=9,
+               ZSTD_btopt=10,
+               ZSTD_btultra=11,
+               ZSTD_btultra2=12
                /* note : new strategies _might_ be added in the future.
                          Only the order (from fast to strong) is guaranteed */
 } ZSTD_strategy;

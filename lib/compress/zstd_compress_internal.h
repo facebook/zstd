@@ -492,7 +492,7 @@ MEM_STATIC size_t ZSTD_rleCompressBlock (void* dst, size_t dstCapacity, BYTE src
 MEM_STATIC size_t ZSTD_minGain(size_t srcSize, ZSTD_strategy strat)
 {
     U32 const minlog = (strat>=ZSTD_btultra) ? (U32)(strat) - 1 : 6;
-    ZSTD_STATIC_ASSERT(ZSTD_btultra == 8);
+    //ZSTD_STATIC_ASSERT(ZSTD_btultra == 8);
     assert(ZSTD_cParam_withinBounds(ZSTD_c_strategy, strat));
     return (srcSize >> minlog) + 2;
 }

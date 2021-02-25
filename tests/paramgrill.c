@@ -86,10 +86,11 @@ static const int g_maxNbVariations = 64;
 #define PARAM_UNSET ((U32)-2) /* can't be -1 b/c fadt uses -1 */
 
 static const char* g_stratName[ZSTD_STRATEGY_MAX+1] = {
-                "(none)       ", "ZSTD_fast    ", "ZSTD_dfast   ",
-                "ZSTD_greedy  ", "ZSTD_lazy    ", "ZSTD_lazy2   ",
-                "ZSTD_btlazy2 ", "ZSTD_btopt   ", "ZSTD_btultra ",
-                "ZSTD_btultra2"};
+                "(none)         ", "ZSTD_fast      ", "ZSTD_dfast    ",
+                "ZSTD_greedy_row", "ZSTD_lazy_row  ", "ZSTD_lazy2_row",
+                "ZSTD_greedy    ", "ZSTD_lazy      ", "ZSTD_lazy2    ",
+                "ZSTD_btlazy2   ", "ZSTD_btopt     ", "ZSTD_btultra  ",
+                "ZSTD_btultra2  "};
 
 static const U32 tlen_table[TLEN_RANGE] = { 0, 1, 2, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128, 256, 512, 999 };
 

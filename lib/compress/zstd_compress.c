@@ -1874,6 +1874,9 @@ static const size_t attachDictSizeCutoffs[ZSTD_STRATEGY_MAX+1] = {
     8 KB,  /* unused */
     8 KB,  /* ZSTD_fast */
     16 KB, /* ZSTD_dfast */
+    32 KB, /* ZSTD_greedy_row */
+    32 KB, /* ZSTD_lazy_row */
+    32 KB, /* ZSTD_lazy2_row */
     32 KB, /* ZSTD_greedy */
     32 KB, /* ZSTD_lazy */
     32 KB, /* ZSTD_lazy2 */
@@ -2475,6 +2478,9 @@ ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMo
             { ZSTD_compressBlock_fast  /* default for 0 */,
             ZSTD_compressBlock_fast,
             ZSTD_compressBlock_doubleFast,
+            ZSTD_compressBlock_greedy_row,
+            ZSTD_compressBlock_lazy_row,
+            ZSTD_compressBlock_lazy2_row,
             ZSTD_compressBlock_greedy,
             ZSTD_compressBlock_lazy,
             ZSTD_compressBlock_lazy2,
@@ -2485,6 +2491,9 @@ ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMo
             { ZSTD_compressBlock_fast_extDict  /* default for 0 */,
             ZSTD_compressBlock_fast_extDict,
             ZSTD_compressBlock_doubleFast_extDict,
+            ZSTD_compressBlock_greedy_extDict_row,
+            ZSTD_compressBlock_lazy_extDict_row,
+            ZSTD_compressBlock_lazy2_extDict_row,
             ZSTD_compressBlock_greedy_extDict,
             ZSTD_compressBlock_lazy_extDict,
             ZSTD_compressBlock_lazy2_extDict,
@@ -2495,6 +2504,9 @@ ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMo
             { ZSTD_compressBlock_fast_dictMatchState  /* default for 0 */,
             ZSTD_compressBlock_fast_dictMatchState,
             ZSTD_compressBlock_doubleFast_dictMatchState,
+            ZSTD_compressBlock_greedy_dictMatchState_row,
+            ZSTD_compressBlock_lazy_dictMatchState_row,
+            ZSTD_compressBlock_lazy2_dictMatchState_row,
             ZSTD_compressBlock_greedy_dictMatchState,
             ZSTD_compressBlock_lazy_dictMatchState,
             ZSTD_compressBlock_lazy2_dictMatchState,
@@ -2505,6 +2517,9 @@ ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMo
             { NULL  /* default for 0 */,
             NULL,
             NULL,
+            ZSTD_compressBlock_greedy_dedicatedDictSearch_row,
+            ZSTD_compressBlock_lazy_dedicatedDictSearch_row,
+            ZSTD_compressBlock_lazy2_dedicatedDictSearch_row,
             ZSTD_compressBlock_greedy_dedicatedDictSearch,
             ZSTD_compressBlock_lazy_dedicatedDictSearch,
             ZSTD_compressBlock_lazy2_dedicatedDictSearch,
@@ -2520,6 +2535,9 @@ ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMo
             ZSTD_compressBlock_greedy_row,
             ZSTD_compressBlock_lazy_row,
             ZSTD_compressBlock_lazy2_row,
+            ZSTD_compressBlock_greedy,
+            ZSTD_compressBlock_lazy,
+            ZSTD_compressBlock_lazy2,
             ZSTD_compressBlock_btlazy2,
             ZSTD_compressBlock_btopt,
             ZSTD_compressBlock_btultra,
@@ -2530,6 +2548,9 @@ ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMo
             ZSTD_compressBlock_greedy_extDict_row,
             ZSTD_compressBlock_lazy_extDict_row,
             ZSTD_compressBlock_lazy2_extDict_row,
+            ZSTD_compressBlock_greedy_extDict,
+            ZSTD_compressBlock_lazy_extDict,
+            ZSTD_compressBlock_lazy2_extDict,
             ZSTD_compressBlock_btlazy2_extDict,
             ZSTD_compressBlock_btopt_extDict,
             ZSTD_compressBlock_btultra_extDict,
@@ -2540,6 +2561,9 @@ ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMo
             ZSTD_compressBlock_greedy_dictMatchState_row,
             ZSTD_compressBlock_lazy_dictMatchState_row,
             ZSTD_compressBlock_lazy2_dictMatchState_row,
+            ZSTD_compressBlock_greedy_dictMatchState,
+            ZSTD_compressBlock_lazy_dictMatchState,
+            ZSTD_compressBlock_lazy2_dictMatchState,
             ZSTD_compressBlock_btlazy2_dictMatchState,
             ZSTD_compressBlock_btopt_dictMatchState,
             ZSTD_compressBlock_btultra_dictMatchState,
@@ -2550,6 +2574,9 @@ ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMo
             ZSTD_compressBlock_greedy_dedicatedDictSearch_row,
             ZSTD_compressBlock_lazy_dedicatedDictSearch_row,
             ZSTD_compressBlock_lazy2_dedicatedDictSearch_row,
+            ZSTD_compressBlock_greedy_dedicatedDictSearch,
+            ZSTD_compressBlock_lazy_dedicatedDictSearch,
+            ZSTD_compressBlock_lazy2_dedicatedDictSearch,
             NULL,
             NULL,
             NULL,
@@ -3279,6 +3306,9 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
             ZSTD_fillDoubleHashTable(ms, ichunk, dtlm);
             break;
 
+        case ZSTD_greedy_row:
+        case ZSTD_lazy_row:
+        case ZSTD_lazy2_row:
         case ZSTD_greedy:
         case ZSTD_lazy:
         case ZSTD_lazy2:
@@ -4537,10 +4567,8 @@ static size_t ZSTD_checkBufferStability(ZSTD_CCtx const* cctx,
 static size_t ZSTD_CCtx_init_compressStream2(ZSTD_CCtx* cctx,
                                              ZSTD_EndDirective endOp,
                                              size_t inSize) {
-    cctx->requestedParams.useRowMatchfinder = 1;
     ZSTD_CCtx_params params = cctx->requestedParams;
     ZSTD_prefixDict const prefixDict = cctx->prefixDict;
-    DEBUGLOG(2, "useRow: %d", params.useRowMatchfinder);
     FORWARD_IF_ERROR( ZSTD_initLocalDict(cctx) , ""); /* Init the local dict if present. */
     ZSTD_memset(&cctx->prefixDict, 0, sizeof(cctx->prefixDict));   /* single usage */
     assert(prefixDict.dict==NULL || cctx->cdict==NULL);    /* only one can be set */
@@ -5210,10 +5238,10 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[2][4][ZSTD_MAX_C
         { 18, 16, 17,  2,  5,  2, ZSTD_greedy  },  /* level  4.*/
         { 18, 18, 18,  3,  5,  2, ZSTD_greedy  },  /* level  5.*/
         { 18, 18, 19,  3,  5,  4, ZSTD_lazy    },  /* level  6.*/
-        { 18, 18, 19+1,  4,  4,  4, ZSTD_lazy    },  /* level  7 */
-        { 18, 18, 19+2,  4,  4,  8, ZSTD_lazy2   },  /* level  8 */
-        { 18, 18, 19+3,  5,  4,  8, ZSTD_lazy2   },  /* level  9 */
-        { 18, 18, 19+4,  5,  4,  8, ZSTD_lazy2   },  /* level 10 */
+        { 18, 18, 19,  4,  4,  4, ZSTD_lazy    },  /* level  7 */
+        { 18, 18, 19,  4,  4,  8, ZSTD_lazy2   },  /* level  8 */
+        { 18, 18, 19,  5,  4,  8, ZSTD_lazy2   },  /* level  9 */
+        { 18, 18, 19,  6,  4,  8, ZSTD_lazy2   },  /* level 10 */
         { 18, 18, 19,  5,  4, 12, ZSTD_btlazy2 },  /* level 11.*/
         { 18, 19, 19,  7,  4, 12, ZSTD_btlazy2 },  /* level 12.*/
         { 18, 18, 19,  4,  4, 16, ZSTD_btopt   },  /* level 13 */
@@ -5234,12 +5262,12 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[2][4][ZSTD_MAX_C
         { 17, 13, 15,  1,  5,  0, ZSTD_fast    },  /* level  2 */
         { 17, 15, 16,  2,  5,  0, ZSTD_dfast   },  /* level  3 */
         { 17, 17, 17,  2,  4,  0, ZSTD_dfast   },  /* level  4 */
-        { 17, 16, 17+2,  3,  4,  2, ZSTD_greedy  },  /* level  5 */
-        { 17, 17, 17+2,  3,  4,  4, ZSTD_lazy    },  /* level  6 */
-        { 17, 17, 17+2,  3,  4,  8, ZSTD_lazy2   },  /* level  7 */
+        { 17, 16, 17,  3,  4,  2, ZSTD_greedy  },  /* level  5 */
+        { 17, 17, 17,  3,  4,  4, ZSTD_lazy    },  /* level  6 */
+        { 17, 17, 17,  3,  4,  8, ZSTD_lazy2   },  /* level  7 */
         { 17, 17, 17,  4,  4,  8, ZSTD_lazy2   },  /* level  8 */
         { 17, 17, 17,  5,  4,  8, ZSTD_lazy2   },  /* level  9 */
-        { 17, 17, 17,  6-1,  4,  8, ZSTD_lazy2   },  /* level 10 */
+        { 17, 17, 17,  6,  4,  8, ZSTD_lazy2   },  /* level 10 */
         { 17, 17, 17,  5,  4,  8, ZSTD_btlazy2 },  /* level 11 */
         { 17, 18, 17,  7,  4, 12, ZSTD_btlazy2 },  /* level 12 */
         { 17, 18, 17,  3,  4, 12, ZSTD_btopt   },  /* level 13.*/
@@ -5262,8 +5290,8 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[2][4][ZSTD_MAX_C
         { 14, 14, 14,  4,  4,  2, ZSTD_greedy  },  /* level  4 */
         { 14, 14, 14,  3,  4,  4, ZSTD_lazy    },  /* level  5.*/
         { 14, 14, 14,  4,  4,  8, ZSTD_lazy2   },  /* level  6 */
-        { 14, 14, 14,  6-1,  4,  8, ZSTD_lazy2   },  /* level  7 */
-        { 14, 14, 14,  8-3,  4,  8, ZSTD_lazy2   },  /* level  8.*/
+        { 14, 14, 14,  6,  4,  8, ZSTD_lazy2   },  /* level  7 */
+        { 14, 14, 14,  8,  4,  8, ZSTD_lazy2   },  /* level  8.*/
         { 14, 15, 14,  5,  4,  8, ZSTD_btlazy2 },  /* level  9.*/
         { 14, 15, 14,  9,  4,  8, ZSTD_btlazy2 },  /* level 10.*/
         { 14, 15, 14,  3,  4, 12, ZSTD_btopt   },  /* level 11.*/
@@ -5289,14 +5317,14 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[2][4][ZSTD_MAX_C
         { 20, 15, 16,  1,  6,  0, ZSTD_fast    },  /* level  2 */
         { 21, 16, 17,  1,  5,  0, ZSTD_dfast   },  /* level  3 */
         { 21, 18, 18,  1,  5,  0, ZSTD_dfast   },  /* level  4 */
-        { 21, 18, 19,  2,  5,  2, ZSTD_greedy  },  /* level  5 */
-        { 21, 19, 19,  3,  5,  4, ZSTD_greedy  },  /* level  6 */
-        { 21, 19, 19,  3,  5,  8, ZSTD_lazy    },  /* level  7 */
-        { 21, 19, 19,  3,  5, 16, ZSTD_lazy2   },  /* level  8 */
-        { 21, 19, 20,  4,  5, 16, ZSTD_lazy2   },  /* level  9 */
-        { 22, 20, 21,  4,  5, 16, ZSTD_lazy2   },  /* level 10 */
-        { 22, 21, 22,  4,  5, 16, ZSTD_lazy2   },  /* level 11 */
-        { 22, 21, 22,  5,  5, 16, ZSTD_lazy2   },  /* level 12 */
+        { 21, 10, 19,  2,  5,  2, ZSTD_greedy_row  },  /* level  5 */
+        { 21, 10, 19,  4,  5,  2, ZSTD_greedy_row  },  /* level  6 */
+        { 21, 10, 19,  3,  5,  8, ZSTD_lazy_row    },  /* level  7 */
+        { 21, 10, 19,  3,  5, 16, ZSTD_lazy2_row   },  /* level  8 */
+        { 21, 10, 20,  4,  5, 16, ZSTD_lazy2_row   },  /* level  9 */
+        { 22, 10, 21,  4,  5, 16, ZSTD_lazy2_row   },  /* level 10 */
+        { 22, 10, 22,  4,  5, 16, ZSTD_lazy2_row   },  /* level 11 */
+        { 22, 10, 22,  5,  5, 16, ZSTD_lazy2_row   },  /* level 12 */
         { 22, 21, 22,  5,  5, 32, ZSTD_btlazy2 },  /* level 13 */
         { 22, 22, 23,  5,  5, 32, ZSTD_btlazy2 },  /* level 14 */
         { 22, 23, 23,  6,  5, 32, ZSTD_btlazy2 },  /* level 15 */
@@ -5365,12 +5393,12 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[2][4][ZSTD_MAX_C
         { 14, 12, 13,  1,  5,  1, ZSTD_fast    },  /* base for negative levels */
         { 14, 14, 15,  1,  5,  0, ZSTD_fast    },  /* level  1 */
         { 14, 14, 15,  1,  4,  0, ZSTD_fast    },  /* level  2 */
-        { 14, 14, 15,  2,  4,  0, ZSTD_dfast   },  /* level  3 */
+        { 14, 14, 15,  2,  4,  2, ZSTD_greedy_row   },  /* level  3 */
         { 14, 14, 14,  4,  4,  2, ZSTD_greedy  },  /* level  4 */
-        { 14, 14, 14,  3,  4,  4, ZSTD_lazy    },  /* level  5.*/
-        { 14, 14, 14,  4,  4,  8, ZSTD_lazy2   },  /* level  6 */
-        { 14, 14, 14,  6-1,  4,  8, ZSTD_lazy2   },  /* level  7 */
-        { 14, 14, 14,  8-3,  4,  8, ZSTD_lazy2   },  /* level  8.*/
+        { 14, 14, 14,  3,  4,  4, ZSTD_lazy_row    },  /* level  5.*/
+        { 14, 14, 14,  4,  4,  8, ZSTD_lazy   },  /* level  6 */
+        { 14, 14, 14,  6-1,  4,  8, ZSTD_lazy2_row   },  /* level  7 */
+        { 14, 14, 14,  8,  4,  8, ZSTD_lazy2   },  /* level  8.*/
         { 14, 15, 14,  5,  4,  8, ZSTD_btlazy2 },  /* level  9.*/
         { 14, 15, 14,  9,  4,  8, ZSTD_btlazy2 },  /* level 10.*/
         { 14, 15, 14,  3,  4, 12, ZSTD_btopt   },  /* level 11.*/
@@ -5396,6 +5424,9 @@ static ZSTD_compressionParameters ZSTD_dedicatedDictSearch_getCParams(int const 
         case ZSTD_fast:
         case ZSTD_dfast:
             break;
+        case ZSTD_greedy_row:
+        case ZSTD_lazy_row:
+        case ZSTD_lazy2_row:
         case ZSTD_greedy:
         case ZSTD_lazy:
         case ZSTD_lazy2:
@@ -5427,6 +5458,9 @@ static void ZSTD_dedicatedDictSearch_revertCParams(
         case ZSTD_fast:
         case ZSTD_dfast:
             break;
+        case ZSTD_greedy_row:
+        case ZSTD_lazy_row:
+        case ZSTD_lazy2_row:
         case ZSTD_greedy:
         case ZSTD_lazy:
         case ZSTD_lazy2:

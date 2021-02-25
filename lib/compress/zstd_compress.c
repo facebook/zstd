@@ -486,6 +486,11 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
         bounds.upperBound = 1;
         return bounds;
 
+    case ZSTD_c_useRowMatchfinder:
+        bounds.lowerBound = 0;
+        bounds.upperBound = 1;
+        return bounds;
+
     default:
         bounds.error = ERROR(parameter_unsupported);
         return bounds;
@@ -552,6 +557,7 @@ static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
     case ZSTD_c_stableOutBuffer:
     case ZSTD_c_blockDelimiters:
     case ZSTD_c_validateSequences:
+    case ZSTD_c_useRowMatchfinder:
     default:
         return 0;
     }
@@ -604,6 +610,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value)
     case ZSTD_c_stableOutBuffer:
     case ZSTD_c_blockDelimiters:
     case ZSTD_c_validateSequences:
+    case ZSTD_c_useRowMatchfinder:
         break;
 
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
@@ -815,6 +822,11 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
         CCtxParams->validateSequences = value;
         return CCtxParams->validateSequences;
 
+    case ZSTD_c_useRowMatchfinder:
+        BOUNDCHECK(ZSTD_c_useRowMatchfinder, value);
+        CCtxParams->useRowMatchfinder = value;
+        return CCtxParams->useRowMatchfinder;
+
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
     }
 }
@@ -937,6 +949,9 @@ size_t ZSTD_CCtxParams_getParameter(
         break;
     case ZSTD_c_validateSequences :
         *value = (int)CCtxParams->validateSequences;
+        break;
+    case ZSTD_c_useRowMatchfinder :
+        *value = (int)CCtxParams->useRowMatchfinder;
         break;
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
     }
@@ -1271,7 +1286,7 @@ ZSTD_adjustCParams(ZSTD_compressionParameters cPar,
     return ZSTD_adjustCParams_internal(cPar, srcSize, dictSize, ZSTD_cpm_unknown);
 }
 
-static ZSTD_compressionParameters ZSTD_getCParams_internal(int compressionLevel, unsigned long long srcSizeHint, size_t dictSize, ZSTD_cParamMode_e mode);
+static ZSTD_compressionParameters ZSTD_getCParams_internal(int compressionLevel, unsigned long long srcSizeHint, size_t dictSize, ZSTD_cParamMode_e mode, int useRowMatchfinder);
 static ZSTD_parameters ZSTD_getParams_internal(int compressionLevel, unsigned long long srcSizeHint, size_t dictSize, ZSTD_cParamMode_e mode);
 
 static void ZSTD_overrideCParams(
@@ -1294,7 +1309,8 @@ ZSTD_compressionParameters ZSTD_getCParamsFromCCtxParams(
     if (srcSizeHint == ZSTD_CONTENTSIZE_UNKNOWN && CCtxParams->srcSizeHint > 0) {
       srcSizeHint = CCtxParams->srcSizeHint;
     }
-    cParams = ZSTD_getCParams_internal(CCtxParams->compressionLevel, srcSizeHint, dictSize, mode);
+    DEBUGLOG(2, "CCtxParams->useRowMatchfinder: %d", CCtxParams->useRowMatchfinder);
+    cParams = ZSTD_getCParams_internal(CCtxParams->compressionLevel, srcSizeHint, dictSize, mode, CCtxParams->useRowMatchfinder);
     if (CCtxParams->ldmParams.enableLdm) cParams.windowLog = ZSTD_LDM_DEFAULT_WINDOW_LOG;
     ZSTD_overrideCParams(&cParams, &CCtxParams->cParams);
     assert(!ZSTD_checkCParams(cParams));
@@ -1403,7 +1419,7 @@ size_t ZSTD_estimateCCtxSize_usingCParams(ZSTD_compressionParameters cParams)
 
 static size_t ZSTD_estimateCCtxSize_internal(int compressionLevel)
 {
-    ZSTD_compressionParameters const cParams = ZSTD_getCParams_internal(compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, 0, ZSTD_cpm_noAttachDict);
+    ZSTD_compressionParameters const cParams = ZSTD_getCParams_internal(compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, 0, ZSTD_cpm_noAttachDict, 0 /* useRowMatchfinder */);
     return ZSTD_estimateCCtxSize_usingCParams(cParams);
 }
 
@@ -1445,7 +1461,7 @@ size_t ZSTD_estimateCStreamSize_usingCParams(ZSTD_compressionParameters cParams)
 
 static size_t ZSTD_estimateCStreamSize_internal(int compressionLevel)
 {
-    ZSTD_compressionParameters const cParams = ZSTD_getCParams_internal(compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, 0, ZSTD_cpm_noAttachDict);
+    ZSTD_compressionParameters const cParams = ZSTD_getCParams_internal(compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, 0, ZSTD_cpm_noAttachDict, 0 /* useRowMatchfinder */);
     return ZSTD_estimateCStreamSize_usingCParams(cParams);
 }
 
@@ -2452,55 +2468,99 @@ ZSTD_entropyCompressSequences(seqStore_t* seqStorePtr,
 /* ZSTD_selectBlockCompressor() :
  * Not static, but internal use only (used by long distance matcher)
  * assumption : strat is a valid strategy */
-ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMode_e dictMode)
+ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMode_e dictMode, int useRowMatchfinder)
 {
-    static const ZSTD_blockCompressor blockCompressor[4][ZSTD_STRATEGY_MAX+1] = {
-        { ZSTD_compressBlock_fast  /* default for 0 */,
-          ZSTD_compressBlock_fast,
-          ZSTD_compressBlock_doubleFast,
-          ZSTD_compressBlock_greedy,
-          ZSTD_compressBlock_lazy,
-          ZSTD_compressBlock_lazy2,
-          ZSTD_compressBlock_btlazy2,
-          ZSTD_compressBlock_btopt,
-          ZSTD_compressBlock_btultra,
-          ZSTD_compressBlock_btultra2 },
-        { ZSTD_compressBlock_fast_extDict  /* default for 0 */,
-          ZSTD_compressBlock_fast_extDict,
-          ZSTD_compressBlock_doubleFast_extDict,
-          ZSTD_compressBlock_greedy_extDict,
-          ZSTD_compressBlock_lazy_extDict,
-          ZSTD_compressBlock_lazy2_extDict,
-          ZSTD_compressBlock_btlazy2_extDict,
-          ZSTD_compressBlock_btopt_extDict,
-          ZSTD_compressBlock_btultra_extDict,
-          ZSTD_compressBlock_btultra_extDict },
-        { ZSTD_compressBlock_fast_dictMatchState  /* default for 0 */,
-          ZSTD_compressBlock_fast_dictMatchState,
-          ZSTD_compressBlock_doubleFast_dictMatchState,
-          ZSTD_compressBlock_greedy_dictMatchState,
-          ZSTD_compressBlock_lazy_dictMatchState,
-          ZSTD_compressBlock_lazy2_dictMatchState,
-          ZSTD_compressBlock_btlazy2_dictMatchState,
-          ZSTD_compressBlock_btopt_dictMatchState,
-          ZSTD_compressBlock_btultra_dictMatchState,
-          ZSTD_compressBlock_btultra_dictMatchState },
-        { NULL  /* default for 0 */,
-          NULL,
-          NULL,
-          ZSTD_compressBlock_greedy_dedicatedDictSearch,
-          ZSTD_compressBlock_lazy_dedicatedDictSearch,
-          ZSTD_compressBlock_lazy2_dedicatedDictSearch,
-          NULL,
-          NULL,
-          NULL,
-          NULL }
+    static const ZSTD_blockCompressor blockCompressor[2][4][ZSTD_STRATEGY_MAX+1] = {
+        {
+            { ZSTD_compressBlock_fast  /* default for 0 */,
+            ZSTD_compressBlock_fast,
+            ZSTD_compressBlock_doubleFast,
+            ZSTD_compressBlock_greedy,
+            ZSTD_compressBlock_lazy,
+            ZSTD_compressBlock_lazy2,
+            ZSTD_compressBlock_btlazy2,
+            ZSTD_compressBlock_btopt,
+            ZSTD_compressBlock_btultra,
+            ZSTD_compressBlock_btultra2 },
+            { ZSTD_compressBlock_fast_extDict  /* default for 0 */,
+            ZSTD_compressBlock_fast_extDict,
+            ZSTD_compressBlock_doubleFast_extDict,
+            ZSTD_compressBlock_greedy_extDict,
+            ZSTD_compressBlock_lazy_extDict,
+            ZSTD_compressBlock_lazy2_extDict,
+            ZSTD_compressBlock_btlazy2_extDict,
+            ZSTD_compressBlock_btopt_extDict,
+            ZSTD_compressBlock_btultra_extDict,
+            ZSTD_compressBlock_btultra_extDict },
+            { ZSTD_compressBlock_fast_dictMatchState  /* default for 0 */,
+            ZSTD_compressBlock_fast_dictMatchState,
+            ZSTD_compressBlock_doubleFast_dictMatchState,
+            ZSTD_compressBlock_greedy_dictMatchState,
+            ZSTD_compressBlock_lazy_dictMatchState,
+            ZSTD_compressBlock_lazy2_dictMatchState,
+            ZSTD_compressBlock_btlazy2_dictMatchState,
+            ZSTD_compressBlock_btopt_dictMatchState,
+            ZSTD_compressBlock_btultra_dictMatchState,
+            ZSTD_compressBlock_btultra_dictMatchState },
+            { NULL  /* default for 0 */,
+            NULL,
+            NULL,
+            ZSTD_compressBlock_greedy_dedicatedDictSearch,
+            ZSTD_compressBlock_lazy_dedicatedDictSearch,
+            ZSTD_compressBlock_lazy2_dedicatedDictSearch,
+            NULL,
+            NULL,
+            NULL,
+            NULL }
+        },
+        {
+            { ZSTD_compressBlock_fast  /* default for 0 */,
+            ZSTD_compressBlock_fast,
+            ZSTD_compressBlock_doubleFast,
+            ZSTD_compressBlock_greedy_row,
+            ZSTD_compressBlock_lazy_row,
+            ZSTD_compressBlock_lazy2_row,
+            ZSTD_compressBlock_btlazy2,
+            ZSTD_compressBlock_btopt,
+            ZSTD_compressBlock_btultra,
+            ZSTD_compressBlock_btultra2 },
+            { ZSTD_compressBlock_fast_extDict  /* default for 0 */,
+            ZSTD_compressBlock_fast_extDict,
+            ZSTD_compressBlock_doubleFast_extDict,
+            ZSTD_compressBlock_greedy_extDict_row,
+            ZSTD_compressBlock_lazy_extDict_row,
+            ZSTD_compressBlock_lazy2_extDict_row,
+            ZSTD_compressBlock_btlazy2_extDict,
+            ZSTD_compressBlock_btopt_extDict,
+            ZSTD_compressBlock_btultra_extDict,
+            ZSTD_compressBlock_btultra_extDict },
+            { ZSTD_compressBlock_fast_dictMatchState  /* default for 0 */,
+            ZSTD_compressBlock_fast_dictMatchState,
+            ZSTD_compressBlock_doubleFast_dictMatchState,
+            ZSTD_compressBlock_greedy_dictMatchState_row,
+            ZSTD_compressBlock_lazy_dictMatchState_row,
+            ZSTD_compressBlock_lazy2_dictMatchState_row,
+            ZSTD_compressBlock_btlazy2_dictMatchState,
+            ZSTD_compressBlock_btopt_dictMatchState,
+            ZSTD_compressBlock_btultra_dictMatchState,
+            ZSTD_compressBlock_btultra_dictMatchState },
+            { NULL  /* default for 0 */,
+            NULL,
+            NULL,
+            ZSTD_compressBlock_greedy_dedicatedDictSearch_row,
+            ZSTD_compressBlock_lazy_dedicatedDictSearch_row,
+            ZSTD_compressBlock_lazy2_dedicatedDictSearch_row,
+            NULL,
+            NULL,
+            NULL,
+            NULL }
+        }
     };
     ZSTD_blockCompressor selectedCompressor;
     ZSTD_STATIC_ASSERT((unsigned)ZSTD_fast == 1);
 
     assert(ZSTD_cParam_withinBounds(ZSTD_c_strategy, strat));
-    selectedCompressor = blockCompressor[(int)dictMode][(int)strat];
+    selectedCompressor = blockCompressor[useRowMatchfinder][(int)dictMode][(int)strat];
     assert(selectedCompressor != NULL);
     return selectedCompressor;
 }
@@ -2569,7 +2629,7 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
                 ZSTD_ldm_blockCompress(&zc->externSeqStore,
                                        ms, &zc->seqStore,
                                        zc->blockState.nextCBlock->rep,
-                                       src, srcSize);
+                                       src, srcSize, zc->appliedParams.useRowMatchfinder);
             assert(zc->externSeqStore.pos <= zc->externSeqStore.size);
         } else if (zc->appliedParams.ldmParams.enableLdm) {
             rawSeqStore_t ldmSeqStore = kNullRawSeqStore;
@@ -2585,10 +2645,10 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
                 ZSTD_ldm_blockCompress(&ldmSeqStore,
                                        ms, &zc->seqStore,
                                        zc->blockState.nextCBlock->rep,
-                                       src, srcSize);
+                                       src, srcSize, zc->appliedParams.useRowMatchfinder);
             assert(ldmSeqStore.pos == ldmSeqStore.size);
         } else {   /* not long range mode */
-            ZSTD_blockCompressor const blockCompressor = ZSTD_selectBlockCompressor(zc->appliedParams.cParams.strategy, dictMode);
+            ZSTD_blockCompressor const blockCompressor = ZSTD_selectBlockCompressor(zc->appliedParams.cParams.strategy, dictMode, zc->appliedParams.useRowMatchfinder);
             ms->ldmSeqStore = NULL;
             lastLLSize = blockCompressor(ms, &zc->seqStore, zc->blockState.nextCBlock->rep, src, srcSize);
         }
@@ -3730,7 +3790,7 @@ size_t ZSTD_estimateCDictSize_advanced(
 
 size_t ZSTD_estimateCDictSize(size_t dictSize, int compressionLevel)
 {
-    ZSTD_compressionParameters const cParams = ZSTD_getCParams_internal(compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize, ZSTD_cpm_createCDict);
+    ZSTD_compressionParameters const cParams = ZSTD_getCParams_internal(compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize, ZSTD_cpm_createCDict, 0);
     return ZSTD_estimateCDictSize_advanced(dictSize, cParams, ZSTD_dlm_byCopy);
 }
 
@@ -3898,7 +3958,7 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced2(
 
 ZSTD_CDict* ZSTD_createCDict(const void* dict, size_t dictSize, int compressionLevel)
 {
-    ZSTD_compressionParameters cParams = ZSTD_getCParams_internal(compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize, ZSTD_cpm_createCDict);
+    ZSTD_compressionParameters cParams = ZSTD_getCParams_internal(compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize, ZSTD_cpm_createCDict, 0);
     ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dict, dictSize,
                                                   ZSTD_dlm_byCopy, ZSTD_dct_auto,
                                                   cParams, ZSTD_defaultCMem);
@@ -3909,7 +3969,7 @@ ZSTD_CDict* ZSTD_createCDict(const void* dict, size_t dictSize, int compressionL
 
 ZSTD_CDict* ZSTD_createCDict_byReference(const void* dict, size_t dictSize, int compressionLevel)
 {
-    ZSTD_compressionParameters cParams = ZSTD_getCParams_internal(compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize, ZSTD_cpm_createCDict);
+    ZSTD_compressionParameters cParams = ZSTD_getCParams_internal(compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize, ZSTD_cpm_createCDict, 0);
     ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dict, dictSize,
                                      ZSTD_dlm_byRef, ZSTD_dct_auto,
                                      cParams, ZSTD_defaultCMem);
@@ -4477,8 +4537,10 @@ static size_t ZSTD_checkBufferStability(ZSTD_CCtx const* cctx,
 static size_t ZSTD_CCtx_init_compressStream2(ZSTD_CCtx* cctx,
                                              ZSTD_EndDirective endOp,
                                              size_t inSize) {
+    cctx->requestedParams.useRowMatchfinder = 1;
     ZSTD_CCtx_params params = cctx->requestedParams;
     ZSTD_prefixDict const prefixDict = cctx->prefixDict;
+    DEBUGLOG(2, "useRow: %d", params.useRowMatchfinder);
     FORWARD_IF_ERROR( ZSTD_initLocalDict(cctx) , ""); /* Init the local dict if present. */
     ZSTD_memset(&cctx->prefixDict, 0, sizeof(cctx->prefixDict));   /* single usage */
     assert(prefixDict.dict==NULL || cctx->cdict==NULL);    /* only one can be set */
@@ -5110,116 +5172,226 @@ size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
 int ZSTD_maxCLevel(void) { return ZSTD_MAX_CLEVEL; }
 int ZSTD_minCLevel(void) { return (int)-ZSTD_TARGETLENGTH_MAX; }
 
-static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEVEL+1] = {
-{   /* "default" - for any srcSize > 256 KB */
-    /* W,  C,  H,  S,  L, TL, strat */
-    { 19, 12, 13,  1,  6,  1, ZSTD_fast    },  /* base for negative levels */
-    { 19, 13, 14,  1,  7,  0, ZSTD_fast    },  /* level  1 */
-    { 20, 15, 16,  1,  6,  0, ZSTD_fast    },  /* level  2 */
-    { 21, 16, 17,  1,  5,  0, ZSTD_dfast   },  /* level  3 */
-    { 21, 18, 18,  1,  5,  0, ZSTD_dfast   },  /* level  4 */
-    { 21, 18, 19,  2,  5,  2, ZSTD_greedy  },  /* level  5 */
-    { 21, 19, 19,  3,  5,  4, ZSTD_greedy  },  /* level  6 */
-    { 21, 19, 19,  3,  5,  8, ZSTD_lazy    },  /* level  7 */
-    { 21, 19, 19,  3,  5, 16, ZSTD_lazy2   },  /* level  8 */
-    { 21, 19, 20,  4,  5, 16, ZSTD_lazy2   },  /* level  9 */
-    { 22, 20, 21,  4,  5, 16, ZSTD_lazy2   },  /* level 10 */
-    { 22, 21, 22,  4,  5, 16, ZSTD_lazy2   },  /* level 11 */
-    { 22, 21, 22,  5,  5, 16, ZSTD_lazy2   },  /* level 12 */
-    { 22, 21, 22,  5,  5, 32, ZSTD_btlazy2 },  /* level 13 */
-    { 22, 22, 23,  5,  5, 32, ZSTD_btlazy2 },  /* level 14 */
-    { 22, 23, 23,  6,  5, 32, ZSTD_btlazy2 },  /* level 15 */
-    { 22, 22, 22,  5,  5, 48, ZSTD_btopt   },  /* level 16 */
-    { 23, 23, 22,  5,  4, 64, ZSTD_btopt   },  /* level 17 */
-    { 23, 23, 22,  6,  3, 64, ZSTD_btultra },  /* level 18 */
-    { 23, 24, 22,  7,  3,256, ZSTD_btultra2},  /* level 19 */
-    { 25, 25, 23,  7,  3,256, ZSTD_btultra2},  /* level 20 */
-    { 26, 26, 24,  7,  3,512, ZSTD_btultra2},  /* level 21 */
-    { 27, 27, 25,  9,  3,999, ZSTD_btultra2},  /* level 22 */
+static const ZSTD_compressionParameters ZSTD_defaultCParameters[2][4][ZSTD_MAX_CLEVEL+1] = {
+{
+    /* Non-SIMD set of parameters */
+    {   /* "default" - for any srcSize > 256 KB */
+        /* W,  C,  H,  S,  L, TL, strat */
+        { 19, 12, 13,  1,  6,  1, ZSTD_fast    },  /* base for negative levels */
+        { 19, 13, 14,  1,  7,  0, ZSTD_fast    },  /* level  1 */
+        { 20, 15, 16,  1,  6,  0, ZSTD_fast    },  /* level  2 */
+        { 21, 16, 17,  1,  5,  0, ZSTD_dfast   },  /* level  3 */
+        { 21, 18, 18,  1,  5,  0, ZSTD_dfast   },  /* level  4 */
+        { 21, 18, 19,  2,  5,  2, ZSTD_greedy  },  /* level  5 */
+        { 21, 19, 19,  3,  5,  4, ZSTD_greedy  },  /* level  6 */
+        { 21, 19, 19,  3,  5,  8, ZSTD_lazy    },  /* level  7 */
+        { 21, 19, 19,  3,  5, 16, ZSTD_lazy2   },  /* level  8 */
+        { 21, 19, 20,  4,  5, 16, ZSTD_lazy2   },  /* level  9 */
+        { 22, 20, 21,  4,  5, 16, ZSTD_lazy2   },  /* level 10 */
+        { 22, 21, 22,  4,  5, 16, ZSTD_lazy2   },  /* level 11 */
+        { 22, 21, 22,  5,  5, 16, ZSTD_lazy2   },  /* level 12 */
+        { 22, 21, 22,  5,  5, 32, ZSTD_btlazy2 },  /* level 13 */
+        { 22, 22, 23,  5,  5, 32, ZSTD_btlazy2 },  /* level 14 */
+        { 22, 23, 23,  6,  5, 32, ZSTD_btlazy2 },  /* level 15 */
+        { 22, 22, 22,  5,  5, 48, ZSTD_btopt   },  /* level 16 */
+        { 23, 23, 22,  5,  4, 64, ZSTD_btopt   },  /* level 17 */
+        { 23, 23, 22,  6,  3, 64, ZSTD_btultra },  /* level 18 */
+        { 23, 24, 22,  7,  3,256, ZSTD_btultra2},  /* level 19 */
+        { 25, 25, 23,  7,  3,256, ZSTD_btultra2},  /* level 20 */
+        { 26, 26, 24,  7,  3,512, ZSTD_btultra2},  /* level 21 */
+        { 27, 27, 25,  9,  3,999, ZSTD_btultra2},  /* level 22 */
+    },
+    {   /* for srcSize <= 256 KB */
+        /* W,  C,  H,  S,  L,  T, strat */
+        { 18, 12, 13,  1,  5,  1, ZSTD_fast    },  /* base for negative levels */
+        { 18, 13, 14,  1,  6,  0, ZSTD_fast    },  /* level  1 */
+        { 18, 14, 14,  1,  5,  0, ZSTD_dfast   },  /* level  2 */
+        { 18, 16, 16,  1,  4,  0, ZSTD_dfast   },  /* level  3 */
+        { 18, 16, 17,  2,  5,  2, ZSTD_greedy  },  /* level  4.*/
+        { 18, 18, 18,  3,  5,  2, ZSTD_greedy  },  /* level  5.*/
+        { 18, 18, 19,  3,  5,  4, ZSTD_lazy    },  /* level  6.*/
+        { 18, 18, 19+1,  4,  4,  4, ZSTD_lazy    },  /* level  7 */
+        { 18, 18, 19+2,  4,  4,  8, ZSTD_lazy2   },  /* level  8 */
+        { 18, 18, 19+3,  5,  4,  8, ZSTD_lazy2   },  /* level  9 */
+        { 18, 18, 19+4,  5,  4,  8, ZSTD_lazy2   },  /* level 10 */
+        { 18, 18, 19,  5,  4, 12, ZSTD_btlazy2 },  /* level 11.*/
+        { 18, 19, 19,  7,  4, 12, ZSTD_btlazy2 },  /* level 12.*/
+        { 18, 18, 19,  4,  4, 16, ZSTD_btopt   },  /* level 13 */
+        { 18, 18, 19,  4,  3, 32, ZSTD_btopt   },  /* level 14.*/
+        { 18, 18, 19,  6,  3,128, ZSTD_btopt   },  /* level 15.*/
+        { 18, 19, 19,  6,  3,128, ZSTD_btultra },  /* level 16.*/
+        { 18, 19, 19,  8,  3,256, ZSTD_btultra },  /* level 17.*/
+        { 18, 19, 19,  6,  3,128, ZSTD_btultra2},  /* level 18.*/
+        { 18, 19, 19,  8,  3,256, ZSTD_btultra2},  /* level 19.*/
+        { 18, 19, 19, 10,  3,512, ZSTD_btultra2},  /* level 20.*/
+        { 18, 19, 19, 12,  3,512, ZSTD_btultra2},  /* level 21.*/
+        { 18, 19, 19, 13,  3,999, ZSTD_btultra2},  /* level 22.*/
+    },
+    {   /* for srcSize <= 128 KB */
+        /* W,  C,  H,  S,  L,  T, strat */
+        { 17, 12, 12,  1,  5,  1, ZSTD_fast    },  /* base for negative levels */
+        { 17, 12, 13,  1,  6,  0, ZSTD_fast    },  /* level  1 */
+        { 17, 13, 15,  1,  5,  0, ZSTD_fast    },  /* level  2 */
+        { 17, 15, 16,  2,  5,  0, ZSTD_dfast   },  /* level  3 */
+        { 17, 17, 17,  2,  4,  0, ZSTD_dfast   },  /* level  4 */
+        { 17, 16, 17+2,  3,  4,  2, ZSTD_greedy  },  /* level  5 */
+        { 17, 17, 17+2,  3,  4,  4, ZSTD_lazy    },  /* level  6 */
+        { 17, 17, 17+2,  3,  4,  8, ZSTD_lazy2   },  /* level  7 */
+        { 17, 17, 17,  4,  4,  8, ZSTD_lazy2   },  /* level  8 */
+        { 17, 17, 17,  5,  4,  8, ZSTD_lazy2   },  /* level  9 */
+        { 17, 17, 17,  6-1,  4,  8, ZSTD_lazy2   },  /* level 10 */
+        { 17, 17, 17,  5,  4,  8, ZSTD_btlazy2 },  /* level 11 */
+        { 17, 18, 17,  7,  4, 12, ZSTD_btlazy2 },  /* level 12 */
+        { 17, 18, 17,  3,  4, 12, ZSTD_btopt   },  /* level 13.*/
+        { 17, 18, 17,  4,  3, 32, ZSTD_btopt   },  /* level 14.*/
+        { 17, 18, 17,  6,  3,256, ZSTD_btopt   },  /* level 15.*/
+        { 17, 18, 17,  6,  3,128, ZSTD_btultra },  /* level 16.*/
+        { 17, 18, 17,  8,  3,256, ZSTD_btultra },  /* level 17.*/
+        { 17, 18, 17, 10,  3,512, ZSTD_btultra },  /* level 18.*/
+        { 17, 18, 17,  5,  3,256, ZSTD_btultra2},  /* level 19.*/
+        { 17, 18, 17,  7,  3,512, ZSTD_btultra2},  /* level 20.*/
+        { 17, 18, 17,  9,  3,512, ZSTD_btultra2},  /* level 21.*/
+        { 17, 18, 17, 11,  3,999, ZSTD_btultra2},  /* level 22.*/
+    },
+    {   /* for srcSize <= 16 KB */
+        /* W,  C,  H,  S,  L,  T, strat */
+        { 14, 12, 13,  1,  5,  1, ZSTD_fast    },  /* base for negative levels */
+        { 14, 14, 15,  1,  5,  0, ZSTD_fast    },  /* level  1 */
+        { 14, 14, 15,  1,  4,  0, ZSTD_fast    },  /* level  2 */
+        { 14, 14, 15,  2,  4,  0, ZSTD_dfast   },  /* level  3 */
+        { 14, 14, 14,  4,  4,  2, ZSTD_greedy  },  /* level  4 */
+        { 14, 14, 14,  3,  4,  4, ZSTD_lazy    },  /* level  5.*/
+        { 14, 14, 14,  4,  4,  8, ZSTD_lazy2   },  /* level  6 */
+        { 14, 14, 14,  6-1,  4,  8, ZSTD_lazy2   },  /* level  7 */
+        { 14, 14, 14,  8-3,  4,  8, ZSTD_lazy2   },  /* level  8.*/
+        { 14, 15, 14,  5,  4,  8, ZSTD_btlazy2 },  /* level  9.*/
+        { 14, 15, 14,  9,  4,  8, ZSTD_btlazy2 },  /* level 10.*/
+        { 14, 15, 14,  3,  4, 12, ZSTD_btopt   },  /* level 11.*/
+        { 14, 15, 14,  4,  3, 24, ZSTD_btopt   },  /* level 12.*/
+        { 14, 15, 14,  5,  3, 32, ZSTD_btultra },  /* level 13.*/
+        { 14, 15, 15,  6,  3, 64, ZSTD_btultra },  /* level 14.*/
+        { 14, 15, 15,  7,  3,256, ZSTD_btultra },  /* level 15.*/
+        { 14, 15, 15,  5,  3, 48, ZSTD_btultra2},  /* level 16.*/
+        { 14, 15, 15,  6,  3,128, ZSTD_btultra2},  /* level 17.*/
+        { 14, 15, 15,  7,  3,256, ZSTD_btultra2},  /* level 18.*/
+        { 14, 15, 15,  8,  3,256, ZSTD_btultra2},  /* level 19.*/
+        { 14, 15, 15,  8,  3,512, ZSTD_btultra2},  /* level 20.*/
+        { 14, 15, 15,  9,  3,512, ZSTD_btultra2},  /* level 21.*/
+        { 14, 15, 15, 10,  3,999, ZSTD_btultra2},  /* level 22.*/
+    }
 },
-{   /* for srcSize <= 256 KB */
-    /* W,  C,  H,  S,  L,  T, strat */
-    { 18, 12, 13,  1,  5,  1, ZSTD_fast    },  /* base for negative levels */
-    { 18, 13, 14,  1,  6,  0, ZSTD_fast    },  /* level  1 */
-    { 18, 14, 14,  1,  5,  0, ZSTD_dfast   },  /* level  2 */
-    { 18, 16, 16,  1,  4,  0, ZSTD_dfast   },  /* level  3 */
-    { 18, 16, 17,  2,  5,  2, ZSTD_greedy  },  /* level  4.*/
-    { 18, 18, 18,  3,  5,  2, ZSTD_greedy  },  /* level  5.*/
-    { 18, 18, 19,  3,  5,  4, ZSTD_lazy    },  /* level  6.*/
-    { 18, 18, 19+1,  4,  4,  4, ZSTD_lazy    },  /* level  7 */
-    { 18, 18, 19+2,  4,  4,  8, ZSTD_lazy2   },  /* level  8 */
-    { 18, 18, 19+3,  5,  4,  8, ZSTD_lazy2   },  /* level  9 */
-    { 18, 18, 19+4,  5,  4,  8, ZSTD_lazy2   },  /* level 10 */
-    { 18, 18, 19,  5,  4, 12, ZSTD_btlazy2 },  /* level 11.*/
-    { 18, 19, 19,  7,  4, 12, ZSTD_btlazy2 },  /* level 12.*/
-    { 18, 18, 19,  4,  4, 16, ZSTD_btopt   },  /* level 13 */
-    { 18, 18, 19,  4,  3, 32, ZSTD_btopt   },  /* level 14.*/
-    { 18, 18, 19,  6,  3,128, ZSTD_btopt   },  /* level 15.*/
-    { 18, 19, 19,  6,  3,128, ZSTD_btultra },  /* level 16.*/
-    { 18, 19, 19,  8,  3,256, ZSTD_btultra },  /* level 17.*/
-    { 18, 19, 19,  6,  3,128, ZSTD_btultra2},  /* level 18.*/
-    { 18, 19, 19,  8,  3,256, ZSTD_btultra2},  /* level 19.*/
-    { 18, 19, 19, 10,  3,512, ZSTD_btultra2},  /* level 20.*/
-    { 18, 19, 19, 12,  3,512, ZSTD_btultra2},  /* level 21.*/
-    { 18, 19, 19, 13,  3,999, ZSTD_btultra2},  /* level 22.*/
-},
-{   /* for srcSize <= 128 KB */
-    /* W,  C,  H,  S,  L,  T, strat */
-    { 17, 12, 12,  1,  5,  1, ZSTD_fast    },  /* base for negative levels */
-    { 17, 12, 13,  1,  6,  0, ZSTD_fast    },  /* level  1 */
-    { 17, 13, 15,  1,  5,  0, ZSTD_fast    },  /* level  2 */
-    { 17, 15, 16,  2,  5,  0, ZSTD_dfast   },  /* level  3 */
-    { 17, 17, 17,  2,  4,  0, ZSTD_dfast   },  /* level  4 */
-    { 17, 16, 17+2,  3,  4,  2, ZSTD_greedy  },  /* level  5 */
-    { 17, 17, 17+2,  3,  4,  4, ZSTD_lazy    },  /* level  6 */
-    { 17, 17, 17+2,  3,  4,  8, ZSTD_lazy2   },  /* level  7 */
-    { 17, 17, 17,  4,  4,  8, ZSTD_lazy2   },  /* level  8 */
-    { 17, 17, 17,  5,  4,  8, ZSTD_lazy2   },  /* level  9 */
-    { 17, 17, 17,  6-1,  4,  8, ZSTD_lazy2   },  /* level 10 */
-    { 17, 17, 17,  5,  4,  8, ZSTD_btlazy2 },  /* level 11 */
-    { 17, 18, 17,  7,  4, 12, ZSTD_btlazy2 },  /* level 12 */
-    { 17, 18, 17,  3,  4, 12, ZSTD_btopt   },  /* level 13.*/
-    { 17, 18, 17,  4,  3, 32, ZSTD_btopt   },  /* level 14.*/
-    { 17, 18, 17,  6,  3,256, ZSTD_btopt   },  /* level 15.*/
-    { 17, 18, 17,  6,  3,128, ZSTD_btultra },  /* level 16.*/
-    { 17, 18, 17,  8,  3,256, ZSTD_btultra },  /* level 17.*/
-    { 17, 18, 17, 10,  3,512, ZSTD_btultra },  /* level 18.*/
-    { 17, 18, 17,  5,  3,256, ZSTD_btultra2},  /* level 19.*/
-    { 17, 18, 17,  7,  3,512, ZSTD_btultra2},  /* level 20.*/
-    { 17, 18, 17,  9,  3,512, ZSTD_btultra2},  /* level 21.*/
-    { 17, 18, 17, 11,  3,999, ZSTD_btultra2},  /* level 22.*/
-},
-{   /* for srcSize <= 16 KB */
-    /* W,  C,  H,  S,  L,  T, strat */
-    { 14, 12, 13,  1,  5,  1, ZSTD_fast    },  /* base for negative levels */
-    { 14, 14, 15,  1,  5,  0, ZSTD_fast    },  /* level  1 */
-    { 14, 14, 15,  1,  4,  0, ZSTD_fast    },  /* level  2 */
-    { 14, 14, 15,  2,  4,  0, ZSTD_dfast   },  /* level  3 */
-    { 14, 14, 14,  4,  4,  2, ZSTD_greedy  },  /* level  4 */
-    { 14, 14, 14,  3,  4,  4, ZSTD_lazy    },  /* level  5.*/
-    { 14, 14, 14,  4,  4,  8, ZSTD_lazy2   },  /* level  6 */
-    { 14, 14, 14,  6-1,  4,  8, ZSTD_lazy2   },  /* level  7 */
-    { 14, 14, 14,  8-3,  4,  8, ZSTD_lazy2   },  /* level  8.*/
-    { 14, 15, 14,  5,  4,  8, ZSTD_btlazy2 },  /* level  9.*/
-    { 14, 15, 14,  9,  4,  8, ZSTD_btlazy2 },  /* level 10.*/
-    { 14, 15, 14,  3,  4, 12, ZSTD_btopt   },  /* level 11.*/
-    { 14, 15, 14,  4,  3, 24, ZSTD_btopt   },  /* level 12.*/
-    { 14, 15, 14,  5,  3, 32, ZSTD_btultra },  /* level 13.*/
-    { 14, 15, 15,  6,  3, 64, ZSTD_btultra },  /* level 14.*/
-    { 14, 15, 15,  7,  3,256, ZSTD_btultra },  /* level 15.*/
-    { 14, 15, 15,  5,  3, 48, ZSTD_btultra2},  /* level 16.*/
-    { 14, 15, 15,  6,  3,128, ZSTD_btultra2},  /* level 17.*/
-    { 14, 15, 15,  7,  3,256, ZSTD_btultra2},  /* level 18.*/
-    { 14, 15, 15,  8,  3,256, ZSTD_btultra2},  /* level 19.*/
-    { 14, 15, 15,  8,  3,512, ZSTD_btultra2},  /* level 20.*/
-    { 14, 15, 15,  9,  3,512, ZSTD_btultra2},  /* level 21.*/
-    { 14, 15, 15, 10,  3,999, ZSTD_btultra2},  /* level 22.*/
-},
+{
+    /* Rowhash-based Parameters */
+    {   /* "default" - for any srcSize > 256 KB */
+        /* W,  C,  H,  S,  L, TL, strat */
+        { 19, 12, 13,  1,  6,  1, ZSTD_fast    },  /* base for negative levels */
+        { 19, 13, 14,  1,  7,  0, ZSTD_fast    },  /* level  1 */
+        { 20, 15, 16,  1,  6,  0, ZSTD_fast    },  /* level  2 */
+        { 21, 16, 17,  1,  5,  0, ZSTD_dfast   },  /* level  3 */
+        { 21, 18, 18,  1,  5,  0, ZSTD_dfast   },  /* level  4 */
+        { 21, 18, 19,  2,  5,  2, ZSTD_greedy  },  /* level  5 */
+        { 21, 19, 19,  3,  5,  4, ZSTD_greedy  },  /* level  6 */
+        { 21, 19, 19,  3,  5,  8, ZSTD_lazy    },  /* level  7 */
+        { 21, 19, 19,  3,  5, 16, ZSTD_lazy2   },  /* level  8 */
+        { 21, 19, 20,  4,  5, 16, ZSTD_lazy2   },  /* level  9 */
+        { 22, 20, 21,  4,  5, 16, ZSTD_lazy2   },  /* level 10 */
+        { 22, 21, 22,  4,  5, 16, ZSTD_lazy2   },  /* level 11 */
+        { 22, 21, 22,  5,  5, 16, ZSTD_lazy2   },  /* level 12 */
+        { 22, 21, 22,  5,  5, 32, ZSTD_btlazy2 },  /* level 13 */
+        { 22, 22, 23,  5,  5, 32, ZSTD_btlazy2 },  /* level 14 */
+        { 22, 23, 23,  6,  5, 32, ZSTD_btlazy2 },  /* level 15 */
+        { 22, 22, 22,  5,  5, 48, ZSTD_btopt   },  /* level 16 */
+        { 23, 23, 22,  5,  4, 64, ZSTD_btopt   },  /* level 17 */
+        { 23, 23, 22,  6,  3, 64, ZSTD_btultra },  /* level 18 */
+        { 23, 24, 22,  7,  3,256, ZSTD_btultra2},  /* level 19 */
+        { 25, 25, 23,  7,  3,256, ZSTD_btultra2},  /* level 20 */
+        { 26, 26, 24,  7,  3,512, ZSTD_btultra2},  /* level 21 */
+        { 27, 27, 25,  9,  3,999, ZSTD_btultra2},  /* level 22 */
+    },
+    {   /* for srcSize <= 256 KB */
+        /* W,  C,  H,  S,  L,  T, strat */
+        { 18, 12, 13,  1,  5,  1, ZSTD_fast    },  /* base for negative levels */
+        { 18, 13, 14,  1,  6,  0, ZSTD_fast    },  /* level  1 */
+        { 18, 14, 14,  1,  5,  0, ZSTD_dfast   },  /* level  2 */
+        { 18, 16, 16,  1,  4,  0, ZSTD_dfast   },  /* level  3 */
+        { 18, 16, 17,  2,  5,  2, ZSTD_greedy  },  /* level  4.*/
+        { 18, 18, 18,  3,  5,  2, ZSTD_greedy  },  /* level  5.*/
+        { 18, 18, 19,  3,  5,  4, ZSTD_lazy    },  /* level  6.*/
+        { 18, 18, 19+1,  4,  4,  4, ZSTD_lazy    },  /* level  7 */
+        { 18, 18, 19+2,  4,  4,  8, ZSTD_lazy2   },  /* level  8 */
+        { 18, 18, 19+3,  5,  4,  8, ZSTD_lazy2   },  /* level  9 */
+        { 18, 18, 19+4,  5,  4,  8, ZSTD_lazy2   },  /* level 10 */
+        { 18, 18, 19,  5,  4, 12, ZSTD_btlazy2 },  /* level 11.*/
+        { 18, 19, 19,  7,  4, 12, ZSTD_btlazy2 },  /* level 12.*/
+        { 18, 18, 19,  4,  4, 16, ZSTD_btopt   },  /* level 13 */
+        { 18, 18, 19,  4,  3, 32, ZSTD_btopt   },  /* level 14.*/
+        { 18, 18, 19,  6,  3,128, ZSTD_btopt   },  /* level 15.*/
+        { 18, 19, 19,  6,  3,128, ZSTD_btultra },  /* level 16.*/
+        { 18, 19, 19,  8,  3,256, ZSTD_btultra },  /* level 17.*/
+        { 18, 19, 19,  6,  3,128, ZSTD_btultra2},  /* level 18.*/
+        { 18, 19, 19,  8,  3,256, ZSTD_btultra2},  /* level 19.*/
+        { 18, 19, 19, 10,  3,512, ZSTD_btultra2},  /* level 20.*/
+        { 18, 19, 19, 12,  3,512, ZSTD_btultra2},  /* level 21.*/
+        { 18, 19, 19, 13,  3,999, ZSTD_btultra2},  /* level 22.*/
+    },
+    {   /* for srcSize <= 128 KB */
+        /* W,  C,  H,  S,  L,  T, strat */
+        { 17, 12, 12,  1,  5,  1, ZSTD_fast    },  /* base for negative levels */
+        { 17, 12, 13,  1,  6,  0, ZSTD_fast    },  /* level  1 */
+        { 17, 13, 15,  1,  5,  0, ZSTD_fast    },  /* level  2 */
+        { 17, 15, 16,  2,  5,  0, ZSTD_dfast   },  /* level  3 */
+        { 17, 17, 17,  2,  4,  0, ZSTD_dfast   },  /* level  4 */
+        { 17, 16, 17+2,  3,  4,  2, ZSTD_greedy  },  /* level  5 */
+        { 17, 17, 17+2,  3,  4,  4, ZSTD_lazy    },  /* level  6 */
+        { 17, 17, 17+2,  3,  4,  8, ZSTD_lazy2   },  /* level  7 */
+        { 17, 17, 17,  4,  4,  8, ZSTD_lazy2   },  /* level  8 */
+        { 17, 17, 17,  5,  4,  8, ZSTD_lazy2   },  /* level  9 */
+        { 17, 17, 17,  6-1,  4,  8, ZSTD_lazy2   },  /* level 10 */
+        { 17, 17, 17,  5,  4,  8, ZSTD_btlazy2 },  /* level 11 */
+        { 17, 18, 17,  7,  4, 12, ZSTD_btlazy2 },  /* level 12 */
+        { 17, 18, 17,  3,  4, 12, ZSTD_btopt   },  /* level 13.*/
+        { 17, 18, 17,  4,  3, 32, ZSTD_btopt   },  /* level 14.*/
+        { 17, 18, 17,  6,  3,256, ZSTD_btopt   },  /* level 15.*/
+        { 17, 18, 17,  6,  3,128, ZSTD_btultra },  /* level 16.*/
+        { 17, 18, 17,  8,  3,256, ZSTD_btultra },  /* level 17.*/
+        { 17, 18, 17, 10,  3,512, ZSTD_btultra },  /* level 18.*/
+        { 17, 18, 17,  5,  3,256, ZSTD_btultra2},  /* level 19.*/
+        { 17, 18, 17,  7,  3,512, ZSTD_btultra2},  /* level 20.*/
+        { 17, 18, 17,  9,  3,512, ZSTD_btultra2},  /* level 21.*/
+        { 17, 18, 17, 11,  3,999, ZSTD_btultra2},  /* level 22.*/
+    },
+    {   /* for srcSize <= 16 KB */
+        /* W,  C,  H,  S,  L,  T, strat */
+        { 14, 12, 13,  1,  5,  1, ZSTD_fast    },  /* base for negative levels */
+        { 14, 14, 15,  1,  5,  0, ZSTD_fast    },  /* level  1 */
+        { 14, 14, 15,  1,  4,  0, ZSTD_fast    },  /* level  2 */
+        { 14, 14, 15,  2,  4,  0, ZSTD_dfast   },  /* level  3 */
+        { 14, 14, 14,  4,  4,  2, ZSTD_greedy  },  /* level  4 */
+        { 14, 14, 14,  3,  4,  4, ZSTD_lazy    },  /* level  5.*/
+        { 14, 14, 14,  4,  4,  8, ZSTD_lazy2   },  /* level  6 */
+        { 14, 14, 14,  6-1,  4,  8, ZSTD_lazy2   },  /* level  7 */
+        { 14, 14, 14,  8-3,  4,  8, ZSTD_lazy2   },  /* level  8.*/
+        { 14, 15, 14,  5,  4,  8, ZSTD_btlazy2 },  /* level  9.*/
+        { 14, 15, 14,  9,  4,  8, ZSTD_btlazy2 },  /* level 10.*/
+        { 14, 15, 14,  3,  4, 12, ZSTD_btopt   },  /* level 11.*/
+        { 14, 15, 14,  4,  3, 24, ZSTD_btopt   },  /* level 12.*/
+        { 14, 15, 14,  5,  3, 32, ZSTD_btultra },  /* level 13.*/
+        { 14, 15, 15,  6,  3, 64, ZSTD_btultra },  /* level 14.*/
+        { 14, 15, 15,  7,  3,256, ZSTD_btultra },  /* level 15.*/
+        { 14, 15, 15,  5,  3, 48, ZSTD_btultra2},  /* level 16.*/
+        { 14, 15, 15,  6,  3,128, ZSTD_btultra2},  /* level 17.*/
+        { 14, 15, 15,  7,  3,256, ZSTD_btultra2},  /* level 18.*/
+        { 14, 15, 15,  8,  3,256, ZSTD_btultra2},  /* level 19.*/
+        { 14, 15, 15,  8,  3,512, ZSTD_btultra2},  /* level 20.*/
+        { 14, 15, 15,  9,  3,512, ZSTD_btultra2},  /* level 21.*/
+        { 14, 15, 15, 10,  3,999, ZSTD_btultra2},  /* level 22.*/
+    }
+}
 };
 
 static ZSTD_compressionParameters ZSTD_dedicatedDictSearch_getCParams(int const compressionLevel, size_t const dictSize)
 {
-    ZSTD_compressionParameters cParams = ZSTD_getCParams_internal(compressionLevel, 0, dictSize, ZSTD_cpm_createCDict);
+    ZSTD_compressionParameters cParams = ZSTD_getCParams_internal(compressionLevel, 0, dictSize, ZSTD_cpm_createCDict, 0);
     switch (cParams.strategy) {
         case ZSTD_fast:
         case ZSTD_dfast:
@@ -5292,8 +5464,9 @@ static U64 ZSTD_getCParamRowSize(U64 srcSizeHint, size_t dictSize, ZSTD_cParamMo
  * @return ZSTD_compressionParameters structure for a selected compression level, srcSize and dictSize.
  *  Note: srcSizeHint 0 means 0, use ZSTD_CONTENTSIZE_UNKNOWN for unknown.
  *        Use dictSize == 0 for unknown or unused.
- *  Note: `mode` controls how we treat the `dictSize`. See docs for `ZSTD_cParamMode_e`. */
-static ZSTD_compressionParameters ZSTD_getCParams_internal(int compressionLevel, unsigned long long srcSizeHint, size_t dictSize, ZSTD_cParamMode_e mode)
+`. */
+static ZSTD_compressionParameters ZSTD_getCParams_internal(int compressionLevel, unsigned long long srcSizeHint,
+                                                           size_t dictSize, ZSTD_cParamMode_e mode, int useRowMatchfinder)
 {
     U64 const rSize = ZSTD_getCParamRowSize(srcSizeHint, dictSize, mode);
     U32 const tableID = (rSize <= 256 KB) + (rSize <= 128 KB) + (rSize <= 16 KB);
@@ -5306,7 +5479,7 @@ static ZSTD_compressionParameters ZSTD_getCParams_internal(int compressionLevel,
     else if (compressionLevel > ZSTD_MAX_CLEVEL) row = ZSTD_MAX_CLEVEL;
     else row = compressionLevel;
 
-    {   ZSTD_compressionParameters cp = ZSTD_defaultCParameters[tableID][row];
+    {   ZSTD_compressionParameters cp = ZSTD_defaultCParameters[useRowMatchfinder][tableID][row];
         /* acceleration factor */
         if (compressionLevel < 0) {
             int const clampedCompressionLevel = MAX(ZSTD_minCLevel(), compressionLevel);
@@ -5323,7 +5496,7 @@ static ZSTD_compressionParameters ZSTD_getCParams_internal(int compressionLevel,
 ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, unsigned long long srcSizeHint, size_t dictSize)
 {
     if (srcSizeHint == 0) srcSizeHint = ZSTD_CONTENTSIZE_UNKNOWN;
-    return ZSTD_getCParams_internal(compressionLevel, srcSizeHint, dictSize, ZSTD_cpm_unknown);
+    return ZSTD_getCParams_internal(compressionLevel, srcSizeHint, dictSize, ZSTD_cpm_unknown, 0 /* useRowMatchfinder */);
 }
 
 /*! ZSTD_getParams() :
@@ -5332,7 +5505,7 @@ ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, unsigned long l
  *  Fields of `ZSTD_frameParameters` are set to default values */
 static ZSTD_parameters ZSTD_getParams_internal(int compressionLevel, unsigned long long srcSizeHint, size_t dictSize, ZSTD_cParamMode_e mode) {
     ZSTD_parameters params;
-    ZSTD_compressionParameters const cParams = ZSTD_getCParams_internal(compressionLevel, srcSizeHint, dictSize, mode);
+    ZSTD_compressionParameters const cParams = ZSTD_getCParams_internal(compressionLevel, srcSizeHint, dictSize, mode, 0 /* useRowMatchfinder */);
     DEBUGLOG(5, "ZSTD_getParams (cLevel=%i)", compressionLevel);
     ZSTD_memset(&params, 0, sizeof(params));
     params.cParams = cParams;

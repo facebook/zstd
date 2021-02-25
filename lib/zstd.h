@@ -419,6 +419,7 @@ typedef enum {
      * ZSTD_c_stableOutBuffer
      * ZSTD_c_blockDelimiters
      * ZSTD_c_validateSequences
+     * ZSTD_c_useRowMatchfinder
      * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
      * note : never ever use experimentalParam? names directly;
      *        also, the enums values themselves are unstable and can still change.
@@ -434,7 +435,8 @@ typedef enum {
      ZSTD_c_experimentalParam9=1006,
      ZSTD_c_experimentalParam10=1007,
      ZSTD_c_experimentalParam11=1008,
-     ZSTD_c_experimentalParam12=1009
+     ZSTD_c_experimentalParam12=1009,
+     ZSTD_c_experimentalParam13=1010
 } ZSTD_cParameter;
 
 typedef struct {
@@ -1831,6 +1833,12 @@ ZSTDLIB_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* pre
  *
  */
 #define ZSTD_c_validateSequences ZSTD_c_experimentalParam12
+
+/* ZSTD_c_useRowMatchfinder
+ * Default is 0 == disabled. Set to 1 to enable usage of new row-based matchfinder
+ * and new set of compression parameter defaults.
+ */
+#define ZSTD_c_useRowMatchfinder ZSTD_c_experimentalParam13
 
 /*! ZSTD_CCtx_getParameter() :
  *  Get the requested compression parameter value, selected by enum ZSTD_cParameter,

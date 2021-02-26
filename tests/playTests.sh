@@ -121,7 +121,7 @@ esac
 
 MTIME="stat -c %Y"
 case "$UNAME" in
-    Darwin | FreeBSD | OpenBSD) MTIME="stat -f %m" ;;
+    Darwin | FreeBSD | OpenBSD | NetBSD) MTIME="stat -f %m" ;;
 esac
 
 DIFF="diff"

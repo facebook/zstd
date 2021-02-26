@@ -486,23 +486,29 @@ rm -rf tmp*
 if [ "$isWindows" = false ] ; then
     println "\n===>  compress multiple files into an output directory and mirror input folder, --output-dir-mirror"
     println "test --output-dir-mirror" > tmp1
-    mkdir -p tmpInputTestDir/we/must/go/deeper
-    println cool > tmpInputTestDir/we/must/go/deeper/tmp2
+    mkdir -p tmpInputTestDir/we/.../..must/go/deeper..
+    println cool > tmpInputTestDir/we/.../..must/go/deeper../tmp2
     zstd tmp1 -r tmpInputTestDir --output-dir-mirror tmpOutDir
     test -f tmpOutDir/tmp1.zst
-    test -f tmpOutDir/tmpInputTestDir/we/must/go/deeper/tmp2.zst
+    test -f tmpOutDir/tmpInputTestDir/we/.../..must/go/deeper../tmp2.zst
 
     println "test: compress input dir will be ignored if it has '..'"
-    zstd  -r tmpInputTestDir/we/must/../must --output-dir-mirror non-exist && die "input cannot contain '..'"
+    zstd  -r tmpInputTestDir/we/.../..must/../..mustgo/deeper.. --output-dir-mirror non-exist && die "input cannot contain '..'"
+    zstd  -r tmpInputTestDir/we/.../..must/deeper../.. --output-dir-mirror non-exist && die "input cannot contain '..'"
+    zstd  -r ../tests/tmpInputTestDir/we/.../..must/deeper.. --output-dir-mirror non-exist && die "input cannot contain '..'"
     test ! -d non-exist
+
+    println "test: compress input dir should succeed with benign uses of '..'"
+    zstd  -r tmpInputTestDir/we/.../..must/go/deeper.. --output-dir-mirror tmpout
+    test -d tmpout
 
     println "test : decompress multiple files into an output directory, --output-dir-mirror"
     zstd tmpOutDir -r -d --output-dir-mirror tmpOutDirDecomp
     test -f tmpOutDirDecomp/tmpOutDir/tmp1
-    test -f tmpOutDirDecomp/tmpOutDir/tmpInputTestDir/we/must/go/deeper/tmp2
+    test -f tmpOutDirDecomp/tmpOutDir/tmpInputTestDir/we/.../..must/go/deeper../tmp2
 
     println "test: decompress input dir will be ignored if it has '..'"
-    zstd  -r tmpOutDir/tmpInputTestDir/we/must/../must --output-dir-mirror non-exist && die "input cannot contain '..'"
+    zstd  -r tmpOutDir/tmpInputTestDir/we/.../..must/../..must --output-dir-mirror non-exist && die "input cannot contain '..'"
     test ! -d non-exist
 
     rm -rf tmp*

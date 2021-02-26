@@ -5342,13 +5342,13 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[2][4][ZSTD_MAX_C
         { 18, 13, 14,  1,  6,  0, ZSTD_fast    },  /* level  1 */
         { 18, 14, 14,  1,  5,  0, ZSTD_dfast   },  /* level  2 */
         { 18, 16, 16,  1,  4,  0, ZSTD_dfast   },  /* level  3 */
-        { 18, 16, 17,  2,  5,  2, ZSTD_greedy  },  /* level  4.*/
-        { 18, 18, 18,  3,  5,  2, ZSTD_greedy  },  /* level  5.*/
-        { 18, 18, 19,  3,  5,  4, ZSTD_lazy    },  /* level  6.*/
-        { 18, 18, 19+1,  4,  4,  4, ZSTD_lazy    },  /* level  7 */
-        { 18, 18, 19+2,  4,  4,  8, ZSTD_lazy2   },  /* level  8 */
-        { 18, 18, 19+3,  5,  4,  8, ZSTD_lazy2   },  /* level  9 */
-        { 18, 18, 19+4,  5,  4,  8, ZSTD_lazy2   },  /* level 10 */
+        { 18, 10, 17,  2,  5,  2, ZSTD_greedy_row  },  /* level  4.*/
+        { 18, 10, 18,  3,  5,  2, ZSTD_greedy_row  },  /* level  5.*/
+        { 18, 10, 19,  3,  5,  4, ZSTD_lazy_row    },  /* level  6.*/
+        { 18, 10, 19,  4,  4,  4, ZSTD_lazy_row    },  /* level  7 */
+        { 18, 10, 19,  4,  4,  8, ZSTD_lazy2_row   },  /* level  8 */
+        { 18, 10, 19,  5,  4,  8, ZSTD_lazy2_row   },  /* level  9 */
+        { 18, 18, 19,  6,  4,  8, ZSTD_lazy2   },  /* level 10 */
         { 18, 18, 19,  5,  4, 12, ZSTD_btlazy2 },  /* level 11.*/
         { 18, 19, 19,  7,  4, 12, ZSTD_btlazy2 },  /* level 12.*/
         { 18, 18, 19,  4,  4, 16, ZSTD_btopt   },  /* level 13 */
@@ -5369,12 +5369,12 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[2][4][ZSTD_MAX_C
         { 17, 13, 15,  1,  5,  0, ZSTD_fast    },  /* level  2 */
         { 17, 15, 16,  2,  5,  0, ZSTD_dfast   },  /* level  3 */
         { 17, 17, 17,  2,  4,  0, ZSTD_dfast   },  /* level  4 */
-        { 17, 16, 17+2,  3,  4,  2, ZSTD_greedy  },  /* level  5 */
-        { 17, 17, 17+2,  3,  4,  4, ZSTD_lazy    },  /* level  6 */
-        { 17, 17, 17+2,  3,  4,  8, ZSTD_lazy2   },  /* level  7 */
-        { 17, 17, 17,  4,  4,  8, ZSTD_lazy2   },  /* level  8 */
-        { 17, 17, 17,  5,  4,  8, ZSTD_lazy2   },  /* level  9 */
-        { 17, 17, 17,  6-1,  4,  8, ZSTD_lazy2   },  /* level 10 */
+        { 17, 10, 17,  3,  4,  2, ZSTD_greedy_row  },  /* level  5 */
+        { 17, 10, 17,  3,  4,  4, ZSTD_lazy_row    },  /* level  6 */
+        { 17, 10, 17,  3,  4,  8, ZSTD_lazy2_row   },  /* level  7 */
+        { 17, 10, 17,  4,  4,  8, ZSTD_lazy2_row   },  /* level  8 */
+        { 17, 10, 17,  5,  4,  8, ZSTD_lazy2_row   },  /* level  9 */
+        { 17, 17, 17,  6,  4,  8, ZSTD_lazy2   },  /* level 10 */
         { 17, 17, 17,  5,  4,  8, ZSTD_btlazy2 },  /* level 11 */
         { 17, 18, 17,  7,  4, 12, ZSTD_btlazy2 },  /* level 12 */
         { 17, 18, 17,  3,  4, 12, ZSTD_btopt   },  /* level 13.*/
@@ -5393,11 +5393,11 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[2][4][ZSTD_MAX_C
         { 14, 12, 13,  1,  5,  1, ZSTD_fast    },  /* base for negative levels */
         { 14, 14, 15,  1,  5,  0, ZSTD_fast    },  /* level  1 */
         { 14, 14, 15,  1,  4,  0, ZSTD_fast    },  /* level  2 */
-        { 14, 14, 15,  2,  4,  2, ZSTD_greedy_row   },  /* level  3 */
+        { 14, 14, 15,  2,  4,  0, ZSTD_dfast   },  /* level  3 */
         { 14, 14, 14,  4,  4,  2, ZSTD_greedy  },  /* level  4 */
-        { 14, 14, 14,  3,  4,  4, ZSTD_lazy_row    },  /* level  5.*/
-        { 14, 14, 14,  4,  4,  8, ZSTD_lazy   },  /* level  6 */
-        { 14, 14, 14,  6-1,  4,  8, ZSTD_lazy2_row   },  /* level  7 */
+        { 14, 14, 14,  3,  4,  4, ZSTD_lazy    },  /* level  5.*/
+        { 14, 14, 14,  4,  4,  8, ZSTD_lazy2   },  /* level  6 */
+        { 14, 14, 14,  6,  4,  8, ZSTD_lazy2   },  /* level  7 */
         { 14, 14, 14,  8,  4,  8, ZSTD_lazy2   },  /* level  8.*/
         { 14, 15, 14,  5,  4,  8, ZSTD_btlazy2 },  /* level  9.*/
         { 14, 15, 14,  9,  4,  8, ZSTD_btlazy2 },  /* level 10.*/
@@ -5513,7 +5513,7 @@ static ZSTD_compressionParameters ZSTD_getCParams_internal(int compressionLevel,
     else if (compressionLevel > ZSTD_MAX_CLEVEL) row = ZSTD_MAX_CLEVEL;
     else row = compressionLevel;
 
-    {   ZSTD_compressionParameters cp = ZSTD_defaultCParameters[useRowMatchfinder][tableID][row];
+    {   ZSTD_compressionParameters cp = ZSTD_defaultCParameters[1][tableID][row];
         /* acceleration factor */
         if (compressionLevel < 0) {
             int const clampedCompressionLevel = MAX(ZSTD_minCLevel(), compressionLevel);

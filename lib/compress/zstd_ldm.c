@@ -221,7 +221,9 @@ static size_t ZSTD_ldm_fillFastTables(ZSTD_matchState_t* ms,
     case ZSTD_dfast:
         ZSTD_fillDoubleHashTable(ms, iend, ZSTD_dtlm_fast);
         break;
-
+    case ZSTD_greedy_row:
+    case ZSTD_lazy_row:
+    case ZSTD_lazy2_row:
     case ZSTD_greedy:
     case ZSTD_lazy:
     case ZSTD_lazy2:

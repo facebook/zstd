@@ -679,7 +679,27 @@ const char* UTIL_getFileExtension(const char* infilename)
 
 static int pathnameHas2Dots(const char *pathname)
 {
-    return NULL != strstr(pathname, "..");
+    /* We need to figure out whether any ".." present in the path is a whole
+     * path token, which is the case if it is bordered on both sides by either
+     * the beginning/end of the path or by a directory separator.
+     */
+    const char *needle = pathname;
+    while (1) {
+        needle = strstr(needle, "..");
+
+        if (needle == NULL) {
+            return 0;
+        }
+
+        if ((needle == pathname || needle[-1] == PATH_SEP)
+         && (needle[2] == '\0' || needle[2] == PATH_SEP)) {
+            return 1;
+        }
+
+        /* increment so we search for the next match */
+        needle++;
+    };
+    return 0;
 }
 
 static int isFileNameValidForMirroredOutput(const char *filename)

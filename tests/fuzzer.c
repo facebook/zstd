@@ -1768,7 +1768,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
                                     l, (unsigned)nodict_cSize, (unsigned)target_nodict_cSize[l]);
                     goto _output_error;
                 }
-                DISPLAYLEVEL(4, "level %i : max expected %u >= reached %u \n",
+                fprintf(stderr, "level %i : max expected %u >= reached %u \n",
                                 l, (unsigned)target_nodict_cSize[l], (unsigned)nodict_cSize);
             }
             for ( l=1 ; l <= maxLevel; l++) {
@@ -1782,7 +1782,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
                                     l, (unsigned)wdict_cSize, (unsigned)target_wdict_cSize[l]);
                     goto _output_error;
                 }
-                DISPLAYLEVEL(4, "level %i with dictionary : max expected %u >= reached %u \n",
+                fprintf(stderr, "level %i with dictionary : max expected %u >= reached %u \n",
                                 l, (unsigned)target_wdict_cSize[l], (unsigned)wdict_cSize);
             }
 

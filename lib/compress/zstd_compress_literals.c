@@ -99,7 +99,7 @@ size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
 
     RETURN_ERROR_IF(dstCapacity < lhSize+1, dstSize_tooSmall, "not enough space for compression");
     {   HUF_repeat repeat = prevHuf->repeatMode;
-        int const preferRepeat = strategy < ZSTD_lazy ? srcSize <= 1024 : 0;
+        int const preferRepeat = strategy < ZSTD_lazy_row ? srcSize <= 1024 : 0;
         if (repeat == HUF_repeat_valid && lhSize == 3) singleStream = 1;
         cLitSize = singleStream ?
             HUF_compress1X_repeat(

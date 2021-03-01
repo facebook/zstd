@@ -1621,7 +1621,7 @@ ZSTD_compressBlock_lazy_generic(
         assert(offset_2 <= dictAndPrefixLength);
     }
 
-    if (searchMethod != search_binaryTree) {
+    if (searchMethod == search_rowHash) {
         ZSTD_row_fillHashCache(ms, base, rowLog,
                             MIN(ms->cParams.minMatch, 6 /* mls caps out at 6 */),
                             shouldPrefetch, ms->nextToUpdate, ilimit);
@@ -1994,7 +1994,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
 
     /* init */
     ip += (ip == prefixStart);
-    if (searchMethod != search_binaryTree) {
+    if (searchMethod == search_rowHash) {
         ZSTD_row_fillHashCache(ms, base, rowLog,
                                MIN(ms->cParams.minMatch, 6 /* mls caps out at 6 */),
                                shouldPrefetch, ms->nextToUpdate, ilimit);

@@ -515,7 +515,7 @@ static size_t ZSTD_cParam_clampBounds(ZSTD_cParameter cParam, int* value)
 }
 
 /* Checks if strategy is one of greedy, lazy, or lazy2 */
-#define STRATEGY_USES_ROW_BASED_MATCHFINDER(strategy) (strategy < ZSTD_btlazy2 && strategy > ZSTD_dfast)
+#define STRATEGY_USES_ROW_BASED_MATCHFINDER(strategy) (strategy < ZSTD_greedy && strategy > ZSTD_dfast)
 
 /* Aligns a buffer to a 64-byte boundary */
 #define ALIGN_TO_64_BYTES(ptr) (((size_t)ptr + 63) & ~63)
@@ -2471,123 +2471,67 @@ ZSTD_entropyCompressSequences(seqStore_t* seqStorePtr,
 /* ZSTD_selectBlockCompressor() :
  * Not static, but internal use only (used by long distance matcher)
  * assumption : strat is a valid strategy */
-ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMode_e dictMode, int useRowMatchfinder)
+ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMode_e dictMode)
 {
-    static const ZSTD_blockCompressor blockCompressor[2][4][ZSTD_STRATEGY_MAX+1] = {
-        {
-            { ZSTD_compressBlock_fast  /* default for 0 */,
-            ZSTD_compressBlock_fast,
-            ZSTD_compressBlock_doubleFast,
-            ZSTD_compressBlock_greedy_row,
-            ZSTD_compressBlock_lazy_row,
-            ZSTD_compressBlock_lazy2_row,
-            ZSTD_compressBlock_greedy,
-            ZSTD_compressBlock_lazy,
-            ZSTD_compressBlock_lazy2,
-            ZSTD_compressBlock_btlazy2,
-            ZSTD_compressBlock_btopt,
-            ZSTD_compressBlock_btultra,
-            ZSTD_compressBlock_btultra2 },
-            { ZSTD_compressBlock_fast_extDict  /* default for 0 */,
-            ZSTD_compressBlock_fast_extDict,
-            ZSTD_compressBlock_doubleFast_extDict,
-            ZSTD_compressBlock_greedy_extDict_row,
-            ZSTD_compressBlock_lazy_extDict_row,
-            ZSTD_compressBlock_lazy2_extDict_row,
-            ZSTD_compressBlock_greedy_extDict,
-            ZSTD_compressBlock_lazy_extDict,
-            ZSTD_compressBlock_lazy2_extDict,
-            ZSTD_compressBlock_btlazy2_extDict,
-            ZSTD_compressBlock_btopt_extDict,
-            ZSTD_compressBlock_btultra_extDict,
-            ZSTD_compressBlock_btultra_extDict },
-            { ZSTD_compressBlock_fast_dictMatchState  /* default for 0 */,
-            ZSTD_compressBlock_fast_dictMatchState,
-            ZSTD_compressBlock_doubleFast_dictMatchState,
-            ZSTD_compressBlock_greedy_dictMatchState_row,
-            ZSTD_compressBlock_lazy_dictMatchState_row,
-            ZSTD_compressBlock_lazy2_dictMatchState_row,
-            ZSTD_compressBlock_greedy_dictMatchState,
-            ZSTD_compressBlock_lazy_dictMatchState,
-            ZSTD_compressBlock_lazy2_dictMatchState,
-            ZSTD_compressBlock_btlazy2_dictMatchState,
-            ZSTD_compressBlock_btopt_dictMatchState,
-            ZSTD_compressBlock_btultra_dictMatchState,
-            ZSTD_compressBlock_btultra_dictMatchState },
-            { NULL  /* default for 0 */,
-            NULL,
-            NULL,
-            ZSTD_compressBlock_greedy_dedicatedDictSearch_row,
-            ZSTD_compressBlock_lazy_dedicatedDictSearch_row,
-            ZSTD_compressBlock_lazy2_dedicatedDictSearch_row,
-            ZSTD_compressBlock_greedy_dedicatedDictSearch,
-            ZSTD_compressBlock_lazy_dedicatedDictSearch,
-            ZSTD_compressBlock_lazy2_dedicatedDictSearch,
-            NULL,
-            NULL,
-            NULL,
-            NULL }
-        },
-        {
-            { ZSTD_compressBlock_fast  /* default for 0 */,
-            ZSTD_compressBlock_fast,
-            ZSTD_compressBlock_doubleFast,
-            ZSTD_compressBlock_greedy_row,
-            ZSTD_compressBlock_lazy_row,
-            ZSTD_compressBlock_lazy2_row,
-            ZSTD_compressBlock_greedy,
-            ZSTD_compressBlock_lazy,
-            ZSTD_compressBlock_lazy2,
-            ZSTD_compressBlock_btlazy2,
-            ZSTD_compressBlock_btopt,
-            ZSTD_compressBlock_btultra,
-            ZSTD_compressBlock_btultra2 },
-            { ZSTD_compressBlock_fast_extDict  /* default for 0 */,
-            ZSTD_compressBlock_fast_extDict,
-            ZSTD_compressBlock_doubleFast_extDict,
-            ZSTD_compressBlock_greedy_extDict_row,
-            ZSTD_compressBlock_lazy_extDict_row,
-            ZSTD_compressBlock_lazy2_extDict_row,
-            ZSTD_compressBlock_greedy_extDict,
-            ZSTD_compressBlock_lazy_extDict,
-            ZSTD_compressBlock_lazy2_extDict,
-            ZSTD_compressBlock_btlazy2_extDict,
-            ZSTD_compressBlock_btopt_extDict,
-            ZSTD_compressBlock_btultra_extDict,
-            ZSTD_compressBlock_btultra_extDict },
-            { ZSTD_compressBlock_fast_dictMatchState  /* default for 0 */,
-            ZSTD_compressBlock_fast_dictMatchState,
-            ZSTD_compressBlock_doubleFast_dictMatchState,
-            ZSTD_compressBlock_greedy_dictMatchState_row,
-            ZSTD_compressBlock_lazy_dictMatchState_row,
-            ZSTD_compressBlock_lazy2_dictMatchState_row,
-            ZSTD_compressBlock_greedy_dictMatchState,
-            ZSTD_compressBlock_lazy_dictMatchState,
-            ZSTD_compressBlock_lazy2_dictMatchState,
-            ZSTD_compressBlock_btlazy2_dictMatchState,
-            ZSTD_compressBlock_btopt_dictMatchState,
-            ZSTD_compressBlock_btultra_dictMatchState,
-            ZSTD_compressBlock_btultra_dictMatchState },
-            { NULL  /* default for 0 */,
-            NULL,
-            NULL,
-            ZSTD_compressBlock_greedy_dedicatedDictSearch_row,
-            ZSTD_compressBlock_lazy_dedicatedDictSearch_row,
-            ZSTD_compressBlock_lazy2_dedicatedDictSearch_row,
-            ZSTD_compressBlock_greedy_dedicatedDictSearch,
-            ZSTD_compressBlock_lazy_dedicatedDictSearch,
-            ZSTD_compressBlock_lazy2_dedicatedDictSearch,
-            NULL,
-            NULL,
-            NULL,
-            NULL }
-        }
+    static const ZSTD_blockCompressor blockCompressor[4][ZSTD_STRATEGY_MAX+1] = {
+        { ZSTD_compressBlock_fast  /* default for 0 */,
+        ZSTD_compressBlock_fast,
+        ZSTD_compressBlock_doubleFast,
+        ZSTD_compressBlock_greedy_row,
+        ZSTD_compressBlock_lazy_row,
+        ZSTD_compressBlock_lazy2_row,
+        ZSTD_compressBlock_greedy,
+        ZSTD_compressBlock_lazy,
+        ZSTD_compressBlock_lazy2,
+        ZSTD_compressBlock_btlazy2,
+        ZSTD_compressBlock_btopt,
+        ZSTD_compressBlock_btultra,
+        ZSTD_compressBlock_btultra2 },
+        { ZSTD_compressBlock_fast_extDict  /* default for 0 */,
+        ZSTD_compressBlock_fast_extDict,
+        ZSTD_compressBlock_doubleFast_extDict,
+        ZSTD_compressBlock_greedy_extDict_row,
+        ZSTD_compressBlock_lazy_extDict_row,
+        ZSTD_compressBlock_lazy2_extDict_row,
+        ZSTD_compressBlock_greedy_extDict,
+        ZSTD_compressBlock_lazy_extDict,
+        ZSTD_compressBlock_lazy2_extDict,
+        ZSTD_compressBlock_btlazy2_extDict,
+        ZSTD_compressBlock_btopt_extDict,
+        ZSTD_compressBlock_btultra_extDict,
+        ZSTD_compressBlock_btultra_extDict },
+        { ZSTD_compressBlock_fast_dictMatchState  /* default for 0 */,
+        ZSTD_compressBlock_fast_dictMatchState,
+        ZSTD_compressBlock_doubleFast_dictMatchState,
+        ZSTD_compressBlock_greedy_dictMatchState_row,
+        ZSTD_compressBlock_lazy_dictMatchState_row,
+        ZSTD_compressBlock_lazy2_dictMatchState_row,
+        ZSTD_compressBlock_greedy_dictMatchState,
+        ZSTD_compressBlock_lazy_dictMatchState,
+        ZSTD_compressBlock_lazy2_dictMatchState,
+        ZSTD_compressBlock_btlazy2_dictMatchState,
+        ZSTD_compressBlock_btopt_dictMatchState,
+        ZSTD_compressBlock_btultra_dictMatchState,
+        ZSTD_compressBlock_btultra_dictMatchState },
+        { NULL  /* default for 0 */,
+        NULL,
+        NULL,
+        ZSTD_compressBlock_greedy_dedicatedDictSearch_row,
+        ZSTD_compressBlock_lazy_dedicatedDictSearch_row,
+        ZSTD_compressBlock_lazy2_dedicatedDictSearch_row,
+        ZSTD_compressBlock_greedy_dedicatedDictSearch,
+        ZSTD_compressBlock_lazy_dedicatedDictSearch,
+        ZSTD_compressBlock_lazy2_dedicatedDictSearch,
+        NULL,
+        NULL,
+        NULL,
+        NULL }
     };
     ZSTD_blockCompressor selectedCompressor;
     ZSTD_STATIC_ASSERT((unsigned)ZSTD_fast == 1);
 
     assert(ZSTD_cParam_withinBounds(ZSTD_c_strategy, strat));
-    selectedCompressor = blockCompressor[useRowMatchfinder][(int)dictMode][(int)strat];
+    selectedCompressor = blockCompressor[(int)dictMode][(int)strat];
     assert(selectedCompressor != NULL);
     return selectedCompressor;
 }
@@ -2656,7 +2600,7 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
                 ZSTD_ldm_blockCompress(&zc->externSeqStore,
                                        ms, &zc->seqStore,
                                        zc->blockState.nextCBlock->rep,
-                                       src, srcSize, zc->appliedParams.useRowMatchfinder);
+                                       src, srcSize);
             assert(zc->externSeqStore.pos <= zc->externSeqStore.size);
         } else if (zc->appliedParams.ldmParams.enableLdm) {
             rawSeqStore_t ldmSeqStore = kNullRawSeqStore;
@@ -2672,10 +2616,10 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
                 ZSTD_ldm_blockCompress(&ldmSeqStore,
                                        ms, &zc->seqStore,
                                        zc->blockState.nextCBlock->rep,
-                                       src, srcSize, zc->appliedParams.useRowMatchfinder);
+                                       src, srcSize);
             assert(ldmSeqStore.pos == ldmSeqStore.size);
         } else {   /* not long range mode */
-            ZSTD_blockCompressor const blockCompressor = ZSTD_selectBlockCompressor(zc->appliedParams.cParams.strategy, dictMode, zc->appliedParams.useRowMatchfinder);
+            ZSTD_blockCompressor const blockCompressor = ZSTD_selectBlockCompressor(zc->appliedParams.cParams.strategy, dictMode);
             ms->ldmSeqStore = NULL;
             lastLLSize = blockCompressor(ms, &zc->seqStore, zc->blockState.nextCBlock->rep, src, srcSize);
         }
@@ -3309,9 +3253,6 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
         case ZSTD_greedy_row:
         case ZSTD_lazy_row:
         case ZSTD_lazy2_row:
-        case ZSTD_greedy:
-        case ZSTD_lazy:
-        case ZSTD_lazy2:
             if (chunk >= HASH_READ_SIZE) {
                 if (ms->dedicatedDictSearch) {
                     assert(chunk == remaining); /* must load everything in one go */
@@ -3320,6 +3261,17 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
                     ZSTD_memset(ms->tagTable, 0, (1u << params->cParams.hashLog) * sizeof(U16));
                     ZSTD_row_update(ms, ichunk-HASH_READ_SIZE);
                 }
+            }
+            break;
+
+        case ZSTD_greedy:
+        case ZSTD_lazy:
+        case ZSTD_lazy2:
+            if (chunk >= HASH_READ_SIZE && ms->dedicatedDictSearch) {
+                assert(chunk == remaining); /* must load everything in one go */
+                ZSTD_dedicatedDictSearch_lazy_loadDictionary(ms, ichunk-HASH_READ_SIZE);
+            } else if (chunk >= HASH_READ_SIZE) {
+                ZSTD_insertAndFindFirstIndex(ms, ichunk-HASH_READ_SIZE);
             }
             break;
 
@@ -4567,6 +4519,7 @@ static size_t ZSTD_checkBufferStability(ZSTD_CCtx const* cctx,
 static size_t ZSTD_CCtx_init_compressStream2(ZSTD_CCtx* cctx,
                                              ZSTD_EndDirective endOp,
                                              size_t inSize) {
+    cctx->requestedParams.useRowMatchfinder = 1;
     ZSTD_CCtx_params params = cctx->requestedParams;
     ZSTD_prefixDict const prefixDict = cctx->prefixDict;
     FORWARD_IF_ERROR( ZSTD_initLocalDict(cctx) , ""); /* Init the local dict if present. */
@@ -5513,7 +5466,7 @@ static ZSTD_compressionParameters ZSTD_getCParams_internal(int compressionLevel,
     else if (compressionLevel > ZSTD_MAX_CLEVEL) row = ZSTD_MAX_CLEVEL;
     else row = compressionLevel;
 
-    {   ZSTD_compressionParameters cp = ZSTD_defaultCParameters[1][tableID][row];
+    {   ZSTD_compressionParameters cp = ZSTD_defaultCParameters[useRowMatchfinder][tableID][row];
         /* acceleration factor */
         if (compressionLevel < 0) {
             int const clampedCompressionLevel = MAX(ZSTD_minCLevel(), compressionLevel);

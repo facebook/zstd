@@ -701,9 +701,10 @@ static unsigned init_nbThreads(void) {
     val32 = readU32FromChar(&__nb); \
 }
 
-#define ZSTD_NB_STRATEGIES 9
+#define ZSTD_NB_STRATEGIES 12
 static const char* ZSTD_strategyMap[ZSTD_NB_STRATEGIES + 1] = { "", "ZSTD_fast",
-                "ZSTD_dfast", "ZSTD_greedy", "ZSTD_lazy", "ZSTD_lazy2", "ZSTD_btlazy2",
+                "ZSTD_dfast", "ZSTD_greedy_row", "ZSTD_lazy_row", "ZSTD_lazy2_row",
+                "ZSTD_greedy", "ZSTD_lazy", "ZSTD_lazy2", "ZSTD_btlazy2",
                 "ZSTD_btopt", "ZSTD_btultra", "ZSTD_btultra2"};
 
 typedef enum { zom_compress, zom_decompress, zom_test, zom_bench, zom_train, zom_list } zstd_operation_mode;

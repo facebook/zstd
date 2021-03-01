@@ -174,7 +174,7 @@ ZSTD_selectEncodingType(
         DEBUGLOG(5, "Selected set_rle");
         return set_rle;
     }
-    if (strategy < ZSTD_lazy) {
+    if (strategy < ZSTD_lazy_row) {
         if (isDefaultAllowed) {
             size_t const staticFse_nbSeq_max = 1000;
             size_t const mult = 10 - strategy;

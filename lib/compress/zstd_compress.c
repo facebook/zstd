@@ -514,11 +514,15 @@ static size_t ZSTD_cParam_clampBounds(ZSTD_cParameter cParam, int* value)
                     parameter_outOfBound, "Param out of bounds"); \
 }
 
-/* Checks if strategy is one of greedy, lazy, or lazy2 */
-#define STRATEGY_USES_ROW_BASED_MATCHFINDER(strategy) (strategy < ZSTD_greedy && strategy > ZSTD_dfast)
+/* Returns if the strategy uses the row based matchfinder */
+static int ZSTD_strategyUsesRowBasedMatchfinder(const ZSTD_strategy strategy) {
+    return (strategy == ZSTD_greedy_row || strategy == ZSTD_lazy_row || strategy == ZSTD_lazy2_row);
+}
 
 /* Aligns a buffer to a 64-byte boundary */
-#define ALIGN_TO_64_BYTES(ptr) (((size_t)ptr + 63) & ~63)
+static size_t ZSTD_alignBufferTo64Bytes(void* ptr) {
+    return ((size_t)ptr + 63) & ~63;
+}
 
 static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
 {
@@ -1338,7 +1342,7 @@ ZSTD_sizeof_matchState(const ZSTD_compressionParameters* const cParams,
       + ZSTD_cwksp_alloc_size((1<<Litbits) * sizeof(U32))
       + ZSTD_cwksp_alloc_size((ZSTD_OPT_NUM+1) * sizeof(ZSTD_match_t))
       + ZSTD_cwksp_alloc_size((ZSTD_OPT_NUM+1) * sizeof(ZSTD_optimal_t));
-    size_t const lazyAdditionalSpace = STRATEGY_USES_ROW_BASED_MATCHFINDER(cParams->strategy)
+    size_t const lazyAdditionalSpace = ZSTD_strategyUsesRowBasedMatchfinder(cParams->strategy)
                                 ? ZSTD_cwksp_alloc_size(hSize*sizeof(U16) + ZSTD_CWKSP_ALIGN_TABLES_BYTES)
                                 : 0;
     size_t const optSpace = (forCCtx && (cParams->strategy >= ZSTD_btopt))
@@ -1380,8 +1384,7 @@ static size_t ZSTD_estimateCCtxSize_usingCCtxParams_internal(
     size_t const cctxSpace = isStatic ? ZSTD_cwksp_alloc_size(sizeof(ZSTD_CCtx)) : 0;
 
     /* Require two allocations for alignment to 64 bytes, call ZSTD_cwksp_alloc_size() twice. */
-    size_t const alignSpace = ZSTD_cwksp_alloc_size(ZSTD_CWKSP_ALIGN_TABLES_BYTES/2)
-                            + ZSTD_cwksp_alloc_size(ZSTD_CWKSP_ALIGN_TABLES_BYTES/2);
+    size_t const alignSpace = ZSTD_cwksp_align64Space();
 
     size_t const neededSpace =
         cctxSpace +
@@ -1600,7 +1603,7 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
         ZSTD_cwksp_mark_tables_dirty(ws);
     }
 
-    if (STRATEGY_USES_ROW_BASED_MATCHFINDER(cParams->strategy)) {
+    if (ZSTD_strategyUsesRowBasedMatchfinder(cParams->strategy)) {
         U32 const rowEntries = cParams->searchLog < 5 ? kRowEntries16 : kRowEntries32;
         ms->nbRows = ZSTD_highbit32((1u << cParams->hashLog) / rowEntries);
     }
@@ -1637,11 +1640,11 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
         ms->opt.priceTable = (ZSTD_optimal_t*)ZSTD_cwksp_reserve_aligned(ws, (ZSTD_OPT_NUM+1) * sizeof(ZSTD_optimal_t));
     }
 
-    if (STRATEGY_USES_ROW_BASED_MATCHFINDER(cParams->strategy)) {
+    if (ZSTD_strategyUsesRowBasedMatchfinder(cParams->strategy)) {
         size_t const tagTableSize = hSize*sizeof(U16);
         ms->tagTable = (U16*)ZSTD_cwksp_reserve_aligned(ws, tagTableSize + ZSTD_CWKSP_ALIGN_TABLES_BYTES);
-        ms->tagTable = (U16*)ALIGN_TO_64_BYTES(ms->tagTable);
-        ZSTD_memset(ms->tagTable, 0, tagTableSize); /* TODO: Try to optimize this out */
+        ms->tagTable = (U16*)ZSTD_alignBufferTo64Bytes(ms->tagTable);
+        if (ms->tagTable) ZSTD_memset(ms->tagTable, 0, tagTableSize); /* TODO: Try to optimize this out */
     }
 
     ms->cParams = *cParams;
@@ -1742,13 +1745,8 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                 RETURN_ERROR_IF(zc->blockState.nextCBlock == NULL, memory_allocation, "couldn't allocate nextCBlock");
                 zc->entropyWorkspace = (U32*) ZSTD_cwksp_reserve_object(ws, ENTROPY_WORKSPACE_SIZE);
                 RETURN_ERROR_IF(zc->blockState.nextCBlock == NULL, memory_allocation, "couldn't allocate entropyWorkspace");
-                {   /* Align the tables section to 64 bytes by reserving an extra dummy object of [0, 64) bytes */
-                    size_t const bytesToAlignTables = ZSTD_cwksp_bytes_to_align_tables(ws);
-                    BYTE* dummyObjForAlignment = (BYTE*)ZSTD_cwksp_reserve_object(ws, bytesToAlignTables);
-                    DEBUGLOG(5, "Reserving additional %zu bytes object to align hashTable", bytesToAlignTables);
-                    RETURN_ERROR_IF(dummyObjForAlignment == NULL, memory_allocation, "couldn't allocate dummy object for 64-byte alignment");
-                    zc->alignmentBytes = (U32)bytesToAlignTables;
-                }
+                zc->alignmentBytes = ZSTD_cwksp_reserve_first_dummy_object_for_alignment(ws);
+                FORWARD_IF_ERROR(zc->alignmentBytes, "couldn't allocate first dummy object for alignment!");
         }   }
 
         ZSTD_cwksp_clear(ws);
@@ -1825,23 +1823,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             zc->ldmState.loadedDictEnd = 0;
         }
 
-        {   /* Earlier, we reserved an n = [0, 64) byte object to align the tables. Now, we reserve a (64 - n) byte 'align' buffer
-             * so that we always reserve an extra 64 bytes for alignment. This allows the CCtx size estimation to remain accurate.
-             */
-            size_t const extraBytes = ZSTD_CWKSP_ALIGN_TABLES_BYTES - zc->alignmentBytes;
-            DEBUGLOG(5, "Reserving additional %zu bytes objects to make alignment cost 64 bytes. Complement: %u", extraBytes, zc->alignmentBytes);
-            if (zc->alignmentBytes == 0) {
-                /* Fixed-size increase in allocation cost with ASAN means that if the hashTable was already aligned,
-                 * we must always still allocate two dummy objects to achieve the correct space usage.
-                 */
-                BYTE* dummyObjForEstimation = (BYTE*)ZSTD_cwksp_reserve_aligned(ws, extraBytes/2);
-                BYTE* secondDummyObjForEstimation = (BYTE*)ZSTD_cwksp_reserve_aligned(ws, extraBytes/2);
-                RETURN_ERROR_IF(!dummyObjForEstimation || !secondDummyObjForEstimation, memory_allocation, "Failed to allocate dummy aligned buffer");
-            } else {
-                BYTE* dummyObjForEstimation = (BYTE*)ZSTD_cwksp_reserve_aligned(ws, extraBytes);
-                RETURN_ERROR_IF(!dummyObjForEstimation, memory_allocation, "Failed to allocate dummy aligned buffer");
-            }
-        }
+        FORWARD_IF_ERROR(ZSTD_cwksp_reserve_second_dummy_object_for_alignment(ws, zc->alignmentBytes), "Second dummy reservation for alignment failed!");
 
         /* Due to alignment, when reusing a workspace, we can actually consume
          * up to 3 extra bytes for alignment. See the comments in zstd_cwksp.h
@@ -2478,10 +2460,10 @@ ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMo
         ZSTD_compressBlock_fast,
         ZSTD_compressBlock_doubleFast,
         ZSTD_compressBlock_greedy_row,
-        ZSTD_compressBlock_lazy_row,
-        ZSTD_compressBlock_lazy2_row,
         ZSTD_compressBlock_greedy,
+        ZSTD_compressBlock_lazy_row,
         ZSTD_compressBlock_lazy,
+        ZSTD_compressBlock_lazy2_row,
         ZSTD_compressBlock_lazy2,
         ZSTD_compressBlock_btlazy2,
         ZSTD_compressBlock_btopt,
@@ -2491,10 +2473,10 @@ ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMo
         ZSTD_compressBlock_fast_extDict,
         ZSTD_compressBlock_doubleFast_extDict,
         ZSTD_compressBlock_greedy_extDict_row,
-        ZSTD_compressBlock_lazy_extDict_row,
-        ZSTD_compressBlock_lazy2_extDict_row,
         ZSTD_compressBlock_greedy_extDict,
+        ZSTD_compressBlock_lazy_extDict_row,
         ZSTD_compressBlock_lazy_extDict,
+        ZSTD_compressBlock_lazy2_extDict_row,
         ZSTD_compressBlock_lazy2_extDict,
         ZSTD_compressBlock_btlazy2_extDict,
         ZSTD_compressBlock_btopt_extDict,
@@ -2504,10 +2486,10 @@ ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMo
         ZSTD_compressBlock_fast_dictMatchState,
         ZSTD_compressBlock_doubleFast_dictMatchState,
         ZSTD_compressBlock_greedy_dictMatchState_row,
-        ZSTD_compressBlock_lazy_dictMatchState_row,
-        ZSTD_compressBlock_lazy2_dictMatchState_row,
         ZSTD_compressBlock_greedy_dictMatchState,
+        ZSTD_compressBlock_lazy_dictMatchState_row,
         ZSTD_compressBlock_lazy_dictMatchState,
+        ZSTD_compressBlock_lazy2_dictMatchState_row,
         ZSTD_compressBlock_lazy2_dictMatchState,
         ZSTD_compressBlock_btlazy2_dictMatchState,
         ZSTD_compressBlock_btopt_dictMatchState,
@@ -2517,10 +2499,10 @@ ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMo
         NULL,
         NULL,
         ZSTD_compressBlock_greedy_dedicatedDictSearch_row,
-        ZSTD_compressBlock_lazy_dedicatedDictSearch_row,
-        ZSTD_compressBlock_lazy2_dedicatedDictSearch_row,
         ZSTD_compressBlock_greedy_dedicatedDictSearch,
+        ZSTD_compressBlock_lazy_dedicatedDictSearch_row,
         ZSTD_compressBlock_lazy_dedicatedDictSearch,
+        ZSTD_compressBlock_lazy2_dedicatedDictSearch_row,
         ZSTD_compressBlock_lazy2_dedicatedDictSearch,
         NULL,
         NULL,
@@ -3259,7 +3241,7 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
                     assert(chunk == remaining); /* must load everything in one go */
                     ZSTD_dedicatedDictSearch_lazy_loadDictionary(ms, ichunk-HASH_READ_SIZE);
                 } else {
-                    ZSTD_memset(ms->tagTable, 0, (1u << params->cParams.hashLog) * sizeof(U16));
+                    ZSTD_memset(ms->tagTable, 0, ((U32)1 << params->cParams.hashLog) * sizeof(U16));
                     ZSTD_row_update(ms, ichunk-HASH_READ_SIZE);
                 }
             }
@@ -4520,7 +4502,6 @@ static size_t ZSTD_checkBufferStability(ZSTD_CCtx const* cctx,
 static size_t ZSTD_CCtx_init_compressStream2(ZSTD_CCtx* cctx,
                                              ZSTD_EndDirective endOp,
                                              size_t inSize) {
-    cctx->requestedParams.useRowMatchfinder = 1;
     ZSTD_CCtx_params params = cctx->requestedParams;
     ZSTD_prefixDict const prefixDict = cctx->prefixDict;
     FORWARD_IF_ERROR( ZSTD_initLocalDict(cctx) , ""); /* Init the local dict if present. */
@@ -5156,7 +5137,7 @@ int ZSTD_minCLevel(void) { return (int)-ZSTD_TARGETLENGTH_MAX; }
 
 static const ZSTD_compressionParameters ZSTD_defaultCParameters[2][4][ZSTD_MAX_CLEVEL+1] = {
 {
-    /* Non-SIMD set of parameters */
+    /* Default set of parameters */
     {   /* "default" - for any srcSize > 256 KB */
         /* W,  C,  H,  S,  L, TL, strat */
         { 19, 12, 13,  1,  6,  1, ZSTD_fast    },  /* base for negative levels */

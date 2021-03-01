@@ -161,7 +161,6 @@ typedef struct {
 /*-*************************************
 *  Functions
 ***************************************/
-
 MEM_STATIC size_t ZSTD_cwksp_available_space(ZSTD_cwksp* ws);
 
 MEM_STATIC void ZSTD_cwksp_assert_internal_consistency(ZSTD_cwksp* ws) {
@@ -326,14 +325,6 @@ MEM_STATIC void* ZSTD_cwksp_reserve_table(ZSTD_cwksp* ws, size_t bytes) {
 #endif
 
     return alloc;
-}
-
-/**
- * Returns additional nb bytes to reserve in order to align the beginning of the
- * tables to ZSTD_CWKSP_ALIGN_TABLES_BYTES bytes.
- */
-MEM_STATIC size_t ZSTD_cwksp_bytes_to_align_tables(ZSTD_cwksp* ws) {
-    return (ZSTD_CWKSP_ALIGN_TABLES_BYTES - ((size_t)ws->objectEnd & (ZSTD_CWKSP_ALIGN_TABLES_BYTES - 1)));
 }
 
 /**
@@ -535,6 +526,69 @@ MEM_STATIC size_t ZSTD_cwksp_used(const ZSTD_cwksp* ws) {
 MEM_STATIC int ZSTD_cwksp_reserve_failed(const ZSTD_cwksp* ws) {
     return ws->allocFailed;
 }
+
+/*********************************************
+ * Functions handling 64-byte aligned elements
+ ********************************************/
+
+/**
+ * Returns additional nb bytes to reserve in order to align the beginning of the
+ * tables to ZSTD_CWKSP_ALIGN_TABLES_BYTES bytes.
+ */
+MEM_STATIC size_t ZSTD_cwksp_bytes_to_align_tables(ZSTD_cwksp* ws) {
+    return (ZSTD_CWKSP_ALIGN_TABLES_BYTES - ((size_t)ws->objectEnd & (ZSTD_CWKSP_ALIGN_TABLES_BYTES - 1)));
+}
+
+/** 
+ * Returns the amount of extra space required for alignment of tables.
+ */
+MEM_STATIC size_t ZSTD_cwksp_align64Space(void) {
+    /* Require two allocations for alignment to 64 bytes, call ZSTD_cwksp_alloc_size() twice. */
+    return 2*ZSTD_cwksp_alloc_size(ZSTD_CWKSP_ALIGN_TABLES_BYTES/2);
+}
+
+/**
+ * ZSTD_cwksp_reserve_first_dummy_object_for_alignment()
+ * Align the tables section to 64 bytes by reserving an extra dummy object of [0, 64) bytes.
+ * 
+ * Returns the number of bytes used or a ZSTD error code.
+ */
+MEM_STATIC size_t ZSTD_cwksp_reserve_first_dummy_object_for_alignment(ZSTD_cwksp* ws) {
+    size_t const bytesToAlignTables = ZSTD_cwksp_bytes_to_align_tables(ws);
+    BYTE* dummyObjForAlignment = (BYTE*)ZSTD_cwksp_reserve_object(ws, bytesToAlignTables);
+    DEBUGLOG(5, "Reserving additional %zu bytes object to align hashTable", bytesToAlignTables);
+    RETURN_ERROR_IF(dummyObjForAlignment == NULL, memory_allocation, "couldn't allocate dummy object for 64-byte alignment");
+    return bytesToAlignTables;
+}
+
+/**
+ * ZSTD_cwksp_reserve_second_dummy_object_for_alignment(): to be called after ZSTD_cwksp_reserve_first_dummy_object_for_alignment()
+ * 
+ * ZSTD_cwksp_reserve_first_dummy_object_for_alignment() reserved an n = [0, 64) byte object to align the tables.
+ * Now, we reserve a (64 - n) byte 'align' buffer, so that we always reserve an extra 64 bytes for alignment.
+ * This allows the CCtx size estimation to remain accurate.
+ * 
+ * Returns 0 on success or a ZSTD error code.
+ */
+MEM_STATIC size_t ZSTD_cwksp_reserve_second_dummy_object_for_alignment(ZSTD_cwksp* ws, const size_t alignmentBytes) {  
+
+    size_t const extraBytes = ZSTD_CWKSP_ALIGN_TABLES_BYTES - alignmentBytes;
+    DEBUGLOG(5, "Reserving additional %zu bytes objects to make alignment cost 64 bytes. Complement: %zu", extraBytes, alignmentBytes);
+    if (alignmentBytes == 0) {
+        /* If the hashTable was already aligned, ZSTD_cwksp_reserve_first_dummy_object_for_alignment()
+         * does not allocate a new object. However, we must always still allocate two dummy objects to
+         * achieve the correct space usage due to fixed-size increase in allocations under ASAN poisoning.
+         */
+        BYTE* dummyObjForEstimation = (BYTE*)ZSTD_cwksp_reserve_aligned(ws, extraBytes/2);
+        BYTE* secondDummyObjForEstimation = (BYTE*)ZSTD_cwksp_reserve_aligned(ws, extraBytes/2);
+        RETURN_ERROR_IF(!dummyObjForEstimation || !secondDummyObjForEstimation, memory_allocation, "Failed to allocate dummy aligned buffer");
+    } else {
+        BYTE* dummyObjForEstimation = (BYTE*)ZSTD_cwksp_reserve_aligned(ws, extraBytes);
+        RETURN_ERROR_IF(!dummyObjForEstimation, memory_allocation, "Failed to allocate dummy aligned buffer");
+    }
+    return 0;
+}
+
 
 /*-*************************************
 *  Functions Checking Free Space

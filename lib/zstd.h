@@ -256,10 +256,10 @@ ZSTDLIB_API size_t ZSTD_decompressDCtx(ZSTD_DCtx* dctx,
 typedef enum { ZSTD_fast=1,
                ZSTD_dfast=2,
                ZSTD_greedy_row=3,
-               ZSTD_lazy_row=4,
-               ZSTD_lazy2_row=5,
-               ZSTD_greedy=6,
-               ZSTD_lazy=7,
+               ZSTD_greedy=4,
+               ZSTD_lazy_row=5,
+               ZSTD_lazy=6,
+               ZSTD_lazy2_row=7,
                ZSTD_lazy2=8,
                ZSTD_btlazy2=9,
                ZSTD_btopt=10,
@@ -1838,8 +1838,8 @@ ZSTDLIB_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* pre
 #define ZSTD_c_validateSequences ZSTD_c_experimentalParam12
 
 /* ZSTD_c_useRowMatchfinder
- * Default is 0 == disabled. Set to 1 to enable usage of new row-based matchfinder
- * and new set of compression parameter defaults.
+ * Default is 0 == disabled. Set to 1 to use a new set of compression parameters
+ * that may use the new row-based matchfinder for the middle compression levels.
  */
 #define ZSTD_c_useRowMatchfinder ZSTD_c_experimentalParam13
 

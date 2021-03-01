@@ -71,13 +71,16 @@ const char *zstd_get_error_name(size_t code);
 enum zstd_strategy {
 	zstd_fast = 1,
 	zstd_dfast = 2,
-	zstd_greedy = 3,
-	zstd_lazy = 4,
-	zstd_lazy2 = 5,
-	zstd_btlazy2 = 6,
-	zstd_btopt = 7,
-	zstd_btultra = 8,
-	zstd_btultra2 = 9
+	zstd_greedy_row = 3,
+	zstd_greedy = 4,
+	zstd_lazy_row = 5,
+	zstd_lazy = 6,
+	zstd_lazy2_row = 7,
+	zstd_lazy2 = 8,
+	zstd_btlazy2 = 9,
+	zstd_btopt = 10,
+	zstd_btultra = 11,
+	zstd_btultra2 = 12
 };
 
 /**

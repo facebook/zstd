@@ -43,7 +43,7 @@ extern "C" {
                                        This constant is required by ZSTD_compressBlock_btlazy2() and ZSTD_reduceTable_internal() */
 
 
-/* Shared constants for row-based hash. Used in row-based lazy strategy and zstd_compress.c */
+/* Shared constants for row-based hash. Used in lazy.c and zstd_compress.c */
 #define kRowLog16 4                            /* log of the nb entries per row */
 #define kRowEntries16 (1u << kRowLog16)        /* nb entries per row */
 #define kRowLog32 5
@@ -355,7 +355,7 @@ struct ZSTD_CCtx_s {
     ZSTD_TraceCtx traceCtx;
 #endif
 
-    U32 alignmentBytes;     /* Size of extra object reserved to align the workspace's tables to 64-bytes */
+    size_t alignmentBytes;     /* Size of extra object reserved to align the workspace's tables to 64-bytes */
 };
 
 typedef enum { ZSTD_dtlm_fast, ZSTD_dtlm_full } ZSTD_dictTableLoadMethod_e;

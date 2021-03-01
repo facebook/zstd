@@ -1742,8 +1742,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
             size_t const contentSize = 9 KB;
             const void* const dict = (const char*)CNBuffer;
             const void* const contentStart = (const char*)dict + flatdictSize;
-            size_t const target_nodict_cSize[22+1] = { 3840, 3770, 3870, 3830, 3770+1,
-                                                       3770+5, 3770+5, 3770+5, 3750+5, 3750+5,
+            size_t const target_nodict_cSize[22+1] = { 3840, 3770, 3870, 3830, 3775,
+                                                       3775, 3775, 3775, 3755, 3755,
                                                        3742, 3670, 3670, 3660, 3660,
                                                        3660, 3660, 3660, 3660, 3660,
                                                        3660, 3660, 3660 };
@@ -1768,7 +1768,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
                                     l, (unsigned)nodict_cSize, (unsigned)target_nodict_cSize[l]);
                     goto _output_error;
                 }
-                fprintf(stderr, "level %i : max expected %u >= reached %u \n",
+                DISPLAYLEVEL(4, "level %i : max expected %u >= reached %u \n",
                                 l, (unsigned)target_nodict_cSize[l], (unsigned)nodict_cSize);
             }
             for ( l=1 ; l <= maxLevel; l++) {
@@ -1782,7 +1782,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
                                     l, (unsigned)wdict_cSize, (unsigned)target_wdict_cSize[l]);
                     goto _output_error;
                 }
-                fprintf(stderr, "level %i with dictionary : max expected %u >= reached %u \n",
+                DISPLAYLEVEL(4, "level %i with dictionary : max expected %u >= reached %u \n",
                                 l, (unsigned)target_wdict_cSize[l], (unsigned)wdict_cSize);
             }
 

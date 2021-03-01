@@ -177,7 +177,7 @@ ZSTD_selectEncodingType(
     if (strategy < ZSTD_lazy_row) {
         if (isDefaultAllowed) {
             size_t const staticFse_nbSeq_max = 1000;
-            size_t const mult = 10 - strategy;
+            size_t const mult = MAX(10 - strategy, 7);
             size_t const baseLog = 3;
             size_t const dynamicFse_nbSeq_min = (((size_t)1 << defaultNormLog) * mult) >> baseLog;  /* 28-36 for offset, 56-72 for lengths */
             assert(defaultNormLog >= 5 && defaultNormLog <= 6);  /* xx_DEFAULTNORMLOG */

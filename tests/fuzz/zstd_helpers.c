@@ -91,6 +91,7 @@ void FUZZ_setRandomParameters(ZSTD_CCtx *cctx, size_t srcSize, FUZZ_dataProducer
     /* Set misc parameters */
     setRand(cctx, ZSTD_c_nbWorkers, 0, 2, producer);
     setRand(cctx, ZSTD_c_rsyncable, 0, 1, producer);
+    setRand(cctx, ZSTD_c_useRowMatchfinder, 0, 1, producer);
     setRand(cctx, ZSTD_c_forceMaxWindow, 0, 1, producer);
     setRand(cctx, ZSTD_c_literalCompressionMode, 0, 2, producer);
     setRand(cctx, ZSTD_c_forceAttachDict, 0, 2, producer);

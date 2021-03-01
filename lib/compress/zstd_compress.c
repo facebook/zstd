@@ -990,7 +990,8 @@ ZSTDLIB_API size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long lo
 
 static ZSTD_compressionParameters ZSTD_dedicatedDictSearch_getCParams(
         int const compressionLevel,
-        size_t const dictSize);
+        size_t const dictSize,
+        int const useRowMatchfinder);
 static int ZSTD_dedicatedDictSearch_isSupported(
         const ZSTD_compressionParameters* cParams);
 static void ZSTD_dedicatedDictSearch_revertCParams(
@@ -1309,7 +1310,6 @@ ZSTD_compressionParameters ZSTD_getCParamsFromCCtxParams(
     if (srcSizeHint == ZSTD_CONTENTSIZE_UNKNOWN && CCtxParams->srcSizeHint > 0) {
       srcSizeHint = CCtxParams->srcSizeHint;
     }
-    DEBUGLOG(2, "CCtxParams->useRowMatchfinder: %d", CCtxParams->useRowMatchfinder);
     cParams = ZSTD_getCParams_internal(CCtxParams->compressionLevel, srcSizeHint, dictSize, mode, CCtxParams->useRowMatchfinder);
     if (CCtxParams->ldmParams.enableLdm) cParams.windowLog = ZSTD_LDM_DEFAULT_WINDOW_LOG;
     ZSTD_overrideCParams(&cParams, &CCtxParams->cParams);
@@ -2531,6 +2531,7 @@ ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMo
     ZSTD_STATIC_ASSERT((unsigned)ZSTD_fast == 1);
 
     assert(ZSTD_cParam_withinBounds(ZSTD_c_strategy, strat));
+    DEBUGLOG(4, "Selected block compressor: dictMode=%d strat=%d", (int)dictMode, (int)strat);
     selectedCompressor = blockCompressor[(int)dictMode][(int)strat];
     assert(selectedCompressor != NULL);
     return selectedCompressor;
@@ -3907,7 +3908,7 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced2(
 
     if (cctxParams.enableDedicatedDictSearch) {
         cParams = ZSTD_dedicatedDictSearch_getCParams(
-            cctxParams.compressionLevel, dictSize);
+            cctxParams.compressionLevel, dictSize, cctxParams.useRowMatchfinder);
         ZSTD_overrideCParams(&cParams, &cctxParams.cParams);
     } else {
         cParams = ZSTD_getCParamsFromCCtxParams(
@@ -5370,9 +5371,9 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[2][4][ZSTD_MAX_C
 }
 };
 
-static ZSTD_compressionParameters ZSTD_dedicatedDictSearch_getCParams(int const compressionLevel, size_t const dictSize)
+static ZSTD_compressionParameters ZSTD_dedicatedDictSearch_getCParams(int const compressionLevel, size_t const dictSize, int const useRowMatchfinder)
 {
-    ZSTD_compressionParameters cParams = ZSTD_getCParams_internal(compressionLevel, 0, dictSize, ZSTD_cpm_createCDict, 0);
+    ZSTD_compressionParameters cParams = ZSTD_getCParams_internal(compressionLevel, 0, dictSize, ZSTD_cpm_createCDict, useRowMatchfinder);
     switch (cParams.strategy) {
         case ZSTD_fast:
         case ZSTD_dfast:
@@ -5397,7 +5398,7 @@ static ZSTD_compressionParameters ZSTD_dedicatedDictSearch_getCParams(int const 
 static int ZSTD_dedicatedDictSearch_isSupported(
         ZSTD_compressionParameters const* cParams)
 {
-    return (cParams->strategy >= ZSTD_greedy) && (cParams->strategy <= ZSTD_lazy2);
+    return (cParams->strategy >= ZSTD_greedy_row) && (cParams->strategy <= ZSTD_lazy2);
 }
 
 /**
@@ -5453,7 +5454,7 @@ static U64 ZSTD_getCParamRowSize(U64 srcSizeHint, size_t dictSize, ZSTD_cParamMo
  *        Use dictSize == 0 for unknown or unused.
 `. */
 static ZSTD_compressionParameters ZSTD_getCParams_internal(int compressionLevel, unsigned long long srcSizeHint,
-                                                           size_t dictSize, ZSTD_cParamMode_e mode, int useRowMatchfinder)
+                                                           size_t dictSize, ZSTD_cParamMode_e mode, int const useRowMatchfinder)
 {
     U64 const rSize = ZSTD_getCParamRowSize(srcSizeHint, dictSize, mode);
     U32 const tableID = (rSize <= 256 KB) + (rSize <= 128 KB) + (rSize <= 16 KB);
@@ -5467,6 +5468,7 @@ static ZSTD_compressionParameters ZSTD_getCParams_internal(int compressionLevel,
     else row = compressionLevel;
 
     {   ZSTD_compressionParameters cp = ZSTD_defaultCParameters[useRowMatchfinder][tableID][row];
+        DEBUGLOG(5, "ZSTD_getCParams_internal selected tableID: %u row: %u strat: %u", tableID, row, (U32)cp.strategy);
         /* acceleration factor */
         if (compressionLevel < 0) {
             int const clampedCompressionLevel = MAX(ZSTD_minCLevel(), compressionLevel);

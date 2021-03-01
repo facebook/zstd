@@ -1115,7 +1115,7 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_update_internal(ZSTD_matchState_t* ms, const
     const U32 target = (U32)(ip - base);
     U32 idx = ms->nextToUpdate;
 
-    DEBUGLOG(5, "ZSTD_row_update_internal(): nextToUpdate=%u, current=%u", idx, target);
+    DEBUGLOG(6, "ZSTD_row_update_internal(): nextToUpdate=%u, current=%u", idx, target);
     for (; idx < target; ++idx) {
         U32 const hash = useCache ? ZSTD_row_nextCachedHash(ms->hashCache, hashTable, tagTable, base, idx, hashLog, rowLog, mls, shouldPrefetch)
                                   : ZSTD_hashPtr(base + idx, hashLog + kShortBits, mls);
@@ -1605,7 +1605,7 @@ ZSTD_compressBlock_lazy_generic(
 
     assert(searchMax != NULL);
 
-    DEBUGLOG(5, "ZSTD_compressBlock_lazy_generic (dictMode=%u)", (U32)dictMode);
+    DEBUGLOG(5, "ZSTD_compressBlock_lazy_generic (dictMode=%u) (searchFunc=%u)", (U32)dictMode, (U32)searchMethod);
     ip += (dictAndPrefixLength == 0);
     if (dictMode == ZSTD_noDict) {
         U32 const curr = (U32)(ip - base);

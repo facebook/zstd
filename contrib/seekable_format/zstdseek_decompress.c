@@ -233,12 +233,12 @@ size_t ZSTD_seekTable_free(ZSTD_seekTable* st)
  *  Performs a binary search to find the last frame with a decompressed offset
  *  <= pos
  *  @return : the frame's index */
-unsigned ZSTD_seekable_offsetToFrameIndex(ZSTD_seekable* const zs, unsigned long long pos)
+unsigned ZSTD_seekable_offsetToFrameIndex(const ZSTD_seekable* zs, unsigned long long pos)
 {
     return ZSTD_seekTable_offsetToFrameIndex(&zs->seekTable, pos);
 }
 
-unsigned ZSTD_seekTable_offsetToFrameIndex(ZSTD_seekTable* const st, unsigned long long pos)
+unsigned ZSTD_seekTable_offsetToFrameIndex(const ZSTD_seekTable* st, unsigned long long pos)
 {
     U32 lo = 0;
     U32 hi = (U32)st->tableLen;
@@ -259,57 +259,57 @@ unsigned ZSTD_seekTable_offsetToFrameIndex(ZSTD_seekTable* const st, unsigned lo
     return lo;
 }
 
-unsigned ZSTD_seekable_getNumFrames(ZSTD_seekable* const zs)
+unsigned ZSTD_seekable_getNumFrames(const ZSTD_seekable* zs)
 {
     return ZSTD_seekTable_getNumFrames(&zs->seekTable);
 }
 
-unsigned ZSTD_seekTable_getNumFrames(ZSTD_seekTable* const st)
+unsigned ZSTD_seekTable_getNumFrames(const ZSTD_seekTable* st)
 {
     assert(st->tableLen <= UINT_MAX);
     return (unsigned)st->tableLen;
 }
 
-unsigned long long ZSTD_seekable_getFrameCompressedOffset(ZSTD_seekable* const zs, unsigned frameIndex)
+unsigned long long ZSTD_seekable_getFrameCompressedOffset(const ZSTD_seekable* zs, unsigned frameIndex)
 {
     return ZSTD_seekTable_getFrameCompressedOffset(&zs->seekTable, frameIndex);
 }
 
-unsigned long long ZSTD_seekTable_getFrameCompressedOffset(ZSTD_seekTable* const st, unsigned frameIndex)
+unsigned long long ZSTD_seekTable_getFrameCompressedOffset(const ZSTD_seekTable* st, unsigned frameIndex)
 {
     if (frameIndex >= st->tableLen) return ZSTD_SEEKABLE_FRAMEINDEX_TOOLARGE;
     return st->entries[frameIndex].cOffset;
 }
 
-unsigned long long ZSTD_seekable_getFrameDecompressedOffset(ZSTD_seekable* const zs, unsigned frameIndex)
+unsigned long long ZSTD_seekable_getFrameDecompressedOffset(const ZSTD_seekable* zs, unsigned frameIndex)
 {
     return ZSTD_seekTable_getFrameDecompressedOffset(&zs->seekTable, frameIndex);
 }
 
-unsigned long long ZSTD_seekTable_getFrameDecompressedOffset(ZSTD_seekTable* const st, unsigned frameIndex)
+unsigned long long ZSTD_seekTable_getFrameDecompressedOffset(const ZSTD_seekTable* st, unsigned frameIndex)
 {
     if (frameIndex >= st->tableLen) return ZSTD_SEEKABLE_FRAMEINDEX_TOOLARGE;
     return st->entries[frameIndex].dOffset;
 }
 
-size_t ZSTD_seekable_getFrameCompressedSize(ZSTD_seekable* const zs, unsigned frameIndex)
+size_t ZSTD_seekable_getFrameCompressedSize(const ZSTD_seekable* zs, unsigned frameIndex)
 {
     return ZSTD_seekTable_getFrameCompressedSize(&zs->seekTable, frameIndex);
 }
 
-size_t ZSTD_seekTable_getFrameCompressedSize(ZSTD_seekTable* const st, unsigned frameIndex)
+size_t ZSTD_seekTable_getFrameCompressedSize(const ZSTD_seekTable* st, unsigned frameIndex)
 {
     if (frameIndex >= st->tableLen) return ERROR(frameIndex_tooLarge);
     return st->entries[frameIndex + 1].cOffset -
            st->entries[frameIndex].cOffset;
 }
 
-size_t ZSTD_seekable_getFrameDecompressedSize(ZSTD_seekable* const zs, unsigned frameIndex)
+size_t ZSTD_seekable_getFrameDecompressedSize(const ZSTD_seekable* zs, unsigned frameIndex)
 {
     return ZSTD_seekTable_getFrameDecompressedSize(&zs->seekTable, frameIndex);
 }
 
-size_t ZSTD_seekTable_getFrameDecompressedSize(ZSTD_seekTable* const st, unsigned frameIndex)
+size_t ZSTD_seekTable_getFrameDecompressedSize(const ZSTD_seekTable* st, unsigned frameIndex)
 {
     if (frameIndex > st->tableLen) return ERROR(frameIndex_tooLarge);
     return st->entries[frameIndex + 1].dOffset -
@@ -513,7 +513,7 @@ size_t ZSTD_seekable_decompress(ZSTD_seekable* zs, void* dst, size_t len, unsign
                 zs->in.size = toRead;
                 zs->in.pos = 0;
             }
-        }
+        }  /* while (zs->decompressedOffset < offset + len) */
     } while (zs->decompressedOffset != offset + len);
 
     return len;
@@ -525,8 +525,7 @@ size_t ZSTD_seekable_decompressFrame(ZSTD_seekable* zs, void* dst, size_t dstSiz
         return ERROR(frameIndex_tooLarge);
     }
 
-    {
-        size_t const decompressedSize =
+    {   size_t const decompressedSize =
                 zs->seekTable.entries[frameIndex + 1].dOffset -
                 zs->seekTable.entries[frameIndex].dOffset;
         if (dstSize < decompressedSize) {

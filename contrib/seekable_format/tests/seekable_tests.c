@@ -53,7 +53,7 @@ int main(int argc, const char** argv)
     }
     printf("Success!\n");
 
-    printf("Test %u - check that seekable decompress does not hang: ", testNb++);
+    printf("Test %u - check #2 that seekable decompress does not hang: ", testNb++);
     {   /* Github issue #FIXME */
         const size_t compressed_size = 27;
         const uint8_t compressed_data[27] = {
@@ -85,8 +85,8 @@ int main(int argc, const char** argv)
 	    '\x92',
 	    '\x8f',
 	};
-        const size_t uncompressed_size = 8936;
-        uint8_t uncompressed_data[8936];
+        const size_t uncompressed_size = 400;
+        uint8_t uncompressed_data[400];
 
         ZSTD_seekable* stream = ZSTD_seekable_create();
         size_t status = ZSTD_seekable_initBuff(stream, compressed_data, compressed_size);

@@ -1212,11 +1212,13 @@ int UTIL_countPhysicalCores(void)
                 /* fall back on the sysconf value */
                 goto failed;
         }   }
-        if (siblings && cpu_cores) {
+        if (siblings && cpu_cores && siblings > cpu_cores) {
             ratio = siblings / cpu_cores;
         }
 
-        numPhysicalCores = numPhysicalCores / ratio;
+        if (ratio && numPhysicalCores > ratio) {
+            numPhysicalCores = numPhysicalCores / ratio;
+        }
 
 failed:
         fclose(cpuinfo);

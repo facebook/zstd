@@ -1,5 +1,5 @@
 # ################################################################
-# Copyright (c) 2015-2020, Yann Collet, Facebook, Inc.
+# Copyright (c) 2015-2021, Yann Collet, Facebook, Inc.
 # All rights reserved.
 #
 # This source code is licensed under both the BSD-style license (found in the
@@ -61,8 +61,10 @@ DEBUGFLAGS+=-Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
             -Wstrict-prototypes -Wundef -Wpointer-arith \
             -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings \
             -Wredundant-decls -Wmissing-prototypes -Wc++-compat
-CFLAGS   += $(DEBUGFLAGS) $(MOREFLAGS)
-FLAGS     = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
+CFLAGS   += $(DEBUGFLAGS)
+CPPFLAGS += $(MOREFLAGS)
+LDFLAGS  += $(MOREFLAGS)
+FLAGS     = $(CFLAGS) $(CPPFLAGS) $(LDFLAGS)
 
 ZSTDLIB_COMMON := $(ZSTDDIR)/common
 ZSTDLIB_COMPRESS := $(ZSTDDIR)/compress
@@ -88,13 +90,13 @@ endif
 
 # Sort files in alphabetical order for reproducible builds
 ZSTDLIB_FULL_SRC = $(sort $(ZSTDLIB_CORE_SRC) $(ZSTDLEGACY_SRC) $(ZDICT_SRC))
-ZSTDLIB_LOCAL_SRC := $(notdir $(ZSTDLIB_FULL_SRC))
+ZSTDLIB_LOCAL_SRC = $(notdir $(ZSTDLIB_FULL_SRC))
 ZSTDLIB_LOCAL_OBJ := $(ZSTDLIB_LOCAL_SRC:.c=.o)
 
 ZSTD_CLI_SRC := $(wildcard *.c)
 ZSTD_CLI_OBJ := $(ZSTD_CLI_SRC:.c=.o)
 
-ZSTD_ALL_SRC := $(ZSTDLIB_LOCAL_SRC) $(ZSTD_CLI_SRC)
+ZSTD_ALL_SRC = $(ZSTDLIB_LOCAL_SRC) $(ZSTD_CLI_SRC)
 ZSTD_ALL_OBJ := $(ZSTD_ALL_SRC:.c=.o)
 
 UNAME := $(shell uname)
@@ -102,6 +104,8 @@ ifeq ($(UNAME), Darwin)
   HASH ?= md5
 else ifeq ($(UNAME), FreeBSD)
   HASH ?= gmd5sum
+else ifeq ($(UNAME), NetBSD)
+  HASH ?= md5 -n
 else ifeq ($(UNAME), OpenBSD)
   HASH ?= md5
 endif
@@ -109,7 +113,7 @@ HASH ?= md5sum
 HAVE_HASH :=$(shell echo 1 | $(HASH) > /dev/null && echo 1 || echo 0)
 
 ifndef BUILD_DIR
-HASH_DIR = conf_$(shell echo $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(ZSTD_FILES) | $(HASH) | cut -f 1 -d " ")
+HASH_DIR = conf_$(shell echo $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(LDLIBS) $(ZSTD_FILES) | $(HASH) | cut -f 1 -d " ")
 ifeq ($(HAVE_HASH),0)
   $(info warning : could not find HASH ($(HASH)), needed to differentiate builds using different flags)
   BUILD_DIR := obj/generic_noconf
@@ -192,11 +196,13 @@ endif
 endif
 
 SET_CACHE_DIRECTORY = \
-	$(MAKE) --no-print-directory $@ \
+   +$(MAKE) --no-print-directory $@ \
     BUILD_DIR=obj/$(HASH_DIR) \
     CPPFLAGS="$(CPPFLAGS)" \
     CFLAGS="$(CFLAGS)" \
-    LDFLAGS="$(LDFLAGS)"
+    LDFLAGS="$(LDFLAGS)" \
+    LDLIBS="$(LDLIBS)" \
+    ZSTD_ALL_SRC="$(ZSTD_ALL_SRC)"
 
 
 .PHONY: all
@@ -207,7 +213,8 @@ allVariants: zstd zstd-compress zstd-decompress zstd-small zstd-nolegacy zstd-di
 
 .PHONY: zstd  # must always be run
 zstd : CPPFLAGS += $(THREAD_CPP) $(ZLIBCPP) $(LZMACPP) $(LZ4CPP)
-zstd : LDFLAGS += $(THREAD_LD) $(ZLIBLD) $(LZMALD) $(LZ4LD) $(DEBUGFLAGS_LD)
+zstd : LDFLAGS += $(THREAD_LD) $(DEBUGFLAGS_LD)
+zstd : LDLIBS += $(ZLIBLD) $(LZMALD) $(LZ4LD)
 zstd : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 ifneq (,$(filter Windows%,$(OS)))
 zstd : $(RES_FILE)
@@ -229,7 +236,7 @@ $(BUILD_DIR)/zstd : $(ZSTD_OBJ)
 	@echo "$(LZMA_MSG)"
 	@echo "$(LZ4_MSG)"
 	@echo LINK $@
-	$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
+	$(CC) $(FLAGS) $^ $(LDLIBS) -o $@$(EXT)
 
 ifeq ($(HAVE_HASH),1)
 SRCBIN_HASH = $(shell cat $(BUILD_DIR)/zstd 2> $(VOID) | $(HASH) | cut -f 1 -d " ")
@@ -284,18 +291,12 @@ zstd-noxz : LZMALD  :=
 zstd-noxz : LZMA_MSG := - xz/lzma support is disabled
 zstd-noxz : zstd
 
-## zstd-dll: zstd executable linked to dynamic library libzstd (must already exist)
-# note : the following target doesn't link
-#        because zstd uses non-public symbols from libzstd
-#        such as XXH64 (for benchmark),
-#        ZDICT_trainFromBuffer_unsafe_legacy (for dictionary builder)
-#        and ZSTD_cycleLog (likely for --patch-from).
-#        It's unclear at this stage if this is a scenario that must be supported
+## zstd-dll: zstd executable linked to dynamic library libzstd (must have same version)
 .PHONY: zstd-dll
-zstd-dll : LDFLAGS+= -L$(ZSTDDIR) -lzstd
-zstd-dll : ZSTDLIB_FULL_SRC =
-zstd-dll : $(ZSTD_CLI_OBJ)
-	$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
+zstd-dll : LDFLAGS+= -L$(ZSTDDIR)
+zstd-dll : LDLIBS += -lzstd
+zstd-dll : ZSTDLIB_LOCAL_SRC = xxhash.c
+zstd-dll : zstd
 
 
 ## zstd-pgo: zstd executable optimized with PGO.
@@ -315,16 +316,16 @@ zstd-pgo :
 ## zstd-small: minimal target, supporting only zstd compression and decompression. no bench. no legacy. no other format.
 zstd-small: CFLAGS = -Os -s
 zstd-frugal zstd-small: $(ZSTDLIB_CORE_SRC) zstdcli.c util.c timefn.c fileio.c
-	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT $^ -o $@$(EXT)
+	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOTRACE $^ -o $@$(EXT)
 
 zstd-decompress: $(ZSTDLIB_COMMON_C) $(ZSTDLIB_DECOMPRESS_C) zstdcli.c util.c timefn.c fileio.c
-	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOCOMPRESS $^ -o $@$(EXT)
+	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOCOMPRESS -DZSTD_NOTRACE $^ -o $@$(EXT)
 
 zstd-compress: $(ZSTDLIB_COMMON_C) $(ZSTDLIB_COMPRESS_C) zstdcli.c util.c timefn.c fileio.c
-	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS $^ -o $@$(EXT)
+	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS -DZSTD_NOTRACE $^ -o $@$(EXT)
 
 ## zstd-dictBuilder: executable supporting dictionary creation and compression (only)
-zstd-dictBuilder: CPPFLAGS += -DZSTD_NOBENCH -DZSTD_NODECOMPRESS
+zstd-dictBuilder: CPPFLAGS += -DZSTD_NOBENCH -DZSTD_NODECOMPRESS -DZSTD_NOTRACE
 zstd-dictBuilder: $(ZSTDLIB_COMMON_C) $(ZSTDLIB_COMPRESS_C) $(ZDICT_SRC) zstdcli.c util.c timefn.c fileio.c dibio.c
 	$(CC) $(FLAGS) $^ -o $@$(EXT)
 
@@ -346,9 +347,11 @@ endif
 .PHONY: clean
 clean:
 	$(RM) core *.o tmp* result* *.gcda dictionary *.zst \
-        zstd$(EXT) zstd32$(EXT) zstd-compress$(EXT) zstd-decompress$(EXT) \
+        zstd$(EXT) zstd32$(EXT) zstd-dll$(EXT) \
+        zstd-compress$(EXT) zstd-decompress$(EXT) \
         zstd-small$(EXT) zstd-frugal$(EXT) zstd-nolegacy$(EXT) zstd4$(EXT) \
-        zstd-dictBuilder$(EXT) *.gcda default*.profraw default.profdata have_zlib$(EXT)
+        zstd-dictBuilder$(EXT) \
+        *.gcda default*.profraw default.profdata have_zlib$(EXT)
 	$(RM) -r obj/*
 	@echo Cleaning completed
 

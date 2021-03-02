@@ -41,18 +41,17 @@ jobs:
     - uses: actions/checkout@v2
     - name: make check on 32-bit
       run: |
-        make libc6install
+        sudo apt update
+        APT_PACKAGES="gcc-multilib" make apt-install
         CFLAGS="-m32 -O1 -fstack-protector" make check V=1
 
-  gcc-6-7-libzstd:
+  gcc-7-libzstd:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: gcc-6 + gcc-7 + libzstdmt compilation
+    - name: gcc-7 + libzstdmt compilation
       run: |
-        make gcc6install gcc7install
-        CC=gcc-6 CFLAGS=-Werror make -j all
-        make clean
+        make gcc7install
         CC=gcc-7 CFLAGS=-Werror make -j all
         make clean
         LDFLAGS=-Wl,--no-undefined make -C lib libzstd-mt
@@ -71,30 +70,28 @@ jobs:
         make gcc8install
         CC=gcc-8 CFLAGS="-Werror" make -j all
         make clean
-        CC=gcc-8 make -j uasan-test-zstd </dev/null
+        CC=gcc-8 make -j uasan-test-zstd </dev/null V=1
 
-  gcc-6-asan-ubsan-testzstd-32bit:
+  gcc-asan-ubsan-testzstd-32bit:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: gcc-6 + ASan + UBSan + Test Zstd, 32bit mode
+    - name: ASan + UBSan + Test Zstd, 32bit mode
       run: |
-        make gcc6install libc6install
-        CC=gcc-6 CFLAGS="-Werror -m32" make -j all32
+        make libc6install
+        CFLAGS="-Werror -m32" make -j all32
         make clean
-        CC=gcc-6 make -j uasan-test-zstd32
+        make -j uasan-test-zstd32 V=1
 
-  clang-38-msan-testzstd:
-    runs-on: ubuntu-16.04 # fails on 18.04
+  clang-msan-testzstd:
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: clang-3.8 + MSan + Test Zstd
+    - name: clang + MSan + Test Zstd
       run: |
-        # make clang38install (doesn't work)
-        sudo apt-add-repository "deb http://llvm.org/apt/trusty/ llvm-toolchain-trusty-3.8 main"
         sudo apt-get update
-        sudo apt-get install clang-3.8
-        CC=clang-3.8 make clean msan-test-zstd HAVE_ZLIB=0 HAVE_LZ4=0 HAVE_LZMA=0
+        sudo apt-get install clang
+        CC=clang make msan-test-zstd HAVE_ZLIB=0 HAVE_LZ4=0 HAVE_LZMA=0 V=1
 
     # Note : external libraries must be turned off when using MSAN tests,
     # because they are not msan-instrumented,
@@ -120,26 +117,14 @@ jobs:
         make gcc8install
         CC=gcc-8 FUZZER_FLAGS="--long-tests" make clean uasan-fuzztest
 
-  gcc-6-asan-ubsan-fuzz32:
+  gcc-asan-ubsan-fuzz32:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: gcc-6 + ASan + UBSan + Fuzz Test 32bit
+    - name: ASan + UBSan + Fuzz Test 32bit
       run: |
-        make gcc6install libc6install
-        CC=gcc-6 CFLAGS="-O2 -m32" FUZZER_FLAGS="--long-tests" make uasan-fuzztest
-
-  clang-38-msan-fuzz:
-    runs-on: ubuntu-16.04 # fails on 18.04
-    steps:
-    - uses: actions/checkout@v2
-    - name: clang-3.8 + MSan + Fuzz Test
-      run: |
-        # make clang38install (doesn't work)
-        sudo apt-add-repository "deb http://llvm.org/apt/trusty/ llvm-toolchain-trusty-3.8 main"
-        sudo apt-get update
-        sudo apt-get install clang-3.8
-        CC=clang-3.8 make clean msan-fuzztest
+        make libc6install
+        CFLAGS="-O2 -m32" FUZZER_FLAGS="--long-tests" make uasan-fuzztest
 
   asan-ubsan-msan-regression:
     runs-on: ubuntu-latest
@@ -205,21 +190,25 @@ jobs:
         tar -xf shellcheck-v0.7.1.linux.x86_64.tar.xz
         shellcheck-v0.7.1/shellcheck --shell=sh --severity=warning --exclude=SC2010 tests/playTests.sh
 
-  icc:
-    name: icc-check
-    runs-on: ubuntu-latest
-    steps:
-    - name: install icc
-      run: |
-        export DEBIAN_FRONTEND=noninteractive
-        sudo apt-get -qqq update
-        sudo apt-get install -y wget build-essential pkg-config cmake ca-certificates gnupg
-        sudo wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
-        sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
-        sudo add-apt-repository "deb https://apt.repos.intel.com/oneapi all main"
-        sudo apt-get update
-        sudo apt-get install -y intel-basekit intel-hpckit
-    - uses: actions/checkout@v2
-    - name: make check
-      run: |
-        make CC=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/icc check
+# For reference : icc tests
+# icc tests are currently failing on Github Actions, likely to issues during installation stage
+# To be fixed later
+#
+#  icc:
+#    name: icc-check
+#    runs-on: ubuntu-latest
+#    steps:
+#    - name: install icc
+#      run: |
+#        export DEBIAN_FRONTEND=noninteractive
+#        sudo apt-get -qqq update
+#        sudo apt-get install -y wget build-essential pkg-config cmake ca-certificates gnupg
+#        sudo wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
+#        sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
+#        sudo add-apt-repository "deb https://apt.repos.intel.com/oneapi all main"
+#        sudo apt-get update
+#        sudo apt-get install -y intel-basekit intel-hpckit
+#    - uses: actions/checkout@v2
+#    - name: make check
+#      run: |
+#        make CC=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/icc check

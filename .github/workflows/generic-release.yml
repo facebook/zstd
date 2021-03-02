@@ -34,16 +34,13 @@ jobs:
         make -C tests test-zbuff
 
   tsan:
-    runs-on: ubuntu-16.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     - name: thread sanitizer
       run: |
-        sudo apt-add-repository "deb http://llvm.org/apt/trusty/ llvm-toolchain-trusty-3.8 main"
-        sudo apt-get update
-        sudo apt-get install clang-3.8
-        CC=clang-3.8 make tsan-test-zstream
-        CC=clang-3.8 make tsan-fuzztest
+        CC=clang make tsan-test-zstream
+        CC=clang make tsan-fuzztest
 
   zlib-wrapper:
     runs-on: ubuntu-16.04
@@ -51,7 +48,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: zlib wrapper test
       run: |
-        make gpp6install valgrindinstall
+        make valgrindinstall
         make -C zlibWrapper test
         make -C zlibWrapper valgrindTest
 

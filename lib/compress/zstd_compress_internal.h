@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2016-2021, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -19,6 +19,7 @@
 *  Dependencies
 ***************************************/
 #include "../common/zstd_internal.h"
+#include "../common/zstd_trace.h"  /* ZSTD_TraceCtx */
 #include "zstd_cwksp.h"
 #ifdef ZSTD_MULTITHREAD
 #  include "zstdmt_compress.h"
@@ -184,12 +185,21 @@ typedef struct {
 } ldmEntry_t;
 
 typedef struct {
+    BYTE const* split;
+    U32 hash;
+    U32 checksum;
+    ldmEntry_t* bucket;
+} ldmMatchCandidate_t;
+
+#define LDM_BATCH_SIZE 64
+
+typedef struct {
     ZSTD_window_t window;   /* State for the window round buffer management */
     ldmEntry_t* hashTable;
     U32 loadedDictEnd;
     BYTE* bucketOffsets;    /* Next position in bucket to insert entry */
-    U64 hashPower;          /* Used to compute the rolling hash.
-                             * Depends on ldmParams.minMatchLength */
+    size_t splitIndices[LDM_BATCH_SIZE];
+    ldmMatchCandidate_t matchCandidates[LDM_BATCH_SIZE];
 } ldmState_t;
 
 typedef struct {
@@ -270,6 +280,7 @@ struct ZSTD_CCtx_s {
     ZSTD_CCtx_params requestedParams;
     ZSTD_CCtx_params appliedParams;
     U32   dictID;
+    size_t dictContentSize;
 
     ZSTD_cwksp workspace; /* manages buffer for dynamic allocations */
     size_t blockSize;
@@ -320,6 +331,11 @@ struct ZSTD_CCtx_s {
     /* Multi-threading */
 #ifdef ZSTD_MULTITHREAD
     ZSTDMT_CCtx* mtctx;
+#endif
+
+    /* Tracing */
+#if ZSTD_TRACE
+    ZSTD_TraceCtx traceCtx;
 #endif
 };
 
@@ -1199,5 +1215,10 @@ size_t ZSTD_referenceExternalSequences(ZSTD_CCtx* cctx, rawSeq* seq, size_t nbSe
 /** ZSTD_cycleLog() :
  *  condition for correct operation : hashLog > 1 */
 U32 ZSTD_cycleLog(U32 hashLog, ZSTD_strategy strat);
+
+/** ZSTD_CCtx_trace() :
+ *  Trace the end of a compression call.
+ */
+void ZSTD_CCtx_trace(ZSTD_CCtx* cctx, size_t extraCSize);
 
 #endif /* ZSTD_COMPRESS_H */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2016-2021, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -255,18 +255,6 @@ static fileStats DiB_fileStats(const char** fileNamesTable, unsigned nbFiles, si
 }
 
 
-/*! ZDICT_trainFromBuffer_unsafe_legacy() :
-    Strictly Internal use only !!
-    Same as ZDICT_trainFromBuffer_legacy(), but does not control `samplesBuffer`.
-    `samplesBuffer` must be followed by noisy guard band to avoid out-of-buffer reads.
-    @return : size of dictionary stored into `dictBuffer` (<= `dictBufferCapacity`)
-              or an error code.
-*/
-size_t ZDICT_trainFromBuffer_unsafe_legacy(void* dictBuffer, size_t dictBufferCapacity,
-                                           const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
-                                           ZDICT_legacy_params_t parameters);
-
-
 int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
                        const char** fileNamesTable, unsigned nbFiles, size_t chunkSize,
                        ZDICT_legacy_params_t* params, ZDICT_cover_params_t* coverParams,
@@ -319,9 +307,9 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
     {   size_t dictSize;
         if (params) {
             DiB_fillNoise((char*)srcBuffer + loadedSize, NOISELENGTH);   /* guard band, for end of buffer condition */
-            dictSize = ZDICT_trainFromBuffer_unsafe_legacy(dictBuffer, maxDictSize,
-                                                           srcBuffer, sampleSizes, fs.nbSamples,
-                                                           *params);
+            dictSize = ZDICT_trainFromBuffer_legacy(dictBuffer, maxDictSize,
+                                                    srcBuffer, sampleSizes, fs.nbSamples,
+                                                    *params);
         } else if (coverParams) {
             if (optimize) {
               dictSize = ZDICT_optimizeTrainFromBuffer_cover(dictBuffer, maxDictSize,

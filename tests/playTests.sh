@@ -114,13 +114,14 @@ esac
 case "$UNAME" in
   Darwin) MD5SUM="md5 -r" ;;
   FreeBSD) MD5SUM="gmd5sum" ;;
+  NetBSD) MD5SUM="md5 -n" ;;
   OpenBSD) MD5SUM="md5" ;;
   *) MD5SUM="md5sum" ;;
 esac
 
 MTIME="stat -c %Y"
 case "$UNAME" in
-    Darwin | FreeBSD | OpenBSD) MTIME="stat -f %m" ;;
+    Darwin | FreeBSD | OpenBSD | NetBSD) MTIME="stat -f %m" ;;
 esac
 
 DIFF="diff"
@@ -485,23 +486,29 @@ rm -rf tmp*
 if [ "$isWindows" = false ] ; then
     println "\n===>  compress multiple files into an output directory and mirror input folder, --output-dir-mirror"
     println "test --output-dir-mirror" > tmp1
-    mkdir -p tmpInputTestDir/we/must/go/deeper
-    println cool > tmpInputTestDir/we/must/go/deeper/tmp2
+    mkdir -p tmpInputTestDir/we/.../..must/go/deeper..
+    println cool > tmpInputTestDir/we/.../..must/go/deeper../tmp2
     zstd tmp1 -r tmpInputTestDir --output-dir-mirror tmpOutDir
     test -f tmpOutDir/tmp1.zst
-    test -f tmpOutDir/tmpInputTestDir/we/must/go/deeper/tmp2.zst
+    test -f tmpOutDir/tmpInputTestDir/we/.../..must/go/deeper../tmp2.zst
 
     println "test: compress input dir will be ignored if it has '..'"
-    zstd  -r tmpInputTestDir/we/must/../must --output-dir-mirror non-exist && die "input cannot contain '..'"
+    zstd  -r tmpInputTestDir/we/.../..must/../..mustgo/deeper.. --output-dir-mirror non-exist && die "input cannot contain '..'"
+    zstd  -r tmpInputTestDir/we/.../..must/deeper../.. --output-dir-mirror non-exist && die "input cannot contain '..'"
+    zstd  -r ../tests/tmpInputTestDir/we/.../..must/deeper.. --output-dir-mirror non-exist && die "input cannot contain '..'"
     test ! -d non-exist
+
+    println "test: compress input dir should succeed with benign uses of '..'"
+    zstd  -r tmpInputTestDir/we/.../..must/go/deeper.. --output-dir-mirror tmpout
+    test -d tmpout
 
     println "test : decompress multiple files into an output directory, --output-dir-mirror"
     zstd tmpOutDir -r -d --output-dir-mirror tmpOutDirDecomp
     test -f tmpOutDirDecomp/tmpOutDir/tmp1
-    test -f tmpOutDirDecomp/tmpOutDir/tmpInputTestDir/we/must/go/deeper/tmp2
+    test -f tmpOutDirDecomp/tmpOutDir/tmpInputTestDir/we/.../..must/go/deeper../tmp2
 
     println "test: decompress input dir will be ignored if it has '..'"
-    zstd  -r tmpOutDir/tmpInputTestDir/we/must/../must --output-dir-mirror non-exist && die "input cannot contain '..'"
+    zstd  -r tmpOutDir/tmpInputTestDir/we/.../..must/../..must --output-dir-mirror non-exist && die "input cannot contain '..'"
     test ! -d non-exist
 
     rm -rf tmp*
@@ -1321,6 +1328,21 @@ println "\n===>   zstd --list/-l test with no checksum "
 zstd -f --no-check tmp1
 zstd -l tmp1.zst
 zstd -lv tmp1.zst
+
+println "\n===>  zstd trace tests "
+zstd -f --trace tmp.trace tmp1
+zstd -f --trace tmp.trace tmp1 tmp2 tmp3
+zstd -f --trace tmp.trace tmp1 tmp2 tmp3 -o /dev/null
+zstd -f --trace tmp.trace tmp1 tmp2 tmp3 --single-thread
+zstd -f --trace tmp.trace -D tmp1 tmp2 tmp3 -o /dev/null
+zstd -f --trace tmp.trace -D tmp1 tmp2 tmp3 -o /dev/null --single-thread
+zstd --trace tmp.trace -t tmp1.zst
+zstd --trace tmp.trace -t tmp1.zst tmp2.zst
+zstd -f --trace tmp.trace -d tmp1.zst
+zstd -f --trace tmp.trace -d tmp1.zst tmp2.zst tmp3.zst
+zstd -D tmp1 tmp2 -c | zstd --trace tmp.trace -t -D tmp1
+zstd -b1e10i0 --trace tmp.trace tmp1
+zstd -b1e10i0 --trace tmp.trace tmp1 tmp2 tmp3
 
 rm tmp*
 

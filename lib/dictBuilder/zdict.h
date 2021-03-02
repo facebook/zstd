@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2016-2021, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -264,9 +264,10 @@ typedef struct {
  *  Note: ZDICT_trainFromBuffer_legacy() will send notifications into stderr if instructed to, using notificationLevel>0.
  */
 ZDICTLIB_API size_t ZDICT_trainFromBuffer_legacy(
-    void *dictBuffer, size_t dictBufferCapacity,
-    const void *samplesBuffer, const size_t *samplesSizes, unsigned nbSamples,
+    void* dictBuffer, size_t dictBufferCapacity,
+    const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
     ZDICT_legacy_params_t parameters);
+
 
 /* Deprecation warnings */
 /* It is generally possible to disable deprecation warnings from compiler,

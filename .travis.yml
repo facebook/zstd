@@ -32,11 +32,6 @@ matrix:
       script:
         - make check
 
-    - name: make test (complete)
-      script:
-        # DEVNULLRIGHTS : will request sudo rights to test permissions on /dev/null
-        - DEVNULLRIGHTS=test make test
-
     - name: Minimal Decompressor Macros    # ~5mn
       script:
         - make clean && make -j all ZSTD_LIB_MINIFY=1 MOREFLAGS="-Werror"

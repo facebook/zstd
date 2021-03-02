@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2016-2021, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -304,7 +304,7 @@ ZSTD_buildSuperBlockEntropy(seqStore_t* seqStorePtr,
  *  before we know the table size + compressed size, so we have a bound on the
  *  table size. If we guessed incorrectly, we fall back to uncompressed literals.
  *
- *  We write the header when writeEntropy=1 and set entropyWrriten=1 when we succeeded
+ *  We write the header when writeEntropy=1 and set entropyWritten=1 when we succeeded
  *  in writing the header, otherwise it is set to 0.
  *
  *  hufMetadata->hType has literals block type info.

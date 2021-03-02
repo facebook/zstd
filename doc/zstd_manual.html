@@ -1,10 +1,10 @@
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-<title>zstd 1.4.8 Manual</title>
+<title>zstd 1.4.9 Manual</title>
 </head>
 <body>
-<h1>zstd 1.4.8 Manual</h1>
+<h1>zstd 1.4.9 Manual</h1>
 <hr>
 <a name="Contents"></a><h2>Contents</h2>
 <ol>
@@ -473,12 +473,14 @@ size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);
      * ZSTD_d_format
      * ZSTD_d_stableOutBuffer
      * ZSTD_d_forceIgnoreChecksum
+     * ZSTD_d_refMultipleDDicts
      * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
      * note : never ever use experimentalParam? names directly
      */
      ZSTD_d_experimentalParam1=1000,
      ZSTD_d_experimentalParam2=1001,
-     ZSTD_d_experimentalParam3=1002
+     ZSTD_d_experimentalParam3=1002,
+     ZSTD_d_experimentalParam4=1003
 
 } ZSTD_dParameter;
 </b></pre><BR>
@@ -816,7 +818,7 @@ size_t ZSTD_freeDStream(ZSTD_DStream* zds);
 </b><p>  Reference a prepared dictionary, to be used for all next compressed frames.
   Note that compression parameters are enforced from within CDict,
   and supersede any compression parameter previously set within CCtx.
-  The parameters ignored are labled as "superseded-by-cdict" in the ZSTD_cParameter enum docs.
+  The parameters ignored are labelled as "superseded-by-cdict" in the ZSTD_cParameter enum docs.
   The ignored parameters will be used again if the CCtx is returned to no-dictionary mode.
   The dictionary will remain valid for future compressed frames using same CCtx.
  @result : 0, or an error code (which can be tested with ZSTD_isError()).
@@ -867,6 +869,13 @@ size_t ZSTD_freeDStream(ZSTD_DStream* zds);
 <pre><b>size_t ZSTD_DCtx_refDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict);
 </b><p>  Reference a prepared dictionary, to be used to decompress next frames.
   The dictionary remains active for decompression of future frames using same DCtx.
+
+  If called with ZSTD_d_refMultipleDDicts enabled, repeated calls of this function
+  will store the DDict references in a table, and the DDict used for decompression
+  will be determined at decompression time, as per the dict ID in the frame.
+  The memory for the table is allocated on the first call to refDDict, and can be
+  freed with ZSTD_freeDCtx().
+
  @result : 0, or an error code (which can be tested with ZSTD_isError()).
   Note 1 : Currently, only one dictionary can be managed.
            Referencing a new dictionary effectively "discards" any previous one.
@@ -996,6 +1005,12 @@ size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 } ZSTD_forceIgnoreChecksum_e;
 </b></pre><BR>
 <pre><b>typedef enum {
+    </b>/* Note: this enum controls ZSTD_d_refMultipleDDicts */<b>
+    ZSTD_rmd_refSingleDDict = 0,
+    ZSTD_rmd_refMultipleDDicts = 1
+} ZSTD_refMultipleDDicts_e;
+</b></pre><BR>
+<pre><b>typedef enum {
     </b>/* Note: this enum and the behavior it controls are effectively internal<b>
      * implementation details of the compressor. They are expected to continue
      * to evolve and should be considered only in the context of extremely
@@ -1073,7 +1088,7 @@ size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
   `srcSize` must be the _exact_ size of this series
        (i.e. there should be a frame boundary at `src + srcSize`)
   @return : - upper-bound for the decompressed size of all data in all successive frames
-            - if an error occured: ZSTD_CONTENTSIZE_ERROR
+            - if an error occurred: ZSTD_CONTENTSIZE_ERROR
 
   note 1  : an error can occur if `src` contains an invalid or incorrectly formatted frame.
   note 2  : the upper-bound is exact when the decompressed size field is available in every ZSTD encoded frame of `src`.
@@ -1152,6 +1167,22 @@ size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
  Note 2: Once we integrate ability to ingest repcodes, the explicit block delims mode must respect those repcodes exactly,
          and cannot emit an RLE block that disagrees with the repcode history
  @return : final compressed size or a ZSTD error.
+ 
+</p></pre><BR>
+
+<pre><b>size_t ZSTD_writeSkippableFrame(void* dst, size_t dstCapacity,
+                                const void* src, size_t srcSize, unsigned magicVariant);
+</b><p> Generates a zstd skippable frame containing data given by src, and writes it to dst buffer.
+
+ Skippable frames begin with a a 4-byte magic number. There are 16 possible choices of magic number,
+ ranging from ZSTD_MAGIC_SKIPPABLE_START to ZSTD_MAGIC_SKIPPABLE_START+15.
+ As such, the parameter magicVariant controls the exact skippable frame magic number variant used, so
+ the magic number used will be ZSTD_MAGIC_SKIPPABLE_START + magicVariant.
+
+ Returns an error if destination buffer is not large enough, if the source size is not representable
+ with a 4-byte unsigned int, or if the parameter magicVariant is greater than 15 (and therefore invalid).
+
+ @return : number of bytes written or a ZSTD error.
  
 </p></pre><BR>
 
@@ -1328,7 +1359,7 @@ ZSTD_customMem const ZSTD_defaultCMem = { NULL, NULL, NULL };  </b>/**< this con
   how to interpret prefix content (automatic ? force raw mode (default) ? full mode only ?) 
 </p></pre><BR>
 
-<pre><b>size_t ZSTD_CCtx_getParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int* value);
+<pre><b>size_t ZSTD_CCtx_getParameter(const ZSTD_CCtx* cctx, ZSTD_cParameter param, int* value);
 </b><p>  Get the requested compression parameter value, selected by enum ZSTD_cParameter,
   and store it into int* value.
  @return : 0, or an error code (which can be tested with ZSTD_isError()).
@@ -1382,7 +1413,7 @@ size_t ZSTD_freeCCtxParams(ZSTD_CCtx_params* params);
  
 </p></pre><BR>
 
-<pre><b>size_t ZSTD_CCtxParams_getParameter(ZSTD_CCtx_params* params, ZSTD_cParameter param, int* value);
+<pre><b>size_t ZSTD_CCtxParams_getParameter(const ZSTD_CCtx_params* params, ZSTD_cParameter param, int* value);
 </b><p> Similar to ZSTD_CCtx_getParameter.
  Get the requested value of one compression parameter, selected by enum ZSTD_cParameter.
  @result : 0, or an error code (which can be tested with ZSTD_isError()).

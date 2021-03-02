@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2016-2021, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -45,7 +45,6 @@
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_magicNumber, ZSTD_frameHeaderSize_max */
 #include "../lib/zstd.h"
 #include "../lib/common/zstd_errors.h"  /* ZSTD_error_frameParameter_windowTooLarge */
-#include "../lib/compress/zstd_compress_internal.h"
 
 #if defined(ZSTD_GZCOMPRESS) || defined(ZSTD_GZDECOMPRESS)
 #  include <zlib.h>
@@ -77,6 +76,11 @@
 /*-*************************************
 *  Macros
 ***************************************/
+#define KB *(1 <<10)
+#define MB *(1 <<20)
+#define GB *(1U<<30)
+#undef MAX
+#define MAX(a,b) ((a)>(b) ? (a) : (b))
 
 struct FIO_display_prefs_s {
     int displayLevel;   /* 0 : no display;  1: errors;  2: + result + interaction + warnings;  3: + progression;  4: + information */
@@ -675,14 +679,11 @@ FIO_openDstFile(FIO_ctx_t* fCtx, FIO_prefs_t* const prefs,
             FIO_removeFile(dstFileName);
     }   }
 
-    {   FILE* const f = fopen( dstFileName, "wb" );
+    {   const int old_umask = UTIL_umask(0177); /* u-x,go-rwx */
+        FILE* const f = fopen( dstFileName, "wb" );
+        UTIL_umask(old_umask);
         if (f == NULL) {
             DISPLAYLEVEL(1, "zstd: %s: %s\n", dstFileName, strerror(errno));
-        } else if (srcFileName != NULL
-               && strcmp (srcFileName, stdinmark)
-               && strcmp(dstFileName, nulmark) ) {
-            /* reduce rights on newly created dst file while compression is ongoing */
-            UTIL_chmod(dstFileName, NULL, 00600);
         }
         return f;
     }
@@ -840,7 +841,7 @@ static void FIO_adjustMemLimitForPatchFromMode(FIO_prefs_t* const prefs,
 /* FIO_removeMultiFilesWarning() :
  * Returns 1 if the console should abort, 0 if console should proceed.
  * This function handles logic when processing multiple files with -o, displaying the appropriate warnings/prompts.
- * 
+ *
  * If -f is specified, or there is just 1 file, zstd will always proceed as usual.
  * If --rm is specified, there will be a prompt asking for user confirmation.
  *         If -f is specified with --rm, zstd will proceed as usual
@@ -896,6 +897,15 @@ typedef struct {
     const char* dictFileName;
     ZSTD_CStream* cctx;
 } cRess_t;
+
+/** ZSTD_cycleLog() :
+ *  condition for correct operation : hashLog > 1 */
+static U32 ZSTD_cycleLog(U32 hashLog, ZSTD_strategy strat)
+{
+    U32 const btScale = ((U32)strat >= (U32)ZSTD_btlazy2);
+    assert(hashLog > 1);
+    return hashLog - btScale;
+}
 
 static void FIO_adjustParamsForPatchFromMode(FIO_prefs_t* const prefs,
                                     ZSTD_compressionParameters* comprParams,
@@ -983,7 +993,7 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
     CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_searchLog, (int)comprParams.searchLog) );
     CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_minMatch, (int)comprParams.minMatch) );
     CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_targetLength, (int)comprParams.targetLength) );
-    CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_strategy, comprParams.strategy) );
+    CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_strategy, (int)comprParams.strategy) );
     CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_literalCompressionMode, (int)prefs->literalCompressionMode) );
     CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_enableDedicatedDictSearch, 1) );
     /* multi-threading */
@@ -1350,7 +1360,7 @@ FIO_compressZstdFrame(FIO_ctx_t* const fCtx,
             /* display notification; and adapt compression level */
             if (READY_FOR_UPDATE()) {
                 ZSTD_frameProgression const zfp = ZSTD_getFrameProgression(ress.cctx);
-                double const cShare = (double)zfp.produced / (zfp.consumed + !zfp.consumed/*avoid div0*/) * 100;
+                double const cShare = (double)zfp.produced / (double)(zfp.consumed + !zfp.consumed/*avoid div0*/) * 100;
 
                 /* display progress notifications */
                 if (g_display_prefs.displayLevel >= 3) {
@@ -1545,7 +1555,7 @@ FIO_compressFilename_internal(FIO_ctx_t* const fCtx,
     fCtx->totalBytesOutput += (size_t)compressedfilesize;
     DISPLAYLEVEL(2, "\r%79s\r", "");
     if (g_display_prefs.displayLevel >= 2 &&
-        !fCtx->hasStdoutOutput && 
+        !fCtx->hasStdoutOutput &&
         (g_display_prefs.displayLevel >= 3 || fCtx->nbFilesTotal <= 1)) {
         if (readsize == 0) {
             DISPLAYLEVEL(2,"%-20s :  (%6llu => %6llu bytes, %s) \n",
@@ -1555,7 +1565,7 @@ FIO_compressFilename_internal(FIO_ctx_t* const fCtx,
         } else {
             DISPLAYLEVEL(2,"%-20s :%6.2f%%   (%6llu => %6llu bytes, %s) \n",
                 srcFileName,
-                (double)compressedfilesize / readsize * 100,
+                (double)compressedfilesize / (double)readsize * 100,
                 (unsigned long long)readsize, (unsigned long long) compressedfilesize,
                 dstFileName);
         }
@@ -1795,7 +1805,7 @@ int FIO_compressMultipleFilenames(FIO_ctx_t* const fCtx,
     int status;
     int error = 0;
     cRess_t ress = FIO_createCResources(prefs, dictFileName,
-        FIO_getLargestFileSize(inFileNamesTable, fCtx->nbFilesTotal),
+        FIO_getLargestFileSize(inFileNamesTable, (unsigned)fCtx->nbFilesTotal),
         compressionLevel, comprParams);
 
     /* init */
@@ -1821,7 +1831,7 @@ int FIO_compressMultipleFilenames(FIO_ctx_t* const fCtx,
         }
     } else {
         if (outMirroredRootDirName)
-            UTIL_mirrorSourceFilesDirectories(inFileNamesTable, fCtx->nbFilesTotal, outMirroredRootDirName);
+            UTIL_mirrorSourceFilesDirectories(inFileNamesTable, (unsigned)fCtx->nbFilesTotal, outMirroredRootDirName);
 
         for (; fCtx->currFileIdx < fCtx->nbFilesTotal; ++fCtx->currFileIdx) {
             const char* const srcFileName = inFileNamesTable[fCtx->currFileIdx];
@@ -1845,7 +1855,7 @@ int FIO_compressMultipleFilenames(FIO_ctx_t* const fCtx,
         }
 
         if (outDirName)
-            FIO_checkFilenameCollisions(inFileNamesTable , fCtx->nbFilesTotal);
+            FIO_checkFilenameCollisions(inFileNamesTable , (unsigned)fCtx->nbFilesTotal);
     }
 
     if (fCtx->nbFilesProcessed >= 1 && fCtx->nbFilesTotal > 1 && fCtx->totalBytesInput != 0) {
@@ -1892,7 +1902,7 @@ static dRess_t FIO_createDResources(FIO_prefs_t* const prefs, const char* dictFi
         EXM_THROW(60, "Error: %s : can't create ZSTD_DStream", strerror(errno));
     CHECK( ZSTD_DCtx_setMaxWindowSize(ress.dctx, prefs->memLimit) );
     CHECK( ZSTD_DCtx_setParameter(ress.dctx, ZSTD_d_forceIgnoreChecksum, !prefs->checksumFlag));
-    
+
     ress.srcBufferSize = ZSTD_DStreamInSize();
     ress.srcBuffer = malloc(ress.srcBufferSize);
     ress.dstBufferSize = ZSTD_DStreamOutSize();
@@ -2099,7 +2109,7 @@ FIO_decompressZstdFrame(FIO_ctx_t* const fCtx, dRess_t* ress, FILE* finput,
         if (srcFileLength>20) srcFileName += srcFileLength-20;
     }
 
-    ZSTD_resetDStream(ress->dctx);
+    ZSTD_DCtx_reset(ress->dctx, ZSTD_reset_session_only);
 
     /* Header loading : ensures ZSTD_getFrameHeader() will succeed */
     {   size_t const toDecode = ZSTD_FRAMEHEADERSIZE_MAX;
@@ -2747,7 +2757,7 @@ FIO_decompressMultipleFilenames(FIO_ctx_t* const fCtx,
                         strerror(errno));
     } else {
         if (outMirroredRootDirName)
-            UTIL_mirrorSourceFilesDirectories(srcNamesTable, fCtx->nbFilesTotal, outMirroredRootDirName);
+            UTIL_mirrorSourceFilesDirectories(srcNamesTable, (unsigned)fCtx->nbFilesTotal, outMirroredRootDirName);
 
         for (; fCtx->currFileIdx < fCtx->nbFilesTotal; fCtx->currFileIdx++) {   /* create dstFileName */
             const char* const srcFileName = srcNamesTable[fCtx->currFileIdx];
@@ -2769,9 +2779,9 @@ FIO_decompressMultipleFilenames(FIO_ctx_t* const fCtx,
             error |= status;
         }
         if (outDirName)
-            FIO_checkFilenameCollisions(srcNamesTable , fCtx->nbFilesTotal);
+            FIO_checkFilenameCollisions(srcNamesTable , (unsigned)fCtx->nbFilesTotal);
     }
-    
+
     if (fCtx->nbFilesProcessed >= 1  && fCtx->nbFilesTotal > 1 && fCtx->totalBytesOutput != 0)
         DISPLAYLEVEL(2, "%d files decompressed : %6zu bytes total \n", fCtx->nbFilesProcessed, fCtx->totalBytesOutput);
 
@@ -2938,7 +2948,7 @@ displayInfo(const char* inFileName, const fileInfo_t* info, int displayLevel)
     double const windowSizeUnit = (double)info->windowSize / unit;
     double const compressedSizeUnit = (double)info->compressedSize / unit;
     double const decompressedSizeUnit = (double)info->decompressedSize / unit;
-    double const ratio = (info->compressedSize == 0) ? 0 : ((double)info->decompressedSize)/info->compressedSize;
+    double const ratio = (info->compressedSize == 0) ? 0 : ((double)info->decompressedSize)/(double)info->compressedSize;
     const char* const checkString = (info->usesCheck ? "XXH64" : "None");
     if (displayLevel <= 2) {
         if (!info->decompUnavailable) {
@@ -3059,7 +3069,7 @@ int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int dis
             const char* const unitStr = total.compressedSize < (1 MB) ? "KB" : "MB";
             double const compressedSizeUnit = (double)total.compressedSize / unit;
             double const decompressedSizeUnit = (double)total.decompressedSize / unit;
-            double const ratio = (total.compressedSize == 0) ? 0 : ((double)total.decompressedSize)/total.compressedSize;
+            double const ratio = (total.compressedSize == 0) ? 0 : ((double)total.decompressedSize)/(double)total.compressedSize;
             const char* const checkString = (total.usesCheck ? "XXH64" : "");
             DISPLAYOUT("----------------------------------------------------------------- \n");
             if (total.decompUnavailable) {

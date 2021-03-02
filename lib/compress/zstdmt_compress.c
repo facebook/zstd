@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2016-2021, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -472,8 +472,6 @@ ZSTDMT_serialState_reset(serialState_t* serialState,
         ZSTD_ldm_adjustParameters(&params.ldmParams, &params.cParams);
         assert(params.ldmParams.hashLog >= params.ldmParams.bucketSizeLog);
         assert(params.ldmParams.hashRateLog < 32);
-        serialState->ldmState.hashPower =
-                ZSTD_rollingHash_primePower(params.ldmParams.minMatchLength);
     } else {
         ZSTD_memset(&params.ldmParams, 0, sizeof(params.ldmParams));
     }
@@ -486,10 +484,10 @@ ZSTDMT_serialState_reset(serialState_t* serialState,
         size_t const hashSize = ((size_t)1 << hashLog) * sizeof(ldmEntry_t);
         unsigned const bucketLog =
             params.ldmParams.hashLog - params.ldmParams.bucketSizeLog;
-        size_t const bucketSize = (size_t)1 << bucketLog;
         unsigned const prevBucketLog =
             serialState->params.ldmParams.hashLog -
             serialState->params.ldmParams.bucketSizeLog;
+        size_t const numBuckets = (size_t)1 << bucketLog;
         /* Size the seq pool tables */
         ZSTDMT_setNbSeq(seqPool, ZSTD_ldm_getMaxNbSeq(params.ldmParams, jobSize));
         /* Reset the window */
@@ -501,13 +499,13 @@ ZSTDMT_serialState_reset(serialState_t* serialState,
         }
         if (serialState->ldmState.bucketOffsets == NULL || prevBucketLog < bucketLog) {
             ZSTD_customFree(serialState->ldmState.bucketOffsets, cMem);
-            serialState->ldmState.bucketOffsets = (BYTE*)ZSTD_customMalloc(bucketSize, cMem);
+            serialState->ldmState.bucketOffsets = (BYTE*)ZSTD_customMalloc(numBuckets, cMem);
         }
         if (!serialState->ldmState.hashTable || !serialState->ldmState.bucketOffsets)
             return 1;
         /* Zero the tables */
         ZSTD_memset(serialState->ldmState.hashTable, 0, hashSize);
-        ZSTD_memset(serialState->ldmState.bucketOffsets, 0, bucketSize);
+        ZSTD_memset(serialState->ldmState.bucketOffsets, 0, numBuckets);
 
         /* Update window state and fill hash table with dict */
         serialState->ldmState.loadedDictEnd = 0;
@@ -683,6 +681,8 @@ static void ZSTDMT_compressionJob(void* jobDescription)
     if (job->jobID != 0) jobParams.fParams.checksumFlag = 0;
     /* Don't run LDM for the chunks, since we handle it externally */
     jobParams.ldmParams.enableLdm = 0;
+    /* Correct nbWorkers to 0. */
+    jobParams.nbWorkers = 0;
 
 
     /* init */
@@ -750,6 +750,7 @@ static void ZSTDMT_compressionJob(void* jobDescription)
             if (ZSTD_isError(cSize)) JOB_ERROR(cSize);
             lastCBlockSize = cSize;
     }   }
+    ZSTD_CCtx_trace(cctx, 0);
 
 _endJob:
     ZSTDMT_serialState_ensureFinished(job->serial, job->jobID, job->cSize);

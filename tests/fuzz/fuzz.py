@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # ################################################################
-# Copyright (c) 2016-2020, Facebook, Inc.
+# Copyright (c) 2016-2021, Facebook, Inc.
 # All rights reserved.
 #
 # This source code is licensed under both the BSD-style license (found in the
@@ -180,14 +180,15 @@ def compiler_version(cc, cxx):
     cxx_version_bytes = subprocess.check_output([cxx, "--version"])
     compiler = None
     version = None
+    print("{} --version:\n{}".format(cc, cc_version_bytes.decode('ascii')))
     if b'clang' in cc_version_bytes:
         assert(b'clang' in cxx_version_bytes)
         compiler = 'clang'
-    elif b'gcc' in cc_version_bytes:
+    elif b'gcc' in cc_version_bytes or b'GCC' in cc_version_bytes:
         assert(b'gcc' in cxx_version_bytes or b'g++' in cxx_version_bytes)
         compiler = 'gcc'
     if compiler is not None:
-        version_regex = b'([0-9])+\.([0-9])+\.([0-9])+'
+        version_regex = b'([0-9]+)\.([0-9]+)\.([0-9]+)'
         version_match = re.search(version_regex, cc_version_bytes)
         version = tuple(int(version_match.group(i)) for i in range(1, 4))
     return compiler, version
@@ -195,9 +196,9 @@ def compiler_version(cc, cxx):
 
 def overflow_ubsan_flags(cc, cxx):
     compiler, version = compiler_version(cc, cxx)
-    if compiler == 'gcc':
+    if compiler == 'gcc' and version < (8, 0, 0):
         return ['-fno-sanitize=signed-integer-overflow']
-    if compiler == 'clang' and version >= (5, 0, 0):
+    if compiler == 'gcc' or (compiler == 'clang' and version >= (5, 0, 0)):
         return ['-fno-sanitize=pointer-overflow']
     return []
 

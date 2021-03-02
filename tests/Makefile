@@ -1,5 +1,5 @@
 # ################################################################
-# Copyright (c) 2015-2020, Yann Collet, Facebook, Inc.
+# Copyright (c) 2015-2021, Yann Collet, Facebook, Inc.
 # All rights reserved.
 #
 # This source code is licensed under both the BSD-style license (found in the
@@ -38,8 +38,8 @@ CFLAGS     += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow                 \
               -Wstrict-prototypes -Wundef                                     \
               -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings      \
               -Wredundant-decls -Wmissing-prototypes
-CFLAGS     += $(DEBUGFLAGS) $(MOREFLAGS)
-FLAGS       = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
+CFLAGS     += $(DEBUGFLAGS)
+CPPFLAGS   += $(MOREFLAGS)
 
 
 ZSTDCOMMON_FILES := $(ZSTDDIR)/common/*.c
@@ -107,7 +107,6 @@ libzstd :
 %-dll : libzstd
 %-dll : LDFLAGS += -L$(ZSTDDIR) -lzstd
 
-.PHONY: $(ZSTDDIR)/libzstd.a
 $(ZSTDDIR)/libzstd.a :
 	$(MAKE) -C $(ZSTDDIR) libzstd.a
 
@@ -146,7 +145,7 @@ fullbench-lib : $(PRGDIR)/datagen.c $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR
 # note : broken : requires symbols unavailable from dynamic library
 fullbench-dll: $(PRGDIR)/datagen.c $(PRGDIR)/util.c $(PRGDIR)/benchfn.c $(PRGDIR)/timefn.c fullbench.c
 #	$(CC) $(FLAGS) $(filter %.c,$^) -o $@$(EXT) -DZSTD_DLL_IMPORT=1 $(ZSTDDIR)/dll/libzstd.dll
-	$(CC) $(FLAGS) $(filter %.c,$^) -o $@$(EXT)
+	$(LINK.c) $^ $(LDLIBS) -o $@$(EXT)
 
 fuzzer : CPPFLAGS += $(MULTITHREAD_CPP)
 fuzzer : LDFLAGS += $(MULTITHREAD_LD)
@@ -165,7 +164,7 @@ zbufftest zbufftest32 zbufftest-dll : CPPFLAGS += -I$(ZSTDDIR)/deprecated
 zbufftest zbufftest32 zbufftest-dll : CFLAGS += -Wno-deprecated-declarations   # required to silence deprecation warnings
 zbufftest32 : CFLAGS +=  -m32
 zbufftest zbufftest32 : $(ZSTD_OBJECTS) $(ZBUFF_FILES) $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/datagen.c zbufftest.c
-	$(CC) $(FLAGS) $^ -o $@$(EXT)
+	$(LINK.c) $^ -o $@$(EXT)
 
 zbufftest-dll : $(ZSTDDIR)/common/xxhash.c $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/datagen.c zbufftest.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(filter %.c,$^) $(LDFLAGS) -o $@$(EXT)

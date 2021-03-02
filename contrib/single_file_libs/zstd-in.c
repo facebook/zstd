@@ -8,7 +8,7 @@
  * \endcode
  */
 /*
- * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2016-2021, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -42,6 +42,7 @@
 #ifndef __EMSCRIPTEN__
 #define ZSTD_MULTITHREAD
 #endif
+#define ZSTD_TRACE 0
 
 /* Include zstd_deps.h first with all the options we need enabled. */
 #define ZSTD_DEPS_NEED_MALLOC

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020, Facebook, Inc.
+ * Copyright (c) 2016-2021, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -57,6 +57,14 @@ static config_t no_pledged_src_size = {
     .cli_args = "",
     .param_values = PARAM_VALUES(level_0_param_values),
     .no_pledged_src_size = 1,
+};
+
+static config_t no_pledged_src_size_with_dict = {
+    .name = "no source size with dict",
+    .cli_args = "",
+    .param_values = PARAM_VALUES(level_0_param_values),
+    .no_pledged_src_size = 1,
+    .use_dictionary = 1,
 };
 
 static param_value_t const ldm_param_values[] = {
@@ -192,6 +200,7 @@ static config_t const* g_configs[] = {
 #undef FAST_LEVEL
 
     &no_pledged_src_size,
+    &no_pledged_src_size_with_dict,
     &ldm,
     &mt,
     &mt_ldm,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2016-2021, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -577,7 +577,7 @@ static size_t ZSTD_buildSeqTable(ZSTD_seqSymbol* DTableSpace, const ZSTD_seqSymb
 size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
                              const void* src, size_t srcSize)
 {
-    const BYTE* const istart = (const BYTE* const)src;
+    const BYTE* const istart = (const BYTE*)src;
     const BYTE* const iend = istart + srcSize;
     const BYTE* ip = istart;
     int nbSeq;
@@ -1108,7 +1108,7 @@ ZSTD_decompressSequences_body( ZSTD_DCtx* dctx,
 {
     const BYTE* ip = (const BYTE*)seqStart;
     const BYTE* const iend = ip + seqSize;
-    BYTE* const ostart = (BYTE* const)dst;
+    BYTE* const ostart = (BYTE*)dst;
     BYTE* const oend = ostart + maxDstSize;
     BYTE* op = ostart;
     const BYTE* litPtr = dctx->litPtr;
@@ -1242,7 +1242,7 @@ ZSTD_decompressSequencesLong_body(
 {
     const BYTE* ip = (const BYTE*)seqStart;
     const BYTE* const iend = ip + seqSize;
-    BYTE* const ostart = (BYTE* const)dst;
+    BYTE* const ostart = (BYTE*)dst;
     BYTE* const oend = ostart + maxDstSize;
     BYTE* op = ostart;
     const BYTE* litPtr = dctx->litPtr;
@@ -1517,9 +1517,9 @@ ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
 }
 
 
-void ZSTD_checkContinuity(ZSTD_DCtx* dctx, const void* dst)
+void ZSTD_checkContinuity(ZSTD_DCtx* dctx, const void* dst, size_t dstSize)
 {
-    if (dst != dctx->previousDstEnd) {   /* not contiguous */
+    if (dst != dctx->previousDstEnd && dstSize > 0) {   /* not contiguous */
         dctx->dictEnd = dctx->previousDstEnd;
         dctx->virtualStart = (const char*)dst - ((const char*)(dctx->previousDstEnd) - (const char*)(dctx->prefixStart));
         dctx->prefixStart = dst;
@@ -1533,7 +1533,7 @@ size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx,
                       const void* src, size_t srcSize)
 {
     size_t dSize;
-    ZSTD_checkContinuity(dctx, dst);
+    ZSTD_checkContinuity(dctx, dst, dstCapacity);
     dSize = ZSTD_decompressBlock_internal(dctx, dst, dstCapacity, src, srcSize, /* frame */ 0);
     dctx->previousDstEnd = (char*)dst + dSize;
     return dSize;

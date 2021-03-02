@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2016-2021, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -157,6 +157,15 @@ int UTIL_chmod(char const* filename, const stat_t* statbuf, mode_t permissions)
     }
     if (!UTIL_isRegularFileStat(statbuf)) return 0; /* pretend success, but don't change anything */
     return chmod(filename, permissions);
+}
+
+int UTIL_umask(int mode) {
+#if PLATFORM_POSIX_VERSION > 0
+    return umask(mode);
+#else
+    /* do nothing, fake return value */
+    return mode;
+#endif
 }
 
 int UTIL_setFileStat(const char *filename, const stat_t *statbuf)
@@ -670,7 +679,27 @@ const char* UTIL_getFileExtension(const char* infilename)
 
 static int pathnameHas2Dots(const char *pathname)
 {
-    return NULL != strstr(pathname, "..");
+    /* We need to figure out whether any ".." present in the path is a whole
+     * path token, which is the case if it is bordered on both sides by either
+     * the beginning/end of the path or by a directory separator.
+     */
+    const char *needle = pathname;
+    while (1) {
+        needle = strstr(needle, "..");
+
+        if (needle == NULL) {
+            return 0;
+        }
+
+        if ((needle == pathname || needle[-1] == PATH_SEP)
+         && (needle[2] == '\0' || needle[2] == PATH_SEP)) {
+            return 1;
+        }
+
+        /* increment so we search for the next match */
+        needle++;
+    };
+    return 0;
 }
 
 static int isFileNameValidForMirroredOutput(const char *filename)

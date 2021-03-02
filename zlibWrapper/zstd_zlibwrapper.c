@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2016-2021, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -372,9 +372,15 @@ ZEXTERN int ZEXPORT z_deflate OF((z_streamp strm, int flush))
     } else {
         if (zwc->totalInBytes == 0) {
             if (zwc->comprState == ZWRAP_useReset) {
-                size_t const resetErr = ZSTD_resetCStream(zwc->zbc, (flush == Z_FINISH) ? strm->avail_in : zwc->pledgedSrcSize);
+                size_t resetErr = ZSTD_CCtx_reset(zwc->zbc, ZSTD_reset_session_only);
                 if (ZSTD_isError(resetErr)) {
-                    LOG_WRAPPERC("ERROR: ZSTD_resetCStream errorCode=%s\n",
+                    LOG_WRAPPERC("ERROR: ZSTD_CCtx_reset errorCode=%s\n",
+                                ZSTD_getErrorName(resetErr));
+                    return ZWRAPC_finishWithError(zwc, strm, 0);
+                }
+                resetErr = ZSTD_CCtx_setPledgedSrcSize(zwc->zbc, (flush == Z_FINISH) ? strm->avail_in : zwc->pledgedSrcSize);
+                if (ZSTD_isError(resetErr)) {
+                    LOG_WRAPPERC("ERROR: ZSTD_CCtx_setPledgedSrcSize errorCode=%s\n",
                                 ZSTD_getErrorName(resetErr));
                     return ZWRAPC_finishWithError(zwc, strm, 0);
                 }
@@ -829,7 +835,7 @@ ZEXTERN int ZEXPORT z_inflate OF((z_streamp strm, int flush))
                     goto error;
                 }
             } else {
-                size_t const resetErr = ZSTD_resetDStream(zwd->zbd);
+                size_t const resetErr = ZSTD_DCtx_reset(zwd->zbd, ZSTD_reset_session_only);
                 if (ZSTD_isError(resetErr)) goto error;
             }
         } else {
@@ -849,7 +855,7 @@ ZEXTERN int ZEXPORT z_inflate OF((z_streamp strm, int flush))
                     goto error;
                 }
             } else {
-                size_t const resetErr = ZSTD_resetDStream(zwd->zbd);
+                size_t const resetErr = ZSTD_DCtx_reset(zwd->zbd, ZSTD_reset_session_only);
                 if (ZSTD_isError(resetErr)) goto error;
             }
 

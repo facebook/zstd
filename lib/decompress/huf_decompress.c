@@ -1,7 +1,7 @@
 /* ******************************************************************
  * huff0 huffman decoder,
  * part of Finite State Entropy library
- * Copyright (c) 2013-2020, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2013-2021, Yann Collet, Facebook, Inc.
  *
  *  You can contact the author at :
  *  - FSE+HUF source repository : https://github.com/Cyan4973/FiniteStateEntropy

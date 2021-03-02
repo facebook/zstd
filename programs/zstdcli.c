@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2016-2021, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -41,6 +41,9 @@
 #endif
 #ifndef ZSTD_NODICT
 #  include "dibio.h"  /* ZDICT_cover_params_t, DiB_trainFromFiles() */
+#endif
+#ifndef ZSTD_NOTRACE
+#  include "zstdcli_trace.h"
 #endif
 #include "../lib/zstd.h"  /* ZSTD_VERSION_STRING, ZSTD_minCLevel, ZSTD_maxCLevel */
 
@@ -104,6 +107,24 @@ static int g_displayLevel = DISPLAY_LEVEL_DEFAULT;   /* 0 : no display,  1: erro
 
 
 /*-************************************
+*  Check Version (when CLI linked to dynamic library)
+**************************************/
+
+/* Due to usage of experimental symbols and capabilities by the CLI,
+ * the CLI must be linked against a dynamic library of same version */
+static void checkLibVersion(void)
+{
+    if (strcmp(ZSTD_VERSION_STRING, ZSTD_versionString())) {
+        DISPLAYLEVEL(1, "Error : incorrect library version (expecting : %s ; actual : %s ) \n",
+                    ZSTD_VERSION_STRING, ZSTD_versionString());
+        DISPLAYLEVEL(1, "Please update library to version %s, or use stand-alone zstd binary \n",
+                    ZSTD_VERSION_STRING);
+        exit(1);
+    }
+}
+
+
+/*-************************************
 *  Command Line
 **************************************/
 /* print help either in `stderr` or `stdout` depending on originating request
@@ -126,7 +147,8 @@ static void usage(FILE* f, const char* programName)
 #endif
     DISPLAY_F(f, " -D DICT: use DICT as Dictionary for compression or decompression \n");
     DISPLAY_F(f, " -o file: result stored into `file` (only 1 output file) \n");
-    DISPLAY_F(f, " -f     : overwrite output without prompting, also (de)compress links \n");
+    DISPLAY_F(f, " -f     : disable input and output checks. Allows overwriting existing files,\n");
+    DISPLAY_F(f, "          input from console, output to stdout, operating on links, etc.\n");
     DISPLAY_F(f, "--rm    : remove source file(s) after successful de/compression \n");
     DISPLAY_F(f, " -k     : preserve source file(s) (default) \n");
     DISPLAY_F(f, " -h/-H  : display help/long help and exit \n");
@@ -167,6 +189,11 @@ static void usage_advanced(const char* programName)
     DISPLAYOUT( "--[no-]check : during decompression, ignore/validate checksums in compressed frame (default: validate).");
 #endif
 #endif /* ZSTD_NOCOMPRESS */
+
+#ifndef ZSTD_NOTRACE
+    DISPLAYOUT( "\n");
+    DISPLAYOUT( "--trace FILE : log tracing information to FILE.");
+#endif
     DISPLAYOUT( "\n");
 
     DISPLAYOUT( "--      : All arguments after \"--\" are treated as files \n");
@@ -696,6 +723,7 @@ int main(int const argCount, const char* argv[])
 {
     int argNb,
         followLinks = 0,
+        forceStdin = 0,
         forceStdout = 0,
         hasStdout = 0,
         ldmFlag = 0,
@@ -753,6 +781,7 @@ int main(int const argCount, const char* argv[])
 
 
     /* init */
+    checkLibVersion();
     (void)recursive; (void)cLevelLast;    /* not used when ZSTD_NOBENCH set */
     (void)memLimit;
     assert(argCount >= 1);
@@ -807,7 +836,7 @@ int main(int const argCount, const char* argv[])
                 if (!strcmp(argument, "--compress")) { operation=zom_compress; continue; }
                 if (!strcmp(argument, "--decompress")) { operation=zom_decompress; continue; }
                 if (!strcmp(argument, "--uncompress")) { operation=zom_decompress; continue; }
-                if (!strcmp(argument, "--force")) { FIO_overwriteMode(prefs); forceStdout=1; followLinks=1; continue; }
+                if (!strcmp(argument, "--force")) { FIO_overwriteMode(prefs); forceStdin=1; forceStdout=1; followLinks=1; continue; }
                 if (!strcmp(argument, "--version")) { printVersion(); CLEAN_RETURN(0); }
                 if (!strcmp(argument, "--help")) { usage_advanced(programName); CLEAN_RETURN(0); }
                 if (!strcmp(argument, "--verbose")) { g_displayLevel++; continue; }
@@ -897,6 +926,9 @@ int main(int const argCount, const char* argv[])
                 if (longCommandWArg(&argument, "--output-dir-flat")) { NEXT_FIELD(outDirName); continue; }
 #ifdef UTIL_HAS_MIRRORFILELIST
                 if (longCommandWArg(&argument, "--output-dir-mirror")) { NEXT_FIELD(outMirroredDirName); continue; }
+#endif
+#ifndef ZSTD_NOTRACE
+                if (longCommandWArg(&argument, "--trace")) { char const* traceFile; NEXT_FIELD(traceFile); TRACE_enable(traceFile); continue; }
 #endif
                 if (longCommandWArg(&argument, "--patch-from")) { NEXT_FIELD(patchFromDictFileName); continue; }
                 if (longCommandWArg(&argument, "--long")) {
@@ -988,7 +1020,7 @@ int main(int const argCount, const char* argv[])
                 case 'D': argument++; NEXT_FIELD(dictFileName); break;
 
                     /* Overwrite */
-                case 'f': FIO_overwriteMode(prefs); forceStdout=1; followLinks=1; argument++; break;
+                case 'f': FIO_overwriteMode(prefs); forceStdin=1; forceStdout=1; followLinks=1; argument++; break;
 
                     /* Verbose mode */
                 case 'v': g_displayLevel++; argument++; break;
@@ -1243,7 +1275,9 @@ int main(int const argCount, const char* argv[])
         outFileName = stdoutmark;  /* when input is stdin, default output is stdout */
 
     /* Check if input/output defined as console; trigger an error in this case */
-    if (!strcmp(filenames->fileNames[0], stdinmark) && IS_CONSOLE(stdin) ) {
+    if (!forceStdin
+     && !strcmp(filenames->fileNames[0], stdinmark)
+     && IS_CONSOLE(stdin) ) {
         DISPLAYLEVEL(1, "stdin is a console, aborting\n");
         CLEAN_RETURN(1);
     }
@@ -1281,15 +1315,15 @@ int main(int const argCount, const char* argv[])
         DISPLAY("error : can't use --patch-from=# on multiple files \n");
         CLEAN_RETURN(1);
     }
-    
-    /* No status message in pipe mode (stdin - stdout) */	
+
+    /* No status message in pipe mode (stdin - stdout) */
     hasStdout = outFileName && !strcmp(outFileName,stdoutmark);
 
     if (hasStdout && (g_displayLevel==2)) g_displayLevel=1;
 
     /* IO Stream/File */
     FIO_setHasStdoutOutput(fCtx, hasStdout);
-    FIO_setNbFilesTotal(fCtx, (int)filenames->tableSize); 
+    FIO_setNbFilesTotal(fCtx, (int)filenames->tableSize);
     FIO_determineHasStdinInput(fCtx, filenames);
     FIO_setNotificationLevel(g_displayLevel);
     FIO_setPatchFromMode(prefs, patchFromDictFileName != NULL);
@@ -1374,6 +1408,9 @@ _end:
     if (main_pause) waitEnter();
     UTIL_freeFileNamesTable(filenames);
     UTIL_freeFileNamesTable(file_of_names);
+#ifndef ZSTD_NOTRACE
+    TRACE_finish();
+#endif
 
     return operationResult;
 }

@@ -7,7 +7,7 @@
 # in the COPYING file in the root directory of this source tree).
 # ################################################################
 
-project(libzstd)
+project(libzstd C)
 
 set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 option(ZSTD_BUILD_STATIC "BUILD STATIC LIBRARIES" ON)
@@ -137,7 +137,7 @@ endif ()
 if (UNIX OR MINGW)
     # pkg-config
     set(PREFIX "${CMAKE_INSTALL_PREFIX}")
-    set(EXEC_PREFIX "\\$$\{prefix}")
+    set(EXEC_PREFIX "\${prefix}")
     set(LIBDIR "${CMAKE_INSTALL_FULL_LIBDIR}")
     set(INCLUDEDIR "${CMAKE_INSTALL_FULL_INCLUDEDIR}")
     set(VERSION "${zstd_VERSION}")
@@ -149,24 +149,13 @@ if (UNIX OR MINGW)
     string(SUBSTRING "${INCLUDEDIR}" ${PREFIX_LENGTH} -1 INCLUDEDIR_SUFFIX)
 
     if ("${INCLUDEDIR_PREFIX}" STREQUAL "${PREFIX}")
-        set(INCLUDEDIR_PREFIX "\\$$\{prefix}")
+        set(INCLUDEDIR "\${prefix}${INCLUDEDIR_SUFFIX}")
     endif()
     if ("${LIBDIR_PREFIX}" STREQUAL "${PREFIX}")
-        set(LIBDIR_PREFIX "\\$$\{exec_prefix}")
+        set(LIBDIR "\${exec_prefix}${LIBDIR_SUFFIX}")
     endif()
 
-    add_custom_target(libzstd.pc ALL
-            ${CMAKE_COMMAND}
-            -DIN=${LIBRARY_DIR}/libzstd.pc.in
-            -DOUT="libzstd.pc"
-            -DPREFIX="${PREFIX}"
-            -DEXEC_PREFIX="${EXEC_PREFIX}"
-            -DINCLUDEDIR="${INCLUDEDIR_PREFIX}${INCLUDEDIR_SUFFIX}"
-            -DLIBDIR="${LIBDIR_PREFIX}${LIBDIR_SUFFIX}"
-            -DVERSION="${VERSION}"
-            -P ${CMAKE_CURRENT_SOURCE_DIR}/pkgconfig.cmake
-            COMMENT "Creating pkg-config file")
-
+    configure_file("${LIBRARY_DIR}/libzstd.pc.in" "${CMAKE_CURRENT_BINARY_DIR}/libzstd.pc" @ONLY)
     install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libzstd.pc" DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
 endif ()
 

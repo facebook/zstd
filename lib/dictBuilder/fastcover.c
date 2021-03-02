@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, Facebook, Inc.
+ * Copyright (c) 2018-2021, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -462,20 +462,20 @@ typedef struct FASTCOVER_tryParameters_data_s {
  * This function is thread safe if zstd is compiled with multithreaded support.
  * It takes its parameters as an *OWNING* opaque pointer to support threading.
  */
-static void FASTCOVER_tryParameters(void *opaque)
+static void FASTCOVER_tryParameters(void* opaque)
 {
   /* Save parameters as local variables */
-  FASTCOVER_tryParameters_data_t *const data = (FASTCOVER_tryParameters_data_t *)opaque;
+  FASTCOVER_tryParameters_data_t *const data = (FASTCOVER_tryParameters_data_t*)opaque;
   const FASTCOVER_ctx_t *const ctx = data->ctx;
   const ZDICT_cover_params_t parameters = data->parameters;
   size_t dictBufferCapacity = data->dictBufferCapacity;
   size_t totalCompressedSize = ERROR(GENERIC);
   /* Initialize array to keep track of frequency of dmer within activeSegment */
-  U16* segmentFreqs = (U16 *)calloc(((U64)1 << ctx->f), sizeof(U16));
+  U16* segmentFreqs = (U16*)calloc(((U64)1 << ctx->f), sizeof(U16));
   /* Allocate space for hash table, dict, and freqs */
-  BYTE *const dict = (BYTE * const)malloc(dictBufferCapacity);
+  BYTE *const dict = (BYTE*)malloc(dictBufferCapacity);
   COVER_dictSelection_t selection = COVER_dictSelectionError(ERROR(GENERIC));
-  U32 *freqs = (U32*) malloc(((U64)1 << ctx->f) * sizeof(U32));
+  U32* freqs = (U32*) malloc(((U64)1 << ctx->f) * sizeof(U32));
   if (!segmentFreqs || !dict || !freqs) {
     DISPLAYLEVEL(1, "Failed to allocate buffers: out of memory\n");
     goto _cleanup;

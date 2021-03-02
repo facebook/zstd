@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2020, Yann Collet, Facebook, Inc.
+ * Copyright (c) 2016-2021, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -23,9 +23,13 @@
 /* Unix Large Files support (>4GB) */
 #define _FILE_OFFSET_BITS 64
 #if (defined(__sun__) && (!defined(__LP64__)))   /* Sun Solaris 32-bits requires specific definitions */
+#  ifndef _LARGEFILE_SOURCE
 #  define _LARGEFILE_SOURCE
+#  endif
 #elif ! defined(__LP64__)                        /* No point defining Large file for 64 bit */
+#  ifndef _LARGEFILE64_SOURCE
 #  define _LARGEFILE64_SOURCE
+#  endif
 #endif
 
 
@@ -967,16 +971,11 @@ static size_t ZDICT_addEntropyTablesFromBuffer_advanced(
     return MIN(dictBufferCapacity, hSize+dictContentSize);
 }
 
-/* Hidden declaration for dbio.c */
-size_t ZDICT_trainFromBuffer_unsafe_legacy(
-                            void* dictBuffer, size_t maxDictSize,
-                            const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
-                            ZDICT_legacy_params_t params);
 /*! ZDICT_trainFromBuffer_unsafe_legacy() :
-*   Warning : `samplesBuffer` must be followed by noisy guard band.
+*   Warning : `samplesBuffer` must be followed by noisy guard band !!!
 *   @return : size of dictionary, or an error code which can be tested with ZDICT_isError()
 */
-size_t ZDICT_trainFromBuffer_unsafe_legacy(
+static size_t ZDICT_trainFromBuffer_unsafe_legacy(
                             void* dictBuffer, size_t maxDictSize,
                             const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples,
                             ZDICT_legacy_params_t params)

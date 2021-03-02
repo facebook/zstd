@@ -808,6 +808,7 @@ $DIFF "$TESTFILE" result
 println "- Dictionary compression with btlazy2 strategy"
 zstd -f tmp -D tmpDict --zstd=strategy=6
 zstd -d tmp.zst -D tmpDict -fo result
+die "done"
 $DIFF "$TESTFILE" result
 if [ -n "$hasMT" ]
 then

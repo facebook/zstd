@@ -1215,9 +1215,12 @@ int UTIL_countPhysicalCores(void)
         if (siblings && cpu_cores) {
             ratio = siblings / cpu_cores;
         }
+
+        numPhysicalCores = numPhysicalCores / ratio;
+
 failed:
         fclose(cpuinfo);
-        return numPhysicalCores = numPhysicalCores / ratio;
+        return numPhysicalCores;
     }
 }
 

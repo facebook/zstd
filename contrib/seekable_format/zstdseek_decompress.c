@@ -195,26 +195,22 @@ size_t ZSTD_seekable_free(ZSTD_seekable* zs)
     ZSTD_freeDStream(zs->dstream);
     free(zs->seekTable.entries);
     free(zs);
-
     return 0;
 }
 
 size_t ZSTD_seekable_copySeekTable(ZSTD_seekable* zs, ZSTD_seekTable** out)
 {
-    ZSTD_seekTable* st = malloc(sizeof(ZSTD_seekTable));
-    if (!st) {
-        free(st);
-        return ERROR(memory_allocation);
-    }
+    ZSTD_seekTable* const st = malloc(sizeof(ZSTD_seekTable));
+    if (st==NULL) return ERROR(memory_allocation);
 
     st->checksumFlag = zs->seekTable.checksumFlag;
     st->tableLen = zs->seekTable.tableLen;
 
     /* Allocate an extra entry at the end to match logic of initial allocation */
     size_t entriesSize = sizeof(seekEntry_t) * (zs->seekTable.tableLen + 1);
-    seekEntry_t* entries = (seekEntry_t*)malloc(entriesSize);
-    if (!entries) {
-        free(entries);
+    seekEntry_t* const entries = (seekEntry_t*)malloc(entriesSize);
+    if (entries==NULL) {
+        free(st);
         return ERROR(memory_allocation);
     }
 
@@ -230,7 +226,6 @@ size_t ZSTD_seekTable_free(ZSTD_seekTable* st)
     if (st == NULL) return 0; /* support free on null */
     free(st->entries);
     free(st);
-
     return 0;
 }
 

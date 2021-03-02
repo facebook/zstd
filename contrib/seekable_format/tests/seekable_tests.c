@@ -8,6 +8,7 @@
 int main(int argc, const char** argv)
 {
     unsigned testNb = 1;
+    (void)argc; (void)argv;
     printf("Beginning zstd seekable format tests...\n");
     printf("Test %u - check that seekable decompress does not hang: ", testNb++);
     {   /* Github issue #2335 */

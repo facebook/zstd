@@ -16,7 +16,8 @@ ZSTDLIB = $(ZSTDLIB_PATH)/$(ZSTDLIB_NAME)
 CPPFLAGS += -I../ -I$(ZSTDLIB_PATH) -I$(ZSTDLIB_PATH)/common
 
 CFLAGS ?= -O3
-CFLAGS += -g
+CFLAGS += -g -Wall -Wextra -Wcast-qual -Wcast-align -Wconversion \
+          -Wformat=2 -Wstrict-aliasing=1
 
 SEEKABLE_OBJS = ../zstdseek_compress.c ../zstdseek_decompress.c $(ZSTDLIB)
 
@@ -33,6 +34,6 @@ $(ZSTDLIB):
 seekable_tests : seekable_tests.c $(SEEKABLE_OBJS)
 
 clean:
-	@rm -f core *.o tmp* result* *.zst \
+	@$(RM) core *.o tmp* result* *.zst \
 		seekable_tests
 	@echo Cleaning completed

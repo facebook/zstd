@@ -118,15 +118,16 @@ static int ZSTD_seekable_seek_buff(void* opaque, long long offset, int origin)
 {
     buffWrapper_t* const buff = (buffWrapper_t*) opaque;
     unsigned long long newOffset;
+    assert(offset >= 0);
     switch (origin) {
     case SEEK_SET:
-        newOffset = offset;
+        newOffset = (unsigned long long)offset;
         break;
     case SEEK_CUR:
-        newOffset = (unsigned long long)buff->pos + offset;
+        newOffset = (unsigned long long)buff->pos + (unsigned long long)offset;
         break;
     case SEEK_END:
-        newOffset = (unsigned long long)buff->size + offset;
+        newOffset = (unsigned long long)buff->size + (unsigned long long)offset;
         break;
     default:
         assert(0);  /* not possible */
@@ -198,10 +199,10 @@ size_t ZSTD_seekable_free(ZSTD_seekable* zs)
     return 0;
 }
 
-size_t ZSTD_seekable_copySeekTable(ZSTD_seekable* zs, ZSTD_seekTable** out)
+ZSTD_seekTable* ZSTD_seekTable_create_fromSeekable(const ZSTD_seekable* zs)
 {
     ZSTD_seekTable* const st = malloc(sizeof(ZSTD_seekTable));
-    if (st==NULL) return ERROR(memory_allocation);
+    if (st==NULL) return NULL;
 
     st->checksumFlag = zs->seekTable.checksumFlag;
     st->tableLen = zs->seekTable.tableLen;
@@ -211,14 +212,12 @@ size_t ZSTD_seekable_copySeekTable(ZSTD_seekable* zs, ZSTD_seekTable** out)
     seekEntry_t* const entries = (seekEntry_t*)malloc(entriesSize);
     if (entries==NULL) {
         free(st);
-        return ERROR(memory_allocation);
+        return NULL;
     }
 
     memcpy(entries, zs->seekTable.entries, entriesSize);
     st->entries = entries;
-
-    *out = st;
-    return 0;
+    return st;
 }
 
 size_t ZSTD_seekTable_free(ZSTD_seekTable* st)
@@ -449,8 +448,9 @@ size_t ZSTD_seekable_decompress(ZSTD_seekable* zs, void* dst, size_t len, unsign
             zs->decompressedOffset = zs->seekTable.entries[targetFrame].dOffset;
             zs->curFrame = targetFrame;
 
+            assert(zs->seekTable.entries[targetFrame].cOffset < LLONG_MAX);
             CHECK_IO(zs->src.seek(zs->src.opaque,
-                                  zs->seekTable.entries[targetFrame].cOffset,
+                                  (long long)zs->seekTable.entries[targetFrame].cOffset,
                                   SEEK_SET));
             zs->in = (ZSTD_inBuffer){zs->inBuff, 0, 0};
             XXH64_reset(&zs->xxhState, 0);

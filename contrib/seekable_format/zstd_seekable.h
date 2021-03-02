@@ -173,7 +173,7 @@ ZSTDLIB_API unsigned ZSTD_seekable_offsetToFrameIndex(const ZSTD_seekable* zs, u
 
 
 /*===== Independent seek table management =====*/
-ZSTDLIB_API size_t ZSTD_seekable_copySeekTable(ZSTD_seekable* zs, ZSTD_seekTable** out);
+ZSTDLIB_API ZSTD_seekTable* ZSTD_seekTable_create_fromSeekable(const ZSTD_seekable* zs);
 ZSTDLIB_API size_t ZSTD_seekTable_free(ZSTD_seekTable* st);
 
 /*===== Direct seek table access functions =====*/

@@ -5380,7 +5380,10 @@ static ZSTD_compressionParameters ZSTD_dedicatedDictSearch_getCParams(int const 
 static int ZSTD_dedicatedDictSearch_isSupported(
         ZSTD_compressionParameters const* cParams)
 {
-    return (cParams->strategy >= ZSTD_greedy_row) && (cParams->strategy <= ZSTD_lazy2);
+    return (cParams->strategy >= ZSTD_greedy_row)
+        && (cParams->strategy <= ZSTD_lazy2)
+        && (cParams->hashLog >= cParams->chainLog)
+        && (cParams->chainLog <= 24);
 }
 
 /**

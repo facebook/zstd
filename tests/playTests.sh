@@ -806,9 +806,8 @@ zstd -f tmp -D tmpDict
 zstd -d tmp.zst -D tmpDict -fo result
 $DIFF "$TESTFILE" result
 println "- Dictionary compression with btlazy2 strategy"
-zstd -f tmp -D tmpDict --zstd=strategy=6
+zstd -f tmp -D tmpDict --zstd=strategy=9
 zstd -d tmp.zst -D tmpDict -fo result
-die "done"
 $DIFF "$TESTFILE" result
 if [ -n "$hasMT" ]
 then
@@ -1463,7 +1462,7 @@ roundTripTest -g18000018 -P94 18
 roundTripTest -g18000019 -P96 19
 
 roundTripTest -g5000000000 -P99 "1 --zstd=wlog=25"
-roundTripTest -g3700000000 -P0 "1 --zstd=strategy=6,wlog=25"   # ensure btlazy2 can survive an overflow rescale
+roundTripTest -g3700000000 -P0 "1 --zstd=strategy=9,wlog=25"   # ensure btlazy2 can survive an overflow rescale
 
 fileRoundTripTest -g4193M -P99 1
 

@@ -12,11 +12,11 @@
 #include "zstd_lazy.h"
 
 /* Constants for row-based hash */
-#define kRowMask16 kRowEntries16 - 1           /* bitmask to constrain numbers between [0, kRowEntries16] */
+#define kRowMask16 kRowEntries16 - 1             /* bitmask to constrain numbers between [0, kRowEntries16] */
 #define kRowMask32 kRowEntries32 - 1
-#define kHashOffset 1                          /* offset of hashes in the match state's tagTable */
-#define kShortHashBits 8                           /* nb bits to hash by */
-#define kShortHashMask ((1u << kShortHashBits) - 1)
+#define kHashOffset 1                            /* offset of hashes in the match state's tagTable from the beginning of a row */
+#define kHashTagBits 8                           /* nb bits to use for the tag */
+#define kHashTagMask ((1u << kHashTagBits) - 1)
 #define kPrefetchMask (kPrefetchNb - 1)
 
 /*-*************************************
@@ -510,7 +510,6 @@ void ZSTD_dedicatedDictSearch_lazy_loadDictionary(ZSTD_matchState_t* ms, const B
     U32* const tmpChainTable = hashTable + ((size_t)1 << hashLog);
     U32 const tmpChainSize = ((1 << ZSTD_LAZY_DDSS_BUCKET_LOG) - 1) << hashLog;
     U32 const tmpMinChain = tmpChainSize < target ? target - tmpChainSize : idx;
-
     U32 hashIdx;
 
     assert(ms->cParams.chainLog <= 24);
@@ -1079,9 +1078,9 @@ static void ZSTD_row_fillHashCache(ZSTD_matchState_t* ms, const BYTE* base,
     U32 const lim = idx + MIN(kPrefetchNb, maxElemsToPrefetch);
 
     for (; idx < lim; ++idx) {
-        U32 const hashS = (U32)ZSTD_hashPtr(base + idx, hashLog + kShortHashBits, mls);
+        U32 const hashS = (U32)ZSTD_hashPtr(base + idx, hashLog + kHashTagBits, mls);
         if (shouldPrefetch) {
-            U32 const row = (hashS >> kShortHashBits) << rowLog;
+            U32 const row = (hashS >> kHashTagBits) << rowLog;
             ZSTD_row_prefetch(hashTable, row, rowLog);
             ZSTD_tagRow_prefetch(tagTable, row, rowLog);
         }
@@ -1102,9 +1101,9 @@ FORCE_INLINE_TEMPLATE U32 ZSTD_row_nextCachedHash(U32* cache, U32 const* hashTab
                                                   U32 idx, U32 const hashLog,
                                                   U32 const rowLog, U32 const mls, U32 const shouldPrefetch)
 {
-    U32 const newHashS = (U32)ZSTD_hashPtr(base+idx+kPrefetchNb, hashLog + kShortHashBits, mls);
+    U32 const newHashS = (U32)ZSTD_hashPtr(base+idx+kPrefetchNb, hashLog + kHashTagBits, mls);
     if (shouldPrefetch) {
-        U32 const row = (newHashS >> kShortHashBits) << rowLog;
+        U32 const row = (newHashS >> kHashTagBits) << rowLog;
         ZSTD_row_prefetch(hashTable, row, rowLog);
         ZSTD_tagRow_prefetch(tagTable, row, rowLog);
     }
@@ -1132,15 +1131,15 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_update_internal(ZSTD_matchState_t* ms, const
     DEBUGLOG(6, "ZSTD_row_update_internal(): nextToUpdate=%u, current=%u", idx, target);
     for (; idx < target; ++idx) {
         U32 const hash = useCache ? ZSTD_row_nextCachedHash(ms->hashCache, hashTable, tagTable, base, idx, hashLog, rowLog, mls, shouldPrefetch)
-                                  : (U32)ZSTD_hashPtr(base + idx, hashLog + kShortHashBits, mls);
-        U32 const relRow = (hash >> kShortHashBits) << rowLog;
+                                  : (U32)ZSTD_hashPtr(base + idx, hashLog + kHashTagBits, mls);
+        U32 const relRow = (hash >> kHashTagBits) << rowLog;
         U32* const row = hashTable + relRow;
         BYTE* tagRow = (BYTE*)(tagTable + relRow);
         U32 const pos = ZSTD_row_nextIndex(tagRow, rowMask);
 
-        assert(hash == ZSTD_hashPtr(base + idx, hashLog + kShortHashBits, mls));
+        assert(hash == ZSTD_hashPtr(base + idx, hashLog + kHashTagBits, mls));
 
-        ((BYTE*)tagRow)[pos + kHashOffset] = hash & kShortHashMask;
+        ((BYTE*)tagRow)[pos + kHashOffset] = hash & kHashTagMask;
         row[pos] = idx;
     }
     ms->nextToUpdate = target;
@@ -1214,8 +1213,8 @@ size_t ZSTD_RowFindBestMatch_generic (
     {
         /* Get the hash for ip, compute the appropriate row */
         U32 const hash = ZSTD_row_nextCachedHash(hashCache, hashTable, tagTable, base, curr, hashLog, rowLog, mls, shouldPrefetch);
-        U32 const relRow = (hash >> kShortHashBits) << rowLog;
-        U32 const tag = hash & kShortHashMask;
+        U32 const relRow = (hash >> kHashTagBits) << rowLog;
+        U32 const tag = hash & kHashTagMask;
         U32* const row = hashTable + relRow;
         BYTE* tagRow = (BYTE*)(tagTable + relRow);
         U32 const head = *tagRow & rowMask;

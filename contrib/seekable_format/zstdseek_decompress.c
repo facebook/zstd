@@ -107,7 +107,8 @@ typedef struct {
 
 static int ZSTD_seekable_read_buff(void* opaque, void* buffer, size_t n)
 {
-    buffWrapper_t* buff = (buffWrapper_t*) opaque;
+    buffWrapper_t* const buff = (buffWrapper_t*)opaque;
+    assert(buff != NULL);
     if (buff->pos + n > buff->size) return -1;
     memcpy(buffer, (const BYTE*)buff->ptr + buff->pos, n);
     buff->pos += n;
@@ -118,6 +119,7 @@ static int ZSTD_seekable_seek_buff(void* opaque, long long offset, int origin)
 {
     buffWrapper_t* const buff = (buffWrapper_t*) opaque;
     unsigned long long newOffset;
+    assert(buff != NULL);
     assert(offset >= 0);
     switch (origin) {
     case SEEK_SET:
@@ -174,8 +176,7 @@ struct ZSTD_seekable_s {
 
 ZSTD_seekable* ZSTD_seekable_create(void)
 {
-    ZSTD_seekable* zs = malloc(sizeof(ZSTD_seekable));
-
+    ZSTD_seekable* const zs = malloc(sizeof(ZSTD_seekable));
     if (zs == NULL) return NULL;
 
     /* also initializes stage to zsds_init */
@@ -208,7 +209,7 @@ ZSTD_seekTable* ZSTD_seekTable_create_fromSeekable(const ZSTD_seekable* zs)
     st->tableLen = zs->seekTable.tableLen;
 
     /* Allocate an extra entry at the end to match logic of initial allocation */
-    size_t entriesSize = sizeof(seekEntry_t) * (zs->seekTable.tableLen + 1);
+    size_t const entriesSize = sizeof(seekEntry_t) * (zs->seekTable.tableLen + 1);
     seekEntry_t* const entries = (seekEntry_t*)malloc(entriesSize);
     if (entries==NULL) {
         free(st);
@@ -244,7 +245,7 @@ unsigned ZSTD_seekTable_offsetToFrameIndex(const ZSTD_seekTable* st, unsigned lo
     assert(st->tableLen <= UINT_MAX);
 
     if (pos >= st->entries[st->tableLen].dOffset) {
-        return (U32)st->tableLen;
+        return (unsigned)st->tableLen;
     }
 
     while (lo + 1 < hi) {
@@ -333,8 +334,7 @@ static size_t ZSTD_seekable_loadSeekTable(ZSTD_seekable* zs)
         /* check reserved bits */
         if ((checksumFlag >> 2) & 0x1f) {
             return ERROR(corruption_detected);
-        }
-    }
+    }   }
 
     {   U32 const numFrames = MEM_readLE32(zs->inBuff);
         U32 const sizePerEntry = 8 + (checksumFlag?4:0);
@@ -342,12 +342,9 @@ static size_t ZSTD_seekable_loadSeekTable(ZSTD_seekable* zs)
         U32 const frameSize = tableSize + ZSTD_seekTableFooterSize + ZSTD_SKIPPABLEHEADERSIZE;
 
         U32 remaining = frameSize - ZSTD_seekTableFooterSize; /* don't need to re-read footer */
-        {
-            U32 const toRead = MIN(remaining, SEEKABLE_BUFF_SIZE);
-
+        {   U32 const toRead = MIN(remaining, SEEKABLE_BUFF_SIZE);
             CHECK_IO(src.seek(src.opaque, -(S64)frameSize, SEEK_END));
             CHECK_IO(src.read(src.opaque, zs->inBuff, toRead));
-
             remaining -= toRead;
         }
 
@@ -360,19 +357,15 @@ static size_t ZSTD_seekable_loadSeekTable(ZSTD_seekable* zs)
 
         {   /* Allocate an extra entry at the end so that we can do size
              * computations on the last element without special case */
-            seekEntry_t* entries = (seekEntry_t*)malloc(sizeof(seekEntry_t) * (numFrames + 1));
+            seekEntry_t* const entries = (seekEntry_t*)malloc(sizeof(seekEntry_t) * (numFrames + 1));
 
             U32 idx = 0;
             U32 pos = 8;
 
-
             U64 cOffset = 0;
             U64 dOffset = 0;
 
-            if (!entries) {
-                free(entries);
-                return ERROR(memory_allocation);
-            }
+            if (entries == NULL) return ERROR(memory_allocation);
 
             /* compute cumulative positions */
             for (; idx < numFrames; idx++) {

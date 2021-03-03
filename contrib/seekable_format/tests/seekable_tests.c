@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <assert.h>
 
 #include "zstd_seekable.h"
 
@@ -35,20 +36,21 @@ int main(int argc, const char** argv)
         const size_t uncompressed_size = 32;
         uint8_t uncompressed_data[32];
 
-        ZSTD_seekable* stream = ZSTD_seekable_create();
-        size_t status = ZSTD_seekable_initBuff(stream, compressed_data, compressed_size);
-        if (ZSTD_isError(status)) {
-            ZSTD_seekable_free(stream);
-            goto _test_error;
-        }
+        ZSTD_seekable* const stream = ZSTD_seekable_create();
+        assert(stream != NULL);
+        {   size_t const status = ZSTD_seekable_initBuff(stream, compressed_data, compressed_size);
+            if (ZSTD_isError(status)) {
+                ZSTD_seekable_free(stream);
+                goto _test_error;
+        }   }
 
-        const size_t offset = 2;
         /* Should return an error, but not hang */
-        status = ZSTD_seekable_decompress(stream, uncompressed_data, uncompressed_size, offset);
-        if (!ZSTD_isError(status)) {
-            ZSTD_seekable_free(stream);
-            goto _test_error;
-        }
+        {   const size_t offset = 2;
+            size_t const status = ZSTD_seekable_decompress(stream, uncompressed_data, uncompressed_size, offset);
+            if (!ZSTD_isError(status)) {
+                ZSTD_seekable_free(stream);
+                goto _test_error;
+        }   }
 
         ZSTD_seekable_free(stream);
     }

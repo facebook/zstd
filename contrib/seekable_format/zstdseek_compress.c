@@ -19,6 +19,7 @@
 #include "zstd.h"
 #include "zstd_errors.h"
 #include "mem.h"
+
 #include "zstd_seekable.h"
 
 #define CHECK_Z(f) { size_t const ret = (f); if (ret != 0) return ret; }
@@ -75,7 +76,7 @@ size_t ZSTD_seekable_frameLog_allocVec(ZSTD_frameLog* fl)
     return 0;
 }
 
-size_t ZSTD_seekable_frameLog_freeVec(ZSTD_frameLog* fl)
+static size_t ZSTD_seekable_frameLog_freeVec(ZSTD_frameLog* fl)
 {
     if (fl != NULL) free(fl->entries);
     return 0;
@@ -83,7 +84,7 @@ size_t ZSTD_seekable_frameLog_freeVec(ZSTD_frameLog* fl)
 
 ZSTD_frameLog* ZSTD_seekable_createFrameLog(int checksumFlag)
 {
-    ZSTD_frameLog* fl = malloc(sizeof(ZSTD_frameLog));
+    ZSTD_frameLog* const fl = malloc(sizeof(ZSTD_frameLog));
     if (fl == NULL) return NULL;
 
     if (ZSTD_isError(ZSTD_seekable_frameLog_allocVec(fl))) {
@@ -106,10 +107,9 @@ size_t ZSTD_seekable_freeFrameLog(ZSTD_frameLog* fl)
     return 0;
 }
 
-ZSTD_seekable_CStream* ZSTD_seekable_createCStream()
+ZSTD_seekable_CStream* ZSTD_seekable_createCStream(void)
 {
-    ZSTD_seekable_CStream* zcs = malloc(sizeof(ZSTD_seekable_CStream));
-
+    ZSTD_seekable_CStream* const zcs = malloc(sizeof(ZSTD_seekable_CStream));
     if (zcs == NULL) return NULL;
 
     memset(zcs, 0, sizeof(*zcs));
@@ -134,7 +134,6 @@ size_t ZSTD_seekable_freeCStream(ZSTD_seekable_CStream* zcs)
     ZSTD_freeCStream(zcs->cstream);
     ZSTD_seekable_frameLog_freeVec(&zcs->framelog);
     free(zcs);
-
     return 0;
 }
 
@@ -152,9 +151,8 @@ size_t ZSTD_seekable_initCStream(ZSTD_seekable_CStream* zcs,
         return ERROR(frameParameter_unsupported);
     }
 
-    zcs->maxFrameSize = maxFrameSize
-                                ? maxFrameSize
-                                : ZSTD_SEEKABLE_MAX_FRAME_DECOMPRESSED_SIZE;
+    zcs->maxFrameSize = maxFrameSize ?
+                        maxFrameSize : ZSTD_SEEKABLE_MAX_FRAME_DECOMPRESSED_SIZE;
 
     zcs->framelog.checksumFlag = checksumFlag;
     if (zcs->framelog.checksumFlag) {
@@ -224,8 +222,7 @@ size_t ZSTD_seekable_endFrame(ZSTD_seekable_CStream* zcs, ZSTD_outBuffer* output
     zcs->frameDSize = 0;
 
     ZSTD_CCtx_reset(zcs->cstream, ZSTD_reset_session_only);
-    if (zcs->framelog.checksumFlag)
-        XXH64_reset(&zcs->xxhState, 0);
+    if (zcs->framelog.checksumFlag) XXH64_reset(&zcs->xxhState, 0);
 
     return 0;
 }

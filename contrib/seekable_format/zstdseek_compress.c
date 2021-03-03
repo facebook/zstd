@@ -202,7 +202,7 @@ size_t ZSTD_seekable_endFrame(ZSTD_seekable_CStream* zcs, ZSTD_outBuffer* output
     /* end the frame */
     size_t ret = ZSTD_endStream(zcs->cstream, output);
 
-    zcs->frameCSize += output->pos - prevOutPos;
+    zcs->frameCSize += (U32)(output->pos - prevOutPos);
 
     /* need to flush before doing the rest */
     if (ret) return ret;
@@ -245,8 +245,8 @@ size_t ZSTD_seekable_compressStream(ZSTD_seekable_CStream* zcs, ZSTD_outBuffer* 
             XXH64_update(&zcs->xxhState, inBase, inTmp.pos);
         }
 
-        zcs->frameCSize += output->pos - prevOutPos;
-        zcs->frameDSize += inTmp.pos;
+        zcs->frameCSize += (U32)(output->pos - prevOutPos);
+        zcs->frameDSize += (U32)inTmp.pos;
 
         input->pos += inTmp.pos;
 
@@ -287,7 +287,7 @@ static inline size_t ZSTD_stwrite32(ZSTD_frameLog* fl,
         memcpy((BYTE*)output->dst + output->pos,
                tmp + (fl->seekTablePos - offset), lenWrite);
         output->pos += lenWrite;
-        fl->seekTablePos += lenWrite;
+        fl->seekTablePos += (U32)lenWrite;
 
         if (lenWrite < 4) return ZSTD_seekable_seekTableSize(fl) - fl->seekTablePos;
     }
@@ -336,8 +336,7 @@ size_t ZSTD_seekable_writeSeekTable(ZSTD_frameLog* fl, ZSTD_outBuffer* output)
 
     if (output->size - output->pos < 1) return seekTableLen - fl->seekTablePos;
     if (fl->seekTablePos < seekTableLen - 4) {
-        BYTE sfd = 0;
-        sfd |= (fl->checksumFlag) << 7;
+        BYTE const sfd = (BYTE)((fl->checksumFlag) << 7);
 
         ((BYTE*)output->dst)[output->pos] = sfd;
         output->pos++;

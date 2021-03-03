@@ -3241,7 +3241,8 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
                     assert(chunk == remaining); /* must load everything in one go */
                     ZSTD_dedicatedDictSearch_lazy_loadDictionary(ms, ichunk-HASH_READ_SIZE);
                 } else {
-                    ZSTD_memset(ms->tagTable, 0, ((U32)1 << params->cParams.hashLog) * sizeof(U16));
+                    size_t const tagTableSize = ((size_t)1 << params->cParams.hashLog) * sizeof(U16);
+                    ZSTD_memset(ms->tagTable, 0, tagTableSize);
                     ZSTD_row_update(ms, ichunk-HASH_READ_SIZE);
                 }
             }

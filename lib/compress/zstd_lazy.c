@@ -513,7 +513,6 @@ void ZSTD_dedicatedDictSearch_lazy_loadDictionary(ZSTD_matchState_t* ms, const B
 
     U32 hashIdx;
 
-    DEBUGLOG(2, "error: strategy: %u hl: %u cl: %u\n", (int)ms->cParams.strategy, ms->cParams.hashLog, ms->cParams.chainLog);
     assert(ms->cParams.chainLog <= 24);
     assert(ms->cParams.hashLog >= ms->cParams.chainLog);
     assert(idx != 0);
@@ -999,10 +998,24 @@ static ZSTD_VecMask ZSTD_Vec256_scalarCmp(ZSTD_Vec256 x, ZSTD_Vec256 y) {
 #endif /* __SSE2__ */
 
 /* ZSTD_VecMask_next():
- * Starting from the LSB, returns the idx of the next non-zero bit
+ * Starting from the LSB, returns the idx of the next non-zero bit.
+ * Basically counting the nb of trailing zeroes.
  */
-static U32 ZSTD_VecMask_next(ZSTD_VecMask m) {
-  return (U32)__builtin_ffs((int)m) - 1;
+static U32 ZSTD_VecMask_next(ZSTD_VecMask val) {
+#   if defined(_MSC_VER)   /* Visual */
+    unsigned long r=0;
+    return _BitScanForward(&r, val) ? (U32)r : 0;
+#   elif defined(__GNUC__) && (__GNUC__ >= 3)
+    return (U32)__builtin_ctz(val);
+#   else
+    /* Software ctz version: http://graphics.stanford.edu/~seander/bithacks.html#ZerosOnRightMultLookup */
+    static const U32 MultiplyDeBruijnBitPosition[32] = 
+	{
+		0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8, 
+		31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9
+	};
+	return MultiplyDeBruijnBitPosition[((uint32_t)((v & -(int)v) * 0x077CB531U)) >> 27];
+#   endif
 }
 
 /* ZSTD_VecMask_rotateRight():
@@ -1062,7 +1075,7 @@ static void ZSTD_row_fillHashCache(ZSTD_matchState_t* ms, const BYTE* base,
     U32 const* const hashTable = ms->hashTable;
     U16 const* const tagTable = ms->tagTable;
     U32 const hashLog = ms->nbRows;
-    U32 const maxElemsToPrefetch = (base + idx) >= iend ? 0 : iend - (base + idx);
+    U32 const maxElemsToPrefetch = (base + idx) >= iend ? 0 : (U32)(iend - (base + idx));
     U32 const lim = idx + MIN(kPrefetchNb, maxElemsToPrefetch);
 
     for (; idx < lim; ++idx) {
@@ -1075,7 +1088,7 @@ static void ZSTD_row_fillHashCache(ZSTD_matchState_t* ms, const BYTE* base,
         ms->hashCache[idx & kPrefetchMask] = hashS;
     }
 
-    DEBUGLOG(5, "ZSTD_row_fillHashCache(): [%u %u %u %u %u %u %u %u]", ms->hashCache[0], ms->hashCache[1],
+    DEBUGLOG(6, "ZSTD_row_fillHashCache(): [%u %u %u %u %u %u %u %u]", ms->hashCache[0], ms->hashCache[1],
                                                      ms->hashCache[2], ms->hashCache[3], ms->hashCache[4],
                                                      ms->hashCache[5], ms->hashCache[6], ms->hashCache[7]);
 }
@@ -1119,7 +1132,7 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_update_internal(ZSTD_matchState_t* ms, const
     DEBUGLOG(6, "ZSTD_row_update_internal(): nextToUpdate=%u, current=%u", idx, target);
     for (; idx < target; ++idx) {
         U32 const hash = useCache ? ZSTD_row_nextCachedHash(ms->hashCache, hashTable, tagTable, base, idx, hashLog, rowLog, mls, shouldPrefetch)
-                                  : ZSTD_hashPtr(base + idx, hashLog + kShortHashBits, mls);
+                                  : (U32)ZSTD_hashPtr(base + idx, hashLog + kShortHashBits, mls);
         U32 const relRow = (hash >> kShortHashBits) << rowLog;
         U32* const row = hashTable + relRow;
         BYTE* tagRow = (BYTE*)(tagTable + relRow);
@@ -1991,7 +2004,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
     searchMax_f searchMax = searchFuncs[(int)searchMethod];
     U32 offset_1 = rep[0], offset_2 = rep[1];
 
-    DEBUGLOG(5, "ZSTD_compressBlock_lazy_extDict_generic");
+    DEBUGLOG(5, "ZSTD_compressBlock_lazy_extDict_generic (dictMode=%u) (searchFunc=%u)", (U32)dictMode, (U32)searchMethod);
 
     /* init */
     ip += (ip == prefixStart);

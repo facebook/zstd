@@ -120,16 +120,16 @@ static int ZSTD_seekable_seek_buff(void* opaque, long long offset, int origin)
     buffWrapper_t* const buff = (buffWrapper_t*) opaque;
     unsigned long long newOffset;
     assert(buff != NULL);
-    assert(offset >= 0);
     switch (origin) {
     case SEEK_SET:
+        assert(offset >= 0);
         newOffset = (unsigned long long)offset;
         break;
     case SEEK_CUR:
-        newOffset = (unsigned long long)buff->pos + (unsigned long long)offset;
+        newOffset = (unsigned long long)((long long)buff->pos + offset);
         break;
     case SEEK_END:
-        newOffset = (unsigned long long)buff->size + (unsigned long long)offset;
+        newOffset = (unsigned long long)((long long)buff->size + offset);
         break;
     default:
         assert(0);  /* not possible */

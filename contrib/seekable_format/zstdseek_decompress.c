@@ -383,6 +383,7 @@ size_t ZSTD_seekable_decompress(ZSTD_seekable* zs, void* dst, size_t len, unsign
 {
     U32 targetFrame = ZSTD_seekable_offsetToFrameIndex(zs, offset);
     U32 noOutputProgressCount = 0;
+    size_t srcBytesRead = 0;
     do {
         /* check if we can continue from a previous decompress job */
         if (targetFrame != zs->curFrame || offset != zs->decompressedOffset) {
@@ -395,12 +396,16 @@ size_t ZSTD_seekable_decompress(ZSTD_seekable* zs, void* dst, size_t len, unsign
             zs->in = (ZSTD_inBuffer){zs->inBuff, 0, 0};
             XXH64_reset(&zs->xxhState, 0);
             ZSTD_DCtx_reset(zs->dstream, ZSTD_reset_session_only);
+            if (srcBytesRead > zs->buffWrapper.size) {
+                return ERROR(seekableIO);
+            }
         }
 
         while (zs->decompressedOffset < offset + len) {
             size_t toRead;
             ZSTD_outBuffer outTmp;
             size_t prevOutPos;
+            size_t prevInPos;
             size_t forwardProgress;
             if (zs->decompressedOffset < offset) {
                 /* dummy decompressions until we get to the target offset */
@@ -410,6 +415,7 @@ size_t ZSTD_seekable_decompress(ZSTD_seekable* zs, void* dst, size_t len, unsign
             }
 
             prevOutPos = outTmp.pos;
+            prevInPos = zs->in.pos;
             toRead = ZSTD_decompressStream(zs->dstream, &outTmp, &zs->in);
             if (ZSTD_isError(toRead)) {
                 return toRead;
@@ -428,6 +434,7 @@ size_t ZSTD_seekable_decompress(ZSTD_seekable* zs, void* dst, size_t len, unsign
                 noOutputProgressCount = 0;
             }
             zs->decompressedOffset += forwardProgress;
+            srcBytesRead += zs->in.pos - prevInPos;
 
             if (toRead == 0) {
                 /* frame complete */

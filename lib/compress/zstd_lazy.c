@@ -873,7 +873,7 @@ FORCE_INLINE_TEMPLATE size_t ZSTD_HcFindBestMatch_extDict_selectMLS (
 ***********************************/
 typedef U32 ZSTD_VecMask;
 
-#ifdef __SSE2__
+#if !defined(ZSTD_NO_INTRINSICS) && defined(__SSE2__) /* SIMD SSE version */
 
 #include <emmintrin.h>
 typedef __m128i ZSTD_Vec128;
@@ -922,9 +922,63 @@ static ZSTD_VecMask ZSTD_Vec256_cmpMask8(ZSTD_Vec256 x, ZSTD_Vec256 y) {
   return fstMask | (sndMask << 16);
 }
 
-#else
+#elif !defined(ZSTD_NO_INTRINSICS) && defined(__ARM_NEON) /* SIMD ARM NEON Version */
 
-/* Scalar versions of the SIMD row-hash code */
+#include <arm_neon.h>
+typedef uint8x16_t ZSTD_Vec128;
+
+static ZSTD_Vec128 ZSTD_Vec128_read(const void* const src) {
+  return vld1q_u8((const BYTE* const)src);
+}
+
+static ZSTD_Vec128 ZSTD_Vec128_set8(BYTE val) {
+  return vdupq_n_u8(val);
+}
+
+/* Mimics '_mm_movemask_epi8()' from SSE */ 
+static U32 ZSTD_vmovmaskq_u8(ZSTD_Vec128 val) {
+    /* Shift out everything but the MSB bits in each byte */
+    uint16x8_t highBits = vreinterpretq_u16_u8(vshrq_n_u8(val, 7));
+    /* Merge the even lanes together with vsra (right shift and add) */
+    uint32x4_t paired16 = vreinterpretq_u32_u16(vsraq_n_u16(highBits, highBits, 7));
+    uint64x2_t paired32 = vreinterpretq_u64_u32(vsraq_n_u32(paired16, paired16, 14));
+    uint8x16_t paired64 = vreinterpretq_u8_u64(vsraq_n_u64(paired32, paired32, 28));
+    /* Extract the low 8 bits from each lane, merge */
+    return vgetq_lane_u8(paired64, 0) | ((U32)vgetq_lane_u8(paired64, 8) << 8);
+}
+
+static ZSTD_VecMask ZSTD_Vec128_cmpMask8(ZSTD_Vec128 x, ZSTD_Vec128 y) {
+  return (ZSTD_VecMask)ZSTD_vmovmaskq_u8(vceqq_u8(x, y));
+}
+
+typedef struct {
+    uint8x16_t fst;
+    uint8x16_t snd;
+} ZSTD_Vec256;
+
+static ZSTD_Vec256 ZSTD_Vec256_read(const void* const ptr) {
+  ZSTD_Vec256 v;
+  v.fst = ZSTD_Vec128_read(ptr);
+  v.snd = ZSTD_Vec128_read((ZSTD_Vec128 const*)ptr + 1);
+  return v;
+}
+
+static ZSTD_Vec256 ZSTD_Vec256_set8(BYTE val) {
+  ZSTD_Vec256 v;
+  v.fst = ZSTD_Vec128_set8(val);
+  v.snd = ZSTD_Vec128_set8(val);
+  return v;
+}
+
+static ZSTD_VecMask ZSTD_Vec256_cmpMask8(ZSTD_Vec256 x, ZSTD_Vec256 y) {
+  ZSTD_VecMask fstMask;
+  ZSTD_VecMask sndMask;
+  fstMask = ZSTD_Vec128_cmpMask8(x.fst, y.fst);
+  sndMask = ZSTD_Vec128_cmpMask8(x.snd, y.snd);
+  return fstMask | (sndMask << 16);
+}
+
+#else /* Scalar fallback version */
 
 #define VEC128_NB_SIZE_T 16 / sizeof(size_t)
 typedef struct {
@@ -1008,7 +1062,7 @@ static ZSTD_VecMask ZSTD_Vec256_cmpMask8(ZSTD_Vec256 x, ZSTD_Vec256 y) {
     return res;
 }
 
-#endif /* __SSE2__ */
+#endif /* !defined(ZSTD_NO_INTRINSICS) && defined(__SSE2__) */
 
 /* ZSTD_VecMask_next():
  * Starting from the LSB, returns the idx of the next non-zero bit.

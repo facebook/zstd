@@ -22,8 +22,7 @@ CFLAGS += -g -Wall -Wextra -Wcast-qual -Wcast-align -Wconversion \
 SEEKABLE_OBJS = ../zstdseek_compress.c ../zstdseek_decompress.c $(ZSTDLIB)
 
 .PHONY: default clean test
-
-default: seekable_tests
+default: test
 
 test: seekable_tests
 	./seekable_tests
@@ -31,7 +30,7 @@ test: seekable_tests
 $(ZSTDLIB):
 	$(MAKE) -C $(ZSTDLIB_PATH) $(ZSTDLIB_NAME)
 
-seekable_tests : seekable_tests.c $(SEEKABLE_OBJS)
+seekable_tests : $(SEEKABLE_OBJS)
 
 clean:
 	@$(RM) core *.o tmp* result* *.zst \

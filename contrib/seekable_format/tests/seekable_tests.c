@@ -1,5 +1,6 @@
 #include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>  // malloc
 #include <stdio.h>
 #include <assert.h>
 
@@ -11,6 +12,81 @@ int main(int argc, const char** argv)
     unsigned testNb = 1;
     (void)argc; (void)argv;
     printf("Beginning zstd seekable format tests...\n");
+
+    printf("Test %u - simple round trip: ", testNb++);
+    {   size_t const inSize = 4000;
+        void* const inBuffer = malloc(inSize);
+        assert(inBuffer != NULL);
+
+        size_t const seekCapacity = 5000;
+        void* const seekBuffer = malloc(seekCapacity);
+        assert(seekBuffer != NULL);
+        size_t seekSize;
+
+        size_t const outCapacity = inSize;
+        void* const outBuffer = malloc(outCapacity);
+        assert(outBuffer != NULL);
+
+        ZSTD_seekable_CStream* const zscs = ZSTD_seekable_createCStream();
+        assert(zscs != NULL);
+
+        { size_t const initStatus = ZSTD_seekable_initCStream(zscs, 9, 0 /* checksumFlag */, inSize /* maxFrameSize */);
+          assert(!ZSTD_isError(initStatus));
+        }
+
+        {   ZSTD_outBuffer outb = { .dst=seekBuffer, .pos=0, .size=seekCapacity };
+            ZSTD_inBuffer inb = { .src=inBuffer, .pos=0, .size=inSize };
+
+            size_t const cStatus = ZSTD_seekable_compressStream(zscs, &outb, &inb);
+            assert(!ZSTD_isError(cStatus));
+            assert(inb.pos == inb.size);
+
+            size_t const endStatus = ZSTD_seekable_endStream(zscs, &outb);
+            assert(!ZSTD_isError(endStatus));
+            seekSize = outb.pos;
+        }
+
+        ZSTD_seekable* const stream = ZSTD_seekable_create();
+        assert(stream != NULL);
+        { size_t const initStatus = ZSTD_seekable_initBuff(stream, seekBuffer, seekSize);
+          assert(!ZSTD_isError(initStatus)); }
+
+        { size_t const decStatus = ZSTD_seekable_decompress(stream, outBuffer, outCapacity, 0);
+          assert(decStatus == inSize); }
+
+        /* unit test ZSTD_seekTable functions */
+        ZSTD_seekTable* const zst = ZSTD_seekTable_create_fromSeekable(stream);
+        assert(zst != NULL);
+
+        unsigned const nbFrames = ZSTD_seekTable_getNumFrames(zst);
+        assert(nbFrames > 0);
+
+        unsigned long long const frame0Offset = ZSTD_seekTable_getFrameCompressedOffset(zst, 0);
+        assert(frame0Offset == 0);
+
+        unsigned long long const content0Offset = ZSTD_seekTable_getFrameDecompressedOffset(zst, 0);
+        assert(content0Offset == 0);
+
+        size_t const cSize = ZSTD_seekTable_getFrameCompressedSize(zst, 0);
+        assert(!ZSTD_isError(cSize));
+        assert(cSize <= seekCapacity);
+
+        size_t const origSize = ZSTD_seekTable_getFrameDecompressedSize(zst, 0);
+        assert(origSize == inSize);
+
+        unsigned const fo1idx = ZSTD_seekTable_offsetToFrameIndex(zst, 1);
+        assert(fo1idx == 0);
+
+        free(inBuffer);
+        free(seekBuffer);
+        free(outBuffer);
+        ZSTD_seekable_freeCStream(zscs);
+        ZSTD_seekTable_free(zst);
+        ZSTD_seekable_free(stream);
+    }
+    printf("Success!\n");
+
+
     printf("Test %u - check that seekable decompress does not hang: ", testNb++);
     {   /* Github issue #2335 */
         const size_t compressed_size = 17;

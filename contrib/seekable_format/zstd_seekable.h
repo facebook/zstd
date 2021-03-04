@@ -172,6 +172,21 @@ ZSTDLIB_API size_t ZSTD_seekable_getFrameDecompressedSize(const ZSTD_seekable* z
 ZSTDLIB_API unsigned ZSTD_seekable_offsetToFrameIndex(const ZSTD_seekable* zs, unsigned long long offset);
 
 
+/*-****************************************************************************
+*  Direct exploitation of the seekTable
+*
+*  Memory constrained use cases that manage multiple archives
+*  benefit from retaining multiple archive seek tables
+*  without retaining a ZSTD_seekable instance for each.
+*
+*  Below API allow the above-mentioned use cases
+*  to initialize a ZSTD_seekable, extract its (smaller) ZSTD_seekTable,
+*  then throw the ZSTD_seekable away to save memory.
+*
+*  Standard ZSTD operations can then be used
+*  to decompress frames based on seek table offsets.
+******************************************************************************/
+
 /*===== Independent seek table management =====*/
 ZSTDLIB_API ZSTD_seekTable* ZSTD_seekTable_create_fromSeekable(const ZSTD_seekable* zs);
 ZSTDLIB_API size_t ZSTD_seekTable_free(ZSTD_seekTable* st);

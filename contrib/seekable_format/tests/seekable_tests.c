@@ -30,7 +30,7 @@ int main(int argc, const char** argv)
         ZSTD_seekable_CStream* const zscs = ZSTD_seekable_createCStream();
         assert(zscs != NULL);
 
-        { size_t const initStatus = ZSTD_seekable_initCStream(zscs, 9, 0 /* checksumFlag */, inSize /* maxFrameSize */);
+        { size_t const initStatus = ZSTD_seekable_initCStream(zscs, 9, 0 /* checksumFlag */, (unsigned)inSize /* maxFrameSize */);
           assert(!ZSTD_isError(initStatus));
         }
 

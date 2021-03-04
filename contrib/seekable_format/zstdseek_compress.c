@@ -71,7 +71,7 @@ size_t ZSTD_seekable_frameLog_allocVec(ZSTD_frameLog* fl)
     fl->entries = (framelogEntry_t*)malloc(
             sizeof(framelogEntry_t) * FRAMELOG_STARTING_CAPACITY);
     if (fl->entries == NULL) return ERROR(memory_allocation);
-    fl->capacity = FRAMELOG_STARTING_CAPACITY;
+    fl->capacity = (U32)FRAMELOG_STARTING_CAPACITY;
 
     return 0;
 }

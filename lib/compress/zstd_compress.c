@@ -1384,7 +1384,7 @@ static size_t ZSTD_estimateCCtxSize_usingCCtxParams_internal(
     size_t const cctxSpace = isStatic ? ZSTD_cwksp_alloc_size(sizeof(ZSTD_CCtx)) : 0;
 
     /* Require two allocations for alignment to 64 bytes, call ZSTD_cwksp_alloc_size() twice. */
-    size_t const alignSpace = ZSTD_cwksp_align64Space();
+    size_t const alignSpace = ZSTD_cwksp_align_64_space_required();
 
     size_t const neededSpace =
         cctxSpace +
@@ -5439,7 +5439,7 @@ static U64 ZSTD_getCParamRowSize(U64 srcSizeHint, size_t dictSize, ZSTD_cParamMo
  *        Use dictSize == 0 for unknown or unused.
 `. */
 static ZSTD_compressionParameters ZSTD_getCParams_internal(int compressionLevel, unsigned long long srcSizeHint,
-                                                           size_t dictSize, ZSTD_cParamMode_e mode, int const useRowMatchfinder)
+                                                           size_t dictSize, ZSTD_cParamMode_e mode, int useRowMatchfinder)
 {
     U64 const rSize = ZSTD_getCParamRowSize(srcSizeHint, dictSize, mode);
     U32 const tableID = (rSize <= 256 KB) + (rSize <= 128 KB) + (rSize <= 16 KB);

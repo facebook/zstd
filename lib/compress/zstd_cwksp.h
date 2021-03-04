@@ -542,7 +542,7 @@ MEM_STATIC size_t ZSTD_cwksp_bytes_to_align_tables(ZSTD_cwksp* ws) {
 /** 
  * Returns the amount of extra space required for alignment of tables.
  */
-MEM_STATIC size_t ZSTD_cwksp_align64Space(void) {
+MEM_STATIC size_t ZSTD_cwksp_align_64_space_required(void) {
     /* Require two allocations for alignment to 64 bytes, call ZSTD_cwksp_alloc_size() twice. */
     return 2*ZSTD_cwksp_alloc_size(ZSTD_CWKSP_ALIGN_TABLES_BYTES/2);
 }

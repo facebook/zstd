@@ -124,6 +124,23 @@ case "$UNAME" in
     Darwin | FreeBSD | OpenBSD | NetBSD) MTIME="stat -f %m" ;;
 esac
 
+GET_PERMS="stat -c %a"
+case "$UNAME" in
+    Darwin | FreeBSD | OpenBSD | NetBSD) GET_PERMS="stat -f %a" ;;
+esac
+
+assertFilePermissions() {
+    STAT1=$($GET_PERMS "$1")
+    STAT2=$2
+    [ "$STAT1" = "$STAT2" ] || die "permissions on $1 don't match expected ($STAT1 != $STAT2)"
+}
+
+assertSamePermissions() {
+    STAT1=$($GET_PERMS "$1")
+    STAT2=$($GET_PERMS "$2")
+    [ "$STAT1" = "$STAT2" ] || die "permissions on $1 don't match those on $2 ($STAT1 != $STAT2)"
+}
+
 DIFF="diff"
 case "$UNAME" in
   SunOS) DIFF="gdiff" ;;
@@ -445,6 +462,81 @@ if [ "$isWindows" = false ] ; then
     rm -rf tmp*
 fi
 
+println "\n===>  zstd created file permissions tests"
+if [ "$isWindows" = false ] ; then
+    rm -f tmp1 tmp2 tmp1.zst tmp2.zst tmp1.out tmp2.out # todo: remove
+
+    ORIGINAL_UMASK=$(umask)
+    umask 0000
+
+    datagen > tmp1
+    datagen > tmp2
+    assertFilePermissions tmp1 666
+    assertFilePermissions tmp2 666
+
+    println "test : copy 666 permissions in file -> file compression "
+    zstd -f tmp1 -o tmp1.zst
+    assertSamePermissions tmp1 tmp1.zst
+    println "test : copy 666 permissions in file -> file decompression "
+    zstd -f -d tmp1.zst -o tmp1.out
+    assertSamePermissions tmp1.zst tmp1.out
+
+    rm -f tmp1.zst tmp1.out
+
+    println "test : copy 400 permissions in file -> file compression (write to a read-only file) "
+    chmod 0400 tmp1
+    assertFilePermissions tmp1 400
+    zstd -f tmp1 -o tmp1.zst
+    assertSamePermissions tmp1 tmp1.zst
+    println "test : copy 400 permissions in file -> file decompression (write to a read-only file) "
+    zstd -f -d tmp1.zst -o tmp1
+    assertSamePermissions tmp1.zst tmp1
+
+    rm -f tmp1.zst tmp1.out
+
+    println "test : check created permissions from stdin input in compression "
+    zstd -f -o tmp1.zst < tmp1
+    assertFilePermissions tmp1.zst 666
+    println "test : check created permissions from stdin input in decompression "
+    zstd -f -d -o tmp1.out < tmp1.zst
+    assertFilePermissions tmp1.out 666
+
+    rm -f tmp1.zst tmp1.out
+
+    println "test : check created permissions from multiple inputs in compression "
+    zstd -f tmp1 tmp2 -o tmp1.zst
+    assertFilePermissions tmp1.zst 666
+    println "test : check created permissions from multiple inputs in decompression "
+    cp tmp1.zst tmp2.zst
+    zstd -f -d tmp1.zst tmp2.zst -o tmp1.out
+    assertFilePermissions tmp1.out 666
+
+    rm -f tmp1.zst tmp2.zst tmp1.out tmp2.out
+
+    umask 0666
+    chmod 0666 tmp1 tmp2
+
+    println "test : respect umask when copying permissions in file -> file compression "
+    zstd -f tmp1 -o tmp1.zst
+    assertFilePermissions tmp1.zst 0
+    println "test : respect umask when copying permissions in file -> file decompression "
+    chmod 0666 tmp1.zst
+    zstd -f -d tmp1.zst -o tmp1.out
+    assertFilePermissions tmp1.out 0
+
+    rm -f tmp1.zst tmp1.out
+
+    println "test : respect umask when compressing from stdin input "
+    zstd -f -o tmp1.zst < tmp1
+    assertFilePermissions tmp1.zst 0
+    println "test : respect umask when decompressing from stdin input "
+    chmod 0666 tmp1.zst
+    zstd -f -d -o tmp1.out < tmp1.zst
+    assertFilePermissions tmp1.out 0
+
+    rm -f tmp1 tmp2 tmp1.zst tmp2.zst tmp1.out tmp2.out
+    umask $ORIGINAL_UMASK
+fi
 
 if [ -n "$DEVNULLRIGHTS" ] ; then
     # these tests requires sudo rights, which is uncommon.

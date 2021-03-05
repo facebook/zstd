@@ -128,9 +128,10 @@ static size_t ZSTD_buildSuperBlockEntropy_literal(void* const src, size_t srcSiz
         {   /* Build and write the CTable */
             size_t const newCSize = HUF_estimateCompressedSize(
                     (HUF_CElt*)nextHuf->CTable, countWksp, maxSymbolValue);
-            size_t const hSize = HUF_writeCTable(
+            size_t const hSize = HUF_writeCTable_wksp(
                     hufMetadata->hufDesBuffer, sizeof(hufMetadata->hufDesBuffer),
-                    (HUF_CElt*)nextHuf->CTable, maxSymbolValue, huffLog);
+                    (HUF_CElt*)nextHuf->CTable, maxSymbolValue, huffLog,
+                    nodeWksp, nodeWkspSize);
             /* Check against repeating the previous CTable */
             if (repeat != HUF_repeat_none) {
                 size_t const oldCSize = HUF_estimateCompressedSize(

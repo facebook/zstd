@@ -318,22 +318,29 @@ FORCE_INLINE_TEMPLATE size_t FSE_decompress_wksp_body(
 {
     const BYTE* const istart = (const BYTE*)cSrc;
     const BYTE* ip = istart;
-    short counting[FSE_MAX_SYMBOL_VALUE+1];
     unsigned tableLog;
     unsigned maxSymbolValue = FSE_MAX_SYMBOL_VALUE;
-    FSE_DTable* const dtable = (FSE_DTable*)workSpace;
+    short* counting = (short*) workSpace;
+    size_t const countingSize = sizeof(short) * (FSE_MAX_SYMBOL_VALUE + 1);
+    FSE_DTable* const dtable = (FSE_DTable*)(void*)((BYTE*)workSpace + countingSize);
+
+    DEBUG_STATIC_ASSERT((FSE_MAX_SYMBOL_VALUE + 1) % 2 == 0);
+    if (wkspSize < countingSize) return ERROR(GENERIC);
 
     /* normal FSE decoding mode */
-    size_t const NCountLength = FSE_readNCount_bmi2(counting, &maxSymbolValue, &tableLog, istart, cSrcSize, bmi2);
-    if (FSE_isError(NCountLength)) return NCountLength;
-    if (tableLog > maxLog) return ERROR(tableLog_tooLarge);
-    assert(NCountLength <= cSrcSize);
-    ip += NCountLength;
-    cSrcSize -= NCountLength;
+    {
+        size_t const NCountLength = FSE_readNCount_bmi2(counting, &maxSymbolValue, &tableLog, istart, cSrcSize, bmi2);
+        if (FSE_isError(NCountLength)) return NCountLength;
+        if (tableLog > maxLog) return ERROR(tableLog_tooLarge);
+        assert(NCountLength <= cSrcSize);
+        ip += NCountLength;
+        cSrcSize -= NCountLength;
+    }
 
     if (FSE_DECOMPRESS_WKSP_SIZE(tableLog, maxSymbolValue) > wkspSize) return ERROR(tableLog_tooLarge);
     workSpace = dtable + FSE_DTABLE_SIZE_U32(tableLog);
     wkspSize -= FSE_DTABLE_SIZE(tableLog);
+    wkspSize -= countingSize;
 
     CHECK_F( FSE_buildDTable_internal(dtable, counting, maxSymbolValue, tableLog, workSpace, wkspSize) );
 

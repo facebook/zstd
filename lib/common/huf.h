@@ -279,7 +279,7 @@ U32 HUF_selectDecoder (size_t dstSize, size_t cSrcSize);
  *  a required workspace size greater than that specified in the following
  *  macro.
  */
-#define HUF_DECOMPRESS_WORKSPACE_SIZE (2 << 10)
+#define HUF_DECOMPRESS_WORKSPACE_SIZE ((2 << 10) + (1 << 9))
 #define HUF_DECOMPRESS_WORKSPACE_SIZE_U32 (HUF_DECOMPRESS_WORKSPACE_SIZE / sizeof(U32))
 
 #ifndef HUF_FORCE_DECOMPRESS_X2

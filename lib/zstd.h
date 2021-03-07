@@ -199,7 +199,7 @@ ZSTDLIB_API int         ZSTD_maxCLevel(void);               /*!< maximum compres
  */
 typedef struct ZSTD_CCtx_s ZSTD_CCtx;
 ZSTDLIB_API ZSTD_CCtx* ZSTD_createCCtx(void);
-ZSTDLIB_API size_t     ZSTD_freeCCtx(ZSTD_CCtx* cctx);
+ZSTDLIB_API size_t     ZSTD_freeCCtx(ZSTD_CCtx* cctx);  /* accept NULL pointer */
 
 /*! ZSTD_compressCCtx() :
  *  Same as ZSTD_compress(), using an explicit ZSTD_CCtx.
@@ -222,7 +222,7 @@ ZSTDLIB_API size_t ZSTD_compressCCtx(ZSTD_CCtx* cctx,
  *  Use one context per thread for parallel execution. */
 typedef struct ZSTD_DCtx_s ZSTD_DCtx;
 ZSTDLIB_API ZSTD_DCtx* ZSTD_createDCtx(void);
-ZSTDLIB_API size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);
+ZSTDLIB_API size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);  /* accept NULL pointer */
 
 /*! ZSTD_decompressDCtx() :
  *  Same as ZSTD_decompress(),
@@ -667,7 +667,7 @@ typedef ZSTD_CCtx ZSTD_CStream;  /**< CCtx and CStream are now effectively same 
                                  /* Continue to distinguish them for compatibility with older versions <= v1.2.0 */
 /*===== ZSTD_CStream management functions =====*/
 ZSTDLIB_API ZSTD_CStream* ZSTD_createCStream(void);
-ZSTDLIB_API size_t ZSTD_freeCStream(ZSTD_CStream* zcs);
+ZSTDLIB_API size_t ZSTD_freeCStream(ZSTD_CStream* zcs);  /* accept NULL pointer */
 
 /*===== Streaming compression functions =====*/
 typedef enum {
@@ -788,7 +788,7 @@ typedef ZSTD_DCtx ZSTD_DStream;  /**< DCtx and DStream are now effectively same 
                                  /* For compatibility with versions <= v1.2.0, prefer differentiating them. */
 /*===== ZSTD_DStream management functions =====*/
 ZSTDLIB_API ZSTD_DStream* ZSTD_createDStream(void);
-ZSTDLIB_API size_t ZSTD_freeDStream(ZSTD_DStream* zds);
+ZSTDLIB_API size_t ZSTD_freeDStream(ZSTD_DStream* zds);  /* accept NULL pointer */
 
 /*===== Streaming decompression functions =====*/
 
@@ -854,7 +854,8 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict(const void* dictBuffer, size_t dictSize
                                          int compressionLevel);
 
 /*! ZSTD_freeCDict() :
- *  Function frees memory allocated by ZSTD_createCDict(). */
+ *  Function frees memory allocated by ZSTD_createCDict().
+ *  If a NULL pointer is passed, no operation is performed. */
 ZSTDLIB_API size_t      ZSTD_freeCDict(ZSTD_CDict* CDict);
 
 /*! ZSTD_compress_usingCDict() :
@@ -876,7 +877,8 @@ typedef struct ZSTD_DDict_s ZSTD_DDict;
 ZSTDLIB_API ZSTD_DDict* ZSTD_createDDict(const void* dictBuffer, size_t dictSize);
 
 /*! ZSTD_freeDDict() :
- *  Function frees memory allocated with ZSTD_createDDict() */
+ *  Function frees memory allocated with ZSTD_createDDict()
+ *  If a NULL pointer is passed, no operation is performed. */
 ZSTDLIB_API size_t      ZSTD_freeDDict(ZSTD_DDict* ddict);
 
 /*! ZSTD_decompress_usingDDict() :
@@ -1538,11 +1540,11 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictS
  * Note that the lifetime of such pool must exist while being used.
  * ZSTD_CCtx_refThreadPool assigns a thread pool to a context (use NULL argument value
  * to use an internal thread pool).
- * ZSTD_freeThreadPool frees a thread pool.
+ * ZSTD_freeThreadPool frees a thread pool, accepts NULL pointer.
  */
 typedef struct POOL_ctx_s ZSTD_threadPool;
 ZSTDLIB_API ZSTD_threadPool* ZSTD_createThreadPool(size_t numThreads);
-ZSTDLIB_API void ZSTD_freeThreadPool (ZSTD_threadPool* pool);
+ZSTDLIB_API void ZSTD_freeThreadPool (ZSTD_threadPool* pool);  /* accept NULL pointer */
 ZSTDLIB_API size_t ZSTD_CCtx_refThreadPool(ZSTD_CCtx* cctx, ZSTD_threadPool* pool);
 
 
@@ -1852,13 +1854,13 @@ ZSTDLIB_API size_t ZSTD_CCtx_getParameter(const ZSTD_CCtx* cctx, ZSTD_cParameter
  *                                    These parameters will be applied to
  *                                    all subsequent frames.
  *  - ZSTD_compressStream2() : Do compression using the CCtx.
- *  - ZSTD_freeCCtxParams() : Free the memory.
+ *  - ZSTD_freeCCtxParams() : Free the memory, accept NULL pointer.
  *
  *  This can be used with ZSTD_estimateCCtxSize_advanced_usingCCtxParams()
  *  for static allocation of CCtx for single-threaded compression.
  */
 ZSTDLIB_API ZSTD_CCtx_params* ZSTD_createCCtxParams(void);
-ZSTDLIB_API size_t ZSTD_freeCCtxParams(ZSTD_CCtx_params* params);
+ZSTDLIB_API size_t ZSTD_freeCCtxParams(ZSTD_CCtx_params* params);  /* accept NULL pointer */
 
 /*! ZSTD_CCtxParams_reset() :
  *  Reset params to default values.

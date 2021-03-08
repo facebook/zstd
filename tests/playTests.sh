@@ -513,6 +513,21 @@ if [ "$isWindows" = false ] ; then
 
     rm -f tmp1.zst tmp2.zst tmp1.out tmp2.out
 
+    println "test : check permissions on pre-existing output file in compression "
+    chmod 0600 tmp1
+    touch tmp1.zst
+    chmod 0400 tmp1.zst
+    zstd -f tmp1 -o tmp1.zst
+    assertFilePermissions tmp1.zst 600
+    println "test : check permissions on pre-existing output file in decompression "
+    chmod 0400 tmp1.zst
+    touch tmp1.out
+    chmod 0200 tmp1.out
+    zstd -f -d tmp1.zst -o tmp1.out
+    assertFilePermissions tmp1.out 400
+
+    rm -f tmp1.zst tmp1.out
+
     umask 0666
     chmod 0666 tmp1 tmp2
 

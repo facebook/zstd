@@ -36,9 +36,8 @@ extern "C" {
 #endif
 
 /* Constant for 64-byte table alignment */
-#ifndef ZSTD_CWKSP_ALIGN_TABLES_BYTES
 #define ZSTD_CWKSP_ALIGN_TABLES_BYTES 64
-#endif
+#define ZSTD_CWKSP_ALIGN_TABLES_BYTES_MASK (ZSTD_CWKSP_ALIGN_TABLES_BYTES - 1)
 
 /*-*************************************
 *  Structures
@@ -536,7 +535,7 @@ MEM_STATIC int ZSTD_cwksp_reserve_failed(const ZSTD_cwksp* ws) {
  * tables to ZSTD_CWKSP_ALIGN_TABLES_BYTES bytes.
  */
 MEM_STATIC size_t ZSTD_cwksp_bytes_to_align_tables(ZSTD_cwksp* ws) {
-    return (ZSTD_CWKSP_ALIGN_TABLES_BYTES - ((size_t)ws->objectEnd & (ZSTD_CWKSP_ALIGN_TABLES_BYTES - 1)));
+    return (ZSTD_CWKSP_ALIGN_TABLES_BYTES - ((size_t)ws->objectEnd & ZSTD_CWKSP_ALIGN_TABLES_BYTES_MASK));
 }
 
 /** 
@@ -554,10 +553,15 @@ MEM_STATIC size_t ZSTD_cwksp_align_64_space_required(void) {
  * Returns the number of bytes used or a ZSTD error code.
  */
 MEM_STATIC size_t ZSTD_cwksp_reserve_first_dummy_object_for_alignment(ZSTD_cwksp* ws) {
-    size_t const bytesToAlignTables = ZSTD_cwksp_bytes_to_align_tables(ws);
-    BYTE* dummyObjForAlignment = (BYTE*)ZSTD_cwksp_reserve_object(ws, bytesToAlignTables);
-    DEBUGLOG(5, "Reserving additional %zu bytes object to align hashTable", bytesToAlignTables);
-    RETURN_ERROR_IF(dummyObjForAlignment == NULL, memory_allocation, "couldn't allocate dummy object for 64-byte alignment");
+    size_t bytesToAlignTables = ZSTD_cwksp_bytes_to_align_tables(ws);
+    BYTE* dummyObjForAlignment;
+    if (bytesToAlignTables != ZSTD_CWKSP_ALIGN_TABLES_BYTES) {
+        dummyObjForAlignment = (BYTE*)ZSTD_cwksp_reserve_object(ws, bytesToAlignTables);
+        DEBUGLOG(5, "Reserving additional %zu bytes object to align hashTable", bytesToAlignTables);
+        RETURN_ERROR_IF(dummyObjForAlignment == NULL, memory_allocation, "couldn't allocate dummy object for 64-byte alignment");
+    } else {
+        bytesToAlignTables = 0;
+    }
     return bytesToAlignTables;
 }
 

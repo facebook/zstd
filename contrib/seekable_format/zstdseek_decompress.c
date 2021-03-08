@@ -60,7 +60,6 @@
 #include <assert.h>
 
 #define XXH_STATIC_LINKING_ONLY
-#define XXH_NAMESPACE ZSTD_
 #include "xxhash.h"
 
 #define ZSTD_STATIC_LINKING_ONLY
@@ -176,7 +175,7 @@ struct ZSTD_seekable_s {
 
 ZSTD_seekable* ZSTD_seekable_create(void)
 {
-    ZSTD_seekable* const zs = malloc(sizeof(ZSTD_seekable));
+    ZSTD_seekable* const zs = (ZSTD_seekable*)malloc(sizeof(ZSTD_seekable));
     if (zs == NULL) return NULL;
 
     /* also initializes stage to zsds_init */
@@ -202,7 +201,7 @@ size_t ZSTD_seekable_free(ZSTD_seekable* zs)
 
 ZSTD_seekTable* ZSTD_seekTable_create_fromSeekable(const ZSTD_seekable* zs)
 {
-    ZSTD_seekTable* const st = malloc(sizeof(ZSTD_seekTable));
+    ZSTD_seekTable* const st = (ZSTD_seekTable*)malloc(sizeof(ZSTD_seekTable));
     if (st==NULL) return NULL;
 
     st->checksumFlag = zs->seekTable.checksumFlag;

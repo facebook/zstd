@@ -13,7 +13,7 @@ ZSTDLIB_PATH = ../../../lib
 ZSTDLIB_NAME = libzstd.a
 ZSTDLIB = $(ZSTDLIB_PATH)/$(ZSTDLIB_NAME)
 
-CPPFLAGS += -I../ -I$(ZSTDLIB_PATH) -I$(ZSTDLIB_PATH)/common
+CPPFLAGS += -DXXH_NAMESPACE=ZSTD_ -I../ -I$(ZSTDLIB_PATH) -I$(ZSTDLIB_PATH)/common
 
 CFLAGS ?= -O3
 CFLAGS += -g -Wall -Wextra -Wcast-qual -Wcast-align -Wconversion \

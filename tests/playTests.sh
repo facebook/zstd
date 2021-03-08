@@ -126,7 +126,7 @@ esac
 
 GET_PERMS="stat -c %a"
 case "$UNAME" in
-    Darwin | FreeBSD | OpenBSD | NetBSD) GET_PERMS="stat -f %a" ;;
+    Darwin | FreeBSD | OpenBSD | NetBSD) GET_PERMS="stat -f %Lp" ;;
 esac
 
 assertFilePermissions() {

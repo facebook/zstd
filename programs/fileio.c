@@ -74,8 +74,12 @@
 
 #define FNSPACE 30
 
+#if !defined(_WIN32)
 /* Default file permissions 0666 (modulated by umask) */
 #define DEFAULT_FILE_PERMISSIONS (S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH)
+#else
+#define DEFAULT_FILE_PERMISSIONS (0)
+#endif
 
 /*-*************************************
 *  Macros
@@ -692,7 +696,15 @@ FIO_openDstFile(FIO_ctx_t* fCtx, FIO_prefs_t* const prefs,
         FIO_removeFile(dstFileName);
     }
 
-    {   const int fd = open(dstFileName, O_WRONLY|O_CREAT|O_TRUNC, mode);
+    {
+#if defined(_WIN32)
+        /* Windows requires opening the file as a "binary" file to avoid
+         * mangling. This macro doesn't exist on unix. */
+        const int openflags = O_WRONLY|O_CREAT|O_TRUNC|O_BINARY;
+#else
+        const int openflags = O_WRONLY|O_CREAT|O_TRUNC;
+#endif
+        const int fd = open(dstFileName, openflags, mode);
         FILE* f = NULL;
         if (fd != -1) {
             f = fdopen(fd, "wb");

@@ -255,16 +255,13 @@ ZSTDLIB_API size_t ZSTD_decompressDCtx(ZSTD_DCtx* dctx,
 /* Compression strategies, listed from fastest to strongest */
 typedef enum { ZSTD_fast=1,
                ZSTD_dfast=2,
-               ZSTD_greedy_row=3,
-               ZSTD_greedy=4,
-               ZSTD_lazy_row=5,
-               ZSTD_lazy=6,
-               ZSTD_lazy2_row=7,
-               ZSTD_lazy2=8,
-               ZSTD_btlazy2=9,
-               ZSTD_btopt=10,
-               ZSTD_btultra=11,
-               ZSTD_btultra2=12
+               ZSTD_greedy=3,
+               ZSTD_lazy=4,
+               ZSTD_lazy2=5,
+               ZSTD_btlazy2=6,
+               ZSTD_btopt=7,
+               ZSTD_btultra=8,
+               ZSTD_btultra2=9
                /* note : new strategies _might_ be added in the future.
                          Only the order (from fast to strong) is guaranteed */
 } ZSTD_strategy;
@@ -1273,6 +1270,11 @@ typedef enum {
   ZSTD_lcm_uncompressed = 2   /**< Always emit uncompressed literals. */
 } ZSTD_literalCompressionMode_e;
 
+typedef enum {
+  ZSTD_urm_auto = 0,                   /* Automatically determine whether or not we use row matchfinder */
+  ZSTD_urm_disableRowMatchfinder = 1,  /* Never use row matchfinder */
+  ZSTD_urm_enableRowMatchfinder = 2    /* Always use row matchfinder */
+} ZSTD_useRowMatchfinderMode_e;
 
 /***************************************
 *  Frame size functions
@@ -1838,8 +1840,15 @@ ZSTDLIB_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* pre
 #define ZSTD_c_validateSequences ZSTD_c_experimentalParam12
 
 /* ZSTD_c_useRowMatchfinder
- * Default is 0 == disabled. Set to 1 to use a new set of compression parameters
- * that may use the new row-based matchfinder for the middle compression levels.
+ * Default is 0 == ZSTD_urm_auto.
+ * Controlled with ZSTD_useRowMatchfinderMode_e enum.
+ * 
+ * By default, in ZSTD_urm_auto, when finalizing the compression parameters, the library
+ * will decide at runtime whether to use the new row-based matchfinder. If so, the final
+ * applied compression parameters will change to suit the new row-based matchfinder.
+ * 
+ * Set to 1 = ZSTD_urm_disableRowMatchfinder to never use row-based matchfinder.
+ * Set to 2 = ZSTD_urm_enableRowMatchfinder to force usage of row-based matchfinder.
  */
 #define ZSTD_c_useRowMatchfinder ZSTD_c_experimentalParam13
 

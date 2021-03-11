@@ -1147,10 +1147,7 @@ static int ZSTDMT_overlapLog_default(ZSTD_strategy strat)
             return 8;
         case ZSTD_btlazy2:
         case ZSTD_lazy2:
-        case ZSTD_lazy2_row:
             return 7;
-        case ZSTD_greedy_row:
-        case ZSTD_lazy_row:
         case ZSTD_lazy:
         case ZSTD_greedy:
         case ZSTD_dfast:

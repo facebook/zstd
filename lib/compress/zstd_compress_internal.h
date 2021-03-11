@@ -270,8 +270,8 @@ struct ZSTD_CCtx_params_s {
     ZSTD_sequenceFormat_e blockDelimiters;
     int validateSequences;
 
-    /* Use new row-based matchfinder */
-    int useRowMatchfinder;
+    /* Param for deciding whether to use row-based matchfinder */
+    ZSTD_useRowMatchfinderMode_e useRowMatchfinder;
 
     /* Internal use, for createCCtxParams() and freeCCtxParams() only */
     ZSTD_customMem customMem;
@@ -390,7 +390,7 @@ typedef enum {
 typedef size_t (*ZSTD_blockCompressor) (
         ZSTD_matchState_t* bs, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize);
-ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMode_e dictMode);
+ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_useRowMatchfinderMode_e rowMatchfinderMode, ZSTD_dictMode_e dictMode);
 
 
 MEM_STATIC U32 ZSTD_LLcode(U32 litLength)
@@ -491,8 +491,8 @@ MEM_STATIC size_t ZSTD_rleCompressBlock (void* dst, size_t dstCapacity, BYTE src
  * note : use same formula for both situations */
 MEM_STATIC size_t ZSTD_minGain(size_t srcSize, ZSTD_strategy strat)
 {
-    U32 const minlog = (strat>=ZSTD_btultra) ? (U32)(strat) - 4 : 6;
-    ZSTD_STATIC_ASSERT(ZSTD_btultra == 11);
+    U32 const minlog = (strat>=ZSTD_btultra) ? (U32)(strat) - 1 : 6;
+    ZSTD_STATIC_ASSERT(ZSTD_btultra == 8);
     assert(ZSTD_cParam_withinBounds(ZSTD_c_strategy, strat));
     return (srcSize >> minlog) + 2;
 }

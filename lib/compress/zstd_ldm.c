@@ -221,9 +221,6 @@ static size_t ZSTD_ldm_fillFastTables(ZSTD_matchState_t* ms,
     case ZSTD_dfast:
         ZSTD_fillDoubleHashTable(ms, iend, ZSTD_dtlm_fast);
         break;
-    case ZSTD_greedy_row:
-    case ZSTD_lazy_row:
-    case ZSTD_lazy2_row:
     case ZSTD_greedy:
     case ZSTD_lazy:
     case ZSTD_lazy2:
@@ -624,12 +621,13 @@ void ZSTD_ldm_skipRawSeqStoreBytes(rawSeqStore_t* rawSeqStore, size_t nbBytes) {
 
 size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
     ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
+    ZSTD_useRowMatchfinderMode_e rowMatchfinderMode,
     void const* src, size_t srcSize)
 {
     const ZSTD_compressionParameters* const cParams = &ms->cParams;
     unsigned const minMatch = cParams->minMatch;
     ZSTD_blockCompressor const blockCompressor =
-        ZSTD_selectBlockCompressor(cParams->strategy, ZSTD_matchState_dictMode(ms));
+        ZSTD_selectBlockCompressor(cParams->strategy, rowMatchfinderMode, ZSTD_matchState_dictMode(ms));
     /* Input bounds */
     BYTE const* const istart = (BYTE const*)src;
     BYTE const* const iend = istart + srcSize;

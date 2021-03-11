@@ -87,7 +87,6 @@ static const int g_maxNbVariations = 64;
 
 static const char* g_stratName[ZSTD_STRATEGY_MAX+1] = {
                 "(none)         ", "ZSTD_fast      ", "ZSTD_dfast    ",
-                "ZSTD_greedy_row", "ZSTD_greedy    ", "ZSTD_lazy_row ",
                 "ZSTD_lazy      ", "ZSTD_lazy2_row ", "ZSTD_lazy2    ",
                 "ZSTD_btlazy2   ", "ZSTD_btopt     ", "ZSTD_btultra  ",
                 "ZSTD_btultra2  "};

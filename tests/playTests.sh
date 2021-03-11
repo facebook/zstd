@@ -610,7 +610,7 @@ println "\n===>  Advanced compression parameters "
 println "Hello world!" | zstd --zstd=windowLog=21,      - -o tmp.zst && die "wrong parameters not detected!"
 println "Hello world!" | zstd --zstd=windowLo=21        - -o tmp.zst && die "wrong parameters not detected!"
 println "Hello world!" | zstd --zstd=windowLog=21,slog  - -o tmp.zst && die "wrong parameters not detected!"
-println "Hello world!" | zstd --zstd=strategy=13        - -o tmp.zst && die "parameter out of bound not detected!"  # > btultra2 : does not exist
+println "Hello world!" | zstd --zstd=strategy=9        - -o tmp.zst && die "parameter out of bound not detected!"  # > btultra2 : does not exist
 test ! -f tmp.zst  # tmp.zst should not be created
 roundTripTest -g512K
 roundTripTest -g512K " --zstd=mml=3,tlen=48,strat=6"
@@ -618,7 +618,7 @@ roundTripTest -g512K " --zstd=strat=6,wlog=23,clog=23,hlog=22,slog=6"
 roundTripTest -g512K " --zstd=windowLog=23,chainLog=23,hashLog=22,searchLog=6,minMatch=3,targetLength=48,strategy=6"
 roundTripTest -g512K " --single-thread --long --zstd=ldmHashLog=20,ldmMinMatch=64,ldmBucketSizeLog=1,ldmHashRateLog=7"
 roundTripTest -g512K " --single-thread --long --zstd=lhlog=20,lmml=64,lblog=1,lhrlog=7"
-roundTripTest -g64K  "19 --zstd=strat=12"   # btultra2
+roundTripTest -g64K  "19 --zstd=strat=9"   # btultra2
 
 
 println "\n===>  Pass-Through mode "
@@ -806,7 +806,7 @@ zstd -f tmp -D tmpDict
 zstd -d tmp.zst -D tmpDict -fo result
 $DIFF "$TESTFILE" result
 println "- Dictionary compression with btlazy2 strategy"
-zstd -f tmp -D tmpDict --zstd=strategy=9
+zstd -f tmp -D tmpDict --zstd=strategy=6
 zstd -d tmp.zst -D tmpDict -fo result
 $DIFF "$TESTFILE" result
 if [ -n "$hasMT" ]
@@ -1462,7 +1462,7 @@ roundTripTest -g18000018 -P94 18
 roundTripTest -g18000019 -P96 19
 
 roundTripTest -g5000000000 -P99 "1 --zstd=wlog=25"
-roundTripTest -g3700000000 -P0 "1 --zstd=strategy=9,wlog=25"   # ensure btlazy2 can survive an overflow rescale
+roundTripTest -g3700000000 -P0 "1 --zstd=strategy=6,wlog=25"   # ensure btlazy2 can survive an overflow rescale
 
 fileRoundTripTest -g4193M -P99 1
 

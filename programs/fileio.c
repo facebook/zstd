@@ -298,7 +298,7 @@ struct FIO_prefs_s {
     int blockSize;
     int overlapLog;
     U32 adaptiveMode;
-    U32 useRowParams;
+    U32 useRowMatchfinder;
     int rsyncable;
     int minAdaptLevel;
     int maxAdaptLevel;
@@ -469,8 +469,8 @@ void FIO_setAdaptiveMode(FIO_prefs_t* const prefs, unsigned adapt) {
     prefs->adaptiveMode = adapt;
 }
 
-void FIO_setUseRowParams(FIO_prefs_t* const prefs, unsigned useRowParams) {
-    prefs->useRowParams = useRowParams;
+void FIO_setUseRowMatchfinder(FIO_prefs_t* const prefs, int useRowMatchfinder) {
+    prefs->useRowMatchfinder = useRowMatchfinder;
 }
 
 void FIO_setRsyncable(FIO_prefs_t* const prefs, int rsyncable) {
@@ -991,7 +991,7 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
     if (prefs->ldmHashRateLog != FIO_LDM_PARAM_NOTSET) {
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_ldmHashRateLog, prefs->ldmHashRateLog) );
     }
-    CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_useRowMatchfinder, prefs->useRowParams));
+    CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_useRowMatchfinder, prefs->useRowMatchfinder));
     /* compression parameters */
     CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_windowLog, (int)comprParams.windowLog) );
     CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_chainLog, (int)comprParams.chainLog) );

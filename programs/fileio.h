@@ -77,7 +77,7 @@ void FIO_overwriteMode(FIO_prefs_t* const prefs);
 void FIO_setAdaptiveMode(FIO_prefs_t* const prefs, unsigned adapt);
 void FIO_setAdaptMin(FIO_prefs_t* const prefs, int minCLevel);
 void FIO_setAdaptMax(FIO_prefs_t* const prefs, int maxCLevel);
-void FIO_setUseRowParams(FIO_prefs_t* const prefs, unsigned useRowParams);
+void FIO_setUseRowMatchfinder(FIO_prefs_t* const prefs, int useRowMatchfinder);
 void FIO_setBlockSize(FIO_prefs_t* const prefs, int blockSize);
 void FIO_setChecksumFlag(FIO_prefs_t* const prefs, int checksumFlag);
 void FIO_setDictIDFlag(FIO_prefs_t* const prefs, int dictIDFlag);

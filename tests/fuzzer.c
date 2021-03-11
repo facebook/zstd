@@ -1115,7 +1115,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
-    DISPLAYLEVEL(3, "test%3d : re-using a CCtx should compress the same : ", testNb++);
+    DISPLAYLEVEL(3, "test%3d : Loading dictionary before setting parameters is the same as loading after : ", testNb++);
     {   size_t const sampleSize = 30;
         int i;
         for (i=0; i<20; i++)

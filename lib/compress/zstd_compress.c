@@ -220,15 +220,23 @@ static int ZSTD_CParams_shouldUseRowBasedMatchfinder(const ZSTD_compressionParam
     if (!ZSTD_strategyMayUseRowBasedMatchfinder(cParams->strategy))
         return 0;
     if (hasSIMD) {
-        return (srcSize > 16 KB);
+        return (srcSize > 16 KB) || srcSize == ZSTD_CONTENTSIZE_UNKNOWN;
     } else {
-        return (srcSize > 128 KB);
+        return (srcSize > 128 KB) || srcSize == ZSTD_CONTENTSIZE_UNKNOWN;
     }
 }
 
+/* Returns row matchfinder usage enum depending on cParams and srcSize */
+static ZSTD_useRowMatchfinderMode_e ZSTD_CParams_getRowMatchfinderMode(const ZSTD_compressionParameters* const cParams, size_t srcSize) {
+    ZSTD_useRowMatchfinderMode_e const useRowMatchfinder = ZSTD_CParams_shouldUseRowBasedMatchfinder(cParams, srcSize)
+                                                                ? ZSTD_urm_enableRowMatchfinder
+                                                                : ZSTD_urm_disableRowMatchfinder;
+    return useRowMatchfinder;
+}
 /* Reduces chainLog to minimum amount since it is not needed for row-based matchfinder */
 static void ZSTD_adjustCParams_rowMatchfinder(ZSTD_compressionParameters* cParams) {
-    cParams->chainLog = ZSTD_CHAINLOG_MIN;
+    //cParams->chainLog = ZSTD_CHAINLOG_MIN;
+    //cParams->searchLog = MIN(5, cParams->searchLog);
 }
 
 /* Returns 1 if compression parameters are such that we should
@@ -256,6 +264,7 @@ static ZSTD_CCtx_params ZSTD_makeCCtxParamsFromCParams(
         assert(cctxParams.ldmParams.hashRateLog < 32);
     }
 
+    cctxParams.useRowMatchfinder = ZSTD_CParams_getRowMatchfinderMode(&cParams, ZSTD_CONTENTSIZE_UNKNOWN);
     assert(!ZSTD_checkCParams(cParams));
     return cctxParams;
 }
@@ -314,9 +323,8 @@ static void ZSTD_CCtxParams_init_internal(ZSTD_CCtx_params* cctxParams, ZSTD_par
      * But, set it for tracing anyway.
      */
     cctxParams->compressionLevel = compressionLevel;
-    cctxParams->useRowMatchfinder = ZSTD_CParams_shouldUseRowBasedMatchfinder(&params->cParams, srcSize)
-                                ? ZSTD_urm_enableRowMatchfinder
-                                : ZSTD_urm_disableRowMatchfinder;
+    cctxParams->useRowMatchfinder = ZSTD_CParams_getRowMatchfinderMode(&params->cParams, srcSize);
+    DEBUGLOG(3, "ZSTD_CCtxParams_init_internal: urm=%d", cctxParams->useRowMatchfinder);
 }
 
 size_t ZSTD_CCtxParams_init_advanced(ZSTD_CCtx_params* cctxParams, ZSTD_parameters params)
@@ -1356,7 +1364,11 @@ ZSTD_sizeof_matchState(const ZSTD_compressionParameters* const cParams,
                        const ZSTD_useRowMatchfinderMode_e useRowMatchfinder,
                        const U32 forCCtx)
 {
-    size_t const chainSize = (cParams->strategy == ZSTD_fast) ? 0 : ((size_t)1 << cParams->chainLog);
+    size_t const chainSize = (cParams->strategy == ZSTD_fast
+                          || ((useRowMatchfinder == ZSTD_urm_enableRowMatchfinder)))
+                             ? 0 : ((size_t)1 << cParams->chainLog);
+    
+    //size_t const chainSize = (cParams->strategy == ZSTD_fast) ? 0 : ((size_t)1 << cParams->chainLog);
     size_t const hSize = ((size_t)1) << cParams->hashLog;
     U32    const hashLog3 = (forCCtx && cParams->minMatch==3) ? MIN(ZSTD_HASHLOG3_MAX, cParams->windowLog) : 0;
     size_t const h3Size = hashLog3 ? ((size_t)1) << hashLog3 : 0;
@@ -1372,8 +1384,7 @@ ZSTD_sizeof_matchState(const ZSTD_compressionParameters* const cParams,
       + ZSTD_cwksp_alloc_size((1<<Litbits) * sizeof(U32))
       + ZSTD_cwksp_alloc_size((ZSTD_OPT_NUM+1) * sizeof(ZSTD_match_t))
       + ZSTD_cwksp_alloc_size((ZSTD_OPT_NUM+1) * sizeof(ZSTD_optimal_t));
-    size_t const lazyAdditionalSpace = (useRowMatchfinder == ZSTD_urm_enableRowMatchfinder
-                                    || (useRowMatchfinder == ZSTD_urm_auto && ZSTD_strategyMayUseRowBasedMatchfinder(cParams->strategy)))
+    size_t const lazyAdditionalSpace = (useRowMatchfinder == ZSTD_urm_enableRowMatchfinder)
                                 ? ZSTD_cwksp_alloc_size(hSize*sizeof(U16) + ZSTD_CWKSP_ALIGN_TABLES_BYTES)
                                 : 0;
     size_t const optSpace = (forCCtx && (cParams->strategy >= ZSTD_btopt))
@@ -1381,6 +1392,7 @@ ZSTD_sizeof_matchState(const ZSTD_compressionParameters* const cParams,
                                 : 0;
     DEBUGLOG(4, "chainSize: %u - hSize: %u - h3Size: %u",
                 (U32)chainSize, (U32)hSize, (U32)h3Size);
+    assert(useRowMatchfinder != ZSTD_urm_auto);
     return tableSpace + optSpace + lazyAdditionalSpace;
 }
 
@@ -1625,12 +1637,16 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
                 const ZSTD_indexResetPolicy_e forceResetIndex,
                 const ZSTD_resetTarget_e forWho)
 {
-    size_t const chainSize = (cParams->strategy == ZSTD_fast) ? 0 : ((size_t)1 << cParams->chainLog);
+    size_t const chainSize = ((cParams->strategy == ZSTD_fast) || (useRowMatchfinder == ZSTD_urm_enableRowMatchfinder))
+                             ? 0
+                             : ((size_t)1 << cParams->chainLog);
+    //size_t const chainSize = (cParams->strategy == ZSTD_fast) ? 0 : ((size_t)1 << cParams->chainLog);
     size_t const hSize = ((size_t)1) << cParams->hashLog;
     U32    const hashLog3 = ((forWho == ZSTD_resetTarget_CCtx) && cParams->minMatch==3) ? MIN(ZSTD_HASHLOG3_MAX, cParams->windowLog) : 0;
     size_t const h3Size = hashLog3 ? ((size_t)1) << hashLog3 : 0;
 
     DEBUGLOG(4, "reset indices : %u", forceResetIndex == ZSTDirp_reset);
+    assert(useRowMatchfinder != ZSTD_urm_auto);
     if (forceResetIndex == ZSTDirp_reset) {
         ZSTD_window_init(&ms->window);
         ZSTD_cwksp_mark_tables_dirty(ws);
@@ -1638,7 +1654,6 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
 
     if (ZSTD_strategyMayUseRowBasedMatchfinder(cParams->strategy)) {
         U32 const nbRowEntries = cParams->searchLog < 5 ? 16 : 32;
-        assert(cParams->searchLog <= 5);
         ms->nbRows = ZSTD_highbit32((1u << cParams->hashLog) / nbRowEntries);
     }
     ms->hashLog3 = hashLog3;
@@ -1649,7 +1664,7 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
 
     ZSTD_cwksp_clear_tables(ws);
 
-    DEBUGLOG(5, "reserving table space");
+    DEBUGLOG(4, "reserving table space");
     /* table Space */
     ms->hashTable = (U32*)ZSTD_cwksp_reserve_table(ws, hSize * sizeof(U32));
     ms->chainTable = (U32*)ZSTD_cwksp_reserve_table(ws, chainSize * sizeof(U32));
@@ -1674,9 +1689,9 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
         ms->opt.priceTable = (ZSTD_optimal_t*)ZSTD_cwksp_reserve_aligned(ws, (ZSTD_OPT_NUM+1) * sizeof(ZSTD_optimal_t));
     }
 
-    if (useRowMatchfinder == ZSTD_urm_enableRowMatchfinder
-     || (useRowMatchfinder == ZSTD_urm_auto && ZSTD_strategyMayUseRowBasedMatchfinder(cParams->strategy))) {
+    if (useRowMatchfinder == ZSTD_urm_enableRowMatchfinder) {
         size_t const tagTableSize = hSize*sizeof(U16);
+        assert(ZSTD_strategyMayUseRowBasedMatchfinder(cParams->strategy));
         ms->tagTable = (U16*)ZSTD_cwksp_reserve_aligned(ws, tagTableSize + ZSTD_CWKSP_ALIGN_TABLES_BYTES);
         ms->tagTable = (U16*)ZSTD_alignBufferTo64Bytes(ms->tagTable);
         if (ms->tagTable) ZSTD_memset(ms->tagTable, 0, tagTableSize);
@@ -1686,7 +1701,7 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
 
     RETURN_ERROR_IF(ZSTD_cwksp_reserve_failed(ws), memory_allocation,
                     "failed a workspace allocation in ZSTD_reset_matchState");
-
+    DEBUGLOG(2, "finished matchstate reset");
     return 0;
 }
 
@@ -1712,7 +1727,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                                       ZSTD_buffered_policy_e const zbuff)
 {
     ZSTD_cwksp* const ws = &zc->workspace;
-    DEBUGLOG(4, "ZSTD_resetCCtx_internal: pledgedSrcSize=%u, wlog=%u, urm=%d",
+    DEBUGLOG(3, "ZSTD_resetCCtx_internal: pledgedSrcSize=%u, wlog=%u, urm=%d",
                 (U32)pledgedSrcSize, params.cParams.windowLog, (int)params.useRowMatchfinder);
     assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
 
@@ -1770,7 +1785,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                 ZSTD_cwksp_free(ws, zc->customMem);
                 FORWARD_IF_ERROR(ZSTD_cwksp_create(ws, neededSpace, zc->customMem), "");
 
-                DEBUGLOG(5, "reserving object space");
+                DEBUGLOG(4, "reserving object space");
                 /* Statically sized space.
                  * entropyWorkspace never moves,
                  * though prev/next block swap places */
@@ -1868,7 +1883,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         assert(ZSTD_cwksp_used(ws) >= neededSpace &&
                ZSTD_cwksp_used(ws) <= neededSpace + 3);
 
-        DEBUGLOG(3, "wksp: finished allocating, %zd bytes remain available", ZSTD_cwksp_available_space(ws));
+        DEBUGLOG(3, "reset: wksp: finished allocating, %zd bytes remain available", ZSTD_cwksp_available_space(ws));
         zc->initialized = 1;
 
         return 0;
@@ -1999,9 +2014,14 @@ static size_t ZSTD_resetCCtx_byCopyingCDict(ZSTD_CCtx* cctx,
     }
 
     ZSTD_cwksp_mark_tables_dirty(&cctx->workspace);
+    assert(params.useRowMatchfinder != ZSTD_urm_auto);
 
     /* copy tables */
-    {   size_t const chainSize = (cdict_cParams->strategy == ZSTD_fast) ? 0 : ((size_t)1 << cdict_cParams->chainLog);
+    {   size_t const chainSize = (cdict_cParams->strategy == ZSTD_fast) || (params.useRowMatchfinder == ZSTD_urm_enableRowMatchfinder)
+                                 ? 0
+                                 : ((size_t)1 << cdict_cParams->chainLog);
+        
+        //size_t const chainSize = (cdict_cParams->strategy == ZSTD_fast) ? 0 : ((size_t)1 << cdict_cParams->chainLog);
         size_t const hSize =  (size_t)1 << cdict_cParams->hashLog;
 
         ZSTD_memcpy(cctx->blockState.matchState.hashTable,
@@ -2048,7 +2068,7 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
                             ZSTD_buffered_policy_e zbuff)
 {
 
-    DEBUGLOG(4, "ZSTD_resetCCtx_usingCDict (pledgedSrcSize=%u)",
+    DEBUGLOG(3, "ZSTD_resetCCtx_usingCDict (pledgedSrcSize=%u)",
                 (unsigned)pledgedSrcSize);
 
     if (ZSTD_shouldAttachDict(cdict, params, pledgedSrcSize)) {
@@ -2073,17 +2093,16 @@ static size_t ZSTD_copyCCtx_internal(ZSTD_CCtx* dstCCtx,
                             U64 pledgedSrcSize,
                             ZSTD_buffered_policy_e zbuff)
 {
-    DEBUGLOG(5, "ZSTD_copyCCtx_internal");
+    DEBUGLOG(4, "ZSTD_copyCCtx_internal");
     RETURN_ERROR_IF(srcCCtx->stage!=ZSTDcs_init, stage_wrong,
                     "Can't copy a ctx that's not in init stage.");
 
     ZSTD_memcpy(&dstCCtx->customMem, &srcCCtx->customMem, sizeof(ZSTD_customMem));
+    ZSTD_useRowMatchfinderMode_e const useRowMatchfinder = ZSTD_CParams_getRowMatchfinderMode(&srcCCtx->appliedParams.cParams, ZSTD_CONTENTSIZE_UNKNOWN);
     {   ZSTD_CCtx_params params = dstCCtx->requestedParams;
         /* Copy only compression parameters related to tables. */
         params.cParams = srcCCtx->appliedParams.cParams;
-        params.useRowMatchfinder = ZSTD_CParams_shouldUseRowBasedMatchfinder(&params.cParams, ZSTD_CONTENTSIZE_UNKNOWN)
-                            ? ZSTD_urm_enableRowMatchfinder
-                            : ZSTD_urm_disableRowMatchfinder;
+        params.useRowMatchfinder = ZSTD_CParams_getRowMatchfinderMode(&params.cParams, ZSTD_CONTENTSIZE_UNKNOWN);
         params.fParams = fParams;
         ZSTD_resetCCtx_internal(dstCCtx, params, pledgedSrcSize,
                                 ZSTDcrp_leaveDirty, zbuff);
@@ -2097,7 +2116,11 @@ static size_t ZSTD_copyCCtx_internal(ZSTD_CCtx* dstCCtx,
     ZSTD_cwksp_mark_tables_dirty(&dstCCtx->workspace);
 
     /* copy tables */
-    {   size_t const chainSize = (srcCCtx->appliedParams.cParams.strategy == ZSTD_fast) ? 0 : ((size_t)1 << srcCCtx->appliedParams.cParams.chainLog);
+    {   size_t const chainSize = ((srcCCtx->appliedParams.cParams.strategy == ZSTD_fast) || (useRowMatchfinder == ZSTD_urm_enableRowMatchfinder))
+                                    ? 0
+                                    : ((size_t)1 << srcCCtx->appliedParams.cParams.chainLog);
+        
+        //size_t const chainSize = (srcCCtx->appliedParams.cParams.strategy == ZSTD_fast) ? 0 : ((size_t)1 << srcCCtx->appliedParams.cParams.chainLog);
         size_t const hSize =  (size_t)1 << srcCCtx->appliedParams.cParams.hashLog;
         int const h3log = srcCCtx->blockState.matchState.hashLog3;
         size_t const h3Size = h3log ? ((size_t)1 << h3log) : 0;
@@ -3248,7 +3271,7 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
     const BYTE* ip = (const BYTE*) src;
     const BYTE* const iend = ip + srcSize;
 
-    DEBUGLOG(2, "ZSTD_loadDictionaryContent()");
+    DEBUGLOG(2, "ZSTD_loadDictionaryContent(): urm %d wLog: %u hLog: %u cLog: %u", params->useRowMatchfinder, ms->cParams.windowLog, ms->cParams.hashLog, ms->cParams.chainLog);
     ZSTD_window_update(&ms->window, src, srcSize);
     ms->loadedDictEnd = params->forceWindow ? 0 : (U32)(iend - ms->window.base);
 
@@ -3298,10 +3321,12 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
                 } else {
                     assert(params->useRowMatchfinder != ZSTD_urm_auto);
                     if (params->useRowMatchfinder != ZSTD_urm_disableRowMatchfinder) {    
+                        DEBUGLOG(3, "prepopulating row dict");
                         size_t const tagTableSize = ((size_t)1 << params->cParams.hashLog) * sizeof(U16);
                         ZSTD_memset(ms->tagTable, 0, tagTableSize);
                         ZSTD_row_update(ms, ichunk-HASH_READ_SIZE);
                     } else {
+                        DEBUGLOG(3, "prepopulating normal dict");
                         ZSTD_insertAndFindFirstIndex(ms, ichunk-HASH_READ_SIZE);
                     }
                 }
@@ -3533,7 +3558,7 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
 #if ZSTD_TRACE
     cctx->traceCtx = ZSTD_trace_compress_begin(cctx);
 #endif
-    DEBUGLOG(4, "ZSTD_compressBegin_internal: wlog=%u", params->cParams.windowLog);
+    DEBUGLOG(3, "ZSTD_compressBegin_internal: wlog=%u", params->cParams.windowLog);
     /* params are supposed to be fully validated at this point */
     assert(!ZSTD_isError(ZSTD_checkCParams(params->cParams)));
     assert(!((dict) && (cdict)));  /* either dict or cdict, not both */
@@ -3547,9 +3572,9 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
         return ZSTD_resetCCtx_usingCDict(cctx, cdict, params, pledgedSrcSize, zbuff);
     }
 
+    DEBUGLOG(3, "Not resetting CCtx using CDict!");
     FORWARD_IF_ERROR( ZSTD_resetCCtx_internal(cctx, *params, pledgedSrcSize,
                                      ZSTDcrp_makeClean, zbuff) , "");
-    DEBUGLOG(2, "AP: %d P: %d", cctx->appliedParams.useRowMatchfinder, params->useRowMatchfinder);
     {   size_t const dictID = cdict ?
                 ZSTD_compress_insertDictionary(
                         cctx->blockState.prevCBlock, &cctx->blockState.matchState,
@@ -3565,7 +3590,7 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
         cctx->dictID = (U32)dictID;
         cctx->dictContentSize = cdict ? cdict->dictContentSize : dictSize;
     }
-    DEBUGLOG(2, "Finished here");
+    DEBUGLOG(4, "ZSTD_compressBegin_internal: complete");
     return 0;
 }
 
@@ -3798,9 +3823,10 @@ size_t ZSTD_estimateCDictSize_advanced(
         ZSTD_dictLoadMethod_e dictLoadMethod)
 {
     DEBUGLOG(5, "sizeof(ZSTD_CDict) : %u", (unsigned)sizeof(ZSTD_CDict));
+    
     return ZSTD_cwksp_alloc_size(sizeof(ZSTD_CDict))
          + ZSTD_cwksp_alloc_size(HUF_WORKSPACE_SIZE)
-         + ZSTD_sizeof_matchState(&cParams, ZSTD_urm_auto, /* forCCtx */ 0)
+         + ZSTD_sizeof_matchState(&cParams, ZSTD_CParams_getRowMatchfinderMode(&cParams, ZSTD_CONTENTSIZE_UNKNOWN), /* forCCtx */ 0)
          + (dictLoadMethod == ZSTD_dlm_byRef ? 0
             : ZSTD_cwksp_alloc_size(ZSTD_cwksp_align(dictSize, sizeof(void *))));
 }
@@ -3879,14 +3905,16 @@ static size_t ZSTD_initCDict_internal(
 
 static ZSTD_CDict* ZSTD_createCDict_advanced_internal(size_t dictSize,
                                       ZSTD_dictLoadMethod_e dictLoadMethod,
-                                      ZSTD_compressionParameters cParams, ZSTD_customMem customMem)
+                                      ZSTD_compressionParameters cParams,
+                                      ZSTD_useRowMatchfinderMode_e useRowMatchfinder,
+                                      ZSTD_customMem customMem)
 {
     if ((!customMem.customAlloc) ^ (!customMem.customFree)) return NULL;
 
     {   size_t const workspaceSize =
             ZSTD_cwksp_alloc_size(sizeof(ZSTD_CDict)) +
             ZSTD_cwksp_alloc_size(HUF_WORKSPACE_SIZE) +
-            ZSTD_sizeof_matchState(&cParams, ZSTD_urm_auto, /* forCCtx */ 0) +
+            ZSTD_sizeof_matchState(&cParams, useRowMatchfinder, /* forCCtx */ 0) +
             (dictLoadMethod == ZSTD_dlm_byRef ? 0
              : ZSTD_cwksp_alloc_size(ZSTD_cwksp_align(dictSize, sizeof(void*))));
         void* const workspace = ZSTD_customMalloc(workspaceSize, customMem);
@@ -3958,12 +3986,11 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced2(
     }
 
     cctxParams.cParams = cParams;
-    cctxParams.useRowMatchfinder = ZSTD_CParams_shouldUseRowBasedMatchfinder(&cParams, ZSTD_CONTENTSIZE_UNKNOWN)
-                            ? ZSTD_urm_enableRowMatchfinder
-                            : ZSTD_urm_disableRowMatchfinder;
+    if (cctxParams.useRowMatchfinder == ZSTD_urm_auto)
+        cctxParams.useRowMatchfinder = ZSTD_CParams_getRowMatchfinderMode(&cParams, ZSTD_CONTENTSIZE_UNKNOWN);
 
     cdict = ZSTD_createCDict_advanced_internal(dictSize,
-                        dictLoadMethod, cctxParams.cParams,
+                        dictLoadMethod, cctxParams.cParams, cctxParams.useRowMatchfinder,
                         customMem);
 
     if (ZSTD_isError( ZSTD_initCDict_internal(cdict,
@@ -4032,7 +4059,8 @@ const ZSTD_CDict* ZSTD_initStaticCDict(
                                  ZSTD_dictContentType_e dictContentType,
                                  ZSTD_compressionParameters cParams)
 {
-    size_t const matchStateSize = ZSTD_sizeof_matchState(&cParams, ZSTD_urm_auto, /* forCCtx */ 0);
+    ZSTD_useRowMatchfinderMode_e const useRowMatchfinder = ZSTD_CParams_getRowMatchfinderMode(&cParams, ZSTD_CONTENTSIZE_UNKNOWN);
+    size_t const matchStateSize = ZSTD_sizeof_matchState(&cParams, useRowMatchfinder, /* forCCtx */ 0);
     size_t const neededSize = ZSTD_cwksp_alloc_size(sizeof(ZSTD_CDict))
                             + (dictLoadMethod == ZSTD_dlm_byRef ? 0
                                : ZSTD_cwksp_alloc_size(ZSTD_cwksp_align(dictSize, sizeof(void*))))
@@ -4057,9 +4085,7 @@ const ZSTD_CDict* ZSTD_initStaticCDict(
 
     ZSTD_CCtxParams_init(&params, 0);
     params.cParams = cParams;
-    params.useRowMatchfinder = ZSTD_CParams_shouldUseRowBasedMatchfinder(&cParams, ZSTD_CONTENTSIZE_UNKNOWN)
-                        ? ZSTD_urm_enableRowMatchfinder
-                        : ZSTD_urm_disableRowMatchfinder;
+    params.useRowMatchfinder = useRowMatchfinder;
 
     if (ZSTD_isError( ZSTD_initCDict_internal(cdict,
                                               dict, dictSize,
@@ -4094,7 +4120,7 @@ size_t ZSTD_compressBegin_usingCDict_advanced(
     ZSTD_frameParameters const fParams, unsigned long long const pledgedSrcSize)
 {
     ZSTD_CCtx_params cctxParams;
-    DEBUGLOG(4, "ZSTD_compressBegin_usingCDict_advanced");
+    DEBUGLOG(3, "ZSTD_compressBegin_usingCDict_advanced");
     RETURN_ERROR_IF(cdict==NULL, dictionary_wrong, "NULL pointer!");
     /* Initialize the cctxParams from the cdict */
     {
@@ -4586,11 +4612,7 @@ static size_t ZSTD_CCtx_init_compressStream2(ZSTD_CCtx* cctx,
         params.ldmParams.enableLdm = 1;
     }
 
-    if (ZSTD_CParams_shouldUseRowBasedMatchfinder(&params.cParams, inSize)) {
-        params.useRowMatchfinder = ZSTD_urm_enableRowMatchfinder;
-    } else {
-        params.useRowMatchfinder = ZSTD_urm_disableRowMatchfinder;
-    }
+    params.useRowMatchfinder = ZSTD_CParams_getRowMatchfinderMode(&params.cParams, inSize);
 
 #ifdef ZSTD_MULTITHREAD
     if ((cctx->pledgedSrcSizePlusOne-1) <= ZSTDMT_JOBSIZE_MIN) {
@@ -5410,10 +5432,10 @@ static ZSTD_compressionParameters ZSTD_getCParams_internal(int compressionLevel,
         }
         /* refine parameters based on srcSize & dictSize */
         cp = ZSTD_adjustCParams_internal(cp, srcSizeHint, dictSize, mode);
-        if (rowMatchfinderMode == ZSTD_urm_enableRowMatchfinder
+        /*if (rowMatchfinderMode == ZSTD_urm_enableRowMatchfinder
         || (rowMatchfinderMode == ZSTD_urm_auto && ZSTD_CParams_shouldUseRowBasedMatchfinder(&cp, srcSizeHint))) {
             ZSTD_adjustCParams_rowMatchfinder(&cp);
-        }
+        }*/
         return cp;
     }
 }

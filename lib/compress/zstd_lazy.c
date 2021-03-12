@@ -1261,7 +1261,8 @@ size_t ZSTD_RowFindBestMatch_generic (
     const U32 lowLimit = isDictionary ? lowestValid : withinMaxDistance;
     const U32 rowEntries = (1U << rowLog);
     const U32 rowMask = rowEntries - 1;
-    U32 nbAttempts = 1U << cParams->searchLog;
+    const U32 cappedSearchLog = MIN(cParams->searchLog, 5);
+    U32 nbAttempts = 1U << cappedSearchLog;
     size_t ml=4-1;
 
     const ZSTD_matchState_t* const dms = ms->dictMatchState;
@@ -1418,8 +1419,8 @@ FORCE_INLINE_TEMPLATE size_t ZSTD_RowFindBestMatch_selectRowLog (
                         const BYTE* ip, const BYTE* const iLimit,
                         size_t* offsetPtr)
 {
-    assert(ms->cParams.searchLog <= 5);
-    switch(ms->cParams.searchLog)
+    const U32 cappedSearchLog = MIN(ms->cParams.searchLog, 5);
+    switch(cappedSearchLog)
     {
     default :
     case 4 : return ZSTD_RowFindBestMatch_selectMLS(ms, ip, iLimit, ZSTD_noDict, offsetPtr, 4);
@@ -1432,8 +1433,8 @@ FORCE_INLINE_TEMPLATE size_t ZSTD_RowFindBestMatch_dictMatchState_selectRowLog(
                         const BYTE* ip, const BYTE* const iLimit,
                         size_t* offsetPtr)
 {
-    assert(ms->cParams.searchLog <= 5);
-    switch(ms->cParams.searchLog)
+    const U32 cappedSearchLog = MIN(ms->cParams.searchLog, 5);
+    switch(cappedSearchLog)
     {
     default :
     case 4 : return ZSTD_RowFindBestMatch_selectMLS(ms, ip, iLimit, ZSTD_dictMatchState, offsetPtr, 4);
@@ -1446,8 +1447,8 @@ FORCE_INLINE_TEMPLATE size_t ZSTD_RowFindBestMatch_dedicatedDictSearch_selectRow
                         const BYTE* ip, const BYTE* const iLimit,
                         size_t* offsetPtr)
 {
-    assert(ms->cParams.searchLog <= 5);
-    switch(ms->cParams.searchLog)
+    const U32 cappedSearchLog = MIN(ms->cParams.searchLog, 5);
+    switch(cappedSearchLog)
     {
     default :
     case 4 : return ZSTD_RowFindBestMatch_selectMLS(ms, ip, iLimit, ZSTD_dedicatedDictSearch, offsetPtr, 4);
@@ -1460,8 +1461,8 @@ FORCE_INLINE_TEMPLATE size_t ZSTD_RowFindBestMatch_extDict_selectRowLog (
                         const BYTE* ip, const BYTE* const iLimit,
                         size_t* offsetPtr)
 {
-    assert(ms->cParams.searchLog <= 5);
-    switch(ms->cParams.searchLog)
+    const U32 cappedSearchLog = MIN(ms->cParams.searchLog, 5);
+    switch(cappedSearchLog)
     {
     default :
     case 4 : return ZSTD_RowFindBestMatch_selectMLS(ms, ip, iLimit, ZSTD_extDict, offsetPtr, 4);
@@ -1561,7 +1562,6 @@ ZSTD_compressBlock_lazy_generic(
     }
 
     if (searchMethod == search_rowHash) {
-        assert(ms->cParams.searchLog <= 5);
         ZSTD_row_fillHashCache(ms, base, rowLog,
                             MIN(ms->cParams.minMatch, 6 /* mls caps out at 6 */),
                             ms->nextToUpdate, ilimit);
@@ -1934,7 +1934,6 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
     /* init */
     ip += (ip == prefixStart);
     if (searchMethod == search_rowHash) {
-        assert(ms->cParams.searchLog <= 5);
         ZSTD_row_fillHashCache(ms, base, rowLog,
                                MIN(ms->cParams.minMatch, 6 /* mls caps out at 6 */),
                                ms->nextToUpdate, ilimit);

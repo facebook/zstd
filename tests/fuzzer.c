@@ -1689,7 +1689,10 @@ static int basicUnitTests(U32 const seed, double compressibility)
                                     compressedBuffer, compressedBufferSize,
                        (const char*)CNBuffer + dictSize, CNBuffSize - dictSize),
                       cSize += r);
-            if (cSize != cSizeOrig) goto _output_error;   /* should be identical ==> same size */
+            if (cSize != cSizeOrig) {
+                DISPLAYLEVEL(3, "not equal sizes\n");
+                goto _output_error;   /* should be identical ==> same size */
+            }
         }
         DISPLAYLEVEL(3, "OK (%u bytes : %.2f%%)\n", (unsigned)cSize, (double)cSize/CNBuffSize*100);
 

@@ -332,7 +332,7 @@ static size_t ZSTD_seekable_loadSeekTable(ZSTD_seekable* zs)
         checksumFlag = sfd >> 7;
 
         /* check reserved bits */
-        if ((checksumFlag >> 2) & 0x1f) {
+        if ((sfd >> 2) & 0x1f) {
             return ERROR(corruption_detected);
     }   }
 

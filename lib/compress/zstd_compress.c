@@ -1637,8 +1637,9 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
     }
 
     if (ZSTD_strategyMayUseRowBasedMatchfinder(cParams->strategy)) {
-        U32 const rowEntries = cParams->searchLog < 5 ? kRowEntries16 : kRowEntries32;
-        ms->nbRows = ZSTD_highbit32((1u << cParams->hashLog) / rowEntries);
+        U32 const nbRowEntries = cParams->searchLog < 5 ? 16 : 32;
+        assert(cParams->searchLog <= 5);
+        ms->nbRows = ZSTD_highbit32((1u << cParams->hashLog) / nbRowEntries);
     }
     ms->hashLog3 = hashLog3;
 

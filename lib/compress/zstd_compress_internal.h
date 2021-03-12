@@ -42,15 +42,6 @@ extern "C" {
                                        The benefit is that ZSTD_DUBT_UNSORTED_MARK cannot be mishandled after table re-use with a different strategy.
                                        This constant is required by ZSTD_compressBlock_btlazy2() and ZSTD_reduceTable_internal() */
 
-
-/* Shared constants for row-based hash. Used in lazy.c and zstd_compress.c */
-#define kRowLog16 4                            /* log of the nb entries per row */
-#define kRowEntries16 (1u << kRowLog16)        /* nb entries per row */
-#define kRowLog32 5
-#define kRowEntries32 (1u << kRowLog32)
-
-#define kPrefetchLog 3              
-#define kPrefetchNb (1u << kPrefetchLog)
 /*-*************************************
 *  Context memory management
 ***************************************/
@@ -158,6 +149,9 @@ typedef struct {
 } ZSTD_window_t;
 
 typedef struct ZSTD_matchState_t ZSTD_matchState_t;
+
+#define ZSTD_ROWHASH_HASHCACHE_SIZE 8       /* Size of prefetching hash cache for row-based matchfinder */
+
 struct ZSTD_matchState_t {
     ZSTD_window_t window;   /* State for window round buffer management */
     U32 loadedDictEnd;      /* index of end of dictionary, within context's referential.
@@ -172,7 +166,7 @@ struct ZSTD_matchState_t {
 
     U32 nbRows;                 /* For row-based matchfinder: Number of rows in the hashTable. Analog of hashLog. */
     U16* tagTable;              /* For row-based matchFinder: A row-based table containing the hashes and head index. */
-    U32 hashCache[kPrefetchNb]; /* For row-based matchFinder: a cache of hashes to improve speed */
+    U32 hashCache[ZSTD_ROWHASH_HASHCACHE_SIZE]; /* For row-based matchFinder: a cache of hashes to improve speed */
 
     U32* hashTable;
     U32* hashTable3;

@@ -62,7 +62,7 @@ jobs:
     # zbufftest-dll : test that a user program can link to multi-threaded libzstd without specifying -pthread
 
   gcc-8-asan-ubsan-testzstd:
-    runs-on: ubuntu-16.04 # fails on 18.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     - name: gcc-8 + ASan + UBSan + Test Zstd

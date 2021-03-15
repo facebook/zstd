@@ -19,12 +19,15 @@ jobs:
           RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
         run: |
           # compute file name
-          export TAG=$(echo $GITHUB_REF | sed -n 's_^refs/tags/__p')
+          export TAG="$(echo "$GITHUB_REF" | sed -n 's_^refs/tags/__p')"
           if [ -z "$TAG" ]; then
             echo "action must be run on a tag. GITHUB_REF is not a tag: $GITHUB_REF"
             exit 1
           fi
-          export ZSTD_VERSION=zstd-$TAG
+          # Attempt to extract "1.2.3" from "v1.2.3" to maintain artifact name backwards compat.
+          # Otherwise, degrade to using full tag.
+          export VERSION="$(echo "$TAG" | sed 's_^v\([0-9]\+\.[0-9]\+\.[0-9]\+\)$_\1_')"
+          export ZSTD_VERSION="zstd-$VERSION"
 
           # archive
           git archive $TAG \
@@ -41,6 +44,7 @@ jobs:
           zstd -k -19 $ZSTD_VERSION.tar
           gzip -k  -9 $ZSTD_VERSION.tar
 
+          # we only publish the compressed tarballs
           rm $ZSTD_VERSION.tar
 
           # hash

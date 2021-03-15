@@ -17,6 +17,7 @@ jobs:
       - name: Archive
         env:
           RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+          RELEASE_SIGNING_KEY_PASSPHRASE: ${{ secrets.RELEASE_SIGNING_KEY_PASSPHRASE }}
         run: |
           # compute file name
           export TAG="$(echo "$GITHUB_REF" | sed -n 's_^refs/tags/__p')"
@@ -53,9 +54,10 @@ jobs:
 
           # sign
           if [ -n "$RELEASE_SIGNING_KEY" ]; then
-            echo "$RELEASE_SIGNING_KEY" | gpg --import
-            gpg --armor --sign --sign-with signing@zstd.net --detach-sig --output $ZSTD_VERSION.tar.zst.sig $ZSTD_VERSION.tar.zst
-            gpg --armor --sign --sign-with signing@zstd.net --detach-sig --output $ZSTD_VERSION.tar.gz.sig  $ZSTD_VERSION.tar.gz
+            export GPG_BATCH_OPTS="--batch --no-use-agent --pinentry-mode loopback --no-tty --yes"
+            echo "$RELEASE_SIGNING_KEY" | gpg $GPG_BATCH_OPTS --import
+            gpg $GPG_BATCH_OPTS --armor --sign --sign-with signing@zstd.net --detach-sig --passphrase "$RELEASE_SIGNING_KEY_PASSPHRASE" --output $ZSTD_VERSION.tar.zst.sig $ZSTD_VERSION.tar.zst
+            gpg $GPG_BATCH_OPTS --armor --sign --sign-with signing@zstd.net --detach-sig --passphrase "$RELEASE_SIGNING_KEY_PASSPHRASE" --output $ZSTD_VERSION.tar.gz.sig  $ZSTD_VERSION.tar.gz
           fi
 
       - name: Publish

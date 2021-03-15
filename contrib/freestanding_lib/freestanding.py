@@ -28,6 +28,7 @@ SKIPPED_FILES = [
     "common/threading.c",
     "common/threading.h",
     "common/zstd_trace.c",
+    "common/zstd_trace.h",
     "compress/zstdmt_compress.h",
     "compress/zstdmt_compress.c",
 ]
@@ -658,7 +659,8 @@ def main(name, args):
             raise RuntimeError(f"{name} is both defined and undefined!")
 
     # Always set tracing to 0
-    if "ZSTD_TRACE" not in (arg[0] for arg in args.defs):
+    if "ZSTD_NO_TRACE" not in (arg[0] for arg in args.defs):
+        args.defs.append(("ZSTD_NO_TRACE", None))
         args.defs.append(("ZSTD_TRACE", "0"))
 
     args.replaces = parse_pair(args.replaces)

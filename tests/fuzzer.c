@@ -1993,6 +1993,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         {   int const maxLevel = ZSTD_maxCLevel();
             int level;
             for (level = 1; level <= maxLevel; ++level) {
+                DISPLAYLEVEL(4, "level: %d\n", level);
                 ZSTD_compressionParameters const cParams = ZSTD_getCParams(level, CNBuffSize, dictSize);
                 size_t const cdictSize = ZSTD_estimateCDictSize_advanced(dictSize, cParams, ZSTD_dlm_byCopy);
                 void* const cdictBuffer = malloc(cdictSize);
@@ -2178,9 +2179,13 @@ static int basicUnitTests(U32 const seed, double compressibility)
         {
             CHECK_Z( ZSTD_CCtx_refPrefix(cctx, (const char*)dictBuffer, dictSize) );
             CHECK_Z( ZSTD_CCtx_loadDictionary(cctx, (const char*)dictBuffer, dictSize) );
+            DISPLAYLEVEL(3, "compressing\n");
+
+            //CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableDedicatedDictSearch, 1) );
             CHECK_Z( ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, MIN(CNBuffSize, 100)) );
         }
         DISPLAYLEVEL(3, "OK \n");
+        exit(1);
 
         DISPLAYLEVEL(3, "test%3i : Loading a dictionary clears the cdict : ", testNb++);
         {

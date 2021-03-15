@@ -1,0 +1,68 @@
+name: publish-release-artifacts
+
+on:
+  release:
+    types:
+      - created
+
+jobs:
+  publish-release-artifacts:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Archive
+        env:
+          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+          RELEASE_SIGNING_KEY_PASSPHRASE: ${{ secrets.RELEASE_SIGNING_KEY_PASSPHRASE }}
+        run: |
+          # compute file name
+          export TAG="$(echo "$GITHUB_REF" | sed -n 's_^refs/tags/__p')"
+          if [ -z "$TAG" ]; then
+            echo "action must be run on a tag. GITHUB_REF is not a tag: $GITHUB_REF"
+            exit 1
+          fi
+          # Attempt to extract "1.2.3" from "v1.2.3" to maintain artifact name backwards compat.
+          # Otherwise, degrade to using full tag.
+          export VERSION="$(echo "$TAG" | sed 's_^v\([0-9]\+\.[0-9]\+\.[0-9]\+\)$_\1_')"
+          export ZSTD_VERSION="zstd-$VERSION"
+
+          # archive
+          git archive $TAG \
+              --prefix $ZSTD_VERSION/ \
+              --format tar \
+              -o $ZSTD_VERSION.tar
+
+          # Do the rest of the work in a sub-dir so we can glob everything we want to publish.
+          mkdir artifacts/
+          mv $ZSTD_VERSION.tar artifacts/
+          cd artifacts/
+
+          # compress
+          zstd -k -19 $ZSTD_VERSION.tar
+          gzip -k  -9 $ZSTD_VERSION.tar
+
+          # we only publish the compressed tarballs
+          rm $ZSTD_VERSION.tar
+
+          # hash
+          sha256sum $ZSTD_VERSION.tar.zst > $ZSTD_VERSION.tar.zst.sha256
+          sha256sum $ZSTD_VERSION.tar.gz  > $ZSTD_VERSION.tar.gz.sha256
+
+          # sign
+          if [ -n "$RELEASE_SIGNING_KEY" ]; then
+            export GPG_BATCH_OPTS="--batch --no-use-agent --pinentry-mode loopback --no-tty --yes"
+            echo "$RELEASE_SIGNING_KEY" | gpg $GPG_BATCH_OPTS --import
+            gpg $GPG_BATCH_OPTS --armor --sign --sign-with signing@zstd.net --detach-sig --passphrase "$RELEASE_SIGNING_KEY_PASSPHRASE" --output $ZSTD_VERSION.tar.zst.sig $ZSTD_VERSION.tar.zst
+            gpg $GPG_BATCH_OPTS --armor --sign --sign-with signing@zstd.net --detach-sig --passphrase "$RELEASE_SIGNING_KEY_PASSPHRASE" --output $ZSTD_VERSION.tar.gz.sig  $ZSTD_VERSION.tar.gz
+          fi
+
+      - name: Publish
+        uses: skx/github-action-publish-binaries@release-1.3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: artifacts/*

@@ -103,7 +103,7 @@ int main(int argc, const char** argv)
             '\x00',
             '\x00',
             '\x00',
-            ';',
+            (uint8_t)('\x03'),
             (uint8_t)('\xb1'),
             (uint8_t)('\xea'),
             (uint8_t)('\x92'),

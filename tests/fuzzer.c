@@ -3181,6 +3181,31 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : check compression mem usage monotonicity over srcSize : ", testNb++);
+    {
+        size_t const kSizeIncrement = 2 KB;
+        int level = -3;
+
+        for (; level <= ZSTD_maxCLevel(); ++level) {
+            size_t dictSize = 0;
+            for (; dictSize <= 256 KB; dictSize += 8 * kSizeIncrement) {
+                size_t srcSize = 2 KB;
+                size_t prevCCtxSize = 0;
+                for (; srcSize < 300 KB; srcSize += kSizeIncrement) {
+                    ZSTD_compressionParameters const cParams = ZSTD_getCParams(level, srcSize, dictSize);
+                    size_t const cctxSize = ZSTD_estimateCCtxSize_usingCParams(cParams);
+                    if (cctxSize < prevCCtxSize || ZSTD_isError(cctxSize)) {
+                        DISPLAYLEVEL(3, "error! level: %d dictSize: %zu srcSize: %zu cctx size: %zu, prevsize: %zu\n",
+                                     level, dictSize, srcSize, cctxSize, prevCCtxSize);
+                        goto _output_error;
+                    }
+                    prevCCtxSize = cctxSize;
+                }
+            }
+        }
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
 #endif
 
 _end:

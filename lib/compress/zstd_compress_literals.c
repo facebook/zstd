@@ -117,7 +117,7 @@ size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
         }
     }
 
-    if ((cLitSize==0) | (cLitSize >= srcSize - minGain) | ERR_isError(cLitSize)) {
+    if ((cLitSize==0) || (cLitSize >= srcSize - minGain) || ERR_isError(cLitSize)) {
         ZSTD_memcpy(nextHuf, prevHuf, sizeof(*prevHuf));
         return ZSTD_noCompressLiterals(dst, dstCapacity, src, srcSize);
     }

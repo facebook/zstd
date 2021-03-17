@@ -310,6 +310,11 @@ size_t FSE_decompress_wksp(void* dst, size_t dstCapacity, const void* cSrc, size
     return FSE_decompress_wksp_bmi2(dst, dstCapacity, cSrc, cSrcSize, maxLog, workSpace, wkspSize, /* bmi2 */ 0);
 }
 
+typedef struct {
+    short count[FSE_MAX_SYMBOL_VALUE + 1];
+} FSE_NormalizedCount;
+
+
 FORCE_INLINE_TEMPLATE size_t FSE_decompress_wksp_body(
         void* dst, size_t dstCapacity,
         const void* cSrc, size_t cSrcSize,
@@ -320,16 +325,15 @@ FORCE_INLINE_TEMPLATE size_t FSE_decompress_wksp_body(
     const BYTE* ip = istart;
     unsigned tableLog;
     unsigned maxSymbolValue = FSE_MAX_SYMBOL_VALUE;
-    short* counting = (short*) workSpace;
-    size_t const countingSize = sizeof(short) * (FSE_MAX_SYMBOL_VALUE + 1);
-    FSE_DTable* const dtable = (FSE_DTable*)(void*)((BYTE*)workSpace + countingSize);
+    FSE_NormalizedCount* const ncount = (FSE_NormalizedCount*)workSpace;
+    FSE_DTable* const dtable = (FSE_DTable*)(void*)((BYTE*)workSpace + sizeof(*ncount));
 
     DEBUG_STATIC_ASSERT((FSE_MAX_SYMBOL_VALUE + 1) % 2 == 0);
-    if (wkspSize < countingSize) return ERROR(GENERIC);
+    if (wkspSize < sizeof(*ncount)) return ERROR(GENERIC);
 
     /* normal FSE decoding mode */
     {
-        size_t const NCountLength = FSE_readNCount_bmi2(counting, &maxSymbolValue, &tableLog, istart, cSrcSize, bmi2);
+        size_t const NCountLength = FSE_readNCount_bmi2(ncount->count, &maxSymbolValue, &tableLog, istart, cSrcSize, bmi2);
         if (FSE_isError(NCountLength)) return NCountLength;
         if (tableLog > maxLog) return ERROR(tableLog_tooLarge);
         assert(NCountLength <= cSrcSize);
@@ -340,9 +344,9 @@ FORCE_INLINE_TEMPLATE size_t FSE_decompress_wksp_body(
     if (FSE_DECOMPRESS_WKSP_SIZE(tableLog, maxSymbolValue) > wkspSize) return ERROR(tableLog_tooLarge);
     workSpace = dtable + FSE_DTABLE_SIZE_U32(tableLog);
     wkspSize -= FSE_DTABLE_SIZE(tableLog);
-    wkspSize -= countingSize;
+    wkspSize -= sizeof(*ncount);
 
-    CHECK_F( FSE_buildDTable_internal(dtable, counting, maxSymbolValue, tableLog, workSpace, wkspSize) );
+    CHECK_F( FSE_buildDTable_internal(dtable, ncount->count, maxSymbolValue, tableLog, workSpace, wkspSize) );
 
     {
         const void* ptr = dtable;

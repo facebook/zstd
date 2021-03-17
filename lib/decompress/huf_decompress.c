@@ -620,7 +620,7 @@ typedef struct {
     U32 rankStart0[HUF_TABLELOG_MAX + 2];
     sortedSymbol_t sortedSymbol[HUF_SYMBOLVALUE_MAX + 1];
     BYTE weightList[HUF_SYMBOLVALUE_MAX + 1];
-    U32 wksp[HUF_READ_STATS_WORKSPACE_SIZE_U32];
+    U32 calleeWksp[HUF_READ_STATS_WORKSPACE_SIZE_U32];
 } HUF_ReadDTableX2_Workspace;
 
 size_t HUF_readDTableX2_wksp(HUF_DTable* DTable,
@@ -635,9 +635,9 @@ size_t HUF_readDTableX2_wksp(HUF_DTable* DTable,
     HUF_DEltX2* const dt = (HUF_DEltX2*)dtPtr;
     U32 *rankStart;
 
-    HUF_ReadDTableX2_Workspace* wksp = (HUF_ReadDTableX2_Workspace*)workSpace;
+    HUF_ReadDTableX2_Workspace* const wksp = (HUF_ReadDTableX2_Workspace*)workSpace;
 
-    if (sizeof(*wksp) > wkspSize) return ERROR(tableLog_tooLarge);
+    if (sizeof(*wksp) > wkspSize) return ERROR(GENERIC);
 
     rankStart = wksp->rankStart0 + 1;
     ZSTD_memset(wksp->rankStats, 0, sizeof(wksp->rankStats));
@@ -647,7 +647,7 @@ size_t HUF_readDTableX2_wksp(HUF_DTable* DTable,
     if (maxTableLog > HUF_TABLELOG_MAX) return ERROR(tableLog_tooLarge);
     /* ZSTD_memset(weightList, 0, sizeof(weightList)); */  /* is not necessary, even though some analyzer complain ... */
 
-    iSize = HUF_readStats_wksp(wksp->weightList, HUF_SYMBOLVALUE_MAX + 1, wksp->rankStats, &nbSymbols, &tableLog, src, srcSize, wksp->wksp, sizeof(wksp->wksp), /* bmi2 */ 0);
+    iSize = HUF_readStats_wksp(wksp->weightList, HUF_SYMBOLVALUE_MAX + 1, wksp->rankStats, &nbSymbols, &tableLog, src, srcSize, wksp->calleeWksp, sizeof(wksp->calleeWksp), /* bmi2 */ 0);
     if (HUF_isError(iSize)) return iSize;
 
     /* check result */
@@ -701,7 +701,7 @@ size_t HUF_readDTableX2_wksp(HUF_DTable* DTable,
                    wksp->sortedSymbol, sizeOfSort,
                    wksp->rankStart0, wksp->rankVal, maxW,
                    tableLog+1,
-                   wksp->wksp, sizeof(wksp->wksp) / sizeof(U32));
+                   wksp->calleeWksp, sizeof(wksp->calleeWksp) / sizeof(U32));
 
     dtd.tableLog = (BYTE)maxTableLog;
     dtd.tableType = 1;

@@ -805,6 +805,8 @@ println "- Dictionary compression roundtrip"
 zstd -f tmp -D tmpDict
 zstd -d tmp.zst -D tmpDict -fo result
 $DIFF "$TESTFILE" result
+println "- Dictionary compression with hlog < clog"
+zstd -6f tmp -D tmpDict --zstd=clog=25,hlog=23
 println "- Dictionary compression with btlazy2 strategy"
 zstd -f tmp -D tmpDict --zstd=strategy=6
 zstd -d tmp.zst -D tmpDict -fo result

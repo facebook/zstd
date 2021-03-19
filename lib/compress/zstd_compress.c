@@ -1783,7 +1783,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             needsIndexReset,
             ZSTD_resetTarget_CCtx), "");
 
-        ZSTD_cwksp_finalize(ws);
+        FORWARD_IF_ERROR(ZSTD_cwksp_finalize(ws), "failed ZSTD_cwksp_finalize() alloc!");
         assert(ZSTD_cwksp_used(ws) == neededSpace);
 
         zc->initialized = 1;

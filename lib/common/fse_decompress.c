@@ -311,8 +311,9 @@ size_t FSE_decompress_wksp(void* dst, size_t dstCapacity, const void* cSrc, size
 }
 
 typedef struct {
-    short count[FSE_MAX_SYMBOL_VALUE + 1];
-} FSE_NormalizedCount;
+    short ncount[FSE_MAX_SYMBOL_VALUE + 1];
+    FSE_DTable dtable[1]; /* Dynamically sized */
+} FSE_DecompressWksp;
 
 
 FORCE_INLINE_TEMPLATE size_t FSE_decompress_wksp_body(
@@ -325,15 +326,14 @@ FORCE_INLINE_TEMPLATE size_t FSE_decompress_wksp_body(
     const BYTE* ip = istart;
     unsigned tableLog;
     unsigned maxSymbolValue = FSE_MAX_SYMBOL_VALUE;
-    FSE_NormalizedCount* const ncount = (FSE_NormalizedCount*)workSpace;
-    FSE_DTable* const dtable = (FSE_DTable*)(void*)((BYTE*)workSpace + sizeof(*ncount));
+    FSE_DecompressWksp* const wksp = (FSE_DecompressWksp*)workSpace;
 
     DEBUG_STATIC_ASSERT((FSE_MAX_SYMBOL_VALUE + 1) % 2 == 0);
-    if (wkspSize < sizeof(*ncount)) return ERROR(GENERIC);
+    if (wkspSize < sizeof(*wksp)) return ERROR(GENERIC);
 
     /* normal FSE decoding mode */
     {
-        size_t const NCountLength = FSE_readNCount_bmi2(ncount->count, &maxSymbolValue, &tableLog, istart, cSrcSize, bmi2);
+        size_t const NCountLength = FSE_readNCount_bmi2(wksp->ncount, &maxSymbolValue, &tableLog, istart, cSrcSize, bmi2);
         if (FSE_isError(NCountLength)) return NCountLength;
         if (tableLog > maxLog) return ERROR(tableLog_tooLarge);
         assert(NCountLength <= cSrcSize);
@@ -342,20 +342,19 @@ FORCE_INLINE_TEMPLATE size_t FSE_decompress_wksp_body(
     }
 
     if (FSE_DECOMPRESS_WKSP_SIZE(tableLog, maxSymbolValue) > wkspSize) return ERROR(tableLog_tooLarge);
-    workSpace = dtable + FSE_DTABLE_SIZE_U32(tableLog);
-    wkspSize -= FSE_DTABLE_SIZE(tableLog);
-    wkspSize -= sizeof(*ncount);
+    workSpace = wksp->dtable + FSE_DTABLE_SIZE_U32(tableLog);
+    wkspSize -= sizeof(*wksp) + FSE_DTABLE_SIZE(tableLog);
 
-    CHECK_F( FSE_buildDTable_internal(dtable, ncount->count, maxSymbolValue, tableLog, workSpace, wkspSize) );
+    CHECK_F( FSE_buildDTable_internal(wksp->dtable, wksp->ncount, maxSymbolValue, tableLog, workSpace, wkspSize) );
 
     {
-        const void* ptr = dtable;
+        const void* ptr = wksp->dtable;
         const FSE_DTableHeader* DTableH = (const FSE_DTableHeader*)ptr;
         const U32 fastMode = DTableH->fastMode;
 
         /* select fast mode (static) */
-        if (fastMode) return FSE_decompress_usingDTable_generic(dst, dstCapacity, ip, cSrcSize, dtable, 1);
-        return FSE_decompress_usingDTable_generic(dst, dstCapacity, ip, cSrcSize, dtable, 0);
+        if (fastMode) return FSE_decompress_usingDTable_generic(dst, dstCapacity, ip, cSrcSize, wksp->dtable, 1);
+        return FSE_decompress_usingDTable_generic(dst, dstCapacity, ip, cSrcSize, wksp->dtable, 0);
     }
 }
 

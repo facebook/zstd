@@ -1322,8 +1322,8 @@ ZSTD_sizeof_matchState(const ZSTD_compressionParameters* const cParams,
                                 : 0;
     size_t const slackSpace = ZSTD_cwksp_slack_space_required();
 
-    /* tables are guaranteed to be sized in multiples of 64 */
-    ZSTD_STATIC_ASSERT(ZSTD_HASHLOG_MIN >= 6 && ZSTD_WINDOWLOG_MIN >= 6 && ZSTD_CHAINLOG_MIN >= 6);
+    /* tables are guaranteed to be sized in multiples of 64 bytes (or 16 uint32_t) */
+    ZSTD_STATIC_ASSERT(ZSTD_HASHLOG_MIN >= 4 && ZSTD_WINDOWLOG_MIN >= 4 && ZSTD_CHAINLOG_MIN >= 4);
 
     DEBUGLOG(4, "chainSize: %u - hSize: %u - h3Size: %u",
                 (U32)chainSize, (U32)hSize, (U32)h3Size);
@@ -1784,10 +1784,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             ZSTD_resetTarget_CCtx), "");
 
         ZSTD_cwksp_finalize(ws);
-        /* Due to alignment, when reusing a workspace, we can actually consume
-         * up to 3 extra bytes for alignment. See the comments in zstd_cwksp.h
-         */
-        assert(ZSTD_cwksp_used(ws) >= neededSpace && ZSTD_cwksp_used(ws) <= neededSpace + 3);
+        assert(ZSTD_cwksp_used(ws) == neededSpace);
 
         zc->initialized = 1;
 

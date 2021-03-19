@@ -199,6 +199,8 @@ MEM_STATIC size_t ZSTD_cwksp_align(size_t size, size_t const align) {
  * Since tables aren't currently redzoned, you don't need to call through this
  * to figure out how much space you need for the matchState tables. Everything
  * else is though.
+ * 
+ * Do not use for sizing aligned buffers. Instead, use ZSTD_cwksp_aligned_alloc_size().
  */
 MEM_STATIC size_t ZSTD_cwksp_alloc_size(size_t size) {
     if (size == 0)
@@ -237,11 +239,13 @@ MEM_STATIC size_t ZSTD_cwksp_slack_space_required(void) {
 }
 
 /**
- * Return the number of additional bytes required to align a pointer to the given number of bytes
+ * Return the number of additional bytes required to align a pointer to the given number of bytes.
+ * alignBytes must be a power of two.
  */
 MEM_STATIC size_t ZSTD_cwksp_bytes_to_align_ptr(void* ptr, const size_t alignBytes) {
     size_t const alignBytesMask = alignBytes - 1;
     size_t const bytes = (alignBytes - ((size_t)ptr & (alignBytesMask))) & alignBytesMask;
+    assert((alignBytes & alignBytesMask) == 0);
     return bytes;
 }
 
@@ -266,11 +270,6 @@ MEM_STATIC void ZSTD_cwksp_internal_advance_phase(
             alloc = (BYTE*)ws->allocStart - bytesToAlign;
             ws->alignedExtraAlignmentBytes = ZSTD_CWKSP_ALIGNMENT_BYTES - bytesToAlign;
             DEBUGLOG(5, "reserving initial aligned alignment addtl space: %zu", bytesToAlign);
-            if (bytesToAlign == 0) {
-                /* Bail out early if the ptr is already aligned */
-                ws->phase = phase;
-                return;
-            }
 #if ZSTD_ADDRESS_SANITIZER && !defined (ZSTD_ASAN_DONT_POISON_WORKSPACE)
             alloc = (BYTE*)alloc - 2 * ZSTD_CWKSP_ASAN_REDZONE_SIZE;
 #endif
@@ -293,34 +292,29 @@ MEM_STATIC void ZSTD_cwksp_internal_advance_phase(
             void* alloc = ws->objectEnd;
             size_t const bytesToAlign = ZSTD_cwksp_bytes_to_align_ptr(alloc, ZSTD_CWKSP_ALIGNMENT_BYTES);
             void* end = (BYTE*)alloc + bytesToAlign;
+            if (!ws->tableExtraAlignmentBytes) {
+                /* We should only perform these ASAN modifications when the cwksp has been re-created */
 #if ZSTD_ADDRESS_SANITIZER && !defined (ZSTD_ASAN_DONT_POISON_WORKSPACE)
                 end = (BYTE *)end + 2 * ZSTD_CWKSP_ASAN_REDZONE_SIZE;
+                alloc = (BYTE *)alloc + ZSTD_CWKSP_ASAN_REDZONE_SIZE;
+                if (ws->isStatic == ZSTD_cwksp_dynamic_alloc) {
+                    __asan_unpoison_memory_region(alloc, bytesToAlign);
+                }
 #endif
-            if (!ws->tableExtraAlignmentBytes) {
                 /* The alignment of tables only changes when objects are reallocated/ZSTD_cwksp_init()
                  * gets called. So, if we are reusing a wksp with already-aligned tables, we should
                  * not allocate 64 bytes at the end, and should only allocate the pre-existing value of 
                  * ws->tableExtraAlignmentBytes when calling ZSTD_cwksp_finalize().
                  * 
-                 * So, we only adjust ws->tableExtraAlignmentBytes if it is 0.
+                 * So, we only adjust ws->tableExtraAlignmentBytes if it is 0, i.e. the cwksp has
+                 * been re-created.
                  */
                 ws->tableExtraAlignmentBytes = ZSTD_CWKSP_ALIGNMENT_BYTES - bytesToAlign;
             }
             DEBUGLOG(5, "reserving initial table alignment addtl space: %zu", bytesToAlign);
-            if (bytesToAlign == 0) {
-                /* Bail out early if the ptr is already aligned */
-                ws->phase = phase;
-                return;
-            }
             ws->objectEnd = end;
             ws->tableEnd = end;
             ws->tableValidEnd = end;
-#if ZSTD_ADDRESS_SANITIZER && !defined (ZSTD_ASAN_DONT_POISON_WORKSPACE)
-            end = (BYTE *)alloc + ZSTD_CWKSP_ASAN_REDZONE_SIZE;
-            if (ws->isStatic == ZSTD_cwksp_dynamic_alloc) {
-                __asan_unpoison_memory_region(alloc, bytesToAlign);
-            }
-#endif
         }
         ws->phase = phase;
         ZSTD_cwksp_assert_internal_consistency(ws);
@@ -382,21 +376,8 @@ MEM_STATIC void* ZSTD_cwksp_reserve_internal(
 MEM_STATIC void ZSTD_cwksp_finalize(ZSTD_cwksp* ws) {
     DEBUGLOG(5, "cwksp: finalizing: %zu table alignment bytes and %zu aligned alignment bytes",
              ws->tableExtraAlignmentBytes, ws->alignedExtraAlignmentBytes);
-    if (ws->tableExtraAlignmentBytes == ZSTD_CWKSP_ALIGNMENT_BYTES) {
-        /* Due to ASAN fixed-size allocation size increase, we must always
-           perform two allocations that sum to 64 bytes. */
-        ZSTD_cwksp_reserve_internal(ws, ws->tableExtraAlignmentBytes/2, ZSTD_cwksp_alloc_tables);
-        ZSTD_cwksp_reserve_internal(ws, ws->tableExtraAlignmentBytes/2, ZSTD_cwksp_alloc_tables);
-    } else {
-        ZSTD_cwksp_reserve_internal(ws, ws->tableExtraAlignmentBytes, ZSTD_cwksp_alloc_tables);
-    }
-
-    if (ws->alignedExtraAlignmentBytes == ZSTD_CWKSP_ALIGNMENT_BYTES) {
-        ZSTD_cwksp_reserve_internal(ws, ws->alignedExtraAlignmentBytes/2, ZSTD_cwksp_alloc_tables);
-        ZSTD_cwksp_reserve_internal(ws, ws->alignedExtraAlignmentBytes/2, ZSTD_cwksp_alloc_tables);
-    } else {
-        ZSTD_cwksp_reserve_internal(ws, ws->alignedExtraAlignmentBytes, ZSTD_cwksp_alloc_tables);
-    }
+    ZSTD_cwksp_reserve_internal(ws, ws->tableExtraAlignmentBytes, ZSTD_cwksp_alloc_tables);
+    ZSTD_cwksp_reserve_internal(ws, ws->alignedExtraAlignmentBytes, ZSTD_cwksp_alloc_tables);
     ZSTD_cwksp_assert_internal_consistency(ws);
     DEBUGLOG(3, "wksp: finished allocating, %zd bytes remain available", ZSTD_cwksp_available_space(ws));
 }

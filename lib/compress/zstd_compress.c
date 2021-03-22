@@ -1390,8 +1390,15 @@ size_t ZSTD_estimateCCtxSize_usingCParams(ZSTD_compressionParameters cParams)
 
 static size_t ZSTD_estimateCCtxSize_internal(int compressionLevel)
 {
-    ZSTD_compressionParameters const cParams = ZSTD_getCParams_internal(compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, 0, ZSTD_cpm_noAttachDict);
-    return ZSTD_estimateCCtxSize_usingCParams(cParams);
+    int tier = 0;
+    size_t largestSize = 0;
+    static const unsigned long long srcSizeTiers[4] = {16 KB, 128 KB, 256 KB, ZSTD_CONTENTSIZE_UNKNOWN};
+    for (; tier < 4; ++tier) {
+        /* Choose the set of cParams for a given level across all srcSizes that give the largest cctxSize */
+        ZSTD_compressionParameters const cParams = ZSTD_getCParams_internal(compressionLevel, srcSizeTiers[tier], 0, ZSTD_cpm_noAttachDict);
+        largestSize = MAX(ZSTD_estimateCCtxSize_usingCParams(cParams), largestSize);
+    }
+    return largestSize;
 }
 
 size_t ZSTD_estimateCCtxSize(int compressionLevel)
@@ -1399,6 +1406,7 @@ size_t ZSTD_estimateCCtxSize(int compressionLevel)
     int level;
     size_t memBudget = 0;
     for (level=MIN(compressionLevel, 1); level<=compressionLevel; level++) {
+        /* Ensure monotonically increasing memory usage as compression level increases */
         size_t const newMB = ZSTD_estimateCCtxSize_internal(level);
         if (newMB > memBudget) memBudget = newMB;
     }

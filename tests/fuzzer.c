@@ -3181,6 +3181,48 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : check compression mem usage monotonicity over levels for estimateCCtxSize() : ", testNb++);
+    {
+        int level = 1;
+        size_t prevSize = 0;
+        for (; level < ZSTD_maxCLevel(); ++level) {
+            size_t const currSize = ZSTD_estimateCCtxSize(level);
+            if (prevSize > currSize) {
+                DISPLAYLEVEL(3, "Error! previous cctx size: %zu at level: %d is larger than current cctx size: %zu at level: %d",
+                             prevSize, level-1, currSize, level);
+                goto _output_error;
+            }
+            prevSize = currSize;
+        }
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : check estimateCCtxSize() always larger or equal to ZSTD_estimateCCtxSize_usingCParams() : ", testNb++);
+    {
+        size_t const kSizeIncrement = 2 KB;
+        int level = -3;
+
+        for (; level <= ZSTD_maxCLevel(); ++level) {
+            size_t dictSize = 0;
+            for (; dictSize <= 256 KB; dictSize += 8 * kSizeIncrement) {
+                size_t srcSize = 2 KB;
+                for (; srcSize < 300 KB; srcSize += kSizeIncrement) {
+                    ZSTD_compressionParameters const cParams = ZSTD_getCParams(level, srcSize, dictSize);
+                    size_t const cctxSizeUsingCParams = ZSTD_estimateCCtxSize_usingCParams(cParams);
+                    size_t const cctxSizeUsingLevel = ZSTD_estimateCCtxSize(level);
+                    if (cctxSizeUsingLevel < cctxSizeUsingCParams
+                     || ZSTD_isError(cctxSizeUsingCParams)
+                     || ZSTD_isError(cctxSizeUsingLevel)) {
+                        DISPLAYLEVEL(3, "error! l: %d dict: %zu srcSize: %zu cctx size cpar: %zu, cctx size level: %zu\n",
+                                     level, dictSize, srcSize, cctxSizeUsingCParams, cctxSizeUsingLevel);
+                        goto _output_error;
+                    }
+                }
+            }
+        }
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
 #endif
 
 _end:

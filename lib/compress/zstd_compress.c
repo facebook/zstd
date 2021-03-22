@@ -3327,6 +3327,7 @@ static size_t ZSTD_compressBlock_splitBlock_internal(ZSTD_CCtx* zc, void* dst, s
     seqStore_t nextSeqStore;
     seqStore_t currSeqStore;
     U32 canEmitRLEorNoCompress = 1;
+    const size_t dstCapacityInitial = dstCapacity;
 
     DEBUGLOG(5, "ZSTD_compressBlock_splitBlock_internal (dstCapacity=%u, dictLimit=%u, nextToUpdate=%u)",
                 (unsigned)dstCapacity, (unsigned)zc->blockState.matchState.window.dictLimit,
@@ -3370,6 +3371,14 @@ static size_t ZSTD_compressBlock_splitBlock_internal(ZSTD_CCtx* zc, void* dst, s
         cSize += cSizeChunk;
         currSeqStore = nextSeqStore;
     }
+
+    if (cSize > ZSTD_BLOCKSIZE_MAX + ZSTD_blockHeaderSize) {
+        /* If too large, recompress the original block to avoid any chance of a single block exceeding ZSTD_BLOCKSIZE_MAX */
+        cSize = ZSTD_compressSequences_singleBlock(zc, &zc->seqStore, (BYTE*)dst, dstCapacityInitial, (const BYTE*)src, blockSize, lastBlock, 1);
+        FORWARD_IF_ERROR(cSize, "Compressing single block from splitBlock_internal() fallback failed!");
+        DEBUGLOG(5, "ZSTD_compressBlock_splitBlock_internal: Compressed split block too large, recompressed");
+    }
+    assert(cSize <= ZSTD_BLOCKSIZE_MAX + ZSTD_blockHeaderSize);
     return cSize;
 }
 

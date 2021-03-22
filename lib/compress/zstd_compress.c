@@ -211,6 +211,14 @@ static U32 ZSTD_CParams_shouldEnableLdm(const ZSTD_compressionParameters* const 
     return cParams->strategy >= ZSTD_btopt && cParams->windowLog >= 27;
 }
 
+/* Returns 1 if compression parameters are such that we should
+ * enable blockSplitter (wlog >= 17, strategy >= btopt).
+ * Returns 0 otherwise.
+ */
+static U32 ZSTD_CParams_useBlockSplitter(const ZSTD_compressionParameters* const cParams) {
+    return cParams->strategy >= ZSTD_btopt && cParams->windowLog >= 17;
+}
+
 static ZSTD_CCtx_params ZSTD_makeCCtxParamsFromCParams(
         ZSTD_compressionParameters cParams)
 {
@@ -219,6 +227,7 @@ static ZSTD_CCtx_params ZSTD_makeCCtxParamsFromCParams(
     ZSTD_CCtxParams_init(&cctxParams, ZSTD_CLEVEL_DEFAULT);
     cctxParams.cParams = cParams;
 
+    /* Adjust advanced params according to cParams */
     if (ZSTD_CParams_shouldEnableLdm(&cParams)) {
         DEBUGLOG(4, "ZSTD_makeCCtxParamsFromCParams(): Including LDM into cctx params");
         cctxParams.ldmParams.enableLdm = 1;
@@ -226,6 +235,11 @@ static ZSTD_CCtx_params ZSTD_makeCCtxParamsFromCParams(
         ZSTD_ldm_adjustParameters(&cctxParams.ldmParams, &cParams);
         assert(cctxParams.ldmParams.hashLog >= cctxParams.ldmParams.bucketSizeLog);
         assert(cctxParams.ldmParams.hashRateLog < 32);
+    }
+
+    if (ZSTD_CParams_useBlockSplitter(&cParams)) {
+        DEBUGLOG(4, "ZSTD_makeCCtxParamsFromCParams(): Including block splitting into cctx params");
+        cctxParams.splitBlocks = 1;
     }
 
     assert(!ZSTD_checkCParams(cParams));
@@ -2192,13 +2206,13 @@ static int ZSTD_useTargetCBlockSize(const ZSTD_CCtx_params* cctxParams)
     return (cctxParams->targetCBlockSize != 0);
 }
 
-/* ZSTD_useBlockSplitting():
+/* ZSTD_blockSplitterEnabled():
  * Returns if block splitting param is being used
  * If used, compression will do best effort to split a block in order to improve compression ratio.
  * Returns 1 if true, 0 otherwise. */
-static int ZSTD_useBlockSplitting(ZSTD_CCtx_params* cctxParams)
+static int ZSTD_blockSplitterEnabled(ZSTD_CCtx_params* cctxParams)
 {
-    DEBUGLOG(5, "ZSTD_useBlockSplitting(splitBlocks=%d)", cctxParams->splitBlocks);
+    DEBUGLOG(5, "ZSTD_blockSplitterEnabled(splitBlocks=%d)", cctxParams->splitBlocks);
     return (cctxParams->splitBlocks != 0);
 }
 
@@ -3602,10 +3616,10 @@ static size_t ZSTD_compress_frameChunk(ZSTD_CCtx* cctx,
                 FORWARD_IF_ERROR(cSize, "ZSTD_compressBlock_targetCBlockSize failed");
                 assert(cSize > 0);
                 assert(cSize <= blockSize + ZSTD_blockHeaderSize);
-            } else if (ZSTD_useBlockSplitting(&cctx->appliedParams)) {
+            } else if (ZSTD_blockSplitterEnabled(&cctx->appliedParams)) {
                 cSize = ZSTD_compressBlock_splitBlock(cctx, op, dstCapacity, ip, blockSize, lastBlock);
                 FORWARD_IF_ERROR(cSize, "ZSTD_compressBlock_splitBlock failed");
-                assert(cSize > 0);
+                assert(cSize > 0 || cctx->seqCollector.collectSequences == 1);
             } else {
                 cSize = ZSTD_compressBlock_internal(cctx,
                                         op+ZSTD_blockHeaderSize, dstCapacity-ZSTD_blockHeaderSize,
@@ -5143,6 +5157,11 @@ static size_t ZSTD_CCtx_init_compressStream2(ZSTD_CCtx* cctx,
         /* Enable LDM by default for optimal parser and window size >= 128MB */
         DEBUGLOG(4, "LDM enabled by default (window size >= 128MB, strategy >= btopt)");
         params.ldmParams.enableLdm = 1;
+    }
+
+    if (ZSTD_CParams_useBlockSplitter(&params.cParams)) {
+        DEBUGLOG(4, "Block splitter enabled by default (window size >= 128K, strategy >= btopt)");
+        params.splitBlocks = 1;
     }
 
 #ifdef ZSTD_MULTITHREAD

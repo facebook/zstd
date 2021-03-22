@@ -2348,10 +2348,12 @@ ZSTD_buildSequencesStatistics(seqStore_t* seqStorePtr, size_t nbSeq, size_t* las
     return stats;
 }
 
-/* ZSTD_entropyCompressSequences_internal():
- * actually compresses both literals and sequences */
+/* ZSTD_entropyCompressSeqStore_internal():
+ * compresses both literals and sequences
+ * Returns compressed size of block, or a zstd error.
+ */
 MEM_STATIC size_t
-ZSTD_entropyCompressSequences_internal(seqStore_t* seqStorePtr,
+ZSTD_entropyCompressSeqStore_internal(seqStore_t* seqStorePtr,
                           const ZSTD_entropyCTables_t* prevEntropy,
                                 ZSTD_entropyCTables_t* nextEntropy,
                           const ZSTD_CCtx_params* cctxParams,
@@ -2378,7 +2380,7 @@ ZSTD_entropyCompressSequences_internal(seqStore_t* seqStorePtr,
     entropyWorkspace = count + (MaxSeq + 1);
     entropyWkspSize -= (MaxSeq + 1) * sizeof(*count);
 
-    DEBUGLOG(4, "ZSTD_entropyCompressSequences_internal (nbSeq=%zu)", nbSeq);
+    DEBUGLOG(4, "ZSTD_entropyCompressSeqStore_internal (nbSeq=%zu)", nbSeq);
     ZSTD_STATIC_ASSERT(HUF_WORKSPACE_SIZE >= (1<<MAX(MLFSELog,LLFSELog)));
     assert(entropyWkspSize >= HUF_WORKSPACE_SIZE);
 
@@ -2464,7 +2466,7 @@ ZSTD_entropyCompressSequences_internal(seqStore_t* seqStorePtr,
 }
 
 MEM_STATIC size_t
-ZSTD_entropyCompressSequences(seqStore_t* seqStorePtr,
+ZSTD_entropyCompressSeqStore(seqStore_t* seqStorePtr,
                        const ZSTD_entropyCTables_t* prevEntropy,
                              ZSTD_entropyCTables_t* nextEntropy,
                        const ZSTD_CCtx_params* cctxParams,
@@ -2473,7 +2475,7 @@ ZSTD_entropyCompressSequences(seqStore_t* seqStorePtr,
                              void* entropyWorkspace, size_t entropyWkspSize,
                              int bmi2, U32 const canEmitUncompressed)
 {
-    size_t const cSize = ZSTD_entropyCompressSequences_internal(
+    size_t const cSize = ZSTD_entropyCompressSeqStore_internal(
                             seqStorePtr, prevEntropy, nextEntropy, cctxParams,
                             dst, dstCapacity,
                             entropyWorkspace, entropyWkspSize, bmi2);
@@ -2484,14 +2486,14 @@ ZSTD_entropyCompressSequences(seqStore_t* seqStorePtr,
     if (canEmitUncompressed) {
         if ((cSize == ERROR(dstSize_tooSmall)) & (srcSize <= dstCapacity))
             return 0;  /* block not compressed */
-        FORWARD_IF_ERROR(cSize, "ZSTD_entropyCompressSequences_internal failed");
+        FORWARD_IF_ERROR(cSize, "ZSTD_entropyCompressSeqStore_internal failed");
 
         /* Check compressibility */
         {   size_t const maxCSize = srcSize - ZSTD_minGain(srcSize, cctxParams->cParams.strategy);
             if (cSize >= maxCSize) return 0;  /* block not compressed */
         }
     }
-    DEBUGLOG(4, "ZSTD_entropyCompressSequences() cSize: %zu", cSize);
+    DEBUGLOG(4, "ZSTD_entropyCompressSeqStore() cSize: %zu", cSize);
     return cSize;
 }
 
@@ -3168,12 +3170,12 @@ static void ZSTD_deriveSeqStoreChunk(seqStore_t* resultSeqStore,
     resultSeqStore->ofCode += startIdx;
 }
 
-/* ZSTD_compressSequences_singleBlock():
+/* ZSTD_compressSeqStore_singleBlock():
  * Compresses a seqStore into a block with a block header, into the buffer dst.
  * 
  * Returns the total size of that block (including header) or a ZSTD error code.
  */
-static size_t ZSTD_compressSequences_singleBlock(ZSTD_CCtx* zc, seqStore_t* seqStore,
+static size_t ZSTD_compressSeqStore_singleBlock(ZSTD_CCtx* zc, seqStore_t* seqStore,
                                                  void* dst, size_t dstCapacity,
                                                  const void* src, size_t srcSize,
                                                  U32 lastBlock, U32 canEmitRLEorNoCompress) {
@@ -3181,14 +3183,14 @@ static size_t ZSTD_compressSequences_singleBlock(ZSTD_CCtx* zc, seqStore_t* seqS
     BYTE* op = (BYTE*)dst;
     const BYTE* ip = (const BYTE*)src;
     size_t cSize;
-    size_t cSeqsSize = ZSTD_entropyCompressSequences(seqStore,
+    size_t cSeqsSize = ZSTD_entropyCompressSeqStore(seqStore,
                 &zc->blockState.prevCBlock->entropy, &zc->blockState.nextCBlock->entropy,
                 &zc->appliedParams,
                 op + ZSTD_blockHeaderSize, dstCapacity - ZSTD_blockHeaderSize,
                 srcSize,
                 zc->entropyWorkspace, ENTROPY_WORKSPACE_SIZE /* statically allocated in resetCCtx */,
                 zc->bmi2, canEmitRLEorNoCompress);
-    FORWARD_IF_ERROR(cSeqsSize, "ZSTD_entropyCompressSequences failed!");
+    FORWARD_IF_ERROR(cSeqsSize, "ZSTD_entropyCompressSeqStore failed!");
 
     if (!zc->isFirstBlock &&
         cSeqsSize < rleMaxLength &&
@@ -3334,7 +3336,7 @@ static size_t ZSTD_compressBlock_splitBlock_internal(ZSTD_CCtx* zc, void* dst, s
                 (unsigned)zc->blockState.matchState.nextToUpdate);
 
     if (numSplits == 0) {
-        size_t cSizeSingleBlock = ZSTD_compressSequences_singleBlock(zc, &zc->seqStore, op, dstCapacity, ip, blockSize, lastBlock, 1);
+        size_t cSizeSingleBlock = ZSTD_compressSeqStore_singleBlock(zc, &zc->seqStore, op, dstCapacity, ip, blockSize, lastBlock, 1);
         FORWARD_IF_ERROR(cSizeSingleBlock, "Compressing single block from splitBlock_internal() failed!");
         DEBUGLOG(5, "ZSTD_compressBlock_splitBlock_internal: No splits");
         return cSizeSingleBlock;
@@ -3360,7 +3362,7 @@ static size_t ZSTD_compressBlock_splitBlock_internal(ZSTD_CCtx* zc, void* dst, s
             }
         }
 
-        cSizeChunk = ZSTD_compressSequences_singleBlock(zc, &currSeqStore, op, dstCapacity, ip, srcBytes, lastBlockActual, canEmitRLEorNoCompress);
+        cSizeChunk = ZSTD_compressSeqStore_singleBlock(zc, &currSeqStore, op, dstCapacity, ip, srcBytes, lastBlockActual, canEmitRLEorNoCompress);
         DEBUGLOG(5, "Estimated size: %zu actual size: %zu", ZSTD_buildEntropyStatisticsAndEstimateSubBlockSize(&currSeqStore, zc), cSizeChunk);
         FORWARD_IF_ERROR(cSizeChunk, "Compressing chunk failed!");
         ZSTD_memcpy(zc->blockState.nextCBlock->rep, zc->blockState.prevCBlock->rep, sizeof(U32)*ZSTD_REP_NUM);
@@ -3374,7 +3376,7 @@ static size_t ZSTD_compressBlock_splitBlock_internal(ZSTD_CCtx* zc, void* dst, s
 
     if (cSize > ZSTD_BLOCKSIZE_MAX + ZSTD_blockHeaderSize) {
         /* If too large, recompress the original block to avoid any chance of a single block exceeding ZSTD_BLOCKSIZE_MAX */
-        cSize = ZSTD_compressSequences_singleBlock(zc, &zc->seqStore, (BYTE*)dst, dstCapacityInitial, (const BYTE*)src, blockSize, lastBlock, 1);
+        cSize = ZSTD_compressSeqStore_singleBlock(zc, &zc->seqStore, (BYTE*)dst, dstCapacityInitial, (const BYTE*)src, blockSize, lastBlock, 1);
         FORWARD_IF_ERROR(cSize, "Compressing single block from splitBlock_internal() fallback failed!");
         DEBUGLOG(5, "ZSTD_compressBlock_splitBlock_internal: Compressed split block too large, recompressed");
     }
@@ -3438,7 +3440,7 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
     }
 
     /* encode sequences and literals */
-    cSize = ZSTD_entropyCompressSequences(&zc->seqStore,
+    cSize = ZSTD_entropyCompressSeqStore(&zc->seqStore,
             &zc->blockState.prevCBlock->entropy, &zc->blockState.nextCBlock->entropy,
             &zc->appliedParams,
             dst, dstCapacity,
@@ -5647,7 +5649,7 @@ static size_t ZSTD_compressSequences_internal(ZSTD_CCtx* cctx,
             continue;
         }
 
-        compressedSeqsSize = ZSTD_entropyCompressSequences(&cctx->seqStore,
+        compressedSeqsSize = ZSTD_entropyCompressSeqStore(&cctx->seqStore,
                                 &cctx->blockState.prevCBlock->entropy, &cctx->blockState.nextCBlock->entropy,
                                 &cctx->appliedParams,
                                 op + ZSTD_blockHeaderSize /* Leave space for block header */, dstCapacity - ZSTD_blockHeaderSize,

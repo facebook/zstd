@@ -1576,14 +1576,6 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
         ZSTD_cwksp_mark_tables_dirty(ws);
     }
 
-    ms->hashLog3 = hashLog3;
-
-    ZSTD_invalidateMatchState(ms);
-
-    assert(!ZSTD_cwksp_reserve_failed(ws)); /* check that allocation hasn't already failed */
-
-    ZSTD_cwksp_clear_tables(ws);
-
     /* opt parser space */
     if ((forWho == ZSTD_resetTarget_CCtx) && (cParams->strategy >= ZSTD_btopt)) {
         DEBUGLOG(4, "reserving optimal parser space");
@@ -1594,6 +1586,14 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
         ms->opt.matchTable = (ZSTD_match_t*)ZSTD_cwksp_reserve_aligned(ws, (ZSTD_OPT_NUM+1) * sizeof(ZSTD_match_t));
         ms->opt.priceTable = (ZSTD_optimal_t*)ZSTD_cwksp_reserve_aligned(ws, (ZSTD_OPT_NUM+1) * sizeof(ZSTD_optimal_t));
     }
+
+    ms->hashLog3 = hashLog3;
+
+    ZSTD_invalidateMatchState(ms);
+
+    assert(!ZSTD_cwksp_reserve_failed(ws)); /* check that allocation hasn't already failed */
+
+    ZSTD_cwksp_clear_tables(ws);
 
     DEBUGLOG(4, "reserving table space");
     /* table Space */
@@ -1783,8 +1783,10 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             needsIndexReset,
             ZSTD_resetTarget_CCtx), "");
 
-        FORWARD_IF_ERROR(ZSTD_cwksp_finalize(ws), "failed ZSTD_cwksp_finalize() alloc!");
-        assert(ZSTD_cwksp_used(ws) == neededSpace);
+        /* Due to alignment, when reusing a workspace, we can actually consume fewer or more bytes
+         * than neededSpace. See comments in zstd_cwksp.h for details.
+         */
+        assert(ZSTD_cwksp_used(ws) >= neededSpace - 63 && ZSTD_cwksp_used(ws) <= neededSpace + 63);
 
         zc->initialized = 1;
 

@@ -1,5 +1,5 @@
 .
-.TH "ZSTD" "1" "December 2020" "zstd 1.4.8" "User Commands"
+.TH "ZSTD" "1" "March 2021" "zstd 1.4.9" "User Commands"
 .
 .SH "NAME"
 \fBzstd\fR \- zstd, zstdmt, unzstd, zstdcat \- Compress or decompress \.zst files
@@ -156,7 +156,7 @@ This is also used during compression when using with \-\-patch\-from=\. In this 
 \fB\-o FILE\fR: save result into \fBFILE\fR
 .
 .IP "\(bu" 4
-\fB\-f\fR, \fB\-\-force\fR: overwrite output without prompting, and (de)compress symbolic links
+\fB\-f\fR, \fB\-\-force\fR: disable input and output checks\. Allows overwriting existing files, input from console, output to stdout, operating on links, etc\.
 .
 .IP "\(bu" 4
 \fB\-c\fR, \fB\-\-stdout\fR: force write to standard output, even if it is the console
@@ -218,7 +218,7 @@ Using environment variables to set parameters has security implications\. Theref
 \fBZSTD_CLEVEL\fR can be used to set the level between 1 and 19 (the "normal" range)\. If the value of \fBZSTD_CLEVEL\fR is not a valid integer, it will be ignored with a warning message\. \fBZSTD_CLEVEL\fR just replaces the default compression level (\fB3\fR)\.
 .
 .P
-\fBZSTD_NBTHREADS\fR can be used to set the number of threads \fBzstd\fR will attempt to use during compression\. If the value of \fBZSTD_NBTHREADS\fR is not a valid unsigned integer, it will be ignored with a warning message\. \'ZSTD_NBTHREADS\fBhas a default value of (\fR1\fB), and is capped at ZSTDMT_NBWORKERS_MAX==200\.\fRzstd` must be compiled with multithread support for this to have any effect\.
+\fBZSTD_NBTHREADS\fR can be used to set the number of threads \fBzstd\fR will attempt to use during compression\. If the value of \fBZSTD_NBTHREADS\fR is not a valid unsigned integer, it will be ignored with a warning message\. \fBZSTD_NBTHREADS\fR has a default value of (\fB1\fR), and is capped at ZSTDMT_NBWORKERS_MAX==200\. \fBzstd\fR must be compiled with multithread support for this to have any effect\.
 .
 .P
 They can both be overridden by corresponding command line arguments: \fB\-#\fR for compression level and \fB\-T#\fR for number of compression threads\.

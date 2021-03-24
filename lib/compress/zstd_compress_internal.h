@@ -82,6 +82,53 @@ typedef struct {
     ZSTD_fseCTables_t fse;
 } ZSTD_entropyCTables_t;
 
+/***********************************************
+*  Entropy buffer statistics structs and funcs *
+***********************************************/
+/** ZSTD_hufCTablesMetadata_t :
+ *  Stores Literals Block Type for a super-block in hType, and
+ *  huffman tree description in hufDesBuffer.
+ *  hufDesSize refers to the size of huffman tree description in bytes.
+ *  This metadata is populated in ZSTD_buildBlockEntropyStats_literals() */
+typedef struct {
+    symbolEncodingType_e hType;
+    BYTE hufDesBuffer[ZSTD_MAX_HUF_HEADER_SIZE];
+    size_t hufDesSize;
+} ZSTD_hufCTablesMetadata_t;
+
+/** ZSTD_fseCTablesMetadata_t :
+ *  Stores symbol compression modes for a super-block in {ll, ol, ml}Type, and
+ *  fse tables in fseTablesBuffer.
+ *  fseTablesSize refers to the size of fse tables in bytes.
+ *  This metadata is populated in ZSTD_buildBlockEntropyStats_sequences() */
+typedef struct {
+    symbolEncodingType_e llType;
+    symbolEncodingType_e ofType;
+    symbolEncodingType_e mlType;
+    BYTE fseTablesBuffer[ZSTD_MAX_FSE_HEADERS_SIZE];
+    size_t fseTablesSize;
+    size_t lastCountSize; /* This is to account for bug in 1.3.4. More detail in ZSTD_entropyCompressSequences_internal() */
+} ZSTD_fseCTablesMetadata_t;
+
+typedef struct {
+    ZSTD_hufCTablesMetadata_t hufMetadata;
+    ZSTD_fseCTablesMetadata_t fseMetadata;
+} ZSTD_entropyCTablesMetadata_t;
+
+/** ZSTD_buildBlockEntropyStats() :
+ *  Builds entropy for the block.
+ *  @return : 0 on success or error code */
+size_t ZSTD_buildBlockEntropyStats(seqStore_t* seqStorePtr,
+                             const ZSTD_entropyCTables_t* prevEntropy,
+                                   ZSTD_entropyCTables_t* nextEntropy,
+                             const ZSTD_CCtx_params* cctxParams,
+                                   ZSTD_entropyCTablesMetadata_t* entropyMetadata,
+                                   void* workspace, size_t wkspSize);
+
+/*********************************
+*  Compression internals structs *
+*********************************/
+
 typedef struct {
     U32 off;            /* Offset code (offset + ZSTD_REP_MOVE) for the match */
     U32 len;            /* Raw length of match */
@@ -255,6 +302,9 @@ struct ZSTD_CCtx_params_s {
     /* Sequence compression API */
     ZSTD_sequenceFormat_e blockDelimiters;
     int validateSequences;
+
+    /* Block splitting */
+    int splitBlocks;
 
     /* Internal use, for createCCtxParams() and freeCCtxParams() only */
     ZSTD_customMem customMem;

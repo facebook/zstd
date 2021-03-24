@@ -1544,6 +1544,15 @@ static int basicUnitTests(U32 const seed, double compressibility)
         ZSTD_freeCCtx(cctx);
     }
 
+    DISPLAYLEVEL(3, "test%3i : compress with block splitting : ", testNb++)
+    {   ZSTD_CCtx* cctx = ZSTD_createCCtx();
+        CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_splitBlocks, 1) );
+        cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize);
+        CHECK(cSize);
+        ZSTD_freeCCtx(cctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     DISPLAYLEVEL(3, "test%3i : compress -T2 with/without literals compression : ", testNb++)
     {   ZSTD_CCtx* cctx = ZSTD_createCCtx();
         size_t cSize1, cSize2;

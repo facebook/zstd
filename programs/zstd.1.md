@@ -215,7 +215,7 @@ the last one takes effect.
     This setting overrides default and can force sparse mode over stdout.
 * `--rm`:
     remove source file(s) after successful compression or decompression. If used in combination with
-    -o, will trigger a confirmation prompt (which can be silenced with -f), as this is a destructive operation. 
+    -o, will trigger a confirmation prompt (which can be silenced with -f), as this is a destructive operation.
 * `-k`, `--keep`:
     keep source file(s) after successful compression or decompression.
     This is the default behavior.
@@ -281,11 +281,11 @@ If the value of `ZSTD_CLEVEL` is not a valid integer, it will be ignored with a 
 
 `ZSTD_NBTHREADS` can be used to set the number of threads `zstd` will attempt to use during compression.
 If the value of `ZSTD_NBTHREADS` is not a valid unsigned integer, it will be ignored with a warning message.
-'ZSTD_NBTHREADS` has a default value of (`1`), and is capped at ZSTDMT_NBWORKERS_MAX==200. `zstd` must be
+`ZSTD_NBTHREADS` has a default value of (`1`), and is capped at ZSTDMT_NBWORKERS_MAX==200. `zstd` must be
 compiled with multithread support for this to have any effect.
 
 They can both be overridden by corresponding command line arguments:
-`-#` for compression level and `-T#` for number of compression threads. 
+`-#` for compression level and `-T#` for number of compression threads.
 
 
 DICTIONARY BUILDER

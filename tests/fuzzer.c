@@ -374,6 +374,12 @@ static int basicUnitTests(U32 const seed, double compressibility)
         DISPLAYLEVEL(3, "%i (OK) \n", mcl);
     }
 
+    DISPLAYLEVEL(3, "test%3u : default compression level : ", testNb++);
+    {   int const defaultCLevel = ZSTD_defaultCLevel();
+        if (defaultCLevel != ZSTD_CLEVEL_DEFAULT) goto _output_error;
+        DISPLAYLEVEL(3, "%i (OK) \n", defaultCLevel);
+    }
+
     DISPLAYLEVEL(3, "test%3u : ZSTD_versionNumber : ", testNb++);
     {   unsigned const vn = ZSTD_versionNumber();
         DISPLAYLEVEL(3, "%u (OK) \n", vn);

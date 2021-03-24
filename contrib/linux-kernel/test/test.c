@@ -57,10 +57,10 @@ static void test_btrfs(test_data_t const *data) {
   fprintf(stderr, "testing btrfs use cases... ");
   size_t const size = MIN(data->dataSize, 128 * 1024);
   for (int level = -1; level < 16; ++level) {
-    struct zstd_parameters params = zstd_get_params(level, size);
-    CONTROL(params.cparams.window_log <= 17);
+    zstd_parameters params = zstd_get_params(level, size);
+    CONTROL(params.cParams.windowLog <= 17);
     size_t const workspaceSize =
-        MAX(zstd_cstream_workspace_bound(&params.cparams),
+        MAX(zstd_cstream_workspace_bound(&params.cParams),
             zstd_dstream_workspace_bound(size));
     void *workspace = malloc(workspaceSize);
     CONTROL(workspace != NULL);
@@ -72,8 +72,8 @@ static void test_btrfs(test_data_t const *data) {
     {
       zstd_cstream *cctx = zstd_init_cstream(&params, size, workspace, workspaceSize);
       CONTROL(cctx != NULL);
-      struct zstd_out_buffer out = {NULL, 0, 0};
-      struct zstd_in_buffer in = {NULL, 0, 0};
+      zstd_out_buffer out = {NULL, 0, 0};
+      zstd_in_buffer in = {NULL, 0, 0};
       for (;;) {
         if (in.pos == in.size) {
           in.src = ip;
@@ -107,10 +107,10 @@ static void test_btrfs(test_data_t const *data) {
     op = data->data2;
     oend = op + size;
     {
-      zstd_dstream *dctx = zstd_init_dstream(1ULL << params.cparams.window_log, workspace, workspaceSize);
+      zstd_dstream *dctx = zstd_init_dstream(1ULL << params.cParams.windowLog, workspace, workspaceSize);
       CONTROL(dctx != NULL);
-      struct zstd_out_buffer out = {NULL, 0, 0};
-      struct zstd_in_buffer in = {NULL, 0, 0};
+      zstd_out_buffer out = {NULL, 0, 0};
+      zstd_in_buffer in = {NULL, 0, 0};
       for (;;) {
         if (in.pos == in.size) {
           in.src = ip;
@@ -144,8 +144,8 @@ static void test_decompress_unzstd(test_data_t const *data) {
     fprintf(stderr, "Testing decompress unzstd... ");
     size_t cSize;
     {
-        struct zstd_parameters params = zstd_get_params(19, 0);
-        size_t const wkspSize = zstd_cctx_workspace_bound(&params.cparams);
+        zstd_parameters params = zstd_get_params(19, 0);
+        size_t const wkspSize = zstd_cctx_workspace_bound(&params.cParams);
         void* wksp = malloc(wkspSize);
         CONTROL(wksp != NULL);
         zstd_cctx* cctx = zstd_init_cctx(wksp, wkspSize);

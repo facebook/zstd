@@ -4,13 +4,23 @@
 #include <assert.h>
 #include <linux/types.h>
 
-#define _LITTLE_ENDIAN 1
+#ifndef __LITTLE_ENDIAN
+# if (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__) || defined(__LITTLE_ENDIAN__)
+#  define __LITTLE_ENDIAN 1
+# endif
+#endif
+
+#ifdef __LITTLE_ENDIAN
+# define _IS_LITTLE_ENDIAN 1
+#else
+# define _IS_LITTLE_ENDIAN 0
+#endif
 
 static unsigned _isLittleEndian(void)
 {
     const union { uint32_t u; uint8_t c[4]; } one = { 1 };
-    assert(_LITTLE_ENDIAN == one.c[0]);
-    return _LITTLE_ENDIAN;
+    assert(_IS_LITTLE_ENDIAN == one.c[0]);
+    return _IS_LITTLE_ENDIAN;
 }
 
 static uint16_t _swap16(uint16_t in)
@@ -165,7 +175,7 @@ extern void __bad_unaligned_access_size(void);
     (void)0;                                                                   \
   })
 
-#if _LITTLE_ENDIAN
+#if _IS_LITTLE_ENDIAN
 #  define get_unaligned __get_unaligned_le
 #  define put_unaligned __put_unaligned_le
 #else

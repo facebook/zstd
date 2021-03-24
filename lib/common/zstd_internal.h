@@ -36,6 +36,11 @@
 #  define XXH_STATIC_LINKING_ONLY  /* XXH64_state_t */
 #endif
 #include "xxhash.h"                /* XXH_reset, update, digest */
+#ifndef ZSTD_NO_TRACE
+#  include "zstd_trace.h"
+#else
+#  define ZSTD_TRACE 0
+#endif
 
 #if defined (__cplusplus)
 extern "C" {
@@ -365,7 +370,7 @@ typedef struct {
 
     /* longLengthPos and longLengthID to allow us to represent either a single litLength or matchLength
      * in the seqStore that has a value larger than U16 (if it exists). To do so, we increment
-     * the existing value of the litLength or matchLength by 0x10000. 
+     * the existing value of the litLength or matchLength by 0x10000.
      */
     U32   longLengthID;   /* 0 == no longLength; 1 == Represent the long literal; 2 == Represent the long match; */
     U32   longLengthPos;  /* Index of the sequence to apply long length modification to */

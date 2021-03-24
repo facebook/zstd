@@ -19,7 +19,6 @@
 *  Dependencies
 ***************************************/
 #include "../common/zstd_internal.h"
-#include "../common/zstd_trace.h"  /* ZSTD_TraceCtx */
 #include "zstd_cwksp.h"
 #ifdef ZSTD_MULTITHREAD
 #  include "zstdmt_compress.h"

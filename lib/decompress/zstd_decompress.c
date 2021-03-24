@@ -58,7 +58,6 @@
 #include "../common/zstd_deps.h"   /* ZSTD_memcpy, ZSTD_memmove, ZSTD_memset */
 #include "../common/cpu.h"         /* bmi2 */
 #include "../common/mem.h"         /* low level memory routines */
-#include "../common/zstd_trace.h"
 #define FSE_STATIC_LINKING_ONLY
 #include "../common/fse.h"
 #define HUF_STATIC_LINKING_ONLY

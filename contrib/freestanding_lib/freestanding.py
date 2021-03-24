@@ -27,6 +27,8 @@ SKIPPED_FILES = [
     "common/pool.h",
     "common/threading.c",
     "common/threading.h",
+    "common/zstd_trace.c",
+    "common/zstd_trace.h",
     "compress/zstdmt_compress.h",
     "compress/zstdmt_compress.c",
 ]
@@ -471,7 +473,7 @@ class Freestanding(object):
         dst_path = os.path.join(self._dst_lib, lib_path)
         self._log(f"\tCopying: {src_path} -> {dst_path}")
         shutil.copyfile(src_path, dst_path)
-    
+
     def _copy_source_lib(self):
         self._log("Copying source library into output library")
 
@@ -481,14 +483,14 @@ class Freestanding(object):
         for subdir in INCLUDED_SUBDIRS:
             src_dir = os.path.join(self._src_lib, subdir)
             dst_dir = os.path.join(self._dst_lib, subdir)
-            
+
             assert os.path.exists(src_dir)
             os.makedirs(dst_dir, exist_ok=True)
 
             for filename in os.listdir(src_dir):
                 lib_path = os.path.join(subdir, filename)
                 self._copy_file(lib_path)
-    
+
     def _copy_zstd_deps(self):
         dst_zstd_deps = os.path.join(self._dst_lib, "common", "zstd_deps.h")
         self._log(f"Copying zstd_deps: {self._zstd_deps} -> {dst_zstd_deps}")
@@ -508,7 +510,7 @@ class Freestanding(object):
         assert not (undef and value is not None)
         for filepath in self._dst_lib_file_paths():
             file = FileLines(filepath)
-    
+
     def _hardwire_defines(self):
         self._log("Hardwiring macros")
         partial_preprocessor = PartialPreprocessor(self._defs, self._replaces, self._undefs)
@@ -536,7 +538,7 @@ class Freestanding(object):
                         skipped.append(line)
                         if end_re.search(line) is not None:
                             assert begin_re.search(line) is None
-                            self._log(f"\t\tRemoving excluded section: {exclude}") 
+                            self._log(f"\t\tRemoving excluded section: {exclude}")
                             for s in skipped:
                                 self._log(f"\t\t\t- {s}")
                             emit = True
@@ -559,12 +561,12 @@ class Freestanding(object):
                 e = match.end('include')
                 file.lines[i] = line[:s] + rewritten + line[e:]
             file.write()
-    
+
     def _rewrite_includes(self):
         self._log("Rewriting includes")
         for original, rewritten in self._rewritten_includes:
             self._rewrite_include(original, rewritten)
-    
+
     def _replace_xxh64_prefix(self):
         if self._xxh64_prefix is None:
             return
@@ -655,6 +657,11 @@ def main(name, args):
     for name, _ in args.defs:
         if name in args.undefs:
             raise RuntimeError(f"{name} is both defined and undefined!")
+
+    # Always set tracing to 0
+    if "ZSTD_NO_TRACE" not in (arg[0] for arg in args.defs):
+        args.defs.append(("ZSTD_NO_TRACE", None))
+        args.defs.append(("ZSTD_TRACE", "0"))
 
     args.replaces = parse_pair(args.replaces)
     for name, _ in args.replaces:

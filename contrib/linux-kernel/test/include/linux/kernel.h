@@ -12,4 +12,8 @@
 
 #define WARN_ON(x)
 
+#define PTR_ALIGN(p, a) (typeof(p))ALIGN((unsigned long long)(p), (a))
+#define ALIGN(x, a)         ALIGN_MASK((x), (a) - 1)
+#define ALIGN_MASK(x, mask) (((x) + (mask)) & ~(mask))
+
 #endif

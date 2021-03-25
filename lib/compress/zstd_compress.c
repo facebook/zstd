@@ -2231,6 +2231,7 @@ typedef struct {
     U32 Offtype;
     U32 MLtype;
     size_t size;
+    size_t lastCountSize; /* Accounts for bug in 1.3.4. More detail in ZSTD_entropyCompressSeqStore_internal() */
 } ZSTD_symbolEncodingTypeStats_t;
 
 /* ZSTD_buildSequencesStatistics():
@@ -2240,7 +2241,7 @@ typedef struct {
  * entropyWkspSize must be of size at least ENTROPY_WORKSPACE_SIZE - (MaxSeq + 1)*sizeof(U32)
  */
 static ZSTD_symbolEncodingTypeStats_t
-ZSTD_buildSequencesStatistics(seqStore_t* seqStorePtr, size_t nbSeq, size_t* lastCountSize,
+ZSTD_buildSequencesStatistics(seqStore_t* seqStorePtr, size_t nbSeq,
                         const ZSTD_fseCTables_t* prevEntropy, ZSTD_fseCTables_t* nextEntropy,
                               BYTE* dst, const BYTE* const dstEnd,
                               ZSTD_strategy strategy, unsigned* countWorkspace,
@@ -2256,6 +2257,7 @@ ZSTD_buildSequencesStatistics(seqStore_t* seqStorePtr, size_t nbSeq, size_t* las
     const BYTE* const mlCodeTable = seqStorePtr->mlCode;
     ZSTD_symbolEncodingTypeStats_t stats;
 
+    stats.lastCountSize = 0;
     /* convert length/distances into codes */
     ZSTD_seqToCodes(seqStorePtr);
     assert(op <= oend);
@@ -2285,7 +2287,7 @@ ZSTD_buildSequencesStatistics(seqStore_t* seqStorePtr, size_t nbSeq, size_t* las
                 return stats;
             }
             if (stats.LLtype == set_compressed)
-                *lastCountSize = countSize;
+                stats.lastCountSize = countSize;
             op += countSize;
             assert(op <= oend);
     }   }
@@ -2317,7 +2319,7 @@ ZSTD_buildSequencesStatistics(seqStore_t* seqStorePtr, size_t nbSeq, size_t* las
                 return stats;
             }
             if (stats.Offtype == set_compressed)
-                *lastCountSize = countSize;
+                stats.lastCountSize = countSize;
             op += countSize;
             assert(op <= oend);
     }   }
@@ -2347,7 +2349,7 @@ ZSTD_buildSequencesStatistics(seqStore_t* seqStorePtr, size_t nbSeq, size_t* las
                 return stats;
             }
             if (stats.MLtype == set_compressed)
-                *lastCountSize = countSize;
+                stats.lastCountSize = countSize;
             op += countSize;
             assert(op <= oend);
     }   }
@@ -2382,7 +2384,7 @@ ZSTD_entropyCompressSeqStore_internal(seqStore_t* seqStorePtr,
     BYTE* const ostart = (BYTE*)dst;
     BYTE* const oend = ostart + dstCapacity;
     BYTE* op = ostart;
-    size_t lastCountSize = 0;
+    size_t lastCountSize;
 
     entropyWorkspace = count + (MaxSeq + 1);
     entropyWkspSize -= (MaxSeq + 1) * sizeof(*count);
@@ -2431,13 +2433,14 @@ ZSTD_entropyCompressSeqStore_internal(seqStore_t* seqStorePtr,
         ZSTD_symbolEncodingTypeStats_t stats;
         BYTE* seqHead = op++;
         /* build stats for sequences */
-        stats = ZSTD_buildSequencesStatistics(seqStorePtr, nbSeq, &lastCountSize,
-                                                 &prevEntropy->fse, &nextEntropy->fse,
-                                                 op, oend,
-                                                 strategy, count,
-                                                 entropyWorkspace, entropyWkspSize);
+        stats = ZSTD_buildSequencesStatistics(seqStorePtr, nbSeq,
+                                             &prevEntropy->fse, &nextEntropy->fse,
+                                              op, oend,
+                                              strategy, count,
+                                              entropyWorkspace, entropyWkspSize);
         FORWARD_IF_ERROR(stats.size, "ZSTD_buildSequencesStatistics failed!");
         *seqHead = (BYTE)((stats.LLtype<<6) + (stats.Offtype<<4) + (stats.MLtype<<2));
+        lastCountSize = stats.lastCountSize;
         op += stats.size;
     }
 
@@ -2936,7 +2939,6 @@ static size_t ZSTD_buildBlockEntropyStats_sequences(seqStore_t* seqStorePtr,
 
     DEBUGLOG(5, "ZSTD_buildBlockEntropyStats_sequences (nbSeq=%zu)", nbSeq);
     stats = ZSTD_buildSequencesStatistics(seqStorePtr, nbSeq,
-                                        &fseMetadata->lastCountSize,
                                         prevEntropy, nextEntropy, op, oend,
                                         strategy, countWorkspace,
                                         entropyWorkspace, entropyWorkspaceSize);
@@ -2944,6 +2946,7 @@ static size_t ZSTD_buildBlockEntropyStats_sequences(seqStore_t* seqStorePtr,
     fseMetadata->llType = (symbolEncodingType_e) stats.LLtype;
     fseMetadata->ofType = (symbolEncodingType_e) stats.Offtype;
     fseMetadata->mlType = (symbolEncodingType_e) stats.MLtype;
+    fseMetadata->lastCountSize = stats.lastCountSize;
     return stats.size;
 }
 

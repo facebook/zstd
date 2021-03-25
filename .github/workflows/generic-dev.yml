@@ -126,6 +126,16 @@ jobs:
         make libc6install
         CFLAGS="-O2 -m32" FUZZER_FLAGS="--long-tests" make uasan-fuzztest
 
+  clang-msan-fuzz:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: clang + MSan + Fuzz Test
+      run: |
+        sudo apt-get update
+        sudo apt-get install clang
+        CC=clang FUZZER_FLAGS="--long-tests" make clean msan-fuzztest
+
   asan-ubsan-msan-regression:
     runs-on: ubuntu-latest
     steps:

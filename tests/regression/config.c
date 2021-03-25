@@ -28,20 +28,68 @@
     };
 
 /* Define a config for each level we want to test with. */
-#define LEVEL(x)                                                \
-    param_value_t const level_##x##_param_values[] = {          \
-        {.param = ZSTD_c_compressionLevel, .value = x},         \
-    };                                                          \
-    config_t const level_##x = {                                \
-        .name = "level " #x,                                    \
-        .cli_args = "-" #x,                                     \
-        .param_values = PARAM_VALUES(level_##x##_param_values), \
-    };                                                          \
-    config_t const level_##x##_dict = {                         \
-        .name = "level " #x " with dict",                       \
-        .cli_args = "-" #x,                                     \
-        .param_values = PARAM_VALUES(level_##x##_param_values), \
-        .use_dictionary = 1,                                    \
+#define LEVEL(x)                                                                  \
+    param_value_t const level_##x##_param_values[] = {                            \
+        {.param = ZSTD_c_compressionLevel, .value = x},                           \
+    };                                                                            \
+    param_value_t const level_##x##_param_values_dms[] = {                        \
+        {.param = ZSTD_c_compressionLevel, .value = x},                           \
+        {.param = ZSTD_c_enableDedicatedDictSearch, .value = 0},                  \
+        {.param = ZSTD_c_forceAttachDict, .value = ZSTD_dictForceAttach},         \
+    };                                                                            \
+    param_value_t const level_##x##_param_values_dds[] = {                        \
+        {.param = ZSTD_c_compressionLevel, .value = x},                           \
+        {.param = ZSTD_c_enableDedicatedDictSearch, .value = 1},                  \
+        {.param = ZSTD_c_forceAttachDict, .value = ZSTD_dictForceAttach},         \
+    };                                                                            \
+    param_value_t const level_##x##_param_values_dictcopy[] = {                   \
+        {.param = ZSTD_c_compressionLevel, .value = x},                           \
+        {.param = ZSTD_c_enableDedicatedDictSearch, .value = 0},                  \
+        {.param = ZSTD_c_forceAttachDict, .value = ZSTD_dictForceCopy},           \
+    };                                                                            \
+    param_value_t const level_##x##_param_values_dictload[] = {                   \
+        {.param = ZSTD_c_compressionLevel, .value = x},                           \
+        {.param = ZSTD_c_enableDedicatedDictSearch, .value = 0},                  \
+        {.param = ZSTD_c_forceAttachDict, .value = ZSTD_dictForceLoad},           \
+    };                                                                            \
+    config_t const level_##x = {                                                  \
+        .name = "level " #x,                                                      \
+        .cli_args = "-" #x,                                                       \
+        .param_values = PARAM_VALUES(level_##x##_param_values),                   \
+    };                                                                            \
+    config_t const level_##x##_dict = {                                           \
+        .name = "level " #x " with dict",                                         \
+        .cli_args = "-" #x,                                                       \
+        .param_values = PARAM_VALUES(level_##x##_param_values),                   \
+        .use_dictionary = 1,                                                      \
+    };                                                                            \
+    config_t const level_##x##_dict_dms = {                                       \
+        .name = "level " #x " with dict dms",                                     \
+        .cli_args = "-" #x,                                                       \
+        .param_values = PARAM_VALUES(level_##x##_param_values_dms),               \
+        .use_dictionary = 1,                                                      \
+        .advanced_api_only = 1,                                                   \
+    };                                                                            \
+    config_t const level_##x##_dict_dds = {                                       \
+        .name = "level " #x " with dict dds",                                     \
+        .cli_args = "-" #x,                                                       \
+        .param_values = PARAM_VALUES(level_##x##_param_values_dds),               \
+        .use_dictionary = 1,                                                      \
+        .advanced_api_only = 1,                                                   \
+    };                                                                            \
+    config_t const level_##x##_dict_copy = {                                      \
+        .name = "level " #x " with dict copy",                                    \
+        .cli_args = "-" #x,                                                       \
+        .param_values = PARAM_VALUES(level_##x##_param_values_dictcopy),          \
+        .use_dictionary = 1,                                                      \
+        .advanced_api_only = 1,                                                   \
+    };                                                                            \
+    config_t const level_##x##_dict_load = {                                      \
+        .name = "level " #x " with dict load",                                    \
+        .cli_args = "-" #x,                                                       \
+        .param_values = PARAM_VALUES(level_##x##_param_values_dictload),          \
+        .use_dictionary = 1,                                                      \
+        .advanced_api_only = 1,                                                   \
     };
 
 #define PARAM_VALUES(pv) \
@@ -194,7 +242,7 @@ static config_t explicit_params = {
 static config_t const* g_configs[] = {
 
 #define FAST_LEVEL(x) &level_fast##x, &level_fast##x##_dict,
-#define LEVEL(x) &level_##x, &level_##x##_dict,
+#define LEVEL(x) &level_##x, &level_##x##_dict, &level_##x##_dict_dms, &level_##x##_dict_dds, &level_##x##_dict_copy, &level_##x##_dict_load,
 #include "levels.h"
 #undef LEVEL
 #undef FAST_LEVEL

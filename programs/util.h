@@ -277,7 +277,7 @@ void UTIL_refFilename(FileNamesTable* fnt, const char* filename);
  *        or NULL in case of error
  */
 FileNamesTable*
-UTIL_createExpandedFNT(const char** filenames, size_t nbFilenames, int followLinks);
+UTIL_createExpandedFNT(const char* const* filenames, size_t nbFilenames, int followLinks);
 
 
 /*-****************************************

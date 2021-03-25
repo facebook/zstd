@@ -222,16 +222,6 @@ static config_t huffman_literals = {
     .param_values = PARAM_VALUES(huffman_literals_param_values),
 };
 
-static param_value_t const dict_mode_dms_param_values[] = {
-    {.param = ZSTD_c_enableDedicatedDictSearch, .value = 0},
-    {.param = ZSTD_c_forceAttachDict, .value = ZSTD_lcm_huffman},
-};
-
-static config_t dict_mode_dms = {
-    .name = "dict match state",
-    .param_values = PARAM_VALUES(dict_mode_dms_param_values),
-};
-
 static param_value_t const explicit_params_param_values[] = {
     {.param = ZSTD_c_checksumFlag, .value = 1},
     {.param = ZSTD_c_contentSizeFlag, .value = 0},

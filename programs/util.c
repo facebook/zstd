@@ -983,7 +983,7 @@ void UTIL_mirrorSourceFilesDirectories(const char** inFileNames, unsigned int nb
 }
 
 FileNamesTable*
-UTIL_createExpandedFNT(const char** inputNames, size_t nbIfns, int followLinks)
+UTIL_createExpandedFNT(const char* const* inputNames, size_t nbIfns, int followLinks)
 {
     unsigned nbFiles;
     char* buf = (char*)malloc(LIST_SIZE_INCREASE);

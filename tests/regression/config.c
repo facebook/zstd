@@ -32,6 +32,20 @@
     param_value_t const level_##x##_param_values[] = {          \
         {.param = ZSTD_c_compressionLevel, .value = x},         \
     };                                                          \
+    param_value_t const level_##x##_param_values_dms[] = {                        \
+        {.param = ZSTD_c_compressionLevel, .value = x},                           \
+        {.param = ZSTD_c_enableDedicatedDictSearch, .value = 0},                  \
+        {.param = ZSTD_c_forceAttachDict, .value = ZSTD_dictForceAttach},         \
+    };                                                                            \
+    param_value_t const level_##x##_param_values_dds[] = {                        \
+        {.param = ZSTD_c_compressionLevel, .value = x},                           \
+        {.param = ZSTD_c_enableDedicatedDictSearch, .value = 1},                  \
+    };                                                                            \
+    param_value_t const level_##x##_param_values_dictcopy[] = {                   \
+        {.param = ZSTD_c_compressionLevel, .value = x},                           \
+        {.param = ZSTD_c_enableDedicatedDictSearch, .value = 0},                  \
+        {.param = ZSTD_c_forceAttachDict, .value = ZSTD_dictForceCopy},           \
+    };                                                                            \
     config_t const level_##x = {                                \
         .name = "level " #x,                                    \
         .cli_args = "-" #x,                                     \
@@ -41,6 +55,24 @@
         .name = "level " #x " with dict",                       \
         .cli_args = "-" #x,                                     \
         .param_values = PARAM_VALUES(level_##x##_param_values), \
+        .use_dictionary = 1,                                    \
+    };                                                          \
+    config_t const level_##x##_dict_dms = {                     \
+        .name = "level " #x " with dict dms",                   \
+        .cli_args = "-" #x,                                     \
+        .param_values = PARAM_VALUES(level_##x##_param_values_dms), \
+        .use_dictionary = 1,                                    \
+    };                                                          \
+    config_t const level_##x##_dict_dds = {                     \
+        .name = "level " #x " with dict dds",                   \
+        .cli_args = "-" #x,                                     \
+        .param_values = PARAM_VALUES(level_##x##_param_values_dds), \
+        .use_dictionary = 1,                                    \
+    };                                                          \
+    config_t const level_##x##_dict_copy = {                    \
+        .name = "level " #x " with dict copy",                  \
+        .cli_args = "-" #x,                                     \
+        .param_values = PARAM_VALUES(level_##x##_param_values_dictcopy), \
         .use_dictionary = 1,                                    \
     };
 
@@ -174,6 +206,16 @@ static config_t huffman_literals = {
     .param_values = PARAM_VALUES(huffman_literals_param_values),
 };
 
+static param_value_t const dict_mode_dms_param_values[] = {
+    {.param = ZSTD_c_enableDedicatedDictSearch, .value = 0},
+    {.param = ZSTD_c_forceAttachDict, .value = ZSTD_lcm_huffman},
+};
+
+static config_t dict_mode_dms = {
+    .name = "dict match state",
+    .param_values = PARAM_VALUES(dict_mode_dms_param_values),
+};
+
 static param_value_t const explicit_params_param_values[] = {
     {.param = ZSTD_c_checksumFlag, .value = 1},
     {.param = ZSTD_c_contentSizeFlag, .value = 0},
@@ -194,7 +236,7 @@ static config_t explicit_params = {
 static config_t const* g_configs[] = {
 
 #define FAST_LEVEL(x) &level_fast##x, &level_fast##x##_dict,
-#define LEVEL(x) &level_##x, &level_##x##_dict,
+#define LEVEL(x) &level_##x, &level_##x##_dict, &level_##x##_dict_dms, &level_##x##_dict_dds, &level_##x##_dict_copy,
 #include "levels.h"
 #undef LEVEL
 #undef FAST_LEVEL

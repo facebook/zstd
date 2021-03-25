@@ -66,26 +66,59 @@ github,                             level -1,                           compress
 github,                             level -1 with dict,                 compress cctx,                      43527
 github,                             level 0,                            compress cctx,                      136335
 github,                             level 0 with dict,                  compress cctx,                      41534
+github,                             level 0 with dict dms,              compress cctx,                      41534
+github,                             level 0 with dict dds,              compress cctx,                      41534
+github,                             level 0 with dict copy,             compress cctx,                      41534
 github,                             level 1,                            compress cctx,                      142465
 github,                             level 1 with dict,                  compress cctx,                      42157
+github,                             level 1 with dict dms,              compress cctx,                      42157
+github,                             level 1 with dict dds,              compress cctx,                      42157
+github,                             level 1 with dict copy,             compress cctx,                      42157
 github,                             level 3,                            compress cctx,                      136335
 github,                             level 3 with dict,                  compress cctx,                      41534
+github,                             level 3 with dict dms,              compress cctx,                      41534
+github,                             level 3 with dict dds,              compress cctx,                      41534
+github,                             level 3 with dict copy,             compress cctx,                      41534
 github,                             level 4,                            compress cctx,                      136199
 github,                             level 4 with dict,                  compress cctx,                      41725
+github,                             level 4 with dict dms,              compress cctx,                      41725
+github,                             level 4 with dict dds,              compress cctx,                      41725
+github,                             level 4 with dict copy,             compress cctx,                      41725
 github,                             level 5,                            compress cctx,                      135121
 github,                             level 5 with dict,                  compress cctx,                      38934
+github,                             level 5 with dict dms,              compress cctx,                      38934
+github,                             level 5 with dict dds,              compress cctx,                      38934
+github,                             level 5 with dict copy,             compress cctx,                      38934
 github,                             level 6,                            compress cctx,                      135122
 github,                             level 6 with dict,                  compress cctx,                      38628
+github,                             level 6 with dict dms,              compress cctx,                      38628
+github,                             level 6 with dict dds,              compress cctx,                      38628
+github,                             level 6 with dict copy,             compress cctx,                      38628
 github,                             level 7,                            compress cctx,                      135122
 github,                             level 7 with dict,                  compress cctx,                      38745
+github,                             level 7 with dict dms,              compress cctx,                      38745
+github,                             level 7 with dict dds,              compress cctx,                      38745
+github,                             level 7 with dict copy,             compress cctx,                      38745
 github,                             level 9,                            compress cctx,                      135122
 github,                             level 9 with dict,                  compress cctx,                      39341
+github,                             level 9 with dict dms,              compress cctx,                      39341
+github,                             level 9 with dict dds,              compress cctx,                      39341
+github,                             level 9 with dict copy,             compress cctx,                      39341
 github,                             level 13,                           compress cctx,                      134064
 github,                             level 13 with dict,                 compress cctx,                      39948
+github,                             level 13 with dict dms,             compress cctx,                      39948
+github,                             level 13 with dict dds,             compress cctx,                      39948
+github,                             level 13 with dict copy,            compress cctx,                      39948
 github,                             level 16,                           compress cctx,                      134064
 github,                             level 16 with dict,                 compress cctx,                      37568
+github,                             level 16 with dict dms,             compress cctx,                      37568
+github,                             level 16 with dict dds,             compress cctx,                      37568
+github,                             level 16 with dict copy,            compress cctx,                      37568
 github,                             level 19,                           compress cctx,                      134064
 github,                             level 19 with dict,                 compress cctx,                      37567
+github,                             level 19 with dict dms,             compress cctx,                      37567
+github,                             level 19 with dict dds,             compress cctx,                      37567
+github,                             level 19 with dict copy,            compress cctx,                      37567
 github,                             long distance mode,                 compress cctx,                      141102
 github,                             multithreaded,                      compress cctx,                      141102
 github,                             multithreaded long distance mode,   compress cctx,                      141102
@@ -156,26 +189,59 @@ github,                             level -1,                           zstdcli,
 github,                             level -1 with dict,                 zstdcli,                            45170
 github,                             level 0,                            zstdcli,                            138335
 github,                             level 0 with dict,                  zstdcli,                            43148
+github,                             level 0 with dict dms,              zstdcli,                            43148
+github,                             level 0 with dict dds,              zstdcli,                            43148
+github,                             level 0 with dict copy,             zstdcli,                            43148
 github,                             level 1,                            zstdcli,                            144465
 github,                             level 1 with dict,                  zstdcli,                            43682
+github,                             level 1 with dict dms,              zstdcli,                            43682
+github,                             level 1 with dict dds,              zstdcli,                            43682
+github,                             level 1 with dict copy,             zstdcli,                            43682
 github,                             level 3,                            zstdcli,                            138335
 github,                             level 3 with dict,                  zstdcli,                            43148
+github,                             level 3 with dict dms,              zstdcli,                            43148
+github,                             level 3 with dict dds,              zstdcli,                            43148
+github,                             level 3 with dict copy,             zstdcli,                            43148
 github,                             level 4,                            zstdcli,                            138199
 github,                             level 4 with dict,                  zstdcli,                            43251
+github,                             level 4 with dict dms,              zstdcli,                            43251
+github,                             level 4 with dict dds,              zstdcli,                            43251
+github,                             level 4 with dict copy,             zstdcli,                            43251
 github,                             level 5,                            zstdcli,                            137121
 github,                             level 5 with dict,                  zstdcli,                            40741
+github,                             level 5 with dict dms,              zstdcli,                            40741
+github,                             level 5 with dict dds,              zstdcli,                            40741
+github,                             level 5 with dict copy,             zstdcli,                            40741
 github,                             level 6,                            zstdcli,                            137122
 github,                             level 6 with dict,                  zstdcli,                            40632
+github,                             level 6 with dict dms,              zstdcli,                            40632
+github,                             level 6 with dict dds,              zstdcli,                            40632
+github,                             level 6 with dict copy,             zstdcli,                            40632
 github,                             level 7,                            zstdcli,                            137122
 github,                             level 7 with dict,                  zstdcli,                            40771
+github,                             level 7 with dict dms,              zstdcli,                            40771
+github,                             level 7 with dict dds,              zstdcli,                            40771
+github,                             level 7 with dict copy,             zstdcli,                            40771
 github,                             level 9,                            zstdcli,                            137122
 github,                             level 9 with dict,                  zstdcli,                            41332
+github,                             level 9 with dict dms,              zstdcli,                            41332
+github,                             level 9 with dict dds,              zstdcli,                            41332
+github,                             level 9 with dict copy,             zstdcli,                            41332
 github,                             level 13,                           zstdcli,                            136064
 github,                             level 13 with dict,                 zstdcli,                            41743
+github,                             level 13 with dict dms,             zstdcli,                            41743
+github,                             level 13 with dict dds,             zstdcli,                            41743
+github,                             level 13 with dict copy,            zstdcli,                            41743
 github,                             level 16,                           zstdcli,                            136064
 github,                             level 16 with dict,                 zstdcli,                            39577
+github,                             level 16 with dict dms,             zstdcli,                            39577
+github,                             level 16 with dict dds,             zstdcli,                            39577
+github,                             level 16 with dict copy,            zstdcli,                            39577
 github,                             level 19,                           zstdcli,                            136064
 github,                             level 19 with dict,                 zstdcli,                            39576
+github,                             level 19 with dict dms,             zstdcli,                            39576
+github,                             level 19 with dict dds,             zstdcli,                            39576
+github,                             level 19 with dict copy,            zstdcli,                            39576
 github,                             long distance mode,                 zstdcli,                            138335
 github,                             multithreaded,                      zstdcli,                            138335
 github,                             multithreaded long distance mode,   zstdcli,                            138335
@@ -195,26 +261,59 @@ github.tar,                         level -1,                           zstdcli,
 github.tar,                         level -1 with dict,                 zstdcli,                            41126
 github.tar,                         level 0,                            zstdcli,                            38445
 github.tar,                         level 0 with dict,                  zstdcli,                            37999
+github.tar,                         level 0 with dict dms,              zstdcli,                            37999
+github.tar,                         level 0 with dict dds,              zstdcli,                            37999
+github.tar,                         level 0 with dict copy,             zstdcli,                            37999
 github.tar,                         level 1,                            zstdcli,                            39346
 github.tar,                         level 1 with dict,                  zstdcli,                            38313
+github.tar,                         level 1 with dict dms,              zstdcli,                            38313
+github.tar,                         level 1 with dict dds,              zstdcli,                            38313
+github.tar,                         level 1 with dict copy,             zstdcli,                            38313
 github.tar,                         level 3,                            zstdcli,                            38445
 github.tar,                         level 3 with dict,                  zstdcli,                            37999
+github.tar,                         level 3 with dict dms,              zstdcli,                            37999
+github.tar,                         level 3 with dict dds,              zstdcli,                            37999
+github.tar,                         level 3 with dict copy,             zstdcli,                            37999
 github.tar,                         level 4,                            zstdcli,                            38471
 github.tar,                         level 4 with dict,                  zstdcli,                            37952
+github.tar,                         level 4 with dict dms,              zstdcli,                            37952
+github.tar,                         level 4 with dict dds,              zstdcli,                            37952
+github.tar,                         level 4 with dict copy,             zstdcli,                            37952
 github.tar,                         level 5,                            zstdcli,                            39792
 github.tar,                         level 5 with dict,                  zstdcli,                            39231
+github.tar,                         level 5 with dict dms,              zstdcli,                            39231
+github.tar,                         level 5 with dict dds,              zstdcli,                            39231
+github.tar,                         level 5 with dict copy,             zstdcli,                            39231
 github.tar,                         level 6,                            zstdcli,                            39607
 github.tar,                         level 6 with dict,                  zstdcli,                            38669
+github.tar,                         level 6 with dict dms,              zstdcli,                            38669
+github.tar,                         level 6 with dict dds,              zstdcli,                            38669
+github.tar,                         level 6 with dict copy,             zstdcli,                            38669
 github.tar,                         level 7,                            zstdcli,                            39210
 github.tar,                         level 7 with dict,                  zstdcli,                            37958
+github.tar,                         level 7 with dict dms,              zstdcli,                            37958
+github.tar,                         level 7 with dict dds,              zstdcli,                            37958
+github.tar,                         level 7 with dict copy,             zstdcli,                            37958
 github.tar,                         level 9,                            zstdcli,                            36721
 github.tar,                         level 9 with dict,                  zstdcli,                            36886
+github.tar,                         level 9 with dict dms,              zstdcli,                            36886
+github.tar,                         level 9 with dict dds,              zstdcli,                            36886
+github.tar,                         level 9 with dict copy,             zstdcli,                            36886
 github.tar,                         level 13,                           zstdcli,                            35625
 github.tar,                         level 13 with dict,                 zstdcli,                            38730
+github.tar,                         level 13 with dict dms,             zstdcli,                            38730
+github.tar,                         level 13 with dict dds,             zstdcli,                            38730
+github.tar,                         level 13 with dict copy,            zstdcli,                            38730
 github.tar,                         level 16,                           zstdcli,                            40259
 github.tar,                         level 16 with dict,                 zstdcli,                            33643
+github.tar,                         level 16 with dict dms,             zstdcli,                            33643
+github.tar,                         level 16 with dict dds,             zstdcli,                            33643
+github.tar,                         level 16 with dict copy,            zstdcli,                            33643
 github.tar,                         level 19,                           zstdcli,                            32841
 github.tar,                         level 19 with dict,                 zstdcli,                            32899
+github.tar,                         level 19 with dict dms,             zstdcli,                            32899
+github.tar,                         level 19 with dict dds,             zstdcli,                            32899
+github.tar,                         level 19 with dict copy,            zstdcli,                            32899
 github.tar,                         no source size,                     zstdcli,                            38442
 github.tar,                         no source size with dict,           zstdcli,                            38004
 github.tar,                         long distance mode,                 zstdcli,                            39726
@@ -288,26 +387,59 @@ github,                             level -1,                           advanced
 github,                             level -1 with dict,                 advanced one pass,                  43170
 github,                             level 0,                            advanced one pass,                  136335
 github,                             level 0 with dict,                  advanced one pass,                  41148
+github,                             level 0 with dict dms,              advanced one pass,                  41148
+github,                             level 0 with dict dds,              advanced one pass,                  41148
+github,                             level 0 with dict copy,             advanced one pass,                  41124
 github,                             level 1,                            advanced one pass,                  142465
 github,                             level 1 with dict,                  advanced one pass,                  41682
+github,                             level 1 with dict dms,              advanced one pass,                  41682
+github,                             level 1 with dict dds,              advanced one pass,                  41682
+github,                             level 1 with dict copy,             advanced one pass,                  41674
 github,                             level 3,                            advanced one pass,                  136335
 github,                             level 3 with dict,                  advanced one pass,                  41148
+github,                             level 3 with dict dms,              advanced one pass,                  41148
+github,                             level 3 with dict dds,              advanced one pass,                  41148
+github,                             level 3 with dict copy,             advanced one pass,                  41124
 github,                             level 4,                            advanced one pass,                  136199
 github,                             level 4 with dict,                  advanced one pass,                  41251
+github,                             level 4 with dict dms,              advanced one pass,                  41251
+github,                             level 4 with dict dds,              advanced one pass,                  41251
+github,                             level 4 with dict copy,             advanced one pass,                  41216
 github,                             level 5,                            advanced one pass,                  135121
 github,                             level 5 with dict,                  advanced one pass,                  38938
+github,                             level 5 with dict dms,              advanced one pass,                  38938
+github,                             level 5 with dict dds,              advanced one pass,                  38741
+github,                             level 5 with dict copy,             advanced one pass,                  38934
 github,                             level 6,                            advanced one pass,                  135122
 github,                             level 6 with dict,                  advanced one pass,                  38632
+github,                             level 6 with dict dms,              advanced one pass,                  38632
+github,                             level 6 with dict dds,              advanced one pass,                  38632
+github,                             level 6 with dict copy,             advanced one pass,                  38628
 github,                             level 7,                            advanced one pass,                  135122
 github,                             level 7 with dict,                  advanced one pass,                  38771
+github,                             level 7 with dict dms,              advanced one pass,                  38771
+github,                             level 7 with dict dds,              advanced one pass,                  38771
+github,                             level 7 with dict copy,             advanced one pass,                  38745
 github,                             level 9,                            advanced one pass,                  135122
 github,                             level 9 with dict,                  advanced one pass,                  39332
+github,                             level 9 with dict dms,              advanced one pass,                  39332
+github,                             level 9 with dict dds,              advanced one pass,                  39332
+github,                             level 9 with dict copy,             advanced one pass,                  39341
 github,                             level 13,                           advanced one pass,                  134064
 github,                             level 13 with dict,                 advanced one pass,                  39743
+github,                             level 13 with dict dms,             advanced one pass,                  39743
+github,                             level 13 with dict dds,             advanced one pass,                  39743
+github,                             level 13 with dict copy,            advanced one pass,                  39948
 github,                             level 16,                           advanced one pass,                  134064
 github,                             level 16 with dict,                 advanced one pass,                  37577
+github,                             level 16 with dict dms,             advanced one pass,                  37577
+github,                             level 16 with dict dds,             advanced one pass,                  37577
+github,                             level 16 with dict copy,            advanced one pass,                  37568
 github,                             level 19,                           advanced one pass,                  134064
 github,                             level 19 with dict,                 advanced one pass,                  37576
+github,                             level 19 with dict dms,             advanced one pass,                  37576
+github,                             level 19 with dict dds,             advanced one pass,                  37576
+github,                             level 19 with dict copy,            advanced one pass,                  37567
 github,                             no source size,                     advanced one pass,                  136335
 github,                             no source size with dict,           advanced one pass,                  41148
 github,                             long distance mode,                 advanced one pass,                  136335
@@ -329,26 +461,59 @@ github.tar,                         level -1,                           advanced
 github.tar,                         level -1 with dict,                 advanced one pass,                  41122
 github.tar,                         level 0,                            advanced one pass,                  38441
 github.tar,                         level 0 with dict,                  advanced one pass,                  37995
+github.tar,                         level 0 with dict dms,              advanced one pass,                  38003
+github.tar,                         level 0 with dict dds,              advanced one pass,                  37995
+github.tar,                         level 0 with dict copy,             advanced one pass,                  37995
 github.tar,                         level 1,                            advanced one pass,                  39265
 github.tar,                         level 1 with dict,                  advanced one pass,                  38309
+github.tar,                         level 1 with dict dms,              advanced one pass,                  38319
+github.tar,                         level 1 with dict dds,              advanced one pass,                  38309
+github.tar,                         level 1 with dict copy,             advanced one pass,                  38309
 github.tar,                         level 3,                            advanced one pass,                  38441
 github.tar,                         level 3 with dict,                  advanced one pass,                  37995
+github.tar,                         level 3 with dict dms,              advanced one pass,                  38003
+github.tar,                         level 3 with dict dds,              advanced one pass,                  37995
+github.tar,                         level 3 with dict copy,             advanced one pass,                  37995
 github.tar,                         level 4,                            advanced one pass,                  38467
 github.tar,                         level 4 with dict,                  advanced one pass,                  37948
+github.tar,                         level 4 with dict dms,              advanced one pass,                  37954
+github.tar,                         level 4 with dict dds,              advanced one pass,                  37948
+github.tar,                         level 4 with dict copy,             advanced one pass,                  37948
 github.tar,                         level 5,                            advanced one pass,                  39788
 github.tar,                         level 5 with dict,                  advanced one pass,                  39715
+github.tar,                         level 5 with dict dms,              advanced one pass,                  39365
+github.tar,                         level 5 with dict dds,              advanced one pass,                  39227
+github.tar,                         level 5 with dict copy,             advanced one pass,                  39715
 github.tar,                         level 6,                            advanced one pass,                  39603
 github.tar,                         level 6 with dict,                  advanced one pass,                  38800
+github.tar,                         level 6 with dict dms,              advanced one pass,                  38665
+github.tar,                         level 6 with dict dds,              advanced one pass,                  38665
+github.tar,                         level 6 with dict copy,             advanced one pass,                  38800
 github.tar,                         level 7,                            advanced one pass,                  39206
 github.tar,                         level 7 with dict,                  advanced one pass,                  38071
+github.tar,                         level 7 with dict dms,              advanced one pass,                  37954
+github.tar,                         level 7 with dict dds,              advanced one pass,                  37954
+github.tar,                         level 7 with dict copy,             advanced one pass,                  38071
 github.tar,                         level 9,                            advanced one pass,                  36717
 github.tar,                         level 9 with dict,                  advanced one pass,                  36898
+github.tar,                         level 9 with dict dms,              advanced one pass,                  36882
+github.tar,                         level 9 with dict dds,              advanced one pass,                  36882
+github.tar,                         level 9 with dict copy,             advanced one pass,                  36898
 github.tar,                         level 13,                           advanced one pass,                  35621
 github.tar,                         level 13 with dict,                 advanced one pass,                  38726
+github.tar,                         level 13 with dict dms,             advanced one pass,                  38903
+github.tar,                         level 13 with dict dds,             advanced one pass,                  38726
+github.tar,                         level 13 with dict copy,            advanced one pass,                  38726
 github.tar,                         level 16,                           advanced one pass,                  40255
 github.tar,                         level 16 with dict,                 advanced one pass,                  33639
+github.tar,                         level 16 with dict dms,             advanced one pass,                  33544
+github.tar,                         level 16 with dict dds,             advanced one pass,                  33639
+github.tar,                         level 16 with dict copy,            advanced one pass,                  33639
 github.tar,                         level 19,                           advanced one pass,                  32837
 github.tar,                         level 19 with dict,                 advanced one pass,                  32895
+github.tar,                         level 19 with dict dms,             advanced one pass,                  32672
+github.tar,                         level 19 with dict dds,             advanced one pass,                  32895
+github.tar,                         level 19 with dict copy,            advanced one pass,                  32895
 github.tar,                         no source size,                     advanced one pass,                  38441
 github.tar,                         no source size with dict,           advanced one pass,                  37995
 github.tar,                         long distance mode,                 advanced one pass,                  39722
@@ -422,26 +587,59 @@ github,                             level -1,                           advanced
 github,                             level -1 with dict,                 advanced one pass small out,        43170
 github,                             level 0,                            advanced one pass small out,        136335
 github,                             level 0 with dict,                  advanced one pass small out,        41148
+github,                             level 0 with dict dms,              advanced one pass small out,        41148
+github,                             level 0 with dict dds,              advanced one pass small out,        41148
+github,                             level 0 with dict copy,             advanced one pass small out,        41124
 github,                             level 1,                            advanced one pass small out,        142465
 github,                             level 1 with dict,                  advanced one pass small out,        41682
+github,                             level 1 with dict dms,              advanced one pass small out,        41682
+github,                             level 1 with dict dds,              advanced one pass small out,        41682
+github,                             level 1 with dict copy,             advanced one pass small out,        41674
 github,                             level 3,                            advanced one pass small out,        136335
 github,                             level 3 with dict,                  advanced one pass small out,        41148
+github,                             level 3 with dict dms,              advanced one pass small out,        41148
+github,                             level 3 with dict dds,              advanced one pass small out,        41148
+github,                             level 3 with dict copy,             advanced one pass small out,        41124
 github,                             level 4,                            advanced one pass small out,        136199
 github,                             level 4 with dict,                  advanced one pass small out,        41251
+github,                             level 4 with dict dms,              advanced one pass small out,        41251
+github,                             level 4 with dict dds,              advanced one pass small out,        41251
+github,                             level 4 with dict copy,             advanced one pass small out,        41216
 github,                             level 5,                            advanced one pass small out,        135121
 github,                             level 5 with dict,                  advanced one pass small out,        38938
+github,                             level 5 with dict dms,              advanced one pass small out,        38938
+github,                             level 5 with dict dds,              advanced one pass small out,        38741
+github,                             level 5 with dict copy,             advanced one pass small out,        38934
 github,                             level 6,                            advanced one pass small out,        135122
 github,                             level 6 with dict,                  advanced one pass small out,        38632
+github,                             level 6 with dict dms,              advanced one pass small out,        38632
+github,                             level 6 with dict dds,              advanced one pass small out,        38632
+github,                             level 6 with dict copy,             advanced one pass small out,        38628
 github,                             level 7,                            advanced one pass small out,        135122
 github,                             level 7 with dict,                  advanced one pass small out,        38771
+github,                             level 7 with dict dms,              advanced one pass small out,        38771
+github,                             level 7 with dict dds,              advanced one pass small out,        38771
+github,                             level 7 with dict copy,             advanced one pass small out,        38745
 github,                             level 9,                            advanced one pass small out,        135122
 github,                             level 9 with dict,                  advanced one pass small out,        39332
+github,                             level 9 with dict dms,              advanced one pass small out,        39332
+github,                             level 9 with dict dds,              advanced one pass small out,        39332
+github,                             level 9 with dict copy,             advanced one pass small out,        39341
 github,                             level 13,                           advanced one pass small out,        134064
 github,                             level 13 with dict,                 advanced one pass small out,        39743
+github,                             level 13 with dict dms,             advanced one pass small out,        39743
+github,                             level 13 with dict dds,             advanced one pass small out,        39743
+github,                             level 13 with dict copy,            advanced one pass small out,        39948
 github,                             level 16,                           advanced one pass small out,        134064
 github,                             level 16 with dict,                 advanced one pass small out,        37577
+github,                             level 16 with dict dms,             advanced one pass small out,        37577
+github,                             level 16 with dict dds,             advanced one pass small out,        37577
+github,                             level 16 with dict copy,            advanced one pass small out,        37568
 github,                             level 19,                           advanced one pass small out,        134064
 github,                             level 19 with dict,                 advanced one pass small out,        37576
+github,                             level 19 with dict dms,             advanced one pass small out,        37576
+github,                             level 19 with dict dds,             advanced one pass small out,        37576
+github,                             level 19 with dict copy,            advanced one pass small out,        37567
 github,                             no source size,                     advanced one pass small out,        136335
 github,                             no source size with dict,           advanced one pass small out,        41148
 github,                             long distance mode,                 advanced one pass small out,        136335
@@ -463,26 +661,59 @@ github.tar,                         level -1,                           advanced
 github.tar,                         level -1 with dict,                 advanced one pass small out,        41122
 github.tar,                         level 0,                            advanced one pass small out,        38441
 github.tar,                         level 0 with dict,                  advanced one pass small out,        37995
+github.tar,                         level 0 with dict dms,              advanced one pass small out,        38003
+github.tar,                         level 0 with dict dds,              advanced one pass small out,        37995
+github.tar,                         level 0 with dict copy,             advanced one pass small out,        37995
 github.tar,                         level 1,                            advanced one pass small out,        39265
 github.tar,                         level 1 with dict,                  advanced one pass small out,        38309
+github.tar,                         level 1 with dict dms,              advanced one pass small out,        38319
+github.tar,                         level 1 with dict dds,              advanced one pass small out,        38309
+github.tar,                         level 1 with dict copy,             advanced one pass small out,        38309
 github.tar,                         level 3,                            advanced one pass small out,        38441
 github.tar,                         level 3 with dict,                  advanced one pass small out,        37995
+github.tar,                         level 3 with dict dms,              advanced one pass small out,        38003
+github.tar,                         level 3 with dict dds,              advanced one pass small out,        37995
+github.tar,                         level 3 with dict copy,             advanced one pass small out,        37995
 github.tar,                         level 4,                            advanced one pass small out,        38467
 github.tar,                         level 4 with dict,                  advanced one pass small out,        37948
+github.tar,                         level 4 with dict dms,              advanced one pass small out,        37954
+github.tar,                         level 4 with dict dds,              advanced one pass small out,        37948
+github.tar,                         level 4 with dict copy,             advanced one pass small out,        37948
 github.tar,                         level 5,                            advanced one pass small out,        39788
 github.tar,                         level 5 with dict,                  advanced one pass small out,        39715
+github.tar,                         level 5 with dict dms,              advanced one pass small out,        39365
+github.tar,                         level 5 with dict dds,              advanced one pass small out,        39227
+github.tar,                         level 5 with dict copy,             advanced one pass small out,        39715
 github.tar,                         level 6,                            advanced one pass small out,        39603
 github.tar,                         level 6 with dict,                  advanced one pass small out,        38800
+github.tar,                         level 6 with dict dms,              advanced one pass small out,        38665
+github.tar,                         level 6 with dict dds,              advanced one pass small out,        38665
+github.tar,                         level 6 with dict copy,             advanced one pass small out,        38800
 github.tar,                         level 7,                            advanced one pass small out,        39206
 github.tar,                         level 7 with dict,                  advanced one pass small out,        38071
+github.tar,                         level 7 with dict dms,              advanced one pass small out,        37954
+github.tar,                         level 7 with dict dds,              advanced one pass small out,        37954
+github.tar,                         level 7 with dict copy,             advanced one pass small out,        38071
 github.tar,                         level 9,                            advanced one pass small out,        36717
 github.tar,                         level 9 with dict,                  advanced one pass small out,        36898
+github.tar,                         level 9 with dict dms,              advanced one pass small out,        36882
+github.tar,                         level 9 with dict dds,              advanced one pass small out,        36882
+github.tar,                         level 9 with dict copy,             advanced one pass small out,        36898
 github.tar,                         level 13,                           advanced one pass small out,        35621
 github.tar,                         level 13 with dict,                 advanced one pass small out,        38726
+github.tar,                         level 13 with dict dms,             advanced one pass small out,        38903
+github.tar,                         level 13 with dict dds,             advanced one pass small out,        38726
+github.tar,                         level 13 with dict copy,            advanced one pass small out,        38726
 github.tar,                         level 16,                           advanced one pass small out,        40255
 github.tar,                         level 16 with dict,                 advanced one pass small out,        33639
+github.tar,                         level 16 with dict dms,             advanced one pass small out,        33544
+github.tar,                         level 16 with dict dds,             advanced one pass small out,        33639
+github.tar,                         level 16 with dict copy,            advanced one pass small out,        33639
 github.tar,                         level 19,                           advanced one pass small out,        32837
 github.tar,                         level 19 with dict,                 advanced one pass small out,        32895
+github.tar,                         level 19 with dict dms,             advanced one pass small out,        32672
+github.tar,                         level 19 with dict dds,             advanced one pass small out,        32895
+github.tar,                         level 19 with dict copy,            advanced one pass small out,        32895
 github.tar,                         no source size,                     advanced one pass small out,        38441
 github.tar,                         no source size with dict,           advanced one pass small out,        37995
 github.tar,                         long distance mode,                 advanced one pass small out,        39722
@@ -556,26 +787,59 @@ github,                             level -1,                           advanced
 github,                             level -1 with dict,                 advanced streaming,                 43170
 github,                             level 0,                            advanced streaming,                 136335
 github,                             level 0 with dict,                  advanced streaming,                 41148
+github,                             level 0 with dict dms,              advanced streaming,                 41148
+github,                             level 0 with dict dds,              advanced streaming,                 41148
+github,                             level 0 with dict copy,             advanced streaming,                 41124
 github,                             level 1,                            advanced streaming,                 142465
 github,                             level 1 with dict,                  advanced streaming,                 41682
+github,                             level 1 with dict dms,              advanced streaming,                 41682
+github,                             level 1 with dict dds,              advanced streaming,                 41682
+github,                             level 1 with dict copy,             advanced streaming,                 41674
 github,                             level 3,                            advanced streaming,                 136335
 github,                             level 3 with dict,                  advanced streaming,                 41148
+github,                             level 3 with dict dms,              advanced streaming,                 41148
+github,                             level 3 with dict dds,              advanced streaming,                 41148
+github,                             level 3 with dict copy,             advanced streaming,                 41124
 github,                             level 4,                            advanced streaming,                 136199
 github,                             level 4 with dict,                  advanced streaming,                 41251
+github,                             level 4 with dict dms,              advanced streaming,                 41251
+github,                             level 4 with dict dds,              advanced streaming,                 41251
+github,                             level 4 with dict copy,             advanced streaming,                 41216
 github,                             level 5,                            advanced streaming,                 135121
 github,                             level 5 with dict,                  advanced streaming,                 38938
+github,                             level 5 with dict dms,              advanced streaming,                 38938
+github,                             level 5 with dict dds,              advanced streaming,                 38741
+github,                             level 5 with dict copy,             advanced streaming,                 38934
 github,                             level 6,                            advanced streaming,                 135122
 github,                             level 6 with dict,                  advanced streaming,                 38632
+github,                             level 6 with dict dms,              advanced streaming,                 38632
+github,                             level 6 with dict dds,              advanced streaming,                 38632
+github,                             level 6 with dict copy,             advanced streaming,                 38628
 github,                             level 7,                            advanced streaming,                 135122
 github,                             level 7 with dict,                  advanced streaming,                 38771
+github,                             level 7 with dict dms,              advanced streaming,                 38771
+github,                             level 7 with dict dds,              advanced streaming,                 38771
+github,                             level 7 with dict copy,             advanced streaming,                 38745
 github,                             level 9,                            advanced streaming,                 135122
 github,                             level 9 with dict,                  advanced streaming,                 39332
+github,                             level 9 with dict dms,              advanced streaming,                 39332
+github,                             level 9 with dict dds,              advanced streaming,                 39332
+github,                             level 9 with dict copy,             advanced streaming,                 39341
 github,                             level 13,                           advanced streaming,                 134064
 github,                             level 13 with dict,                 advanced streaming,                 39743
+github,                             level 13 with dict dms,             advanced streaming,                 39743
+github,                             level 13 with dict dds,             advanced streaming,                 39743
+github,                             level 13 with dict copy,            advanced streaming,                 39948
 github,                             level 16,                           advanced streaming,                 134064
 github,                             level 16 with dict,                 advanced streaming,                 37577
+github,                             level 16 with dict dms,             advanced streaming,                 37577
+github,                             level 16 with dict dds,             advanced streaming,                 37577
+github,                             level 16 with dict copy,            advanced streaming,                 37568
 github,                             level 19,                           advanced streaming,                 134064
 github,                             level 19 with dict,                 advanced streaming,                 37576
+github,                             level 19 with dict dms,             advanced streaming,                 37576
+github,                             level 19 with dict dds,             advanced streaming,                 37576
+github,                             level 19 with dict copy,            advanced streaming,                 37567
 github,                             no source size,                     advanced streaming,                 136335
 github,                             no source size with dict,           advanced streaming,                 41148
 github,                             long distance mode,                 advanced streaming,                 136335
@@ -597,26 +861,59 @@ github.tar,                         level -1,                           advanced
 github.tar,                         level -1 with dict,                 advanced streaming,                 41122
 github.tar,                         level 0,                            advanced streaming,                 38441
 github.tar,                         level 0 with dict,                  advanced streaming,                 37995
+github.tar,                         level 0 with dict dms,              advanced streaming,                 38003
+github.tar,                         level 0 with dict dds,              advanced streaming,                 37995
+github.tar,                         level 0 with dict copy,             advanced streaming,                 37995
 github.tar,                         level 1,                            advanced streaming,                 39342
 github.tar,                         level 1 with dict,                  advanced streaming,                 38309
+github.tar,                         level 1 with dict dms,              advanced streaming,                 38319
+github.tar,                         level 1 with dict dds,              advanced streaming,                 38309
+github.tar,                         level 1 with dict copy,             advanced streaming,                 38309
 github.tar,                         level 3,                            advanced streaming,                 38441
 github.tar,                         level 3 with dict,                  advanced streaming,                 37995
+github.tar,                         level 3 with dict dms,              advanced streaming,                 38003
+github.tar,                         level 3 with dict dds,              advanced streaming,                 37995
+github.tar,                         level 3 with dict copy,             advanced streaming,                 37995
 github.tar,                         level 4,                            advanced streaming,                 38467
 github.tar,                         level 4 with dict,                  advanced streaming,                 37948
+github.tar,                         level 4 with dict dms,              advanced streaming,                 37954
+github.tar,                         level 4 with dict dds,              advanced streaming,                 37948
+github.tar,                         level 4 with dict copy,             advanced streaming,                 37948
 github.tar,                         level 5,                            advanced streaming,                 39788
 github.tar,                         level 5 with dict,                  advanced streaming,                 39715
+github.tar,                         level 5 with dict dms,              advanced streaming,                 39365
+github.tar,                         level 5 with dict dds,              advanced streaming,                 39227
+github.tar,                         level 5 with dict copy,             advanced streaming,                 39715
 github.tar,                         level 6,                            advanced streaming,                 39603
 github.tar,                         level 6 with dict,                  advanced streaming,                 38800
+github.tar,                         level 6 with dict dms,              advanced streaming,                 38665
+github.tar,                         level 6 with dict dds,              advanced streaming,                 38665
+github.tar,                         level 6 with dict copy,             advanced streaming,                 38800
 github.tar,                         level 7,                            advanced streaming,                 39206
 github.tar,                         level 7 with dict,                  advanced streaming,                 38071
+github.tar,                         level 7 with dict dms,              advanced streaming,                 37954
+github.tar,                         level 7 with dict dds,              advanced streaming,                 37954
+github.tar,                         level 7 with dict copy,             advanced streaming,                 38071
 github.tar,                         level 9,                            advanced streaming,                 36717
 github.tar,                         level 9 with dict,                  advanced streaming,                 36898
+github.tar,                         level 9 with dict dms,              advanced streaming,                 36882
+github.tar,                         level 9 with dict dds,              advanced streaming,                 36882
+github.tar,                         level 9 with dict copy,             advanced streaming,                 36898
 github.tar,                         level 13,                           advanced streaming,                 35621
 github.tar,                         level 13 with dict,                 advanced streaming,                 38726
+github.tar,                         level 13 with dict dms,             advanced streaming,                 38903
+github.tar,                         level 13 with dict dds,             advanced streaming,                 38726
+github.tar,                         level 13 with dict copy,            advanced streaming,                 38726
 github.tar,                         level 16,                           advanced streaming,                 40255
 github.tar,                         level 16 with dict,                 advanced streaming,                 33639
+github.tar,                         level 16 with dict dms,             advanced streaming,                 33544
+github.tar,                         level 16 with dict dds,             advanced streaming,                 33639
+github.tar,                         level 16 with dict copy,            advanced streaming,                 33639
 github.tar,                         level 19,                           advanced streaming,                 32837
 github.tar,                         level 19 with dict,                 advanced streaming,                 32895
+github.tar,                         level 19 with dict dms,             advanced streaming,                 32672
+github.tar,                         level 19 with dict dds,             advanced streaming,                 32895
+github.tar,                         level 19 with dict copy,            advanced streaming,                 32895
 github.tar,                         no source size,                     advanced streaming,                 38438
 github.tar,                         no source size with dict,           advanced streaming,                 38000
 github.tar,                         long distance mode,                 advanced streaming,                 39722
@@ -674,26 +971,59 @@ github,                             level -1,                           old stre
 github,                             level -1 with dict,                 old streaming,                      43170
 github,                             level 0,                            old streaming,                      136335
 github,                             level 0 with dict,                  old streaming,                      41148
+github,                             level 0 with dict dms,              old streaming,                      41148
+github,                             level 0 with dict dds,              old streaming,                      41148
+github,                             level 0 with dict copy,             old streaming,                      41148
 github,                             level 1,                            old streaming,                      142465
 github,                             level 1 with dict,                  old streaming,                      41682
+github,                             level 1 with dict dms,              old streaming,                      41682
+github,                             level 1 with dict dds,              old streaming,                      41682
+github,                             level 1 with dict copy,             old streaming,                      41682
 github,                             level 3,                            old streaming,                      136335
 github,                             level 3 with dict,                  old streaming,                      41148
+github,                             level 3 with dict dms,              old streaming,                      41148
+github,                             level 3 with dict dds,              old streaming,                      41148
+github,                             level 3 with dict copy,             old streaming,                      41148
 github,                             level 4,                            old streaming,                      136199
 github,                             level 4 with dict,                  old streaming,                      41251
+github,                             level 4 with dict dms,              old streaming,                      41251
+github,                             level 4 with dict dds,              old streaming,                      41251
+github,                             level 4 with dict copy,             old streaming,                      41251
 github,                             level 5,                            old streaming,                      135121
 github,                             level 5 with dict,                  old streaming,                      38938
+github,                             level 5 with dict dms,              old streaming,                      38938
+github,                             level 5 with dict dds,              old streaming,                      38938
+github,                             level 5 with dict copy,             old streaming,                      38938
 github,                             level 6,                            old streaming,                      135122
 github,                             level 6 with dict,                  old streaming,                      38632
+github,                             level 6 with dict dms,              old streaming,                      38632
+github,                             level 6 with dict dds,              old streaming,                      38632
+github,                             level 6 with dict copy,             old streaming,                      38632
 github,                             level 7,                            old streaming,                      135122
 github,                             level 7 with dict,                  old streaming,                      38771
+github,                             level 7 with dict dms,              old streaming,                      38771
+github,                             level 7 with dict dds,              old streaming,                      38771
+github,                             level 7 with dict copy,             old streaming,                      38771
 github,                             level 9,                            old streaming,                      135122
 github,                             level 9 with dict,                  old streaming,                      39332
+github,                             level 9 with dict dms,              old streaming,                      39332
+github,                             level 9 with dict dds,              old streaming,                      39332
+github,                             level 9 with dict copy,             old streaming,                      39332
 github,                             level 13,                           old streaming,                      134064
 github,                             level 13 with dict,                 old streaming,                      39743
+github,                             level 13 with dict dms,             old streaming,                      39743
+github,                             level 13 with dict dds,             old streaming,                      39743
+github,                             level 13 with dict copy,            old streaming,                      39743
 github,                             level 16,                           old streaming,                      134064
 github,                             level 16 with dict,                 old streaming,                      37577
+github,                             level 16 with dict dms,             old streaming,                      37577
+github,                             level 16 with dict dds,             old streaming,                      37577
+github,                             level 16 with dict copy,            old streaming,                      37577
 github,                             level 19,                           old streaming,                      134064
 github,                             level 19 with dict,                 old streaming,                      37576
+github,                             level 19 with dict dms,             old streaming,                      37576
+github,                             level 19 with dict dds,             old streaming,                      37576
+github,                             level 19 with dict copy,            old streaming,                      37576
 github,                             no source size,                     old streaming,                      140632
 github,                             no source size with dict,           old streaming,                      40654
 github,                             uncompressed literals,              old streaming,                      136335
@@ -707,26 +1037,59 @@ github.tar,                         level -1,                           old stre
 github.tar,                         level -1 with dict,                 old streaming,                      41122
 github.tar,                         level 0,                            old streaming,                      38441
 github.tar,                         level 0 with dict,                  old streaming,                      37995
+github.tar,                         level 0 with dict dms,              old streaming,                      37995
+github.tar,                         level 0 with dict dds,              old streaming,                      37995
+github.tar,                         level 0 with dict copy,             old streaming,                      37995
 github.tar,                         level 1,                            old streaming,                      39342
 github.tar,                         level 1 with dict,                  old streaming,                      38309
+github.tar,                         level 1 with dict dms,              old streaming,                      38309
+github.tar,                         level 1 with dict dds,              old streaming,                      38309
+github.tar,                         level 1 with dict copy,             old streaming,                      38309
 github.tar,                         level 3,                            old streaming,                      38441
 github.tar,                         level 3 with dict,                  old streaming,                      37995
+github.tar,                         level 3 with dict dms,              old streaming,                      37995
+github.tar,                         level 3 with dict dds,              old streaming,                      37995
+github.tar,                         level 3 with dict copy,             old streaming,                      37995
 github.tar,                         level 4,                            old streaming,                      38467
 github.tar,                         level 4 with dict,                  old streaming,                      37948
+github.tar,                         level 4 with dict dms,              old streaming,                      37948
+github.tar,                         level 4 with dict dds,              old streaming,                      37948
+github.tar,                         level 4 with dict copy,             old streaming,                      37948
 github.tar,                         level 5,                            old streaming,                      39788
 github.tar,                         level 5 with dict,                  old streaming,                      39715
+github.tar,                         level 5 with dict dms,              old streaming,                      39715
+github.tar,                         level 5 with dict dds,              old streaming,                      39715
+github.tar,                         level 5 with dict copy,             old streaming,                      39715
 github.tar,                         level 6,                            old streaming,                      39603
 github.tar,                         level 6 with dict,                  old streaming,                      38800
+github.tar,                         level 6 with dict dms,              old streaming,                      38800
+github.tar,                         level 6 with dict dds,              old streaming,                      38800
+github.tar,                         level 6 with dict copy,             old streaming,                      38800
 github.tar,                         level 7,                            old streaming,                      39206
 github.tar,                         level 7 with dict,                  old streaming,                      38071
+github.tar,                         level 7 with dict dms,              old streaming,                      38071
+github.tar,                         level 7 with dict dds,              old streaming,                      38071
+github.tar,                         level 7 with dict copy,             old streaming,                      38071
 github.tar,                         level 9,                            old streaming,                      36717
 github.tar,                         level 9 with dict,                  old streaming,                      36898
+github.tar,                         level 9 with dict dms,              old streaming,                      36898
+github.tar,                         level 9 with dict dds,              old streaming,                      36898
+github.tar,                         level 9 with dict copy,             old streaming,                      36898
 github.tar,                         level 13,                           old streaming,                      35621
 github.tar,                         level 13 with dict,                 old streaming,                      38726
+github.tar,                         level 13 with dict dms,             old streaming,                      38726
+github.tar,                         level 13 with dict dds,             old streaming,                      38726
+github.tar,                         level 13 with dict copy,            old streaming,                      38726
 github.tar,                         level 16,                           old streaming,                      40255
 github.tar,                         level 16 with dict,                 old streaming,                      33639
+github.tar,                         level 16 with dict dms,             old streaming,                      33639
+github.tar,                         level 16 with dict dds,             old streaming,                      33639
+github.tar,                         level 16 with dict copy,            old streaming,                      33639
 github.tar,                         level 19,                           old streaming,                      32837
 github.tar,                         level 19 with dict,                 old streaming,                      32895
+github.tar,                         level 19 with dict dms,             old streaming,                      32895
+github.tar,                         level 19 with dict dds,             old streaming,                      32895
+github.tar,                         level 19 with dict copy,            old streaming,                      32895
 github.tar,                         no source size,                     old streaming,                      38438
 github.tar,                         no source size with dict,           old streaming,                      38000
 github.tar,                         uncompressed literals,              old streaming,                      38441
@@ -792,26 +1155,59 @@ github,                             level -1,                           old stre
 github,                             level -1 with dict,                 old streaming advanced,             42383
 github,                             level 0,                            old streaming advanced,             141104
 github,                             level 0 with dict,                  old streaming advanced,             41113
+github,                             level 0 with dict dms,              old streaming advanced,             41113
+github,                             level 0 with dict dds,              old streaming advanced,             41113
+github,                             level 0 with dict copy,             old streaming advanced,             41113
 github,                             level 1,                            old streaming advanced,             143692
 github,                             level 1 with dict,                  old streaming advanced,             42430
+github,                             level 1 with dict dms,              old streaming advanced,             42430
+github,                             level 1 with dict dds,              old streaming advanced,             42430
+github,                             level 1 with dict copy,             old streaming advanced,             42430
 github,                             level 3,                            old streaming advanced,             141104
 github,                             level 3 with dict,                  old streaming advanced,             41113
+github,                             level 3 with dict dms,              old streaming advanced,             41113
+github,                             level 3 with dict dds,              old streaming advanced,             41113
+github,                             level 3 with dict copy,             old streaming advanced,             41113
 github,                             level 4,                            old streaming advanced,             141104
 github,                             level 4 with dict,                  old streaming advanced,             41084
+github,                             level 4 with dict dms,              old streaming advanced,             41084
+github,                             level 4 with dict dds,              old streaming advanced,             41084
+github,                             level 4 with dict copy,             old streaming advanced,             41084
 github,                             level 5,                            old streaming advanced,             139399
 github,                             level 5 with dict,                  old streaming advanced,             39159
+github,                             level 5 with dict dms,              old streaming advanced,             39159
+github,                             level 5 with dict dds,              old streaming advanced,             39159
+github,                             level 5 with dict copy,             old streaming advanced,             39159
 github,                             level 6,                            old streaming advanced,             139402
 github,                             level 6 with dict,                  old streaming advanced,             38749
+github,                             level 6 with dict dms,              old streaming advanced,             38749
+github,                             level 6 with dict dds,              old streaming advanced,             38749
+github,                             level 6 with dict copy,             old streaming advanced,             38749
 github,                             level 7,                            old streaming advanced,             138676
 github,                             level 7 with dict,                  old streaming advanced,             38746
+github,                             level 7 with dict dms,              old streaming advanced,             38746
+github,                             level 7 with dict dds,              old streaming advanced,             38746
+github,                             level 7 with dict copy,             old streaming advanced,             38746
 github,                             level 9,                            old streaming advanced,             138676
 github,                             level 9 with dict,                  old streaming advanced,             38993
+github,                             level 9 with dict dms,              old streaming advanced,             38993
+github,                             level 9 with dict dds,              old streaming advanced,             38993
+github,                             level 9 with dict copy,             old streaming advanced,             38993
 github,                             level 13,                           old streaming advanced,             138676
 github,                             level 13 with dict,                 old streaming advanced,             39731
+github,                             level 13 with dict dms,             old streaming advanced,             39731
+github,                             level 13 with dict dds,             old streaming advanced,             39731
+github,                             level 13 with dict copy,            old streaming advanced,             39731
 github,                             level 16,                           old streaming advanced,             138676
 github,                             level 16 with dict,                 old streaming advanced,             40789
+github,                             level 16 with dict dms,             old streaming advanced,             40789
+github,                             level 16 with dict dds,             old streaming advanced,             40789
+github,                             level 16 with dict copy,            old streaming advanced,             40789
 github,                             level 19,                           old streaming advanced,             134064
 github,                             level 19 with dict,                 old streaming advanced,             37576
+github,                             level 19 with dict dms,             old streaming advanced,             37576
+github,                             level 19 with dict dds,             old streaming advanced,             37576
+github,                             level 19 with dict copy,            old streaming advanced,             37576
 github,                             no source size,                     old streaming advanced,             140632
 github,                             no source size with dict,           old streaming advanced,             40608
 github,                             long distance mode,                 old streaming advanced,             141104
@@ -833,26 +1229,59 @@ github.tar,                         level -1,                           old stre
 github.tar,                         level -1 with dict,                 old streaming advanced,             41471
 github.tar,                         level 0,                            old streaming advanced,             38441
 github.tar,                         level 0 with dict,                  old streaming advanced,             38013
+github.tar,                         level 0 with dict dms,              old streaming advanced,             38013
+github.tar,                         level 0 with dict dds,              old streaming advanced,             38013
+github.tar,                         level 0 with dict copy,             old streaming advanced,             38013
 github.tar,                         level 1,                            old streaming advanced,             39342
 github.tar,                         level 1 with dict,                  old streaming advanced,             38940
+github.tar,                         level 1 with dict dms,              old streaming advanced,             38940
+github.tar,                         level 1 with dict dds,              old streaming advanced,             38940
+github.tar,                         level 1 with dict copy,             old streaming advanced,             38940
 github.tar,                         level 3,                            old streaming advanced,             38441
 github.tar,                         level 3 with dict,                  old streaming advanced,             38013
+github.tar,                         level 3 with dict dms,              old streaming advanced,             38013
+github.tar,                         level 3 with dict dds,              old streaming advanced,             38013
+github.tar,                         level 3 with dict copy,             old streaming advanced,             38013
 github.tar,                         level 4,                            old streaming advanced,             38467
 github.tar,                         level 4 with dict,                  old streaming advanced,             38063
+github.tar,                         level 4 with dict dms,              old streaming advanced,             38063
+github.tar,                         level 4 with dict dds,              old streaming advanced,             38063
+github.tar,                         level 4 with dict copy,             old streaming advanced,             38063
 github.tar,                         level 5,                            old streaming advanced,             39788
 github.tar,                         level 5 with dict,                  old streaming advanced,             39310
+github.tar,                         level 5 with dict dms,              old streaming advanced,             39310
+github.tar,                         level 5 with dict dds,              old streaming advanced,             39310
+github.tar,                         level 5 with dict copy,             old streaming advanced,             39310
 github.tar,                         level 6,                            old streaming advanced,             39603
 github.tar,                         level 6 with dict,                  old streaming advanced,             39279
+github.tar,                         level 6 with dict dms,              old streaming advanced,             39279
+github.tar,                         level 6 with dict dds,              old streaming advanced,             39279
+github.tar,                         level 6 with dict copy,             old streaming advanced,             39279
 github.tar,                         level 7,                            old streaming advanced,             39206
 github.tar,                         level 7 with dict,                  old streaming advanced,             38728
+github.tar,                         level 7 with dict dms,              old streaming advanced,             38728
+github.tar,                         level 7 with dict dds,              old streaming advanced,             38728
+github.tar,                         level 7 with dict copy,             old streaming advanced,             38728
 github.tar,                         level 9,                            old streaming advanced,             36717
 github.tar,                         level 9 with dict,                  old streaming advanced,             36504
+github.tar,                         level 9 with dict dms,              old streaming advanced,             36504
+github.tar,                         level 9 with dict dds,              old streaming advanced,             36504
+github.tar,                         level 9 with dict copy,             old streaming advanced,             36504
 github.tar,                         level 13,                           old streaming advanced,             35621
 github.tar,                         level 13 with dict,                 old streaming advanced,             36035
+github.tar,                         level 13 with dict dms,             old streaming advanced,             36035
+github.tar,                         level 13 with dict dds,             old streaming advanced,             36035
+github.tar,                         level 13 with dict copy,            old streaming advanced,             36035
 github.tar,                         level 16,                           old streaming advanced,             40255
 github.tar,                         level 16 with dict,                 old streaming advanced,             38736
+github.tar,                         level 16 with dict dms,             old streaming advanced,             38736
+github.tar,                         level 16 with dict dds,             old streaming advanced,             38736
+github.tar,                         level 16 with dict copy,            old streaming advanced,             38736
 github.tar,                         level 19,                           old streaming advanced,             32837
 github.tar,                         level 19 with dict,                 old streaming advanced,             32876
+github.tar,                         level 19 with dict dms,             old streaming advanced,             32876
+github.tar,                         level 19 with dict dds,             old streaming advanced,             32876
+github.tar,                         level 19 with dict copy,            old streaming advanced,             32876
 github.tar,                         no source size,                     old streaming advanced,             38438
 github.tar,                         no source size with dict,           old streaming advanced,             38015
 github.tar,                         long distance mode,                 old streaming advanced,             38441
@@ -866,63 +1295,195 @@ github.tar,                         uncompressed literals,              old stre
 github.tar,                         uncompressed literals optimal,      old streaming advanced,             32837
 github.tar,                         huffman literals,                   old streaming advanced,             42465
 github.tar,                         multithreaded with advanced params, old streaming advanced,             38441
-github,                             level -5 with dict,                 old streaming cdcit,                46718
-github,                             level -3 with dict,                 old streaming cdcit,                45395
-github,                             level -1 with dict,                 old streaming cdcit,                43170
-github,                             level 0 with dict,                  old streaming cdcit,                41148
-github,                             level 1 with dict,                  old streaming cdcit,                41682
-github,                             level 3 with dict,                  old streaming cdcit,                41148
-github,                             level 4 with dict,                  old streaming cdcit,                41251
-github,                             level 5 with dict,                  old streaming cdcit,                38938
-github,                             level 6 with dict,                  old streaming cdcit,                38632
-github,                             level 7 with dict,                  old streaming cdcit,                38771
-github,                             level 9 with dict,                  old streaming cdcit,                39332
-github,                             level 13 with dict,                 old streaming cdcit,                39743
-github,                             level 16 with dict,                 old streaming cdcit,                37577
-github,                             level 19 with dict,                 old streaming cdcit,                37576
-github,                             no source size with dict,           old streaming cdcit,                40654
-github.tar,                         level -5 with dict,                 old streaming cdcit,                45018
-github.tar,                         level -3 with dict,                 old streaming cdcit,                41886
-github.tar,                         level -1 with dict,                 old streaming cdcit,                41636
-github.tar,                         level 0 with dict,                  old streaming cdcit,                37956
-github.tar,                         level 1 with dict,                  old streaming cdcit,                38766
-github.tar,                         level 3 with dict,                  old streaming cdcit,                37956
-github.tar,                         level 4 with dict,                  old streaming cdcit,                37927
-github.tar,                         level 5 with dict,                  old streaming cdcit,                39209
-github.tar,                         level 6 with dict,                  old streaming cdcit,                38983
-github.tar,                         level 7 with dict,                  old streaming cdcit,                38584
-github.tar,                         level 9 with dict,                  old streaming cdcit,                36363
-github.tar,                         level 13 with dict,                 old streaming cdcit,                36372
-github.tar,                         level 16 with dict,                 old streaming cdcit,                39353
-github.tar,                         level 19 with dict,                 old streaming cdcit,                32676
-github.tar,                         no source size with dict,           old streaming cdcit,                38000
+github,                             level -5 with dict,                 old streaming cdict,                46718
+github,                             level -3 with dict,                 old streaming cdict,                45395
+github,                             level -1 with dict,                 old streaming cdict,                43170
+github,                             level 0 with dict,                  old streaming cdict,                41148
+github,                             level 0 with dict dms,              old streaming cdict,                41148
+github,                             level 0 with dict dds,              old streaming cdict,                41148
+github,                             level 0 with dict copy,             old streaming cdict,                41148
+github,                             level 1 with dict,                  old streaming cdict,                41682
+github,                             level 1 with dict dms,              old streaming cdict,                41682
+github,                             level 1 with dict dds,              old streaming cdict,                41682
+github,                             level 1 with dict copy,             old streaming cdict,                41682
+github,                             level 3 with dict,                  old streaming cdict,                41148
+github,                             level 3 with dict dms,              old streaming cdict,                41148
+github,                             level 3 with dict dds,              old streaming cdict,                41148
+github,                             level 3 with dict copy,             old streaming cdict,                41148
+github,                             level 4 with dict,                  old streaming cdict,                41251
+github,                             level 4 with dict dms,              old streaming cdict,                41251
+github,                             level 4 with dict dds,              old streaming cdict,                41251
+github,                             level 4 with dict copy,             old streaming cdict,                41251
+github,                             level 5 with dict,                  old streaming cdict,                38938
+github,                             level 5 with dict dms,              old streaming cdict,                38938
+github,                             level 5 with dict dds,              old streaming cdict,                38938
+github,                             level 5 with dict copy,             old streaming cdict,                38938
+github,                             level 6 with dict,                  old streaming cdict,                38632
+github,                             level 6 with dict dms,              old streaming cdict,                38632
+github,                             level 6 with dict dds,              old streaming cdict,                38632
+github,                             level 6 with dict copy,             old streaming cdict,                38632
+github,                             level 7 with dict,                  old streaming cdict,                38771
+github,                             level 7 with dict dms,              old streaming cdict,                38771
+github,                             level 7 with dict dds,              old streaming cdict,                38771
+github,                             level 7 with dict copy,             old streaming cdict,                38771
+github,                             level 9 with dict,                  old streaming cdict,                39332
+github,                             level 9 with dict dms,              old streaming cdict,                39332
+github,                             level 9 with dict dds,              old streaming cdict,                39332
+github,                             level 9 with dict copy,             old streaming cdict,                39332
+github,                             level 13 with dict,                 old streaming cdict,                39743
+github,                             level 13 with dict dms,             old streaming cdict,                39743
+github,                             level 13 with dict dds,             old streaming cdict,                39743
+github,                             level 13 with dict copy,            old streaming cdict,                39743
+github,                             level 16 with dict,                 old streaming cdict,                37577
+github,                             level 16 with dict dms,             old streaming cdict,                37577
+github,                             level 16 with dict dds,             old streaming cdict,                37577
+github,                             level 16 with dict copy,            old streaming cdict,                37577
+github,                             level 19 with dict,                 old streaming cdict,                37576
+github,                             level 19 with dict dms,             old streaming cdict,                37576
+github,                             level 19 with dict dds,             old streaming cdict,                37576
+github,                             level 19 with dict copy,            old streaming cdict,                37576
+github,                             no source size with dict,           old streaming cdict,                40654
+github.tar,                         level -5 with dict,                 old streaming cdict,                45018
+github.tar,                         level -3 with dict,                 old streaming cdict,                41886
+github.tar,                         level -1 with dict,                 old streaming cdict,                41636
+github.tar,                         level 0 with dict,                  old streaming cdict,                37956
+github.tar,                         level 0 with dict dms,              old streaming cdict,                37956
+github.tar,                         level 0 with dict dds,              old streaming cdict,                37956
+github.tar,                         level 0 with dict copy,             old streaming cdict,                37956
+github.tar,                         level 1 with dict,                  old streaming cdict,                38766
+github.tar,                         level 1 with dict dms,              old streaming cdict,                38766
+github.tar,                         level 1 with dict dds,              old streaming cdict,                38766
+github.tar,                         level 1 with dict copy,             old streaming cdict,                38766
+github.tar,                         level 3 with dict,                  old streaming cdict,                37956
+github.tar,                         level 3 with dict dms,              old streaming cdict,                37956
+github.tar,                         level 3 with dict dds,              old streaming cdict,                37956
+github.tar,                         level 3 with dict copy,             old streaming cdict,                37956
+github.tar,                         level 4 with dict,                  old streaming cdict,                37927
+github.tar,                         level 4 with dict dms,              old streaming cdict,                37927
+github.tar,                         level 4 with dict dds,              old streaming cdict,                37927
+github.tar,                         level 4 with dict copy,             old streaming cdict,                37927
+github.tar,                         level 5 with dict,                  old streaming cdict,                39209
+github.tar,                         level 5 with dict dms,              old streaming cdict,                39209
+github.tar,                         level 5 with dict dds,              old streaming cdict,                39209
+github.tar,                         level 5 with dict copy,             old streaming cdict,                39209
+github.tar,                         level 6 with dict,                  old streaming cdict,                38983
+github.tar,                         level 6 with dict dms,              old streaming cdict,                38983
+github.tar,                         level 6 with dict dds,              old streaming cdict,                38983
+github.tar,                         level 6 with dict copy,             old streaming cdict,                38983
+github.tar,                         level 7 with dict,                  old streaming cdict,                38584
+github.tar,                         level 7 with dict dms,              old streaming cdict,                38584
+github.tar,                         level 7 with dict dds,              old streaming cdict,                38584
+github.tar,                         level 7 with dict copy,             old streaming cdict,                38584
+github.tar,                         level 9 with dict,                  old streaming cdict,                36363
+github.tar,                         level 9 with dict dms,              old streaming cdict,                36363
+github.tar,                         level 9 with dict dds,              old streaming cdict,                36363
+github.tar,                         level 9 with dict copy,             old streaming cdict,                36363
+github.tar,                         level 13 with dict,                 old streaming cdict,                36372
+github.tar,                         level 13 with dict dms,             old streaming cdict,                36372
+github.tar,                         level 13 with dict dds,             old streaming cdict,                36372
+github.tar,                         level 13 with dict copy,            old streaming cdict,                36372
+github.tar,                         level 16 with dict,                 old streaming cdict,                39353
+github.tar,                         level 16 with dict dms,             old streaming cdict,                39353
+github.tar,                         level 16 with dict dds,             old streaming cdict,                39353
+github.tar,                         level 16 with dict copy,            old streaming cdict,                39353
+github.tar,                         level 19 with dict,                 old streaming cdict,                32676
+github.tar,                         level 19 with dict dms,             old streaming cdict,                32676
+github.tar,                         level 19 with dict dds,             old streaming cdict,                32676
+github.tar,                         level 19 with dict copy,            old streaming cdict,                32676
+github.tar,                         no source size with dict,           old streaming cdict,                38000
 github,                             level -5 with dict,                 old streaming advanced cdict,       49562
 github,                             level -3 with dict,                 old streaming advanced cdict,       44956
 github,                             level -1 with dict,                 old streaming advanced cdict,       42383
 github,                             level 0 with dict,                  old streaming advanced cdict,       41113
+github,                             level 0 with dict dms,              old streaming advanced cdict,       41113
+github,                             level 0 with dict dds,              old streaming advanced cdict,       41113
+github,                             level 0 with dict copy,             old streaming advanced cdict,       41113
 github,                             level 1 with dict,                  old streaming advanced cdict,       42430
+github,                             level 1 with dict dms,              old streaming advanced cdict,       42430
+github,                             level 1 with dict dds,              old streaming advanced cdict,       42430
+github,                             level 1 with dict copy,             old streaming advanced cdict,       42430
 github,                             level 3 with dict,                  old streaming advanced cdict,       41113
+github,                             level 3 with dict dms,              old streaming advanced cdict,       41113
+github,                             level 3 with dict dds,              old streaming advanced cdict,       41113
+github,                             level 3 with dict copy,             old streaming advanced cdict,       41113
 github,                             level 4 with dict,                  old streaming advanced cdict,       41084
+github,                             level 4 with dict dms,              old streaming advanced cdict,       41084
+github,                             level 4 with dict dds,              old streaming advanced cdict,       41084
+github,                             level 4 with dict copy,             old streaming advanced cdict,       41084
 github,                             level 5 with dict,                  old streaming advanced cdict,       39159
+github,                             level 5 with dict dms,              old streaming advanced cdict,       39159
+github,                             level 5 with dict dds,              old streaming advanced cdict,       39159
+github,                             level 5 with dict copy,             old streaming advanced cdict,       39159
 github,                             level 6 with dict,                  old streaming advanced cdict,       38749
+github,                             level 6 with dict dms,              old streaming advanced cdict,       38749
+github,                             level 6 with dict dds,              old streaming advanced cdict,       38749
+github,                             level 6 with dict copy,             old streaming advanced cdict,       38749
 github,                             level 7 with dict,                  old streaming advanced cdict,       38746
+github,                             level 7 with dict dms,              old streaming advanced cdict,       38746
+github,                             level 7 with dict dds,              old streaming advanced cdict,       38746
+github,                             level 7 with dict copy,             old streaming advanced cdict,       38746
 github,                             level 9 with dict,                  old streaming advanced cdict,       38993
+github,                             level 9 with dict dms,              old streaming advanced cdict,       38993
+github,                             level 9 with dict dds,              old streaming advanced cdict,       38993
+github,                             level 9 with dict copy,             old streaming advanced cdict,       38993
 github,                             level 13 with dict,                 old streaming advanced cdict,       39731
+github,                             level 13 with dict dms,             old streaming advanced cdict,       39731
+github,                             level 13 with dict dds,             old streaming advanced cdict,       39731
+github,                             level 13 with dict copy,            old streaming advanced cdict,       39731
 github,                             level 16 with dict,                 old streaming advanced cdict,       40789
+github,                             level 16 with dict dms,             old streaming advanced cdict,       40789
+github,                             level 16 with dict dds,             old streaming advanced cdict,       40789
+github,                             level 16 with dict copy,            old streaming advanced cdict,       40789
 github,                             level 19 with dict,                 old streaming advanced cdict,       37576
+github,                             level 19 with dict dms,             old streaming advanced cdict,       37576
+github,                             level 19 with dict dds,             old streaming advanced cdict,       37576
+github,                             level 19 with dict copy,            old streaming advanced cdict,       37576
 github,                             no source size with dict,           old streaming advanced cdict,       40608
 github.tar,                         level -5 with dict,                 old streaming advanced cdict,       44307
 github.tar,                         level -3 with dict,                 old streaming advanced cdict,       41359
 github.tar,                         level -1 with dict,                 old streaming advanced cdict,       41322
 github.tar,                         level 0 with dict,                  old streaming advanced cdict,       38013
+github.tar,                         level 0 with dict dms,              old streaming advanced cdict,       38013
+github.tar,                         level 0 with dict dds,              old streaming advanced cdict,       38013
+github.tar,                         level 0 with dict copy,             old streaming advanced cdict,       38013
 github.tar,                         level 1 with dict,                  old streaming advanced cdict,       39002
+github.tar,                         level 1 with dict dms,              old streaming advanced cdict,       39002
+github.tar,                         level 1 with dict dds,              old streaming advanced cdict,       39002
+github.tar,                         level 1 with dict copy,             old streaming advanced cdict,       39002
 github.tar,                         level 3 with dict,                  old streaming advanced cdict,       38013
+github.tar,                         level 3 with dict dms,              old streaming advanced cdict,       38013
+github.tar,                         level 3 with dict dds,              old streaming advanced cdict,       38013
+github.tar,                         level 3 with dict copy,             old streaming advanced cdict,       38013
 github.tar,                         level 4 with dict,                  old streaming advanced cdict,       38063
+github.tar,                         level 4 with dict dms,              old streaming advanced cdict,       38063
+github.tar,                         level 4 with dict dds,              old streaming advanced cdict,       38063
+github.tar,                         level 4 with dict copy,             old streaming advanced cdict,       38063
 github.tar,                         level 5 with dict,                  old streaming advanced cdict,       39310
+github.tar,                         level 5 with dict dms,              old streaming advanced cdict,       39310
+github.tar,                         level 5 with dict dds,              old streaming advanced cdict,       39310
+github.tar,                         level 5 with dict copy,             old streaming advanced cdict,       39310
 github.tar,                         level 6 with dict,                  old streaming advanced cdict,       39279
+github.tar,                         level 6 with dict dms,              old streaming advanced cdict,       39279
+github.tar,                         level 6 with dict dds,              old streaming advanced cdict,       39279
+github.tar,                         level 6 with dict copy,             old streaming advanced cdict,       39279
 github.tar,                         level 7 with dict,                  old streaming advanced cdict,       38728
+github.tar,                         level 7 with dict dms,              old streaming advanced cdict,       38728
+github.tar,                         level 7 with dict dds,              old streaming advanced cdict,       38728
+github.tar,                         level 7 with dict copy,             old streaming advanced cdict,       38728
 github.tar,                         level 9 with dict,                  old streaming advanced cdict,       36504
+github.tar,                         level 9 with dict dms,              old streaming advanced cdict,       36504
+github.tar,                         level 9 with dict dds,              old streaming advanced cdict,       36504
+github.tar,                         level 9 with dict copy,             old streaming advanced cdict,       36504
 github.tar,                         level 13 with dict,                 old streaming advanced cdict,       36035
+github.tar,                         level 13 with dict dms,             old streaming advanced cdict,       36035
+github.tar,                         level 13 with dict dds,             old streaming advanced cdict,       36035
+github.tar,                         level 13 with dict copy,            old streaming advanced cdict,       36035
 github.tar,                         level 16 with dict,                 old streaming advanced cdict,       38736
+github.tar,                         level 16 with dict dms,             old streaming advanced cdict,       38736
+github.tar,                         level 16 with dict dds,             old streaming advanced cdict,       38736
+github.tar,                         level 16 with dict copy,            old streaming advanced cdict,       38736
 github.tar,                         level 19 with dict,                 old streaming advanced cdict,       32876
+github.tar,                         level 19 with dict dms,             old streaming advanced cdict,       32876
+github.tar,                         level 19 with dict dds,             old streaming advanced cdict,       32876
+github.tar,                         level 19 with dict copy,            old streaming advanced cdict,       32876
 github.tar,                         no source size with dict,           old streaming advanced cdict,       38015

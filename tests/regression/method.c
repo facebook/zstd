@@ -651,7 +651,7 @@ method_t const old_streaming_advanced = {
 };
 
 method_t const old_streaming_cdict = {
-    .name = "old streaming cdcit",
+    .name = "old streaming cdict",
     .create = buffer_state_create,
     .compress = old_streaming_compress_cdict,
     .destroy = buffer_state_destroy,

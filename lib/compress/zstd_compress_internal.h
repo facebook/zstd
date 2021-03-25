@@ -106,7 +106,7 @@ typedef struct {
     symbolEncodingType_e mlType;
     BYTE fseTablesBuffer[ZSTD_MAX_FSE_HEADERS_SIZE];
     size_t fseTablesSize;
-    size_t lastCountSize; /* This is to account for bug in 1.3.4. More detail in ZSTD_entropyCompressSequences_internal() */
+    size_t lastCountSize; /* This is to account for bug in 1.3.4. More detail in ZSTD_entropyCompressSeqStore_internal() */
 } ZSTD_fseCTablesMetadata_t;
 
 typedef struct {

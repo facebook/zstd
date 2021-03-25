@@ -3338,7 +3338,6 @@ static size_t ZSTD_compressBlock_splitBlock_internal(ZSTD_CCtx* zc, void* dst, s
     size_t numSplits = ZSTD_deriveBlockSplits(zc, partitions, nbSeq);
     seqStore_t nextSeqStore;
     seqStore_t currSeqStore;
-    U32 canEmitRLEorNoCompress = 1;
     const size_t dstCapacityInitial = dstCapacity;
 
     DEBUGLOG(5, "ZSTD_compressBlock_splitBlock_internal (dstCapacity=%u, dictLimit=%u, nextToUpdate=%u)",
@@ -3356,14 +3355,16 @@ static size_t ZSTD_compressBlock_splitBlock_internal(ZSTD_CCtx* zc, void* dst, s
     for (i = 0; i <= numSplits; ++i) {
         size_t srcBytes;
         size_t cSizeChunk;
-        U32 lastBlockActual;
+        U32 lastBlockEntireSrc = 0;
+        U32 canEmitRLEorNoCompress = 1;
 
         srcBytes = ZSTD_countSeqStoreLiteralsBytes(&currSeqStore) + ZSTD_countSeqStoreMatchBytes(&currSeqStore);
-        lastBlockActual = lastBlock && (i == numSplits);
         srcBytesTotal += srcBytes;
         if (i == numSplits) {
             /* This is the final partition, need to account for possible last literals */
             srcBytes += blockSize - srcBytesTotal;
+            lastBlockEntireSrc = lastBlock;
+            canEmitRLEorNoCompress = lastBlock;
         } else {
             ZSTD_deriveSeqStoreChunk(&nextSeqStore, &zc->seqStore, partitions[i], partitions[i+1]);
             if (ZSTD_seqStore_firstThreeContainRepcodes(&nextSeqStore)) {
@@ -3372,7 +3373,7 @@ static size_t ZSTD_compressBlock_splitBlock_internal(ZSTD_CCtx* zc, void* dst, s
             }
         }
 
-        cSizeChunk = ZSTD_compressSeqStore_singleBlock(zc, &currSeqStore, op, dstCapacity, ip, srcBytes, lastBlockActual, canEmitRLEorNoCompress);
+        cSizeChunk = ZSTD_compressSeqStore_singleBlock(zc, &currSeqStore, op, dstCapacity, ip, srcBytes, lastBlockEntireSrc, canEmitRLEorNoCompress);
         DEBUGLOG(5, "Estimated size: %zu actual size: %zu", ZSTD_buildEntropyStatisticsAndEstimateSubBlockSize(&currSeqStore, zc), cSizeChunk);
         FORWARD_IF_ERROR(cSizeChunk, "Compressing chunk failed!");
         ZSTD_memcpy(zc->blockState.nextCBlock->rep, zc->blockState.prevCBlock->rep, sizeof(U32)*ZSTD_REP_NUM);

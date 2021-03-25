@@ -1927,6 +1927,10 @@ ZSTDLIB_API size_t ZSTD_compressStream2_simpleArgs (
                       const void* src, size_t srcSize, size_t* srcPos,
                             ZSTD_EndDirective endOp);
 
+/*! ZSTD_defaultCLevel() :
+ * Returns the default compression level, specified by ZSTD_CLEVEL_DEFAULT
+ */
+ZSTDLIB_API int ZSTD_defaultCLevel(void);
 
 /***************************************
 *  Advanced decompression functions

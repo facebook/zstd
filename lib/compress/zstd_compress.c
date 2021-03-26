@@ -1576,17 +1576,6 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
         ZSTD_cwksp_mark_tables_dirty(ws);
     }
 
-    /* opt parser space */
-    if ((forWho == ZSTD_resetTarget_CCtx) && (cParams->strategy >= ZSTD_btopt)) {
-        DEBUGLOG(4, "reserving optimal parser space");
-        ms->opt.litFreq = (unsigned*)ZSTD_cwksp_reserve_aligned(ws, (1<<Litbits) * sizeof(unsigned));
-        ms->opt.litLengthFreq = (unsigned*)ZSTD_cwksp_reserve_aligned(ws, (MaxLL+1) * sizeof(unsigned));
-        ms->opt.matchLengthFreq = (unsigned*)ZSTD_cwksp_reserve_aligned(ws, (MaxML+1) * sizeof(unsigned));
-        ms->opt.offCodeFreq = (unsigned*)ZSTD_cwksp_reserve_aligned(ws, (MaxOff+1) * sizeof(unsigned));
-        ms->opt.matchTable = (ZSTD_match_t*)ZSTD_cwksp_reserve_aligned(ws, (ZSTD_OPT_NUM+1) * sizeof(ZSTD_match_t));
-        ms->opt.priceTable = (ZSTD_optimal_t*)ZSTD_cwksp_reserve_aligned(ws, (ZSTD_OPT_NUM+1) * sizeof(ZSTD_optimal_t));
-    }
-
     ms->hashLog3 = hashLog3;
 
     ZSTD_invalidateMatchState(ms);
@@ -1595,7 +1584,7 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
 
     ZSTD_cwksp_clear_tables(ws);
 
-    DEBUGLOG(4, "reserving table space");
+    DEBUGLOG(5, "reserving table space");
     /* table Space */
     ms->hashTable = (U32*)ZSTD_cwksp_reserve_table(ws, hSize * sizeof(U32));
     ms->chainTable = (U32*)ZSTD_cwksp_reserve_table(ws, chainSize * sizeof(U32));
@@ -1607,6 +1596,17 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
     if (crp!=ZSTDcrp_leaveDirty) {
         /* reset tables only */
         ZSTD_cwksp_clean_tables(ws);
+    }
+
+    /* opt parser space */
+    if ((forWho == ZSTD_resetTarget_CCtx) && (cParams->strategy >= ZSTD_btopt)) {
+        DEBUGLOG(4, "reserving optimal parser space");
+        ms->opt.litFreq = (unsigned*)ZSTD_cwksp_reserve_aligned(ws, (1<<Litbits) * sizeof(unsigned));
+        ms->opt.litLengthFreq = (unsigned*)ZSTD_cwksp_reserve_aligned(ws, (MaxLL+1) * sizeof(unsigned));
+        ms->opt.matchLengthFreq = (unsigned*)ZSTD_cwksp_reserve_aligned(ws, (MaxML+1) * sizeof(unsigned));
+        ms->opt.offCodeFreq = (unsigned*)ZSTD_cwksp_reserve_aligned(ws, (MaxOff+1) * sizeof(unsigned));
+        ms->opt.matchTable = (ZSTD_match_t*)ZSTD_cwksp_reserve_aligned(ws, (ZSTD_OPT_NUM+1) * sizeof(ZSTD_match_t));
+        ms->opt.priceTable = (ZSTD_optimal_t*)ZSTD_cwksp_reserve_aligned(ws, (ZSTD_OPT_NUM+1) * sizeof(ZSTD_optimal_t));
     }
 
     ms->cParams = *cParams;
@@ -1761,6 +1761,14 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         zc->seqStore.ofCode = ZSTD_cwksp_reserve_buffer(ws, maxNbSeq * sizeof(BYTE));
         zc->seqStore.sequencesStart = (seqDef*)ZSTD_cwksp_reserve_aligned(ws, maxNbSeq * sizeof(seqDef));
 
+        FORWARD_IF_ERROR(ZSTD_reset_matchState(
+            &zc->blockState.matchState,
+            ws,
+            &params.cParams,
+            crp,
+            needsIndexReset,
+            ZSTD_resetTarget_CCtx), "");
+
         /* ldm hash table */
         if (params.ldmParams.enableLdm) {
             /* TODO: avoid memset? */
@@ -1775,18 +1783,11 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             zc->ldmState.loadedDictEnd = 0;
         }
 
-        FORWARD_IF_ERROR(ZSTD_reset_matchState(
-            &zc->blockState.matchState,
-            ws,
-            &params.cParams,
-            crp,
-            needsIndexReset,
-            ZSTD_resetTarget_CCtx), "");
-
-        /* Due to alignment, when reusing a workspace, we can actually consume fewer or more bytes
-         * than neededSpace. See comments in zstd_cwksp.h for details.
+        /* Due to alignment, when reusing a workspace, we can actually consume 63 fewer or more bytes
+         * than neededSpace. See the comments in zstd_cwksp.h for details.
          */
         assert(ZSTD_cwksp_used(ws) >= neededSpace - 63 && ZSTD_cwksp_used(ws) <= neededSpace + 63);
+        DEBUGLOG(3, "wksp: finished allocating, %zd bytes remain available", ZSTD_cwksp_available_space(ws));
 
         zc->initialized = 1;
 

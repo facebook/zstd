@@ -2197,9 +2197,9 @@ void ZSTD_seqToCodes(const seqStore_t* seqStorePtr)
         ofCodeTable[u] = (BYTE)ZSTD_highbit32(sequences[u].offset);
         mlCodeTable[u] = (BYTE)ZSTD_MLcode(mlv);
     }
-    if (seqStorePtr->longLengthID==1)
+    if (seqStorePtr->longLengthType==ZSTD_llt_literalLength)
         llCodeTable[seqStorePtr->longLengthPos] = MaxLL;
-    if (seqStorePtr->longLengthID==2)
+    if (seqStorePtr->longLengthType==ZSTD_llt_matchLength)
         mlCodeTable[seqStorePtr->longLengthPos] = MaxML;
 }
 
@@ -2571,7 +2571,7 @@ void ZSTD_resetSeqStore(seqStore_t* ssPtr)
 {
     ssPtr->lit = ssPtr->litStart;
     ssPtr->sequences = ssPtr->sequencesStart;
-    ssPtr->longLengthID = 0;
+    ssPtr->longLengthType = ZSTD_llt_none;
 }
 
 typedef enum { ZSTDbss_compress, ZSTDbss_noCompress } ZSTD_buildSeqStore_e;
@@ -2677,9 +2677,9 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
         outSeqs[i].rep = 0;
 
         if (i == seqStore->longLengthPos) {
-            if (seqStore->longLengthID == 1) {
+            if (seqStore->longLengthType == ZSTD_llt_literalLength) {
                 outSeqs[i].litLength += 0x10000;
-            } else if (seqStore->longLengthID == 2) {
+            } else if (seqStore->longLengthType == ZSTD_llt_matchLength) {
                 outSeqs[i].matchLength += 0x10000;
             }
         }
@@ -3116,7 +3116,7 @@ static size_t ZSTD_countSeqStoreLiteralsBytes(const seqStore_t* const seqStore) 
     for (i = 0; i < nbSeqs; ++i) {
         seqDef seq = seqStore->sequencesStart[i];
         literalsBytes += seq.litLength;
-        if (i == seqStore->longLengthPos && seqStore->longLengthID == 1) {
+        if (i == seqStore->longLengthPos && seqStore->longLengthType == ZSTD_llt_literalLength) {
             literalsBytes += 0x10000;
         }
     }
@@ -3131,7 +3131,7 @@ static size_t ZSTD_countSeqStoreMatchBytes(const seqStore_t* const seqStore) {
     for (i = 0; i < nbSeqs; ++i) {
         seqDef seq = seqStore->sequencesStart[i];
         matchBytes += seq.matchLength + MINMATCH;
-        if (i == seqStore->longLengthPos && seqStore->longLengthID == 2) {
+        if (i == seqStore->longLengthPos && seqStore->longLengthType == ZSTD_llt_matchLength) {
             matchBytes += 0x10000;
         }
     }
@@ -3155,9 +3155,9 @@ static void ZSTD_deriveSeqStoreChunk(seqStore_t* resultSeqStore,
     }
 
     /* Move longLengthPos into the correct position if necessary */
-    if (originalSeqStore->longLengthID != 0) {
+    if (originalSeqStore->longLengthType != ZSTD_llt_none) {
         if (originalSeqStore->longLengthPos < startIdx || originalSeqStore->longLengthPos > endIdx) {
-            resultSeqStore->longLengthID = 0;
+            resultSeqStore->longLengthType = ZSTD_llt_none;
         } else {
             resultSeqStore->longLengthPos -= (U32)startIdx;
         }

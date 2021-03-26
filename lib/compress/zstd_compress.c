@@ -2793,11 +2793,18 @@ static int ZSTD_maybeRLE(seqStore_t const* seqStore)
     return nbSeqs < 4 && nbLits < 10;
 }
 
-static void ZSTD_confirmRepcodesAndEntropyTables(ZSTD_CCtx* zc)
+static void ZSTD_blockState_confirmRepcodesAndEntropyTables(ZSTD_blockState_t* const bs)
 {
-    ZSTD_compressedBlockState_t* const tmp = zc->blockState.prevCBlock;
-    zc->blockState.prevCBlock = zc->blockState.nextCBlock;
-    zc->blockState.nextCBlock = tmp;
+    ZSTD_compressedBlockState_t* const tmp = bs->prevCBlock;
+    bs->prevCBlock = bs->nextCBlock;
+    bs->nextCBlock = tmp;
+}
+
+static void ZSTD_blockState_confirmEntropyTables(ZSTD_blockState_t* const bs)
+{
+    ZSTD_entropyCTables_t const tmp = bs->prevCBlock->entropy;
+    bs->prevCBlock->entropy = bs->nextCBlock->entropy;
+    bs->nextCBlock->entropy = tmp;
 }
 
 /* Writes the block header */
@@ -3216,7 +3223,7 @@ static size_t ZSTD_compressSeqStore_singleBlock(ZSTD_CCtx* zc, seqStore_t* seqSt
 
     if (zc->seqCollector.collectSequences) {
         ZSTD_copyBlockSequences(zc);
-        ZSTD_confirmRepcodesAndEntropyTables(zc);
+        ZSTD_blockState_confirmRepcodesAndEntropyTables(&zc->blockState);
         return 0;
     }
 
@@ -3234,11 +3241,9 @@ static size_t ZSTD_compressSeqStore_singleBlock(ZSTD_CCtx* zc, seqStore_t* seqSt
     } else {
         /* Always update entropy, only update repcodes when compressing entire block or last partition */
         if (updateRepcodes) {
-            ZSTD_confirmRepcodesAndEntropyTables(zc);
+            ZSTD_blockState_confirmRepcodesAndEntropyTables(&zc->blockState);
         } else {
-            ZSTD_entropyCTables_t tmp = zc->blockState.prevCBlock->entropy;
-            zc->blockState.prevCBlock->entropy = zc->blockState.nextCBlock->entropy;
-            zc->blockState.nextCBlock->entropy = tmp;
+            ZSTD_blockState_confirmEntropyTables(&zc->blockState);
         }
         writeBlockHeader(op, cSeqsSize, srcSize, lastBlock);
         cSize = ZSTD_blockHeaderSize + cSeqsSize;
@@ -3462,7 +3467,7 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
 
     if (zc->seqCollector.collectSequences) {
         ZSTD_copyBlockSequences(zc);
-        ZSTD_confirmRepcodesAndEntropyTables(zc);
+        ZSTD_blockState_confirmRepcodesAndEntropyTables(&zc->blockState);
         return 0;
     }
 
@@ -3496,7 +3501,7 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
 
 out:
     if (!ZSTD_isError(cSize) && cSize > 1) {
-        ZSTD_confirmRepcodesAndEntropyTables(zc);
+        ZSTD_blockState_confirmRepcodesAndEntropyTables(&zc->blockState);
     }
     /* We check that dictionaries have offset codes available for the first
      * block. After the first block, the offcode table might not have large
@@ -3549,7 +3554,7 @@ static size_t ZSTD_compressBlock_targetCBlockSize_body(ZSTD_CCtx* zc,
                 size_t const maxCSize = srcSize - ZSTD_minGain(srcSize, zc->appliedParams.cParams.strategy);
                 FORWARD_IF_ERROR(cSize, "ZSTD_compressSuperBlock failed");
                 if (cSize != 0 && cSize < maxCSize + ZSTD_blockHeaderSize) {
-                    ZSTD_confirmRepcodesAndEntropyTables(zc);
+                    ZSTD_blockState_confirmRepcodesAndEntropyTables(&zc->blockState);
                     return cSize;
                 }
             }
@@ -5708,7 +5713,7 @@ static size_t ZSTD_compressSequences_internal(ZSTD_CCtx* cctx,
         } else {
             U32 cBlockHeader;
             /* Error checking and repcodes update */
-            ZSTD_confirmRepcodesAndEntropyTables(cctx);
+            ZSTD_blockState_confirmRepcodesAndEntropyTables(&cctx->blockState);
             if (cctx->blockState.prevCBlock->entropy.fse.offcode_repeatMode == FSE_repeat_valid)
                 cctx->blockState.prevCBlock->entropy.fse.offcode_repeatMode = FSE_repeat_check;
 

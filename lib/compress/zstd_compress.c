@@ -3188,7 +3188,8 @@ static void ZSTD_deriveSeqStoreChunk(seqStore_t* resultSeqStore,
 static size_t ZSTD_compressSeqStore_singleBlock(ZSTD_CCtx* zc, seqStore_t* seqStore,
                                                  void* dst, size_t dstCapacity,
                                                  const void* src, size_t srcSize,
-                                                 U32 lastBlock, U32 canEmitRLEorNoCompress) {
+                                                 U32 lastBlock, U32 noCompressRLESupported,
+                                                 U32 updateRepcodes) {
     const U32 rleMaxLength = 25;
     BYTE* op = (BYTE*)dst;
     const BYTE* ip = (const BYTE*)src;
@@ -3199,13 +3200,13 @@ static size_t ZSTD_compressSeqStore_singleBlock(ZSTD_CCtx* zc, seqStore_t* seqSt
                 op + ZSTD_blockHeaderSize, dstCapacity - ZSTD_blockHeaderSize,
                 srcSize,
                 zc->entropyWorkspace, ENTROPY_WORKSPACE_SIZE /* statically allocated in resetCCtx */,
-                zc->bmi2, canEmitRLEorNoCompress);
+                zc->bmi2, noCompressRLESupported);
     FORWARD_IF_ERROR(cSeqsSize, "ZSTD_entropyCompressSeqStore failed!");
 
     if (!zc->isFirstBlock &&
         cSeqsSize < rleMaxLength &&
         ZSTD_isRLE((BYTE const*)src, srcSize)&&
-        canEmitRLEorNoCompress) {
+        noCompressRLESupported) {
         /* We don't want to emit our first block as a RLE even if it qualifies because
         * doing so will cause the decoder (cli only) to throw a "should consume all input error."
         * This is only an issue for zstd <= v1.4.3
@@ -3222,17 +3223,23 @@ static size_t ZSTD_compressSeqStore_singleBlock(ZSTD_CCtx* zc, seqStore_t* seqSt
     if (zc->blockState.prevCBlock->entropy.fse.offcode_repeatMode == FSE_repeat_valid)
         zc->blockState.prevCBlock->entropy.fse.offcode_repeatMode = FSE_repeat_check;
 
-    if (cSeqsSize == 0 && canEmitRLEorNoCompress) {
+    if (cSeqsSize == 0 && noCompressRLESupported) {
         cSize = ZSTD_noCompressBlock(op, dstCapacity, ip, srcSize, lastBlock);
         FORWARD_IF_ERROR(cSize, "Nocompress block failed");
         DEBUGLOG(4, "Writing out nocompress block, size: %zu", cSize);
-    } else if (cSeqsSize == 1 && canEmitRLEorNoCompress) {
+    } else if (cSeqsSize == 1 && noCompressRLESupported) {
         cSize = ZSTD_rleCompressBlock(op, dstCapacity, *ip, srcSize, lastBlock);
         FORWARD_IF_ERROR(cSize, "RLE compress block failed");
         DEBUGLOG(4, "Writing out RLE block, size: %zu", cSize);
     } else {
-        /* Error checking and repcodes update */
-        ZSTD_confirmRepcodesAndEntropyTables(zc);
+        /* Always update entropy, only update repcodes when compressing entire block or last partition */
+        if (updateRepcodes) {
+            ZSTD_confirmRepcodesAndEntropyTables(zc);
+        } else {
+            ZSTD_entropyCTables_t tmp = zc->blockState.prevCBlock->entropy;
+            zc->blockState.prevCBlock->entropy = zc->blockState.nextCBlock->entropy;
+            zc->blockState.nextCBlock->entropy = tmp;
+        }
         writeBlockHeader(op, cSeqsSize, srcSize, lastBlock);
         cSize = ZSTD_blockHeaderSize + cSeqsSize;
         DEBUGLOG(4, "Writing out compressed block, size: %zu", cSize);
@@ -3345,7 +3352,10 @@ static size_t ZSTD_compressBlock_splitBlock_internal(ZSTD_CCtx* zc, void* dst, s
                 (unsigned)zc->blockState.matchState.nextToUpdate);
 
     if (numSplits == 0) {
-        size_t cSizeSingleBlock = ZSTD_compressSeqStore_singleBlock(zc, &zc->seqStore, op, dstCapacity, ip, blockSize, lastBlock, 1);
+        size_t cSizeSingleBlock = ZSTD_compressSeqStore_singleBlock(zc, &zc->seqStore,
+                                                                    op, dstCapacity,
+                                                                    ip, blockSize,
+                                                                    lastBlock, 1 /* noCompressRLESupported */, 1 /* updateRepcodes */);
         FORWARD_IF_ERROR(cSizeSingleBlock, "Compressing single block from splitBlock_internal() failed!");
         DEBUGLOG(5, "ZSTD_compressBlock_splitBlock_internal: No splits");
         return cSizeSingleBlock;
@@ -3355,28 +3365,31 @@ static size_t ZSTD_compressBlock_splitBlock_internal(ZSTD_CCtx* zc, void* dst, s
     for (i = 0; i <= numSplits; ++i) {
         size_t srcBytes;
         size_t cSizeChunk;
+        U32 const lastPartition = (i == numSplits);
         U32 lastBlockEntireSrc = 0;
-        U32 canEmitRLEorNoCompress = 1;
+        U32 noCompressRLESupported = 1;
 
         srcBytes = ZSTD_countSeqStoreLiteralsBytes(&currSeqStore) + ZSTD_countSeqStoreMatchBytes(&currSeqStore);
         srcBytesTotal += srcBytes;
-        if (i == numSplits) {
+        if (lastPartition) {
             /* This is the final partition, need to account for possible last literals */
             srcBytes += blockSize - srcBytesTotal;
             lastBlockEntireSrc = lastBlock;
-            canEmitRLEorNoCompress = lastBlock;
+            noCompressRLESupported = lastBlock;
         } else {
             ZSTD_deriveSeqStoreChunk(&nextSeqStore, &zc->seqStore, partitions[i], partitions[i+1]);
             if (ZSTD_seqStore_firstThreeContainRepcodes(&nextSeqStore)) {
                 DEBUGLOG(5, "ZSTD_compressBlock_splitBlock_internal: Next block contains rep in first three seqs!");
-                canEmitRLEorNoCompress = 0;
+                noCompressRLESupported = 0;
             }
         }
 
-        cSizeChunk = ZSTD_compressSeqStore_singleBlock(zc, &currSeqStore, op, dstCapacity, ip, srcBytes, lastBlockEntireSrc, canEmitRLEorNoCompress);
+        cSizeChunk = ZSTD_compressSeqStore_singleBlock(zc, &currSeqStore,
+                                                       op, dstCapacity,
+                                                       ip, srcBytes,
+                                                       lastBlockEntireSrc, noCompressRLESupported, lastPartition);
         DEBUGLOG(5, "Estimated size: %zu actual size: %zu", ZSTD_buildEntropyStatisticsAndEstimateSubBlockSize(&currSeqStore, zc), cSizeChunk);
         FORWARD_IF_ERROR(cSizeChunk, "Compressing chunk failed!");
-        ZSTD_memcpy(zc->blockState.nextCBlock->rep, zc->blockState.prevCBlock->rep, sizeof(U32)*ZSTD_REP_NUM);
 
         ip += srcBytes;
         op += cSizeChunk;
@@ -3387,7 +3400,10 @@ static size_t ZSTD_compressBlock_splitBlock_internal(ZSTD_CCtx* zc, void* dst, s
 
     if (cSize > ZSTD_BLOCKSIZE_MAX + ZSTD_blockHeaderSize) {
         /* If too large, recompress the original block to avoid any chance of a single block exceeding ZSTD_BLOCKSIZE_MAX */
-        cSize = ZSTD_compressSeqStore_singleBlock(zc, &zc->seqStore, (BYTE*)dst, dstCapacityInitial, (const BYTE*)src, blockSize, lastBlock, 1);
+        cSize = ZSTD_compressSeqStore_singleBlock(zc, &zc->seqStore,
+                                                  (BYTE*)dst, dstCapacityInitial,
+                                                  (const BYTE*)src, blockSize,
+                                                  lastBlock, 1 /* noCompressRLESupported */, 0 /* updateRepcodes */);
         FORWARD_IF_ERROR(cSize, "Compressing single block from splitBlock_internal() fallback failed!");
         DEBUGLOG(5, "ZSTD_compressBlock_splitBlock_internal: Compressed split block too large, recompressed");
     }

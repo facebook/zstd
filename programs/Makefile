@@ -100,6 +100,8 @@ ZSTD_ALL_SRC = $(ZSTDLIB_LOCAL_SRC) $(ZSTD_CLI_SRC)
 ZSTD_ALL_OBJ := $(ZSTD_ALL_SRC:.c=.o)
 
 UNAME := $(shell uname)
+
+ifndef BUILD_DIR
 ifeq ($(UNAME), Darwin)
   HASH ?= md5
 else ifeq ($(UNAME), FreeBSD)
@@ -112,7 +114,6 @@ endif
 HASH ?= md5sum
 HAVE_HASH :=$(shell echo 1 | $(HASH) > /dev/null && echo 1 || echo 0)
 
-ifndef BUILD_DIR
 HASH_DIR = conf_$(shell echo $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(LDLIBS) $(ZSTD_FILES) | $(HASH) | cut -f 1 -d " ")
 ifeq ($(HAVE_HASH),0)
   $(info warning : could not find HASH ($(HASH)), needed to differentiate builds using different flags)

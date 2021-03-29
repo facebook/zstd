@@ -1,6 +1,6 @@
 /*
  *  xxHash - Fast Hash algorithm
- *  Copyright (c) 2012-2021, Yann Collet, Facebook, Inc.
+ *  Copyright (c) Yann Collet, Facebook, Inc.
  *
  *  You can contact the author at :
  *  - xxHash homepage: http://www.xxhash.com

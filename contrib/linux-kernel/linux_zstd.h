@@ -63,6 +63,20 @@ zstd_error_code zstd_get_error_code(size_t code);
  */
 const char *zstd_get_error_name(size_t code);
 
+/**
+ * zstd_min_clevel() - minimum allowed compression level
+ *
+ * Return: The minimum allowed compression level.
+ */
+int zstd_min_clevel(void);
+
+/**
+ * zstd_max_clevel() - maximum allowed compression level
+ *
+ * Return: The maximum allowed compression level.
+ */
+int zstd_max_clevel(void);
+
 /* ======   Parameter Selection   ====== */
 
 /**

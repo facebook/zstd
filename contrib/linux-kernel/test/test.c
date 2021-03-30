@@ -169,6 +169,13 @@ static void test_decompress_unzstd(test_data_t const *data) {
     fprintf(stderr, "Ok\n");
 }
 
+static void test_f2fs() {
+  fprintf(stderr, "testing f2fs uses... ");
+  CONTROL(zstd_min_clevel() < 0);
+  CONTROL(zstd_max_clevel() == 22);
+  fprintf(stderr, "Ok\n");
+}
+
 static char *g_stack = NULL;
 
 static void __attribute__((noinline)) use(void *x) {
@@ -195,6 +202,7 @@ static void __attribute__((noinline)) check_stack() {
 
 static void test_stack_usage(test_data_t const *data) {
   set_stack();
+  test_f2fs();
   test_btrfs(data);
   test_decompress_unzstd(data);
   check_stack();
@@ -202,6 +210,7 @@ static void test_stack_usage(test_data_t const *data) {
 
 int main(void) {
   test_data_t data = create_test_data();
+  test_f2fs();
   test_btrfs(&data);
   test_decompress_unzstd(&data);
   test_stack_usage(&data);

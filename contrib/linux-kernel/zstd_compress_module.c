@@ -8,6 +8,18 @@
 #include "common/zstd_deps.h"
 #include "common/zstd_internal.h"
 
+int zstd_min_clevel(void)
+{
+	return ZSTD_minCLevel();
+}
+EXPORT_SYMBOL(zstd_min_clevel);
+
+int zstd_max_clevel(void)
+{
+	return ZSTD_maxCLevel();
+}
+EXPORT_SYMBOL(zstd_max_clevel);
+
 size_t zstd_compress_bound(size_t src_size)
 {
 	return ZSTD_compressBound(src_size);

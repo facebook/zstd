@@ -138,8 +138,7 @@ typedef enum {
  *
  * 1. Objects
  * 2. Buffers
- * 3. Aligned
- * 4. Tables
+ * 3. Aligned/Tables
  *
  * Attempts to reserve objects of different types out of order will fail.
  */
@@ -192,7 +191,7 @@ MEM_STATIC size_t ZSTD_cwksp_align(size_t size, size_t const align) {
  * Since tables aren't currently redzoned, you don't need to call through this
  * to figure out how much space you need for the matchState tables. Everything
  * else is though.
- * 
+ *
  * Do not use for sizing aligned buffers. Instead, use ZSTD_cwksp_aligned_alloc_size().
  */
 MEM_STATIC size_t ZSTD_cwksp_alloc_size(size_t size) {
@@ -221,7 +220,7 @@ MEM_STATIC size_t ZSTD_cwksp_slack_space_required(void) {
     /* For alignment, the wksp will always allocate an additional n_1=[1, 64] bytes
      * to align the beginning of tables section, as well as another n_2=[0, 63] bytes
      * to align the beginning of the aligned secion.
-     * 
+     *
      * n_1 + n_2 == 64 bytes if the cwksp is freshly allocated, due to tables and
      * aligneds being sized in multiples of 64 bytes.
      */
@@ -246,7 +245,7 @@ MEM_STATIC size_t ZSTD_cwksp_bytes_to_align_ptr(void* ptr, const size_t alignByt
  * Internal function. Do not use directly.
  * Reserves the given number of bytes within the aligned/buffer segment of the wksp, which
  * counts from the end of the wksp. (as opposed to the object/table segment)
- * 
+ *
  * Returns a pointer to the beginning of that space.
  */
 MEM_STATIC void* ZSTD_cwksp_reserve_internal_buffer_space(ZSTD_cwksp* ws, size_t const bytes) {
@@ -610,6 +609,24 @@ MEM_STATIC int ZSTD_cwksp_reserve_failed(const ZSTD_cwksp* ws) {
 /*-*************************************
 *  Functions Checking Free Space
 ***************************************/
+
+/* ZSTD_alignmentSpaceWithinBounds() :
+ * Returns if the estimated space needed for a wksp is within an acceptable limit of the
+ * actual amount of space used.
+ */
+MEM_STATIC int ZSTD_cwksp_estimated_space_within_bounds(const ZSTD_cwksp* const ws,
+                                                        size_t const estimatedSpace, int resizedWorkspace) {
+    if (resizedWorkspace) {
+        /* Resized/newly allocated wksp should have exact bounds */
+        return ZSTD_cwksp_used(ws) == estimatedSpace;
+    } else {
+        /* Due to alignment, when reusing a workspace, we can actually consume 63 fewer or more bytes
+         * than estimatedSpace. See the comments in zstd_cwksp.h for details.
+         */
+        return (ZSTD_cwksp_used(ws) >= estimatedSpace - 63) && (ZSTD_cwksp_used(ws) <= estimatedSpace + 63);
+    }
+}
+
 
 MEM_STATIC size_t ZSTD_cwksp_available_space(ZSTD_cwksp* ws) {
     return (size_t)((BYTE*)ws->allocStart - (BYTE*)ws->tableEnd);

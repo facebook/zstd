@@ -1672,19 +1672,20 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             ZSTD_estimateCCtxSize_usingCCtxParams_internal(
                 &params.cParams, &params.ldmParams, zc->staticSize != 0,
                 buffInSize, buffOutSize, pledgedSrcSize);
+        int resizeWorkspace;
+
         FORWARD_IF_ERROR(neededSpace, "cctx size estimate failed!");
 
         if (!zc->staticSize) ZSTD_cwksp_bump_oversized_duration(ws, 0);
 
-        /* Check if workspace is large enough, alloc a new one if needed */
-        {
+        {   /* Check if workspace is large enough, alloc a new one if needed */
             int const workspaceTooSmall = ZSTD_cwksp_sizeof(ws) < neededSpace;
             int const workspaceWasteful = ZSTD_cwksp_check_wasteful(ws, neededSpace);
-
+            resizeWorkspace = workspaceTooSmall || workspaceWasteful;
             DEBUGLOG(4, "Need %zu B workspace", neededSpace);
             DEBUGLOG(4, "windowSize: %zu - blockSize: %zu", windowSize, blockSize);
 
-            if (workspaceTooSmall || workspaceWasteful) {
+            if (resizeWorkspace) {
                 DEBUGLOG(4, "Resize workspaceSize from %zuKB to %zuKB",
                             ZSTD_cwksp_sizeof(ws) >> 10,
                             neededSpace >> 10);
@@ -1783,10 +1784,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             zc->ldmState.loadedDictEnd = 0;
         }
 
-        /* Due to alignment, when reusing a workspace, we can actually consume 63 fewer or more bytes
-         * than neededSpace. See the comments in zstd_cwksp.h for details.
-         */
-        assert(ZSTD_cwksp_used(ws) >= neededSpace - 63 && ZSTD_cwksp_used(ws) <= neededSpace + 63);
+        assert(ZSTD_cwksp_estimated_space_within_bounds(ws, neededSpace, resizeWorkspace));
         DEBUGLOG(3, "wksp: finished allocating, %zd bytes remain available", ZSTD_cwksp_available_space(ws));
 
         zc->initialized = 1;

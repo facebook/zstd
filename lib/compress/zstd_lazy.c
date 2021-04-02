@@ -1304,7 +1304,7 @@ size_t ZSTD_RowFindBestMatch_generic (
             ddsIdx = ZSTD_hashPtr(ip, ddsHashLog, mls) << ZSTD_LAZY_DDSS_BUCKET_LOG;
             PREFETCH_L1(&dms->hashTable[ddsIdx]);
         }
-        ddsExtraAttempts = cParams->searchLog > rowLog ? 1U << (cParams->searchLog - 5) : 0;
+        ddsExtraAttempts = cParams->searchLog > rowLog ? 1U << (cParams->searchLog - rowLog) : 0;
     }
 
     if (dictMode == ZSTD_dictMatchState) {
@@ -1395,8 +1395,7 @@ size_t ZSTD_RowFindBestMatch_generic (
         const U32 dmsSize              = (U32)(dmsEnd - dmsBase);
         const U32 dmsIndexDelta        = dictLimit - dmsSize;
 
-        {   /* Get the hash for ip, compute the appropriate row */
-            U32 const head = *dmsTagRow & rowMask;
+        {   U32 const head = *dmsTagRow & rowMask;
             U32 matchBuffer[32 /* maximum nb row entries */];
             size_t numMatches = 0;
             size_t currMatch = 0;

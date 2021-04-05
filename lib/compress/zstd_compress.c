@@ -5164,7 +5164,7 @@ static size_t ZSTD_CCtx_init_compressStream2(ZSTD_CCtx* cctx,
                                              size_t inSize) {
     ZSTD_CCtx_params params = cctx->requestedParams;
     ZSTD_prefixDict const prefixDict = cctx->prefixDict;
-    if (cctx->cdict)
+    if (cctx->cdict && !cctx->localDict.cdict)
         params.compressionLevel = cctx->cdict->compressionLevel; /* let cdict take priority in terms of compression level */
     FORWARD_IF_ERROR( ZSTD_initLocalDict(cctx) , ""); /* Init the local dict if present. */
     ZSTD_memset(&cctx->prefixDict, 0, sizeof(cctx->prefixDict));   /* single usage */

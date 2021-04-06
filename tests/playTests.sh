@@ -209,7 +209,7 @@ println "test : compress to stdout"
 zstd tmp -c > tmpCompressed
 zstd tmp --stdout > tmpCompressed       # long command format
 println "test : compress to named file"
-rm tmpCompressed
+rm -f tmpCompressed
 zstd tmp -o tmpCompressed
 test -f tmpCompressed   # file must be created
 println "test : force write, correct order"
@@ -363,7 +363,7 @@ rm -f tmplog
 zstd tmp -f -o "$INTOVOID" 2>&1 | grep -v "Refusing to remove non-regular file"
 println "test : --rm on stdin"
 println a | zstd --rm > $INTOVOID   # --rm should remain silent
-rm tmp
+rm -f tmp
 zstd -f tmp && die "tmp not present : should have failed"
 test ! -f tmp.zst  # tmp.zst should not be created
 println "test : -d -f do not delete destination when source is not present"
@@ -371,7 +371,7 @@ touch tmp    # create destination file
 zstd -d -f tmp.zst && die "attempt to decompress a non existing file"
 test -f tmp  # destination file should still be present
 println "test : -f do not delete destination when source is not present"
-rm tmp         # erase source file
+rm -f tmp         # erase source file
 touch tmp.zst  # create destination file
 zstd -f tmp && die "attempt to compress a non existing file"
 test -f tmp.zst  # destination file should still be present
@@ -385,7 +385,7 @@ println "\n===>  decompression only tests "
 dd bs=1048576 count=1 if=/dev/zero of=tmp
 zstd -d -o tmp1 "$TESTDIR/golden-decompression/rle-first-block.zst"
 $DIFF -s tmp1 tmp
-rm tmp*
+rm -f tmp*
 
 
 println "\n===>  compress multiple files"
@@ -432,7 +432,7 @@ zstd -f tmp*
 test -f tmp1.zst
 test -f tmp2.zst
 test -f tmp3.zst
-rm tmp1 tmp2 tmp3
+rm -f tmp1 tmp2 tmp3
 println "decompress tmp* : "
 zstd -df ./*.zst
 test -f tmp1
@@ -447,7 +447,7 @@ zstd -dc tmpall* > tmpdec
 test -f tmpdec  # should check size of tmpdec (should be 2*(tmp1 + tmp2 + tmp3))
 println "compress multiple files including a missing one (notHere) : "
 zstd -f tmp1 notHere tmp2 && die "missing file not detected!"
-rm tmp*
+rm -f tmp*
 
 
 if [ "$isWindows" = false ] ; then
@@ -774,16 +774,16 @@ $DIFF helloworld.tmp result.tmp
 ln -s helloworld.zst helloworld.link.zst
 $EXE_PREFIX ./zstdcat helloworld.link.zst > result.tmp
 $DIFF helloworld.tmp result.tmp
-rm zstdcat
-rm result.tmp
+rm -f zstdcat
+rm -f result.tmp
 println "testing zcat symlink"
 ln -sf "$ZSTD_BIN" zcat
 $EXE_PREFIX ./zcat helloworld.zst > result.tmp
 $DIFF helloworld.tmp result.tmp
 $EXE_PREFIX ./zcat helloworld.link.zst > result.tmp
 $DIFF helloworld.tmp result.tmp
-rm zcat
-rm ./*.tmp ./*.zstd
+rm -f zcat
+rm -f ./*.tmp ./*.zstd
 println "frame concatenation tests completed"
 
 
@@ -845,7 +845,7 @@ zstd -d -v -f tmpSparseCompressed -o tmpSparseRegenerated
 zstd -d -v -f tmpSparseCompressed -c >> tmpSparseRegenerated
 ls -ls tmpSparse*  # look at file size and block size on disk
 $DIFF tmpSparse2M tmpSparseRegenerated
-rm tmpSparse*
+rm -f tmpSparse*
 
 
 println "\n===>  stream-size mode"
@@ -991,7 +991,7 @@ then
   println "- Create dictionary with multithreading enabled"
   zstd --train -T0 "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpDict
 fi
-rm tmp* dictionary
+rm -f tmp* dictionary
 
 
 println "\n===>  fastCover dictionary builder : advanced options "
@@ -1033,7 +1033,7 @@ zstd -o tmpDict --train-fastcover=k=56,d=8 "$TESTDIR"/*.c "$PRGDIR"/*.c
 test -f tmpDict
 zstd --train-fastcover=k=56,d=8 "$TESTDIR"/*.c "$PRGDIR"/*.c
 test -f dictionary
-rm tmp* dictionary
+rm -f tmp* dictionary
 
 
 println "\n===>  legacy dictionary builder "
@@ -1061,7 +1061,7 @@ zstd -o tmpDict --train-legacy "$TESTDIR"/*.c "$PRGDIR"/*.c
 test -f tmpDict
 zstd --train-legacy "$TESTDIR"/*.c "$PRGDIR"/*.c
 test -f dictionary
-rm tmp* dictionary
+rm -f tmp* dictionary
 
 
 println "\n===>  integrity tests "
@@ -1133,7 +1133,7 @@ if [ $GZIPMODE -eq 1 ]; then
         gzip -t -v tmp.gz
         gzip -f tmp
         zstd -d -f -v tmp.gz
-        rm tmp*
+        rm -f tmp*
     else
         println "gzip binary not detected"
     fi
@@ -1150,7 +1150,7 @@ if [ $GZIPMODE -eq 1 ]; then
     zstd -f tmp
     cat tmp.gz tmp.zst tmp.gz tmp.zst | zstd -d -f -o tmp
     truncateLastByte tmp.gz | zstd -t > $INTOVOID && die "incomplete frame not detected !"
-    rm tmp*
+    rm -f tmp*
 else
     println "gzip mode not supported"
 fi
@@ -1181,7 +1181,7 @@ if [ $LZMAMODE -eq 1 ]; then
         lzma -Q -f -k --lzma1 tmp
         zstd -d -f -v tmp.xz
         zstd -d -f -v tmp.lzma
-        rm tmp*
+        rm -f tmp*
         println "Creating symlinks"
         ln -s "$ZSTD_BIN" ./xz
         ln -s "$ZSTD_BIN" ./unxz
@@ -1198,8 +1198,8 @@ if [ $LZMAMODE -eq 1 ]; then
         ./xz -d tmp.xz
         lzma -Q tmp
         ./lzma -d tmp.lzma
-        rm xz unxz lzma unlzma
-        rm tmp*
+        rm -f xz unxz lzma unlzma
+        rm -f tmp*
     else
         println "xz binary not detected"
     fi
@@ -1218,7 +1218,7 @@ if [ $LZMAMODE -eq 1 ]; then
     cat tmp.xz tmp.lzma tmp.zst tmp.lzma tmp.xz tmp.zst | zstd -d -f -o tmp
     truncateLastByte tmp.xz | zstd -t > $INTOVOID && die "incomplete frame not detected !"
     truncateLastByte tmp.lzma | zstd -t > $INTOVOID && die "incomplete frame not detected !"
-    rm tmp*
+    rm -f tmp*
 else
     println "xz mode not supported"
 fi
@@ -1237,7 +1237,7 @@ if [ $LZ4MODE -eq 1 ]; then
         lz4 -t -v tmp.lz4
         lz4 -f -m tmp   # ensure result is sent into tmp.lz4, not stdout
         zstd -d -f -v tmp.lz4
-        rm tmp*
+        rm -f tmp*
     else
         println "lz4 binary not detected"
     fi
@@ -1253,7 +1253,7 @@ if [ $LZ4MODE -eq 1 ]; then
     zstd -f tmp
     cat tmp.lz4 tmp.zst tmp.lz4 tmp.zst | zstd -d -f -o tmp
     truncateLastByte tmp.lz4 | zstd -t > $INTOVOID && die "incomplete frame not detected !"
-    rm tmp*
+    rm -f tmp*
 else
     println "\nlz4 mode not supported"
 fi
@@ -1287,7 +1287,7 @@ rm -f tmp tmp.tar tmp.tzst tmp.tgz tmp.txz tmp.tlz4 tmp1.zstd
 datagen > tmp
 tar cf tmp.tar tmp
 zstd tmp.tar -o tmp.tzst
-rm tmp.tar
+rm -f tmp.tar
 zstd -d tmp.tzst
 [ -e tmp.tar ] || die ".tzst failed to decompress to .tar!"
 rm -f tmp.tar tmp.tzst
@@ -1366,7 +1366,7 @@ then
     ZSTD_NBTHREADS=50000000000 zstd -f mt_tmp # numeric value too large, warn and revert to default setting=
     ZSTD_NBTHREADS=2  zstd -f mt_tmp # correct usage
     ZSTD_NBTHREADS=1  zstd -f mt_tmp # correct usage: single thread
-    rm mt_tmp*
+    rm -f mt_tmp*
 
     println "\n===>  ovLog tests "
     datagen -g2MB > tmp
@@ -1390,7 +1390,7 @@ else
     println "\n===>  no multithreading, skipping zstdmt tests "
 fi
 
-rm tmp*
+rm -f tmp*
 
 println "\n===>  zstd --list/-l single frame tests "
 datagen > tmp1
@@ -1423,9 +1423,9 @@ zstd -f $TEST_DATA_FILE -o $FULL_COMPRESSED_FILE
 dd bs=1 count=100 if=$FULL_COMPRESSED_FILE of=$TRUNCATED_COMPRESSED_FILE
 zstd --list $TRUNCATED_COMPRESSED_FILE && die "-l must fail on truncated file"
 
-rm $TEST_DATA_FILE
-rm $FULL_COMPRESSED_FILE
-rm $TRUNCATED_COMPRESSED_FILE
+rm -f $TEST_DATA_FILE
+rm -f $FULL_COMPRESSED_FILE
+rm -f $TRUNCATED_COMPRESSED_FILE
 
 println "\n===>  zstd --list/-l errors when presented with stdin / no files"
 zstd -l && die "-l must fail on empty list of files"
@@ -1469,7 +1469,7 @@ zstd -D tmp1 tmp2 -c | zstd --trace tmp.trace -t -D tmp1
 zstd -b1e10i0 --trace tmp.trace tmp1
 zstd -b1e10i0 --trace tmp.trace tmp1 tmp2 tmp3
 
-rm tmp*
+rm -f tmp*
 
 
 println "\n===>   zstd long distance matching tests "

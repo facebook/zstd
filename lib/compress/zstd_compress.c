@@ -5209,11 +5209,16 @@ static size_t ZSTD_CCtx_init_compressStream2(ZSTD_CCtx* cctx,
                                              size_t inSize) {
     ZSTD_CCtx_params params = cctx->requestedParams;
     ZSTD_prefixDict const prefixDict = cctx->prefixDict;
-    if (cctx->cdict && !cctx->localDict.cdict)
-        params.compressionLevel = cctx->cdict->compressionLevel; /* let cdict take priority in terms of compression level */
     FORWARD_IF_ERROR( ZSTD_initLocalDict(cctx) , ""); /* Init the local dict if present. */
     ZSTD_memset(&cctx->prefixDict, 0, sizeof(cctx->prefixDict));   /* single usage */
     assert(prefixDict.dict==NULL || cctx->cdict==NULL);    /* only one can be set */
+    if (cctx->cdict && !cctx->localDict.cdict) {
+        /* Let the cdict's compression level take priority over the requested params.
+         * But do not take the cdict's compression level if the "cdict" is actually a localDict
+         * generated from ZSTD_initLocalDict().
+         */
+        params.compressionLevel = cctx->cdict->compressionLevel;
+    }
     DEBUGLOG(4, "ZSTD_compressStream2 : transparent init stage");
     if (endOp == ZSTD_e_end) cctx->pledgedSrcSizePlusOne = inSize + 1;  /* auto-fix pledgedSrcSize */
     {

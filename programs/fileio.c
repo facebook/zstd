@@ -74,11 +74,12 @@
 
 #define FNSPACE 30
 
-#if !defined(_WIN32)
 /* Default file permissions 0666 (modulated by umask) */
+#if !defined(_WIN32)
+/* These macros aren't defined on windows. */
 #define DEFAULT_FILE_PERMISSIONS (S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH)
 #else
-#define DEFAULT_FILE_PERMISSIONS (0)
+#define DEFAULT_FILE_PERMISSIONS (0666)
 #endif
 
 /*-*************************************

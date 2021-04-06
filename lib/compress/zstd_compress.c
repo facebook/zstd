@@ -3181,23 +3181,40 @@ static void ZSTD_deriveSeqStoreChunk(seqStore_t* resultSeqStore,
 }
 
 /**
- * ZSTD_seqStore_updateRepcodes(): Starting from an array of initial repcodes and a seqStore,
- * construct the final repcodes at the conclusion of compressing the seqStore, stored in dstRep.
+ * ZSTD_seqStore_resolveOffCodes() reconciles any possible divergences in offset history that may arise
+ * due to emission of RLE/raw blocks that disturb the offset history, and replaces any repcodes within
+ * the seqStore that may be invalid.
+ * 
+ * dRepcodes are updated as would be on the decompression side. cRepcodes are updated exactly in
+ * accordance with the seqStore.
  */
-static void ZSTD_seqStore_updateRepcodes(U32 dstRep[ZSTD_REP_NUM],
-                                         const U32 initialRep[ZSTD_REP_NUM],
-                                         const seqStore_t* const seqStore, U32 const nbSeq) {
-    repcodes_t updatedRepcodes;
+static void ZSTD_seqStore_resolveOffCodes(repcodes_t* const dRepcodes, repcodes_t* const cRepcodes,
+                                          seqStore_t* const seqStore, U32 const nbSeq) {
     U32 idx = 0;
-    ZSTD_memcpy(updatedRepcodes.rep, initialRep, sizeof(repcodes_t));
     for (; idx < nbSeq; ++idx) {
-        seqDef const seq = seqStore->sequencesStart[idx];
-        U32 const ll0 = (seq.litLength == 0);
-        U32 const offCode = seq.offset - 1;
-        assert(seq.offset >= 1); /* seqDef::offset == offCode+1, and ZSTD_updateRep() expects an offCode */
-        updatedRepcodes = ZSTD_updateRep(updatedRepcodes.rep, offCode, ll0);
+        seqDef* const seq = seqStore->sequencesStart + idx;
+        U32 const ll0 = (seq->litLength == 0);
+        U32 offCode = seq->offset - 1;
+        assert(seq->offset > 0);
+        if (offCode <= ZSTD_REP_MOVE && (dRepcodes->rep[offCode] != cRepcodes->rep[offCode])) {
+            /* Adjust simulated decompression repcode history if we come across a mismatch. Replace
+             * the repcode with the offset it actually references, determined by the compression
+             * repcode history.
+             */
+            offCode += ll0;
+            if (offCode == ZSTD_REP_MOVE+1) {
+                /* litlength == 0 and offset_value = 3 implies selection of first repcode - 1 */
+                seq->offset = (cRepcodes->rep[0] + ZSTD_REP_NUM) - 1;
+            } else {
+                seq->offset = cRepcodes->rep[offCode] + ZSTD_REP_NUM;
+            }
+            *dRepcodes = ZSTD_updateRep(dRepcodes->rep, seq->offset - 1, ll0);
+        } else {
+            *dRepcodes = ZSTD_updateRep(dRepcodes->rep, offCode, ll0);
+        }
+        /* Compression repcode history is always updated with values directly from the seqStore */
+        *cRepcodes = ZSTD_updateRep(cRepcodes->rep, offCode, ll0);
     }
-    ZSTD_memcpy(dstRep, updatedRepcodes.rep, sizeof(repcodes_t));
 }
 
 /* ZSTD_compressSeqStore_singleBlock():
@@ -3205,15 +3222,23 @@ static void ZSTD_seqStore_updateRepcodes(U32 dstRep[ZSTD_REP_NUM],
  * 
  * Returns the total size of that block (including header) or a ZSTD error code.
  */
-static size_t ZSTD_compressSeqStore_singleBlock(ZSTD_CCtx* zc, seqStore_t* seqStore,
-                                                 void* dst, size_t dstCapacity,
-                                                 const void* src, size_t srcSize,
-                                                 U32 lastBlock, U32 isPartition) {
+static size_t ZSTD_compressSeqStore_singleBlock(ZSTD_CCtx* zc, seqStore_t* const seqStore,
+                                                repcodes_t* const dRep, repcodes_t* const cRep,
+                                                void* dst, size_t dstCapacity,
+                                                const void* src, size_t srcSize,
+                                                U32 lastBlock, U32 isPartition) {
     const U32 rleMaxLength = 25;
     BYTE* op = (BYTE*)dst;
     const BYTE* ip = (const BYTE*)src;
     size_t cSize;
-    size_t cSeqsSize = ZSTD_entropyCompressSeqStore(seqStore,
+    size_t cSeqsSize;
+
+    /* In case of an RLE or raw block, the simulated decompression repcode history must be reset */
+    repcodes_t const dRepOriginal = *dRep;
+    if (isPartition)
+        ZSTD_seqStore_resolveOffCodes(dRep, cRep, seqStore, (U32)(seqStore->sequences - seqStore->sequencesStart));
+
+    cSeqsSize = ZSTD_entropyCompressSeqStore(seqStore,
                 &zc->blockState.prevCBlock->entropy, &zc->blockState.nextCBlock->entropy,
                 &zc->appliedParams,
                 op + ZSTD_blockHeaderSize, dstCapacity - ZSTD_blockHeaderSize,
@@ -3245,18 +3270,13 @@ static size_t ZSTD_compressSeqStore_singleBlock(ZSTD_CCtx* zc, seqStore_t* seqSt
         cSize = ZSTD_noCompressBlock(op, dstCapacity, ip, srcSize, lastBlock);
         FORWARD_IF_ERROR(cSize, "Nocompress block failed");
         DEBUGLOG(4, "Writing out nocompress block, size: %zu", cSize);
+        *dRep = dRepOriginal; /* reset simulated decompression repcode history */
     } else if (cSeqsSize == 1) {
         cSize = ZSTD_rleCompressBlock(op, dstCapacity, *ip, srcSize, lastBlock);
         FORWARD_IF_ERROR(cSize, "RLE compress block failed");
         DEBUGLOG(4, "Writing out RLE block, size: %zu", cSize);
+        *dRep = dRepOriginal; /* reset simulated decompression repcode history */
     } else {
-        if (isPartition) {
-            /* We manually update repcodes if we are currently compressing a partition. Otherwise,
-             * for non-split blocks, the repcodes are already correct as-is.
-             */
-            ZSTD_seqStore_updateRepcodes(zc->blockState.nextCBlock->rep, zc->blockState.prevCBlock->rep,
-                                        seqStore, (U32)(seqStore->sequences - seqStore->sequencesStart));
-        }
         ZSTD_blockState_confirmRepcodesAndEntropyTables(&zc->blockState);
         writeBlockHeader(op, cSeqsSize, srcSize, lastBlock);
         cSize = ZSTD_blockHeaderSize + cSeqsSize;
@@ -3352,12 +3372,32 @@ static size_t ZSTD_compressBlock_splitBlock_internal(ZSTD_CCtx* zc, void* dst, s
     seqStore_t nextSeqStore;
     seqStore_t currSeqStore;
 
-    DEBUGLOG(5, "ZSTD_compressBlock_splitBlock_internal (dstCapacity=%u, dictLimit=%u, nextToUpdate=%u)",
+    /* If a block is split and some partitions are emitted as RLE/uncompressed, then repcode history
+     * may become invalid. In order to reconcile potentially invalid repcodes, we keep track of two
+     * separate repcode histories that simulate repcode history on compression and decompression side,
+     * and use the histories to determine whether we must replace a particular repcode with its raw offset.
+     * 
+     * 1) cRep gets updated for each partition, regardless of whether the block was emitted as uncompressed
+     *    or RLE. This allows us to retrieve the offset value that an invalid repcode references within
+     *    a nocompress/RLE block.
+     * 2) dRep gets updated only for compressed partitions, and when a repcode gets replaced, will use
+     *    the replacement offset value rather than the original repcode to update the repcode history.
+     *    dRep also will be the final repcode history sent to the next block.
+     * 
+     * See ZSTD_seqStore_resolveOffCodes() for more details.
+     */
+    repcodes_t dRep;
+    repcodes_t cRep;
+    ZSTD_memcpy(dRep.rep, zc->blockState.prevCBlock->rep, sizeof(repcodes_t));
+    ZSTD_memcpy(cRep.rep, zc->blockState.prevCBlock->rep, sizeof(repcodes_t));
+
+    DEBUGLOG(4, "ZSTD_compressBlock_splitBlock_internal (dstCapacity=%u, dictLimit=%u, nextToUpdate=%u)",
                 (unsigned)dstCapacity, (unsigned)zc->blockState.matchState.window.dictLimit,
                 (unsigned)zc->blockState.matchState.nextToUpdate);
 
     if (numSplits == 0) {
         size_t cSizeSingleBlock = ZSTD_compressSeqStore_singleBlock(zc, &zc->seqStore,
+                                                                   &dRep, &cRep,
                                                                     op, dstCapacity,
                                                                     ip, blockSize,
                                                                     lastBlock, 0 /* isPartition */);
@@ -3385,6 +3425,7 @@ static size_t ZSTD_compressBlock_splitBlock_internal(ZSTD_CCtx* zc, void* dst, s
         }
 
         cSizeChunk = ZSTD_compressSeqStore_singleBlock(zc, &currSeqStore,
+                                                      &dRep, &cRep,
                                                        op, dstCapacity,
                                                        ip, srcBytes,
                                                        lastBlockEntireSrc, 1 /* isPartition */);
@@ -3398,6 +3439,10 @@ static size_t ZSTD_compressBlock_splitBlock_internal(ZSTD_CCtx* zc, void* dst, s
         currSeqStore = nextSeqStore;
         assert(cSizeChunk <= ZSTD_BLOCKSIZE_MAX + ZSTD_blockHeaderSize);
     }
+    /* cRep and dRep may have diverged during the compression. If so, we use the dRep repcodes
+     * for the next block.
+     */
+    ZSTD_memcpy(zc->blockState.prevCBlock->rep, dRep.rep, sizeof(repcodes_t));
     return cSize;
 }
 

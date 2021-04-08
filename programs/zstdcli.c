@@ -205,6 +205,7 @@ static void usage_advanced(const char* programName)
     DISPLAYOUT( "--long[=#]: enable long distance matching with given window log (default: %u) \n", g_defaultMaxWindowLog);
     DISPLAYOUT( "--fast[=#]: switch to very fast compression levels (default: %u) \n", 1);
     DISPLAYOUT( "--adapt : dynamically adapt compression level to I/O conditions \n");
+    DISPLAYOUT( "--[no-]row-match-finder : force enable/disable usage of fast row-based matchfinder for greedy, lazy, and lazy2 strategies \n");
 # ifdef ZSTD_MULTITHREAD
     DISPLAYOUT( " -T#    : spawns # compression threads (default: 1, 0==# cores) \n");
     DISPLAYOUT( " -B#    : select size of each job (default: 0==automatic) \n");
@@ -730,6 +731,7 @@ int main(int const argCount, const char* argv[])
         main_pause = 0,
         nbWorkers = 0,
         adapt = 0,
+        useRowMatchFinder = 0,
         adaptMin = MINCLEVEL,
         adaptMax = MAXCLEVEL,
         rsyncable = 0,
@@ -857,6 +859,8 @@ int main(int const argCount, const char* argv[])
                 if (!strcmp(argument, "--content-size")) { contentSize = 1; continue; }
                 if (!strcmp(argument, "--no-content-size")) { contentSize = 0; continue; }
                 if (!strcmp(argument, "--adapt")) { adapt = 1; continue; }
+                if (!strcmp(argument, "--no-row-match-finder")) { useRowMatchFinder = 1; continue; }
+                if (!strcmp(argument, "--row-match-finder")) { useRowMatchFinder = 2; continue; }
                 if (longCommandWArg(&argument, "--adapt=")) { adapt = 1; if (!parseAdaptParameters(argument, &adaptMin, &adaptMax)) { badusage(programName); CLEAN_RETURN(1); } continue; }
                 if (!strcmp(argument, "--single-thread")) { nbWorkers = 0; singleThread = 1; continue; }
                 if (!strcmp(argument, "--format=zstd")) { suffix = ZSTD_EXTENSION; FIO_setCompressionType(prefs, FIO_zstdCompression); continue; }
@@ -1196,6 +1200,7 @@ int main(int const argCount, const char* argv[])
         benchParams.ldmFlag = ldmFlag;
         benchParams.ldmMinMatch = (int)g_ldmMinMatch;
         benchParams.ldmHashLog = (int)g_ldmHashLog;
+        benchParams.useRowMatchFinder = useRowMatchFinder;
         if (g_ldmBucketSizeLog != LDM_PARAM_DEFAULT) {
             benchParams.ldmBucketSizeLog = (int)g_ldmBucketSizeLog;
         }
@@ -1348,6 +1353,7 @@ int main(int const argCount, const char* argv[])
         if (g_ldmBucketSizeLog != LDM_PARAM_DEFAULT) FIO_setLdmBucketSizeLog(prefs, (int)g_ldmBucketSizeLog);
         if (g_ldmHashRateLog != LDM_PARAM_DEFAULT) FIO_setLdmHashRateLog(prefs, (int)g_ldmHashRateLog);
         FIO_setAdaptiveMode(prefs, (unsigned)adapt);
+        FIO_setUseRowMatchFinder(prefs, useRowMatchFinder);
         FIO_setAdaptMin(prefs, adaptMin);
         FIO_setAdaptMax(prefs, adaptMax);
         FIO_setRsyncable(prefs, rsyncable);
@@ -1387,7 +1393,7 @@ int main(int const argCount, const char* argv[])
         else
             operationResult = FIO_compressMultipleFilenames(fCtx, prefs, filenames->fileNames, outMirroredDirName, outDirName, outFileName, suffix, dictFileName, cLevel, compressionParams);
 #else
-        (void)contentSize; (void)suffix; (void)adapt; (void)rsyncable; (void)ultra; (void)cLevel; (void)ldmFlag; (void)literalCompressionMode; (void)targetCBlockSize; (void)streamSrcSize; (void)srcSizeHint; (void)ZSTD_strategyMap; /* not used when ZSTD_NOCOMPRESS set */
+        (void)contentSize; (void)suffix; (void)adapt; (void)rsyncable; (void)ultra; (void)cLevel; (void)ldmFlag; (void)literalCompressionMode; (void)targetCBlockSize; (void)streamSrcSize; (void)srcSizeHint; (void)ZSTD_strategyMap; (void)useRowMatchFinder; /* not used when ZSTD_NOCOMPRESS set */
         DISPLAY("Compression not supported \n");
 #endif
     } else {  /* decompression or test */

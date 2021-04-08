@@ -14,6 +14,9 @@
 #ifndef FAST_LEVEL
 # error FAST_LEVEL(x) must be defined
 #endif
+#ifndef ROW_LEVEL
+# error ROW_LEVEL(x, y) must be defined
+#endif
 
 /**
  * The levels are chosen to trigger every strategy in every source size,
@@ -31,12 +34,22 @@ LEVEL(1)
 
 LEVEL(3)
 LEVEL(4)
+/* ROW_LEVEL triggers the row hash (force enabled and disabled) with different
+ * dictionary strategies, and 16/32 row entries based on the level/searchLog.
+ * 1 == disabled, 2 == enabled.
+ */
+ROW_LEVEL(5, 1)
+ROW_LEVEL(5, 2)
 LEVEL(5)
 LEVEL(6)
+ROW_LEVEL(7, 1)
+ROW_LEVEL(7, 2)
 LEVEL(7)
 
 LEVEL(9)
 
+ROW_LEVEL(12, 1)
+ROW_LEVEL(12, 2)
 LEVEL(13)
 
 LEVEL(16)

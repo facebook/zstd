@@ -298,6 +298,7 @@ struct FIO_prefs_s {
     int blockSize;
     int overlapLog;
     U32 adaptiveMode;
+    U32 useRowMatchFinder;
     int rsyncable;
     int minAdaptLevel;
     int maxAdaptLevel;
@@ -466,6 +467,10 @@ void FIO_setAdaptiveMode(FIO_prefs_t* const prefs, unsigned adapt) {
     if ((adapt>0) && (prefs->nbWorkers==0))
         EXM_THROW(1, "Adaptive mode is not compatible with single thread mode \n");
     prefs->adaptiveMode = adapt;
+}
+
+void FIO_setUseRowMatchFinder(FIO_prefs_t* const prefs, int useRowMatchFinder) {
+    prefs->useRowMatchFinder = useRowMatchFinder;
 }
 
 void FIO_setRsyncable(FIO_prefs_t* const prefs, int rsyncable) {
@@ -986,6 +991,7 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
     if (prefs->ldmHashRateLog != FIO_LDM_PARAM_NOTSET) {
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_ldmHashRateLog, prefs->ldmHashRateLog) );
     }
+    CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_useRowMatchFinder, prefs->useRowMatchFinder));
     /* compression parameters */
     CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_windowLog, (int)comprParams.windowLog) );
     CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_chainLog, (int)comprParams.chainLog) );

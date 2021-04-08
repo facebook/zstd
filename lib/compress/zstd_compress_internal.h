@@ -196,6 +196,9 @@ typedef struct {
 } ZSTD_window_t;
 
 typedef struct ZSTD_matchState_t ZSTD_matchState_t;
+
+#define ZSTD_ROW_HASH_CACHE_SIZE 8       /* Size of prefetching hash cache for row-based matchfinder */
+
 struct ZSTD_matchState_t {
     ZSTD_window_t window;   /* State for window round buffer management */
     U32 loadedDictEnd;      /* index of end of dictionary, within context's referential.
@@ -207,9 +210,15 @@ struct ZSTD_matchState_t {
                              */
     U32 nextToUpdate;       /* index from which to continue table update */
     U32 hashLog3;           /* dispatch table for matches of len==3 : larger == faster, more memory */
+
+    U32 rowHashLog;                          /* For row-based matchfinder: Hashlog based on nb of rows in the hashTable.*/
+    U16* tagTable;                           /* For row-based matchFinder: A row-based table containing the hashes and head index. */
+    U32 hashCache[ZSTD_ROW_HASH_CACHE_SIZE]; /* For row-based matchFinder: a cache of hashes to improve speed */
+
     U32* hashTable;
     U32* hashTable3;
     U32* chainTable;
+
     int dedicatedDictSearch;  /* Indicates whether this matchState is using the
                                * dedicated dictionary search structure.
                                */
@@ -304,6 +313,9 @@ struct ZSTD_CCtx_params_s {
 
     /* Block splitting */
     int splitBlocks;
+
+    /* Param for deciding whether to use row-based matchfinder */
+    ZSTD_useRowMatchFinderMode_e useRowMatchFinder;
 
     /* Internal use, for createCCtxParams() and freeCCtxParams() only */
     ZSTD_customMem customMem;
@@ -420,7 +432,7 @@ typedef enum {
 typedef size_t (*ZSTD_blockCompressor) (
         ZSTD_matchState_t* bs, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize);
-ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_dictMode_e dictMode);
+ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_useRowMatchFinderMode_e rowMatchfinderMode, ZSTD_dictMode_e dictMode);
 
 
 MEM_STATIC U32 ZSTD_LLcode(U32 litLength)

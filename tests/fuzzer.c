@@ -1757,13 +1757,14 @@ static int basicUnitTests(U32 const seed, double compressibility)
             size_t const contentSize = 9 KB;
             const void* const dict = (const char*)CNBuffer;
             const void* const contentStart = (const char*)dict + flatdictSize;
+            /* These upper bounds are generally within a few bytes of the compressed size */
             size_t const target_nodict_cSize[22+1] = { 3840, 3770, 3870, 3830, 3770,
                                                        3770, 3770, 3770, 3750, 3750,
                                                        3742, 3670, 3670, 3660, 3660,
                                                        3660, 3660, 3660, 3660, 3660,
                                                        3660, 3660, 3660 };
             size_t const target_wdict_cSize[22+1] =  { 2830, 2890, 2890, 2820, 2940,
-                                                       2950, 2950, 2921, 2900, 2891,
+                                                       2950, 2950, 2925, 2900, 2891,
                                                        2910, 2910, 2910, 2770, 2760,
                                                        2750, 2750, 2750, 2750, 2750,
                                                        2750, 2750, 2750 };
@@ -1798,6 +1799,22 @@ static int basicUnitTests(U32 const seed, double compressibility)
                     goto _output_error;
                 }
                 DISPLAYLEVEL(4, "level %i with dictionary : max expected %u >= reached %u \n",
+                                l, (unsigned)target_wdict_cSize[l], (unsigned)wdict_cSize);
+            }
+            /* Dict compression with DMS */
+            for ( l=1 ; l <= maxLevel; l++) {
+                size_t wdict_cSize;
+                CHECK_Z( ZSTD_CCtx_loadDictionary(ctxOrig, dict, flatdictSize) );
+                CHECK_Z( ZSTD_CCtx_setParameter(ctxOrig, ZSTD_c_compressionLevel, l) );
+                CHECK_Z( ZSTD_CCtx_setParameter(ctxOrig, ZSTD_c_enableDedicatedDictSearch, 0) );
+                CHECK_Z( ZSTD_CCtx_setParameter(ctxOrig, ZSTD_c_forceAttachDict, ZSTD_dictForceAttach) );
+                wdict_cSize = ZSTD_compress2(ctxOrig, compressedBuffer, compressedBufferSize, contentStart, contentSize);
+                if (wdict_cSize > target_wdict_cSize[l]) {
+                    DISPLAYLEVEL(1, "error : compression with dictionary and compress2 at level %i worse than expected (%u > %u) \n",
+                                    l, (unsigned)wdict_cSize, (unsigned)target_wdict_cSize[l]);
+                    goto _output_error;
+                }
+                DISPLAYLEVEL(4, "level %i with dictionary and compress2 : max expected %u >= reached %u \n",
                                 l, (unsigned)target_wdict_cSize[l], (unsigned)wdict_cSize);
             }
 

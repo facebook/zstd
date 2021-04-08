@@ -19,6 +19,7 @@ sequence_compression_api
 fuzz-*.log
 rt_lib_*
 d_lib_*
+crash-*
 
 # misc
 trace

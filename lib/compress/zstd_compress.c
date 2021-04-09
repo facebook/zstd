@@ -3181,6 +3181,21 @@ static void ZSTD_deriveSeqStoreChunk(seqStore_t* resultSeqStore,
 }
 
 /**
+ * Returns the raw offset represented by the combination of offCode, ll0, and repcode history.
+ * offCode must be an offCode representing a repcode, therefore in the range of [0, 2].
+ */
+static U32 ZSTD_resolveRepcodeToRawOffset(const U32 rep[ZSTD_REP_NUM], const U32 offCode, const U32 ll0) {
+    U32 const adjustedOffCode = offCode + ll0;
+    assert(offCode < ZSTD_REP_NUM);
+    if (adjustedOffCode == ZSTD_REP_NUM) {
+        /* litlength == 0 and offCode == 2 implies selection of first repcode - 1 */
+        assert(rep[0] > 0);
+        return rep[0] - 1;
+    }
+    return rep[adjustedOffCode];
+}
+
+/**
  * ZSTD_seqStore_resolveOffCodes() reconciles any possible divergences in offset history that may arise
  * due to emission of RLE/raw blocks that disturb the offset history, and replaces any repcodes within
  * the seqStore that may be invalid.
@@ -3196,23 +3211,21 @@ static void ZSTD_seqStore_resolveOffCodes(repcodes_t* const dRepcodes, repcodes_
         U32 const ll0 = (seq->litLength == 0);
         U32 offCode = seq->offset - 1;
         assert(seq->offset > 0);
-        if (offCode <= ZSTD_REP_MOVE && (dRepcodes->rep[offCode] != cRepcodes->rep[offCode])) {
+        if (offCode <= ZSTD_REP_MOVE) {
+            U32 const dRawOffset = ZSTD_resolveRepcodeToRawOffset(dRepcodes->rep, offCode, ll0);
+            U32 const cRawOffset = ZSTD_resolveRepcodeToRawOffset(cRepcodes->rep, offCode, ll0);
             /* Adjust simulated decompression repcode history if we come across a mismatch. Replace
              * the repcode with the offset it actually references, determined by the compression
              * repcode history.
              */
-            offCode += ll0;
-            if (offCode == ZSTD_REP_MOVE+1) {
-                /* litlength == 0 and offset_value = 3 implies selection of first repcode - 1 */
-                seq->offset = (cRepcodes->rep[0] + ZSTD_REP_NUM) - 1;
-            } else {
-                seq->offset = cRepcodes->rep[offCode] + ZSTD_REP_NUM;
+            if (dRawOffset != cRawOffset) {
+                seq->offset = cRawOffset + ZSTD_REP_NUM;
             }
-            *dRepcodes = ZSTD_updateRep(dRepcodes->rep, seq->offset - 1, ll0);
-        } else {
-            *dRepcodes = ZSTD_updateRep(dRepcodes->rep, offCode, ll0);
         }
-        /* Compression repcode history is always updated with values directly from the seqStore */
+        /* Compression repcode history is always updated with values directly from the unmodified seqStore.
+         * Decompression repcode history may use modified seq->offset value taken from compression repcode history.
+         */
+        *dRepcodes = ZSTD_updateRep(dRepcodes->rep, seq->offset - 1, ll0);
         *cRepcodes = ZSTD_updateRep(cRepcodes->rep, offCode, ll0);
     }
 }
@@ -3351,7 +3364,7 @@ static size_t ZSTD_deriveBlockSplits(ZSTD_CCtx* zc, U32 partitions[], U32 nbSeq)
     }
     ZSTD_deriveBlockSplitsHelper(&splits, 0, nbSeq, zc, &zc->seqStore);
     splits.splitLocations[splits.idx] = nbSeq;
-    DEBUGLOG(5, "ZSTD_deriveBlockSplits: final nb splits: %zu", splits.idx-1);
+    DEBUGLOG(5, "ZSTD_deriveBlockSplits: final nb partitions: %zu", splits.idx+1);
     return splits.idx;
 }
 

@@ -1136,16 +1136,17 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_prefetch(U32 const* hashTable, U16 const* ta
 }
 
 /* ZSTD_row_fillHashCache():
- * Fill up the hash cache starting at idx, prefetching ZSTD_ROW_HASH_CACHE_SIZE entries.
+ * Fill up the hash cache starting at idx, prefetching up to ZSTD_ROW_HASH_CACHE_SIZE entries,
+ * but not beyond iLimit.
  */
 static void ZSTD_row_fillHashCache(ZSTD_matchState_t* ms, const BYTE* base,
                                    U32 const rowLog, U32 const mls,
-                                   U32 idx, const BYTE* const iend)
+                                   U32 idx, const BYTE* const iLimit)
 {
     U32 const* const hashTable = ms->hashTable;
     U16 const* const tagTable = ms->tagTable;
     U32 const hashLog = ms->rowHashLog;
-    U32 const maxElemsToPrefetch = (base + idx) >= iend ? 0 : (U32)(iend - (base + idx));
+    U32 const maxElemsToPrefetch = (base + idx) > iLimit ? 0 : (U32)(iLimit - (base + idx) + 1);
     U32 const lim = idx + MIN(ZSTD_ROW_HASH_CACHE_SIZE, maxElemsToPrefetch);
 
     for (; idx < lim; ++idx) {
@@ -1524,7 +1525,7 @@ ZSTD_compressBlock_lazy_generic(
     const BYTE* ip = istart;
     const BYTE* anchor = istart;
     const BYTE* const iend = istart + srcSize;
-    const BYTE* const ilimit = searchMethod == search_rowHash ? iend - 16 : iend - 8;
+    const BYTE* const ilimit = searchMethod == search_rowHash ? iend - 8 - ZSTD_ROW_HASH_CACHE_SIZE : iend - 8;
     const BYTE* const base = ms->window.base;
     const U32 prefixLowestIndex = ms->window.dictLimit;
     const BYTE* const prefixLowest = base + prefixLowestIndex;
@@ -1944,7 +1945,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
     const BYTE* ip = istart;
     const BYTE* anchor = istart;
     const BYTE* const iend = istart + srcSize;
-    const BYTE* const ilimit = searchMethod == search_rowHash ? iend - 16 : iend - 8;
+    const BYTE* const ilimit = searchMethod == search_rowHash ? iend - 8 - ZSTD_ROW_HASH_CACHE_SIZE : iend - 8;
     const BYTE* const base = ms->window.base;
     const U32 dictLimit = ms->window.dictLimit;
     const BYTE* const prefixStart = base + dictLimit;

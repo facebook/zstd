@@ -143,6 +143,7 @@ unsigned    ZSTD_isError(size_t code);          </b>/*!< tells if a `size_t` fun
 const char* ZSTD_getErrorName(size_t code);     </b>/*!< provides readable string from an error code */<b>
 int         ZSTD_minCLevel(void);               </b>/*!< minimum negative compression level allowed */<b>
 int         ZSTD_maxCLevel(void);               </b>/*!< maximum compression level available */<b>
+int         ZSTD_defaultCLevel(void);           </b>/*!< default compression level, specified by ZSTD_CLEVEL_DEFAULT */<b>
 </pre></b><BR>
 <a name="Chapter4"></a><h2>Explicit context</h2><pre></pre>
 
@@ -1440,11 +1441,6 @@ size_t ZSTD_freeCCtxParams(ZSTD_CCtx_params* params);
   This variant might be helpful for binders from dynamic languages
   which have troubles handling structures containing memory pointers.
  
-</p></pre><BR>
-  
-<pre><b>int ZSTD_defaultCLevel();
-</b><p> Returns the default compression level, specified by ZSTD_CLEVEL_DEFAULT
-
 </p></pre><BR>
 
 <a name="Chapter18"></a><h2>Advanced decompression functions</h2><pre></pre>

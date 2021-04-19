@@ -46,7 +46,6 @@ ZSTDCOMMON_FILES := $(ZSTDDIR)/common/*.c
 ZSTDCOMP_FILES   := $(ZSTDDIR)/compress/*.c
 ZSTDDECOMP_FILES := $(ZSTDDIR)/decompress/*.c
 ZSTD_FILES  := $(ZSTDDECOMP_FILES) $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES)
-ZBUFF_FILES := $(ZSTDDIR)/deprecated/*.c
 ZDICT_FILES := $(ZSTDDIR)/dictBuilder/*.c
 
 ZSTD_F1 := $(wildcard $(ZSTD_FILES))
@@ -160,15 +159,6 @@ fuzzer32 : $(ZSTD_FILES)
 fuzzer-dll : $(ZSTDDIR)/common/xxhash.c $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/datagen.c fuzzer.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(filter %.c,$^) $(LDFLAGS) -o $@$(EXT)
 
-zbufftest zbufftest32 zbufftest-dll : CPPFLAGS += -I$(ZSTDDIR)/deprecated
-zbufftest zbufftest32 zbufftest-dll : CFLAGS += -Wno-deprecated-declarations   # required to silence deprecation warnings
-zbufftest32 : CFLAGS +=  -m32
-zbufftest zbufftest32 : $(ZSTD_OBJECTS) $(ZBUFF_FILES) $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/datagen.c zbufftest.c
-	$(LINK.c) $^ -o $@$(EXT)
-
-zbufftest-dll : $(ZSTDDIR)/common/xxhash.c $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/datagen.c zbufftest.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(filter %.c,$^) $(LDFLAGS) -o $@$(EXT)
-
 ZSTREAM_LOCAL_FILES := $(PRGDIR)/datagen.c $(PRGDIR)/util.c $(PRGDIR)/timefn.c seqgen.c zstreamtest.c
 ZSTREAM_PROPER_FILES := $(ZDICT_FILES) $(ZSTREAM_LOCAL_FILES)
 ZSTREAMFILES := $(ZSTD_FILES) $(ZSTREAM_PROPER_FILES)
@@ -240,8 +230,8 @@ clean:
         $(PRGDIR)/zstd$(EXT) $(PRGDIR)/zstd32$(EXT) \
         fullbench$(EXT) fullbench32$(EXT) \
         fullbench-lib$(EXT) fullbench-dll$(EXT) \
-        fuzzer$(EXT) fuzzer32$(EXT) zbufftest$(EXT) zbufftest32$(EXT) \
-        fuzzer-dll$(EXT) zstreamtest-dll$(EXT) zbufftest-dll$(EXT) \
+        fuzzer$(EXT) fuzzer32$(EXT) \
+        fuzzer-dll$(EXT) zstreamtest-dll$(EXT) \
         zstreamtest$(EXT) zstreamtest32$(EXT) \
         datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT) longmatch$(EXT) \
         symbols$(EXT) invalidDictionaries$(EXT) legacy$(EXT) poolTests$(EXT) \
@@ -344,12 +334,6 @@ test-fuzzer-stackmode: test-fuzzer
 
 test-fuzzer32: fuzzer32
 	$(QEMU_SYS) ./fuzzer32 -v $(FUZZERTEST) $(FUZZER_FLAGS)
-
-test-zbuff: zbufftest
-	$(QEMU_SYS) ./zbufftest $(ZSTREAM_TESTTIME)
-
-test-zbuff32: zbufftest32
-	$(QEMU_SYS) ./zbufftest32 $(ZSTREAM_TESTTIME)
 
 test-zstream: zstreamtest
 	$(QEMU_SYS) ./zstreamtest -v $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)

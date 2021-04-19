@@ -372,18 +372,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\deprecated\zbuff_common.c"
-				>
-			</File>
-			<File
-				RelativePath="..\..\..\lib\deprecated\zbuff_compress.c"
-				>
-			</File>
-			<File
-				RelativePath="..\..\..\lib\deprecated\zbuff_decompress.c"
-				>
-			</File>
-			<File
 				RelativePath="..\..\..\lib\dictBuilder\zdict.c"
 				>
 			</File>

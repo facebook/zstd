@@ -25,14 +25,6 @@ jobs:
         make test
         # make -c lib all (need to fix. not working right now)
 
-  zbuff:
-    runs-on: ubuntu-16.04
-    steps:
-    - uses: actions/checkout@v2
-    - name: zbuff test
-      run: |
-        make -C tests test-zbuff
-
   tsan:
     runs-on: ubuntu-latest
     steps:

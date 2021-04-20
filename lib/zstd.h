@@ -35,28 +35,6 @@ extern "C" {
 #  define ZSTDLIB_API ZSTDLIB_VISIBILITY
 #endif
 
-/* Deprecation warnings :
- * Should these warnings be a problem, it is generally possible to disable them,
- * typically with -Wno-deprecated-declarations for gcc or _CRT_SECURE_NO_WARNINGS in Visual.
- * Otherwise, it's also possible to define ZSTD_DISABLE_DEPRECATE_WARNINGS.
- */
-#ifdef ZSTD_DISABLE_DEPRECATE_WARNINGS
-#  define ZSTD_DEPRECATED(message) ZSTDLIB_API  /* disable deprecation warnings */
-#else
-#  if defined (__cplusplus) && (__cplusplus >= 201402) /* C++14 or greater */
-#    define ZSTD_DEPRECATED(message) [[deprecated(message)]] ZSTDLIB_API
-#  elif (defined(GNUC) && (GNUC > 4 || (GNUC == 4 && GNUC_MINOR >= 5))) || defined(__clang__)
-#    define ZSTD_DEPRECATED(message) ZSTDLIB_API __attribute__((deprecated(message)))
-#  elif defined(__GNUC__) && (__GNUC__ >= 3)
-#    define ZSTD_DEPRECATED(message) ZSTDLIB_API __attribute__((deprecated))
-#  elif defined(_MSC_VER)
-#    define ZSTD_DEPRECATED(message) ZSTDLIB_API __declspec(deprecated(message))
-#  else
-#    pragma message("WARNING: You need to implement ZSTD_DEPRECATED for this compiler")
-#    define ZSTD_DEPRECATED(message) ZSTDLIB_API
-#  endif
-#endif /* ZSTD_DISABLE_DEPRECATE_WARNINGS */
-
 
 /*******************************************************************************
   Introduction
@@ -1107,6 +1085,28 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 #if defined(ZSTD_STATIC_LINKING_ONLY) && !defined(ZSTD_H_ZSTD_STATIC_LINKING_ONLY)
 #define ZSTD_H_ZSTD_STATIC_LINKING_ONLY
 
+/* Deprecation warnings :
+ * Should these warnings be a problem, it is generally possible to disable them,
+ * typically with -Wno-deprecated-declarations for gcc or _CRT_SECURE_NO_WARNINGS in Visual.
+ * Otherwise, it's also possible to define ZSTD_DISABLE_DEPRECATE_WARNINGS.
+ */
+#ifdef ZSTD_DISABLE_DEPRECATE_WARNINGS
+#  define ZSTD_DEPRECATED(message) ZSTDLIB_API  /* disable deprecation warnings */
+#else
+#  if defined (__cplusplus) && (__cplusplus >= 201402) /* C++14 or greater */
+#    define ZSTD_DEPRECATED(message) [[deprecated(message)]] ZSTDLIB_API
+#  elif (defined(GNUC) && (GNUC > 4 || (GNUC == 4 && GNUC_MINOR >= 5))) || defined(__clang__)
+#    define ZSTD_DEPRECATED(message) ZSTDLIB_API __attribute__((deprecated(message)))
+#  elif defined(__GNUC__) && (__GNUC__ >= 3)
+#    define ZSTD_DEPRECATED(message) ZSTDLIB_API __attribute__((deprecated))
+#  elif defined(_MSC_VER)
+#    define ZSTD_DEPRECATED(message) ZSTDLIB_API __declspec(deprecated(message))
+#  else
+#    pragma message("WARNING: You need to implement ZSTD_DEPRECATED for this compiler")
+#    define ZSTD_DEPRECATED(message) ZSTDLIB_API
+#  endif
+#endif /* ZSTD_DISABLE_DEPRECATE_WARNINGS */
+
 /****************************************************************************************
  *   experimental API (static linking only)
  ****************************************************************************************
@@ -1644,7 +1644,7 @@ ZSTDLIB_API ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParame
  *         It can be replaced by ZSTD_compress2(), in combination with ZSTD_CCtx_setParameter() and other parameter setters.
  *  This prototype will generate compilation warnings. */
 ZSTD_DEPRECATED("use ZSTD_compress2")
-ZSTDLIB_API size_t ZSTD_compress_advanced(ZSTD_CCtx* cctx,
+size_t ZSTD_compress_advanced(ZSTD_CCtx* cctx,
                                           void* dst, size_t dstCapacity,
                                     const void* src, size_t srcSize,
                                     const void* dict,size_t dictSize,
@@ -1655,7 +1655,7 @@ ZSTDLIB_API size_t ZSTD_compress_advanced(ZSTD_CCtx* cctx,
  *         It can be replaced by ZSTD_compress2(), in combination with ZSTD_CCtx_loadDictionary() and other parameter setters.
  *  This prototype will generate compilation warnings. */
 ZSTD_DEPRECATED("use ZSTD_compress2 with ZSTD_CCtx_loadDictionary")
-ZSTDLIB_API size_t ZSTD_compress_usingCDict_advanced(ZSTD_CCtx* cctx,
+size_t ZSTD_compress_usingCDict_advanced(ZSTD_CCtx* cctx,
                                               void* dst, size_t dstCapacity,
                                         const void* src, size_t srcSize,
                                         const ZSTD_CDict* cdict,
@@ -2099,7 +2099,8 @@ ZSTDLIB_API size_t ZSTD_DCtx_getParameter(ZSTD_DCtx* dctx, ZSTD_dParameter param
  *  This instruction is mandatory to decode data without a fully-formed header,
  *  such ZSTD_f_zstd1_magicless for example.
  * @return : 0, or an error code (which can be tested using ZSTD_isError()). */
-ZSTDLIB_API size_t ZSTD_DCtx_setFormat(ZSTD_DCtx* dctx, ZSTD_format_e format);
+ZSTD_DEPRECATED("use ZSTD_DCtx_setParameter() instead")
+size_t ZSTD_DCtx_setFormat(ZSTD_DCtx* dctx, ZSTD_format_e format);
 
 /*! ZSTD_decompressStream_simpleArgs() :
  *  Same as ZSTD_decompressStream(),
@@ -2135,8 +2136,7 @@ ZSTDLIB_API size_t ZSTD_decompressStream_simpleArgs (
  * This prototype will generate compilation warnings.
  */
 ZSTD_DEPRECATED("use ZSTD_CCtx_reset, see zstd.h for detailed instructions")
-ZSTDLIB_API size_t
-ZSTD_initCStream_srcSize(ZSTD_CStream* zcs,
+size_t ZSTD_initCStream_srcSize(ZSTD_CStream* zcs,
                          int compressionLevel,
                          unsigned long long pledgedSrcSize);
 
@@ -2153,8 +2153,7 @@ ZSTD_initCStream_srcSize(ZSTD_CStream* zcs,
  * This prototype will generate compilation warnings.
  */
 ZSTD_DEPRECATED("use ZSTD_CCtx_reset, see zstd.h for detailed instructions")
-ZSTDLIB_API size_t
-ZSTD_initCStream_usingDict(ZSTD_CStream* zcs,
+size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs,
                      const void* dict, size_t dictSize,
                            int compressionLevel);
 
@@ -2174,8 +2173,7 @@ ZSTD_initCStream_usingDict(ZSTD_CStream* zcs,
  * This prototype will generate compilation warnings.
  */
 ZSTD_DEPRECATED("use ZSTD_CCtx_reset, see zstd.h for detailed instructions")
-ZSTDLIB_API size_t
-ZSTD_initCStream_advanced(ZSTD_CStream* zcs,
+size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs,
                     const void* dict, size_t dictSize,
                           ZSTD_parameters params,
                           unsigned long long pledgedSrcSize);
@@ -2189,7 +2187,7 @@ ZSTD_initCStream_advanced(ZSTD_CStream* zcs,
  * This prototype will generate compilation warnings.
  */
 ZSTD_DEPRECATED("use ZSTD_CCtx_reset and ZSTD_CCtx_refCDict, see zstd.h for detailed instructions")
-ZSTDLIB_API size_t ZSTD_initCStream_usingCDict(ZSTD_CStream* zcs, const ZSTD_CDict* cdict);
+size_t ZSTD_initCStream_usingCDict(ZSTD_CStream* zcs, const ZSTD_CDict* cdict);
 
 /*! ZSTD_initCStream_usingCDict_advanced() :
  *   This function is DEPRECATED, and is approximately equivalent to:
@@ -2207,8 +2205,7 @@ ZSTDLIB_API size_t ZSTD_initCStream_usingCDict(ZSTD_CStream* zcs, const ZSTD_CDi
  * This prototype will generate compilation warnings.
  */
 ZSTD_DEPRECATED("use ZSTD_CCtx_reset and ZSTD_CCtx_refCDict, see zstd.h for detailed instructions")
-ZSTDLIB_API size_t
-ZSTD_initCStream_usingCDict_advanced(ZSTD_CStream* zcs,
+size_t ZSTD_initCStream_usingCDict_advanced(ZSTD_CStream* zcs,
                                const ZSTD_CDict* cdict,
                                      ZSTD_frameParameters fParams,
                                      unsigned long long pledgedSrcSize);
@@ -2217,6 +2214,9 @@ ZSTD_initCStream_usingCDict_advanced(ZSTD_CStream* zcs,
  * This function is DEPRECATED, and is equivalent to:
  *     ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
  *     ZSTD_CCtx_setPledgedSrcSize(zcs, pledgedSrcSize);
+ * Note: ZSTD_resetCStream() interprets pledgedSrcSize == 0 as ZSTD_CONTENTSIZE_UNKNOWN, but
+ *       ZSTD_CCtx_setPledgedSrcSize() does not do the same, so ZSTD_CONTENTSIZE_UNKNOWN must be
+ *       explicitly specified.
  *
  *  start a new frame, using same parameters from previous frame.
  *  This is typically useful to skip dictionary loading stage, since it will re-use it in-place.
@@ -2229,7 +2229,7 @@ ZSTD_initCStream_usingCDict_advanced(ZSTD_CStream* zcs,
  *  This prototype will generate compilation warnings.
  */
 ZSTD_DEPRECATED("use ZSTD_CCtx_reset, see zstd.h for detailed instructions")
-ZSTDLIB_API size_t ZSTD_resetCStream(ZSTD_CStream* zcs, unsigned long long pledgedSrcSize);
+size_t ZSTD_resetCStream(ZSTD_CStream* zcs, unsigned long long pledgedSrcSize);
 
 
 typedef struct {
@@ -2349,9 +2349,9 @@ ZSTDLIB_API size_t ZSTD_compressEnd(ZSTD_CCtx* cctx, void* dst, size_t dstCapaci
 
 /* The ZSTD_compressBegin_advanced() and ZSTD_compressBegin_usingCDict_advanced() are now DEPRECATED and will generate a compiler warning */
 ZSTD_DEPRECATED("use advanced API to access custom parameters")
-ZSTDLIB_API size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* cctx, const void* dict, size_t dictSize, ZSTD_parameters params, unsigned long long pledgedSrcSize); /**< pledgedSrcSize : If srcSize is not known at init time, use ZSTD_CONTENTSIZE_UNKNOWN */
+size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* cctx, const void* dict, size_t dictSize, ZSTD_parameters params, unsigned long long pledgedSrcSize); /**< pledgedSrcSize : If srcSize is not known at init time, use ZSTD_CONTENTSIZE_UNKNOWN */
 ZSTD_DEPRECATED("use advanced API to access custom parameters")
-ZSTDLIB_API size_t ZSTD_compressBegin_usingCDict_advanced(ZSTD_CCtx* const cctx, const ZSTD_CDict* const cdict, ZSTD_frameParameters const fParams, unsigned long long const pledgedSrcSize);   /* compression parameters are already set within cdict. pledgedSrcSize must be correct. If srcSize is not known, use macro ZSTD_CONTENTSIZE_UNKNOWN */
+size_t ZSTD_compressBegin_usingCDict_advanced(ZSTD_CCtx* const cctx, const ZSTD_CDict* const cdict, ZSTD_frameParameters const fParams, unsigned long long const pledgedSrcSize);   /* compression parameters are already set within cdict. pledgedSrcSize must be correct. If srcSize is not known, use macro ZSTD_CONTENTSIZE_UNKNOWN */
 /**
   Buffer-less streaming decompression (synchronous mode)
 

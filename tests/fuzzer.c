@@ -1738,10 +1738,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
         DISPLAYLEVEL(3, "test%3i : check content size on duplicated context : ", testNb++);
         {   size_t const testSize = CNBuffSize / 3;
-            {   ZSTD_parameters p = ZSTD_getParams(2, testSize, dictSize);
-                p.fParams.contentSizeFlag = 1;
-                CHECK( ZSTD_compressBegin_advanced(ctxOrig, CNBuffer, dictSize, p, testSize-1) );
-            }
+            CHECK( ZSTD_compressBegin(ctxOrig, ZSTD_defaultCLevel()) );
             CHECK( ZSTD_copyCCtx(ctxDuplicated, ctxOrig, testSize) );
 
             CHECK_VAR(cSize, ZSTD_compressEnd(ctxDuplicated, compressedBuffer, ZSTD_compressBound(testSize),
@@ -2562,12 +2559,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
         int const compressionLevel = -1;
 
         assert(cctx != NULL);
-        {   ZSTD_parameters const params = ZSTD_getParams(compressionLevel, srcSize, 0);
-            size_t const cSize_1pass = ZSTD_compress_advanced(cctx,
-                                        compressedBuffer, compressedBufferSize,
-                                        CNBuffer, srcSize,
-                                        NULL, 0,
-                                        params);
+        {   size_t const cSize_1pass = ZSTD_compress(compressedBuffer, compressedBufferSize,
+                                                     CNBuffer, srcSize, compressionLevel);
             if (ZSTD_isError(cSize_1pass)) goto _output_error;
 
             CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, compressionLevel) );

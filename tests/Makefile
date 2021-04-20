@@ -38,7 +38,7 @@ CFLAGS     += -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow                 \
               -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
               -Wstrict-prototypes -Wundef                                     \
               -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings      \
-              -Wredundant-decls -Wmissing-prototypes
+              -Wredundant-decls -Wmissing-prototypes -Wno-deprecated-declarations
 CFLAGS     += $(DEBUGFLAGS)
 CPPFLAGS   += $(MOREFLAGS)
 
@@ -131,7 +131,7 @@ zstdmt_d_%.o : $(ZSTDDIR)/decompress/%.c
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
 
 fullbench32: CPPFLAGS += -m32
-fullbench fullbench32 : CPPFLAGS += $(MULTITHREAD_CPP)
+fullbench fullbench32 : CPPFLAGS += $(MULTITHREAD_CPP) -Wno-deprecated-declarations
 fullbench fullbench32 : LDFLAGS += $(MULTITHREAD_LD)
 fullbench fullbench32 : DEBUGFLAGS = -DNDEBUG  # turn off assert() for speed measurements
 fullbench fullbench32 : $(ZSTD_FILES)
@@ -147,7 +147,7 @@ fullbench-dll: $(PRGDIR)/datagen.c $(PRGDIR)/util.c $(PRGDIR)/benchfn.c $(PRGDIR
 #	$(CC) $(FLAGS) $(filter %.c,$^) -o $@$(EXT) -DZSTD_DLL_IMPORT=1 $(ZSTDDIR)/dll/libzstd.dll
 	$(LINK.c) $^ $(LDLIBS) -o $@$(EXT)
 
-fuzzer : CPPFLAGS += $(MULTITHREAD_CPP)
+fuzzer : CPPFLAGS += $(MULTITHREAD_CPP) -Wno-deprecated-declarations
 fuzzer : LDFLAGS += $(MULTITHREAD_LD)
 fuzzer : $(ZSTDMT_OBJECTS)
 fuzzer fuzzer32 : $(ZDICT_FILES) $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/datagen.c fuzzer.c

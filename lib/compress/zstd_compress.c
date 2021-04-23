@@ -3365,7 +3365,7 @@ static U32 ZSTD_resolveRepcodeToRawOffset(const U32 rep[ZSTD_REP_NUM], const U32
  * ZSTD_seqStore_resolveOffCodes() reconciles any possible divergences in offset history that may arise
  * due to emission of RLE/raw blocks that disturb the offset history, and replaces any repcodes within
  * the seqStore that may be invalid.
- * 
+ *
  * dRepcodes are updated as would be on the decompression side. cRepcodes are updated exactly in
  * accordance with the seqStore.
  */
@@ -3555,14 +3555,14 @@ static size_t ZSTD_compressBlock_splitBlock_internal(ZSTD_CCtx* zc, void* dst, s
      * may become invalid. In order to reconcile potentially invalid repcodes, we keep track of two
      * separate repcode histories that simulate repcode history on compression and decompression side,
      * and use the histories to determine whether we must replace a particular repcode with its raw offset.
-     * 
+     *
      * 1) cRep gets updated for each partition, regardless of whether the block was emitted as uncompressed
      *    or RLE. This allows us to retrieve the offset value that an invalid repcode references within
      *    a nocompress/RLE block.
      * 2) dRep gets updated only for compressed partitions, and when a repcode gets replaced, will use
      *    the replacement offset value rather than the original repcode to update the repcode history.
      *    dRep also will be the final repcode history sent to the next block.
-     * 
+     *
      * See ZSTD_seqStore_resolveOffCodes() for more details.
      */
     repcodes_t dRep;
@@ -6192,7 +6192,7 @@ static int ZSTD_dedicatedDictSearch_isSupported(
 {
     return (cParams->strategy >= ZSTD_greedy)
         && (cParams->strategy <= ZSTD_lazy2)
-        && (cParams->hashLog >= cParams->chainLog)
+        && (cParams->hashLog > cParams->chainLog)
         && (cParams->chainLog <= 24);
 }
 
@@ -6211,6 +6211,9 @@ static void ZSTD_dedicatedDictSearch_revertCParams(
         case ZSTD_lazy:
         case ZSTD_lazy2:
             cParams->hashLog -= ZSTD_LAZY_DDSS_BUCKET_LOG;
+            if (cParams->hashLog < ZSTD_HASHLOG_MIN) {
+                cParams->hashLog = ZSTD_HASHLOG_MIN;
+            }
             break;
         case ZSTD_btlazy2:
         case ZSTD_btopt:

@@ -469,7 +469,7 @@ void ZSTD_dedicatedDictSearch_lazy_loadDictionary(ZSTD_matchState_t* ms, const B
     U32 hashIdx;
 
     assert(ms->cParams.chainLog <= 24);
-    assert(ms->cParams.hashLog >= ms->cParams.chainLog);
+    assert(ms->cParams.hashLog > ms->cParams.chainLog);
     assert(idx != 0);
     assert(tmpMinChain <= minChain);
 
@@ -500,7 +500,7 @@ void ZSTD_dedicatedDictSearch_lazy_loadDictionary(ZSTD_matchState_t* ms, const B
             if (count == cacheSize) {
                 for (count = 0; count < chainLimit;) {
                     if (i < minChain) {
-                        if (!i || countBeyondMinChain++ > cacheSize) {
+                        if (!i || ++countBeyondMinChain > cacheSize) {
                             /* only allow pulling `cacheSize` number of entries
                              * into the cache or chainTable beyond `minChain`,
                              * to replace the entries pulled out of the

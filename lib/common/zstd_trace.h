@@ -114,14 +114,15 @@ typedef unsigned long long ZSTD_TraceCtx;
  * @returns Non-zero if tracing is enabled. The return value is
  *          passed to ZSTD_trace_compress_end().
  */
-ZSTD_TraceCtx ZSTD_trace_compress_begin(struct ZSTD_CCtx_s const* cctx);
+ZSTD_WEAK_ATTR ZSTD_TraceCtx ZSTD_trace_compress_begin(
+    struct ZSTD_CCtx_s const* cctx);
 
 /**
  * Trace the end of a compression call.
  * @param ctx The return value of ZSTD_trace_compress_begin().
  * @param trace The zstd tracing info.
  */
-void ZSTD_trace_compress_end(
+ZSTD_WEAK_ATTR void ZSTD_trace_compress_end(
     ZSTD_TraceCtx ctx,
     ZSTD_Trace const* trace);
 
@@ -132,14 +133,15 @@ void ZSTD_trace_compress_end(
  * @returns Non-zero if tracing is enabled. The return value is
  *          passed to ZSTD_trace_compress_end().
  */
-ZSTD_TraceCtx ZSTD_trace_decompress_begin(struct ZSTD_DCtx_s const* dctx);
+ZSTD_WEAK_ATTR ZSTD_TraceCtx ZSTD_trace_decompress_begin(
+    struct ZSTD_DCtx_s const* dctx);
 
 /**
  * Trace the end of a decompression call.
  * @param ctx The return value of ZSTD_trace_decompress_begin().
  * @param trace The zstd tracing info.
  */
-void ZSTD_trace_decompress_end(
+ZSTD_WEAK_ATTR void ZSTD_trace_decompress_end(
     ZSTD_TraceCtx ctx,
     ZSTD_Trace const* trace);
 

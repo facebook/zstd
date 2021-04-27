@@ -4379,7 +4379,7 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
                                     ZSTD_buffered_policy_e zbuff)
 {
 #if ZSTD_TRACE
-    cctx->traceCtx = ZSTD_trace_compress_begin(cctx);
+    cctx->traceCtx = (ZSTD_trace_compress_begin != NULL) ? ZSTD_trace_compress_begin(cctx) : 0;
 #endif
     DEBUGLOG(4, "ZSTD_compressBegin_internal: wlog=%u", params->cParams.windowLog);
     /* params are supposed to be fully validated at this point */
@@ -4510,7 +4510,7 @@ static size_t ZSTD_writeEpilogue(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity)
 void ZSTD_CCtx_trace(ZSTD_CCtx* cctx, size_t extraCSize)
 {
 #if ZSTD_TRACE
-    if (cctx->traceCtx) {
+    if (cctx->traceCtx && ZSTD_trace_compress_end != NULL) {
         int const streaming = cctx->inBuffSize > 0 || cctx->outBuffSize > 0 || cctx->appliedParams.nbWorkers > 0;
         ZSTD_Trace trace;
         ZSTD_memset(&trace, 0, sizeof(trace));
@@ -5456,7 +5456,7 @@ static size_t ZSTD_CCtx_init_compressStream2(ZSTD_CCtx* cctx,
     }
     if (params.nbWorkers > 0) {
 #if ZSTD_TRACE
-        cctx->traceCtx = ZSTD_trace_compress_begin(cctx);
+        cctx->traceCtx = (ZSTD_trace_compress_begin != NULL) ? ZSTD_trace_compress_begin(cctx) : 0;
 #endif
         /* mt context creation */
         if (cctx->mtctx == NULL) {

@@ -163,7 +163,7 @@ github,                             level 3 with dict,                  zstdcli,
 github,                             level 4,                            zstdcli,                            138199
 github,                             level 4 with dict,                  zstdcli,                            43251
 github,                             level 5,                            zstdcli,                            137121
-github,                             level 5 with dict,                  zstdcli,                            40737
+github,                             level 5 with dict,                  zstdcli,                            40728
 github,                             level 6,                            zstdcli,                            137122
 github,                             level 6 with dict,                  zstdcli,                            40630
 github,                             level 7,                            zstdcli,                            137122
@@ -202,7 +202,7 @@ github.tar,                         level 3 with dict,                  zstdcli,
 github.tar,                         level 4,                            zstdcli,                            38471
 github.tar,                         level 4 with dict,                  zstdcli,                            37952
 github.tar,                         level 5,                            zstdcli,                            39697
-github.tar,                         level 5 with dict,                  zstdcli,                            39027
+github.tar,                         level 5 with dict,                  zstdcli,                            39032
 github.tar,                         level 6,                            zstdcli,                            39625
 github.tar,                         level 6 with dict,                  zstdcli,                            38614
 github.tar,                         level 7,                            zstdcli,                            39217
@@ -324,18 +324,18 @@ github,                             level 4 with dict copy,             advanced
 github,                             level 4 with dict load,             advanced one pass,                  41159
 github,                             level 5 row 1,                      advanced one pass,                  135121
 github,                             level 5 row 1 with dict dms,        advanced one pass,                  38938
-github,                             level 5 row 1 with dict dds,        advanced one pass,                  38741
+github,                             level 5 row 1 with dict dds,        advanced one pass,                  38732
 github,                             level 5 row 1 with dict copy,       advanced one pass,                  38934
 github,                             level 5 row 1 with dict load,       advanced one pass,                  40725
 github,                             level 5 row 2,                      advanced one pass,                  134584
 github,                             level 5 row 2 with dict dms,        advanced one pass,                  38758
-github,                             level 5 row 2 with dict dds,        advanced one pass,                  38737
+github,                             level 5 row 2 with dict dds,        advanced one pass,                  38728
 github,                             level 5 row 2 with dict copy,       advanced one pass,                  38759
 github,                             level 5 row 2 with dict load,       advanced one pass,                  41518
 github,                             level 5,                            advanced one pass,                  135121
 github,                             level 5 with dict,                  advanced one pass,                  38758
 github,                             level 5 with dict dms,              advanced one pass,                  38758
-github,                             level 5 with dict dds,              advanced one pass,                  38737
+github,                             level 5 with dict dds,              advanced one pass,                  38728
 github,                             level 5 with dict copy,             advanced one pass,                  38759
 github,                             level 5 with dict load,             advanced one pass,                  40725
 github,                             level 6,                            advanced one pass,                  135122
@@ -439,18 +439,18 @@ github.tar,                         level 4 with dict copy,             advanced
 github.tar,                         level 4 with dict load,             advanced one pass,                  37927
 github.tar,                         level 5 row 1,                      advanced one pass,                  39788
 github.tar,                         level 5 row 1 with dict dms,        advanced one pass,                  39365
-github.tar,                         level 5 row 1 with dict dds,        advanced one pass,                  39227
+github.tar,                         level 5 row 1 with dict dds,        advanced one pass,                  39233
 github.tar,                         level 5 row 1 with dict copy,       advanced one pass,                  39715
 github.tar,                         level 5 row 1 with dict load,       advanced one pass,                  39209
 github.tar,                         level 5 row 2,                      advanced one pass,                  39693
 github.tar,                         level 5 row 2 with dict dms,        advanced one pass,                  39024
-github.tar,                         level 5 row 2 with dict dds,        advanced one pass,                  39023
+github.tar,                         level 5 row 2 with dict dds,        advanced one pass,                  39028
 github.tar,                         level 5 row 2 with dict copy,       advanced one pass,                  39040
 github.tar,                         level 5 row 2 with dict load,       advanced one pass,                  39037
 github.tar,                         level 5,                            advanced one pass,                  39693
 github.tar,                         level 5 with dict,                  advanced one pass,                  39040
 github.tar,                         level 5 with dict dms,              advanced one pass,                  39024
-github.tar,                         level 5 with dict dds,              advanced one pass,                  39023
+github.tar,                         level 5 with dict dds,              advanced one pass,                  39028
 github.tar,                         level 5 with dict copy,             advanced one pass,                  39040
 github.tar,                         level 5 with dict load,             advanced one pass,                  39037
 github.tar,                         level 6,                            advanced one pass,                  39621
@@ -618,18 +618,18 @@ github,                             level 4 with dict copy,             advanced
 github,                             level 4 with dict load,             advanced one pass small out,        41159
 github,                             level 5 row 1,                      advanced one pass small out,        135121
 github,                             level 5 row 1 with dict dms,        advanced one pass small out,        38938
-github,                             level 5 row 1 with dict dds,        advanced one pass small out,        38741
+github,                             level 5 row 1 with dict dds,        advanced one pass small out,        38732
 github,                             level 5 row 1 with dict copy,       advanced one pass small out,        38934
 github,                             level 5 row 1 with dict load,       advanced one pass small out,        40725
 github,                             level 5 row 2,                      advanced one pass small out,        134584
 github,                             level 5 row 2 with dict dms,        advanced one pass small out,        38758
-github,                             level 5 row 2 with dict dds,        advanced one pass small out,        38737
+github,                             level 5 row 2 with dict dds,        advanced one pass small out,        38728
 github,                             level 5 row 2 with dict copy,       advanced one pass small out,        38759
 github,                             level 5 row 2 with dict load,       advanced one pass small out,        41518
 github,                             level 5,                            advanced one pass small out,        135121
 github,                             level 5 with dict,                  advanced one pass small out,        38758
 github,                             level 5 with dict dms,              advanced one pass small out,        38758
-github,                             level 5 with dict dds,              advanced one pass small out,        38737
+github,                             level 5 with dict dds,              advanced one pass small out,        38728
 github,                             level 5 with dict copy,             advanced one pass small out,        38759
 github,                             level 5 with dict load,             advanced one pass small out,        40725
 github,                             level 6,                            advanced one pass small out,        135122
@@ -733,18 +733,18 @@ github.tar,                         level 4 with dict copy,             advanced
 github.tar,                         level 4 with dict load,             advanced one pass small out,        37927
 github.tar,                         level 5 row 1,                      advanced one pass small out,        39788
 github.tar,                         level 5 row 1 with dict dms,        advanced one pass small out,        39365
-github.tar,                         level 5 row 1 with dict dds,        advanced one pass small out,        39227
+github.tar,                         level 5 row 1 with dict dds,        advanced one pass small out,        39233
 github.tar,                         level 5 row 1 with dict copy,       advanced one pass small out,        39715
 github.tar,                         level 5 row 1 with dict load,       advanced one pass small out,        39209
 github.tar,                         level 5 row 2,                      advanced one pass small out,        39693
 github.tar,                         level 5 row 2 with dict dms,        advanced one pass small out,        39024
-github.tar,                         level 5 row 2 with dict dds,        advanced one pass small out,        39023
+github.tar,                         level 5 row 2 with dict dds,        advanced one pass small out,        39028
 github.tar,                         level 5 row 2 with dict copy,       advanced one pass small out,        39040
 github.tar,                         level 5 row 2 with dict load,       advanced one pass small out,        39037
 github.tar,                         level 5,                            advanced one pass small out,        39693
 github.tar,                         level 5 with dict,                  advanced one pass small out,        39040
 github.tar,                         level 5 with dict dms,              advanced one pass small out,        39024
-github.tar,                         level 5 with dict dds,              advanced one pass small out,        39023
+github.tar,                         level 5 with dict dds,              advanced one pass small out,        39028
 github.tar,                         level 5 with dict copy,             advanced one pass small out,        39040
 github.tar,                         level 5 with dict load,             advanced one pass small out,        39037
 github.tar,                         level 6,                            advanced one pass small out,        39621
@@ -912,18 +912,18 @@ github,                             level 4 with dict copy,             advanced
 github,                             level 4 with dict load,             advanced streaming,                 41159
 github,                             level 5 row 1,                      advanced streaming,                 135121
 github,                             level 5 row 1 with dict dms,        advanced streaming,                 38938
-github,                             level 5 row 1 with dict dds,        advanced streaming,                 38741
+github,                             level 5 row 1 with dict dds,        advanced streaming,                 38732
 github,                             level 5 row 1 with dict copy,       advanced streaming,                 38934
 github,                             level 5 row 1 with dict load,       advanced streaming,                 40725
 github,                             level 5 row 2,                      advanced streaming,                 134584
 github,                             level 5 row 2 with dict dms,        advanced streaming,                 38758
-github,                             level 5 row 2 with dict dds,        advanced streaming,                 38737
+github,                             level 5 row 2 with dict dds,        advanced streaming,                 38728
 github,                             level 5 row 2 with dict copy,       advanced streaming,                 38759
 github,                             level 5 row 2 with dict load,       advanced streaming,                 41518
 github,                             level 5,                            advanced streaming,                 135121
 github,                             level 5 with dict,                  advanced streaming,                 38758
 github,                             level 5 with dict dms,              advanced streaming,                 38758
-github,                             level 5 with dict dds,              advanced streaming,                 38737
+github,                             level 5 with dict dds,              advanced streaming,                 38728
 github,                             level 5 with dict copy,             advanced streaming,                 38759
 github,                             level 5 with dict load,             advanced streaming,                 40725
 github,                             level 6,                            advanced streaming,                 135122
@@ -1027,18 +1027,18 @@ github.tar,                         level 4 with dict copy,             advanced
 github.tar,                         level 4 with dict load,             advanced streaming,                 37927
 github.tar,                         level 5 row 1,                      advanced streaming,                 39788
 github.tar,                         level 5 row 1 with dict dms,        advanced streaming,                 39365
-github.tar,                         level 5 row 1 with dict dds,        advanced streaming,                 39227
+github.tar,                         level 5 row 1 with dict dds,        advanced streaming,                 39233
 github.tar,                         level 5 row 1 with dict copy,       advanced streaming,                 39715
 github.tar,                         level 5 row 1 with dict load,       advanced streaming,                 39209
 github.tar,                         level 5 row 2,                      advanced streaming,                 39693
 github.tar,                         level 5 row 2 with dict dms,        advanced streaming,                 39024
-github.tar,                         level 5 row 2 with dict dds,        advanced streaming,                 39023
+github.tar,                         level 5 row 2 with dict dds,        advanced streaming,                 39028
 github.tar,                         level 5 row 2 with dict copy,       advanced streaming,                 39040
 github.tar,                         level 5 row 2 with dict load,       advanced streaming,                 39037
 github.tar,                         level 5,                            advanced streaming,                 39693
 github.tar,                         level 5 with dict,                  advanced streaming,                 39040
 github.tar,                         level 5 with dict dms,              advanced streaming,                 39024
-github.tar,                         level 5 with dict dds,              advanced streaming,                 39023
+github.tar,                         level 5 with dict dds,              advanced streaming,                 39028
 github.tar,                         level 5 with dict copy,             advanced streaming,                 39040
 github.tar,                         level 5 with dict load,             advanced streaming,                 39037
 github.tar,                         level 6,                            advanced streaming,                 39621

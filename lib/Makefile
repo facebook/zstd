@@ -8,6 +8,9 @@
 # You may select, at your option, one of the above-listed licenses.
 # ################################################################
 
+# Note: by default, the static library is built single-threaded and dynamic library is built
+# multi-threaded. It is possible to force multi or single threaded builds by appending
+# -mt or -nomt to the build target (like lib-mt for multi-threaded, lib-nomt for single-threaded).
 .PHONY: default
 default: lib-release
 
@@ -67,6 +70,10 @@ DEBUGFLAGS= -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
             -Wredundant-decls -Wmissing-prototypes -Wc++-compat
 CFLAGS   += $(DEBUGFLAGS) $(MOREFLAGS)
 FLAGS     = $(CPPFLAGS) $(CFLAGS)
+
+CPPFLAGS_DYNLIB  = -DZSTD_MULTITHREAD # dynamic library build defaults to multi-threaded
+LDFLAGS_DYNLIB   = -pthread
+CPPFLAGS_STATLIB =                    # static library build defaults to single-threaded
 
 HAVE_COLORNEVER = $(shell echo a | grep --color=never a > /dev/null 2> /dev/null && echo 1 || echo 0)
 GREP_OPTIONS ?=
@@ -222,6 +229,7 @@ all: lib
 
 
 .PHONY: libzstd.a  # must be run every time
+libzstd.a: CPPFLAGS += $(CPPFLAGS_STATLIB)
 
 ifndef BUILD_DIR
 # determine BUILD_DIR from compilation flags
@@ -238,7 +246,10 @@ ZSTD_STATLIB_OBJ := $(addprefix $(ZSTD_STATLIB_DIR)/,$(ZSTD_LOCAL_OBJ))
 $(ZSTD_STATLIB): ARFLAGS = rcs
 $(ZSTD_STATLIB): | $(ZSTD_STATLIB_DIR)
 $(ZSTD_STATLIB): $(ZSTD_STATLIB_OBJ)
-	@echo compiling static library
+  # Check for multithread flag at target execution time
+	$(if $(filter -DZSTD_MULTITHREAD,$(CPPFLAGS)),\
+    @echo compiling multi-threaded static library $(LIBVER),\
+    @echo compiling single-threaded static library $(LIBVER))
 	$(AR) $(ARFLAGS) $@ $^
 
 libzstd.a: $(ZSTD_STATLIB)
@@ -257,8 +268,9 @@ else  # not Windows
 
 LIBZSTD = libzstd.$(SHARED_EXT_VER)
 .PHONY: $(LIBZSTD)  # must be run every time
-$(LIBZSTD): CFLAGS += -fPIC -fvisibility=hidden
-$(LIBZSTD): LDFLAGS += -shared
+$(LIBZSTD): CPPFLAGS += $(CPPFLAGS_DYNLIB)
+$(LIBZSTD): CFLAGS   += -fPIC -fvisibility=hidden
+$(LIBZSTD): LDFLAGS  += -shared $(LDFLAGS_DYNLIB)
 
 ifndef BUILD_DIR
 # determine BUILD_DIR from compilation flags
@@ -275,7 +287,10 @@ ZSTD_DYNLIB_OBJ := $(addprefix $(ZSTD_DYNLIB_DIR)/,$(ZSTD_LOCAL_OBJ))
 
 $(ZSTD_DYNLIB): | $(ZSTD_DYNLIB_DIR)
 $(ZSTD_DYNLIB): $(ZSTD_DYNLIB_OBJ)
-	@echo compiling dynamic library $(LIBVER)
+# Check for multithread flag at target execution time
+	$(if $(filter -DZSTD_MULTITHREAD,$(CPPFLAGS)),\
+    @echo compiling multi-threaded dynamic library $(LIBVER),\
+    @echo compiling single-threaded dynamic library $(LIBVER))
 	$(CC) $(FLAGS) $^ $(LDFLAGS) $(SONAME_FLAGS) -o $@
 	@echo creating versioned links
 	ln -sf $@ libzstd.$(SHARED_EXT_MAJOR)
@@ -297,10 +312,17 @@ lib : libzstd.a libzstd
 # note : do not define lib-mt or lib-release as .PHONY
 # make does not consider implicit pattern rule for .PHONY target
 
-%-mt : CPPFLAGS += -DZSTD_MULTITHREAD
-%-mt : LDFLAGS  += -pthread
+%-mt : CPPFLAGS_DYNLIB  := -DZSTD_MULTITHREAD
+%-mt : CPPFLAGS_STATLIB := -DZSTD_MULTITHREAD
+%-mt : LDFLAGS_DYNLIB   := -pthread
 %-mt : %
-	@echo multi-threading build completed
+	@echo multi-threaded build completed
+
+%-nomt : CPPFLAGS_DYNLIB  :=
+%-nomt : LDFLAGS_DYNLIB   :=
+%-nomt : CPPFLAGS_STATLIB :=
+%-nomt : %
+	@echo single-threaded build completed
 
 %-release : DEBUGFLAGS :=
 %-release : %

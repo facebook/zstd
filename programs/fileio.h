@@ -68,6 +68,8 @@ void FIO_freeContext(FIO_ctx_t* const fCtx);
 
 typedef struct FIO_display_prefs_s FIO_display_prefs_t;
 
+typedef enum { FIO_ps_auto, FIO_ps_never, FIO_ps_always } FIO_progressSetting_e;
+
 /*-*************************************
 *  Parameters
 ***************************************/
@@ -100,7 +102,7 @@ void FIO_setLiteralCompressionMode(
         FIO_prefs_t* const prefs,
         ZSTD_literalCompressionMode_e mode);
 
-void FIO_setNoProgress(unsigned noProgress);
+void FIO_setProgressSetting(FIO_progressSetting_e progressSetting);
 void FIO_setNotificationLevel(int level);
 void FIO_setExcludeCompressedFile(FIO_prefs_t* const prefs, int excludeCompressedFiles);
 void FIO_setPatchFromMode(FIO_prefs_t* const prefs, int value);

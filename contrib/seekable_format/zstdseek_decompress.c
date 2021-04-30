@@ -449,7 +449,7 @@ size_t ZSTD_seekable_decompress(ZSTD_seekable* zs, void* dst, size_t len, unsign
             zs->in = (ZSTD_inBuffer){zs->inBuff, 0, 0};
             XXH64_reset(&zs->xxhState, 0);
             ZSTD_DCtx_reset(zs->dstream, ZSTD_reset_session_only);
-            if (srcBytesRead > zs->buffWrapper.size) {
+            if (zs->buffWrapper.size && srcBytesRead > zs->buffWrapper.size) {
                 return ERROR(seekableIO);
             }
         }

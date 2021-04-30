@@ -2303,7 +2303,7 @@ static void ZSTD_reduceIndex (ZSTD_matchState_t* ms, ZSTD_CCtx_params const* par
         ZSTD_reduceTable(ms->hashTable, hSize, reducerValue);
     }
 
-    if (params->cParams.strategy != ZSTD_fast) {
+    if (ZSTD_allocateChainTable(params->cParams.strategy, params->useRowMatchFinder, (U32)ms->dedicatedDictSearch)) {
         U32 const chainSize = (U32)1 << params->cParams.chainLog;
         if (params->cParams.strategy == ZSTD_btlazy2)
             ZSTD_reduceTable_btlazy2(ms->chainTable, chainSize, reducerValue);

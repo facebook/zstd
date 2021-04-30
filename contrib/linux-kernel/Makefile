@@ -23,7 +23,7 @@ libzstd:
 		--rewrite-include '<limits\.h>=<linux/limits.h>' \
 		--rewrite-include '<stddef\.h>=<linux/types.h>' \
 		--rewrite-include '"\.\./zstd.h"=<linux/zstd.h>' \
-		--rewrite-include '"(\.\./common/)?zstd_errors.h"=<linux/zstd_errors.h>' \
+		--rewrite-include '"(\.\./)?zstd_errors.h"=<linux/zstd_errors.h>' \
 		--sed 's,/\*\*\*,/* *,g' \
 		--sed 's,/\*\*,/*,g' \
 		-DZSTD_NO_INTRINSICS \
@@ -54,7 +54,7 @@ libzstd:
 		-DZSTD_TRACE=0 \
 		-DZSTD_NO_TRACE
 	mv linux/lib/zstd/zstd.h linux/include/linux/zstd_lib.h
-	mv linux/lib/zstd/common/zstd_errors.h linux/include/linux/
+	mv linux/lib/zstd/zstd_errors.h linux/include/linux/
 	cp linux_zstd.h linux/include/linux/zstd.h
 	cp zstd_compress_module.c linux/lib/zstd
 	cp zstd_decompress_module.c linux/lib/zstd
@@ -80,7 +80,7 @@ import-upstream:
 	cp -r ../../lib/common $(LINUX)/lib/zstd
 	cp -r ../../lib/compress $(LINUX)/lib/zstd
 	cp -r ../../lib/decompress $(LINUX)/lib/zstd
-	mv $(LINUX)/lib/zstd/common/zstd_errors.h $(LINUX)/include/linux
+	mv $(LINUX)/lib/zstd/zstd_errors.h $(LINUX)/include/linux
 	rm $(LINUX)/lib/zstd/common/threading.*
 	rm $(LINUX)/lib/zstd/common/pool.*
 	rm $(LINUX)/lib/zstd/common/xxhash.*

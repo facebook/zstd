@@ -8,6 +8,10 @@
  * You may select, at your option, one of the above-listed licenses.
  */
 
+#ifndef ZDICT_STATIC_LINKING_ONLY
+#  define ZDICT_STATIC_LINKING_ONLY
+#endif
+
 #include <stdio.h>  /* fprintf */
 #include <stdlib.h> /* malloc, free, qsort */
 #include <string.h> /* memset */
@@ -16,10 +20,7 @@
 #include "../common/pool.h"
 #include "../common/threading.h"
 #include "../common/zstd_internal.h" /* includes zstd.h */
-#ifndef ZDICT_STATIC_LINKING_ONLY
-#define ZDICT_STATIC_LINKING_ONLY
-#endif
-#include "zdict.h"
+#include "../zdict.h"
 
 /**
  * COVER_best_t is used for two purposes:

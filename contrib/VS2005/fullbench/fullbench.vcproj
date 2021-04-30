@@ -390,7 +390,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\common\zstd_errors.h"
+				RelativePath="..\..\..\lib\zstd_errors.h"
 				>
 			</File>
 			<File

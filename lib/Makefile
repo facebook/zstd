@@ -435,8 +435,8 @@ install-includes:
 	[ -e $(DESTDIR)$(INCLUDEDIR) ] || $(INSTALL) -d -m 755 $(DESTDIR)$(INCLUDEDIR)/
 	@echo Installing includes
 	$(INSTALL_DATA) zstd.h $(DESTDIR)$(INCLUDEDIR)
-	$(INSTALL_DATA) common/zstd_errors.h $(DESTDIR)$(INCLUDEDIR)
-	$(INSTALL_DATA) dictBuilder/zdict.h $(DESTDIR)$(INCLUDEDIR)
+	$(INSTALL_DATA) zstd_errors.h $(DESTDIR)$(INCLUDEDIR)
+	$(INSTALL_DATA) zdict.h $(DESTDIR)$(INCLUDEDIR)
 
 .PHONY: uninstall
 uninstall:

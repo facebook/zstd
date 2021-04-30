@@ -44,7 +44,7 @@
 
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_magicNumber, ZSTD_frameHeaderSize_max */
 #include "../lib/zstd.h"
-#include "../lib/common/zstd_errors.h"  /* ZSTD_error_frameParameter_windowTooLarge */
+#include "../lib/zstd_errors.h"  /* ZSTD_error_frameParameter_windowTooLarge */
 
 #if defined(ZSTD_GZCOMPRESS) || defined(ZSTD_GZDECOMPRESS)
 #  include <zlib.h>

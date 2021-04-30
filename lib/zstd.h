@@ -815,7 +815,7 @@ ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output
 /*! ZSTD_compress_usingDict() :
  *  Compression at an explicit compression level using a Dictionary.
  *  A dictionary can be any arbitrary data segment (also called a prefix),
- *  or a buffer with specified information (see dictBuilder/zdict.h).
+ *  or a buffer with specified information (see zdict.h).
  *  Note : This function loads the dictionary, resulting in significant startup delay.
  *         It's intended for a dictionary used only once.
  *  Note 2 : When `dict == NULL || dictSize < 8` no dictionary is used. */
@@ -1845,7 +1845,7 @@ ZSTDLIB_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* pre
 
 /* ZSTD_c_splitBlocks
  * Default is 0 == disabled. Set to 1 to enable block splitting.
- * 
+ *
  * Will attempt to split blocks in order to improve compression ratio at the cost of speed.
  */
 #define ZSTD_c_splitBlocks ZSTD_c_experimentalParam13
@@ -1853,11 +1853,11 @@ ZSTDLIB_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* pre
 /* ZSTD_c_useRowMatchFinder
  * Default is ZSTD_urm_auto.
  * Controlled with ZSTD_useRowMatchFinderMode_e enum.
- * 
+ *
  * By default, in ZSTD_urm_auto, when finalizing the compression parameters, the library
  * will decide at runtime whether to use the row-based matchfinder based on support for SIMD
  * instructions as well as the windowLog.
- * 
+ *
  * Set to ZSTD_urm_disableRowMatchFinder to never use row-based matchfinder.
  * Set to ZSTD_urm_enableRowMatchFinder to force usage of row-based matchfinder.
  */

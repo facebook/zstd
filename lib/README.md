@@ -42,8 +42,8 @@ Zstandard's stable API is exposed within [lib/zstd.h](zstd.h).
 
 Optional advanced features are exposed via :
 
-- `lib/common/zstd_errors.h` : translates `size_t` function results
-                               into a `ZSTD_ErrorCode`, for accurate error handling.
+- `lib/zstd_errors.h` : translates `size_t` function results
+                        into a `ZSTD_ErrorCode`, for accurate error handling.
 
 - `ZSTD_STATIC_LINKING_ONLY` : if this macro is defined _before_ including `zstd.h`,
                           it unlocks access to the experimental API,

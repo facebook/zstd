@@ -24,6 +24,8 @@ libzstd:
 		--rewrite-include '<stddef\.h>=<linux/types.h>' \
 		--rewrite-include '"\.\./zstd.h"=<linux/zstd.h>' \
 		--rewrite-include '"(\.\./common/)?zstd_errors.h"=<linux/zstd_errors.h>' \
+		--sed 's,/\*\*\*,/* *,g' \
+		--sed 's,/\*\*,/*,g' \
 		-DZSTD_NO_INTRINSICS \
 		-DZSTD_NO_UNUSED_FUNCTIONS \
 		-DZSTD_LEGACY_SUPPORT=0 \

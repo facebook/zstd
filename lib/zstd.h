@@ -182,6 +182,7 @@ ZSTDLIB_API unsigned    ZSTD_isError(size_t code);          /*!< tells if a `siz
 ZSTDLIB_API const char* ZSTD_getErrorName(size_t code);     /*!< provides readable string from an error code */
 ZSTDLIB_API int         ZSTD_minCLevel(void);               /*!< minimum negative compression level allowed */
 ZSTDLIB_API int         ZSTD_maxCLevel(void);               /*!< maximum compression level available */
+ZSTDLIB_API int         ZSTD_defaultCLevel(void);           /*!< default compression level, specified by ZSTD_CLEVEL_DEFAULT */
 
 
 /***************************************
@@ -1947,10 +1948,6 @@ ZSTDLIB_API size_t ZSTD_compressStream2_simpleArgs (
                       const void* src, size_t srcSize, size_t* srcPos,
                             ZSTD_EndDirective endOp);
 
-/*! ZSTD_defaultCLevel() :
- * Returns the default compression level, specified by ZSTD_CLEVEL_DEFAULT
- */
-ZSTDLIB_API int ZSTD_defaultCLevel(void);
 
 /***************************************
 *  Advanced decompression functions

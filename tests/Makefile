@@ -28,7 +28,8 @@ DEBUGLEVEL ?= 1
 export DEBUGLEVEL  # transmit value to sub-makefiles
 DEBUGFLAGS  = -g -DDEBUGLEVEL=$(DEBUGLEVEL)
 CPPFLAGS   += -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
-              -I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(PRGDIR)
+              -I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(PRGDIR) \
+			  -DZSTD_WINDOW_OVERFLOW_CORRECT_FREQUENTLY=1
 ifeq ($(OS),Windows_NT)   # MinGW assumed
 CPPFLAGS   += -D__USE_MINGW_ANSI_STDIO   # compatibility with %zu formatting
 endif

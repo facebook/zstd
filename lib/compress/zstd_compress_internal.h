@@ -895,15 +895,55 @@ MEM_STATIC ZSTD_dictMode_e ZSTD_matchState_dictMode(const ZSTD_matchState_t *ms)
             ZSTD_noDict;
 }
 
+/* Defining this macro to non-zero tells zstd to run the overflow correction
+ * code much more frequently. This is very inefficient, and should only be
+ * used for tests and fuzzers.
+ */
+#ifndef ZSTD_WINDOW_OVERFLOW_CORRECT_FREQUENTLY
+#  ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+#    define ZSTD_WINDOW_OVERFLOW_CORRECT_FREQUENTLY 1
+#  else
+#    define ZSTD_WINDOW_OVERFLOW_CORRECT_FREQUENTLY 0
+#  endif
+#endif
+
+/**
+ * ZSTD_window_canOverflowCorrect():
+ * Returns non-zero if the indices are large enough for overflow correction
+ * to work correctly without impacting compression ratio.
+ */
+MEM_STATIC U32 ZSTD_window_canOverflowCorrect(ZSTD_window_t const window,
+                                              U32 cycleLog,
+                                              U32 maxDist,
+                                              U32 loadedDictEnd,
+                                              void const* src)
+{
+    U32 const cycleSize = 1u << cycleLog;
+    U32 const curr = (U32)((BYTE const*)src - window.base);
+    U32 const minIndexToOverflowCorrect = cycleSize + MAX(maxDist, cycleSize);
+    U32 const indexLargeEnough = curr > minIndexToOverflowCorrect;
+    U32 const dictionaryInvalidated = curr > maxDist + loadedDictEnd;
+    return indexLargeEnough && dictionaryInvalidated;
+}
+
 /**
  * ZSTD_window_needOverflowCorrection():
  * Returns non-zero if the indices are getting too large and need overflow
  * protection.
  */
 MEM_STATIC U32 ZSTD_window_needOverflowCorrection(ZSTD_window_t const window,
+                                                  U32 cycleLog,
+                                                  U32 maxDist,
+                                                  U32 loadedDictEnd,
+                                                  void const* src,
                                                   void const* srcEnd)
 {
     U32 const curr = (U32)((BYTE const*)srcEnd - window.base);
+    if (ZSTD_WINDOW_OVERFLOW_CORRECT_FREQUENTLY) {
+        if (ZSTD_window_canOverflowCorrect(window, cycleLog, maxDist, loadedDictEnd, src)) {
+            return 1;
+        }
+    }
     return curr > ZSTD_CURRENT_MAX;
 }
 
@@ -915,7 +955,6 @@ MEM_STATIC U32 ZSTD_window_needOverflowCorrection(ZSTD_window_t const window,
  *
  * The least significant cycleLog bits of the indices must remain the same,
  * which may be 0. Every index up to maxDist in the past must be valid.
- * NOTE: (maxDist & cycleMask) must be zero.
  */
 MEM_STATIC U32 ZSTD_window_correctOverflow(ZSTD_window_t* window, U32 cycleLog,
                                            U32 maxDist, void const* src)
@@ -939,17 +978,25 @@ MEM_STATIC U32 ZSTD_window_correctOverflow(ZSTD_window_t* window, U32 cycleLog,
      * 3. (cctx->lowLimit + 1<<windowLog) < 1<<32:
      *    windowLog <= 31 ==> 3<<29 + 1<<windowLog < 7<<29 < 1<<32.
      */
-    U32 const cycleMask = (1U << cycleLog) - 1;
+    U32 const cycleSize = 1u << cycleLog;
+    U32 const cycleMask = cycleSize - 1;
     U32 const curr = (U32)((BYTE const*)src - window->base);
     U32 const currentCycle0 = curr & cycleMask;
     /* Exclude zero so that newCurrent - maxDist >= 1. */
-    U32 const currentCycle1 = currentCycle0 == 0 ? (1U << cycleLog) : currentCycle0;
-    U32 const newCurrent = currentCycle1 + maxDist;
+    U32 const currentCycle1 = currentCycle0 == 0 ? cycleSize : currentCycle0;
+    U32 const newCurrent = currentCycle1 + MAX(maxDist, cycleSize);
     U32 const correction = curr - newCurrent;
-    assert((maxDist & cycleMask) == 0);
+    /* maxDist must be a power of two so that:
+     *   (newCurrent & cycleMask) == (curr & cycleMask)
+     * This is required to not corrupt the chains / binary tree.
+     */
+    assert((maxDist & (maxDist - 1)) == 0);
+    assert((curr & cycleMask) == (newCurrent & cycleMask));
     assert(curr > newCurrent);
-    /* Loose bound, should be around 1<<29 (see above) */
-    assert(correction > 1<<28);
+    if (!ZSTD_WINDOW_OVERFLOW_CORRECT_FREQUENTLY) {
+        /* Loose bound, should be around 1<<29 (see above) */
+        assert(correction > 1<<28);
+    }
 
     window->base += correction;
     window->dictBase += correction;

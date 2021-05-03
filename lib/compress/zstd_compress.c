@@ -3803,9 +3803,9 @@ static void ZSTD_overflowCorrectIfNeeded(ZSTD_matchState_t* ms,
                                          void const* ip,
                                          void const* iend)
 {
-    if (ZSTD_window_needOverflowCorrection(ms->window, iend)) {
-        U32 const maxDist = (U32)1 << params->cParams.windowLog;
-        U32 const cycleLog = ZSTD_cycleLog(params->cParams.chainLog, params->cParams.strategy);
+    U32 const cycleLog = ZSTD_cycleLog(params->cParams.chainLog, params->cParams.strategy);
+    U32 const maxDist = (U32)1 << params->cParams.windowLog;
+    if (ZSTD_window_needOverflowCorrection(ms->window, cycleLog, maxDist, ms->loadedDictEnd, ip, iend)) {
         U32 const correction = ZSTD_window_correctOverflow(&ms->window, cycleLog, maxDist, ip);
         ZSTD_STATIC_ASSERT(ZSTD_CHAINLOG_MAX <= 30);
         ZSTD_STATIC_ASSERT(ZSTD_WINDOWLOG_MAX_32 <= 30);

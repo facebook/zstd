@@ -271,6 +271,10 @@ size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);
                               * The higher the value of selected strategy, the more complex it is,
                               * resulting in stronger and slower compression.
                               * Special: value 0 means "use default strategy". */
+    ZSTD_c_literalCompressionMode=108,  </b>/* Controls how the literals are compressed (default is auto).<b>
+                                             * The value must be of type ZSTD_literalCompressionMode_e.
+                                             * See ZSTD_literalCompressionMode_t enum definition for details.
+                                             */
 
     </b>/* LDM mode parameters */<b>
     ZSTD_c_enableLongDistanceMatching=160, </b>/* Enable long distance matching.<b>
@@ -350,7 +354,6 @@ size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);
      * ZSTD_c_format
      * ZSTD_c_forceMaxWindow
      * ZSTD_c_forceAttachDict
-     * ZSTD_c_literalCompressionMode
      * ZSTD_c_targetCBlockSize
      * ZSTD_c_srcSizeHint
      * ZSTD_c_enableDedicatedDictSearch
@@ -366,7 +369,6 @@ size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);
      ZSTD_c_experimentalParam2=10,
      ZSTD_c_experimentalParam3=1000,
      ZSTD_c_experimentalParam4=1001,
-     ZSTD_c_experimentalParam5=1002,
      ZSTD_c_experimentalParam6=1003,
      ZSTD_c_experimentalParam7=1004,
      ZSTD_c_experimentalParam8=1005,

@@ -267,6 +267,14 @@ typedef enum { ZSTD_fast=1,
                          Only the order (from fast to strong) is guaranteed */
 } ZSTD_strategy;
 
+typedef enum {
+  ZSTD_lcm_auto = 0,          /**< Automatically determine the compression mode based on the compression level.
+                               *   Negative compression levels will be uncompressed, and positive compression
+                               *   levels will be compressed. */
+  ZSTD_lcm_huffman = 1,       /**< Always attempt Huffman compression. Uncompressed literals will still be
+                               *   emitted if Huffman compression is not profitable. */
+  ZSTD_lcm_uncompressed = 2   /**< Always emit uncompressed literals. */
+} ZSTD_literalCompressionMode_e;
 
 typedef enum {
 
@@ -333,6 +341,10 @@ typedef enum {
                               * The higher the value of selected strategy, the more complex it is,
                               * resulting in stronger and slower compression.
                               * Special: value 0 means "use default strategy". */
+    ZSTD_c_literalCompressionMode=108,  /* Controls how the literals are compressed (default is auto).
+                                         * The value must be of type ZSTD_literalCompressionMode_e.
+                                         * See ZSTD_literalCompressionMode_e enum definition for details.
+                                         */
 
     /* LDM mode parameters */
     ZSTD_c_enableLongDistanceMatching=160, /* Enable long distance matching.
@@ -412,7 +424,6 @@ typedef enum {
      * ZSTD_c_format
      * ZSTD_c_forceMaxWindow
      * ZSTD_c_forceAttachDict
-     * ZSTD_c_literalCompressionMode
      * ZSTD_c_targetCBlockSize
      * ZSTD_c_srcSizeHint
      * ZSTD_c_enableDedicatedDictSearch
@@ -430,7 +441,6 @@ typedef enum {
      ZSTD_c_experimentalParam2=10,
      ZSTD_c_experimentalParam3=1000,
      ZSTD_c_experimentalParam4=1001,
-     ZSTD_c_experimentalParam5=1002,
      ZSTD_c_experimentalParam6=1003,
      ZSTD_c_experimentalParam7=1004,
      ZSTD_c_experimentalParam8=1005,
@@ -1273,15 +1283,6 @@ typedef enum {
 } ZSTD_dictAttachPref_e;
 
 typedef enum {
-  ZSTD_lcm_auto = 0,          /**< Automatically determine the compression mode based on the compression level.
-                               *   Negative compression levels will be uncompressed, and positive compression
-                               *   levels will be compressed. */
-  ZSTD_lcm_huffman = 1,       /**< Always attempt Huffman compression. Uncompressed literals will still be
-                               *   emitted if Huffman compression is not profitable. */
-  ZSTD_lcm_uncompressed = 2   /**< Always emit uncompressed literals. */
-} ZSTD_literalCompressionMode_e;
-
-typedef enum {
   ZSTD_urm_auto = 0,                   /* Automatically determine whether or not we use row matchfinder */
   ZSTD_urm_disableRowMatchFinder = 1,  /* Never use row matchfinder */
   ZSTD_urm_enableRowMatchFinder = 2    /* Always use row matchfinder when applicable */
@@ -1689,12 +1690,6 @@ ZSTDLIB_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* pre
  * Accepts values from the ZSTD_dictAttachPref_e enum.
  * See the comments on that enum for an explanation of the feature. */
 #define ZSTD_c_forceAttachDict ZSTD_c_experimentalParam4
-
-/* Controls how the literals are compressed (default is auto).
- * The value must be of type ZSTD_literalCompressionMode_e.
- * See ZSTD_literalCompressionMode_t enum definition for details.
- */
-#define ZSTD_c_literalCompressionMode ZSTD_c_experimentalParam5
 
 /* Tries to fit compressed block size to be around targetCBlockSize.
  * No target when targetCBlockSize == 0.

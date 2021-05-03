@@ -59,6 +59,33 @@ jobs:
     # candidate test (to check) : underlink test
     # LDFLAGS=-Wl,--no-undefined : will make the linker fail if dll is underlinked
 
+  asan-ubsan-large-file-test-faststrategies:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: ASan + UBSan + Large file compression (strategies 1-5)
+      run: |
+        make clean
+        make -C tests datagen
+        make -j zstd MOREFLAGS="-fsanitize=address,undefined"
+        tests/datagen -g4000M -P99 | ./zstd -v --zstd=strategy=1 --single-thread | ./zstd -d > /dev/null
+        tests/datagen -g4000M -P99 | ./zstd -v --zstd=strategy=2 --single-thread | ./zstd -d > /dev/null
+        tests/datagen -g4000M -P99 | ./zstd -v --zstd=strategy=3 --single-thread | ./zstd -d > /dev/null
+        tests/datagen -g4000M -P99 | ./zstd -v --zstd=strategy=4 --single-thread | ./zstd -d > /dev/null
+        tests/datagen -g4000M -P99 | ./zstd -v --zstd=strategy=5 --single-thread | ./zstd -d > /dev/null
+  
+  asan-ubsan-large-file-test-slowstrategies:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: ASan + UBSan + Large file compression (strategies 6-7)
+      run: |
+        make clean
+        make -C tests datagen
+        make -j zstd MOREFLAGS="-fsanitize=address,undefined"
+        tests/datagen -g4000M -P99 | ./zstd -v --zstd=strategy=6 --single-thread | ./zstd -d > /dev/null
+        tests/datagen -g4000M -P99 | ./zstd -v --zstd=strategy=7 --single-thread | ./zstd -d > /dev/null
+
   gcc-8-asan-ubsan-testzstd:
     runs-on: ubuntu-latest
     steps:

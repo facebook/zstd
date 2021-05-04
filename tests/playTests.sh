@@ -459,6 +459,22 @@ if [ -n "$DEVNULLRIGHTS" ] ; then
     ls -las $INTOVOID | grep "rw-rw-rw-"
 fi
 
+if [ -n "$READFROMBLOCKDEVICE" ] ; then
+    # This creates a temporary block device, which is only possible on unix-y
+    # systems, is somewhat invasive, and requires sudo. For these reasons, you
+    # have to specifically ask for this test.
+    println "\n===> checking that zstd can read from a block device"
+    datagen -g65536 > tmp.img
+    sudo losetup -fP tmp.img
+    LOOP_DEV=$(losetup -a | grep 'tmp\.img' | cut -f1 -d:)
+    [ -z "$LOOP_DEV" ] && die "failed to get loopback device"
+    sudoZstd $LOOP_DEV -c > tmp.img.zst && die "should fail without -f"
+    sudoZstd -f $LOOP_DEV -c > tmp.img.zst
+    zstd -d tmp.img.zst -o tmp.img.copy
+    sudo losetup -d $LOOP_DEV
+    $DIFF -s tmp.img tmp.img.copy || die "round trip failed"
+    rm -f tmp.img tmp.img.zst tmp.img.copy
+fi
 
 println "\n===>  compress multiple files into an output directory, --output-dir-flat"
 println henlo > tmp1

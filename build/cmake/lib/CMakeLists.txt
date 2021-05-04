@@ -162,8 +162,8 @@ endif ()
 # install target
 install(FILES
     "${LIBRARY_DIR}/zstd.h"
-    "${LIBRARY_DIR}/dictBuilder/zdict.h"
-    "${LIBRARY_DIR}/common/zstd_errors.h"
+    "${LIBRARY_DIR}/zdict.h"
+    "${LIBRARY_DIR}/zstd_errors.h"
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 
 install(TARGETS ${library_targets}

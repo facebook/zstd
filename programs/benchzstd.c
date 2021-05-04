@@ -36,7 +36,7 @@
 #include "datagen.h"     /* RDG_genBuffer */
 #include "../lib/common/xxhash.h"
 #include "benchzstd.h"
-#include "../lib/common/zstd_errors.h"
+#include "../lib/zstd_errors.h"
 
 
 /* *************************************

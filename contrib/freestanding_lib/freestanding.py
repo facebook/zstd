@@ -481,6 +481,7 @@ class Freestanding(object):
         assert os.path.exists(self._src_lib)
         os.makedirs(self._dst_lib, exist_ok=True)
         self._copy_file("zstd.h")
+        self._copy_file("zstd_errors.h")
         for subdir in INCLUDED_SUBDIRS:
             src_dir = os.path.join(self._src_lib, subdir)
             dst_dir = os.path.join(self._dst_lib, subdir)

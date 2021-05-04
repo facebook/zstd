@@ -65,9 +65,7 @@ cxx_library(
     name='zdict',
     header_namespace='',
     visibility=['PUBLIC'],
-    exported_headers=subdir_glob([
-        ('dictBuilder', 'zdict.h'),
-    ]),
+    exported_headers=['zdict.h'],
     headers=subdir_glob([
         ('dictBuilder', 'divsufsort.h'),
         ('dictBuilder', 'cover.h'),
@@ -131,10 +129,10 @@ cxx_library(
     name='errors',
     header_namespace='',
     visibility=['PUBLIC'],
-    exported_headers=subdir_glob([
-        ('common', 'error_private.h'),
-        ('common', 'zstd_errors.h'),
-    ]),
+    exported_headers=[
+        'zstd_errors.h',
+        'common/error_private.h',
+    ]
     srcs=['common/error_private.c'],
 )
 

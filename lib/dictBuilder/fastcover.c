@@ -16,16 +16,17 @@
 #include <string.h> /* memset */
 #include <time.h>   /* clock */
 
+#ifndef ZDICT_STATIC_LINKING_ONLY
+#  define ZDICT_STATIC_LINKING_ONLY
+#endif
+
 #include "../common/mem.h" /* read */
 #include "../common/pool.h"
 #include "../common/threading.h"
-#include "cover.h"
 #include "../common/zstd_internal.h" /* includes zstd.h */
 #include "../compress/zstd_compress_internal.h" /* ZSTD_hash*() */
-#ifndef ZDICT_STATIC_LINKING_ONLY
-#define ZDICT_STATIC_LINKING_ONLY
-#endif
-#include "zdict.h"
+#include "../zdict.h"
+#include "cover.h"
 
 
 /*-*************************************

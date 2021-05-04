@@ -124,5 +124,5 @@ pkgconfig.generate(libzstd,
   url: 'http://www.zstd.net/')
 
 install_headers(join_paths(zstd_rootdir, 'lib/zstd.h'),
-  join_paths(zstd_rootdir, 'lib/dictBuilder/zdict.h'),
-  join_paths(zstd_rootdir, 'lib/common/zstd_errors.h'))
+  join_paths(zstd_rootdir, 'lib/zdict.h'),
+  join_paths(zstd_rootdir, 'lib/zstd_errors.h'))

@@ -176,7 +176,9 @@ UNAME := $(shell uname)
 
 ifndef BUILD_DIR
 ifeq ($(UNAME), Darwin)
-  HASH ?= md5
+  ifeq ($(shell md5 < /dev/null > /dev/null; echo $$?), 0)
+    HASH ?= md5
+  endif
 else ifeq ($(UNAME), FreeBSD)
   HASH ?= gmd5sum
 else ifeq ($(UNAME), NetBSD)

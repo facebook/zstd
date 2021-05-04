@@ -103,6 +103,7 @@ void FIO_setLiteralCompressionMode(
 void FIO_setNoProgress(unsigned noProgress);
 void FIO_setNotificationLevel(int level);
 void FIO_setExcludeCompressedFile(FIO_prefs_t* const prefs, int excludeCompressedFiles);
+void FIO_setAllowBlockDevices(FIO_prefs_t* const prefs, int allowBlockDevices);
 void FIO_setPatchFromMode(FIO_prefs_t* const prefs, int value);
 void FIO_setContentSize(FIO_prefs_t* const prefs, int value);
 

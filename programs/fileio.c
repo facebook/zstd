@@ -324,6 +324,7 @@ struct FIO_prefs_s {
     int excludeCompressedFiles;
     int patchFromMode;
     int contentSize;
+    int allowBlockDevices;
 };
 
 /*-*************************************
@@ -384,6 +385,7 @@ FIO_prefs_t* FIO_createPreferences(void)
     ret->testMode = 0;
     ret->literalCompressionMode = ZSTD_lcm_auto;
     ret->excludeCompressedFiles = 0;
+    ret->allowBlockDevices = 0;
     return ret;
 }
 
@@ -450,6 +452,8 @@ void FIO_setNbWorkers(FIO_prefs_t* const prefs, int nbWorkers) {
 }
 
 void FIO_setExcludeCompressedFile(FIO_prefs_t* const prefs, int excludeCompressedFiles) { prefs->excludeCompressedFiles = excludeCompressedFiles; }
+
+void FIO_setAllowBlockDevices(FIO_prefs_t* const prefs, int allowBlockDevices) { prefs->allowBlockDevices = allowBlockDevices; }
 
 void FIO_setBlockSize(FIO_prefs_t* const prefs, int blockSize) {
     if (blockSize && prefs->nbWorkers==0)
@@ -593,11 +597,12 @@ static int FIO_removeFile(const char* path)
 }
 
 /** FIO_openSrcFile() :
- *  condition : `srcFileName` must be non-NULL.
+ *  condition : `srcFileName` must be non-NULL. `prefs` may be NULL.
  * @result : FILE* to `srcFileName`, or NULL if it fails */
-static FILE* FIO_openSrcFile(const char* srcFileName)
+static FILE* FIO_openSrcFile(const FIO_prefs_t* const prefs, const char* srcFileName)
 {
     stat_t statbuf;
+    int allowBlockDevices = prefs != NULL ? prefs->allowBlockDevices : 0;
     assert(srcFileName != NULL);
     if (!strcmp (srcFileName, stdinmark)) {
         DISPLAYLEVEL(4,"Using stdin for input \n");
@@ -613,6 +618,7 @@ static FILE* FIO_openSrcFile(const char* srcFileName)
 
     if (!UTIL_isRegularFileStat(&statbuf)
      && !UTIL_isFIFOStat(&statbuf)
+     && !(allowBlockDevices && UTIL_isBlockDevStat(&statbuf))
     ) {
         DISPLAYLEVEL(1, "zstd: %s is not a regular file -- ignored \n",
                         srcFileName);
@@ -1708,7 +1714,7 @@ FIO_compressFilename_srcFile(FIO_ctx_t* const fCtx,
         return 0;
     }
 
-    ress.srcFile = FIO_openSrcFile(srcFileName);
+    ress.srcFile = FIO_openSrcFile(prefs, srcFileName);
     if (ress.srcFile == NULL) return 1;   /* srcFile could not be opened */
 
     result = FIO_compressFilename_dstFile(fCtx, prefs, ress, dstFileName, srcFileName, compressionLevel);
@@ -2571,7 +2577,7 @@ static int FIO_decompressSrcFile(FIO_ctx_t* const fCtx, FIO_prefs_t* const prefs
         return 1;
     }
 
-    srcFile = FIO_openSrcFile(srcFileName);
+    srcFile = FIO_openSrcFile(prefs, srcFileName);
     if (srcFile==NULL) return 1;
     ress.srcBufferLoaded = 0;
 
@@ -2921,7 +2927,7 @@ static InfoError
 getFileInfo_fileConfirmed(fileInfo_t* info, const char* inFileName)
 {
     InfoError status;
-    FILE* const srcFile = FIO_openSrcFile(inFileName);
+    FILE* const srcFile = FIO_openSrcFile(NULL, inFileName);
     ERROR_IF(srcFile == NULL, info_file_error, "Error: could not open source file %s", inFileName);
 
     info->compressedSize = UTIL_getFileSize(inFileName);

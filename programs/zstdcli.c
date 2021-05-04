@@ -148,7 +148,8 @@ static void usage(FILE* f, const char* programName)
     DISPLAY_F(f, " -D DICT: use DICT as Dictionary for compression or decompression \n");
     DISPLAY_F(f, " -o file: result stored into `file` (only 1 output file) \n");
     DISPLAY_F(f, " -f     : disable input and output checks. Allows overwriting existing files,\n");
-    DISPLAY_F(f, "          input from console, output to stdout, operating on links, etc.\n");
+    DISPLAY_F(f, "          input from console, output to stdout, operating on links,\n");
+    DISPLAY_F(f, "          block devices, etc.\n");
     DISPLAY_F(f, "--rm    : remove source file(s) after successful de/compression \n");
     DISPLAY_F(f, " -k     : preserve source file(s) (default) \n");
     DISPLAY_F(f, " -h/-H  : display help/long help and exit \n");
@@ -724,6 +725,7 @@ int main(int const argCount, const char* argv[])
 {
     int argNb,
         followLinks = 0,
+        allowBlockDevices = 0,
         forceStdin = 0,
         forceStdout = 0,
         hasStdout = 0,
@@ -838,7 +840,7 @@ int main(int const argCount, const char* argv[])
                 if (!strcmp(argument, "--compress")) { operation=zom_compress; continue; }
                 if (!strcmp(argument, "--decompress")) { operation=zom_decompress; continue; }
                 if (!strcmp(argument, "--uncompress")) { operation=zom_decompress; continue; }
-                if (!strcmp(argument, "--force")) { FIO_overwriteMode(prefs); forceStdin=1; forceStdout=1; followLinks=1; continue; }
+                if (!strcmp(argument, "--force")) { FIO_overwriteMode(prefs); forceStdin=1; forceStdout=1; followLinks=1; allowBlockDevices=1; continue; }
                 if (!strcmp(argument, "--version")) { printVersion(); CLEAN_RETURN(0); }
                 if (!strcmp(argument, "--help")) { usage_advanced(programName); CLEAN_RETURN(0); }
                 if (!strcmp(argument, "--verbose")) { g_displayLevel++; continue; }
@@ -1024,7 +1026,7 @@ int main(int const argCount, const char* argv[])
                 case 'D': argument++; NEXT_FIELD(dictFileName); break;
 
                     /* Overwrite */
-                case 'f': FIO_overwriteMode(prefs); forceStdin=1; forceStdout=1; followLinks=1; argument++; break;
+                case 'f': FIO_overwriteMode(prefs); forceStdin=1; forceStdout=1; followLinks=1; allowBlockDevices=1; argument++; break;
 
                     /* Verbose mode */
                 case 'v': g_displayLevel++; argument++; break;
@@ -1331,6 +1333,7 @@ int main(int const argCount, const char* argv[])
     FIO_setNbFilesTotal(fCtx, (int)filenames->tableSize);
     FIO_determineHasStdinInput(fCtx, filenames);
     FIO_setNotificationLevel(g_displayLevel);
+    FIO_setAllowBlockDevices(prefs, allowBlockDevices);
     FIO_setPatchFromMode(prefs, patchFromDictFileName != NULL);
     if (memLimit == 0) {
         if (compressionParams.windowLog == 0) {

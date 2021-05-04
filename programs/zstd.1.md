@@ -202,7 +202,7 @@ the last one takes effect.
     save result into `FILE`
 * `-f`, `--force`:
     disable input and output checks. Allows overwriting existing files, input
-    from console, output to stdout, operating on links, etc.
+    from console, output to stdout, operating on links, block devices, etc.
 * `-c`, `--stdout`:
     force write to standard output, even if it is the console
 * `--[no-]sparse`:

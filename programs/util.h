@@ -143,6 +143,7 @@ int UTIL_setFileStat(const char* filename, const stat_t* statbuf);
 int UTIL_isRegularFileStat(const stat_t* statbuf);
 int UTIL_isDirectoryStat(const stat_t* statbuf);
 int UTIL_isFIFOStat(const stat_t* statbuf);
+int UTIL_isBlockDevStat(const stat_t* statbuf);
 U64 UTIL_getFileSizeStat(const stat_t* statbuf);
 
 /**

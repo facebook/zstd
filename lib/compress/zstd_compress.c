@@ -1761,7 +1761,7 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
         {   /* Switch to 32-entry rows if searchLog is 5 (or more) */
             U32 const rowLog = cParams->searchLog < 5 ? 4 : 5;
             assert(cParams->hashLog > rowLog);
-            ms->rowHashLog = ZSTD_highbit32((U32)1 << (cParams->hashLog - rowLog));
+            ms->rowHashLog = cParams->hashLog - rowLog;
         }
     }
 

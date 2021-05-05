@@ -449,7 +449,8 @@ typedef enum {
      ZSTD_c_experimentalParam11=1008,
      ZSTD_c_experimentalParam12=1009,
      ZSTD_c_experimentalParam13=1010,
-     ZSTD_c_experimentalParam14=1011
+     ZSTD_c_experimentalParam14=1011,
+     ZSTD_c_experimentalParam15=1012
 } ZSTD_cParameter;
 
 typedef struct {
@@ -1858,6 +1859,26 @@ ZSTDLIB_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* pre
  * Set to ZSTD_urm_enableRowMatchFinder to force usage of row-based matchfinder.
  */
 #define ZSTD_c_useRowMatchFinder ZSTD_c_experimentalParam14
+
+/* ZSTD_c_deterministicRefPrefix
+ * Default is 0 == disabled. Set to 1 to enable.
+ *
+ * Zstd produces different results for prefix compression when the prefix is
+ * directly adjacent to the data about to be compressed vs. when it isn't.
+ * This is because zstd detects that the two buffers are contiguous and it can
+ * use a more efficient match finding algorithm. However, this produces different
+ * results than when the two buffers are non-contiguous. This flag forces zstd
+ * to always load the prefix in non-contiguous mode, even if it happens to be
+ * adjacent to the data, to guarantee determinism.
+ *
+ * If you really care about determinism when using a dictionary or prefix,
+ * like when doing delta compression, you should select this option. It comes
+ * at a speed penalty of about ~2.5% if the dictionary and data happened to be
+ * contiguous, and is free if they weren't contiguous. We don't expect that
+ * intentionally making the dictionary and data contiguous will be worth the
+ * cost to memcpy() the data.
+ */
+#define ZSTD_c_deterministicRefPrefix ZSTD_c_experimentalParam15
 
 /*! ZSTD_CCtx_getParameter() :
  *  Get the requested compression parameter value, selected by enum ZSTD_cParameter,

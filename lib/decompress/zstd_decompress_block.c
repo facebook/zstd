@@ -1254,9 +1254,9 @@ ZSTD_decompressSequencesLong_body(
 
     /* Regen sequences */
     if (nbSeq) {
-#define STORED_SEQS 4
+#define STORED_SEQS 8
 #define STORED_SEQS_MASK (STORED_SEQS-1)
-#define ADVANCED_SEQS 4
+#define ADVANCED_SEQS STORED_SEQS
         seq_t sequences[STORED_SEQS];
         int const seqAdvance = MIN(nbSeq, ADVANCED_SEQS);
         seqState_t seqState;

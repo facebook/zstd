@@ -269,6 +269,17 @@ int UTIL_isFIFOStat(const stat_t* statbuf)
     return 0;
 }
 
+/* UTIL_isBlockDevStat : distinguish named pipes */
+int UTIL_isBlockDevStat(const stat_t* statbuf)
+{
+/* macro guards, as defined in : https://linux.die.net/man/2/lstat */
+#if PLATFORM_POSIX_VERSION >= 200112L
+    if (S_ISBLK(statbuf->st_mode)) return 1;
+#endif
+    (void)statbuf;
+    return 0;
+}
+
 int UTIL_isLink(const char* infilename)
 {
 /* macro guards, as defined in : https://linux.die.net/man/2/lstat */

@@ -1589,6 +1589,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
     DISPLAYLEVEL(3, "test%3i : setting multithreaded parameters : ", testNb++)
     {   ZSTD_CCtx_params* params = ZSTD_createCCtxParams();
+        int const jobSize = 512 KB;
         int value;
         /* Check that the overlap log and job size are unset. */
         CHECK( ZSTD_CCtxParams_getParameter(params, ZSTD_c_overlapLog, &value) );
@@ -1597,19 +1598,18 @@ static int basicUnitTests(U32 const seed, double compressibility)
         CHECK_EQ(value, 0);
         /* Set and check the overlap log and job size. */
         CHECK( ZSTD_CCtxParams_setParameter(params, ZSTD_c_overlapLog, 5) );
-        CHECK( ZSTD_CCtxParams_setParameter(params, ZSTD_c_jobSize, 2 MB) );
+        CHECK( ZSTD_CCtxParams_setParameter(params, ZSTD_c_jobSize, jobSize) );
         CHECK( ZSTD_CCtxParams_getParameter(params, ZSTD_c_overlapLog, &value) );
         CHECK_EQ(value, 5);
         CHECK( ZSTD_CCtxParams_getParameter(params, ZSTD_c_jobSize, &value) );
-        CHECK_EQ(value, 2 MB);
+        CHECK_EQ(value, jobSize);
         /* Set the number of workers and check the overlap log and job size. */
         CHECK( ZSTD_CCtxParams_setParameter(params, ZSTD_c_nbWorkers, 2) );
         CHECK( ZSTD_CCtxParams_getParameter(params, ZSTD_c_overlapLog, &value) );
         CHECK_EQ(value, 5);
         CHECK( ZSTD_CCtxParams_getParameter(params, ZSTD_c_jobSize, &value) );
-        CHECK_EQ(value, 2 MB);
+        CHECK_EQ(value, jobSize);
         ZSTD_freeCCtxParams(params);
-
     }
     DISPLAYLEVEL(3, "OK \n");
 

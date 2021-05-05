@@ -4121,6 +4121,7 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
 
     /* Assert that we the ms params match the params we're being given */
     ZSTD_assertEqualCParams(params->cParams, ms->cParams);
+
     if (srcSize > ZSTD_CHUNKSIZE_MAX) {
         /* Allow the dictionary to set indices up to exactly ZSTD_CURRENT_MAX.
          * Dictionaries right at the edge will immediately trigger overflow
@@ -4153,7 +4154,7 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
     ZSTD_overflowCorrectIfNeeded(ms, ws, params, ip, iend);
 
     if (loadLdmDict)
-        ZSTD_ldm_fillHashTable(ls, (const BYTE*)src, (const BYTE*)src + srcSize, &params->ldmParams);
+        ZSTD_ldm_fillHashTable(ls, ip, iend, &params->ldmParams);
 
     switch(params->cParams.strategy)
     {
@@ -4167,22 +4168,20 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
     case ZSTD_greedy:
     case ZSTD_lazy:
     case ZSTD_lazy2:
-        if (srcSize >= HASH_READ_SIZE) {
-            if (ms->dedicatedDictSearch) {
-                assert(ms->chainTable != NULL);
-                ZSTD_dedicatedDictSearch_lazy_loadDictionary(ms, iend-HASH_READ_SIZE);
+        assert(srcSize >= HASH_READ_SIZE);
+        if (ms->dedicatedDictSearch) {
+            assert(ms->chainTable != NULL);
+            ZSTD_dedicatedDictSearch_lazy_loadDictionary(ms, iend-HASH_READ_SIZE);
+        } else {
+            assert(params->useRowMatchFinder != ZSTD_urm_auto);
+            if (params->useRowMatchFinder == ZSTD_urm_enableRowMatchFinder) {
+                size_t const tagTableSize = ((size_t)1 << params->cParams.hashLog) * sizeof(U16);
+                ZSTD_memset(ms->tagTable, 0, tagTableSize);
+                ZSTD_row_update(ms, iend-HASH_READ_SIZE);
+                DEBUGLOG(4, "Using row-based hash table for lazy dict");
             } else {
-                assert(params->useRowMatchFinder != ZSTD_urm_auto);
-                if (params->useRowMatchFinder == ZSTD_urm_enableRowMatchFinder) {
-                    size_t const tagTableSize = ((size_t)1 << params->cParams.hashLog) * sizeof(U16);
-                    if (ip == src)
-                        ZSTD_memset(ms->tagTable, 0, tagTableSize);
-                    ZSTD_row_update(ms, iend-HASH_READ_SIZE);
-                    DEBUGLOG(4, "Using row-based hash table for lazy dict");
-                } else {
-                    ZSTD_insertAndFindFirstIndex(ms, iend-HASH_READ_SIZE);
-                    DEBUGLOG(4, "Using chain-based hash table for lazy dict");
-                }
+                ZSTD_insertAndFindFirstIndex(ms, iend-HASH_READ_SIZE);
+                DEBUGLOG(4, "Using chain-based hash table for lazy dict");
             }
         }
         break;
@@ -4191,8 +4190,8 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
     case ZSTD_btopt:
     case ZSTD_btultra:
     case ZSTD_btultra2:
-        if (srcSize >= HASH_READ_SIZE)
-            ZSTD_updateTree(ms, iend-HASH_READ_SIZE, iend);
+        assert(srcSize >= HASH_READ_SIZE);
+        ZSTD_updateTree(ms, iend-HASH_READ_SIZE, iend);
         break;
 
     default:

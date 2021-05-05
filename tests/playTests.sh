@@ -1225,7 +1225,7 @@ then
     println "\n===>  zstdmt round-trip tests "
     roundTripTest -g4M "1 -T0"
     roundTripTest -g8M "3 -T2"
-    roundTripTest -g8M "19 -T0 --long"
+    roundTripTest -g8M "19 --long"
     roundTripTest -g8000K "2 --threads=2"
     fileRoundTripTest -g4M "19 -T2 -B1M"
 
@@ -1428,6 +1428,14 @@ println "\n===> patch-from long mode trigger larger file test"
 datagen -g5000000 > tmp_dict
 datagen -g5000000 > tmp_patch
 zstd -15 --patch-from=tmp_dict tmp_patch 2>&1 | grep "long mode automatically triggered"
+rm -rf tmp*
+
+println "\n===> patch-from very large dictionary and file test"
+datagen -g550000000 -P0 > tmp_dict
+datagen -g100000000 -P1 > tmp_patch
+zstd --long=30 -1f --patch-from tmp_dict tmp_patch
+zstd --long=30 -df --patch-from tmp_dict tmp_patch.zst -o tmp_patch_recon
+$DIFF -s tmp_patch_recon tmp_patch
 rm -rf tmp*
 
 println "\n===> patch-from --stream-size test"

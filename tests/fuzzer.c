@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2021, Yann Collet, Facebook, Inc.
+ * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -372,6 +372,12 @@ static int basicUnitTests(U32 const seed, double compressibility)
     DISPLAYLEVEL(3, "test%3u : min compression level : ", testNb++);
     {   int const mcl = ZSTD_minCLevel();
         DISPLAYLEVEL(3, "%i (OK) \n", mcl);
+    }
+
+    DISPLAYLEVEL(3, "test%3u : default compression level : ", testNb++);
+    {   int const defaultCLevel = ZSTD_defaultCLevel();
+        if (defaultCLevel != ZSTD_CLEVEL_DEFAULT) goto _output_error;
+        DISPLAYLEVEL(3, "%i (OK) \n", defaultCLevel);
     }
 
     DISPLAYLEVEL(3, "test%3u : ZSTD_versionNumber : ", testNb++);
@@ -1544,6 +1550,15 @@ static int basicUnitTests(U32 const seed, double compressibility)
         ZSTD_freeCCtx(cctx);
     }
 
+    DISPLAYLEVEL(3, "test%3i : compress with block splitting : ", testNb++)
+    {   ZSTD_CCtx* cctx = ZSTD_createCCtx();
+        CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_splitBlocks, 1) );
+        cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize);
+        CHECK(cSize);
+        ZSTD_freeCCtx(cctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     DISPLAYLEVEL(3, "test%3i : compress -T2 with/without literals compression : ", testNb++)
     {   ZSTD_CCtx* cctx = ZSTD_createCCtx();
         size_t cSize1, cSize2;
@@ -1574,6 +1589,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
     DISPLAYLEVEL(3, "test%3i : setting multithreaded parameters : ", testNb++)
     {   ZSTD_CCtx_params* params = ZSTD_createCCtxParams();
+        int const jobSize = 512 KB;
         int value;
         /* Check that the overlap log and job size are unset. */
         CHECK( ZSTD_CCtxParams_getParameter(params, ZSTD_c_overlapLog, &value) );
@@ -1582,19 +1598,18 @@ static int basicUnitTests(U32 const seed, double compressibility)
         CHECK_EQ(value, 0);
         /* Set and check the overlap log and job size. */
         CHECK( ZSTD_CCtxParams_setParameter(params, ZSTD_c_overlapLog, 5) );
-        CHECK( ZSTD_CCtxParams_setParameter(params, ZSTD_c_jobSize, 2 MB) );
+        CHECK( ZSTD_CCtxParams_setParameter(params, ZSTD_c_jobSize, jobSize) );
         CHECK( ZSTD_CCtxParams_getParameter(params, ZSTD_c_overlapLog, &value) );
         CHECK_EQ(value, 5);
         CHECK( ZSTD_CCtxParams_getParameter(params, ZSTD_c_jobSize, &value) );
-        CHECK_EQ(value, 2 MB);
+        CHECK_EQ(value, jobSize);
         /* Set the number of workers and check the overlap log and job size. */
         CHECK( ZSTD_CCtxParams_setParameter(params, ZSTD_c_nbWorkers, 2) );
         CHECK( ZSTD_CCtxParams_getParameter(params, ZSTD_c_overlapLog, &value) );
         CHECK_EQ(value, 5);
         CHECK( ZSTD_CCtxParams_getParameter(params, ZSTD_c_jobSize, &value) );
-        CHECK_EQ(value, 2 MB);
+        CHECK_EQ(value, jobSize);
         ZSTD_freeCCtxParams(params);
-
     }
     DISPLAYLEVEL(3, "OK \n");
 
@@ -1742,13 +1757,14 @@ static int basicUnitTests(U32 const seed, double compressibility)
             size_t const contentSize = 9 KB;
             const void* const dict = (const char*)CNBuffer;
             const void* const contentStart = (const char*)dict + flatdictSize;
+            /* These upper bounds are generally within a few bytes of the compressed size */
             size_t const target_nodict_cSize[22+1] = { 3840, 3770, 3870, 3830, 3770,
                                                        3770, 3770, 3770, 3750, 3750,
                                                        3742, 3670, 3670, 3660, 3660,
                                                        3660, 3660, 3660, 3660, 3660,
                                                        3660, 3660, 3660 };
             size_t const target_wdict_cSize[22+1] =  { 2830, 2890, 2890, 2820, 2940,
-                                                       2950, 2950, 2921, 2900, 2891,
+                                                       2950, 2950, 2925, 2900, 2891,
                                                        2910, 2910, 2910, 2770, 2760,
                                                        2750, 2750, 2750, 2750, 2750,
                                                        2750, 2750, 2750 };
@@ -1783,6 +1799,22 @@ static int basicUnitTests(U32 const seed, double compressibility)
                     goto _output_error;
                 }
                 DISPLAYLEVEL(4, "level %i with dictionary : max expected %u >= reached %u \n",
+                                l, (unsigned)target_wdict_cSize[l], (unsigned)wdict_cSize);
+            }
+            /* Dict compression with DMS */
+            for ( l=1 ; l <= maxLevel; l++) {
+                size_t wdict_cSize;
+                CHECK_Z( ZSTD_CCtx_loadDictionary(ctxOrig, dict, flatdictSize) );
+                CHECK_Z( ZSTD_CCtx_setParameter(ctxOrig, ZSTD_c_compressionLevel, l) );
+                CHECK_Z( ZSTD_CCtx_setParameter(ctxOrig, ZSTD_c_enableDedicatedDictSearch, 0) );
+                CHECK_Z( ZSTD_CCtx_setParameter(ctxOrig, ZSTD_c_forceAttachDict, ZSTD_dictForceAttach) );
+                wdict_cSize = ZSTD_compress2(ctxOrig, compressedBuffer, compressedBufferSize, contentStart, contentSize);
+                if (wdict_cSize > target_wdict_cSize[l]) {
+                    DISPLAYLEVEL(1, "error : compression with dictionary and compress2 at level %i worse than expected (%u > %u) \n",
+                                    l, (unsigned)wdict_cSize, (unsigned)target_wdict_cSize[l]);
+                    goto _output_error;
+                }
+                DISPLAYLEVEL(4, "level %i with dictionary and compress2 : max expected %u >= reached %u \n",
                                 l, (unsigned)target_wdict_cSize[l], (unsigned)wdict_cSize);
             }
 
@@ -3178,6 +3210,48 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
         assert(smallSrcAndDict.windowLog == 10);
         assert(!memcmp(&cParams, &smallDict, sizeof(cParams)));
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : check compression mem usage monotonicity over levels for estimateCCtxSize() : ", testNb++);
+    {
+        int level = 1;
+        size_t prevSize = 0;
+        for (; level < ZSTD_maxCLevel(); ++level) {
+            size_t const currSize = ZSTD_estimateCCtxSize(level);
+            if (prevSize > currSize) {
+                DISPLAYLEVEL(3, "Error! previous cctx size: %zu at level: %d is larger than current cctx size: %zu at level: %d",
+                             prevSize, level-1, currSize, level);
+                goto _output_error;
+            }
+            prevSize = currSize;
+        }
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : check estimateCCtxSize() always larger or equal to ZSTD_estimateCCtxSize_usingCParams() : ", testNb++);
+    {
+        size_t const kSizeIncrement = 2 KB;
+        int level = -3;
+
+        for (; level <= ZSTD_maxCLevel(); ++level) {
+            size_t dictSize = 0;
+            for (; dictSize <= 256 KB; dictSize += 8 * kSizeIncrement) {
+                size_t srcSize = 2 KB;
+                for (; srcSize < 300 KB; srcSize += kSizeIncrement) {
+                    ZSTD_compressionParameters const cParams = ZSTD_getCParams(level, srcSize, dictSize);
+                    size_t const cctxSizeUsingCParams = ZSTD_estimateCCtxSize_usingCParams(cParams);
+                    size_t const cctxSizeUsingLevel = ZSTD_estimateCCtxSize(level);
+                    if (cctxSizeUsingLevel < cctxSizeUsingCParams
+                     || ZSTD_isError(cctxSizeUsingCParams)
+                     || ZSTD_isError(cctxSizeUsingLevel)) {
+                        DISPLAYLEVEL(3, "error! l: %d dict: %zu srcSize: %zu cctx size cpar: %zu, cctx size level: %zu\n",
+                                     level, dictSize, srcSize, cctxSizeUsingCParams, cctxSizeUsingLevel);
+                        goto _output_error;
+                    }
+                }
+            }
+        }
     }
     DISPLAYLEVEL(3, "OK \n");
 

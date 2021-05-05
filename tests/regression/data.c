@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2021, Facebook, Inc.
+ * Copyright (c) Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -14,6 +14,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>   /* free() */
 
 #include <sys/stat.h>
 

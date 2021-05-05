@@ -215,7 +215,7 @@ the last one takes effect.
     This setting overrides default and can force sparse mode over stdout.
 * `--rm`:
     remove source file(s) after successful compression or decompression. If used in combination with
-    -o, will trigger a confirmation prompt (which can be silenced with -f), as this is a destructive operation. 
+    -o, will trigger a confirmation prompt (which can be silenced with -f), as this is a destructive operation.
 * `-k`, `--keep`:
     keep source file(s) after successful compression or decompression.
     This is the default behavior.
@@ -281,11 +281,11 @@ If the value of `ZSTD_CLEVEL` is not a valid integer, it will be ignored with a 
 
 `ZSTD_NBTHREADS` can be used to set the number of threads `zstd` will attempt to use during compression.
 If the value of `ZSTD_NBTHREADS` is not a valid unsigned integer, it will be ignored with a warning message.
-'ZSTD_NBTHREADS` has a default value of (`1`), and is capped at ZSTDMT_NBWORKERS_MAX==200. `zstd` must be
+`ZSTD_NBTHREADS` has a default value of (`1`), and is capped at ZSTDMT_NBWORKERS_MAX==200. `zstd` must be
 compiled with multithread support for this to have any effect.
 
 They can both be overridden by corresponding command line arguments:
-`-#` for compression level and `-T#` for number of compression threads. 
+`-#` for compression level and `-T#` for number of compression threads.
 
 
 DICTIONARY BUILDER
@@ -423,6 +423,16 @@ BENCHMARK
 
 ADVANCED COMPRESSION OPTIONS
 ----------------------------
+### -B#:
+Select the size of each compression job.
+This parameter is only available when multi-threading is enabled.
+Each compression job is run in parallel, so this value indirectly impacts the nb of active threads.
+Default job size varies depending on compression level (generally  `4 * windowSize`).
+`-B#` makes it possible to manually select a custom size.
+Note that job size must respect a minimum value which is enforced transparently.
+This minimum is either 512 KB, or `overlapSize`, whichever is largest.
+Different job sizes will lead to (slightly) different compressed frames.
+
 ### --zstd[=options]:
 `zstd` provides 22 predefined compression levels.
 The selected or default predefined compression level can be changed with
@@ -566,13 +576,6 @@ similar to predefined level 19 for files bigger than 256 KB:
 
 `--zstd`=wlog=23,clog=23,hlog=22,slog=6,mml=3,tlen=48,strat=6
 
-### -B#:
-Select the size of each compression job.
-This parameter is available only when multi-threading is enabled.
-Default value is `4 * windowSize`, which means it varies depending on compression level.
-`-B#` makes it possible to select a custom value.
-Note that job size must respect a minimum value which is enforced transparently.
-This minimum is either 1 MB, or `overlapSize`, whichever is largest.
 
 BUGS
 ----

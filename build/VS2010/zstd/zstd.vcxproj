@@ -70,14 +70,14 @@
     <ClInclude Include="..\..\..\lib\common\threading.h" />
     <ClInclude Include="..\..\..\lib\common\xxhash.h" />
     <ClInclude Include="..\..\..\lib\compress\zstdmt_compress.h" />
-    <ClInclude Include="..\..\..\lib\dictBuilder\zdict.h" />
+    <ClInclude Include="..\..\..\lib\zdict.h" />
     <ClInclude Include="..\..\..\lib\dictBuilder\cover.h" />
     <ClInclude Include="..\..\..\lib\dictBuilder\divsufsort.h" />
     <ClInclude Include="..\..\..\lib\common\fse.h" />
     <ClInclude Include="..\..\..\lib\common\huf.h" />
     <ClInclude Include="..\..\..\lib\zstd.h" />
     <ClInclude Include="..\..\..\lib\common\zstd_internal.h" />
-    <ClInclude Include="..\..\..\lib\common\zstd_errors.h" />
+    <ClInclude Include="..\..\..\lib\zstd_errors.h" />
     <ClInclude Include="..\..\..\lib\compress\zstd_compress.h" />
     <ClInclude Include="..\..\..\lib\compress\zstd_compress_literals.h" />
     <ClInclude Include="..\..\..\lib\compress\zstd_compress_sequences.h" />

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2021, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
+ * Copyright (c) Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -277,7 +277,7 @@ void UTIL_refFilename(FileNamesTable* fnt, const char* filename);
  *        or NULL in case of error
  */
 FileNamesTable*
-UTIL_createExpandedFNT(const char** filenames, size_t nbFilenames, int followLinks);
+UTIL_createExpandedFNT(const char* const* filenames, size_t nbFilenames, int followLinks);
 
 
 /*-****************************************

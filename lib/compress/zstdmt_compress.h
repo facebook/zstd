@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2021, Yann Collet, Facebook, Inc.
+ * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -32,11 +32,11 @@
 
 
 /* ===   Constants   === */
-#ifndef ZSTDMT_NBWORKERS_MAX
+#ifndef ZSTDMT_NBWORKERS_MAX   /* can be modified at compile time */
 #  define ZSTDMT_NBWORKERS_MAX 200
 #endif
-#ifndef ZSTDMT_JOBSIZE_MIN
-#  define ZSTDMT_JOBSIZE_MIN (1 MB)
+#ifndef ZSTDMT_JOBSIZE_MIN   /* can be modified at compile time */
+#  define ZSTDMT_JOBSIZE_MIN (512 KB)
 #endif
 #define ZSTDMT_JOBLOG_MAX   (MEM_32bits() ? 29 : 30)
 #define ZSTDMT_JOBSIZE_MAX  (MEM_32bits() ? (512 MB) : (1024 MB))

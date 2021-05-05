@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2021, Yann Collet, Facebook, Inc.
+ * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -672,7 +672,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     cSize = ZSTD_compress(compressedBuffer, compressedBufferSize, CNBuffer, CNBufferSize, 1);
     CHECK_Z(cSize);
     {   ZSTD_DCtx* dctx = ZSTD_createDCtx();
-        size_t const dctxSize0 = ZSTD_sizeof_DCtx(dctx);        
+        size_t const dctxSize0 = ZSTD_sizeof_DCtx(dctx);
         size_t dctxSize1;
         CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_stableOutBuffer, 1));
 
@@ -735,7 +735,7 @@ static int basicUnitTests(U32 seed, double compressibility)
             CHECK(ZSTD_getErrorCode(r) != ZSTD_error_dstBuffer_wrong, "Must error but got %s", ZSTD_getErrorName(r));
         }
         DISPLAYLEVEL(3, "OK \n");
-        
+
         DISPLAYLEVEL(3, "test%3i : ZSTD_decompressStream() buffered output : ", testNb++);
         ZSTD_DCtx_reset(dctx, ZSTD_reset_session_only);
         CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_stableOutBuffer, 0));

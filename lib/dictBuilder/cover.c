@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2021, Yann Collet, Facebook, Inc.
+ * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -26,15 +26,16 @@
 #include <string.h> /* memset */
 #include <time.h>   /* clock */
 
+#ifndef ZDICT_STATIC_LINKING_ONLY
+#  define ZDICT_STATIC_LINKING_ONLY
+#endif
+
 #include "../common/mem.h" /* read */
 #include "../common/pool.h"
 #include "../common/threading.h"
-#include "cover.h"
 #include "../common/zstd_internal.h" /* includes zstd.h */
-#ifndef ZDICT_STATIC_LINKING_ONLY
-#define ZDICT_STATIC_LINKING_ONLY
-#endif
-#include "zdict.h"
+#include "../zdict.h"
+#include "cover.h"
 
 /*-*************************************
 *  Constants

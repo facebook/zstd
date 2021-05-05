@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2021, Yann Collet, Facebook, Inc.
+ * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -21,7 +21,6 @@
  *********************************************************/
 #include "../common/mem.h"             /* BYTE, U16, U32 */
 #include "../common/zstd_internal.h"   /* ZSTD_seqSymbol */
-#include "../common/zstd_trace.h"      /* ZSTD_TraceCtx */
 
 
 

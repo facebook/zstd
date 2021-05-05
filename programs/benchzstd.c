@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2021, Yann Collet, Facebook, Inc.
+ * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -36,7 +36,7 @@
 #include "datagen.h"     /* RDG_genBuffer */
 #include "../lib/common/xxhash.h"
 #include "benchzstd.h"
-#include "../lib/common/zstd_errors.h"
+#include "../lib/zstd_errors.h"
 
 
 /* *************************************
@@ -137,7 +137,8 @@ BMK_advancedParams_t BMK_initAdvancedParams(void) {
         0, /* ldmHashLog */
         0, /* ldmBuckSizeLog */
         0,  /* ldmHashRateLog */
-        ZSTD_lcm_auto /* literalCompressionMode */
+        ZSTD_lcm_auto, /* literalCompressionMode */
+        0 /* useRowMatchFinder */
     };
     return res;
 }
@@ -175,6 +176,7 @@ BMK_initCCtx(ZSTD_CCtx* ctx,
         CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_nbWorkers, adv->nbWorkers));
     }
     CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_compressionLevel, cLevel));
+    CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_useRowMatchFinder, adv->useRowMatchFinder));
     CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_enableLongDistanceMatching, adv->ldmFlag));
     CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_ldmMinMatch, adv->ldmMinMatch));
     CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_ldmHashLog, adv->ldmHashLog));

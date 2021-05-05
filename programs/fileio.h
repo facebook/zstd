@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2021, Yann Collet, Facebook, Inc.
+ * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -77,6 +77,7 @@ void FIO_overwriteMode(FIO_prefs_t* const prefs);
 void FIO_setAdaptiveMode(FIO_prefs_t* const prefs, unsigned adapt);
 void FIO_setAdaptMin(FIO_prefs_t* const prefs, int minCLevel);
 void FIO_setAdaptMax(FIO_prefs_t* const prefs, int maxCLevel);
+void FIO_setUseRowMatchFinder(FIO_prefs_t* const prefs, int useRowMatchFinder);
 void FIO_setBlockSize(FIO_prefs_t* const prefs, int blockSize);
 void FIO_setChecksumFlag(FIO_prefs_t* const prefs, int checksumFlag);
 void FIO_setDictIDFlag(FIO_prefs_t* const prefs, int dictIDFlag);

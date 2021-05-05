@@ -14,4 +14,8 @@
 #define inline __inline __attribute__((unused))
 #endif
 
+#ifndef noinline
+#define noinline __attribute__((noinline))
+#endif
+
 #endif

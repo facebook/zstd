@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2021, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
+ * Copyright (c) Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -983,7 +983,7 @@ void UTIL_mirrorSourceFilesDirectories(const char** inFileNames, unsigned int nb
 }
 
 FileNamesTable*
-UTIL_createExpandedFNT(const char** inputNames, size_t nbIfns, int followLinks)
+UTIL_createExpandedFNT(const char* const* inputNames, size_t nbIfns, int followLinks)
 {
     unsigned nbFiles;
     char* buf = (char*)malloc(LIST_SIZE_INCREASE);

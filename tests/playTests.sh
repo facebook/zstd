@@ -1430,6 +1430,14 @@ datagen -g5000000 > tmp_patch
 zstd -15 --patch-from=tmp_dict tmp_patch 2>&1 | grep "long mode automatically triggered"
 rm -rf tmp*
 
+println "\n===> patch-from very large dictionary and file test"
+datagen -g550000000 -P0 > tmp_dict
+datagen -g100000000 -P1 > tmp_patch
+zstd --long=30 -1f --patch-from tmp_dict tmp_patch
+zstd --long=30 -df --patch-from tmp_dict tmp_patch.zst -o tmp_patch_recon
+$DIFF -s tmp_patch_recon tmp_patch
+rm -rf tmp*
+
 println "\n===> patch-from --stream-size test"
 datagen -g1000 -P50 > tmp_dict
 datagen -g1000 -P10 > tmp_patch

@@ -872,6 +872,13 @@ MEM_STATIC void ZSTD_window_clear(ZSTD_window_t* window)
     window->dictLimit = end;
 }
 
+MEM_STATIC U32 ZSTD_window_isEmpty(ZSTD_window_t const window)
+{
+    return window.dictLimit == 1 &&
+           window.lowLimit == 1 &&
+           (window.nextSrc - window.base) == 1;
+}
+
 /**
  * ZSTD_window_hasExtDict():
  * Returns non-zero if the window has a non-empty extDict.

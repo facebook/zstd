@@ -1,5 +1,5 @@
 .
-.TH "ZSTD" "1" "March 2021" "zstd 1.4.9" "User Commands"
+.TH "ZSTD" "1" "May 2021" "zstd 1.4.10" "User Commands"
 .
 .SH "NAME"
 \fBzstd\fR \- zstd, zstdmt, unzstd, zstdcat \- Compress or decompress \.zst files
@@ -343,6 +343,9 @@ set process priority to real\-time
 .
 .SH "ADVANCED COMPRESSION OPTIONS"
 .
+.SS "\-B#:"
+Select the size of each compression job\. This parameter is only available when multi\-threading is enabled\. Each compression job is run in parallel, so this value indirectly impacts the nb of active threads\. Default job size varies depending on compression level (generally \fB4 * windowSize\fR)\. \fB\-B#\fR makes it possible to manually select a custom size\. Note that job size must respect a minimum value which is enforced transparently\. This minimum is either 512 KB, or \fBoverlapSize\fR, whichever is largest\. Different job sizes will lead to (slightly) different compressed frames\.
+.
 .SS "\-\-zstd[=options]:"
 \fBzstd\fR provides 22 predefined compression levels\. The selected or default predefined compression level can be changed with advanced compression options\. The \fIoptions\fR are provided as a comma\-separated list\. You may specify only the options you want to change and the rest will be taken from the selected or default compression level\. The list of available \fIoptions\fR:
 .
@@ -480,9 +483,6 @@ The following parameters sets advanced compression options to something similar 
 .
 .P
 \fB\-\-zstd\fR=wlog=23,clog=23,hlog=22,slog=6,mml=3,tlen=48,strat=6
-.
-.SS "\-B#:"
-Select the size of each compression job\. This parameter is available only when multi\-threading is enabled\. Default value is \fB4 * windowSize\fR, which means it varies depending on compression level\. \fB\-B#\fR makes it possible to select a custom value\. Note that job size must respect a minimum value which is enforced transparently\. This minimum is either 1 MB, or \fBoverlapSize\fR, whichever is largest\.
 .
 .SH "BUGS"
 Report bugs at: https://github\.com/facebook/zstd/issues

@@ -1122,7 +1122,6 @@ ZSTD_decompressSequences_body( ZSTD_DCtx* dctx,
     /* Regen sequences */
     if (nbSeq) {
         seqState_t seqState;
-        size_t error = 0;
         dctx->fseEntropy = 1;
         { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) seqState.prevOffset[i] = dctx->entropy.rep[i]; }
         RETURN_ERROR_IF(
@@ -1186,22 +1185,17 @@ ZSTD_decompressSequences_body( ZSTD_DCtx* dctx,
             assert(!ZSTD_isError(oneSeqSize));
             if (frame) ZSTD_assertValidSequence(dctx, op, oend, sequence, prefixStart, vBase);
 #endif
+            if (UNLIKELY(ZSTD_isError(oneSeqSize)))
+                return oneSeqSize;
             DEBUGLOG(6, "regenerated sequence size : %u", (U32)oneSeqSize);
-            BIT_reloadDStream(&(seqState.DStream));
             op += oneSeqSize;
-            /* gcc and clang both don't like early returns in this loop.
-             * Instead break and check for an error at the end of the loop.
-             */
-            if (UNLIKELY(ZSTD_isError(oneSeqSize))) {
-                error = oneSeqSize;
+            if (UNLIKELY(!--nbSeq))
                 break;
-            }
-            if (UNLIKELY(!--nbSeq)) break;
+            BIT_reloadDStream(&(seqState.DStream));
         }
 
         /* check if reached exact end */
         DEBUGLOG(5, "ZSTD_decompressSequences_body: after decode loop, remaining nbSeq : %i", nbSeq);
-        if (ZSTD_isError(error)) return error;
         RETURN_ERROR_IF(nbSeq, corruption_detected, "");
         RETURN_ERROR_IF(BIT_reloadDStream(&seqState.DStream) < BIT_DStream_completed, corruption_detected, "");
         /* save reps for next block */

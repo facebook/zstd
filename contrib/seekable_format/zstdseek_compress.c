@@ -12,7 +12,6 @@
 #include <assert.h>
 
 #define XXH_STATIC_LINKING_ONLY
-#define XXH_NAMESPACE ZSTD_
 #include "xxhash.h"
 
 #define ZSTD_STATIC_LINKING_ONLY
@@ -83,7 +82,7 @@ static size_t ZSTD_seekable_frameLog_freeVec(ZSTD_frameLog* fl)
 
 ZSTD_frameLog* ZSTD_seekable_createFrameLog(int checksumFlag)
 {
-    ZSTD_frameLog* const fl = malloc(sizeof(ZSTD_frameLog));
+    ZSTD_frameLog* const fl = (ZSTD_frameLog*)malloc(sizeof(ZSTD_frameLog));
     if (fl == NULL) return NULL;
 
     if (ZSTD_isError(ZSTD_seekable_frameLog_allocVec(fl))) {
@@ -108,7 +107,7 @@ size_t ZSTD_seekable_freeFrameLog(ZSTD_frameLog* fl)
 
 ZSTD_seekable_CStream* ZSTD_seekable_createCStream(void)
 {
-    ZSTD_seekable_CStream* const zcs = malloc(sizeof(ZSTD_seekable_CStream));
+    ZSTD_seekable_CStream* const zcs = (ZSTD_seekable_CStream*)malloc(sizeof(ZSTD_seekable_CStream));
     if (zcs == NULL) return NULL;
 
     memset(zcs, 0, sizeof(*zcs));
@@ -177,7 +176,7 @@ size_t ZSTD_seekable_logFrame(ZSTD_frameLog* fl,
     if (fl->size == fl->capacity) {
         /* exponential size increase for constant amortized runtime */
         size_t const newCapacity = fl->capacity * 2;
-        framelogEntry_t* const newEntries = realloc(fl->entries,
+        framelogEntry_t* const newEntries = (framelogEntry_t*)realloc(fl->entries,
                 sizeof(framelogEntry_t) * newCapacity);
 
         if (newEntries == NULL) return ERROR(memory_allocation);

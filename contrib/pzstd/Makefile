@@ -30,6 +30,9 @@ CXXFLAGS ?= -O3 -Wall -Wextra -pedantic
 CPPFLAGS ?=
 LDFLAGS  ?=
 
+# PZstd uses legacy APIs
+CFLAGS   += -Wno-deprecated-declarations
+
 # Include flags
 PZSTD_INC  = -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(PROGDIR) -I.
 GTEST_INC  = -isystem googletest/googletest/include

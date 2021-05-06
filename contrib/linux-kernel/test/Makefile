@@ -11,7 +11,7 @@
 LINUX := ../linux
 LINUX_ZSTDLIB := $(LINUX)/lib/zstd
 
-CPPFLAGS += -I$(LINUX)/include -I$(LINUX_ZSTDLIB) -Iinclude -DNDEBUG
+CPPFLAGS += -I$(LINUX)/include -I$(LINUX_ZSTDLIB) -Iinclude -DNDEBUG -Wno-deprecated-declarations
 # Don't poison the workspace, it currently doesn't work with static allocation and workspace reuse
 CPPFLAGS += -DZSTD_ASAN_DONT_POISON_WORKSPACE
 

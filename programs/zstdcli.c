@@ -167,7 +167,8 @@ static void usage_advanced(const char* programName)
 
     DISPLAYOUT( " -v     : verbose mode; specify multiple times to increase verbosity \n");
     DISPLAYOUT( " -q     : suppress warnings; specify twice to suppress errors too \n");
-    DISPLAYOUT( "--no-progress : do not display the progress counter \n");
+    DISPLAYOUT( "--[no-]progress : forcibly display, or never display the progress counter.\n");
+    DISPLAYOUT( "                  note: any (de)compressed output to terminal will mix with progress counter text. \n");
 
 #ifdef UTIL_HAS_CREATEFILELIST
     DISPLAYOUT( " -r     : operate recursively on directories \n");
@@ -879,7 +880,8 @@ int main(int const argCount, const char* argv[])
                 if (!strcmp(argument, "--rsyncable")) { rsyncable = 1; continue; }
                 if (!strcmp(argument, "--compress-literals")) { literalCompressionMode = ZSTD_lcm_huffman; continue; }
                 if (!strcmp(argument, "--no-compress-literals")) { literalCompressionMode = ZSTD_lcm_uncompressed; continue; }
-                if (!strcmp(argument, "--no-progress")) { FIO_setNoProgress(1); continue; }
+                if (!strcmp(argument, "--no-progress")) { FIO_setProgressSetting(FIO_ps_never); continue; }
+                if (!strcmp(argument, "--progress")) { FIO_setProgressSetting(FIO_ps_always); continue; }
                 if (!strcmp(argument, "--exclude-compressed")) { FIO_setExcludeCompressedFile(prefs, 1); continue; }
 
                 /* long commands with arguments */

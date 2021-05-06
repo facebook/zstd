@@ -474,10 +474,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\common\zbuff.h"
-				>
-			</File>
-			<File
 				RelativePath="..\..\..\lib\zdict.h"
 				>
 			</File>

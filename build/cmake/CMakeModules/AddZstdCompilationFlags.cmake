@@ -26,7 +26,12 @@ macro(ADD_ZSTD_COMPILATION_FLAGS)
         EnableCompilerFlag("-std=c++11" false true)
         #Set c99 by default
         EnableCompilerFlag("-std=c99" true false)
-        EnableCompilerFlag("-Wall" true true)
+        if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND MSVC)
+            # clang-cl normally maps -Wall to -Weverything.
+            EnableCompilerFlag("/clang:-Wall" true true)
+        else ()
+            EnableCompilerFlag("-Wall" true true)
+        endif ()
         EnableCompilerFlag("-Wextra" true true)
         EnableCompilerFlag("-Wundef" true true)
         EnableCompilerFlag("-Wshadow" true true)

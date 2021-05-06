@@ -24,28 +24,24 @@ file(GLOB CommonSources ${LIBRARY_DIR}/common/*.c)
 file(GLOB CompressSources ${LIBRARY_DIR}/compress/*.c)
 file(GLOB DecompressSources ${LIBRARY_DIR}/decompress/*.c)
 file(GLOB DictBuilderSources ${LIBRARY_DIR}/dictBuilder/*.c)
-file(GLOB DeprecatedSources ${LIBRARY_DIR}/deprecated/*.c)
 
 set(Sources
         ${CommonSources}
         ${CompressSources}
         ${DecompressSources}
-        ${DictBuilderSources}
-        ${DeprecatedSources})
+        ${DictBuilderSources})
 
 file(GLOB CommonHeaders ${LIBRARY_DIR}/common/*.h)
 file(GLOB CompressHeaders ${LIBRARY_DIR}/compress/*.h)
 file(GLOB DecompressHeaders ${LIBRARY_DIR}/decompress/*.h)
 file(GLOB DictBuilderHeaders ${LIBRARY_DIR}/dictBuilder/*.h)
-file(GLOB DeprecatedHeaders ${LIBRARY_DIR}/deprecated/*.h)
 
 set(Headers
         ${LIBRARY_DIR}/zstd.h
         ${CommonHeaders}
         ${CompressHeaders}
         ${DecompressHeaders}
-        ${DictBuilderHeaders}
-        ${DeprecatedHeaders})
+        ${DictBuilderHeaders})
 
 if (ZSTD_LEGACY_SUPPORT)
     set(LIBRARY_LEGACY_DIR ${LIBRARY_DIR}/legacy)

@@ -14,8 +14,7 @@ libzstd_includes = [include_directories(join_paths(zstd_rootdir,'lib'),
   join_paths(zstd_rootdir, 'lib/common'),
   join_paths(zstd_rootdir, 'lib/compress'),
   join_paths(zstd_rootdir, 'lib/decompress'),
-  join_paths(zstd_rootdir, 'lib/dictBuilder'),
-  join_paths(zstd_rootdir, 'lib/deprecated'))]
+  join_paths(zstd_rootdir, 'lib/dictBuilder'))]
 
 libzstd_sources = [join_paths(zstd_rootdir, 'lib/common/entropy_common.c'),
   join_paths(zstd_rootdir, 'lib/common/fse_decompress.c'),

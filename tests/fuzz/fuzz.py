@@ -62,6 +62,7 @@ TARGET_INFO = {
     'decompress_dstSize_tooSmall': TargetInfo(InputType.RAW_DATA),
     'fse_read_ncount': TargetInfo(InputType.RAW_DATA),
     'sequence_compression_api': TargetInfo(InputType.RAW_DATA),
+    'seekable_roundtrip': TargetInfo(InputType.RAW_DATA),
 }
 TARGETS = list(TARGET_INFO.keys())
 ALL_TARGETS = TARGETS + ['all']

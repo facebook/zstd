@@ -24,7 +24,7 @@ PRGDIR  = ../programs
 PYTHON ?= python3
 TESTARTEFACT := versionsTest
 
-DEBUGLEVEL ?= 1
+DEBUGLEVEL ?= 2
 export DEBUGLEVEL  # transmit value to sub-makefiles
 DEBUGFLAGS  = -g -DDEBUGLEVEL=$(DEBUGLEVEL)
 CPPFLAGS   += -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \

@@ -559,6 +559,11 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
         bounds.upperBound = (int)ZSTD_urm_enableRowMatchFinder;
         return bounds;
 
+    case ZSTD_c_deterministicRefPrefix:
+        bounds.lowerBound = 0;
+        bounds.upperBound = 1;
+        return bounds;
+
     default:
         bounds.error = ERROR(parameter_unsupported);
         return bounds;
@@ -622,6 +627,7 @@ static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
     case ZSTD_c_validateSequences:
     case ZSTD_c_splitBlocks:
     case ZSTD_c_useRowMatchFinder:
+    case ZSTD_c_deterministicRefPrefix:
     default:
         return 0;
     }
@@ -676,6 +682,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value)
     case ZSTD_c_validateSequences:
     case ZSTD_c_splitBlocks:
     case ZSTD_c_useRowMatchFinder:
+    case ZSTD_c_deterministicRefPrefix:
         break;
 
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
@@ -897,6 +904,11 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
         CCtxParams->useRowMatchFinder = (ZSTD_useRowMatchFinderMode_e)value;
         return CCtxParams->useRowMatchFinder;
 
+    case ZSTD_c_deterministicRefPrefix:
+        BOUNDCHECK(ZSTD_c_deterministicRefPrefix, value);
+        CCtxParams->deterministicRefPrefix = !!value;
+        return CCtxParams->deterministicRefPrefix;
+
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
     }
 }
@@ -1025,6 +1037,9 @@ size_t ZSTD_CCtxParams_getParameter(
         break;
     case ZSTD_c_useRowMatchFinder :
         *value = (int)CCtxParams->useRowMatchFinder;
+        break;
+    case ZSTD_c_deterministicRefPrefix:
+        *value = (int)CCtxParams->deterministicRefPrefix;
         break;
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
     }
@@ -4052,11 +4067,12 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* cctx,
 
     if (!srcSize) return fhSize;  /* do not generate an empty block if no input */
 
-    if (!ZSTD_window_update(&ms->window, src, srcSize)) {
+    if (!ZSTD_window_update(&ms->window, src, srcSize, ms->forceNonContiguous)) {
+        ms->forceNonContiguous = 0;
         ms->nextToUpdate = ms->window.dictLimit;
     }
     if (cctx->appliedParams.ldmParams.enableLdm) {
-        ZSTD_window_update(&cctx->ldmState.window, src, srcSize);
+        ZSTD_window_update(&cctx->ldmState.window, src, srcSize, /* forceNonContiguous */ 0);
     }
 
     if (!frame) {
@@ -4148,11 +4164,12 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
     }
 
     DEBUGLOG(4, "ZSTD_loadDictionaryContent(): useRowMatchFinder=%d", (int)params->useRowMatchFinder);
-    ZSTD_window_update(&ms->window, src, srcSize);
+    ZSTD_window_update(&ms->window, src, srcSize, /* forceNonContiguous */ 0);
     ms->loadedDictEnd = params->forceWindow ? 0 : (U32)(iend - ms->window.base);
+    ms->forceNonContiguous = params->deterministicRefPrefix;
 
     if (loadLdmDict) {
-        ZSTD_window_update(&ls->window, src, srcSize);
+        ZSTD_window_update(&ls->window, src, srcSize, /* forceNonContiguous */ 0);
         ls->loadedDictEnd = params->forceWindow ? 0 : (U32)(iend - ls->window.base);
     }
 

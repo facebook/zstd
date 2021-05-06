@@ -219,6 +219,8 @@ struct ZSTD_matchState_t {
     U32* hashTable3;
     U32* chainTable;
 
+    U32 forceNonContiguous; /* Non-zero if we should force non-contiguous load for the next window update. */
+
     int dedicatedDictSearch;  /* Indicates whether this matchState is using the
                                * dedicated dictionary search structure.
                                */
@@ -316,6 +318,9 @@ struct ZSTD_CCtx_params_s {
 
     /* Param for deciding whether to use row-based matchfinder */
     ZSTD_useRowMatchFinderMode_e useRowMatchFinder;
+
+    /* Always load a dictionary in ext-dict mode (not prefix mode)? */
+    int deterministicRefPrefix;
 
     /* Internal use, for createCCtxParams() and freeCCtxParams() only */
     ZSTD_customMem customMem;
@@ -1139,7 +1144,8 @@ MEM_STATIC void ZSTD_window_init(ZSTD_window_t* window) {
  * Returns non-zero if the segment is contiguous.
  */
 MEM_STATIC U32 ZSTD_window_update(ZSTD_window_t* window,
-                                  void const* src, size_t srcSize)
+                                  void const* src, size_t srcSize,
+                                  int forceNonContiguous)
 {
     BYTE const* const ip = (BYTE const*)src;
     U32 contiguous = 1;
@@ -1149,7 +1155,7 @@ MEM_STATIC U32 ZSTD_window_update(ZSTD_window_t* window,
     assert(window->base != NULL);
     assert(window->dictBase != NULL);
     /* Check if blocks follow each other */
-    if (src != window->nextSrc) {
+    if (src != window->nextSrc || forceNonContiguous) {
         /* not contiguous */
         size_t const distanceFromBase = (size_t)(window->nextSrc - window->base);
         DEBUGLOG(5, "Non contiguous blocks, new segment starts at %u", window->dictLimit);

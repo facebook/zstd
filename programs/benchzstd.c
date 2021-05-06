@@ -67,17 +67,9 @@ static const size_t maxMemory = (sizeof(size_t)==4)  ?
 /* *************************************
 *  console display
 ***************************************/
-#define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
+#define DISPLAY(...)         { fprintf(stderr, __VA_ARGS__); fflush(NULL); }
 #define DISPLAYLEVEL(l, ...) if (displayLevel>=l) { DISPLAY(__VA_ARGS__); }
 /* 0 : no display;   1: errors;   2 : + result + interaction + warnings;   3 : + progression;   4 : + information */
-
-static const U64 g_refreshRate = SEC_TO_MICRO / 6;
-static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
-
-#define DISPLAYUPDATE(l, ...) { if (displayLevel>=l) { \
-            if ((UTIL_clockSpanMicro(g_displayClock) > g_refreshRate) || (displayLevel>=4)) \
-            { g_displayClock = UTIL_getTime(); DISPLAY(__VA_ARGS__); \
-            if (displayLevel>=4) fflush(stderr); } } }
 
 
 /* *************************************
@@ -768,7 +760,7 @@ static int BMK_loadFiles(void* buffer, size_t bufferSize,
         }
         {   FILE* const f = fopen(fileNamesTable[n], "rb");
             if (f==NULL) RETURN_ERROR_INT(10, "impossible to open file %s", fileNamesTable[n]);
-            DISPLAYUPDATE(2, "Loading %s...       \r", fileNamesTable[n]);
+            DISPLAYLEVEL(2, "Loading %s...       \r", fileNamesTable[n]);
             if (fileSize > bufferSize-pos) fileSize = bufferSize-pos, nbFiles=n;   /* buffer too small - stop after this file */
             {   size_t const readSize = fread(((char*)buffer)+pos, 1, (size_t)fileSize, f);
                 if (readSize != (size_t)fileSize) RETURN_ERROR_INT(11, "could not read %s", fileNamesTable[n]);

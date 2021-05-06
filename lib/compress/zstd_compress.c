@@ -4985,15 +4985,15 @@ unsigned ZSTD_getDictID_fromCDict(const ZSTD_CDict* cdict)
     return cdict->dictID;
 }
 
-
-/* ZSTD_compressBegin_usingCDict_advanced() :
- * cdict must be != NULL */
-size_t ZSTD_compressBegin_usingCDict_advanced(
+/* ZSTD_compressBegin_usingCDict_internal() :
+ * Implementation of various ZSTD_compressBegin_usingCDict* functions.
+ */
+static size_t ZSTD_compressBegin_usingCDict_internal(
     ZSTD_CCtx* const cctx, const ZSTD_CDict* const cdict,
     ZSTD_frameParameters const fParams, unsigned long long const pledgedSrcSize)
 {
     ZSTD_CCtx_params cctxParams;
-    DEBUGLOG(4, "ZSTD_compressBegin_usingCDict_advanced");
+    DEBUGLOG(4, "ZSTD_compressBegin_usingCDict_internal");
     RETURN_ERROR_IF(cdict==NULL, dictionary_wrong, "NULL pointer!");
     /* Initialize the cctxParams from the cdict */
     {
@@ -5025,23 +5025,46 @@ size_t ZSTD_compressBegin_usingCDict_advanced(
                                         ZSTDb_not_buffered);
 }
 
+
+/* ZSTD_compressBegin_usingCDict_advanced() :
+ * This function is DEPRECATED.
+ * cdict must be != NULL */
+size_t ZSTD_compressBegin_usingCDict_advanced(
+    ZSTD_CCtx* const cctx, const ZSTD_CDict* const cdict,
+    ZSTD_frameParameters const fParams, unsigned long long const pledgedSrcSize)
+{
+    return ZSTD_compressBegin_usingCDict_internal(cctx, cdict, fParams, pledgedSrcSize);
+}
+
 /* ZSTD_compressBegin_usingCDict() :
- * pledgedSrcSize=0 means "unknown"
- * if pledgedSrcSize>0, it will enable contentSizeFlag */
+ * cdict must be != NULL */
 size_t ZSTD_compressBegin_usingCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict)
 {
     ZSTD_frameParameters const fParams = { 0 /*content*/, 0 /*checksum*/, 0 /*noDictID*/ };
-    DEBUGLOG(4, "ZSTD_compressBegin_usingCDict : dictIDFlag == %u", !fParams.noDictIDFlag);
-    return ZSTD_compressBegin_usingCDict_advanced(cctx, cdict, fParams, ZSTD_CONTENTSIZE_UNKNOWN);
+    return ZSTD_compressBegin_usingCDict_internal(cctx, cdict, fParams, ZSTD_CONTENTSIZE_UNKNOWN);
 }
 
+/*! ZSTD_compress_usingCDict_internal():
+ * Implementation of various ZSTD_compress_usingCDict* functions.
+ */
+static size_t ZSTD_compress_usingCDict_internal(ZSTD_CCtx* cctx,
+                                void* dst, size_t dstCapacity,
+                                const void* src, size_t srcSize,
+                                const ZSTD_CDict* cdict, ZSTD_frameParameters fParams)
+{
+    FORWARD_IF_ERROR(ZSTD_compressBegin_usingCDict_internal(cctx, cdict, fParams, srcSize), ""); /* will check if cdict != NULL */
+    return ZSTD_compressEnd(cctx, dst, dstCapacity, src, srcSize);
+}
+
+/*! ZSTD_compress_usingCDict_advanced():
+ * This function is DEPRECATED.
+ */
 size_t ZSTD_compress_usingCDict_advanced(ZSTD_CCtx* cctx,
                                 void* dst, size_t dstCapacity,
                                 const void* src, size_t srcSize,
                                 const ZSTD_CDict* cdict, ZSTD_frameParameters fParams)
 {
-    FORWARD_IF_ERROR(ZSTD_compressBegin_usingCDict_advanced(cctx, cdict, fParams, srcSize), "");   /* will check if cdict != NULL */
-    return ZSTD_compressEnd(cctx, dst, dstCapacity, src, srcSize);
+    return ZSTD_compress_usingCDict_internal(cctx, dst, dstCapacity, src, srcSize, cdict, fParams);
 }
 
 /*! ZSTD_compress_usingCDict() :
@@ -5055,7 +5078,7 @@ size_t ZSTD_compress_usingCDict(ZSTD_CCtx* cctx,
                                 const ZSTD_CDict* cdict)
 {
     ZSTD_frameParameters const fParams = { 1 /*content*/, 0 /*checksum*/, 0 /*noDictID*/ };
-    return ZSTD_compress_usingCDict_advanced(cctx, dst, dstCapacity, src, srcSize, cdict, fParams);
+    return ZSTD_compress_usingCDict_internal(cctx, dst, dstCapacity, src, srcSize, cdict, fParams);
 }
 
 

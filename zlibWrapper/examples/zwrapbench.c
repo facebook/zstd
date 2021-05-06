@@ -264,9 +264,22 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                     ZSTD_outBuffer outBuffer;
                     ZSTD_CStream* zbc = ZSTD_createCStream();
                     size_t rSize;
+                    ZSTD_CCtx_params* cctxParams = ZSTD_createCCtxParams();
+
+                    if (!cctxParams) EXM_THROW(1, "ZSTD_createCCtxParams() allocation failure");
                     if (zbc == NULL) EXM_THROW(1, "ZSTD_createCStream() allocation failure");
-                    rSize = ZSTD_initCStream_advanced(zbc, dictBuffer, dictBufferSize, zparams, avgSize);
-                    if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_initCStream_advanced() failed : %s", ZSTD_getErrorName(rSize));
+
+                    {   int initErr = 0;
+                        initErr |= ZSTD_isError(ZSTD_CCtx_reset(zbc, ZSTD_reset_session_only));
+                        initErr |= ZSTD_isError(ZSTD_CCtxParams_init_advanced(cctxParams, zparams));
+                        initErr |= ZSTD_isError(ZSTD_CCtx_setParametersUsingCCtxParams(zbc, cctxParams));
+                        initErr |= ZSTD_isError(ZSTD_CCtx_setPledgedSrcSize(zbc, avgSize));
+                        initErr |= ZSTD_isError(ZSTD_CCtx_loadDictionary(zbc, dictBuffer, dictBufferSize));
+
+                        ZSTD_freeCCtxParams(cctxParams);
+                        if (initErr) EXM_THROW(1, "CCtx init failed!");
+                    }
+
                     do {
                         U32 blockNb;
                         for (blockNb=0; blockNb<nbBlocks; blockNb++) {

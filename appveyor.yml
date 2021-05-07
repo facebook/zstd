@@ -256,7 +256,6 @@
   - if [%HOST%]==[cygwin] (
       ECHO Installing Cygwin Packages &&
       C:\cygwin64\setup-x86_64.exe -qnNdO -R "C:\cygwin64" -g -P ^
-        gcc-g++,^
         gcc,^
         cmake,^
         make
@@ -279,7 +278,7 @@
       C:\cygwin64\bin\bash --login -c "
         set -e;
         cd build/cmake;
-        CC=clang CFLAGS='-O1 -Werror' cmake -G 'Unix Makefiles' -DCMAKE_BUILD_TYPE=Debug -DZSTD_BUILD_TESTS:BOOL=ON -DZSTD_FUZZER_FLAGS=-T20s -DZSTD_ZSTREAM_FLAGS=-T20s -DZSTD_FULLBENCH_FLAGS=-i0 .;
+        CFLAGS='-Werror' cmake -G 'Unix Makefiles' -DCMAKE_BUILD_TYPE=Debug -DZSTD_BUILD_TESTS:BOOL=ON -DZSTD_FUZZER_FLAGS=-T20s -DZSTD_ZSTREAM_FLAGS=-T20s -DZSTD_FULLBENCH_FLAGS=-i0 .;
         make VERBOSE=1 -j;
         ctest -V -L Medium;
       "

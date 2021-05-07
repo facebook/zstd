@@ -1215,16 +1215,16 @@ ZSTD_decompressSequences_default(ZSTD_DCtx* dctx,
 #ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT
 
 FORCE_INLINE_TEMPLATE size_t
-ZSTD_prefetchMatch(size_t prefixPos, seq_t const sequence,
+ZSTD_prefetchMatch(size_t prefetchPos, seq_t const sequence,
                    const BYTE* const prefixStart, const BYTE* const dictEnd)
 {
-    prefixPos += sequence.litLength;
-    {   const BYTE* const matchBase = (sequence.offset > prefixPos) ? dictEnd : prefixStart;
-        const BYTE* const match = matchBase + prefixPos - sequence.offset;  /* note : this operation can overflow when seq.offset is really too large, which can only happen when input is corrupted.
-                                                                             * No consequence though : no memory access will occur, offset is only used for prefetching */
-        PREFETCH_L1(match); PREFETCH_L1(match + sequence.matchLength - 1); /* note : it's safe to invoke PREFETCH() on any memory address, including invalid ones */
+    prefetchPos += sequence.litLength;
+    {   const BYTE* const matchBase = (sequence.offset > prefetchPos) ? dictEnd : prefixStart;
+        const BYTE* const match = matchBase + prefetchPos - sequence.offset; /* note : this operation can overflow when seq.offset is really too large, which can only happen when input is corrupted.
+                                                                              * No consequence though : memory address is only used for prefetching, not for dereferencing */
+        PREFETCH_L1(match); PREFETCH_L1(match+CACHELINE_SIZE);   /* note : it's safe to invoke PREFETCH() on any memory address, including invalid ones */
     }
-    return prefixPos + sequence.matchLength;
+    return prefetchPos + sequence.matchLength;
 }
 
 /* This decoding function employs prefetching
@@ -1260,7 +1260,7 @@ ZSTD_decompressSequencesLong_body(
         int const seqAdvance = MIN(nbSeq, ADVANCED_SEQS);
         seqState_t seqState;
         int seqNb;
-        size_t prefixPos = (size_t)(op-prefixStart); /* track position relative to prefixStart */
+        size_t prefetchPos = (size_t)(op-prefixStart); /* track position relative to prefixStart */
 
         dctx->fseEntropy = 1;
         { int i; for (i=0; i<ZSTD_REP_NUM; i++) seqState.prevOffset[i] = dctx->entropy.rep[i]; }
@@ -1276,7 +1276,7 @@ ZSTD_decompressSequencesLong_body(
         /* prepare in advance */
         for (seqNb=0; (BIT_reloadDStream(&seqState.DStream) <= BIT_DStream_completed) && (seqNb<seqAdvance); seqNb++) {
             seq_t const sequence = ZSTD_decodeSequence(&seqState, isLongOffset);
-            prefixPos = ZSTD_prefetchMatch(prefixPos, sequence, prefixStart, dictEnd);
+            prefetchPos = ZSTD_prefetchMatch(prefetchPos, sequence, prefixStart, dictEnd);
             sequences[seqNb] = sequence;
         }
         RETURN_ERROR_IF(seqNb<seqAdvance, corruption_detected, "");
@@ -1291,7 +1291,7 @@ ZSTD_decompressSequencesLong_body(
 #endif
             if (ZSTD_isError(oneSeqSize)) return oneSeqSize;
 
-            prefixPos = ZSTD_prefetchMatch(prefixPos, sequence, prefixStart, dictEnd);
+            prefetchPos = ZSTD_prefetchMatch(prefetchPos, sequence, prefixStart, dictEnd);
             sequences[seqNb & STORED_SEQS_MASK] = sequence;
             op += oneSeqSize;
         }

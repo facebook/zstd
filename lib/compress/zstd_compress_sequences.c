@@ -85,6 +85,8 @@ static size_t ZSTD_entropyCost(unsigned const* count, unsigned const max, size_t
 {
     unsigned cost = 0;
     unsigned s;
+
+    assert(total > 0);
     for (s = 0; s <= max; ++s) {
         unsigned norm = (unsigned)((256 * count[s]) / total);
         if (count[s] != 0 && norm == 0)

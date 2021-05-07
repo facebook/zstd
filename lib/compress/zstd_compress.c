@@ -2418,8 +2418,9 @@ typedef struct {
 } ZSTD_symbolEncodingTypeStats_t;
 
 /* ZSTD_buildSequencesStatistics():
- * Returns the size of the statistics for a given set of sequences, or a ZSTD error code,
- * Also modifies LLtype, Offtype, MLtype, and lastNCount to the appropriate values.
+ * Returns a ZSTD_symbolEncodingTypeStats_t, or a zstd error code in the `size` field.
+ * Modifies `nextEntropy` to have the appropriate values as a side effect.
+ * nbSeq must be greater than 0.
  *
  * entropyWkspSize must be of size at least ENTROPY_WORKSPACE_SIZE - (MaxSeq + 1)*sizeof(U32)
  */
@@ -2444,6 +2445,7 @@ ZSTD_buildSequencesStatistics(seqStore_t* seqStorePtr, size_t nbSeq,
     /* convert length/distances into codes */
     ZSTD_seqToCodes(seqStorePtr);
     assert(op <= oend);
+    assert(nbSeq != 0); /* ZSTD_selectEncodingType() divides by nbSeq */
     /* build CTable for Literal Lengths */
     {   unsigned max = MaxLL;
         size_t const mostFrequent = HIST_countFast_wksp(countWorkspace, &max, llCodeTable, nbSeq, entropyWorkspace, entropyWkspSize);   /* can't fail */
@@ -3121,6 +3123,20 @@ static size_t ZSTD_buildBlockEntropyStats_literals(void* const src, size_t srcSi
     }
 }
 
+
+/* ZSTD_buildDummySequencesStatistics():
+ * Returns a ZSTD_symbolEncodingTypeStats_t with all encoding types as set_basic,
+ * and updates nextEntropy to the appropriate repeatMode.
+ */
+static ZSTD_symbolEncodingTypeStats_t
+ZSTD_buildDummySequencesStatistics(ZSTD_fseCTables_t* nextEntropy) {
+    ZSTD_symbolEncodingTypeStats_t stats = {set_basic, set_basic, set_basic, 0, 0};
+    nextEntropy->litlength_repeatMode = FSE_repeat_none;
+    nextEntropy->offcode_repeatMode = FSE_repeat_none;
+    nextEntropy->matchlength_repeatMode = FSE_repeat_none;
+    return stats;
+}
+
 /** ZSTD_buildBlockEntropyStats_sequences() :
  *  Builds entropy for the sequences.
  *  Stores symbol compression modes and fse table to fseMetadata.
@@ -3144,10 +3160,11 @@ static size_t ZSTD_buildBlockEntropyStats_sequences(seqStore_t* seqStorePtr,
     ZSTD_symbolEncodingTypeStats_t stats;
 
     DEBUGLOG(5, "ZSTD_buildBlockEntropyStats_sequences (nbSeq=%zu)", nbSeq);
-    stats = ZSTD_buildSequencesStatistics(seqStorePtr, nbSeq,
-                                        prevEntropy, nextEntropy, op, oend,
-                                        strategy, countWorkspace,
-                                        entropyWorkspace, entropyWorkspaceSize);
+    stats = nbSeq != 0 ? ZSTD_buildSequencesStatistics(seqStorePtr, nbSeq,
+                                          prevEntropy, nextEntropy, op, oend,
+                                          strategy, countWorkspace,
+                                          entropyWorkspace, entropyWorkspaceSize)
+                       : ZSTD_buildDummySequencesStatistics(nextEntropy);
     FORWARD_IF_ERROR(stats.size, "ZSTD_buildSequencesStatistics failed!");
     fseMetadata->llType = (symbolEncodingType_e) stats.LLtype;
     fseMetadata->ofType = (symbolEncodingType_e) stats.Offtype;

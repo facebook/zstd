@@ -57,8 +57,8 @@ all32:
 	$(MAKE) -C $(PRGDIR) zstd32
 	$(MAKE) -C $(TESTDIR) all32
 
-.PHONY: lib lib-release
-lib lib-release :
+.PHONY: lib lib-release lib-mt lib-nomt
+lib lib-release lib-mt lib-nomt:
 	$(Q)$(MAKE) -C $(ZSTDDIR) $@
 
 .PHONY: zstd zstd-release
@@ -151,7 +151,6 @@ clean:
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD DragonFly NetBSD MSYS_NT Haiku))
 
 HOST_OS = POSIX
-CMAKE_PARAMS = -DZSTD_BUILD_CONTRIB:BOOL=ON -DZSTD_BUILD_STATIC:BOOL=ON -DZSTD_BUILD_TESTS:BOOL=ON -DZSTD_ZLIB_SUPPORT:BOOL=ON -DZSTD_LZMA_SUPPORT:BOOL=ON -DCMAKE_BUILD_TYPE=Release
 
 HAVE_COLORNEVER = $(shell echo a | egrep --color=never a > /dev/null 2> /dev/null && echo 1 || echo 0)
 EGREP_OPTIONS ?=
@@ -357,11 +356,12 @@ lz4install:
 endif
 
 
+CMAKE_PARAMS = -DZSTD_BUILD_CONTRIB:BOOL=ON -DZSTD_BUILD_STATIC:BOOL=ON -DZSTD_BUILD_TESTS:BOOL=ON -DZSTD_ZLIB_SUPPORT:BOOL=ON -DZSTD_LZMA_SUPPORT:BOOL=ON -DCMAKE_BUILD_TYPE=Release
+
 ifneq (,$(filter MSYS%,$(shell uname)))
 HOST_OS = MSYS
 CMAKE_PARAMS = -G"MSYS Makefiles" -DCMAKE_BUILD_TYPE=Debug -DZSTD_MULTITHREAD_SUPPORT:BOOL=OFF -DZSTD_BUILD_STATIC:BOOL=ON -DZSTD_BUILD_TESTS:BOOL=ON
 endif
-
 
 #------------------------------------------------------------------------
 # target specific tests

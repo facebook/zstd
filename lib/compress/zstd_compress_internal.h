@@ -188,11 +188,15 @@ typedef struct {
 } ZSTD_compressedBlockState_t;
 
 typedef struct {
-    BYTE const* nextSrc;    /* next block here to continue on current prefix */
-    BYTE const* base;       /* All regular indexes relative to this position */
-    BYTE const* dictBase;   /* extDict indexes relative to this position */
-    U32 dictLimit;          /* below that point, need extDict */
-    U32 lowLimit;           /* below that point, no more valid data */
+    BYTE const* nextSrc;       /* next block here to continue on current prefix */
+    BYTE const* base;          /* All regular indexes relative to this position */
+    BYTE const* dictBase;      /* extDict indexes relative to this position */
+    U32 dictLimit;             /* below that point, need extDict */
+    U32 lowLimit;              /* below that point, no more valid data */
+    U32 nbOverflowCorrections; /* Number of times overflow correction has run since
+                                * ZSTD_window_init(). Useful for debugging coredumps
+                                * and for ZSTD_WINDOW_OVERFLOW_CORRECT_FREQUENTLY.
+                                */
 } ZSTD_window_t;
 
 typedef struct ZSTD_matchState_t ZSTD_matchState_t;
@@ -934,8 +938,22 @@ MEM_STATIC U32 ZSTD_window_canOverflowCorrect(ZSTD_window_t const window,
     U32 const cycleSize = 1u << cycleLog;
     U32 const curr = (U32)((BYTE const*)src - window.base);
     U32 const minIndexToOverflowCorrect = cycleSize + MAX(maxDist, cycleSize);
-    U32 const indexLargeEnough = curr > minIndexToOverflowCorrect;
+
+    /* Adjust the min index to backoff the overflow correction frequency,
+     * so we don't waste too much CPU in overflow correction. If this
+     * computation overflows we don't really care, we just need to make
+     * sure it is at least minIndexToOverflowCorrect.
+     */
+    U32 const adjustment = window.nbOverflowCorrections + 1;
+    U32 const adjustedIndex = MAX(minIndexToOverflowCorrect * adjustment,
+                                  minIndexToOverflowCorrect);
+    U32 const indexLargeEnough = curr > adjustedIndex;
+
+    /* Only overflow correct early if the dictionary is invalidated already,
+     * so we don't hurt compression ratio.
+     */
     U32 const dictionaryInvalidated = curr > maxDist + loadedDictEnd;
+
     return indexLargeEnough && dictionaryInvalidated;
 }
 
@@ -1024,6 +1042,8 @@ MEM_STATIC U32 ZSTD_window_correctOverflow(ZSTD_window_t* window, U32 cycleLog,
     /* Ensure that lowLimit and dictLimit didn't underflow. */
     assert(window->lowLimit <= newCurrent);
     assert(window->dictLimit <= newCurrent);
+
+    ++window->nbOverflowCorrections;
 
     DEBUGLOG(4, "Correction of 0x%x bytes to lowLimit=0x%x", correction,
              window->lowLimit);
@@ -1134,6 +1154,7 @@ MEM_STATIC void ZSTD_window_init(ZSTD_window_t* window) {
     window->dictLimit = 1;    /* start from 1, so that 1st position is valid */
     window->lowLimit = 1;     /* it ensures first and later CCtx usages compress the same */
     window->nextSrc = window->base + 1;   /* see issue #1241 */
+    window->nbOverflowCorrections = 0;
 }
 
 /**

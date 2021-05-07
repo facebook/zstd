@@ -435,10 +435,12 @@ libzstd.pc: libzstd.pc.in
 install: install-pc install-static install-shared install-includes
 	@echo zstd static and shared library installed
 
+.PHONY: install-pc
 install-pc: libzstd.pc
 	[ -e $(DESTDIR)$(PKGCONFIGDIR) ] || $(INSTALL) -d -m 755 $(DESTDIR)$(PKGCONFIGDIR)/
 	$(INSTALL_DATA) libzstd.pc $(DESTDIR)$(PKGCONFIGDIR)/
 
+.PHONY: install-static
 install-static:
 	# only generate libzstd.a if it's not already present
 	[ -e libzstd.a ] || $(MAKE) libzstd.a-release
@@ -446,6 +448,7 @@ install-static:
 	@echo Installing static library
 	$(INSTALL_DATA) libzstd.a $(DESTDIR)$(LIBDIR)
 
+.PHONY: install-shared
 install-shared:
 	# only generate libzstd.so if it's not already present
 	[ -e $(LIBZSTD) ] || $(MAKE) libzstd-release
@@ -455,6 +458,7 @@ install-shared:
 	ln -sf $(LIBZSTD) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR)
 	ln -sf $(LIBZSTD) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT)
 
+.PHONY: install-includes
 install-includes:
 	[ -e $(DESTDIR)$(INCLUDEDIR) ] || $(INSTALL) -d -m 755 $(DESTDIR)$(INCLUDEDIR)/
 	@echo Installing includes

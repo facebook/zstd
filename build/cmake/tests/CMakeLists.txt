@@ -59,7 +59,7 @@ target_link_libraries(datagen libzstd_static)
 add_executable(fullbench ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/timefn.c ${PROGRAMS_DIR}/benchfn.c ${PROGRAMS_DIR}/benchzstd.c ${TESTS_DIR}/fullbench.c)
 set_property(TARGET fullbench APPEND PROPERTY COMPILE_DEFINITIONS "ZSTD_DISABLE_DEPRECATE_WARNINGS")
 target_link_libraries(fullbench libzstd_static)
-add_test(NAME fullbench COMMAND fullbench)
+add_test(NAME fullbench COMMAND fullbench ${ZSTD_FULLBENCH_FLAGS})
 
 #
 # fuzzer

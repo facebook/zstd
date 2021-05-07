@@ -178,7 +178,7 @@ list:
 	    done \
 	} | column -t -s $$'\t'
 
-.PHONY: install armtest usan asan uasan
+.PHONY: install armtest usan asan uasan msan asan32
 install:
 	$(Q)$(MAKE) -C $(ZSTDDIR) $@
 	$(Q)$(MAKE) -C $(PRGDIR) $@
@@ -192,22 +192,19 @@ uninstall:
 travis-install:
 	$(MAKE) install PREFIX=~/install_test_dir
 
-.PHONY: gcc5build
+.PHONY: gcc5build gcc6build gcc7build clangbuild m32build armbuild aarch64build ppcbuild ppc64build
 gcc5build: clean
 	gcc-5 -v
 	CC=gcc-5 $(MAKE) all MOREFLAGS="-Werror"
 
-.PHONY: gcc6build
 gcc6build: clean
 	gcc-6 -v
 	CC=gcc-6 $(MAKE) all MOREFLAGS="-Werror"
 
-.PHONY: gcc7build
 gcc7build: clean
 	gcc-7 -v
 	CC=gcc-7 $(MAKE) all MOREFLAGS="-Werror"
 
-.PHONY: clangbuild
 clangbuild: clean
 	clang -v
 	CXX=clang++ CC=clang CFLAGS="-Werror -Wconversion -Wno-sign-conversion -Wdocumentation" $(MAKE) all
@@ -228,6 +225,7 @@ ppcbuild: clean
 ppc64build: clean
 	CC=powerpc-linux-gnu-gcc CFLAGS="-m64 -Werror" $(MAKE) -j allzstd
 
+.PHONY: armfuzz aarch64fuzz ppcfuzz ppc64fuzz
 armfuzz: clean
 	CC=arm-linux-gnueabi-gcc QEMU_SYS=qemu-arm-static MOREFLAGS="-static" FUZZER_FLAGS=--no-big-tests $(MAKE) -C $(TESTDIR) fuzztest
 
@@ -241,7 +239,7 @@ ppcfuzz: clean
 ppc64fuzz: clean
 	CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc64-static MOREFLAGS="-m64 -static" FUZZER_FLAGS=--no-big-tests $(MAKE) -C $(TESTDIR) fuzztest
 
-.PHONY: cxxtest
+.PHONY: cxxtest gcc5test gcc6test armtest aarch64test ppctest ppc64test
 cxxtest: CXXFLAGS += -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror
 cxxtest: clean
 	$(MAKE) -C $(PRGDIR) all CC="$(CXX) -Wno-deprecated" CFLAGS="$(CXXFLAGS)"   # adding -Wno-deprecated to avoid clang++ warning on dealing with C files directly
@@ -270,6 +268,7 @@ ppc64test: clean
 	$(MAKE) -C $(TESTDIR) datagen   # use native, faster
 	$(MAKE) -C $(TESTDIR) test CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc64-static ZSTDRTTEST= MOREFLAGS="-m64 -static" FUZZER_FLAGS=--no-big-tests
 
+.PHONY: arm-ppc-compilation
 arm-ppc-compilation:
 	$(MAKE) -C $(PRGDIR) clean zstd CC=arm-linux-gnueabi-gcc QEMU_SYS=qemu-arm-static ZSTDRTTEST= MOREFLAGS="-Werror -static"
 	$(MAKE) -C $(PRGDIR) clean zstd CC=aarch64-linux-gnu-gcc QEMU_SYS=qemu-aarch64-static ZSTDRTTEST= MOREFLAGS="-Werror -static"
@@ -287,7 +286,6 @@ msanregressiontest:
 
 # run UBsan with -fsanitize-recover=pointer-overflow
 # this only works with recent compilers such as gcc 8+
-
 usan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize-recover=pointer-overflow -fsanitize=undefined -Werror"
 
@@ -315,13 +313,16 @@ uasan-%: clean
 tsan-%: clean
 	LDFLAGS=-fuse-ld=gold MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize=thread -Werror" $(MAKE) -C $(TESTDIR) $* FUZZER_FLAGS=--no-big-tests
 
+.PHONY: apt-install
 apt-install:
 	sudo apt-get -yq --no-install-suggests --no-install-recommends --force-yes install $(APT_PACKAGES)
 
+.PHONY: apt-add-repo
 apt-add-repo:
 	sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
 	sudo apt-get update -y -qq
 
+.PHONY: ppcinstall arminstall valgrindinstall libc6install gcc6install gcc7install gcc8install gpp6install clang38install lz4install
 ppcinstall:
 	APT_PACKAGES="qemu-system-ppc qemu-user-static gcc-powerpc-linux-gnu" $(MAKE) apt-install
 
@@ -367,6 +368,7 @@ endif
 # target specific tests
 #------------------------------------------------------------------------
 ifneq (,$(filter $(HOST_OS),MSYS POSIX))
+.PHONY: cmakebuild c89build gnu90build c99build gnu99build c11build bmix64build bmix32build bmi32build staticAnalyze
 cmakebuild:
 	cmake --version
 	$(RM) -r $(BUILDIR)/cmake/build

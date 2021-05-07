@@ -205,12 +205,21 @@ static int ZWRAP_initializeCStream(ZWRAP_CCtx* zwc, const void* dict, size_t dic
     if (zwc == NULL || zwc->zbc == NULL) return Z_STREAM_ERROR;
 
     if (!pledgedSrcSize) pledgedSrcSize = zwc->pledgedSrcSize;
-    {   ZSTD_parameters const params = ZSTD_getParams(zwc->compressionLevel, pledgedSrcSize, dictSize);
-        size_t initErr;
+    {   unsigned initErr = 0;
+        ZSTD_parameters const params = ZSTD_getParams(zwc->compressionLevel, pledgedSrcSize, dictSize);
+        ZSTD_CCtx_params* cctxParams = ZSTD_createCCtxParams();
+        if (!cctxParams) return Z_STREAM_ERROR;
         LOG_WRAPPERC("pledgedSrcSize=%d windowLog=%d chainLog=%d hashLog=%d searchLog=%d minMatch=%d strategy=%d\n",
                     (int)pledgedSrcSize, params.cParams.windowLog, params.cParams.chainLog, params.cParams.hashLog, params.cParams.searchLog, params.cParams.minMatch, params.cParams.strategy);
-        initErr = ZSTD_initCStream_advanced(zwc->zbc, dict, dictSize, params, pledgedSrcSize);
-        if (ZSTD_isError(initErr)) return Z_STREAM_ERROR;
+
+        initErr |= ZSTD_isError(ZSTD_CCtx_reset(zwc->zbc, ZSTD_reset_session_only));
+        initErr |= ZSTD_isError(ZSTD_CCtxParams_init_advanced(cctxParams, params));
+        initErr |= ZSTD_isError(ZSTD_CCtx_setParametersUsingCCtxParams(zwc->zbc, cctxParams));
+        initErr |= ZSTD_isError(ZSTD_CCtx_setPledgedSrcSize(zwc->zbc, pledgedSrcSize));
+        initErr |= ZSTD_isError(ZSTD_CCtx_loadDictionary(zwc->zbc, dict, dictSize));
+
+        ZSTD_freeCCtxParams(cctxParams);
+        if (initErr) return Z_STREAM_ERROR;
     }
 
     return Z_OK;

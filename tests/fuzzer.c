@@ -766,6 +766,50 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : testing dict compression for determinism : ", testNb++);
+    {
+        size_t const testSize = 1024;
+        ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+        char* dict = (char*)malloc(2 * testSize);
+        int ldmEnabled, level;
+
+        RDG_genBuffer(dict, testSize, 0.5, 0.5, seed);
+        RDG_genBuffer(CNBuffer, testSize, 0.6, 0.6, seed);
+        memcpy(dict + testSize, CNBuffer, testSize);
+        for (level = 1; level <= 5; ++level) {
+            for (ldmEnabled = 0; ldmEnabled <= 1; ++ldmEnabled) {
+                size_t cSize0;
+                XXH64_hash_t compressedChecksum0;
+
+                CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1));
+                CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, level));
+                CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, ldmEnabled));
+                CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_deterministicRefPrefix, 1));
+
+                CHECK_Z(ZSTD_CCtx_refPrefix(cctx, dict, testSize));
+                cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, testSize);
+                CHECK_Z(cSize);
+                CHECK_Z(ZSTD_decompress_usingDict(dctx, decodedBuffer, testSize, compressedBuffer, cSize, dict, testSize));
+
+                cSize0 = cSize;
+                compressedChecksum0 = XXH64(compressedBuffer, cSize, 0);
+
+                CHECK_Z(ZSTD_CCtx_refPrefix(cctx, dict, testSize));
+                cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, dict + testSize, testSize);
+                CHECK_Z(cSize);
+
+                if (cSize != cSize0) goto _output_error;
+                if (XXH64(compressedBuffer, cSize, 0) != compressedChecksum0) goto _output_error;
+            }
+        }
+
+        ZSTD_freeCCtx(cctx);
+        ZSTD_freeDCtx(dctx);
+        free(dict);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     DISPLAYLEVEL(3, "test%3i : LDM + opt parser with small uncompressible block ", testNb++);
     {   ZSTD_CCtx* cctx = ZSTD_createCCtx();
         ZSTD_DCtx* dctx = ZSTD_createDCtx();
@@ -1738,10 +1782,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
         DISPLAYLEVEL(3, "test%3i : check content size on duplicated context : ", testNb++);
         {   size_t const testSize = CNBuffSize / 3;
-            {   ZSTD_parameters p = ZSTD_getParams(2, testSize, dictSize);
-                p.fParams.contentSizeFlag = 1;
-                CHECK( ZSTD_compressBegin_advanced(ctxOrig, CNBuffer, dictSize, p, testSize-1) );
-            }
+            CHECK( ZSTD_compressBegin(ctxOrig, ZSTD_defaultCLevel()) );
             CHECK( ZSTD_copyCCtx(ctxDuplicated, ctxOrig, testSize) );
 
             CHECK_VAR(cSize, ZSTD_compressEnd(ctxDuplicated, compressedBuffer, ZSTD_compressBound(testSize),
@@ -2562,12 +2603,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
         int const compressionLevel = -1;
 
         assert(cctx != NULL);
-        {   ZSTD_parameters const params = ZSTD_getParams(compressionLevel, srcSize, 0);
-            size_t const cSize_1pass = ZSTD_compress_advanced(cctx,
-                                        compressedBuffer, compressedBufferSize,
-                                        CNBuffer, srcSize,
-                                        NULL, 0,
-                                        params);
+        {   size_t const cSize_1pass = ZSTD_compress(compressedBuffer, compressedBufferSize,
+                                                     CNBuffer, srcSize, compressionLevel);
             if (ZSTD_isError(cSize_1pass)) goto _output_error;
 
             CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, compressionLevel) );

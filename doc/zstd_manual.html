@@ -1611,6 +1611,10 @@ ZSTD_initCStream_usingCDict_advanced(ZSTD_CStream* zcs,
      ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
      ZSTD_CCtx_setPledgedSrcSize(zcs, pledgedSrcSize);
 
+     Note: ZSTD_resetCStream() interprets pledgedSrcSize == 0 as ZSTD_CONTENTSIZE_UNKNOWN, but
+        ZSTD_CCtx_setPledgedSrcSize() does not do the same, so ZSTD_CONTENTSIZE_UNKNOWN must be
+        explicitly specified.
+
   start a new frame, using same parameters from previous frame.
   This is typically useful to skip dictionary loading stage, since it will re-use it in-place.
   Note that zcs must be init at least once before using ZSTD_resetCStream().

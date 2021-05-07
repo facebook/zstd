@@ -334,7 +334,8 @@ include $(wildcard $(DEPFILES))
 # Special case : building library in single-thread mode _and_ without zstdmt_compress.c
 ZSTDMT_FILES = compress/zstdmt_compress.c
 ZSTD_NOMT_FILES = $(filter-out $(ZSTDMT_FILES),$(ZSTD_FILES))
-libzstd-nomt: LDFLAGS += -shared -fPIC -fvisibility=hidden
+libzstd-nomt: CFLAGS += -fPIC -fvisibility=hidden
+libzstd-nomt: LDFLAGS += -shared
 libzstd-nomt: $(ZSTD_NOMT_FILES)
 	@echo compiling single-thread dynamic library $(LIBVER)
 	@echo files : $(ZSTD_NOMT_FILES)

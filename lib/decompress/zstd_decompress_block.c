@@ -1161,6 +1161,8 @@ ZSTD_decompressSequences_body( ZSTD_DCtx* dctx,
          *
          *   https://gist.github.com/terrelln/9889fc06a423fd5ca6e99351564473f4
          */
+        __asm__(".p2align 6");
+        __asm__("nop");
         __asm__(".p2align 5");
         __asm__("nop");
         __asm__(".p2align 4");

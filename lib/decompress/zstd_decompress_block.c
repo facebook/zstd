@@ -1142,13 +1142,14 @@ ZSTD_decompressSequences_body( ZSTD_DCtx* dctx,
          * If you see most cycles served out of the DSB you've hit the good case.
          * If it is pretty even then you may be in an okay case.
          *
-         * I've been able to reproduce this issue on the following CPUs:
+         * This issue has been reproduced on the following CPUs:
          *   - Kabylake: Macbook Pro (15-inch, 2019) 2.4 GHz Intel Core i9
          *               Use Instruments->Counters to get DSB/MITE cycles.
          *               I never got performance swings, but I was able to
          *               go from the good case of mostly DSB to half of the
          *               cycles served from MITE.
          *   - Coffeelake: Intel i9-9900k
+         *   - Coffeelake: Intel i7-9700k
          *
          * I haven't been able to reproduce the instability or DSB misses on any
          * of the following CPUS:
@@ -1165,7 +1166,12 @@ ZSTD_decompressSequences_body( ZSTD_DCtx* dctx,
         __asm__("nop");
         __asm__(".p2align 5");
         __asm__("nop");
+#  if __GNUC__ >= 9
+        /* better for gcc-9 and gcc-10, worse for clang and gcc-8 */
+        __asm__(".p2align 3");
+#  else
         __asm__(".p2align 4");
+#  endif
 #endif
         for ( ; ; ) {
             seq_t const sequence = ZSTD_decodeSequence(&seqState, isLongOffset);

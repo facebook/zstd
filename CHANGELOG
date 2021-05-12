@@ -1,8 +1,7 @@
 v1.5.0  (May 11, 2021)
-api: Various functions and parameters promoted from experimental to stable API: (#2579-2581, @senhuang42)
+api: Various functions promoted from experimental to stable API: (#2579-2581, @senhuang42)
   `ZSTD_defaultCLevel()`
   `ZSTD_getDictID_fromCDict()`
- `ZSTD_c_literalCompressionMode`
 api: Several experimental functions have been deprecated and will emit a compiler warning (#2582, @senhuang42)
   `ZSTD_compress_advanced()`
   `ZSTD_compress_usingCDict_advanced()`

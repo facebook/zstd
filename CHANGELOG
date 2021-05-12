@@ -14,6 +14,7 @@ api: Several experimental functions have been deprecated and will emit a compile
   `ZSTD_initCStream_advanced()`
   `ZSTD_initCStream_usingCDict_advanced()`
   `ZSTD_resetCStream()`
+api: ZSTDMT_NBWORKERS_MAX reduced to 64 for 32-bit environments (@Cyan4973)
 perf: Significant speed improvements for middle compression levels (#2494, @senhuang42 @terrelln)
 perf: Block splitter to improve compression ratio, enabled by default for high compression levels (#2447, @senhuang42)
 perf: Decompression loop refactor, speed improvements on `clang` and for `--long` modes (#2614 #2630, @Cyan4973)

@@ -224,7 +224,8 @@ Therefore, this avenue is intentionally restricted and only supports `ZSTD_CLEVE
 that `zstd` will use for compression, which by default is `1`.
 This functionality only exists when `zstd` is compiled with multithread support.
 `0` means "use as many threads as detected cpu cores on local system".
-The max # of threads is capped at: `ZSTDMT_NBWORKERS_MAX==200`.
+The max # of threads is capped at `ZSTDMT_NBWORKERS_MAX`,
+which is either 64 in 32-bit mode, or 256 for 64-bit environments.
 
 This functionality can be useful when `zstd` CLI is invoked in a way that doesn't allow passing arguments.
 One such scenario is `tar --zstd`.

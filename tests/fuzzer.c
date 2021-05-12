@@ -340,11 +340,11 @@ static void FUZ_decodeSequences(BYTE* dst, ZSTD_Sequence* seqs, size_t seqsSize,
 typedef struct {
     ZSTD_CCtx* cctx;
     ZSTD_threadPool* pool;
-    void* const CNBuffer;
+    void* CNBuffer;
     size_t CNBuffSize;
-    void* const compressedBuffer;
+    void* compressedBuffer;
     size_t compressedBufferSize;
-    void* const decodedBuffer;
+    void* decodedBuffer;
     int err;
 } threadPoolTests_compressionJob_payload;
 

@@ -32,10 +32,10 @@
 
 
 /* ===   Constants   === */
-#ifndef ZSTDMT_NBWORKERS_MAX   /* can be modified at compile time */
-#  define ZSTDMT_NBWORKERS_MAX 200
+#ifndef ZSTDMT_NBWORKERS_MAX /* a different value can be selected at compile time */
+#  define ZSTDMT_NBWORKERS_MAX ((sizeof(void*)==4) /*32-bit*/ ? 64 : 256)
 #endif
-#ifndef ZSTDMT_JOBSIZE_MIN   /* can be modified at compile time */
+#ifndef ZSTDMT_JOBSIZE_MIN   /* a different value can be selected at compile time */
 #  define ZSTDMT_JOBSIZE_MIN (512 KB)
 #endif
 #define ZSTDMT_JOBLOG_MAX   (MEM_32bits() ? 29 : 30)

@@ -115,7 +115,8 @@ the last one takes effect.
 * `-T#`, `--threads=#`:
     Compress using `#` working threads (default: 1).
     If `#` is 0, attempt to detect and use the number of physical CPU cores.
-    In all cases, the nb of threads is capped to ZSTDMT_NBWORKERS_MAX==200.
+    In all cases, the nb of threads is capped to `ZSTDMT_NBWORKERS_MAX`,
+    which is either 64 in 32-bit mode, or 256 for 64-bit environments.
     This modifier does nothing if `zstd` is compiled without multithread support.
 * `--single-thread`:
     Does not spawn a thread for compression, use a single thread for both I/O and compression.

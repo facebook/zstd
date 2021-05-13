@@ -30,6 +30,7 @@
 #define ZSTD_STATIC_LINKING_ONLY  /* ZSTD_compressContinue, ZSTD_compressBlock */
 #include "debug.h"        /* DEBUG_STATIC_ASSERT */
 #include "fse.h"
+#define ZSTD_DISABLE_DEPRECATE_WARNINGS /* No deprecation warnings, we still test some deprecated functions */
 #include "zstd.h"         /* ZSTD_VERSION_STRING */
 #include "zstd_errors.h"  /* ZSTD_getErrorCode */
 #define ZDICT_STATIC_LINKING_ONLY

@@ -9,6 +9,9 @@
 #pragma once
 
 #define ZSTD_STATIC_LINKING_ONLY
+#define ZSTD_DISABLE_DEPRECATE_WARNINGS /* No deprecation warnings, pzstd itself is deprecated
+                                         * and uses deprecated functions
+                                         */
 #include "zstd.h"
 #undef ZSTD_STATIC_LINKING_ONLY
 

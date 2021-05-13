@@ -3915,6 +3915,7 @@ static size_t ZSTD_compress_frameChunk(ZSTD_CCtx* cctx,
         ZSTD_overflowCorrectIfNeeded(
             ms, &cctx->workspace, &cctx->appliedParams, ip, ip + blockSize);
         ZSTD_checkDictValidity(&ms->window, ip + blockSize, maxDist, &ms->loadedDictEnd, &ms->dictMatchState);
+        ZSTD_window_enforceMaxDist(&ms->window, ip, maxDist, &ms->loadedDictEnd, &ms->dictMatchState);
 
         /* Ensure hash/chain table insertion resumes no sooner than lowlimit */
         if (ms->nextToUpdate < ms->window.lowLimit) ms->nextToUpdate = ms->window.lowLimit;

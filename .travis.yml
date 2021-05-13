@@ -125,7 +125,7 @@ matrix:
     # meson dedicated test
     - name: Xenial (Meson + clang)    # ~15mn
       if: branch = release
-      dist: xenial
+      dist: bionic
       language: cpp
       compiler: clang
       install:

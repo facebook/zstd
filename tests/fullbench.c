@@ -28,6 +28,7 @@
     #define GB *(1U<<30)
     typedef enum { bt_raw, bt_rle, bt_compressed, bt_reserved } blockType_e;
 #endif
+#define ZSTD_DISABLE_DEPRECATE_WARNINGS /* No deprecation warnings, we still bench some deprecated functions */
 #define ZSTD_STATIC_LINKING_ONLY  /* ZSTD_compressBegin, ZSTD_compressContinue, etc. */
 #include "zstd.h"        /* ZSTD_versionString */
 #include "util.h"        /* time functions */

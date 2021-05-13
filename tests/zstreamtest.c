@@ -28,6 +28,7 @@
 #include <assert.h>       /* assert */
 #include "timefn.h"       /* UTIL_time_t, UTIL_getTime */
 #include "mem.h"
+#define ZSTD_DISABLE_DEPRECATE_WARNINGS /* No deprecation warnings, we still test some deprecated functions */
 #define ZSTD_STATIC_LINKING_ONLY  /* ZSTD_maxCLevel, ZSTD_customMem, ZSTD_getDictID_fromFrame */
 #include "zstd.h"         /* ZSTD_compressBound */
 #include "zstd_errors.h"  /* ZSTD_error_srcSize_wrong */

@@ -57,7 +57,7 @@ fuzzer_sources = [join_paths(zstd_rootdir, 'programs/datagen.c'),
 fuzzer = executable('fuzzer',
   fuzzer_sources,
   include_directories: test_includes,
-  dependencies: libzstd_dep,
+  dependencies: [ libzstd_dep, thread_dep ],
   install: false)
 
 zstreamtest_sources = [join_paths(zstd_rootdir, 'programs/datagen.c'),

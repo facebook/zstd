@@ -928,7 +928,7 @@ typedef struct {
 
 static ZSTD_Vec256 ZSTD_Vec256_read(const void* const ptr) {
 	ZSTD_Vec256 v;
-    v.v = _mm256_load_si256((const __m256i*)ptr);
+    v.v = _mm256_loadu_si256((const __m256i*)ptr);
 	return v;
 }
 

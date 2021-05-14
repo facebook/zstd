@@ -30,6 +30,9 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    env:
+      DEVNULLRIGHTS: 1
+      READFROMBLOCKDEVICE: 1
     steps:
     - uses: actions/checkout@v2
     - name: make test
@@ -55,14 +58,12 @@ jobs:
         CC=gcc-7 CFLAGS=-Werror make -j all
         make clean
         LDFLAGS=-Wl,--no-undefined make -C lib libzstd-mt
-        make -C tests zbufftest-dll
 
     # candidate test (to check) : underlink test
     # LDFLAGS=-Wl,--no-undefined : will make the linker fail if dll is underlinked
-    # zbufftest-dll : test that a user program can link to multi-threaded libzstd without specifying -pthread
 
   gcc-8-asan-ubsan-testzstd:
-    runs-on: ubuntu-16.04 # fails on 18.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     - name: gcc-8 + ASan + UBSan + Test Zstd
@@ -125,6 +126,16 @@ jobs:
       run: |
         make libc6install
         CFLAGS="-O2 -m32" FUZZER_FLAGS="--long-tests" make uasan-fuzztest
+
+  clang-msan-fuzz:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: clang + MSan + Fuzz Test
+      run: |
+        sudo apt-get update
+        sudo apt-get install clang
+        CC=clang FUZZER_FLAGS="--long-tests" make clean msan-fuzztest
 
   asan-ubsan-msan-regression:
     runs-on: ubuntu-latest

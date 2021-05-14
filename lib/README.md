@@ -19,12 +19,16 @@ The scope can be reduced on demand (see paragraph _modular build_).
 
 #### Multithreading support
 
-Multithreading is disabled by default when building with `make`.
+When building with `make`, by default the dynamic library is multithreaded and static library is single-threaded (for compatibility reasons).
+
 Enabling multithreading requires 2 conditions :
 - set build macro `ZSTD_MULTITHREAD` (`-DZSTD_MULTITHREAD` for `gcc`)
 - for POSIX systems : compile with pthread (`-pthread` compilation flag for `gcc`)
 
-Both conditions are automatically applied when invoking `make lib-mt` target.
+For convenience, we provide a build target to generate multi and single threaded libraries:
+- Force enable multithreading on both dynamic and static libraries by appending `-mt` to the target, e.g. `make lib-mt`.
+- Force disable multithreading on both dynamic and static libraries by appending `-nomt` to the target, e.g. `make lib-nomt`.
+- By default, as mentioned before, dynamic library is multithreaded, and static library is single-threaded, e.g. `make lib`.
 
 When linking a POSIX program with a multithreaded version of `libzstd`,
 note that it's necessary to invoke the `-pthread` flag during link stage.
@@ -42,8 +46,8 @@ Zstandard's stable API is exposed within [lib/zstd.h](zstd.h).
 
 Optional advanced features are exposed via :
 
-- `lib/common/zstd_errors.h` : translates `size_t` function results
-                               into a `ZSTD_ErrorCode`, for accurate error handling.
+- `lib/zstd_errors.h` : translates `size_t` function results
+                        into a `ZSTD_ErrorCode`, for accurate error handling.
 
 - `ZSTD_STATIC_LINKING_ONLY` : if this macro is defined _before_ including `zstd.h`,
                           it unlocks access to the experimental API,

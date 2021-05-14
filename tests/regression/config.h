@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2021, Facebook, Inc.
+ * Copyright (c) Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -53,6 +53,11 @@ typedef struct {
      * when the method allows it. Defaults to yes.
      */
     int no_pledged_src_size;
+    /**
+     * Boolean parameter that says that this config should only be used
+     * for methods that use the advanced compression API
+     */
+    int advanced_api_only;
 } config_t;
 
 /**

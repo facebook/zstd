@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2021, Facebook, Inc.
+ * Copyright (c) Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -91,9 +91,13 @@ void FUZZ_setRandomParameters(ZSTD_CCtx *cctx, size_t srcSize, FUZZ_dataProducer
     /* Set misc parameters */
     setRand(cctx, ZSTD_c_nbWorkers, 0, 2, producer);
     setRand(cctx, ZSTD_c_rsyncable, 0, 1, producer);
+    setRand(cctx, ZSTD_c_useRowMatchFinder, 0, 2, producer);
+    setRand(cctx, ZSTD_c_enableDedicatedDictSearch, 0, 1, producer);
     setRand(cctx, ZSTD_c_forceMaxWindow, 0, 1, producer);
     setRand(cctx, ZSTD_c_literalCompressionMode, 0, 2, producer);
     setRand(cctx, ZSTD_c_forceAttachDict, 0, 2, producer);
+    setRand(cctx, ZSTD_c_splitBlocks, 0, 1, producer);
+    setRand(cctx, ZSTD_c_deterministicRefPrefix, 0, 1, producer);
     if (FUZZ_dataProducer_uint32Range(producer, 0, 1) == 0) {
       setRand(cctx, ZSTD_c_srcSizeHint, ZSTD_SRCSIZEHINT_MIN, 2 * srcSize, producer);
     }

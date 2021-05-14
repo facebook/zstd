@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2021, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
+ * Copyright (c) Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -22,7 +22,7 @@ extern "C" {
 #include "platform.h"     /* PLATFORM_POSIX_VERSION, ZSTD_NANOSLEEP_SUPPORT, ZSTD_SETPRIORITY_SUPPORT */
 #include <stddef.h>       /* size_t, ptrdiff_t */
 #include <sys/types.h>    /* stat, utime */
-#include <sys/stat.h>     /* stat, chmod, umask */
+#include <sys/stat.h>     /* stat, chmod */
 #include "../lib/common/mem.h"          /* U64 */
 
 
@@ -143,6 +143,7 @@ int UTIL_setFileStat(const char* filename, const stat_t* statbuf);
 int UTIL_isRegularFileStat(const stat_t* statbuf);
 int UTIL_isDirectoryStat(const stat_t* statbuf);
 int UTIL_isFIFOStat(const stat_t* statbuf);
+int UTIL_isBlockDevStat(const stat_t* statbuf);
 U64 UTIL_getFileSizeStat(const stat_t* statbuf);
 
 /**
@@ -151,11 +152,6 @@ U64 UTIL_getFileSizeStat(const stat_t* statbuf);
  * check whether it should be modified.
  */
 int UTIL_chmod(char const* filename, const stat_t* statbuf, mode_t permissions);
-
-/**
- * Wraps umask(). Does nothing when the platform doesn't have that concept.
- */
-int UTIL_umask(int mode);
 
 /*
  * In the absence of a pre-existing stat result on the file in question, these
@@ -277,7 +273,7 @@ void UTIL_refFilename(FileNamesTable* fnt, const char* filename);
  *        or NULL in case of error
  */
 FileNamesTable*
-UTIL_createExpandedFNT(const char** filenames, size_t nbFilenames, int followLinks);
+UTIL_createExpandedFNT(const char* const* filenames, size_t nbFilenames, int followLinks);
 
 
 /*-****************************************

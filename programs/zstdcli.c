@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2021, Yann Collet, Facebook, Inc.
+ * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -148,7 +148,8 @@ static void usage(FILE* f, const char* programName)
     DISPLAY_F(f, " -D DICT: use DICT as Dictionary for compression or decompression \n");
     DISPLAY_F(f, " -o file: result stored into `file` (only 1 output file) \n");
     DISPLAY_F(f, " -f     : disable input and output checks. Allows overwriting existing files,\n");
-    DISPLAY_F(f, "          input from console, output to stdout, operating on links, etc.\n");
+    DISPLAY_F(f, "          input from console, output to stdout, operating on links,\n");
+    DISPLAY_F(f, "          block devices, etc.\n");
     DISPLAY_F(f, "--rm    : remove source file(s) after successful de/compression \n");
     DISPLAY_F(f, " -k     : preserve source file(s) (default) \n");
     DISPLAY_F(f, " -h/-H  : display help/long help and exit \n");
@@ -166,7 +167,8 @@ static void usage_advanced(const char* programName)
 
     DISPLAYOUT( " -v     : verbose mode; specify multiple times to increase verbosity \n");
     DISPLAYOUT( " -q     : suppress warnings; specify twice to suppress errors too \n");
-    DISPLAYOUT( "--no-progress : do not display the progress counter \n");
+    DISPLAYOUT( "--[no-]progress : forcibly display, or never display the progress counter.\n");
+    DISPLAYOUT( "                  note: any (de)compressed output to terminal will mix with progress counter text. \n");
 
 #ifdef UTIL_HAS_CREATEFILELIST
     DISPLAYOUT( " -r     : operate recursively on directories \n");
@@ -205,6 +207,7 @@ static void usage_advanced(const char* programName)
     DISPLAYOUT( "--long[=#]: enable long distance matching with given window log (default: %u) \n", g_defaultMaxWindowLog);
     DISPLAYOUT( "--fast[=#]: switch to very fast compression levels (default: %u) \n", 1);
     DISPLAYOUT( "--adapt : dynamically adapt compression level to I/O conditions \n");
+    DISPLAYOUT( "--[no-]row-match-finder : force enable/disable usage of fast row-based matchfinder for greedy, lazy, and lazy2 strategies \n");
 # ifdef ZSTD_MULTITHREAD
     DISPLAYOUT( " -T#    : spawns # compression threads (default: 1, 0==# cores) \n");
     DISPLAYOUT( " -B#    : select size of each job (default: 0==automatic) \n");
@@ -723,6 +726,7 @@ int main(int const argCount, const char* argv[])
 {
     int argNb,
         followLinks = 0,
+        allowBlockDevices = 0,
         forceStdin = 0,
         forceStdout = 0,
         hasStdout = 0,
@@ -730,6 +734,7 @@ int main(int const argCount, const char* argv[])
         main_pause = 0,
         nbWorkers = 0,
         adapt = 0,
+        useRowMatchFinder = 0,
         adaptMin = MINCLEVEL,
         adaptMax = MAXCLEVEL,
         rsyncable = 0,
@@ -836,7 +841,7 @@ int main(int const argCount, const char* argv[])
                 if (!strcmp(argument, "--compress")) { operation=zom_compress; continue; }
                 if (!strcmp(argument, "--decompress")) { operation=zom_decompress; continue; }
                 if (!strcmp(argument, "--uncompress")) { operation=zom_decompress; continue; }
-                if (!strcmp(argument, "--force")) { FIO_overwriteMode(prefs); forceStdin=1; forceStdout=1; followLinks=1; continue; }
+                if (!strcmp(argument, "--force")) { FIO_overwriteMode(prefs); forceStdin=1; forceStdout=1; followLinks=1; allowBlockDevices=1; continue; }
                 if (!strcmp(argument, "--version")) { printVersion(); CLEAN_RETURN(0); }
                 if (!strcmp(argument, "--help")) { usage_advanced(programName); CLEAN_RETURN(0); }
                 if (!strcmp(argument, "--verbose")) { g_displayLevel++; continue; }
@@ -857,6 +862,8 @@ int main(int const argCount, const char* argv[])
                 if (!strcmp(argument, "--content-size")) { contentSize = 1; continue; }
                 if (!strcmp(argument, "--no-content-size")) { contentSize = 0; continue; }
                 if (!strcmp(argument, "--adapt")) { adapt = 1; continue; }
+                if (!strcmp(argument, "--no-row-match-finder")) { useRowMatchFinder = 1; continue; }
+                if (!strcmp(argument, "--row-match-finder")) { useRowMatchFinder = 2; continue; }
                 if (longCommandWArg(&argument, "--adapt=")) { adapt = 1; if (!parseAdaptParameters(argument, &adaptMin, &adaptMax)) { badusage(programName); CLEAN_RETURN(1); } continue; }
                 if (!strcmp(argument, "--single-thread")) { nbWorkers = 0; singleThread = 1; continue; }
                 if (!strcmp(argument, "--format=zstd")) { suffix = ZSTD_EXTENSION; FIO_setCompressionType(prefs, FIO_zstdCompression); continue; }
@@ -873,7 +880,8 @@ int main(int const argCount, const char* argv[])
                 if (!strcmp(argument, "--rsyncable")) { rsyncable = 1; continue; }
                 if (!strcmp(argument, "--compress-literals")) { literalCompressionMode = ZSTD_lcm_huffman; continue; }
                 if (!strcmp(argument, "--no-compress-literals")) { literalCompressionMode = ZSTD_lcm_uncompressed; continue; }
-                if (!strcmp(argument, "--no-progress")) { FIO_setNoProgress(1); continue; }
+                if (!strcmp(argument, "--no-progress")) { FIO_setProgressSetting(FIO_ps_never); continue; }
+                if (!strcmp(argument, "--progress")) { FIO_setProgressSetting(FIO_ps_always); continue; }
                 if (!strcmp(argument, "--exclude-compressed")) { FIO_setExcludeCompressedFile(prefs, 1); continue; }
 
                 /* long commands with arguments */
@@ -1020,7 +1028,7 @@ int main(int const argCount, const char* argv[])
                 case 'D': argument++; NEXT_FIELD(dictFileName); break;
 
                     /* Overwrite */
-                case 'f': FIO_overwriteMode(prefs); forceStdin=1; forceStdout=1; followLinks=1; argument++; break;
+                case 'f': FIO_overwriteMode(prefs); forceStdin=1; forceStdout=1; followLinks=1; allowBlockDevices=1; argument++; break;
 
                     /* Verbose mode */
                 case 'v': g_displayLevel++; argument++; break;
@@ -1196,6 +1204,7 @@ int main(int const argCount, const char* argv[])
         benchParams.ldmFlag = ldmFlag;
         benchParams.ldmMinMatch = (int)g_ldmMinMatch;
         benchParams.ldmHashLog = (int)g_ldmHashLog;
+        benchParams.useRowMatchFinder = useRowMatchFinder;
         if (g_ldmBucketSizeLog != LDM_PARAM_DEFAULT) {
             benchParams.ldmBucketSizeLog = (int)g_ldmBucketSizeLog;
         }
@@ -1326,6 +1335,7 @@ int main(int const argCount, const char* argv[])
     FIO_setNbFilesTotal(fCtx, (int)filenames->tableSize);
     FIO_determineHasStdinInput(fCtx, filenames);
     FIO_setNotificationLevel(g_displayLevel);
+    FIO_setAllowBlockDevices(prefs, allowBlockDevices);
     FIO_setPatchFromMode(prefs, patchFromDictFileName != NULL);
     if (memLimit == 0) {
         if (compressionParams.windowLog == 0) {
@@ -1348,6 +1358,7 @@ int main(int const argCount, const char* argv[])
         if (g_ldmBucketSizeLog != LDM_PARAM_DEFAULT) FIO_setLdmBucketSizeLog(prefs, (int)g_ldmBucketSizeLog);
         if (g_ldmHashRateLog != LDM_PARAM_DEFAULT) FIO_setLdmHashRateLog(prefs, (int)g_ldmHashRateLog);
         FIO_setAdaptiveMode(prefs, (unsigned)adapt);
+        FIO_setUseRowMatchFinder(prefs, useRowMatchFinder);
         FIO_setAdaptMin(prefs, adaptMin);
         FIO_setAdaptMax(prefs, adaptMax);
         FIO_setRsyncable(prefs, rsyncable);
@@ -1387,7 +1398,7 @@ int main(int const argCount, const char* argv[])
         else
             operationResult = FIO_compressMultipleFilenames(fCtx, prefs, filenames->fileNames, outMirroredDirName, outDirName, outFileName, suffix, dictFileName, cLevel, compressionParams);
 #else
-        (void)contentSize; (void)suffix; (void)adapt; (void)rsyncable; (void)ultra; (void)cLevel; (void)ldmFlag; (void)literalCompressionMode; (void)targetCBlockSize; (void)streamSrcSize; (void)srcSizeHint; (void)ZSTD_strategyMap; /* not used when ZSTD_NOCOMPRESS set */
+        (void)contentSize; (void)suffix; (void)adapt; (void)rsyncable; (void)ultra; (void)cLevel; (void)ldmFlag; (void)literalCompressionMode; (void)targetCBlockSize; (void)streamSrcSize; (void)srcSizeHint; (void)ZSTD_strategyMap; (void)useRowMatchFinder; /* not used when ZSTD_NOCOMPRESS set */
         DISPLAY("Compression not supported \n");
 #endif
     } else {  /* decompression or test */

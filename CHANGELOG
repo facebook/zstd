@@ -1,3 +1,59 @@
+v1.5.0  (May 11, 2021)
+api: Various functions promoted from experimental to stable API: (#2579-2581, @senhuang42)
+  `ZSTD_defaultCLevel()`
+  `ZSTD_getDictID_fromCDict()`
+api: Several experimental functions have been deprecated and will emit a compiler warning (#2582, @senhuang42)
+  `ZSTD_compress_advanced()`
+  `ZSTD_compress_usingCDict_advanced()`
+  `ZSTD_compressBegin_advanced()`
+  `ZSTD_compressBegin_usingCDict_advanced()`
+  `ZSTD_initCStream_srcSize()`
+  `ZSTD_initCStream_usingDict()`
+  `ZSTD_initCStream_usingCDict()`
+  `ZSTD_initCStream_advanced()`
+  `ZSTD_initCStream_usingCDict_advanced()`
+  `ZSTD_resetCStream()`
+api: ZSTDMT_NBWORKERS_MAX reduced to 64 for 32-bit environments (@Cyan4973)
+perf: Significant speed improvements for middle compression levels (#2494, @senhuang42 @terrelln)
+perf: Block splitter to improve compression ratio, enabled by default for high compression levels (#2447, @senhuang42)
+perf: Decompression loop refactor, speed improvements on `clang` and for `--long` modes (#2614 #2630, @Cyan4973)
+perf: Reduced stack usage during compression and decompression entropy stage (#2522 #2524, @terrelln)
+bug: Improve setting permissions of created files (#2525, @felixhandte)
+bug: Fix large dictionary non-determinism (#2607, @terrelln)
+bug: Fix non-determinism test failures on Linux i686 (#2606, @terrelln)
+bug: Fix various dedicated dictionary search bugs (#2540 #2586, @senhuang42 @felixhandte)
+bug: Ensure `ZSTD_estimateCCtxSize*() `monotonically increases with compression level (#2538, @senhuang42)
+bug: Fix --patch-from mode parameter bound bug with small files (#2637, @occivink)
+bug: Fix UBSAN error in decompression (#2625, @terrelln)
+bug: Fix superblock compression divide by zero bug (#2592, @senhuang42)
+bug: Make the number of physical CPU cores detection more robust (#2517, @PaulBone)
+doc: Improve `zdict.h` dictionary training API documentation (#2622, @terrelln)
+doc: Note that public `ZSTD_free*()` functions accept NULL pointers (#2521, @animalize)
+doc: Add style guide docs for open source contributors (#2626, @Cyan4973)
+tests: Better regression test coverage for different dictionary modes (#2559, @senhuang42)
+tests: Better test coverage of index reduction (#2603, @terrelln)
+tests: OSS-Fuzz coverage for seekable format (#2617, @senhuang42)
+tests: Test coverage for ZSTD threadpool API (#2604, @senhuang42)
+build: Dynamic library built multithreaded by default (#2584, @senhuang42)
+build: Move  `zstd_errors.h`  and  `zdict.h`  to  `lib/`  root (#2597, @terrelln)
+build: Allow `ZSTDMT_JOBSIZE_MIN` to be configured at compile-time, reduce default to 512KB (#2611, @Cyan4973)
+build: Single file library build script moved to `build/` directory (#2618, @felixhandte)
+build: `ZBUFF_*()` is no longer built by default (#2583, @senhuang42)
+build: Fixed Meson build (#2548, @SupervisedThinking @kloczek)
+build: Fix excessive compiler warnings with clang-cl and CMake (#2600, @nickhutchinson)
+build: Detect presence of `md5` on Darwin (#2609, @felixhandte)
+build: Avoid SIGBUS on armv6 (#2633, @bmwiedmann)
+cli: `--progress` flag added to always display progress bar (#2595, @senhuang42)
+cli: Allow reading from block devices with `--force` (#2613, @felixhandte)
+cli: Fix CLI filesize display bug (#2550, @Cyan4973)
+cli: Fix windows CLI `--filelist` end-of-line bug (#2620, @Cyan4973)
+contrib: Various fixes for linux kernel patch (#2539, @terrelln)
+contrib: Seekable format - Decompression hanging edge case fix (#2516, @senhuang42)
+contrib: Seekable format - New seek table-only API  (#2113 #2518, @mdittmer @Cyan4973)
+contrib: Seekable format - Fix seek table descriptor check when loading (#2534, @foxeng)
+contrib: Seekable format - Decompression fix for large offsets, (#2594, @azat)
+misc: Automatically published release tarballs available on Github (#2535, @felixhandte)
+
 v1.4.9  (Mar 1, 2021)
 bug: Use `umask()` to Constrain Created File Permissions (#2495, @felixhandte)
 bug: Make Simple Single-Pass Functions Ignore Advanced Parameters (#2498, @terrelln)

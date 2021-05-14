@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2021, Yann Collet, Facebook, Inc.
+ * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -68,6 +68,8 @@ void FIO_freeContext(FIO_ctx_t* const fCtx);
 
 typedef struct FIO_display_prefs_s FIO_display_prefs_t;
 
+typedef enum { FIO_ps_auto, FIO_ps_never, FIO_ps_always } FIO_progressSetting_e;
+
 /*-*************************************
 *  Parameters
 ***************************************/
@@ -77,6 +79,7 @@ void FIO_overwriteMode(FIO_prefs_t* const prefs);
 void FIO_setAdaptiveMode(FIO_prefs_t* const prefs, unsigned adapt);
 void FIO_setAdaptMin(FIO_prefs_t* const prefs, int minCLevel);
 void FIO_setAdaptMax(FIO_prefs_t* const prefs, int maxCLevel);
+void FIO_setUseRowMatchFinder(FIO_prefs_t* const prefs, int useRowMatchFinder);
 void FIO_setBlockSize(FIO_prefs_t* const prefs, int blockSize);
 void FIO_setChecksumFlag(FIO_prefs_t* const prefs, int checksumFlag);
 void FIO_setDictIDFlag(FIO_prefs_t* const prefs, int dictIDFlag);
@@ -99,9 +102,10 @@ void FIO_setLiteralCompressionMode(
         FIO_prefs_t* const prefs,
         ZSTD_literalCompressionMode_e mode);
 
-void FIO_setNoProgress(unsigned noProgress);
+void FIO_setProgressSetting(FIO_progressSetting_e progressSetting);
 void FIO_setNotificationLevel(int level);
 void FIO_setExcludeCompressedFile(FIO_prefs_t* const prefs, int excludeCompressedFiles);
+void FIO_setAllowBlockDevices(FIO_prefs_t* const prefs, int allowBlockDevices);
 void FIO_setPatchFromMode(FIO_prefs_t* const prefs, int value);
 void FIO_setContentSize(FIO_prefs_t* const prefs, int value);
 

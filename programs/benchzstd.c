@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2021, Yann Collet, Facebook, Inc.
+ * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -36,7 +36,7 @@
 #include "datagen.h"     /* RDG_genBuffer */
 #include "../lib/common/xxhash.h"
 #include "benchzstd.h"
-#include "../lib/common/zstd_errors.h"
+#include "../lib/zstd_errors.h"
 
 
 /* *************************************
@@ -67,17 +67,9 @@ static const size_t maxMemory = (sizeof(size_t)==4)  ?
 /* *************************************
 *  console display
 ***************************************/
-#define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
+#define DISPLAY(...)         { fprintf(stderr, __VA_ARGS__); fflush(NULL); }
 #define DISPLAYLEVEL(l, ...) if (displayLevel>=l) { DISPLAY(__VA_ARGS__); }
 /* 0 : no display;   1: errors;   2 : + result + interaction + warnings;   3 : + progression;   4 : + information */
-
-static const U64 g_refreshRate = SEC_TO_MICRO / 6;
-static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
-
-#define DISPLAYUPDATE(l, ...) { if (displayLevel>=l) { \
-            if ((UTIL_clockSpanMicro(g_displayClock) > g_refreshRate) || (displayLevel>=4)) \
-            { g_displayClock = UTIL_getTime(); DISPLAY(__VA_ARGS__); \
-            if (displayLevel>=4) fflush(stderr); } } }
 
 
 /* *************************************
@@ -137,7 +129,8 @@ BMK_advancedParams_t BMK_initAdvancedParams(void) {
         0, /* ldmHashLog */
         0, /* ldmBuckSizeLog */
         0,  /* ldmHashRateLog */
-        ZSTD_lcm_auto /* literalCompressionMode */
+        ZSTD_lcm_auto, /* literalCompressionMode */
+        0 /* useRowMatchFinder */
     };
     return res;
 }
@@ -175,6 +168,7 @@ BMK_initCCtx(ZSTD_CCtx* ctx,
         CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_nbWorkers, adv->nbWorkers));
     }
     CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_compressionLevel, cLevel));
+    CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_useRowMatchFinder, adv->useRowMatchFinder));
     CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_enableLongDistanceMatching, adv->ldmFlag));
     CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_ldmMinMatch, adv->ldmMinMatch));
     CHECK_Z(ZSTD_CCtx_setParameter(ctx, ZSTD_c_ldmHashLog, adv->ldmHashLog));
@@ -766,7 +760,7 @@ static int BMK_loadFiles(void* buffer, size_t bufferSize,
         }
         {   FILE* const f = fopen(fileNamesTable[n], "rb");
             if (f==NULL) RETURN_ERROR_INT(10, "impossible to open file %s", fileNamesTable[n]);
-            DISPLAYUPDATE(2, "Loading %s...       \r", fileNamesTable[n]);
+            DISPLAYLEVEL(2, "Loading %s...       \r", fileNamesTable[n]);
             if (fileSize > bufferSize-pos) fileSize = bufferSize-pos, nbFiles=n;   /* buffer too small - stop after this file */
             {   size_t const readSize = fread(((char*)buffer)+pos, 1, (size_t)fileSize, f);
                 if (readSize != (size_t)fileSize) RETURN_ERROR_INT(11, "could not read %s", fileNamesTable[n]);

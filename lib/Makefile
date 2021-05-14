@@ -1,5 +1,5 @@
 # ################################################################
-# Copyright (c) 2015-2021, Yann Collet, Facebook, Inc.
+# Copyright (c) Yann Collet, Facebook, Inc.
 # All rights reserved.
 #
 # This source code is licensed under both the BSD-style license (found in the
@@ -8,6 +8,9 @@
 # You may select, at your option, one of the above-listed licenses.
 # ################################################################
 
+# Note: by default, the static library is built single-threaded and dynamic library is built
+# multi-threaded. It is possible to force multi or single threaded builds by appending
+# -mt or -nomt to the build target (like lib-mt for multi-threaded, lib-nomt for single-threaded).
 .PHONY: default
 default: lib-release
 
@@ -68,6 +71,10 @@ DEBUGFLAGS= -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
 CFLAGS   += $(DEBUGFLAGS) $(MOREFLAGS)
 FLAGS     = $(CPPFLAGS) $(CFLAGS)
 
+CPPFLAGS_DYNLIB  = -DZSTD_MULTITHREAD # dynamic library build defaults to multi-threaded
+LDFLAGS_DYNLIB   = -pthread
+CPPFLAGS_STATLIB =                    # static library build defaults to single-threaded
+
 HAVE_COLORNEVER = $(shell echo a | grep --color=never a > /dev/null 2> /dev/null && echo 1 || echo 0)
 GREP_OPTIONS ?=
 ifeq ($HAVE_COLORNEVER, 1)
@@ -91,7 +98,7 @@ endif
 ZSTD_LIB_COMPRESSION ?= 1
 ZSTD_LIB_DECOMPRESSION ?= 1
 ZSTD_LIB_DICTBUILDER ?= 1
-ZSTD_LIB_DEPRECATED ?= 1
+ZSTD_LIB_DEPRECATED ?= 0
 
 # Legacy support
 ZSTD_LEGACY_SUPPORT ?= 5
@@ -176,7 +183,9 @@ UNAME := $(shell uname)
 
 ifndef BUILD_DIR
 ifeq ($(UNAME), Darwin)
-  HASH ?= md5
+  ifeq ($(shell md5 < /dev/null > /dev/null; echo $$?), 0)
+    HASH ?= md5
+  endif
 else ifeq ($(UNAME), FreeBSD)
   HASH ?= gmd5sum
 else ifeq ($(UNAME), NetBSD)
@@ -222,6 +231,7 @@ all: lib
 
 
 .PHONY: libzstd.a  # must be run every time
+libzstd.a: CPPFLAGS += $(CPPFLAGS_STATLIB)
 
 ifndef BUILD_DIR
 # determine BUILD_DIR from compilation flags
@@ -238,7 +248,10 @@ ZSTD_STATLIB_OBJ := $(addprefix $(ZSTD_STATLIB_DIR)/,$(ZSTD_LOCAL_OBJ))
 $(ZSTD_STATLIB): ARFLAGS = rcs
 $(ZSTD_STATLIB): | $(ZSTD_STATLIB_DIR)
 $(ZSTD_STATLIB): $(ZSTD_STATLIB_OBJ)
-	@echo compiling static library
+  # Check for multithread flag at target execution time
+	$(if $(filter -DZSTD_MULTITHREAD,$(CPPFLAGS)),\
+    @echo compiling multi-threaded static library $(LIBVER),\
+    @echo compiling single-threaded static library $(LIBVER))
 	$(AR) $(ARFLAGS) $@ $^
 
 libzstd.a: $(ZSTD_STATLIB)
@@ -257,8 +270,9 @@ else  # not Windows
 
 LIBZSTD = libzstd.$(SHARED_EXT_VER)
 .PHONY: $(LIBZSTD)  # must be run every time
-$(LIBZSTD): CFLAGS += -fPIC -fvisibility=hidden
-$(LIBZSTD): LDFLAGS += -shared
+$(LIBZSTD): CPPFLAGS += $(CPPFLAGS_DYNLIB)
+$(LIBZSTD): CFLAGS   += -fPIC -fvisibility=hidden
+$(LIBZSTD): LDFLAGS  += -shared $(LDFLAGS_DYNLIB)
 
 ifndef BUILD_DIR
 # determine BUILD_DIR from compilation flags
@@ -275,7 +289,10 @@ ZSTD_DYNLIB_OBJ := $(addprefix $(ZSTD_DYNLIB_DIR)/,$(ZSTD_LOCAL_OBJ))
 
 $(ZSTD_DYNLIB): | $(ZSTD_DYNLIB_DIR)
 $(ZSTD_DYNLIB): $(ZSTD_DYNLIB_OBJ)
-	@echo compiling dynamic library $(LIBVER)
+# Check for multithread flag at target execution time
+	$(if $(filter -DZSTD_MULTITHREAD,$(CPPFLAGS)),\
+    @echo compiling multi-threaded dynamic library $(LIBVER),\
+    @echo compiling single-threaded dynamic library $(LIBVER))
 	$(CC) $(FLAGS) $^ $(LDFLAGS) $(SONAME_FLAGS) -o $@
 	@echo creating versioned links
 	ln -sf $@ libzstd.$(SHARED_EXT_MAJOR)
@@ -297,10 +314,17 @@ lib : libzstd.a libzstd
 # note : do not define lib-mt or lib-release as .PHONY
 # make does not consider implicit pattern rule for .PHONY target
 
-%-mt : CPPFLAGS += -DZSTD_MULTITHREAD
-%-mt : LDFLAGS  += -pthread
+%-mt : CPPFLAGS_DYNLIB  := -DZSTD_MULTITHREAD
+%-mt : CPPFLAGS_STATLIB := -DZSTD_MULTITHREAD
+%-mt : LDFLAGS_DYNLIB   := -pthread
 %-mt : %
-	@echo multi-threading build completed
+	@echo multi-threaded build completed
+
+%-nomt : CPPFLAGS_DYNLIB  :=
+%-nomt : LDFLAGS_DYNLIB   :=
+%-nomt : CPPFLAGS_STATLIB :=
+%-nomt : %
+	@echo single-threaded build completed
 
 %-release : DEBUGFLAGS :=
 %-release : %
@@ -332,7 +356,8 @@ include $(wildcard $(DEPFILES))
 # Special case : building library in single-thread mode _and_ without zstdmt_compress.c
 ZSTDMT_FILES = compress/zstdmt_compress.c
 ZSTD_NOMT_FILES = $(filter-out $(ZSTDMT_FILES),$(ZSTD_FILES))
-libzstd-nomt: LDFLAGS += -shared -fPIC -fvisibility=hidden
+libzstd-nomt: CFLAGS += -fPIC -fvisibility=hidden
+libzstd-nomt: LDFLAGS += -shared
 libzstd-nomt: $(ZSTD_NOMT_FILES)
 	@echo compiling single-thread dynamic library $(LIBVER)
 	@echo files : $(ZSTD_NOMT_FILES)
@@ -411,10 +436,12 @@ libzstd.pc: libzstd.pc.in
 install: install-pc install-static install-shared install-includes
 	@echo zstd static and shared library installed
 
+.PHONY: install-pc
 install-pc: libzstd.pc
 	[ -e $(DESTDIR)$(PKGCONFIGDIR) ] || $(INSTALL) -d -m 755 $(DESTDIR)$(PKGCONFIGDIR)/
 	$(INSTALL_DATA) libzstd.pc $(DESTDIR)$(PKGCONFIGDIR)/
 
+.PHONY: install-static
 install-static:
 	# only generate libzstd.a if it's not already present
 	[ -e libzstd.a ] || $(MAKE) libzstd.a-release
@@ -422,6 +449,7 @@ install-static:
 	@echo Installing static library
 	$(INSTALL_DATA) libzstd.a $(DESTDIR)$(LIBDIR)
 
+.PHONY: install-shared
 install-shared:
 	# only generate libzstd.so if it's not already present
 	[ -e $(LIBZSTD) ] || $(MAKE) libzstd-release
@@ -431,12 +459,13 @@ install-shared:
 	ln -sf $(LIBZSTD) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR)
 	ln -sf $(LIBZSTD) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT)
 
+.PHONY: install-includes
 install-includes:
 	[ -e $(DESTDIR)$(INCLUDEDIR) ] || $(INSTALL) -d -m 755 $(DESTDIR)$(INCLUDEDIR)/
 	@echo Installing includes
 	$(INSTALL_DATA) zstd.h $(DESTDIR)$(INCLUDEDIR)
-	$(INSTALL_DATA) common/zstd_errors.h $(DESTDIR)$(INCLUDEDIR)
-	$(INSTALL_DATA) dictBuilder/zdict.h $(DESTDIR)$(INCLUDEDIR)
+	$(INSTALL_DATA) zstd_errors.h $(DESTDIR)$(INCLUDEDIR)
+	$(INSTALL_DATA) zdict.h $(DESTDIR)$(INCLUDEDIR)
 
 .PHONY: uninstall
 uninstall:

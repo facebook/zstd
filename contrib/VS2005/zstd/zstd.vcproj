@@ -454,7 +454,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\common\zstd_errors.h"
+				RelativePath="..\..\..\lib\zstd_errors.h"
 				>
 			</File>
 			<File
@@ -482,7 +482,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\dictBuilder\zdict.h"
+				RelativePath="..\..\..\lib\zdict.h"
 				>
 			</File>
 			<File

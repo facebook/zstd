@@ -16,9 +16,11 @@ zstd_frame_info
 decompress_dstSize_tooSmall
 fse_read_ncount
 sequence_compression_api
+seekable_roundtrip
 fuzz-*.log
 rt_lib_*
 d_lib_*
+crash-*
 
 # misc
 trace

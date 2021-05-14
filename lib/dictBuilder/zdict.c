@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2021, Yann Collet, Facebook, Inc.
+ * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -41,18 +41,19 @@
 #include <stdio.h>         /* fprintf, fopen, ftello64 */
 #include <time.h>          /* clock */
 
-#include "../common/mem.h"           /* read */
-#include "../common/fse.h"           /* FSE_normalizeCount, FSE_writeNCount */
-#define HUF_STATIC_LINKING_ONLY
-#include "../common/huf.h"           /* HUF_buildCTable, HUF_writeCTable */
-#include "../common/zstd_internal.h" /* includes zstd.h */
-#include "../common/xxhash.h"        /* XXH64 */
-#include "divsufsort.h"
 #ifndef ZDICT_STATIC_LINKING_ONLY
 #  define ZDICT_STATIC_LINKING_ONLY
 #endif
-#include "zdict.h"
+#define HUF_STATIC_LINKING_ONLY
+
+#include "../common/mem.h"           /* read */
+#include "../common/fse.h"           /* FSE_normalizeCount, FSE_writeNCount */
+#include "../common/huf.h"           /* HUF_buildCTable, HUF_writeCTable */
+#include "../common/zstd_internal.h" /* includes zstd.h */
+#include "../common/xxhash.h"        /* XXH64 */
 #include "../compress/zstd_compress_internal.h" /* ZSTD_loadCEntropy() */
+#include "../zdict.h"
+#include "divsufsort.h"
 
 
 /*-*************************************

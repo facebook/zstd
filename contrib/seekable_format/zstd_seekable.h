@@ -29,6 +29,7 @@ extern "C" {
 
 typedef struct ZSTD_seekable_CStream_s ZSTD_seekable_CStream;
 typedef struct ZSTD_seekable_s ZSTD_seekable;
+typedef struct ZSTD_seekTable_s ZSTD_seekTable;
 
 /*-****************************************************************************
 *  Seekable compression - HowTo
@@ -107,6 +108,7 @@ ZSTDLIB_API size_t ZSTD_seekable_freeFrameLog(ZSTD_frameLog* fl);
 ZSTDLIB_API size_t ZSTD_seekable_logFrame(ZSTD_frameLog* fl, unsigned compressedSize, unsigned decompressedSize, unsigned checksum);
 ZSTDLIB_API size_t ZSTD_seekable_writeSeekTable(ZSTD_frameLog* fl, ZSTD_outBuffer* output);
 
+
 /*-****************************************************************************
 *  Seekable decompression - HowTo
 *  A ZSTD_seekable object is required to tracking the seekTable.
@@ -161,13 +163,42 @@ ZSTDLIB_API size_t ZSTD_seekable_decompress(ZSTD_seekable* zs, void* dst, size_t
 ZSTDLIB_API size_t ZSTD_seekable_decompressFrame(ZSTD_seekable* zs, void* dst, size_t dstSize, unsigned frameIndex);
 
 #define ZSTD_SEEKABLE_FRAMEINDEX_TOOLARGE (0ULL-2)
-/*===== Seek Table access functions =====*/
-ZSTDLIB_API unsigned ZSTD_seekable_getNumFrames(ZSTD_seekable* const zs);
-ZSTDLIB_API unsigned long long ZSTD_seekable_getFrameCompressedOffset(ZSTD_seekable* const zs, unsigned frameIndex);
-ZSTDLIB_API unsigned long long ZSTD_seekable_getFrameDecompressedOffset(ZSTD_seekable* const zs, unsigned frameIndex);
-ZSTDLIB_API size_t ZSTD_seekable_getFrameCompressedSize(ZSTD_seekable* const zs, unsigned frameIndex);
-ZSTDLIB_API size_t ZSTD_seekable_getFrameDecompressedSize(ZSTD_seekable* const zs, unsigned frameIndex);
-ZSTDLIB_API unsigned ZSTD_seekable_offsetToFrameIndex(ZSTD_seekable* const zs, unsigned long long offset);
+/*===== Seekable seek table access functions =====*/
+ZSTDLIB_API unsigned ZSTD_seekable_getNumFrames(const ZSTD_seekable* zs);
+ZSTDLIB_API unsigned long long ZSTD_seekable_getFrameCompressedOffset(const ZSTD_seekable* zs, unsigned frameIndex);
+ZSTDLIB_API unsigned long long ZSTD_seekable_getFrameDecompressedOffset(const ZSTD_seekable* zs, unsigned frameIndex);
+ZSTDLIB_API size_t ZSTD_seekable_getFrameCompressedSize(const ZSTD_seekable* zs, unsigned frameIndex);
+ZSTDLIB_API size_t ZSTD_seekable_getFrameDecompressedSize(const ZSTD_seekable* zs, unsigned frameIndex);
+ZSTDLIB_API unsigned ZSTD_seekable_offsetToFrameIndex(const ZSTD_seekable* zs, unsigned long long offset);
+
+
+/*-****************************************************************************
+*  Direct exploitation of the seekTable
+*
+*  Memory constrained use cases that manage multiple archives
+*  benefit from retaining multiple archive seek tables
+*  without retaining a ZSTD_seekable instance for each.
+*
+*  Below API allow the above-mentioned use cases
+*  to initialize a ZSTD_seekable, extract its (smaller) ZSTD_seekTable,
+*  then throw the ZSTD_seekable away to save memory.
+*
+*  Standard ZSTD operations can then be used
+*  to decompress frames based on seek table offsets.
+******************************************************************************/
+
+/*===== Independent seek table management =====*/
+ZSTDLIB_API ZSTD_seekTable* ZSTD_seekTable_create_fromSeekable(const ZSTD_seekable* zs);
+ZSTDLIB_API size_t ZSTD_seekTable_free(ZSTD_seekTable* st);
+
+/*===== Direct seek table access functions =====*/
+ZSTDLIB_API unsigned ZSTD_seekTable_getNumFrames(const ZSTD_seekTable* st);
+ZSTDLIB_API unsigned long long ZSTD_seekTable_getFrameCompressedOffset(const ZSTD_seekTable* st, unsigned frameIndex);
+ZSTDLIB_API unsigned long long ZSTD_seekTable_getFrameDecompressedOffset(const ZSTD_seekTable* st, unsigned frameIndex);
+ZSTDLIB_API size_t ZSTD_seekTable_getFrameCompressedSize(const ZSTD_seekTable* st, unsigned frameIndex);
+ZSTDLIB_API size_t ZSTD_seekTable_getFrameDecompressedSize(const ZSTD_seekTable* st, unsigned frameIndex);
+ZSTDLIB_API unsigned ZSTD_seekTable_offsetToFrameIndex(const ZSTD_seekTable* st, unsigned long long offset);
+
 
 /*===== Seekable advanced I/O API =====*/
 typedef int(ZSTD_seekable_read)(void* opaque, void* buffer, size_t n);

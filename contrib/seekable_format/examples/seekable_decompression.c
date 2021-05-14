@@ -99,6 +99,9 @@ static void decompressFile_orDie(const char* fname, off_t startOffset, off_t end
 
     while (startOffset < endOffset) {
         size_t const result = ZSTD_seekable_decompress(seekable, buffOut, MIN(endOffset - startOffset, buffOutSize), startOffset);
+        if (!result) {
+            break;
+        }
 
         if (ZSTD_isError(result)) {
             fprintf(stderr, "ZSTD_seekable_decompress() error : %s \n",

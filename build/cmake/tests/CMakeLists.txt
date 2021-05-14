@@ -57,13 +57,15 @@ target_link_libraries(datagen libzstd_static)
 # fullbench
 #
 add_executable(fullbench ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/timefn.c ${PROGRAMS_DIR}/benchfn.c ${PROGRAMS_DIR}/benchzstd.c ${TESTS_DIR}/fullbench.c)
+set_property(TARGET fullbench APPEND PROPERTY COMPILE_OPTIONS "-Wno-deprecated-declarations")
 target_link_libraries(fullbench libzstd_static)
-add_test(NAME fullbench COMMAND fullbench)
+add_test(NAME fullbench COMMAND fullbench ${ZSTD_FULLBENCH_FLAGS})
 
 #
 # fuzzer
 #
 add_executable(fuzzer ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/timefn.c ${TESTS_DIR}/fuzzer.c)
+set_property(TARGET fuzzer APPEND PROPERTY COMPILE_OPTIONS "-Wno-deprecated-declarations")
 target_link_libraries(fuzzer libzstd_static)
 AddTestFlagsOption(ZSTD_FUZZER_FLAGS "$ENV{FUZZERTEST} $ENV{FUZZER_FLAGS}"
     "Semicolon-separated list of flags to pass to the fuzzer test (see `fuzzer -h` for usage)")
@@ -76,6 +78,7 @@ add_test(NAME fuzzer COMMAND fuzzer ${ZSTD_FUZZER_FLAGS})
 # zstreamtest
 #
 add_executable(zstreamtest ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/timefn.c ${TESTS_DIR}/seqgen.c ${TESTS_DIR}/zstreamtest.c)
+set_property(TARGET zstreamtest APPEND PROPERTY COMPILE_OPTIONS "-Wno-deprecated-declarations")
 target_link_libraries(zstreamtest libzstd_static)
 AddTestFlagsOption(ZSTD_ZSTREAM_FLAGS "$ENV{ZSTREAM_TESTTIME} $ENV{FUZZER_FLAGS}"
     "Semicolon-separated list of flags to pass to the zstreamtest test (see `zstreamtest -h` for usage)")

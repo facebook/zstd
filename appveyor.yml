@@ -52,6 +52,15 @@
       PLATFORM: "Win32"
       CONFIGURATION: "Release"
 
+    - COMPILER: "clang-cl"
+      HOST:     "cmake-visual"
+      PLATFORM: "x64"
+      CONFIGURATION: "Release"
+      CMAKE_GENERATOR: "Visual Studio 15 2017"
+      CMAKE_GENERATOR_PLATFORM: "x64"
+      CMAKE_GENERATOR_TOOLSET: "LLVM"
+      APPVEYOR_BUILD_WORKER_IMAGE: "Visual Studio 2017"
+
   install:
   - ECHO Installing %COMPILER% %PLATFORM% %CONFIGURATION%
   - SET PATH_ORIGINAL=%PATH%
@@ -154,6 +163,15 @@
       COPY build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\fuzzer.exe tests\fuzzer_VS2015_%PLATFORM%_%CONFIGURATION%.exe &&
       COPY build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\*.exe tests\
     )
+  - if [%HOST%]==[cmake-visual] (
+      ECHO *** &&
+      ECHO *** Building %CMAKE_GENERATOR% ^(%CMAKE_GENERATOR_TOOLSET%^) %PLATFORM%\%CONFIGURATION% &&
+      PUSHD build\cmake &&
+      cmake -DBUILD_TESTING=ON . &&
+      cmake --build . --config %CONFIGURATION% -j4 &&
+      POPD &&
+      ECHO ***
+    )
 
   test_script:
   - ECHO Testing %COMPILER% %PLATFORM% %CONFIGURATION%
@@ -223,13 +241,21 @@
       PLATFORM: "Win32"
       CONFIGURATION: "Release"
 
+    - COMPILER: "clang-cl"
+      HOST:     "cmake-visual"
+      PLATFORM: "x64"
+      CONFIGURATION: "Release"
+      CMAKE_GENERATOR: "Visual Studio 15 2017"
+      CMAKE_GENERATOR_PLATFORM: "x64"
+      CMAKE_GENERATOR_TOOLSET: "LLVM"
+      APPVEYOR_BUILD_WORKER_IMAGE: "Visual Studio 2017"
+
   install:
   - ECHO Installing %COMPILER% %PLATFORM% %CONFIGURATION%
   - SET PATH_ORIGINAL=%PATH%
   - if [%HOST%]==[cygwin] (
       ECHO Installing Cygwin Packages &&
       C:\cygwin64\setup-x86_64.exe -qnNdO -R "C:\cygwin64" -g -P ^
-        gcc-g++,^
         gcc,^
         cmake,^
         make
@@ -252,8 +278,8 @@
       C:\cygwin64\bin\bash --login -c "
         set -e;
         cd build/cmake;
-        CFLAGS='-Werror' cmake -G 'Unix Makefiles' -DCMAKE_BUILD_TYPE=Debug -DZSTD_BUILD_TESTS:BOOL=ON -DZSTD_FUZZER_FLAGS=-T30s -DZSTD_ZSTREAM_FLAGS=-T30s .;
-        make -j4;
+        CFLAGS='-Werror' cmake -G 'Unix Makefiles' -DCMAKE_BUILD_TYPE=Debug -DZSTD_BUILD_TESTS:BOOL=ON -DZSTD_FUZZER_FLAGS=-T20s -DZSTD_ZSTREAM_FLAGS=-T20s -DZSTD_FULLBENCH_FLAGS=-i0 .;
+        make VERBOSE=1 -j;
         ctest -V -L Medium;
       "
     )
@@ -280,6 +306,15 @@
       MD5sum build/VS2010/bin/%PLATFORM%_%CONFIGURATION%/*.exe &&
       COPY build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\fuzzer.exe tests\fuzzer_VS2015_%PLATFORM%_%CONFIGURATION%.exe &&
       COPY build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\*.exe tests\
+    )
+  - if [%HOST%]==[cmake-visual] (
+      ECHO *** &&
+      ECHO *** Building %CMAKE_GENERATOR% ^(%CMAKE_GENERATOR_TOOLSET%^) %PLATFORM%\%CONFIGURATION% &&
+      PUSHD build\cmake &&
+      cmake -DBUILD_TESTING=ON . &&
+      cmake --build . --config %CONFIGURATION% -j4 &&
+      POPD &&
+      ECHO ***
     )
 
 

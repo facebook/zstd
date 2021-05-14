@@ -934,7 +934,7 @@ static ZSTD_Vec256 ZSTD_Vec256_read(const void* const ptr) {
 
 static ZSTD_Vec256 ZSTD_Vec256_set8(BYTE val) {
 	ZSTD_Vec256 v;
-    v.v = _mm256_set1_epi8(val);
+    v.v = _mm256_set1_epi8((char)val);
 	return v;
 }
 

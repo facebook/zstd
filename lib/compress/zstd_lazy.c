@@ -1296,8 +1296,8 @@ size_t ZSTD_RowFindBestMatch_generic (
     size_t ddsIdx;
     U32 ddsExtraAttempts; /* cctx hash tables are limited in searches, but allow extra searches into DDS */
     U32 dmsTag;
-    U32* dmsRow;
-    BYTE* dmsTagRow;
+    U32* dmsRow = NULL;
+    BYTE* dmsTagRow = NULL;
 
     if (dictMode == ZSTD_dedicatedDictSearch) {
         const U32 ddsHashLog = dms->cParams.hashLog - ZSTD_LAZY_DDSS_BUCKET_LOG;

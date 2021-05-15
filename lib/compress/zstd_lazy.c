@@ -873,7 +873,7 @@ FORCE_INLINE_TEMPLATE size_t ZSTD_HcFindBestMatch_extDict_selectMLS (
 
 typedef U32 ZSTD_VecMask;   /* Clarifies when we are interacting with a U32 representing a mask of matches */
 
-#if !defined(ZSTD_NO_INTRINSICS) && (defined(__SSE2__) ||defined(_M_AMD64)) /* SIMD SSE version*/
+#if !defined(ZSTD_NO_INTRINSICS) && (defined(__SSE2__) || defined(_M_AMD64)) /* SIMD SSE version*/
 
 #include <emmintrin.h>
 typedef __m128i ZSTD_Vec128;
@@ -894,7 +894,7 @@ static ZSTD_Vec128 ZSTD_Vec128_set8(BYTE val) {
 static ZSTD_VecMask ZSTD_Vec128_cmpMask8(ZSTD_Vec128 x, ZSTD_Vec128 y) {
   return (ZSTD_VecMask)_mm_movemask_epi8(_mm_cmpeq_epi8(x, y));
 }
-#if !defined(__AVX2__)
+
 typedef struct {
   __m128i fst;
   __m128i snd;
@@ -921,27 +921,6 @@ static ZSTD_VecMask ZSTD_Vec256_cmpMask8(ZSTD_Vec256 x, ZSTD_Vec256 y) {
   sndMask = ZSTD_Vec128_cmpMask8(x.snd, y.snd);
   return fstMask | (sndMask << 16);
 }
-#else/* AVX2 */
-typedef struct {
-  __m256i v;
-} ZSTD_Vec256;
-
-static ZSTD_Vec256 ZSTD_Vec256_read(const void* const ptr) {
-  ZSTD_Vec256 v;
-  v.v = _mm256_loadu_si256((const __m256i*)ptr);
-  return v;
-}
-
-static ZSTD_Vec256 ZSTD_Vec256_set8(BYTE val) {
-  ZSTD_Vec256 v;
-  v.v = _mm256_set1_epi8((char)val);
-  return v;
-}
-
-static ZSTD_VecMask ZSTD_Vec256_cmpMask8(ZSTD_Vec256 x, ZSTD_Vec256 y) {
-  return (ZSTD_VecMask)_mm256_movemask_epi8(_mm256_cmpeq_epi8(x.v, y.v));
-}
-#endif
 
 #elif !defined(ZSTD_NO_INTRINSICS) && defined(__ARM_NEON) /* SIMD ARM NEON Version */
 

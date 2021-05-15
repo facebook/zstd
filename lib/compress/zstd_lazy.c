@@ -921,7 +921,7 @@ static ZSTD_VecMask ZSTD_Vec256_cmpMask8(ZSTD_Vec256 x, ZSTD_Vec256 y) {
   sndMask = ZSTD_Vec128_cmpMask8(x.snd, y.snd);
   return fstMask | (sndMask << 16);
 }
-#else//AVX2 
+#else/* AVX2 */
 typedef struct {
 	__m256i v;
 } ZSTD_Vec256;

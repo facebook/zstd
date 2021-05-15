@@ -35,16 +35,36 @@ static size_t roundTripTest(void *result, size_t resultCapacity,
     size_t dSize;
     int targetCBlockSize = 0;
     if (FUZZ_dataProducer_uint32Range(producer, 0, 1)) {
+        size_t const remainingBytes = FUZZ_dataProducer_remainingBytes(producer);
         FUZZ_setRandomParameters(cctx, srcSize, producer);
         cSize = ZSTD_compress2(cctx, compressed, compressedCapacity, src, srcSize);
+        FUZZ_ZASSERT(cSize);
         FUZZ_ZASSERT(ZSTD_CCtx_getParameter(cctx, ZSTD_c_targetCBlockSize, &targetCBlockSize));
+        // Compress a second time and check for determinism
+        {
+            size_t const cSize0 = cSize;
+            XXH64_hash_t const hash0 = XXH64(compressed, cSize, 0);
+            FUZZ_dataProducer_rollBack(producer, remainingBytes);
+            FUZZ_setRandomParameters(cctx, srcSize, producer);
+            cSize = ZSTD_compress2(cctx, compressed, compressedCapacity, src, srcSize);
+            FUZZ_ASSERT(cSize == cSize0);
+            FUZZ_ASSERT(XXH64(compressed, cSize, 0) == hash0);
+        }
     } else {
-      int const cLevel = FUZZ_dataProducer_int32Range(producer, kMinClevel, kMaxClevel);
-
+        int const cLevel = FUZZ_dataProducer_int32Range(producer, kMinClevel, kMaxClevel);
         cSize = ZSTD_compressCCtx(
             cctx, compressed, compressedCapacity, src, srcSize, cLevel);
+        FUZZ_ZASSERT(cSize);
+        // Compress a second time and check for determinism
+        {
+            size_t const cSize0 = cSize;
+            XXH64_hash_t const hash0 = XXH64(compressed, cSize, 0);
+            cSize = ZSTD_compressCCtx(
+                cctx, compressed, compressedCapacity, src, srcSize, cLevel);
+            FUZZ_ASSERT(cSize == cSize0);
+            FUZZ_ASSERT(XXH64(compressed, cSize, 0) == hash0);
+        }
     }
-    FUZZ_ZASSERT(cSize);
     dSize = ZSTD_decompressDCtx(dctx, result, resultCapacity, compressed, cSize);
     FUZZ_ZASSERT(dSize);
     /* When superblock is enabled make sure we don't expand the block more than expected.

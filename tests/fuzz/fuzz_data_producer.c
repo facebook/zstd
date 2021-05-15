@@ -66,6 +66,12 @@ size_t FUZZ_dataProducer_remainingBytes(FUZZ_dataProducer_t *producer){
     return producer->size;
 }
 
+void FUZZ_dataProducer_rollBack(FUZZ_dataProducer_t *producer, size_t remainingBytes)
+{
+    FUZZ_ASSERT(remainingBytes >= producer->size);
+    producer->size = remainingBytes;
+}
+
 int FUZZ_dataProducer_empty(FUZZ_dataProducer_t *producer) {
     return producer->size == 0;
 }

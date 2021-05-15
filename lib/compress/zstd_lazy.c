@@ -873,7 +873,7 @@ FORCE_INLINE_TEMPLATE size_t ZSTD_HcFindBestMatch_extDict_selectMLS (
 
 typedef U32 ZSTD_VecMask;   /* Clarifies when we are interacting with a U32 representing a mask of matches */
 
-#if !defined(ZSTD_NO_INTRINSICS) && (defined(__SSE2__) ||defined(_M_AMD64)) /* SIMD SSE version*/
+#if !defined(ZSTD_NO_INTRINSICS) && (defined(__SSE2__) || defined(_M_AMD64)) /* SIMD SSE version*/
 
 #include <emmintrin.h>
 typedef __m128i ZSTD_Vec128;

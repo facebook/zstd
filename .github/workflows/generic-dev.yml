@@ -171,25 +171,34 @@ jobs:
         sudo apt-get install gcc-mingw-w64
         CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ CFLAGS="-Werror -O1" make zstd
 
-# TODO: Broken test - fix and uncomment
-#  armbuild:
-#    runs-on: ubuntu-16.04 # doesn't work on latest
-#    steps:
-#    - uses: actions/checkout@v2
-#    - name: ARM Build Test
-#      run: |
-#        make arminstall
-#        make armbuild
+  armbuild:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: ARM Build Test
+      run: |
+        make arminstall
+        make armbuild
 
-# TODO: Broken test - fix and uncomment
-#  armfuzz:
-#    runs-on: ubuntu-16.04 # doesn't work on latest
-#    steps:
-#    - uses: actions/checkout@v2
-#    - name: Qemu ARM emulation + Fuzz Test
-#      run: |
-#        make arminstall
-#        make armfuzz
+  armfuzz:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Qemu ARM emulation + Fuzz Test
+      run: |
+        make arminstall
+        make armfuzz
+
+  cmake-windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: cmake build and test check
+      run: |
+        FUZZERTEST=-T1mn ZSTREAM_TESTTIME=-T1mn make cmakebuild
+        cp -r ./ "../zstd source"
+        cd "../zstd source"
+        FUZZERTEST=-T1mn ZSTREAM_TESTTIME=-T1mn make cmakebuild
 
   bourne-shell:
     runs-on: ubuntu-latest
@@ -205,21 +214,21 @@ jobs:
 # icc tests are currently failing on Github Actions, likely to issues during installation stage
 # To be fixed later
 #
-#  icc:
-#    name: icc-check
-#    runs-on: ubuntu-latest
-#    steps:
-#    - name: install icc
-#      run: |
-#        export DEBIAN_FRONTEND=noninteractive
-#        sudo apt-get -qqq update
-#        sudo apt-get install -y wget build-essential pkg-config cmake ca-certificates gnupg
-#        sudo wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
-#        sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
-#        sudo add-apt-repository "deb https://apt.repos.intel.com/oneapi all main"
-#        sudo apt-get update
-#        sudo apt-get install -y intel-basekit intel-hpckit
-#    - uses: actions/checkout@v2
-#    - name: make check
-#      run: |
-#        make CC=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/icc check
+  icc:
+    name: icc-check
+    runs-on: ubuntu-latest
+    steps:
+    - name: install icc
+      run: |
+        export DEBIAN_FRONTEND=noninteractive
+        sudo apt-get -qqq update
+        sudo apt-get install -y wget build-essential pkg-config cmake ca-certificates gnupg
+        sudo wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
+        sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
+        sudo add-apt-repository "deb https://apt.repos.intel.com/oneapi all main"
+        sudo apt-get update
+        sudo apt-get install -y intel-basekit intel-hpckit
+    - uses: actions/checkout@v2
+    - name: make check
+      run: |
+        make CC=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/icc check

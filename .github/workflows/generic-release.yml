@@ -35,7 +35,7 @@ jobs:
         CC=clang make tsan-fuzztest
 
   zlib-wrapper:
-    runs-on: ubuntu-16.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     - name: zlib wrapper test

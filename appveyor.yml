@@ -151,16 +151,6 @@
       DIR build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\*.exe &&
       MD5sum build/VS2010/bin/%PLATFORM%_%CONFIGURATION%/*.exe &&
       COPY build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\fuzzer.exe tests\fuzzer_VS2013_%PLATFORM%_%CONFIGURATION%.exe &&
-      ECHO *** &&
-      ECHO *** Building Visual Studio 2015 %PLATFORM%\%CONFIGURATION% &&
-      ECHO *** &&
-      msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v140 /p:ForceImportBeforeCppTargets=%APPVEYOR_BUILD_FOLDER%\build\VS2010\CompileAsCpp.props /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
-      DIR build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\*.exe &&
-      MD5sum build/VS2010/bin/%PLATFORM%_%CONFIGURATION%/*.exe &&
-      msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v140 /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
-      DIR build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\*.exe &&
-      MD5sum build/VS2010/bin/%PLATFORM%_%CONFIGURATION%/*.exe &&
-      COPY build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\fuzzer.exe tests\fuzzer_VS2015_%PLATFORM%_%CONFIGURATION%.exe &&
       COPY build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\*.exe tests\
     )
   - if [%HOST%]==[cmake-visual] (
@@ -224,23 +214,6 @@
       PLATFORM: "x64"
       SCRIPT:   "CFLAGS='--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion' make -j allzstd V=1"
 
-    - COMPILER: "visual"
-      HOST:     "visual"
-      PLATFORM: "x64"
-      CONFIGURATION: "Debug"
-    - COMPILER: "visual"
-      HOST:     "visual"
-      PLATFORM: "Win32"
-      CONFIGURATION: "Debug"
-    - COMPILER: "visual"
-      HOST:     "visual"
-      PLATFORM: "x64"
-      CONFIGURATION: "Release"
-    - COMPILER: "visual"
-      HOST:     "visual"
-      PLATFORM: "Win32"
-      CONFIGURATION: "Release"
-
     - COMPILER: "clang-cl"
       HOST:     "cmake-visual"
       PLATFORM: "x64"
@@ -266,9 +239,6 @@
       COPY C:\msys64\usr\bin\make.exe C:\mingw-w64\i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32\bin\make.exe &&
       COPY C:\msys64\usr\bin\make.exe C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin\make.exe
     )
-  - IF [%HOST%]==[visual] IF [%PLATFORM%]==[x64] (
-      SET ADDITIONALPARAM=/p:LibraryPath="C:\Program Files\Microsoft SDKs\Windows\v7.1\lib\x64;c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\lib\amd64;C:\Program Files (x86)\Microsoft Visual Studio 10.0\;C:\Program Files (x86)\Microsoft Visual Studio 10.0\lib\amd64;"
-    )
 
   build_script:
   - ECHO Building %COMPILER% %PLATFORM% %CONFIGURATION%
@@ -293,19 +263,6 @@
       sh -c "%COMPILER% -v" &&
       set "CC=%COMPILER%" &&
       sh -c "%SCRIPT%"
-    )
-  - if [%HOST%]==[visual] (
-      ECHO *** &&
-      ECHO *** Building Visual Studio 2015 %PLATFORM%\%CONFIGURATION% &&
-      ECHO *** &&
-      msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v140 /p:ForceImportBeforeCppTargets=%APPVEYOR_BUILD_FOLDER%\build\VS2010\CompileAsCpp.props /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
-      DIR build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\*.exe &&
-      MD5sum build/VS2010/bin/%PLATFORM%_%CONFIGURATION%/*.exe &&
-      msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v140 /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
-      DIR build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\*.exe &&
-      MD5sum build/VS2010/bin/%PLATFORM%_%CONFIGURATION%/*.exe &&
-      COPY build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\fuzzer.exe tests\fuzzer_VS2015_%PLATFORM%_%CONFIGURATION%.exe &&
-      COPY build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\*.exe tests\
     )
   - if [%HOST%]==[cmake-visual] (
       ECHO *** &&

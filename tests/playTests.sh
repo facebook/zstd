@@ -1285,7 +1285,7 @@ println "\n===>  tar extension tests "
 rm -f tmp tmp.tar tmp.tzst tmp.tgz tmp.txz tmp.tlz4 tmp1.zstd
 
 datagen > tmp
-tar cf tmp.tar tmp
+tar -cf tmp.tar tmp
 zstd tmp.tar -o tmp.tzst
 rm -f tmp.tar
 zstd -d tmp.tzst
@@ -1293,21 +1293,21 @@ zstd -d tmp.tzst
 rm -f tmp.tar tmp.tzst
 
 if [ $GZIPMODE -eq 1 ]; then
-    tar czf tmp.tgz tmp
+    tar -c tmp | gzip > tmp.tgz
     zstd -d tmp.tgz
     [ -e tmp.tar ] || die ".tgz failed to decompress to .tar!"
     rm -f tmp.tar tmp.tgz
 fi
 
 if [ $LZMAMODE -eq 1 ]; then
-    tar c tmp | zstd --format=xz > tmp.txz
+    tar -c tmp | zstd --format=xz > tmp.txz
     zstd -d tmp.txz
     [ -e tmp.tar ] || die ".txz failed to decompress to .tar!"
     rm -f tmp.tar tmp.txz
 fi
 
 if [ $LZ4MODE -eq 1 ]; then
-    tar c tmp | zstd --format=lz4 > tmp.tlz4
+    tar -c tmp | zstd --format=lz4 > tmp.tlz4
     zstd -d tmp.tlz4
     [ -e tmp.tar ] || die ".tlz4 failed to decompress to .tar!"
     rm -f tmp.tar tmp.tlz4

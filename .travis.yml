@@ -55,11 +55,6 @@ matrix:
         - make clean
         - make -C tests test-fuzzer-stackmode
 
-    - name: Qemu ARM emulation + Fuzz Test    # ~13.5mn
-      script:
-        - make arminstall
-        - make armfuzz
-
     # Introduced to check compat with old toolchains, to prevent e.g. #1872
     - name: ARM Build Test (on Trusty)
       dist: trusty

@@ -182,6 +182,8 @@
 #  pragma warning(disable : 4204)        /* disable: C4204: non-constant aggregate initializer */
 #  pragma warning(disable : 4214)        /* disable: C4214: non-int bitfields */
 #  pragma warning(disable : 4324)        /* disable: C4324: padded structure */
+#  pragma warning(disable : 4701)        /* disable: C4701: potentially uninitialized local variable */
+#  pragma warning(disable : 4703)        /* disable: C4703: potentially uninitialized local pointer variable */
 #endif
 
 /*Like DYNAMIC_BMI2 but for compile time determination of BMI2 support*/

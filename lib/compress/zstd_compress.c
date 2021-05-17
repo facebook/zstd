@@ -222,7 +222,7 @@ static int ZSTD_rowMatchFinderUsed(const ZSTD_strategy strategy, const ZSTD_useR
 /* Returns row matchfinder usage enum given an initial mode and cParams */
 static ZSTD_useRowMatchFinderMode_e ZSTD_resolveRowMatchFinderMode(ZSTD_useRowMatchFinderMode_e mode,
                                                                    const ZSTD_compressionParameters* const cParams) {
-#if !defined(ZSTD_NO_INTRINSICS) && (defined(__SSE2__) || defined(__ARM_NEON))
+#if !defined(ZSTD_NO_INTRINSICS) && (defined(__SSE2__) || defined(_M_AMD64)  || defined(__ARM_NEON))
     int const kHasSIMD128 = 1;
 #else
     int const kHasSIMD128 = 0;

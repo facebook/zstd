@@ -171,25 +171,23 @@ jobs:
         sudo apt-get install gcc-mingw-w64
         CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ CFLAGS="-Werror -O1" make zstd
 
-# TODO: Broken test - fix and uncomment
-#  armbuild:
-#    runs-on: ubuntu-16.04 # doesn't work on latest
-#    steps:
-#    - uses: actions/checkout@v2
-#    - name: ARM Build Test
-#      run: |
-#        make arminstall
-#        make armbuild
+  armbuild:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: ARM Build Test
+      run: |
+        make arminstall
+        make armbuild
 
-# TODO: Broken test - fix and uncomment
-#  armfuzz:
-#    runs-on: ubuntu-16.04 # doesn't work on latest
-#    steps:
-#    - uses: actions/checkout@v2
-#    - name: Qemu ARM emulation + Fuzz Test
-#      run: |
-#        make arminstall
-#        make armfuzz
+  armfuzz:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Qemu ARM emulation + Fuzz Test
+      run: |
+        make arminstall
+        make armfuzz
 
   bourne-shell:
     runs-on: ubuntu-latest

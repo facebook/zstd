@@ -1,0 +1,132 @@
+name: dev-long-tests
+# Tests longer than 10mn
+
+concurrency: 
+  group: long-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    branches: [ dev, release, actionsTest ]
+
+jobs:
+  make-test:
+    runs-on: ubuntu-latest
+    env:
+      DEVNULLRIGHTS: 1
+      READFROMBLOCKDEVICE: 1
+    steps:
+    - uses: actions/checkout@v2
+    - name: make test
+      run: make test
+
+  make-test-osx:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: OS-X test
+      run: make test # make -c lib all doesn't work because of the fact that it's not a tty
+
+  tsan-zstreamtest:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: thread sanitizer zstreamtest
+      run: CC=clang make tsan-test-zstream
+
+  tsan-fuzztest:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: thread sanitizer fuzztest
+      run: CC=clang make tsan-fuzztest
+
+  static-analyzer-scanbuild:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: install scan-build
+      run: sudo apt-get install clang-tools
+    - name: static analyzer    # ~26mn
+      run: make staticAnalyze
+
+  gcc-8-asan-ubsan-testzstd:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: gcc-8 + ASan + UBSan + Test Zstd
+      run: |
+        make gcc8install
+        CC=gcc-8 CFLAGS="-Werror" make -j all
+        make clean
+        CC=gcc-8 make -j uasan-test-zstd </dev/null V=1
+
+  gcc-asan-ubsan-testzstd-32bit:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: ASan + UBSan + Test Zstd, 32bit mode
+      run: |
+        make libc6install
+        make -j uasan-test-zstd32 V=1
+
+  clang-msan-testzstd:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: clang + MSan + Test Zstd
+      run: |
+        sudo apt-get update
+        sudo apt-get install clang
+        CC=clang make msan-test-zstd HAVE_ZLIB=0 HAVE_LZ4=0 HAVE_LZMA=0 V=1
+
+    # Note : external libraries must be turned off when using MSAN tests,
+    # because they are not msan-instrumented,
+    # so any data coming from these libraries is always considered "uninitialized"
+
+  gcc-8-asan-ubsan-fuzz:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: gcc-8 + ASan + UBSan + Fuzz Test
+      run: |
+        make gcc8install
+        CC=gcc-8 FUZZER_FLAGS="--long-tests" make clean uasan-fuzztest
+
+  gcc-asan-ubsan-fuzz32:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: ASan + UBSan + Fuzz Test 32bit
+      run: |
+        make libc6install
+        CFLAGS="-O2 -m32" FUZZER_FLAGS="--long-tests" make uasan-fuzztest
+
+  clang-msan-fuzz:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: clang + MSan + Fuzz Test
+      run: |
+        sudo apt-get update
+        sudo apt-get install clang
+        CC=clang FUZZER_FLAGS="--long-tests" make clean msan-fuzztest
+
+  asan-ubsan-msan-regression:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: ASan + UBSan + MSan + Regression Test
+      run: |
+        make -j uasanregressiontest
+        make clean
+        make -j msanregressiontest
+
+  armfuzz:
+      runs-on: ubuntu-latest
+      steps:
+      - uses: actions/checkout@v2
+      - name: Qemu ARM emulation + Fuzz Test
+        run: |
+          make arminstall
+          make armfuzz

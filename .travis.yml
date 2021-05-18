@@ -1,4 +1,5 @@
-# Medium Tests: Run on all commits/PRs to dev branch
+# Travis CI is used to test platforms that github-actions currently doesn't support
+# without either self-hosting or some finnicky work-around.
 
 language: c
 
@@ -18,8 +19,8 @@ addons:
 
 env:
   global:
-    - FUZZERTEST=-T2mn
-      ZSTREAM_TESTTIME=-T2mn
+    - FUZZERTEST=-T1mn
+      ZSTREAM_TESTTIME=-T1mn
       DECODECORPUS_TESTTIME=-T1mn
 
 
@@ -31,29 +32,6 @@ matrix:
       arch: arm64
       script:
         - make check
-
-    - name: Minimal Decompressor Macros    # ~5mn
-      script:
-        - make clean && make -j all ZSTD_LIB_MINIFY=1 MOREFLAGS="-Werror"
-        - make clean && make check ZSTD_LIB_MINIFY=1 MOREFLAGS="-Werror"
-        - make clean && make -j all MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X1 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT"
-        - make clean && make check MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X1 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT"
-        - make clean && make -j all MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X2 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG"
-        - make clean && make check MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X2 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG"
-        - make clean && make -j all MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
-        - make clean && make check MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
-
-    - name: static analyzer scanbuild    # ~26mn
-      dist: trusty  # note : it's important to pin down a version of static analyzer, since different versions report different false positives
-      script:
-        - make staticAnalyze
-
-    - name: Valgrind + Fuzz Test Stack Mode    # ~ 7mn
-      script:
-        - make valgrindinstall
-        - make -C tests clean valgrindTest
-        - make clean
-        - make -C tests test-fuzzer-stackmode
 
     # Introduced to check compat with old toolchains, to prevent e.g. #1872
     - name: ARM Build Test (on Trusty)
@@ -75,51 +53,34 @@ matrix:
         - make -C tests checkTag
         - tests/checkTag "$TRAVIS_BRANCH"
 
-    # tests for release branch and cron job only
-    - name: OS-X    # ~13mn
-      if: branch = release
-      os: osx
-      script:
-        - make test
-        - make -C lib all
-
-    - name: Versions Compatibility Test   # 11.5mn
-      if: branch = release
-      script:
-        - make -C tests versionsTest
-
-    - name: thread sanitizer   # ~29mn
-      if: branch = release
-      script:
-        - make clang38install
-        - CC=clang-3.8 make tsan-test-zstream
-        - CC=clang-3.8 make tsan-fuzztest
-
     - name: PPC64LE + Fuzz test  # ~13mn
-      if: branch = release
       arch: ppc64le
+      env:
+        - FUZZER_FLAGS=--no-big-tests
+        - MOREFLAGS="-static"
       script:
         - cat /proc/cpuinfo
-        - make test
+        - make -C tests fuzztest
 
     - name: Qemu PPC64 + Fuzz test  # ~13mn, presumed Big-Endian (?)
       dist: trusty  # note : PPC64 cross-compilation for Qemu tests seems broken on Xenial
-      if: branch = release
       script:
         - make ppcinstall
         - make ppc64fuzz
 
     # note : we already have aarch64 tests on hardware
     - name: Qemu aarch64 + Fuzz Test (on Xenial)    # ~14mn
-      if: branch = release
       dist: xenial
       script:
         - make arminstall
         - make aarch64fuzz
+    
+    - name: Versions Compatibility Test   # 11.5mn
+      script:
+        - make -C tests versionsTest
 
     # meson dedicated test
     - name: Xenial (Meson + clang)    # ~15mn
-      if: branch = release
       dist: bionic
       language: cpp
       compiler: clang

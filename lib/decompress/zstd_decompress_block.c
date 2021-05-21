@@ -970,10 +970,8 @@ ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets)
         } else {
             U32 const ll0 = (llBase == 0);
             if (LIKELY((ofBits == 0))) {
-                if (LIKELY(!ll0))
-                    offset = seqState->prevOffset[0];
-                else {
-                    offset = seqState->prevOffset[1];
+                offset = seqState->prevOffset[ll0];
+                if (UNLIKELY(ll0)) {
                     seqState->prevOffset[1] = seqState->prevOffset[0];
                     seqState->prevOffset[0] = offset;
                 }

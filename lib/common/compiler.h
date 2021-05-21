@@ -286,4 +286,15 @@ void __asan_poison_memory_region(void const volatile *addr, size_t size);
 void __asan_unpoison_memory_region(void const volatile *addr, size_t size);
 #endif
 
+/**
+ * Workaround to add this Clang and GCC define for MSVC to denote SSE2 support
+ * is enabled (x64's implicit SSE2 is covered by <c>_M_X64</c> and x86's by
+ * <c>_M_IX86_FP</c> reflecting MSCV's <c>/arch</c> flag).
+ */
+#ifndef __SSE2__
+#  if defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP == 2)
+#    define __SSE2__
+#  endif
+#endif
+
 #endif /* ZSTD_COMPILER_H */

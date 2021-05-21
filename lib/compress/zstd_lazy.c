@@ -8,6 +8,7 @@
  * You may select, at your option, one of the above-listed licenses.
  */
 
+#include "../common/compiler.h" /* __SSE2__ for MSVC */
 #include "zstd_compress_internal.h"
 #include "zstd_lazy.h"
 
@@ -873,7 +874,7 @@ FORCE_INLINE_TEMPLATE size_t ZSTD_HcFindBestMatch_extDict_selectMLS (
 
 typedef U32 ZSTD_VecMask;   /* Clarifies when we are interacting with a U32 representing a mask of matches */
 
-#if !defined(ZSTD_NO_INTRINSICS) && (defined(__SSE2__) || defined(_M_AMD64)) /* SIMD SSE version*/
+#if !defined(ZSTD_NO_INTRINSICS) && defined(__SSE2__) /* SIMD SSE version*/
 
 #include <emmintrin.h>
 typedef __m128i ZSTD_Vec128;
@@ -914,11 +915,11 @@ static ZSTD_Vec256 ZSTD_Vec256_set8(BYTE val) {
   return v;
 }
 
-static ZSTD_VecMask ZSTD_Vec256_cmpMask8(ZSTD_Vec256 x, ZSTD_Vec256 y) {
+static ZSTD_VecMask ZSTD_Vec256_cmpMask8(const ZSTD_Vec256* const x, const ZSTD_Vec256* const y) {
   ZSTD_VecMask fstMask;
   ZSTD_VecMask sndMask;
-  fstMask = ZSTD_Vec128_cmpMask8(x.fst, y.fst);
-  sndMask = ZSTD_Vec128_cmpMask8(x.snd, y.snd);
+  fstMask = ZSTD_Vec128_cmpMask8(x->fst, y->fst);
+  sndMask = ZSTD_Vec128_cmpMask8(x->snd, y->snd);
   return fstMask | (sndMask << 16);
 }
 
@@ -970,11 +971,11 @@ static ZSTD_Vec256 ZSTD_Vec256_set8(BYTE val) {
   return v;
 }
 
-static ZSTD_VecMask ZSTD_Vec256_cmpMask8(ZSTD_Vec256 x, ZSTD_Vec256 y) {
+static ZSTD_VecMask ZSTD_Vec256_cmpMask8(const ZSTD_Vec256* const x, const ZSTD_Vec256* const y) {
   ZSTD_VecMask fstMask;
   ZSTD_VecMask sndMask;
-  fstMask = ZSTD_Vec128_cmpMask8(x.fst, y.fst);
-  sndMask = ZSTD_Vec128_cmpMask8(x.snd, y.snd);
+  fstMask = ZSTD_Vec128_cmpMask8(x->fst, y->fst);
+  sndMask = ZSTD_Vec128_cmpMask8(x->snd, y->snd);
   return fstMask | (sndMask << 16);
 }
 
@@ -1045,13 +1046,13 @@ static ZSTD_Vec256 ZSTD_Vec256_set8(BYTE val) {
 }
 
 /* Compare x to y, byte by byte, generating a "matches" bitfield */
-static ZSTD_VecMask ZSTD_Vec256_cmpMask8(ZSTD_Vec256 x, ZSTD_Vec256 y) {
+static ZSTD_VecMask ZSTD_Vec256_cmpMask8(const ZSTD_Vec256* const x, const ZSTD_Vec256* const y) {
     ZSTD_VecMask res = 0;
     unsigned i = 0;
     unsigned l = 0;
     for (; i < VEC256_NB_SIZE_T; ++i) {
-        const size_t cmp1 = x.vec[i];
-        const size_t cmp2 = y.vec[i];
+        const size_t cmp1 = x->vec[i];
+        const size_t cmp2 = y->vec[i];
         unsigned j = 0;
         for (; j < sizeof(size_t); ++j, ++l) {
             if (((cmp1 >> j*8) & 0xFF) == ((cmp2 >> j*8) & 0xFF)) {
@@ -1237,7 +1238,7 @@ ZSTD_VecMask ZSTD_row_getMatchMask(const BYTE* const tagRow, const BYTE tag, con
     } else if (rowEntries == 32) {
         ZSTD_Vec256 hashes        = ZSTD_Vec256_read(tagRow + ZSTD_ROW_HASH_TAG_OFFSET);
         ZSTD_Vec256 expandedTags  = ZSTD_Vec256_set8(tag);
-        matches                   = ZSTD_Vec256_cmpMask8(hashes, expandedTags);
+        matches                   = ZSTD_Vec256_cmpMask8(&hashes, &expandedTags);
     } else {
         assert(0);
     }

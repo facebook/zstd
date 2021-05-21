@@ -297,4 +297,13 @@ void __asan_unpoison_memory_region(void const volatile *addr, size_t size);
 #  endif
 #endif
 
+/**
+ * Workaround to add this GCC define for MSVC's ARM64 target.
+ */
+#ifndef __ARM_NEON
+#  if defined(_M_ARM64)
+#    define __ARM_NEON
+#  endif
+#endif
+
 #endif /* ZSTD_COMPILER_H */

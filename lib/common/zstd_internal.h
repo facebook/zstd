@@ -19,10 +19,10 @@
 /*-*************************************
 *  Dependencies
 ***************************************/
+#include "compiler.h" /* Needs to go before the ARM Neon include */
 #if !defined(ZSTD_NO_INTRINSICS) && defined(__ARM_NEON)
 #include <arm_neon.h>
 #endif
-#include "compiler.h"
 #include "mem.h"
 #include "debug.h"                 /* assert, DEBUGLOG, RAWLOG, g_debuglevel */
 #include "error_private.h"

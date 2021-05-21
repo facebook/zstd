@@ -298,7 +298,8 @@ void __asan_unpoison_memory_region(void const volatile *addr, size_t size);
 #endif
 
 /**
- * Workaround to add this GCC define for MSVC's ARM64 target.
+ * Workaround to add this GCC define for MSVC's ARM64 target (for Windows
+ * Surface Pro X and others).
  */
 #ifndef __ARM_NEON
 #  if defined(_M_ARM64)

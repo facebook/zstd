@@ -1121,8 +1121,7 @@ ZSTD_VecMask ZSTD_row_getMatchMask(const BYTE* const tagRow, const BYTE tag, con
         if (MEM_isLittleEndian()) { /* runtime check so have two loops */
             const size_t extractMagic = (xFF / 0x7F) >> chunkSize;
             do {
-                size_t chunk;
-                memcpy(&chunk, &src[i], chunkSize);
+                size_t chunk = MEM_readST(&src[i]);
                 chunk ^= splatChar;
                 chunk = (((chunk | x80) - x01) | chunk) & x80;
                 matches <<= chunkSize;
@@ -1133,8 +1132,7 @@ ZSTD_VecMask ZSTD_row_getMatchMask(const BYTE* const tagRow, const BYTE tag, con
             const size_t msb = xFF ^ (xFF >> 1);
             const size_t extractMagic = (msb / 0x1FF) | msb;
             do {
-                size_t chunk;
-                memcpy(&chunk, &src[i], chunkSize);
+                size_t chunk = MEM_readST(&src[i]);
                 chunk ^= splatChar;
                 chunk = (((chunk | x80) - x01) | chunk) & x80;
                 matches <<= chunkSize;

@@ -349,6 +349,17 @@ static void ZSTD_CCtxParams_init_internal(ZSTD_CCtx_params* cctxParams, ZSTD_par
     cctxParams->compressionLevel = compressionLevel;
     cctxParams->useRowMatchFinder = ZSTD_resolveRowMatchFinderMode(cctxParams->useRowMatchFinder, &params->cParams);
     DEBUGLOG(4, "ZSTD_CCtxParams_init_internal: useRowMatchFinder=%d", cctxParams->useRowMatchFinder);
+
+    if (ZSTD_CParams_shouldEnableLdm(&params->cParams)) {
+        /* Enable LDM by default for optimal parser and window size >= 128MB */
+        DEBUGLOG(4, "LDM enabled by default (window size >= 128MB, strategy >= btopt)");
+        cctxParams->ldmParams.enableLdm = 1;
+    }
+
+    if (ZSTD_CParams_useBlockSplitter(&params->cParams)) {
+        DEBUGLOG(4, "Block splitter enabled by default (window size >= 128K, strategy >= btopt)");
+        cctxParams->splitBlocks = 1;
+    }
 }
 
 size_t ZSTD_CCtxParams_init_advanced(ZSTD_CCtx_params* cctxParams, ZSTD_parameters params)

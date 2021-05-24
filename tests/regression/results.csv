@@ -11,10 +11,10 @@ silesia.tar,                        level 6,                            compress
 silesia.tar,                        level 7,                            compress simple,                    4613541
 silesia.tar,                        level 9,                            compress simple,                    4555426
 silesia.tar,                        level 13,                           compress simple,                    4491764
-silesia.tar,                        level 16,                           compress simple,                    4381350
-silesia.tar,                        level 19,                           compress simple,                    4281562
+silesia.tar,                        level 16,                           compress simple,                    4356834
+silesia.tar,                        level 19,                           compress simple,                    4264392
 silesia.tar,                        uncompressed literals,              compress simple,                    4861425
-silesia.tar,                        uncompressed literals optimal,      compress simple,                    4281562
+silesia.tar,                        uncompressed literals optimal,      compress simple,                    4264392
 silesia.tar,                        huffman literals,                   compress simple,                    6186042
 github.tar,                         level -5,                           compress simple,                    46856
 github.tar,                         level -3,                           compress simple,                    43754
@@ -45,17 +45,17 @@ silesia,                            level 6,                            compress
 silesia,                            level 7,                            compress cctx,                      4603381
 silesia,                            level 9,                            compress cctx,                      4546001
 silesia,                            level 13,                           compress cctx,                      4482135
-silesia,                            level 16,                           compress cctx,                      4377465
-silesia,                            level 19,                           compress cctx,                      4293330
+silesia,                            level 16,                           compress cctx,                      4360251
+silesia,                            level 19,                           compress cctx,                      4283237
 silesia,                            long distance mode,                 compress cctx,                      4849552
 silesia,                            multithreaded,                      compress cctx,                      4849552
 silesia,                            multithreaded long distance mode,   compress cctx,                      4849552
 silesia,                            small window log,                   compress cctx,                      7084179
-silesia,                            small hash log,                     compress cctx,                      6555021
-silesia,                            small chain log,                    compress cctx,                      4931148
+silesia,                            small hash log,                     compress cctx,                      6526141
+silesia,                            small chain log,                    compress cctx,                      4912197
 silesia,                            explicit params,                    compress cctx,                      4794479
 silesia,                            uncompressed literals,              compress cctx,                      4849552
-silesia,                            uncompressed literals optimal,      compress cctx,                      4293330
+silesia,                            uncompressed literals optimal,      compress cctx,                      4283237
 silesia,                            huffman literals,                   compress cctx,                      6178460
 silesia,                            multithreaded with advanced params, compress cctx,                      4849552
 github,                             level -5,                           compress cctx,                      205285

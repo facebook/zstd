@@ -1096,10 +1096,10 @@ ZSTD_VecMask ZSTD_row_getMatchMask(const BYTE* const tagRow, const BYTE tag, con
             const uint8x16_t chunk1 = vreinterpretq_u8_u16(chunk.val[1]);
             const uint8x16_t equalMask0 = vceqq_u8(chunk0, vdupq_n_u8(tag));
             const uint8x16_t equalMask1 = vceqq_u8(chunk1, vdupq_n_u8(tag));
-            const uint16x4_t pack0 = vqmovn_s16(vreinterpretq_s16_u8(equalMask0));
-            const uint16x4_t pack1 = vqmovn_s16(vreinterpretq_s16_u8(equalMask1));
-            const uint8x8_t t0 = vreinterpret_u8_s16(pack0);
-            const uint8x8_t t1 = vreinterpret_u8_s16(pack1);
+            const int8x8_t pack0 = vqmovn_s16(vreinterpretq_s16_u8(equalMask0));
+            const int8x8_t pack1 = vqmovn_s16(vreinterpretq_s16_u8(equalMask1));
+            const uint8x8_t t0 = vreinterpret_u8_s8(pack0);
+            const uint8x8_t t1 = vreinterpret_u8_s8(pack1);
             const uint8x8_t t2 = vsri_n_u8(t1, t0, 2);
             const uint8x8x2_t t3 = vuzp_u8(t2, t0);
             const uint8x8_t t4 = vsri_n_u8(t3.val[1], t3.val[0], 4);

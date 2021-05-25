@@ -1060,14 +1060,15 @@ FORCE_INLINE_TEMPLATE
 ZSTD_VecMask ZSTD_row_getMatchMask(const BYTE* const tagRow, const BYTE tag, const U32 head, const U32 rowEntries) {
     const BYTE* const src = tagRow + ZSTD_ROW_HASH_TAG_OFFSET;
 #if defined(ZSTD_ARCH_X86_SSE2)
+    assert(ZSTD_isAligned(src, 16));
     if (rowEntries == 16) {
-        const __m128i chunk = _mm_load_si128((const __m128i*)src);
+        const __m128i chunk = _mm_load_si128((const __m128i*)(const void*)src);
         const __m128i equalMask = _mm_cmpeq_epi8(chunk, _mm_set1_epi8(tag));
         const U32 matches = (U32)_mm_movemask_epi8(equalMask);
         return ZSTD_VecMask_rotateRight(matches, head, 16);
     } else {
-        const __m128i chunk0 = _mm_load_si128((const __m128i*)&src[0]);
-        const __m128i chunk1 = _mm_load_si128((const __m128i*)&src[16]);
+        const __m128i chunk0 = _mm_load_si128((const __m128i*)(const void*)&src[0]);
+        const __m128i chunk1 = _mm_load_si128((const __m128i*)(const void*)&src[16]);
         const __m128i equalMask0 = _mm_cmpeq_epi8(chunk0, _mm_set1_epi8(tag));
         const __m128i equalMask1 = _mm_cmpeq_epi8(chunk1, _mm_set1_epi8(tag));
         const U32 lo = (U32)_mm_movemask_epi8(equalMask0);
@@ -1078,6 +1079,7 @@ ZSTD_VecMask ZSTD_row_getMatchMask(const BYTE* const tagRow, const BYTE tag, con
 #else
 #  if defined(ZSTD_ARCH_ARM_NEON)
     if (MEM_isLittleEndian()) {
+        assert(ZSTD_isAligned(src, 16));
         if (rowEntries == 16) {
             const uint8x16_t chunk = vld1q_u8(src);
             const uint16x8_t equalMask = vreinterpretq_u16_u8(vceqq_u8(chunk, vdupq_n_u8(tag)));
@@ -1089,7 +1091,7 @@ ZSTD_VecMask ZSTD_row_getMatchMask(const BYTE* const tagRow, const BYTE tag, con
             const U16 lo = (U16)vgetq_lane_u8(t3, 0);
             return ZSTD_VecMask_rotateRight((hi << 8) | lo, head, 16);
         } else {
-            const uint16x8x2_t chunk = vld2q_u16((const U16*)src);
+            const uint16x8x2_t chunk = vld2q_u16((const U16*)(const void*)src);
             const uint8x16_t chunk0 = vreinterpretq_u8_u16(chunk.val[0]);
             const uint8x16_t chunk1 = vreinterpretq_u8_u16(chunk.val[1]);
             const uint8x16_t equalMask0 = vceqq_u8(chunk0, vdupq_n_u8(tag));

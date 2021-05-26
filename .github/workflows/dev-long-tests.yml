@@ -47,6 +47,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: gcc-8 + ASan + UBSan + Test Zstd
       run: |
+        sudo apt-get -qqq update
         make gcc8install
         CC=gcc-8 make -j uasan-test-zstd </dev/null V=1
 
@@ -101,7 +102,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: clang + MSan + Fuzz Test
       run: |
-        sudo apt-get update
+        sudo apt-get -qqq update
         sudo apt-get install clang
         CC=clang FUZZER_FLAGS="--long-tests" make clean msan-fuzztest
 
@@ -121,6 +122,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: Qemu ARM emulation + Fuzz Test
         run: |
+          sudo apt-get -qqq update
           make arminstall
           make armfuzz
 

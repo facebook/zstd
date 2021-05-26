@@ -41,6 +41,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: gcc-7 + libzstdmt compilation
       run: |
+        sudo apt-get -qqq update
         make gcc7install
         CC=gcc-7 CFLAGS=-Werror make -j all
         make clean
@@ -81,6 +82,7 @@ jobs:
     - name: mingw cross-compilation
       run: |
         # sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix; (doesn't work)
+        sudo apt-get -qqq update
         sudo apt-get install gcc-mingw-w64
         CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ CFLAGS="-Werror -O1" make zstd
 
@@ -90,6 +92,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: ARM Build Test
       run: |
+        sudo apt-get -qqq update
         make arminstall
         make armbuild
 
@@ -109,6 +112,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: zlib wrapper test
       run: |
+        sudo apt-get -qqq update
         make valgrindinstall
         make -C zlibWrapper test
         make -C zlibWrapper valgrindTest
@@ -133,6 +137,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: Make all, 32bit mode
       run: |
+        sudo apt-get -qqq update
         make libc6install
         CFLAGS="-Werror -m32" make -j all32
   
@@ -142,6 +147,7 @@ jobs:
       - uses: actions/checkout@v2
       - name: gcc-8 build
         run: |
+          sudo apt-get -qqq update
           make gcc8install
           CC=gcc-8 CFLAGS="-Werror" make -j all
 

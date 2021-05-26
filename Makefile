@@ -29,6 +29,7 @@ VOID = /dev/null
 # fail on other tested distros (ubuntu, debian) even
 # without manually specifying the TARGET_SYSTEM.
 TARGET_SYSTEM ?= $(OS)
+export OS
 
 ifneq (,$(filter Windows%,$(TARGET_SYSTEM)))
   EXT =.exe

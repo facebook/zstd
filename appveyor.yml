@@ -289,6 +289,7 @@
       ) else if [%PLATFORM%]==[x86] (
         SET "PATH=%PATH_MINGW32%;%PATH_ORIGINAL%"
       ) ) &&
+      SET "OS=Windows" &&
       make -v &&
       sh -c "%COMPILER% -v" &&
       set "CC=%COMPILER%" &&
@@ -322,6 +323,7 @@
   - ECHO Testing %COMPILER% %PLATFORM% %CONFIGURATION%
   - if [%HOST%]==[mingw] (
       set "CC=%COMPILER%" &&
+      set "OS=Windows" &&
       make clean &&
       make check
     )

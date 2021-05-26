@@ -306,13 +306,13 @@ test32: test-zstd32 test-fullbench32 test-fuzzer32 test-zstream32
 test-all: test test32 valgrindTest test-decodecorpus-cli
 
 .PHONY: test-zstd test-zstd32 test-zstd-nolegacy test-zstdgrep
-test-zstd: ZSTD = $(PRGDIR)/zstd
+test-zstd: ZSTD = $(PRGDIR)/zstd$(EXT)
 test-zstd: zstd
 
-test-zstd32: ZSTD = $(PRGDIR)/zstd32
+test-zstd32: ZSTD = $(PRGDIR)/zstd32$(EXT)
 test-zstd32: zstd32
 
-test-zstd-nolegacy: ZSTD = $(PRGDIR)/zstd-nolegacy
+test-zstd-nolegacy: ZSTD = $(PRGDIR)/zstd-nolegacy$(EXT)
 test-zstd-nolegacy: zstd-nolegacy
 
 test-zstd test-zstd32 test-zstd-nolegacy: datagen
@@ -394,7 +394,7 @@ test-decodecorpus-cli: decodecorpus
 test-pool: poolTests
 	$(QEMU_SYS) ./poolTests
 
-test-lz4: ZSTD = LD_LIBRARY_PATH=/usr/local/lib $(PRGDIR)/zstd
+test-lz4: ZSTD = LD_LIBRARY_PATH=/usr/local/lib $(PRGDIR)/zstd$(EXT)
 test-lz4: ZSTD_LZ4 = LD_LIBRARY_PATH=/usr/local/lib ./lz4
 test-lz4: ZSTD_UNLZ4 = LD_LIBRARY_PATH=/usr/local/lib ./unlz4
 test-lz4: zstd decodecorpus datagen

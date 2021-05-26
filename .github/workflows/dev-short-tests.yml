@@ -1,25 +1,22 @@
-name: generic-dev
+name: dev-short-tests
+# Faster tests: mostly build tests, along with some other
+# misc tests
+
+concurrency: 
+  group: fast-${{ github.ref }}
+  cancel-in-progress: true
 
 on:
   pull_request:
     branches: [ dev, release, actionsTest ]
 
 jobs:
-
-# Dev PR jobs that still have to be migrated from travis
-#
-# versionTag (only on release tags)
-# valgrindTest (keeps failing for some reason. need investigation)
-# staticAnalyze (need trusty so need self-hosted)
-# pcc-fuzz: (need trusty so need self-hosted)
-# min-decomp-macros (flakey)
-#
-# setting up self-hosted is pretty straightforward, but
-# I need admins permissions to the repo for that it looks like
-# So I'm tabling that for now
-#
-# The release branch exclusive jobs will be in a separate
-# workflow file (the osx tests and meson build that is)
+  linux-kernel:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: linux kernel, library + build + test
+      run: make -C contrib/linux-kernel test CFLAGS="-Werror -Wunused-const-variable -Wunused-but-set-variable"
 
   benchmarking:
     runs-on: ubuntu-latest
@@ -27,16 +24,6 @@ jobs:
     - uses: actions/checkout@v2
     - name: make benchmarking
       run: make benchmarking
-
-  test:
-    runs-on: ubuntu-latest
-    env:
-      DEVNULLRIGHTS: 1
-      READFROMBLOCKDEVICE: 1
-    steps:
-    - uses: actions/checkout@v2
-    - name: make test
-      run: make test
 
   check-32bit: # designed to catch https://github.com/facebook/zstd/issues/2428
     runs-on: ubuntu-latest
@@ -62,42 +49,6 @@ jobs:
     # candidate test (to check) : underlink test
     # LDFLAGS=-Wl,--no-undefined : will make the linker fail if dll is underlinked
 
-  gcc-8-asan-ubsan-testzstd:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: gcc-8 + ASan + UBSan + Test Zstd
-      run: |
-        make gcc8install
-        CC=gcc-8 CFLAGS="-Werror" make -j all
-        make clean
-        CC=gcc-8 make -j uasan-test-zstd </dev/null V=1
-
-  gcc-asan-ubsan-testzstd-32bit:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: ASan + UBSan + Test Zstd, 32bit mode
-      run: |
-        make libc6install
-        CFLAGS="-Werror -m32" make -j all32
-        make clean
-        make -j uasan-test-zstd32 V=1
-
-  clang-msan-testzstd:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: clang + MSan + Test Zstd
-      run: |
-        sudo apt-get update
-        sudo apt-get install clang
-        CC=clang make msan-test-zstd HAVE_ZLIB=0 HAVE_LZ4=0 HAVE_LZMA=0 V=1
-
-    # Note : external libraries must be turned off when using MSAN tests,
-    # because they are not msan-instrumented,
-    # so any data coming from these libraries is always considered "uninitialized"
-
   cmake-build-and-test-check:
     runs-on: ubuntu-latest
     steps:
@@ -108,44 +59,6 @@ jobs:
         cp -r ./ "../zstd source"
         cd "../zstd source"
         FUZZERTEST=-T1mn ZSTREAM_TESTTIME=-T1mn make cmakebuild
-
-  gcc-8-asan-ubsan-fuzz:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: gcc-8 + ASan + UBSan + Fuzz Test
-      run: |
-        make gcc8install
-        CC=gcc-8 FUZZER_FLAGS="--long-tests" make clean uasan-fuzztest
-
-  gcc-asan-ubsan-fuzz32:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: ASan + UBSan + Fuzz Test 32bit
-      run: |
-        make libc6install
-        CFLAGS="-O2 -m32" FUZZER_FLAGS="--long-tests" make uasan-fuzztest
-
-  clang-msan-fuzz:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: clang + MSan + Fuzz Test
-      run: |
-        sudo apt-get update
-        sudo apt-get install clang
-        CC=clang FUZZER_FLAGS="--long-tests" make clean msan-fuzztest
-
-  asan-ubsan-msan-regression:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: ASan + UBSan + MSan + Regression Test
-      run: |
-        make -j uasanregressiontest
-        make clean
-        make -j msanregressiontest
 
   cpp-gnu90-c99-compatibility:
     runs-on: ubuntu-latest
@@ -180,15 +93,6 @@ jobs:
         make arminstall
         make armbuild
 
-  armfuzz:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: Qemu ARM emulation + Fuzz Test
-      run: |
-        make arminstall
-        make armfuzz
-
   bourne-shell:
     runs-on: ubuntu-latest
     steps:
@@ -199,6 +103,65 @@ jobs:
         tar -xf shellcheck-v0.7.1.linux.x86_64.tar.xz
         shellcheck-v0.7.1/shellcheck --shell=sh --severity=warning --exclude=SC2010 tests/playTests.sh
 
+  zlib-wrapper:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: zlib wrapper test
+      run: |
+        make valgrindinstall
+        make -C zlibWrapper test
+        make -C zlibWrapper valgrindTest
+
+  lz4-threadpool-partial-libs:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: LZ4, thread pool, and partial libs testslib wrapper test
+      run: |
+        make lz4install
+        make -C tests test-lz4
+        make check < /dev/null | tee   # mess with lz4 console detection
+        make clean
+        make -C tests test-pool
+        make clean
+        bash tests/libzstd_partial_builds.sh
+
+  gcc-make-tests-32bit:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Make all, 32bit mode
+      run: |
+        make libc6install
+        CFLAGS="-Werror -m32" make -j all32
+  
+  gcc-8-make:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: gcc-8 build
+        run: |
+          make gcc8install
+          CC=gcc-8 CFLAGS="-Werror" make -j all
+
+  visual-2015:
+    # only GH actions windows-2016 contains VS 2015
+    runs-on: windows-2016
+    strategy:
+      matrix:
+        platform: [x64, Win32]
+        configuration: [Debug, Release]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v1.0.2
+    - name: Build
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: >
+        msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v140
+        /t:Clean,Build /p:Platform=${{matrix.platform}} /p:Configuration=${{matrix.configuration}}
+  
 # For reference : icc tests
 # icc tests are currently failing on Github Actions, likely to issues during installation stage
 # To be fixed later

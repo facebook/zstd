@@ -242,8 +242,8 @@ $(BUILD_DIR)/zstd : $(ZSTD_OBJ)
 	$(CC) $(FLAGS) $^ $(LDLIBS) -o $@$(EXT)
 
 ifeq ($(HAVE_HASH),1)
-SRCBIN_HASH = $(shell cat $(BUILD_DIR)/zstd 2> $(VOID) | $(HASH) | cut -f 1 -d " ")
-DSTBIN_HASH = $(shell cat zstd 2> $(VOID) | $(HASH) | cut -f 1 -d " ")
+SRCBIN_HASH = $(shell cat $(BUILD_DIR)/zstd$(EXT) 2> $(VOID) | $(HASH) | cut -f 1 -d " ")
+DSTBIN_HASH = $(shell cat zstd$(EXT) 2> $(VOID) | $(HASH) | cut -f 1 -d " ")
 BIN_ISDIFFERENT = $(if $(filter $(SRCBIN_HASH),$(DSTBIN_HASH)),0,1)
 else
 BIN_ISDIFFERENT = 1
@@ -251,7 +251,7 @@ endif
 
 zstd : $(BUILD_DIR)/zstd
 	if [ $(BIN_ISDIFFERENT) -eq 1 ]; then \
-		cp -f $< $@; \
+		cp -f $<$(EXT) $@$(EXT); \
 		echo zstd build completed; \
 	else \
 		echo zstd already built; \

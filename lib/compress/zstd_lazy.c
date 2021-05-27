@@ -872,10 +872,7 @@ FORCE_INLINE_TEMPLATE size_t ZSTD_HcFindBestMatch_extDict_selectMLS (
 #define ZSTD_ROW_HASH_CACHE_MASK (ZSTD_ROW_HASH_CACHE_SIZE - 1)
 
 #if !defined(ZSTD_NO_INTRINSICS)
-#  if defined(_M_AMD64) || (defined (_M_IX86) && defined(_M_IX86_FP) && (_M_IX86_FP >= 2))
-#    define ZSTD_ARCH_X86_SSE2
-#  endif
-#  if defined(__SSE2__)
+#  if defined(__SSE2__) || defined(_M_AMD64) || (defined (_M_IX86) && defined(_M_IX86_FP) && (_M_IX86_FP >= 2))
 #    define ZSTD_ARCH_X86_SSE2
 #  endif
 #  if defined(__ARM_NEON)
@@ -1059,27 +1056,26 @@ void ZSTD_row_update(ZSTD_matchState_t* const ms, const BYTE* ip) {
 FORCE_INLINE_TEMPLATE
 ZSTD_VecMask ZSTD_row_getMatchMask(const BYTE* const tagRow, const BYTE tag, const U32 head, const U32 rowEntries) {
     const BYTE* const src = tagRow + ZSTD_ROW_HASH_TAG_OFFSET;
+    assert((rowEntries == 16) || (rowEntries == 32));
 #if defined(ZSTD_ARCH_X86_SSE2)
-    assert(ZSTD_isAligned(src, 16));
     if (rowEntries == 16) {
-        const __m128i chunk = _mm_load_si128((const __m128i*)(const void*)src);
+        const __m128i chunk = _mm_loadu_si128((const __m128i*)(const void*)src);
         const __m128i equalMask = _mm_cmpeq_epi8(chunk, _mm_set1_epi8(tag));
         const U32 matches = (U32)_mm_movemask_epi8(equalMask);
-        return ZSTD_VecMask_rotateRight(matches, head, 16);
-    } else {
-        const __m128i chunk0 = _mm_load_si128((const __m128i*)(const void*)&src[0]);
-        const __m128i chunk1 = _mm_load_si128((const __m128i*)(const void*)&src[16]);
+        return ZSTD_VecMask_rotateRight(matches, head, rowEntries);
+    } else { /* rowEntries == 32 */
+        const __m128i chunk0 = _mm_loadu_si128((const __m128i*)(const void*)&src[0]);
+        const __m128i chunk1 = _mm_loadu_si128((const __m128i*)(const void*)&src[16]);
         const __m128i equalMask0 = _mm_cmpeq_epi8(chunk0, _mm_set1_epi8(tag));
         const __m128i equalMask1 = _mm_cmpeq_epi8(chunk1, _mm_set1_epi8(tag));
         const U32 lo = (U32)_mm_movemask_epi8(equalMask0);
         const U32 hi = (U32)_mm_movemask_epi8(equalMask1);
         assert(rowEntries == 32);
-        return ZSTD_VecMask_rotateRight((hi << 16) | lo, head, 32);
+        return ZSTD_VecMask_rotateRight((hi << 16) | lo, head, rowEntries);
     }
 #else
 #  if defined(ZSTD_ARCH_ARM_NEON)
     if (MEM_isLittleEndian()) {
-        assert(ZSTD_isAligned(src, 16));
         if (rowEntries == 16) {
             const uint8x16_t chunk = vld1q_u8(src);
             const uint16x8_t equalMask = vreinterpretq_u16_u8(vceqq_u8(chunk, vdupq_n_u8(tag)));
@@ -1089,8 +1085,8 @@ ZSTD_VecMask ZSTD_row_getMatchMask(const BYTE* const tagRow, const BYTE tag, con
             const uint8x16_t t3 = vreinterpretq_u8_u64(vsraq_n_u64(t2, t2, 28));
             const U16 hi = (U16)vgetq_lane_u8(t3, 8);
             const U16 lo = (U16)vgetq_lane_u8(t3, 0);
-            return ZSTD_VecMask_rotateRight((hi << 8) | lo, head, 16);
-        } else {
+            return ZSTD_VecMask_rotateRight((hi << 8) | lo, head, rowEntries);
+        } else { /* rowEntries == 32 */
             const uint16x8x2_t chunk = vld2q_u16((const U16*)(const void*)src);
             const uint8x16_t chunk0 = vreinterpretq_u8_u16(chunk.val[0]);
             const uint8x16_t chunk1 = vreinterpretq_u8_u16(chunk.val[1]);
@@ -1105,7 +1101,7 @@ ZSTD_VecMask ZSTD_row_getMatchMask(const BYTE* const tagRow, const BYTE tag, con
             const uint8x8_t t4 = vsri_n_u8(t3.val[1], t3.val[0], 4);
             const U32 matches = vget_lane_u32(vreinterpret_u32_u8(t4), 0);
             assert(rowEntries == 32);
-            return ZSTD_VecMask_rotateRight(matches, head, 32);
+            return ZSTD_VecMask_rotateRight(matches, head, rowEntries);
         }
     }
 #  endif
@@ -1118,8 +1114,7 @@ ZSTD_VecMask ZSTD_row_getMatchMask(const BYTE* const tagRow, const BYTE tag, con
         const size_t splatChar = tag * x01;
         size_t matches = 0;
         int i = rowEntries - chunkSize;
-        assert((sizeof(size_t) == 8) || (sizeof(size_t) == 4));
-        assert((rowEntries == 32) || (rowEntries == 16));
+        assert((sizeof(size_t) == 4) || (sizeof(size_t) == 8));
         if (MEM_isLittleEndian()) { /* runtime check so have two loops */
             const size_t extractMagic = (xFF / 0x7F) >> chunkSize;
             do {
@@ -1144,10 +1139,9 @@ ZSTD_VecMask ZSTD_row_getMatchMask(const BYTE* const tagRow, const BYTE tag, con
         }
         matches = ~matches;
         if (rowEntries == 16) {
-            return ZSTD_VecMask_rotateRight((U16)matches, head, 16);
-        } else {
-            assert(rowEntries == 32);
-            return ZSTD_VecMask_rotateRight((U32)matches, head, 32);
+            return ZSTD_VecMask_rotateRight((U16)matches, head, rowEntries);
+        } else { /* rowEntries == 32 */
+            return ZSTD_VecMask_rotateRight((U32)matches, head, rowEntries);
         }
     }
 #endif

@@ -871,22 +871,6 @@ FORCE_INLINE_TEMPLATE size_t ZSTD_HcFindBestMatch_extDict_selectMLS (
 
 #define ZSTD_ROW_HASH_CACHE_MASK (ZSTD_ROW_HASH_CACHE_SIZE - 1)
 
-#if !defined(ZSTD_NO_INTRINSICS)
-#  if defined(__SSE2__) || defined(_M_AMD64) || (defined (_M_IX86) && defined(_M_IX86_FP) && (_M_IX86_FP >= 2))
-#    define ZSTD_ARCH_X86_SSE2
-#  endif
-#  if defined(__ARM_NEON)
-#    define ZSTD_ARCH_ARM_NEON
-#  endif
-#
-#
-#  if defined(ZSTD_ARCH_X86_SSE2)
-#    include <emmintrin.h>
-#  elif defined(ZSTD_ARCH_ARM_NEON)
-#    include <arm_neon.h>
-#  endif
-#endif
-
 typedef U32 ZSTD_VecMask;   /* Clarifies when we are interacting with a U32 representing a mask of matches */
 
 /* ZSTD_VecMask_next():

@@ -32,6 +32,12 @@ matrix:
       script:
         - make check
     
+    - name: arm64fuzz
+      os: linux
+      arch: arm64
+      script:
+        - make -C tests fuzztest
+    
     # TODO: migrate to GH actions once warnings are fixed
     - name: Minimal Decompressor Macros    # ~5mn
       script:

@@ -1054,7 +1054,6 @@ ZSTD_VecMask ZSTD_row_getMatchMask(const BYTE* const tagRow, const BYTE tag, con
         const __m128i equalMask1 = _mm_cmpeq_epi8(chunk1, _mm_set1_epi8(tag));
         const U32 lo = (U32)_mm_movemask_epi8(equalMask0);
         const U32 hi = (U32)_mm_movemask_epi8(equalMask1);
-        assert(rowEntries == 32);
         return ZSTD_VecMask_rotateRight((hi << 16) | lo, head, rowEntries);
     }
 #else
@@ -1084,7 +1083,6 @@ ZSTD_VecMask ZSTD_row_getMatchMask(const BYTE* const tagRow, const BYTE tag, con
             const uint8x8x2_t t3 = vuzp_u8(t2, t0);
             const uint8x8_t t4 = vsri_n_u8(t3.val[1], t3.val[0], 4);
             const U32 matches = vget_lane_u32(vreinterpret_u32_u8(t4), 0);
-            assert(rowEntries == 32);
             return ZSTD_VecMask_rotateRight(matches, head, rowEntries);
         }
     }

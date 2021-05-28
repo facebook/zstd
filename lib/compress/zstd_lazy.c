@@ -8,7 +8,7 @@
  * You may select, at your option, one of the above-listed licenses.
  */
 
-#include "../common/compiler.h" /* __SSE2__ for MSVC */
+#include "../common/compiler.h" /* SSE2 and Neon support */
 #include "zstd_compress_internal.h"
 #include "zstd_lazy.h"
 
@@ -874,7 +874,7 @@ FORCE_INLINE_TEMPLATE size_t ZSTD_HcFindBestMatch_extDict_selectMLS (
 
 typedef U32 ZSTD_VecMask;   /* Clarifies when we are interacting with a U32 representing a mask of matches */
 
-#if !defined(ZSTD_NO_INTRINSICS) && defined(__SSE2__) /* SIMD SSE version*/
+#if !defined(ZSTD_NO_INTRINSICS) && defined(ZSTD_ARCH_SSE2) /* SIMD SSE version*/
 
 #include <emmintrin.h>
 typedef __m128i ZSTD_Vec128;
@@ -923,7 +923,7 @@ static ZSTD_VecMask ZSTD_Vec256_cmpMask8(const ZSTD_Vec256* const x, const ZSTD_
   return fstMask | (sndMask << 16);
 }
 
-#elif !defined(ZSTD_NO_INTRINSICS) && defined(__ARM_NEON) /* SIMD ARM NEON Version */
+#elif !defined(ZSTD_NO_INTRINSICS) && defined(ZSTD_ARCH_NEON) /* SIMD ARM NEON Version */
 
 #include <arm_neon.h>
 typedef uint8x16_t ZSTD_Vec128;
@@ -1063,7 +1063,7 @@ static ZSTD_VecMask ZSTD_Vec256_cmpMask8(const ZSTD_Vec256* const x, const ZSTD_
     return res;
 }
 
-#endif /* !defined(ZSTD_NO_INTRINSICS) && defined(__SSE2__) */
+#endif /* !defined(ZSTD_NO_INTRINSICS) && defined(ZSTD_ARCH_SSE2) */
 
 /* ZSTD_VecMask_next():
  * Starting from the LSB, returns the idx of the next non-zero bit.

@@ -287,23 +287,25 @@ void __asan_unpoison_memory_region(void const volatile *addr, size_t size);
 #endif
 
 /**
- * Workaround to add this Clang and GCC define for MSVC to denote SSE2 support
- * is enabled (x64's implicit SSE2 is covered by <c>_M_X64</c> and x86's by
- * <c>_M_IX86_FP</c> reflecting MSCV's <c>/arch</c> flag).
+ * Compile-time detection of SSE2 support, either directly via Clang/GCC's <c>
+ * __SSE2__</c> macro, implicitly on x64 via MSVC's <c>_M_X64</c>, or on x86 by
+ * <c>_M_IX86_FP</c> reflecting MSCV's <c>/arch</c> flag.
  */
-#ifndef __SSE2__
-#  if defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP == 2)
-#    define __SSE2__
+#ifndef ZSTD_ARCH_SSE2
+#  if defined(__SSE2__) || defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
+#    define ZSTD_ARCH_SSE2
 #  endif
 #endif
 
 /**
- * Workaround to add this GCC define for MSVC's ARM64 target (for Windows
- * Surface Pro X and others).
+ * Compile-time detection of ARM Neon support, either directly via the <c>
+ * __ARM_NEON</c> macro, as defined in the <em><ARM Architecture Reference
+ * Manual</em>, or implicitly for ARM64 targets (including <c>_M_ARM64</c> for
+ * MSVC).
  */
-#ifndef __ARM_NEON
-#  if defined(_M_ARM64)
-#    define __ARM_NEON
+#ifndef ZSTD_ARCH_NEON
+#  if defined(__ARM_NEON) || defined(__aarch64__) || defined(_M_ARM64)
+#    define ZSTD_ARCH_NEON
 #  endif
 #endif
 

@@ -19,8 +19,8 @@
 /*-*************************************
 *  Dependencies
 ***************************************/
-#include "compiler.h" /* Needs to go before the ARM Neon include */
-#if !defined(ZSTD_NO_INTRINSICS) && defined(__ARM_NEON)
+#include "compiler.h"              /* ARM Neon detection (needs to go before the Neon include) */
+#if !defined(ZSTD_NO_INTRINSICS) && defined(ZSTD_ARCH_NEON)
 #include <arm_neon.h>
 #endif
 #include "mem.h"
@@ -247,7 +247,7 @@ static UNUSED_ATTR const U32 OF_defaultNormLog = OF_DEFAULTNORMLOG;
 *  Shared functions to include for inlining
 *********************************************/
 static void ZSTD_copy8(void* dst, const void* src) {
-#if !defined(ZSTD_NO_INTRINSICS) && defined(__ARM_NEON)
+#if !defined(ZSTD_NO_INTRINSICS) && defined(ZSTD_ARCH_NEON)
     vst1_u8((uint8_t*)dst, vld1_u8((const uint8_t*)src));
 #else
     ZSTD_memcpy(dst, src, 8);
@@ -256,7 +256,7 @@ static void ZSTD_copy8(void* dst, const void* src) {
 
 #define COPY8(d,s) { ZSTD_copy8(d,s); d+=8; s+=8; }
 static void ZSTD_copy16(void* dst, const void* src) {
-#if !defined(ZSTD_NO_INTRINSICS) && defined(__ARM_NEON)
+#if !defined(ZSTD_NO_INTRINSICS) && defined(ZSTD_ARCH_NEON)
     vst1q_u8((uint8_t*)dst, vld1q_u8((const uint8_t*)src));
 #else
     ZSTD_memcpy(dst, src, 16);

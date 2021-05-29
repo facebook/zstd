@@ -894,22 +894,22 @@ static U32 ZSTD_VecMask_next(ZSTD_VecMask val) {
 #   endif
 }
 
-/* ZSTD_VecMask_rotateRight():
- * Rotates a bitfield to the right by "rotation" bits.
- * If the rotation is greater than totalBits, the returned mask is 0.
+/* ZSTD_rotateRight_U32():
+ * Rotates a bitfield to the right by "count" bits.
+ * https://en.wikipedia.org/w/index.php?title=Circular_shift&oldid=991635599#Implementing_circular_shifts
  */
-FORCE_INLINE_TEMPLATE ZSTD_VecMask
-ZSTD_VecMask_rotateRight(ZSTD_VecMask mask, U32 const rotation, U32 const totalBits) {
-  if (rotation == 0)
-    return mask;
-  switch (totalBits) {
-    default:
-      assert(0);
-    case 16:
-      return (mask >> rotation) | (U16)(mask << (16 - rotation));
-    case 32:
-      return (mask >> rotation) | (U32)(mask << (32 - rotation));
-  }
+FORCE_INLINE_TEMPLATE
+U32 ZSTD_rotateRight_U32(U32 const value, U32 count) {
+    assert(count < 32);
+    count &= 0x1F; /* for fickle pattern recognition */
+    return (value >> count) | (U32)(value << (-count & 0x1F));
+}
+
+FORCE_INLINE_TEMPLATE
+U16 ZSTD_rotateRight_U16(U16 const value, U32 count) {
+    assert(count < 16);
+    count &= 0x0F; /* for fickle pattern recognition */
+    return (value >> count) | (U16)(value << (-count & 0x0F));
 }
 
 /* ZSTD_row_nextIndex():
@@ -1046,7 +1046,7 @@ ZSTD_VecMask ZSTD_row_getMatchMask(const BYTE* const tagRow, const BYTE tag, con
         const __m128i chunk = _mm_loadu_si128((const __m128i*)(const void*)src);
         const __m128i equalMask = _mm_cmpeq_epi8(chunk, _mm_set1_epi8(tag));
         const U32 matches = (U32)_mm_movemask_epi8(equalMask);
-        return ZSTD_VecMask_rotateRight(matches, head, rowEntries);
+        return ZSTD_rotateRight_U16(matches, head);
     } else { /* rowEntries == 32 */
         const __m128i chunk0 = _mm_loadu_si128((const __m128i*)(const void*)&src[0]);
         const __m128i chunk1 = _mm_loadu_si128((const __m128i*)(const void*)&src[16]);
@@ -1054,7 +1054,7 @@ ZSTD_VecMask ZSTD_row_getMatchMask(const BYTE* const tagRow, const BYTE tag, con
         const __m128i equalMask1 = _mm_cmpeq_epi8(chunk1, _mm_set1_epi8(tag));
         const U32 lo = (U32)_mm_movemask_epi8(equalMask0);
         const U32 hi = (U32)_mm_movemask_epi8(equalMask1);
-        return ZSTD_VecMask_rotateRight((hi << 16) | lo, head, rowEntries);
+        return ZSTD_rotateRight_U32((hi << 16) | lo, head);
     }
 #else
 #  if defined(ZSTD_ARCH_ARM_NEON)
@@ -1068,7 +1068,7 @@ ZSTD_VecMask ZSTD_row_getMatchMask(const BYTE* const tagRow, const BYTE tag, con
             const uint8x16_t t3 = vreinterpretq_u8_u64(vsraq_n_u64(t2, t2, 28));
             const U16 hi = (U16)vgetq_lane_u8(t3, 8);
             const U16 lo = (U16)vgetq_lane_u8(t3, 0);
-            return ZSTD_VecMask_rotateRight((hi << 8) | lo, head, rowEntries);
+            return ZSTD_rotateRight_U16((hi << 8) | lo, head);
         } else { /* rowEntries == 32 */
             const uint16x8x2_t chunk = vld2q_u16((const U16*)(const void*)src);
             const uint8x16_t chunk0 = vreinterpretq_u8_u16(chunk.val[0]);
@@ -1083,7 +1083,7 @@ ZSTD_VecMask ZSTD_row_getMatchMask(const BYTE* const tagRow, const BYTE tag, con
             const uint8x8x2_t t3 = vuzp_u8(t2, t0);
             const uint8x8_t t4 = vsri_n_u8(t3.val[1], t3.val[0], 4);
             const U32 matches = vget_lane_u32(vreinterpret_u32_u8(t4), 0);
-            return ZSTD_VecMask_rotateRight(matches, head, rowEntries);
+            return ZSTD_rotateRight_U32(matches, head);
         }
     }
 #  endif
@@ -1121,9 +1121,9 @@ ZSTD_VecMask ZSTD_row_getMatchMask(const BYTE* const tagRow, const BYTE tag, con
         }
         matches = ~matches;
         if (rowEntries == 16) {
-            return ZSTD_VecMask_rotateRight((U16)matches, head, rowEntries);
+            return ZSTD_rotateRight_U16((U16)matches, head);
         } else { /* rowEntries == 32 */
-            return ZSTD_VecMask_rotateRight((U32)matches, head, rowEntries);
+            return ZSTD_rotateRight_U32((U32)matches, head);
         }
     }
 #endif

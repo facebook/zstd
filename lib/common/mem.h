@@ -153,8 +153,22 @@ MEM_STATIC unsigned MEM_64bits(void) { return sizeof(size_t)==8; }
 
 MEM_STATIC unsigned MEM_isLittleEndian(void)
 {
+#if defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+    return 1;
+#elif defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+    return 0;
+#elif defined(__clang__) && __LITTLE_ENDIAN__
+    return 1;
+#elif defined(__clang__) && __BIG_ENDIAN__
+    return 0;
+#elif defined(_MSC_VER) && (_M_AMD64 || _M_IX86)
+    return 1;
+#elif defined(__DMC__) && defined(_M_IX86)
+    return 1;
+#else
     const union { U32 u; BYTE c[4]; } one = { 1 };   /* don't use static : performance detrimental  */
     return one.c[0];
+#endif
 }
 
 #if defined(MEM_FORCE_MEMORY_ACCESS) && (MEM_FORCE_MEMORY_ACCESS==2)

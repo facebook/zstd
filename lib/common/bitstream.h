@@ -338,8 +338,7 @@ MEM_STATIC FORCE_INLINE_ATTR size_t BIT_getMiddleBits(size_t bitContainer, U32 c
      * importance.
      */
 #if defined(__x86_64__) || defined(_M_X86)
-    U64 const one = 1;
-    return (bitContainer >> (start & regMask)) & ((one << nbBits) - 1);
+    return (bitContainer >> (start & regMask)) & ((((U64)1) << nbBits) - 1);
 #else
     return (bitContainer >> (start & regMask)) & BIT_mask[nbBits];
 #endif

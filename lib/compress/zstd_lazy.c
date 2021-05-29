@@ -1045,7 +1045,7 @@ ZSTD_VecMask ZSTD_row_getMatchMask(const BYTE* const tagRow, const BYTE tag, con
     if (rowEntries == 16) {
         const __m128i chunk = _mm_loadu_si128((const __m128i*)(const void*)src);
         const __m128i equalMask = _mm_cmpeq_epi8(chunk, _mm_set1_epi8(tag));
-        const U32 matches = (U32)_mm_movemask_epi8(equalMask);
+        const U16 matches = (U16)_mm_movemask_epi8(equalMask);
         return ZSTD_rotateRight_U16(matches, head);
     } else { /* rowEntries == 32 */
         const __m128i chunk0 = _mm_loadu_si128((const __m128i*)(const void*)&src[0]);

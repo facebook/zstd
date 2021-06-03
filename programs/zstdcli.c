@@ -208,6 +208,7 @@ static void usage_advanced(const char* programName)
     DISPLAYOUT( "--fast[=#]: switch to very fast compression levels (default: %u) \n", 1);
     DISPLAYOUT( "--adapt : dynamically adapt compression level to I/O conditions \n");
     DISPLAYOUT( "--[no-]row-match-finder : force enable/disable usage of fast row-based matchfinder for greedy, lazy, and lazy2 strategies \n");
+    DISPLAYOUT( "--patch-from=FILE : specify the file to be used as a reference point for zstd's diff engine. \n");
 # ifdef ZSTD_MULTITHREAD
     DISPLAYOUT( " -T#    : spawns # compression threads (default: 1, 0==# cores) \n");
     DISPLAYOUT( " -B#    : select size of each job (default: 0==automatic) \n");

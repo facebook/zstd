@@ -15,7 +15,7 @@ CURL_LDFLAGS := $(shell curl-config --libs) -pthread
 
 PROGDIR := ../../programs
 LIBDIR := ../../lib
-ZSTD_CPPFLAGS := -I$(PROGDIR) -I$(LIBDIR) -I$(LIBDIR)/common
+ZSTD_CPPFLAGS := -I$(PROGDIR) -I$(LIBDIR) -I$(LIBDIR)/common -Wno-deprecated-declarations
 
 REGRESSION_CFLAGS = $(CFLAGS) $(CURL_CFLAGS)
 REGRESSION_CPPFLAGS = $(CPPFLAGS) $(ZSTD_CPPFLAGS)

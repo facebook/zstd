@@ -902,14 +902,14 @@ FORCE_INLINE_TEMPLATE
 U32 ZSTD_rotateRight_U32(U32 const value, U32 count) {
     assert(count < 32);
     count &= 0x1F; /* for fickle pattern recognition */
-    return (value >> count) | (U32)(value << (-(S32)count & 0x1F));
+    return (value >> count) | (U32)(value << ((0U - count) & 0x1F));
 }
 
 FORCE_INLINE_TEMPLATE
 U16 ZSTD_rotateRight_U16(U16 const value, U32 count) {
     assert(count < 16);
     count &= 0x0F; /* for fickle pattern recognition */
-    return (value >> count) | (U16)(value << (-(S16)count & 0x0F));
+    return (value >> count) | (U16)(value << ((0U - count) & 0x0F));
 }
 
 /* ZSTD_row_nextIndex():

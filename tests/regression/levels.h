@@ -35,21 +35,23 @@ LEVEL(1)
 LEVEL(3)
 LEVEL(4)
 /* ROW_LEVEL triggers the row hash (force enabled and disabled) with different
- * dictionary strategies, and 16/32 row entries based on the level/searchLog.
+ * dictionary strategies, and 16/32/64 row entries based on the level/searchLog.
  * 1 == disabled, 2 == enabled.
  */
 ROW_LEVEL(5, 1)
-ROW_LEVEL(5, 2)
+ROW_LEVEL(5, 2) /* 16-entry rows */
 LEVEL(5)
 LEVEL(6)
 ROW_LEVEL(7, 1)
-ROW_LEVEL(7, 2)
+ROW_LEVEL(7, 2) /* 16-entry rows */
 LEVEL(7)
 
 LEVEL(9)
 
+ROW_LEVEL(11, 1)
+ROW_LEVEL(11, 2) /* 32-entry rows */
 ROW_LEVEL(12, 1)
-ROW_LEVEL(12, 2)
+ROW_LEVEL(12, 2) /* 64-entry rows */
 LEVEL(13)
 
 LEVEL(16)

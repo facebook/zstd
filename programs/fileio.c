@@ -1598,16 +1598,16 @@ FIO_compressFilename_internal(FIO_ctx_t* const fCtx,
                 (unsigned long long)readsize, (unsigned long long) compressedfilesize,
                 dstFileName);
         } else {
-			char input_size_str[8] = "";
-			human_size((unsigned long long) readsize, input_size_str);
+			char inputSizeStr[8] = "";
+			humanSize((unsigned long long) readsize, inputSizeStr);
 
-			char output_size_str[8] = "";
-			human_size((unsigned long long) compressedfilesize, output_size_str);
+			char outputSizeStr[8] = "";
+			humanSize((unsigned long long) compressedfilesize, outputSizeStr);
 
             DISPLAYLEVEL(2,"%-20s :%6.2f%%   (%s => %s, %s) \n",
                 srcFileName,
                 (double)compressedfilesize / (double)readsize * 100,
-                input_size_str, output_size_str,
+                inputSizeStr, outputSizeStr,
                 dstFileName);
         }
     }

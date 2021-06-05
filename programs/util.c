@@ -122,27 +122,23 @@ int UTIL_requireUserConfirmation(const char* prompt, const char* abortMsg,
 ***************************************/
 
 char* humanSize(unsigned long long size, char* str) {
-	/* This only works on 64 bit platforms so I commented it out for now */
-	/*
-	if (size > 1125899906842624L) {
-		snprintf(str, 7, "%.1fP", (float)size / 1125899906842624L);
-	} else if (size > 1099511627776L) {
-		snprintf(str, 7, "%.1fT", (float)size / 1099511627776L);
-	*/
+    if (size > 1125899906842624L) {
+        snprintf(str, 7, "%.1fP", (float)size / 1125899906842624L);
+    } else if (size > 1099511627776L) {
+        snprintf(str, 7, "%.1fT", (float)size / 1099511627776L);
+    } else if (size > 1073741824L) {
+        snprintf(str, 7, "%.1fG", (float)size / 1073741824L);
+    } else if (size > 1048576L) {
+        snprintf(str, 7, "%.1fM", (float)size / 1048576L);
+    } else if (size > 1024) {
+        snprintf(str, 7, "%.1fK", (float)size / 1024);
+    } else if (size <= 1024) {
+        snprintf(str, 7, "%lluB", size);
+    } else {
+        str[0] = '\0';
+    }
 
-	if (size > 1073741824L) {
-		snprintf(str, 7, "%.1fG", (float)size / 1073741824L);
-	} else if (size > 1048576L) {
-		snprintf(str, 7, "%.1fM", (float)size / 1048576L);
-	} else if (size > 1024) {
-		snprintf(str, 7, "%.1fK", (float)size / 1024);
-	} else if (size <= 1024) {
-		snprintf(str, 7, "%lluB", size);
-	} else {
-		str[0] = '\0';
-	}
-
-	return str;
+    return str;
 }
 
 

@@ -121,7 +121,7 @@ int UTIL_requireUserConfirmation(const char* prompt, const char* abortMsg,
 *  Functions
 ***************************************/
 
-char* human_size(long size, char* str) {
+char* humanSize(long size, char* str) {
 	if (size > 1125899906842624L) {
 		snprintf(str, 7, "%.1fP", (float)size / 1125899906842624L);
 	} else if (size > 1099511627776L) {

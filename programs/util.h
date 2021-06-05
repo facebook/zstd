@@ -122,7 +122,7 @@ int UTIL_requireUserConfirmation(const char* prompt, const char* abortMsg, const
 #define STRDUP(s) strdup(s)
 #endif
 
-char* humanSize(long size, char* str);
+char* humanSize(size_t size, char* str);
 
 /**
  * Calls platform's equivalent of stat() on filename and writes info to statbuf.

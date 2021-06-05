@@ -121,7 +121,7 @@ int UTIL_requireUserConfirmation(const char* prompt, const char* abortMsg,
 *  Functions
 ***************************************/
 
-char* humanSize(long size, char* str) {
+char* humanSize(size_t size, char* str) {
 	if (size > 1125899906842624L) {
 		snprintf(str, 7, "%.1fP", (float)size / 1125899906842624L);
 	} else if (size > 1099511627776L) {
@@ -132,8 +132,8 @@ char* humanSize(long size, char* str) {
 		snprintf(str, 7, "%.1fM", (float)size / 1048576L);
 	} else if (size > 1024) {
 		snprintf(str, 7, "%.1fK", (float)size / 1024);
-	} else if (size >= 0) {
-		snprintf(str, 7, "%dB", 0);
+	} else if (size <= 1024) {
+		snprintf(str, 7, "%luB", size);
 	} else {
 		str[0] = '\0';
 	}

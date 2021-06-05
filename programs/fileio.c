@@ -1527,6 +1527,26 @@ FIO_compressZstdFrame(FIO_ctx_t* const fCtx,
     return compressedfilesize;
 }
 
+char* human_size(long size, char* str) {
+	if (size > 1125899906842624L) {
+		snprintf(str, 7, "%.1fP", (float)size / 1125899906842624L);
+	} else if (size > 1099511627776L) {
+		snprintf(str, 7, "%.1fT", (float)size / 1099511627776L);
+	} else if (size > 1073741824L) {
+		snprintf(str, 7, "%.1fG", (float)size / 1073741824L);
+	} else if (size > 1048576L) {
+		snprintf(str, 7, "%.1fM", (float)size / 1048576L);
+	} else if (size > 1024) {
+		snprintf(str, 7, "%.1fK", (float)size / 1024);
+	} else if (size >= 0) {
+		snprintf(str, 7, "%dB", size);
+	} else {
+		str[0] = '\0';
+	}
+
+	return str;
+}
+
 /*! FIO_compressFilename_internal() :
  *  same as FIO_compressFilename_extRess(), with `ress.desFile` already opened.
  *  @return : 0 : compression completed correctly,
@@ -1598,10 +1618,16 @@ FIO_compressFilename_internal(FIO_ctx_t* const fCtx,
                 (unsigned long long)readsize, (unsigned long long) compressedfilesize,
                 dstFileName);
         } else {
-            DISPLAYLEVEL(2,"%-20s :%6.2f%%   (%6llu => %6llu bytes, %s) \n",
+			char input_size_str[8] = "";
+			human_size((unsigned long long) readsize, input_size_str);
+
+			char output_size_str[8] = "";
+			human_size((unsigned long long) compressedfilesize, output_size_str);
+
+            DISPLAYLEVEL(2,"%-20s :%6.2f%%   (%s => %s, %s) \n",
                 srcFileName,
                 (double)compressedfilesize / (double)readsize * 100,
-                (unsigned long long)readsize, (unsigned long long) compressedfilesize,
+                input_size_str, output_size_str,
                 dstFileName);
         }
     }

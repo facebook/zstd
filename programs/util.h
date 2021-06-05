@@ -122,6 +122,8 @@ int UTIL_requireUserConfirmation(const char* prompt, const char* abortMsg, const
 #define STRDUP(s) strdup(s)
 #endif
 
+char* human_size(long size, char* str);
+
 /**
  * Calls platform's equivalent of stat() on filename and writes info to statbuf.
  * Returns success (1) or failure (0).

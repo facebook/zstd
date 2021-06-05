@@ -1544,6 +1544,9 @@ FIO_compressFilename_internal(FIO_ctx_t* const fCtx,
     U64 readsize = 0;
     U64 compressedfilesize = 0;
     U64 const fileSize = UTIL_getFileSize(srcFileName);
+	char inputSizeStr[8]  = "";
+	char outputSizeStr[8] = "";
+
     DISPLAYLEVEL(5, "%s: %llu bytes \n", srcFileName, (unsigned long long)fileSize);
 
     /* compression format selection */
@@ -1598,10 +1601,7 @@ FIO_compressFilename_internal(FIO_ctx_t* const fCtx,
                 (unsigned long long)readsize, (unsigned long long) compressedfilesize,
                 dstFileName);
         } else {
-			char inputSizeStr[8] = "";
 			humanSize((unsigned long long) readsize, inputSizeStr);
-
-			char outputSizeStr[8] = "";
 			humanSize((unsigned long long) compressedfilesize, outputSizeStr);
 
             DISPLAYLEVEL(2,"%-20s :%6.2f%%   (%s => %s, %s) \n",

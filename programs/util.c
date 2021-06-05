@@ -133,7 +133,7 @@ char* humanSize(long size, char* str) {
 	} else if (size > 1024) {
 		snprintf(str, 7, "%.1fK", (float)size / 1024);
 	} else if (size >= 0) {
-		snprintf(str, 7, "%dB", size);
+		snprintf(str, 7, "%dB", 0);
 	} else {
 		str[0] = '\0';
 	}

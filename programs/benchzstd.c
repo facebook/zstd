@@ -388,8 +388,8 @@ BMK_benchMemAdvancedNoAlloc(
 #       define NB_MARKS 4
         const char* marks[NB_MARKS] = { " |", " /", " =", " \\" };
         U32 markNb = 0;
-		char inputSizeStr[8]  = "";
-		char outputSizeStr[8] = "";
+        char inputSizeStr[8]  = "";
+        char outputSizeStr[8] = "";
         int compressionCompleted = (adv->mode == BMK_decodeOnly);
         int decompressionCompleted = (adv->mode == BMK_compressOnly);
         BMK_benchParams_t cbp, dbp;
@@ -431,7 +431,7 @@ BMK_benchMemAdvancedNoAlloc(
         dctxprep.dictBuffer = dictBuffer;
         dctxprep.dictBufferSize = dictBufferSize;
 
-		humanSize((unsigned)srcSize, inputSizeStr);
+        humanSize((unsigned)srcSize, inputSizeStr);
 
         DISPLAYLEVEL(2, "\r%70s\r", "");   /* blank line */
         DISPLAYLEVEL(2, "%2s-%-17.17s : %s -> \r", marks[markNb], displayName, inputSizeStr);
@@ -456,8 +456,8 @@ BMK_benchMemAdvancedNoAlloc(
 
                 {   int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
 
-					humanSize((unsigned)srcSize, inputSizeStr);
-					humanSize((unsigned)cSize, outputSizeStr);
+                    humanSize((unsigned)srcSize, inputSizeStr);
+                    humanSize((unsigned)cSize, outputSizeStr);
 
                     DISPLAYLEVEL(2, "%2s-%-17.17s : %s -> %s (%5.*f),%6.*f MB/s\r",
                             marks[markNb], displayName,
@@ -483,8 +483,8 @@ BMK_benchMemAdvancedNoAlloc(
 
                 {   int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
 
-					humanSize((unsigned)srcSize, inputSizeStr);
-					humanSize((unsigned)cSize, outputSizeStr);
+                    humanSize((unsigned)srcSize, inputSizeStr);
+                    humanSize((unsigned)cSize, outputSizeStr);
 
                     DISPLAYLEVEL(2, "%2s-%-17.17s : %s -> %s (%5.*f),%6.*f MB/s ,%6.1f MB/s \r",
                             marks[markNb], displayName,

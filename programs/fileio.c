@@ -1841,6 +1841,8 @@ int FIO_compressMultipleFilenames(FIO_ctx_t* const fCtx,
 {
     int status;
     int error = 0;
+	char inputSizeStr[8]  = "";
+	char outputSizeStr[8] = "";
     cRess_t ress = FIO_createCResources(prefs, dictFileName,
         FIO_getLargestFileSize(inFileNamesTable, (unsigned)fCtx->nbFilesTotal),
         compressionLevel, comprParams);
@@ -1896,10 +1898,13 @@ int FIO_compressMultipleFilenames(FIO_ctx_t* const fCtx,
     }
 
     if (fCtx->nbFilesProcessed >= 1 && fCtx->nbFilesTotal > 1 && fCtx->totalBytesInput != 0) {
+		humanSize((unsigned long long) fCtx->totalBytesInput, inputSizeStr);
+		humanSize((unsigned long long) fCtx->totalBytesOutput, outputSizeStr);
+
         DISPLAYLEVEL(2, "\r%79s\r", "");
-        DISPLAYLEVEL(2, "%d files compressed : %.2f%%  (%6zu => %6zu bytes)\n", fCtx->nbFilesProcessed,
+        DISPLAYLEVEL(2, "%3d files compressed : %.2f%%   (%s => %s bytes)\n", fCtx->nbFilesProcessed,
                         (double)fCtx->totalBytesOutput/((double)fCtx->totalBytesInput)*100,
-                        fCtx->totalBytesInput, fCtx->totalBytesOutput);
+                        inputSizeStr, outputSizeStr);
     }
 
     FIO_freeCResources(&ress);

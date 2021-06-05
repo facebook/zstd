@@ -121,7 +121,7 @@ int UTIL_requireUserConfirmation(const char* prompt, const char* abortMsg,
 *  Functions
 ***************************************/
 
-char* humanSize(unsigned long size, char* str) {
+char* humanSize(unsigned long long size, char* str) {
 	/* This only works on 64 bit platforms so I commented it out for now */
 	/*
 	if (size > 1125899906842624L) {
@@ -137,7 +137,7 @@ char* humanSize(unsigned long size, char* str) {
 	} else if (size > 1024) {
 		snprintf(str, 7, "%.1fK", (float)size / 1024);
 	} else if (size <= 1024) {
-		snprintf(str, 7, "%luB", size);
+		snprintf(str, 7, "%lluB", size);
 	} else {
 		str[0] = '\0';
 	}

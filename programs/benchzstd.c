@@ -388,6 +388,8 @@ BMK_benchMemAdvancedNoAlloc(
 #       define NB_MARKS 4
         const char* marks[NB_MARKS] = { " |", " /", " =", " \\" };
         U32 markNb = 0;
+		char inputSizeStr[8]  = "";
+		char outputSizeStr[8] = "";
         int compressionCompleted = (adv->mode == BMK_decodeOnly);
         int decompressionCompleted = (adv->mode == BMK_compressOnly);
         BMK_benchParams_t cbp, dbp;
@@ -429,8 +431,10 @@ BMK_benchMemAdvancedNoAlloc(
         dctxprep.dictBuffer = dictBuffer;
         dctxprep.dictBufferSize = dictBufferSize;
 
+		humanSize((unsigned)srcSize, inputSizeStr);
+
         DISPLAYLEVEL(2, "\r%70s\r", "");   /* blank line */
-        DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->\r", marks[markNb], displayName, (unsigned)srcSize);
+        DISPLAYLEVEL(2, "%2s-%-17.17s : %s -> \r", marks[markNb], displayName, inputSizeStr);
 
         while (!(compressionCompleted && decompressionCompleted)) {
             if (!compressionCompleted) {
@@ -451,9 +455,13 @@ BMK_benchMemAdvancedNoAlloc(
                 }   }
 
                 {   int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
-                    DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.*f),%6.*f MB/s\r",
+
+					humanSize((unsigned)srcSize, inputSizeStr);
+					humanSize((unsigned)cSize, outputSizeStr);
+
+                    DISPLAYLEVEL(2, "%2s-%-17.17s : %s -> %s (%5.*f),%6.*f MB/s\r",
                             marks[markNb], displayName,
-                            (unsigned)srcSize, (unsigned)cSize,
+                            inputSizeStr, outputSizeStr,
                             ratioAccuracy, ratio,
                             benchResult.cSpeed < (10 MB) ? 2 : 1, (double)benchResult.cSpeed / MB_UNIT);
                 }
@@ -474,9 +482,13 @@ BMK_benchMemAdvancedNoAlloc(
                 }
 
                 {   int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
-                    DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.*f),%6.*f MB/s ,%6.1f MB/s \r",
+
+					humanSize((unsigned)srcSize, inputSizeStr);
+					humanSize((unsigned)cSize, outputSizeStr);
+
+                    DISPLAYLEVEL(2, "%2s-%-17.17s : %s -> %s (%5.*f),%6.*f MB/s ,%6.1f MB/s \r",
                             marks[markNb], displayName,
-                            (unsigned)srcSize, (unsigned)cSize,
+                            inputSizeStr, outputSizeStr,
                             ratioAccuracy, ratio,
                             benchResult.cSpeed < (10 MB) ? 2 : 1, (double)benchResult.cSpeed / MB_UNIT,
                             (double)benchResult.dSpeed / MB_UNIT);

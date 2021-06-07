@@ -263,6 +263,10 @@ zstd -q -f tmpro
 println "test: --no-progress flag"
 zstd tmpro -c --no-progress | zstd -d -f -o "$INTOVOID" --no-progress
 zstd tmpro -cv --no-progress | zstd -dv -f -o "$INTOVOID" --no-progress
+println "test: --progress flag"
+zstd tmpro -c | zstd -d -f -o "$INTOVOID" --progress 2>&1 | grep -E "[A-Za-z0-9._ ]+: [0-9]+ bytes"
+zstd tmpro -c | zstd -d -f -q -o "$INTOVOID" --progress 2>&1 | grep -E "[A-Za-z0-9._ ]+: [0-9]+ bytes"
+zstd tmpro -c | zstd -d -f -v -o "$INTOVOID" 2>&1 | grep -E "[A-Za-z0-9._ ]+: [0-9]+ bytes"
 rm -f tmpro tmpro.zst
 println "test: overwrite input file (must fail)"
 zstd tmp -fo tmp && die "zstd compression overwrote the input file"
@@ -1612,7 +1616,7 @@ roundTripTest -g600M -P50 "1 --single-thread --long --zstd=wlog=29,clog=28"
 
 if [ -n "$hasMT" ]
 then
-    println "\n===>   zstdmt long round-trip tests "
+    println "\n===>   zstdmt long round-trip tests " 
     roundTripTest -g80000000 -P99 "19 -T2" " "
     roundTripTest -g5000000000 -P99 "1 -T2" " "
     roundTripTest -g500000000 -P97 "1 -T999" " "

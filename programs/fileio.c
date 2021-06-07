@@ -2155,6 +2155,7 @@ FIO_decompressZstdFrame(FIO_ctx_t* const fCtx, dRess_t* ress, FILE* finput,
         ZSTD_inBuffer  inBuff = { ress->srcBuffer, ress->srcBufferLoaded, 0 };
         ZSTD_outBuffer outBuff= { ress->dstBuffer, ress->dstBufferSize, 0 };
         size_t const readSizeHint = ZSTD_decompressStream(ress->dctx, &outBuff, &inBuff);
+        const int displayLevel = (!fCtx->hasStdoutOutput || g_display_prefs.progressSetting == FIO_ps_always) ? 1 : 2;
         if (ZSTD_isError(readSizeHint)) {
             DISPLAYLEVEL(1, "%s : Decoding error (36) : %s \n",
                             srcFileName, ZSTD_getErrorName(readSizeHint));
@@ -2165,21 +2166,19 @@ FIO_decompressZstdFrame(FIO_ctx_t* const fCtx, dRess_t* ress, FILE* finput,
         /* Write block */
         storedSkips = FIO_fwriteSparse(ress->dstFile, ress->dstBuffer, outBuff.pos, prefs, storedSkips);
         frameSize += outBuff.pos;
-        if (!fCtx->hasStdoutOutput || g_display_prefs.progressSetting == FIO_ps_always) {
-            if (fCtx->nbFilesTotal > 1) {
-                size_t srcFileNameSize = strlen(srcFileName);
-                if (srcFileNameSize > 18) {
-                    const char* truncatedSrcFileName = srcFileName + srcFileNameSize - 15;
-                    DISPLAYUPDATE(2, "\rDecompress: %2u/%2u files. Current: ...%s : %u MB...    ",
-                                    fCtx->currFileIdx+1, fCtx->nbFilesTotal, truncatedSrcFileName, (unsigned)((alreadyDecoded+frameSize)>>20) );
-                } else {
-                    DISPLAYUPDATE(2, "\rDecompress: %2u/%2u files. Current: %s : %u MB...    ",
-                                fCtx->currFileIdx+1, fCtx->nbFilesTotal, srcFileName, (unsigned)((alreadyDecoded+frameSize)>>20) );
-                }
+        if (fCtx->nbFilesTotal > 1) {
+            size_t srcFileNameSize = strlen(srcFileName);
+            if (srcFileNameSize > 18) {
+                const char* truncatedSrcFileName = srcFileName + srcFileNameSize - 15;
+                DISPLAYUPDATE(displayLevel, "\rDecompress: %2u/%2u files. Current: ...%s : %u MB...    ",
+                                fCtx->currFileIdx+1, fCtx->nbFilesTotal, truncatedSrcFileName, (unsigned)((alreadyDecoded+frameSize)>>20) );
             } else {
-                DISPLAYUPDATE(2, "\r%-20.20s : %u MB...     ",
-                                srcFileName, (unsigned)((alreadyDecoded+frameSize)>>20) );
+                DISPLAYUPDATE(displayLevel, "\rDecompress: %2u/%2u files. Current: %s : %u MB...    ",
+                            fCtx->currFileIdx+1, fCtx->nbFilesTotal, srcFileName, (unsigned)((alreadyDecoded+frameSize)>>20) );
             }
+        } else {
+            DISPLAYUPDATE(displayLevel, "\r%-20.20s : %u MB...     ",
+                            srcFileName, (unsigned)((alreadyDecoded+frameSize)>>20) );
         }
 
         if (inBuff.pos > 0) {
@@ -2513,10 +2512,10 @@ static int FIO_decompressFrames(FIO_ctx_t* const fCtx,
     fCtx->totalBytesOutput += (size_t)filesize;
     DISPLAYLEVEL(2, "\r%79s\r", "");
     /* No status message in pipe mode (stdin - stdout) or multi-files mode */
-    if (g_display_prefs.displayLevel >= 2) {
-        if (fCtx->nbFilesTotal <= 1 || g_display_prefs.displayLevel >= 3) {
-            DISPLAYLEVEL(2, "%-20s: %llu bytes \n", srcFileName, filesize);
-        }
+    if ((g_display_prefs.displayLevel >= 2 && fCtx->nbFilesTotal <= 1) || 
+        g_display_prefs.displayLevel >= 3 ||
+        g_display_prefs.progressSetting == FIO_ps_always) {
+        DISPLAYLEVEL(1, "\r%-20s: %llu bytes \n", srcFileName, filesize);
     }
 
     return 0;

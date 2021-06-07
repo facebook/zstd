@@ -27,6 +27,13 @@ jobs:
     - name: OS-X test
       run: make test # make -c lib all doesn't work because of the fact that it's not a tty
 
+  no-intrinsics-fuzztest:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: no intrinsics fuzztest
+      run: MOREFLAGS="-DZSTD_NO_INTRINSICS" make -C tests fuzztest
+
   tsan-zstreamtest:
     runs-on: ubuntu-latest
     steps:

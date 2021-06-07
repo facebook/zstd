@@ -139,7 +139,7 @@ char* humanSize(unsigned long long size, char* str) {
     } else if (size > 1024) {
         snprintf(str, 7, "%.1fK", (float)size / 1024);
     } else if (size <= 1024) {
-        snprintf(str, 7, "%lluB", size);
+        snprintf(str, 7, "%uB", (unsigned)size);
     }
 
     return str;

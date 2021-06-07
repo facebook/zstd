@@ -84,21 +84,10 @@ workflows:
   commit:
     jobs:
       # Run the tests in parallel
-      - short-tests-0:
-          filters:
-            tags:
-              only: /.*/
-      - short-tests-1:
-          filters:
-            tags:
-              only: /.*/
-      # Create a branch called regression and set it to dev to force a
-      # regression test run
-      - regression-test:
-          filters:
-            branches:
-              only:
-                - regression
+      - short-tests-0
+      - short-tests-1
+      - regression-test
+
   nightly:
     triggers:
       - schedule:
@@ -110,7 +99,7 @@ workflows:
                 - dev
                 - master
     jobs:
-      # Run daily long regression tests
+      # Run daily regression tests
       - regression-test
 
 

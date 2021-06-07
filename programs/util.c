@@ -121,8 +121,14 @@ int UTIL_requireUserConfirmation(const char* prompt, const char* abortMsg,
 *  Functions
 ***************************************/
 
+/*
+ * Take a size in bytes and output a human readable string. Maximum
+ * buffer size is 8 but it's usually 7. Example: "123.4G"
+*/
 char* humanSize(unsigned long long size, char* str) {
-    if (size > 1125899906842624L) {
+    if (size > 1152921504606846976L) {
+        snprintf(str, 7, "%.1fE", (float)size / 1152921504606846976L);
+	} else if (size > 1125899906842624L) {
         snprintf(str, 7, "%.1fP", (float)size / 1125899906842624L);
     } else if (size > 1099511627776L) {
         snprintf(str, 7, "%.1fT", (float)size / 1099511627776L);
@@ -134,8 +140,6 @@ char* humanSize(unsigned long long size, char* str) {
         snprintf(str, 7, "%.1fK", (float)size / 1024);
     } else if (size <= 1024) {
         snprintf(str, 7, "%lluB", size);
-    } else {
-        str[0] = '\0';
     }
 
     return str;

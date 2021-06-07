@@ -122,6 +122,10 @@ int UTIL_requireUserConfirmation(const char* prompt, const char* abortMsg, const
 #define STRDUP(s) strdup(s)
 #endif
 
+/*
+ * Take a size in bytes and output a human readable string. Maximum
+ * buffer size is 8 but it's usually 7. Example: "123.4G"
+*/
 char* humanSize(unsigned long long size, char* str);
 
 /**

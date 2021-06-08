@@ -1157,7 +1157,7 @@ ZSTD_decompressSequences_body( ZSTD_DCtx* dctx,
         __asm__(".p2align 5");
         __asm__("nop");
 #  if __GNUC__ >= 9 && __GNUC__ < 11
-        /* better for gcc-9 and gcc-10, worse for clang and gcc-8 */
+        /* better for gcc-9 and gcc-10, worse for clang and gcc-8, gcc-11 */
         __asm__(".p2align 3");
 #  else
         __asm__(".p2align 4");

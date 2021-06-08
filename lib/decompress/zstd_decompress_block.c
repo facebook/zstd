@@ -932,97 +932,98 @@ ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets)
     const ZSTD_seqSymbol* const ofDInfo = seqState->stateOffb.table + seqState->stateOffb.state;
     seq.matchLength = mlDInfo->baseValue;
     seq.litLength = llDInfo->baseValue;
-    U32 const ofBase = ofDInfo->baseValue;
-    BYTE const llBits = llDInfo->nbAdditionalBits;
-    BYTE const mlBits = mlDInfo->nbAdditionalBits;
-    BYTE const ofBits = ofDInfo->nbAdditionalBits;
-    BYTE const totalBits = llBits+mlBits+ofBits;
+    {   U32 const ofBase = ofDInfo->baseValue;
+        BYTE const llBits = llDInfo->nbAdditionalBits;
+        BYTE const mlBits = mlDInfo->nbAdditionalBits;
+        BYTE const ofBits = ofDInfo->nbAdditionalBits;
+        BYTE const totalBits = llBits+mlBits+ofBits;
 
-    U16 const llNext = llDInfo->nextState;
-    U16 const mlNext = mlDInfo->nextState;
-    U16 const ofNext = ofDInfo->nextState;
-    U32 const llnbBits = llDInfo->nbBits;
-    U32 const mlnbBits = mlDInfo->nbBits;
-    U32 const ofnbBits = ofDInfo->nbBits;
-    /*
-     * As gcc has better branch and block analyzers, sometimes it is only
-     * valuable to mark likelyness for clang, it gives around 3-4% of
-     * performance.
-     */
+        U16 const llNext = llDInfo->nextState;
+        U16 const mlNext = mlDInfo->nextState;
+        U16 const ofNext = ofDInfo->nextState;
+        U32 const llnbBits = llDInfo->nbBits;
+        U32 const mlnbBits = mlDInfo->nbBits;
+        U32 const ofnbBits = ofDInfo->nbBits;
+        /*
+         * As gcc has better branch and block analyzers, sometimes it is only
+         * valuable to mark likelyness for clang, it gives around 3-4% of
+         * performance.
+         */
 
-    /* sequence */
-    {   size_t offset;
-#if defined(__clang__)
-        if (LIKELY(ofBits > 1)) {
-#else
-        if (ofBits > 1) {
-#endif
-            ZSTD_STATIC_ASSERT(ZSTD_lo_isLongOffset == 1);
-            ZSTD_STATIC_ASSERT(LONG_OFFSETS_MAX_EXTRA_BITS_32 == 5);
-            assert(ofBits <= MaxOff);
-            if (MEM_32bits() && longOffsets && (ofBits >= STREAM_ACCUMULATOR_MIN_32)) {
-                U32 const extraBits = ofBits - MIN(ofBits, 32 - seqState->DStream.bitsConsumed);
-                offset = ofBase + (BIT_readBitsFast(&seqState->DStream, ofBits - extraBits) << extraBits);
-                BIT_reloadDStream(&seqState->DStream);
-                if (extraBits) offset += BIT_readBitsFast(&seqState->DStream, extraBits);
-                assert(extraBits <= LONG_OFFSETS_MAX_EXTRA_BITS_32);   /* to avoid another reload */
-            } else {
-                offset = ofBase + BIT_readBitsFast(&seqState->DStream, ofBits/*>0*/);   /* <=  (ZSTD_WINDOWLOG_MAX-1) bits */
-                if (MEM_32bits()) BIT_reloadDStream(&seqState->DStream);
-            }
-            seqState->prevOffset[2] = seqState->prevOffset[1];
-            seqState->prevOffset[1] = seqState->prevOffset[0];
-            seqState->prevOffset[0] = offset;
-        } else {
-            U32 const ll0 = (llDInfo->baseValue == 0);
-            if (LIKELY((ofBits == 0))) {
-                offset = seqState->prevOffset[ll0];
-                if (UNLIKELY(ll0)) {
-                    seqState->prevOffset[1] = seqState->prevOffset[0];
-                    seqState->prevOffset[0] = offset;
+        /* sequence */
+        {   size_t offset;
+    #if defined(__clang__)
+            if (LIKELY(ofBits > 1)) {
+    #else
+            if (ofBits > 1) {
+    #endif
+                ZSTD_STATIC_ASSERT(ZSTD_lo_isLongOffset == 1);
+                ZSTD_STATIC_ASSERT(LONG_OFFSETS_MAX_EXTRA_BITS_32 == 5);
+                assert(ofBits <= MaxOff);
+                if (MEM_32bits() && longOffsets && (ofBits >= STREAM_ACCUMULATOR_MIN_32)) {
+                    U32 const extraBits = ofBits - MIN(ofBits, 32 - seqState->DStream.bitsConsumed);
+                    offset = ofBase + (BIT_readBitsFast(&seqState->DStream, ofBits - extraBits) << extraBits);
+                    BIT_reloadDStream(&seqState->DStream);
+                    if (extraBits) offset += BIT_readBitsFast(&seqState->DStream, extraBits);
+                    assert(extraBits <= LONG_OFFSETS_MAX_EXTRA_BITS_32);   /* to avoid another reload */
+                } else {
+                    offset = ofBase + BIT_readBitsFast(&seqState->DStream, ofBits/*>0*/);   /* <=  (ZSTD_WINDOWLOG_MAX-1) bits */
+                    if (MEM_32bits()) BIT_reloadDStream(&seqState->DStream);
                 }
+                seqState->prevOffset[2] = seqState->prevOffset[1];
+                seqState->prevOffset[1] = seqState->prevOffset[0];
+                seqState->prevOffset[0] = offset;
             } else {
-                offset = ofBase + ll0 + BIT_readBitsFast(&seqState->DStream, 1);
-                {   size_t temp = (offset==3) ? seqState->prevOffset[0] - 1 : seqState->prevOffset[offset];
-                    temp += !temp;   /* 0 is not valid; input is corrupted; force offset to 1 */
-                    if (offset != 1) seqState->prevOffset[2] = seqState->prevOffset[1];
-                    seqState->prevOffset[1] = seqState->prevOffset[0];
-                    seqState->prevOffset[0] = offset = temp;
-        }   }   }
-        seq.offset = offset;
+                U32 const ll0 = (llDInfo->baseValue == 0);
+                if (LIKELY((ofBits == 0))) {
+                    offset = seqState->prevOffset[ll0];
+                    if (UNLIKELY(ll0)) {
+                        seqState->prevOffset[1] = seqState->prevOffset[0];
+                        seqState->prevOffset[0] = offset;
+                    }
+                } else {
+                    offset = ofBase + ll0 + BIT_readBitsFast(&seqState->DStream, 1);
+                    {   size_t temp = (offset==3) ? seqState->prevOffset[0] - 1 : seqState->prevOffset[offset];
+                        temp += !temp;   /* 0 is not valid; input is corrupted; force offset to 1 */
+                        if (offset != 1) seqState->prevOffset[2] = seqState->prevOffset[1];
+                        seqState->prevOffset[1] = seqState->prevOffset[0];
+                        seqState->prevOffset[0] = offset = temp;
+            }   }   }
+            seq.offset = offset;
+        }
+
+    #if defined(__clang__)
+        if (UNLIKELY(mlBits > 0))
+    #else
+        if (mlBits > 0)
+    #endif
+            seq.matchLength += BIT_readBitsFast(&seqState->DStream, mlBits/*>0*/);
+
+        if (MEM_32bits() && (mlBits+llBits >= STREAM_ACCUMULATOR_MIN_32-LONG_OFFSETS_MAX_EXTRA_BITS_32))
+            BIT_reloadDStream(&seqState->DStream);
+        if (MEM_64bits() && UNLIKELY(totalBits >= STREAM_ACCUMULATOR_MIN_64-(LLFSELog+MLFSELog+OffFSELog)))
+            BIT_reloadDStream(&seqState->DStream);
+        /* Ensure there are enough bits to read the rest of data in 64-bit mode. */
+        ZSTD_STATIC_ASSERT(16+LLFSELog+MLFSELog+OffFSELog < STREAM_ACCUMULATOR_MIN_64);
+
+    #if defined(__clang__)
+        if (UNLIKELY(llBits > 0))
+    #else
+        if (llBits > 0)
+    #endif
+            seq.litLength += BIT_readBitsFast(&seqState->DStream, llBits/*>0*/);
+
+        if (MEM_32bits())
+            BIT_reloadDStream(&seqState->DStream);
+
+        DEBUGLOG(6, "seq: litL=%u, matchL=%u, offset=%u",
+                    (U32)seq.litLength, (U32)seq.matchLength, (U32)seq.offset);
+
+        ZSTD_updateFseStateWithDInfo(&seqState->stateLL, &seqState->DStream, llNext, llnbBits);    /* <=  9 bits */
+        ZSTD_updateFseStateWithDInfo(&seqState->stateML, &seqState->DStream, mlNext, mlnbBits);    /* <=  9 bits */
+        if (MEM_32bits()) BIT_reloadDStream(&seqState->DStream);    /* <= 18 bits */
+        ZSTD_updateFseStateWithDInfo(&seqState->stateOffb, &seqState->DStream, ofNext, ofnbBits);  /* <=  8 bits */
     }
-
-#if defined(__clang__)
-    if (UNLIKELY(mlBits > 0))
-#else
-    if (mlBits > 0)
-#endif
-        seq.matchLength += BIT_readBitsFast(&seqState->DStream, mlBits/*>0*/);
-
-    if (MEM_32bits() && (mlBits+llBits >= STREAM_ACCUMULATOR_MIN_32-LONG_OFFSETS_MAX_EXTRA_BITS_32))
-        BIT_reloadDStream(&seqState->DStream);
-    if (MEM_64bits() && UNLIKELY(totalBits >= STREAM_ACCUMULATOR_MIN_64-(LLFSELog+MLFSELog+OffFSELog)))
-        BIT_reloadDStream(&seqState->DStream);
-    /* Ensure there are enough bits to read the rest of data in 64-bit mode. */
-    ZSTD_STATIC_ASSERT(16+LLFSELog+MLFSELog+OffFSELog < STREAM_ACCUMULATOR_MIN_64);
-
-#if defined(__clang__)
-    if (UNLIKELY(llBits > 0))
-#else
-    if (llBits > 0)
-#endif
-        seq.litLength += BIT_readBitsFast(&seqState->DStream, llBits/*>0*/);
-
-    if (MEM_32bits())
-        BIT_reloadDStream(&seqState->DStream);
-
-    DEBUGLOG(6, "seq: litL=%u, matchL=%u, offset=%u",
-                (U32)seq.litLength, (U32)seq.matchLength, (U32)seq.offset);
-
-    ZSTD_updateFseStateWithDInfo(&seqState->stateLL, &seqState->DStream, llNext, llnbBits);    /* <=  9 bits */
-    ZSTD_updateFseStateWithDInfo(&seqState->stateML, &seqState->DStream, mlNext, mlnbBits);    /* <=  9 bits */
-    if (MEM_32bits()) BIT_reloadDStream(&seqState->DStream);    /* <= 18 bits */
-    ZSTD_updateFseStateWithDInfo(&seqState->stateOffb, &seqState->DStream, ofNext, ofnbBits);  /* <=  8 bits */
 
     return seq;
 }
@@ -1155,7 +1156,7 @@ ZSTD_decompressSequences_body( ZSTD_DCtx* dctx,
         __asm__("nop");
         __asm__(".p2align 5");
         __asm__("nop");
-#  if __GNUC__ >= 9
+#  if __GNUC__ >= 9 && __GNUC__ < 11
         /* better for gcc-9 and gcc-10, worse for clang and gcc-8 */
         __asm__(".p2align 3");
 #  else

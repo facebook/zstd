@@ -1898,7 +1898,7 @@ int FIO_compressMultipleFilenames(FIO_ctx_t* const fCtx,
         UTIL_HumanReadableSize_t hr_osize = UTIL_makeHumanReadableSize((U64) fCtx->totalBytesOutput);
 
         DISPLAYLEVEL(2, "\r%79s\r", "");
-        DISPLAYLEVEL(2, "%3d files compressed : %.2f%%   (%.*f%s => %.*f%s bytes)\n",
+        DISPLAYLEVEL(2, "%3d files compressed : %.2f%%   (%.*f%s => %.*f%s)\n",
                         fCtx->nbFilesProcessed,
                         (double)fCtx->totalBytesOutput/((double)fCtx->totalBytesInput)*100,
                         hr_isize.precision, hr_isize.value, hr_isize.suffix,

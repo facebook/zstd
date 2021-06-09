@@ -311,38 +311,38 @@ UTIL_HumanReadableSize_t UTIL_makeHumanReadableSize(U64 size) {
          * values that exceed the integral precision of a double. */
         if (size >= (1ull << 53)) {
             hrs.value = (double)size / (1ull << 20);
-            hrs.suffix = "M";
+            hrs.suffix = " MB";
             /* At worst, a double representation of a maximal size will be
              * accurate to better than tens of kilobytes. */
             hrs.precision = 2;
         } else {
             hrs.value = (double)size;
-            hrs.suffix = "";
+            hrs.suffix = " B";
             hrs.precision = 0;
         }
     } else {
         /* In regular mode, scale sizes down and use suffixes. */
         if (size >= (1ull << 60)) {
             hrs.value = (double)size / (1ull << 60);
-            hrs.suffix = "E";
+            hrs.suffix = " EB";
         } else if (size >= (1ull << 50)) {
             hrs.value = (double)size / (1ull << 50);
-            hrs.suffix = "P";
+            hrs.suffix = " PB";
         } else if (size >= (1ull << 40)) {
             hrs.value = (double)size / (1ull << 40);
-            hrs.suffix = "T";
+            hrs.suffix = " TB";
         } else if (size >= (1ull << 30)) {
             hrs.value = (double)size / (1ull << 30);
-            hrs.suffix = "G";
+            hrs.suffix = " GB";
         } else if (size >= (1ull << 20)) {
             hrs.value = (double)size / (1ull << 20);
-            hrs.suffix = "M";
+            hrs.suffix = " MB";
         } else if (size >= (1ull << 10)) {
             hrs.value = (double)size / (1ull << 10);
-            hrs.suffix = "K";
+            hrs.suffix = " KB";
         } else {
             hrs.value = (double)size;
-            hrs.suffix = "";
+            hrs.suffix = " B";
         }
 
         if (hrs.value >= 100 || (U64)hrs.value == size) {

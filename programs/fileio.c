@@ -1592,15 +1592,15 @@ FIO_compressFilename_internal(FIO_ctx_t* const fCtx,
     if (g_display_prefs.displayLevel >= 2 &&
         !fCtx->hasStdoutOutput &&
         (g_display_prefs.displayLevel >= 3 || fCtx->nbFilesTotal <= 1)) {
+        UTIL_HumanReadableSize_t hr_isize = UTIL_makeHumanReadableSize((U64) readsize);
+        UTIL_HumanReadableSize_t hr_osize = UTIL_makeHumanReadableSize((U64) compressedfilesize);
         if (readsize == 0) {
-            DISPLAYLEVEL(2,"%-20s :  (%6llu => %6llu bytes, %s) \n",
+            DISPLAYLEVEL(2,"%-20s :  (%.*f%s => %.*f%s, %s) \n",
                 srcFileName,
-                (unsigned long long)readsize, (unsigned long long) compressedfilesize,
+                hr_isize.precision, hr_isize.value, hr_isize.suffix,
+                hr_osize.precision, hr_osize.value, hr_osize.suffix,
                 dstFileName);
         } else {
-            UTIL_HumanReadableSize_t hr_isize = UTIL_makeHumanReadableSize((U64) readsize);
-            UTIL_HumanReadableSize_t hr_osize = UTIL_makeHumanReadableSize((U64) compressedfilesize);
-
             DISPLAYLEVEL(2,"%-20s :%6.2f%%   (%.*f%s => %.*f%s, %s) \n",
                 srcFileName,
                 (double)compressedfilesize / (double)readsize * 100,

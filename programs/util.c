@@ -305,23 +305,23 @@ U64 UTIL_getFileSizeStat(const stat_t* statbuf)
 
 UTIL_HumanReadableSize_t UTIL_makeHumanReadableSize(U64 size) {
     UTIL_HumanReadableSize_t hrs;
-    if (size >= (1L << 60)) {
-        hrs.value = (float)size / (1L << 60);
+    if (size >= (1ull << 60)) {
+        hrs.value = (float)size / (1ull << 60);
         hrs.suffix = "E";
-    } else if (size >= (1L << 50)) {
-        hrs.value = (float)size / (1L << 50);
+    } else if (size >= (1ull << 50)) {
+        hrs.value = (float)size / (1ull << 50);
         hrs.suffix = "P";
-    } else if (size >= (1L << 40)) {
-        hrs.value = (float)size / (1L << 40);
+    } else if (size >= (1ull << 40)) {
+        hrs.value = (float)size / (1ull << 40);
         hrs.suffix = "T";
-    } else if (size >= (1L << 30)) {
-        hrs.value = (float)size / (1L << 30);
+    } else if (size >= (1ull << 30)) {
+        hrs.value = (float)size / (1ull << 30);
         hrs.suffix = "G";
-    } else if (size >= (1L << 20)) {
-        hrs.value = (float)size / (1L << 20);
+    } else if (size >= (1ull << 20)) {
+        hrs.value = (float)size / (1ull << 20);
         hrs.suffix = "M";
-    } else if (size >= (1L << 10)) {
-        hrs.value = (float)size / (1L << 10);
+    } else if (size >= (1ull << 10)) {
+        hrs.value = (float)size / (1ull << 10);
         hrs.suffix = "K";
     } else {
         hrs.value = (float)size;
@@ -330,7 +330,7 @@ UTIL_HumanReadableSize_t UTIL_makeHumanReadableSize(U64 size) {
 
     if (hrs.value >= 100 || (U64)hrs.value == size) {
         hrs.precision = 0;
-    } else if (hrs.value > 10) {
+    } else if (hrs.value >= 10) {
         hrs.precision = 1;
     } else if (hrs.value > 1) {
         hrs.precision = 2;

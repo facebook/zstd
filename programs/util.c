@@ -306,7 +306,7 @@ U64 UTIL_getFileSizeStat(const stat_t* statbuf)
 UTIL_HumanReadableSize_t UTIL_makeHumanReadableSize(U64 size) {
     UTIL_HumanReadableSize_t hrs;
 
-    if (g_utilDisplayLevel > 2) {
+    if (g_utilDisplayLevel > 3) {
         /* In verbose mode, do not scale sizes down, except in the case of
          * values that exceed the integral precision of a double. */
         if (size >= (1ull << 53)) {

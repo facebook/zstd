@@ -177,7 +177,7 @@ U64 UTIL_getTotalFileSize(const char* const * fileNamesTable, unsigned nbFiles);
  * precision, value, suffix order to a "%.*f%s" format string.
  */
 typedef struct {
-  float value;
+  double value;
   int precision;
   const char* suffix;
 } UTIL_HumanReadableSize_t;

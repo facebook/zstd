@@ -191,6 +191,13 @@ zstd --fast=3 -f tmp  # == -3
 zstd --fast=200000 -f tmp  # too low compression level, automatic fixed
 zstd --fast=5000000000 -f tmp && die "too large numeric value : must fail"
 zstd -c --fast=0 tmp > $INTOVOID && die "--fast must not accept value 0"
+println "test : --long-param compression levels"
+zstd --long-param=1 -f tmp
+zstd --long-param=0 -f tmp
+zstd --long-param=-1 -f tmp
+zstd --long-param=-10000 -f tmp # too low, automatic fixed
+zstd --long-param=10000 -f tmp # too high, automatic fixed
+zstd --long-param -f tmp > $INTOVOID && die "--long-param must be given a value"
 println "test : too large numeric argument"
 zstd --fast=9999999999 -f tmp  && die "should have refused numeric value"
 println "test : set compression level with environment variable ZSTD_CLEVEL"

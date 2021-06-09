@@ -197,6 +197,22 @@
     #define STATIC_BMI2 0
 #endif
 
+/* compile time determination of SIMD support */
+#if !defined(ZSTD_NO_INTRINSICS)
+#  if defined(__SSE2__) || defined(_M_AMD64) || (defined (_M_IX86) && defined(_M_IX86_FP) && (_M_IX86_FP >= 2))
+#    define ZSTD_ARCH_X86_SSE2
+#  endif
+#  if defined(__ARM_NEON) || defined(_M_ARM64)
+#    define ZSTD_ARCH_ARM_NEON
+#  endif
+#
+#  if defined(ZSTD_ARCH_X86_SSE2)
+#    include <emmintrin.h>
+#  elif defined(ZSTD_ARCH_ARM_NEON)
+#    include <arm_neon.h>
+#  endif
+#endif  
+
 /* compat. with non-clang compilers */
 #ifndef __has_builtin
 #  define __has_builtin(x) 0

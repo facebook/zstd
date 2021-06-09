@@ -388,13 +388,13 @@ BMK_benchMemAdvancedNoAlloc(
 #       define NB_MARKS 4
         const char* marks[NB_MARKS] = { " |", " /", " =", " \\" };
         U32 markNb = 0;
-        char inputSizeStr[8]  = "";
-        char outputSizeStr[8] = "";
         int compressionCompleted = (adv->mode == BMK_decodeOnly);
         int decompressionCompleted = (adv->mode == BMK_compressOnly);
         BMK_benchParams_t cbp, dbp;
         BMK_initCCtxArgs cctxprep;
         BMK_initDCtxArgs dctxprep;
+        UTIL_HumanReadableSize_t hr_isize;
+        UTIL_HumanReadableSize_t hr_osize;
 
         cbp.benchFn = local_defaultCompress;   /* ZSTD_compress2 */
         cbp.benchPayload = cctx;
@@ -431,10 +431,10 @@ BMK_benchMemAdvancedNoAlloc(
         dctxprep.dictBuffer = dictBuffer;
         dctxprep.dictBufferSize = dictBufferSize;
 
-        humanSize((unsigned)srcSize, inputSizeStr);
+        hr_isize = UTIL_makeHumanReadableSize((U64) srcSize);
 
         DISPLAYLEVEL(2, "\r%70s\r", "");   /* blank line */
-        DISPLAYLEVEL(2, "%2s-%-17.17s : %s -> \r", marks[markNb], displayName, inputSizeStr);
+        DISPLAYLEVEL(2, "%2s-%-17.17s : %.*f%s -> \r", marks[markNb], displayName, hr_isize.precision, hr_isize.value, hr_isize.suffix);
 
         while (!(compressionCompleted && decompressionCompleted)) {
             if (!compressionCompleted) {
@@ -455,13 +455,11 @@ BMK_benchMemAdvancedNoAlloc(
                 }   }
 
                 {   int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
-
-                    humanSize((unsigned)srcSize, inputSizeStr);
-                    humanSize((unsigned)cSize, outputSizeStr);
-
-                    DISPLAYLEVEL(2, "%2s-%-17.17s : %s -> %s (%5.*f),%6.*f MB/s\r",
+                    hr_osize = UTIL_makeHumanReadableSize((U64) cSize);
+                    DISPLAYLEVEL(2, "%2s-%-17.17s : %.*f%s -> %.*f%s (%5.*f),%6.*f MB/s\r",
                             marks[markNb], displayName,
-                            inputSizeStr, outputSizeStr,
+                            hr_isize.precision, hr_isize.value, hr_isize.suffix,
+                            hr_osize.precision, hr_osize.value, hr_osize.suffix,
                             ratioAccuracy, ratio,
                             benchResult.cSpeed < (10 MB) ? 2 : 1, (double)benchResult.cSpeed / MB_UNIT);
                 }
@@ -482,13 +480,11 @@ BMK_benchMemAdvancedNoAlloc(
                 }
 
                 {   int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
-
-                    humanSize((unsigned)srcSize, inputSizeStr);
-                    humanSize((unsigned)cSize, outputSizeStr);
-
-                    DISPLAYLEVEL(2, "%2s-%-17.17s : %s -> %s (%5.*f),%6.*f MB/s ,%6.1f MB/s \r",
+                    hr_osize = UTIL_makeHumanReadableSize((U64) cSize);
+                    DISPLAYLEVEL(2, "%2s-%-17.17s : %.*f%s -> %.*f%s (%5.*f),%6.*f MB/s ,%6.1f MB/s \r",
                             marks[markNb], displayName,
-                            inputSizeStr, outputSizeStr,
+                            hr_isize.precision, hr_isize.value, hr_isize.suffix,
+                            hr_osize.precision, hr_osize.value, hr_osize.suffix,
                             ratioAccuracy, ratio,
                             benchResult.cSpeed < (10 MB) ? 2 : 1, (double)benchResult.cSpeed / MB_UNIT,
                             (double)benchResult.dSpeed / MB_UNIT);

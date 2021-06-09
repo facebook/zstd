@@ -1544,9 +1544,6 @@ FIO_compressFilename_internal(FIO_ctx_t* const fCtx,
     U64 readsize = 0;
     U64 compressedfilesize = 0;
     U64 const fileSize = UTIL_getFileSize(srcFileName);
-    char inputSizeStr[8]  = "";
-    char outputSizeStr[8] = "";
-
     DISPLAYLEVEL(5, "%s: %llu bytes \n", srcFileName, (unsigned long long)fileSize);
 
     /* compression format selection */
@@ -1601,13 +1598,14 @@ FIO_compressFilename_internal(FIO_ctx_t* const fCtx,
                 (unsigned long long)readsize, (unsigned long long) compressedfilesize,
                 dstFileName);
         } else {
-            humanSize((unsigned long long) readsize, inputSizeStr);
-            humanSize((unsigned long long) compressedfilesize, outputSizeStr);
+            UTIL_HumanReadableSize_t hr_isize = UTIL_makeHumanReadableSize((U64) readsize);
+            UTIL_HumanReadableSize_t hr_osize = UTIL_makeHumanReadableSize((U64) compressedfilesize);
 
-            DISPLAYLEVEL(2,"%-20s :%6.2f%%   (%s => %s, %s) \n",
+            DISPLAYLEVEL(2,"%-20s :%6.2f%%   (%.*f%s => %.*f%s, %s) \n",
                 srcFileName,
                 (double)compressedfilesize / (double)readsize * 100,
-                inputSizeStr, outputSizeStr,
+                hr_isize.precision, hr_isize.value, hr_isize.suffix,
+                hr_osize.precision, hr_osize.value, hr_osize.suffix,
                 dstFileName);
         }
     }
@@ -1841,8 +1839,6 @@ int FIO_compressMultipleFilenames(FIO_ctx_t* const fCtx,
 {
     int status;
     int error = 0;
-    char inputSizeStr[8]  = "";
-    char outputSizeStr[8] = "";
     cRess_t ress = FIO_createCResources(prefs, dictFileName,
         FIO_getLargestFileSize(inFileNamesTable, (unsigned)fCtx->nbFilesTotal),
         compressionLevel, comprParams);
@@ -1898,13 +1894,15 @@ int FIO_compressMultipleFilenames(FIO_ctx_t* const fCtx,
     }
 
     if (fCtx->nbFilesProcessed >= 1 && fCtx->nbFilesTotal > 1 && fCtx->totalBytesInput != 0) {
-        humanSize((unsigned long long) fCtx->totalBytesInput, inputSizeStr);
-        humanSize((unsigned long long) fCtx->totalBytesOutput, outputSizeStr);
+        UTIL_HumanReadableSize_t hr_isize = UTIL_makeHumanReadableSize((U64) fCtx->totalBytesInput);
+        UTIL_HumanReadableSize_t hr_osize = UTIL_makeHumanReadableSize((U64) fCtx->totalBytesOutput);
 
         DISPLAYLEVEL(2, "\r%79s\r", "");
-        DISPLAYLEVEL(2, "%3d files compressed : %.2f%%   (%s => %s bytes)\n", fCtx->nbFilesProcessed,
+        DISPLAYLEVEL(2, "%3d files compressed : %.2f%%   (%.*f%s => %.*f%s bytes)\n",
+                        fCtx->nbFilesProcessed,
                         (double)fCtx->totalBytesOutput/((double)fCtx->totalBytesInput)*100,
-                        inputSizeStr, outputSizeStr);
+                        hr_isize.precision, hr_isize.value, hr_isize.suffix,
+                        hr_osize.precision, hr_osize.value, hr_osize.suffix);
     }
 
     FIO_freeCResources(&ress);

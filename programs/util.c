@@ -121,31 +121,6 @@ int UTIL_requireUserConfirmation(const char* prompt, const char* abortMsg,
 *  Functions
 ***************************************/
 
-/*
- * Take a size in bytes and output a human readable string. Maximum
- * buffer size is 8 but it's usually 7. Example: "123.4G"
-*/
-char* humanSize(unsigned long long size, char* str) {
-    if (size > 1152921504606846976L) {
-        snprintf(str, 7, "%.1fE", (float)size / 1152921504606846976L);
-	} else if (size > 1125899906842624L) {
-        snprintf(str, 7, "%.1fP", (float)size / 1125899906842624L);
-    } else if (size > 1099511627776L) {
-        snprintf(str, 7, "%.1fT", (float)size / 1099511627776L);
-    } else if (size > 1073741824L) {
-        snprintf(str, 7, "%.1fG", (float)size / 1073741824L);
-    } else if (size > 1048576L) {
-        snprintf(str, 7, "%.1fM", (float)size / 1048576L);
-    } else if (size > 1024) {
-        snprintf(str, 7, "%.1fK", (float)size / 1024);
-    } else if (size <= 1024) {
-        snprintf(str, 7, "%uB", (unsigned)size);
-    }
-
-    return str;
-}
-
-
 int UTIL_stat(const char* filename, stat_t* statbuf)
 {
 #if defined(_MSC_VER)
@@ -328,6 +303,43 @@ U64 UTIL_getFileSizeStat(const stat_t* statbuf)
     return (U64)statbuf->st_size;
 }
 
+UTIL_HumanReadableSize_t UTIL_makeHumanReadableSize(U64 size) {
+    UTIL_HumanReadableSize_t hrs;
+    if (size >= (1L << 60)) {
+        hrs.value = (float)size / (1L << 60);
+        hrs.suffix = "E";
+    } else if (size >= (1L << 50)) {
+        hrs.value = (float)size / (1L << 50);
+        hrs.suffix = "P";
+    } else if (size >= (1L << 40)) {
+        hrs.value = (float)size / (1L << 40);
+        hrs.suffix = "T";
+    } else if (size >= (1L << 30)) {
+        hrs.value = (float)size / (1L << 30);
+        hrs.suffix = "G";
+    } else if (size >= (1L << 20)) {
+        hrs.value = (float)size / (1L << 20);
+        hrs.suffix = "M";
+    } else if (size >= (1L << 10)) {
+        hrs.value = (float)size / (1L << 10);
+        hrs.suffix = "K";
+    } else {
+        hrs.value = (float)size;
+        hrs.suffix = "";
+    }
+
+    if (hrs.value >= 100 || (U64)hrs.value == size) {
+        hrs.precision = 0;
+    } else if (hrs.value > 10) {
+        hrs.precision = 1;
+    } else if (hrs.value > 1) {
+        hrs.precision = 2;
+    } else {
+        hrs.precision = 3;
+    }
+
+    return hrs;
+}
 
 U64 UTIL_getTotalFileSize(const char* const * fileNamesTable, unsigned nbFiles)
 {

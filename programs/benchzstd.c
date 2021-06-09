@@ -456,7 +456,7 @@ BMK_benchMemAdvancedNoAlloc(
 
                 {   int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
                     hr_osize = UTIL_makeHumanReadableSize((U64) cSize);
-                    DISPLAYLEVEL(2, "%2s-%-17.17s : %.*f%s -> %.*f%s (%5.*f),%6.*f MB/s\r",
+                    DISPLAYLEVEL(2, "%2s-%-17.17s : %.*f%s -> %.*f%s (%5.*f), %6.*f MB/s\r",
                             marks[markNb], displayName,
                             hr_isize.precision, hr_isize.value, hr_isize.suffix,
                             hr_osize.precision, hr_osize.value, hr_osize.suffix,
@@ -481,7 +481,7 @@ BMK_benchMemAdvancedNoAlloc(
 
                 {   int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
                     hr_osize = UTIL_makeHumanReadableSize((U64) cSize);
-                    DISPLAYLEVEL(2, "%2s-%-17.17s : %.*f%s -> %.*f%s (%5.*f),%6.*f MB/s ,%6.1f MB/s \r",
+                    DISPLAYLEVEL(2, "%2s-%-17.17s : %.*f%s -> %.*f%s (%5.*f), %6.*f MB/s, %6.1f MB/s \r",
                             marks[markNb], displayName,
                             hr_isize.precision, hr_isize.value, hr_isize.suffix,
                             hr_osize.precision, hr_osize.value, hr_osize.suffix,

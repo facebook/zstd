@@ -1519,6 +1519,7 @@ then
     println "\n===>   adaptive mode "
     roundTripTest -g270000000 " --adapt"
     roundTripTest -g27000000 " --adapt=min=1,max=4"
+    roundTripTest -g27000000 " --adapt=min=-2,max=-1"
     println "===>   test: --adapt must fail on incoherent bounds "
     datagen > tmp
     zstd -f -vv --adapt=min=10,max=9 tmp && die "--adapt must fail on incoherent bounds"

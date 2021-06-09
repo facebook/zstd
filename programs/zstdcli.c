@@ -206,7 +206,6 @@ static void usage_advanced(const char* programName)
     DISPLAYOUT( "--ultra : enable levels beyond %i, up to %i (requires more memory) \n", ZSTDCLI_CLEVEL_MAX, ZSTD_maxCLevel());
     DISPLAYOUT( "--long[=#]: enable long distance matching with given window log (default: %u) \n", g_defaultMaxWindowLog);
     DISPLAYOUT( "--fast[=#]: switch to very fast compression levels (default: %u) \n", 1);
-    DISPLAYOUT( "--long-param=#: specify compression level, accepts negative values as fast compression levels \n");
     DISPLAYOUT( "--adapt : dynamically adapt compression level to I/O conditions \n");
     DISPLAYOUT( "--[no-]row-match-finder : force enable/disable usage of fast row-based matchfinder for greedy, lazy, and lazy2 strategies \n");
     DISPLAYOUT( "--patch-from=FILE : specify the file to be used as a reference point for zstd's diff engine. \n");
@@ -354,25 +353,6 @@ static unsigned readU32FromChar(const char** stringPtr) {
     if (readU32FromCharChecked(stringPtr, &result)) { errorOut(errorMsg); }
     return result;
 }
-
-#ifndef ZSTD_NOCOMPRESS
-/*! readIntFromChar() :
- * @return : signed integer value read from input in `char` format.
- *  allows and interprets K, KB, KiB, M, MB and MiB suffix.
- *  Will also modify `*stringPtr`, advancing it to position where it stopped reading.
- *  Note : function will exit() program if digit sequence overflows */
-static int readIntFromChar(const char** stringPtr) {
-    static const char errorMsg[] = "error: numeric value overflows 32-bit int";
-    int sign = 1;
-    unsigned result;
-    if (**stringPtr=='-') {
-        (*stringPtr)++;
-        sign = -1;
-    }
-    if (readU32FromCharChecked(stringPtr, &result)) { errorOut(errorMsg); }
-    return (int) result * sign;
-}
-#endif
 
 /*! readSizeTFromCharChecked() :
  * @return 0 if success, and store the result in *value.
@@ -960,6 +940,23 @@ int main(int const argCount, const char* argv[])
                 if (longCommandWArg(&argument, "--trace")) { char const* traceFile; NEXT_FIELD(traceFile); TRACE_enable(traceFile); continue; }
 #endif
                 if (longCommandWArg(&argument, "--patch-from")) { NEXT_FIELD(patchFromDictFileName); continue; }
+                if (longCommandWArg(&argument, "--long")) {
+                    unsigned ldmWindowLog = 0;
+                    ldmFlag = 1;
+                    /* Parse optional window log */
+                    if (*argument == '=') {
+                        ++argument;
+                        ldmWindowLog = readU32FromChar(&argument);
+                    } else if (*argument != 0) {
+                        /* Invalid character following --long */
+                        badusage(programName);
+                        CLEAN_RETURN(1);
+                    }
+                    /* Only set windowLog if not already set by --zstd */
+                    if (compressionParams.windowLog == 0)
+                        compressionParams.windowLog = ldmWindowLog;
+                    continue;
+                }
 #ifndef ZSTD_NOCOMPRESS   /* linking ZSTD_minCLevel() requires compression support */
                 if (longCommandWArg(&argument, "--fast")) {
                     /* Parse optional acceleration factor */
@@ -984,43 +981,7 @@ int main(int const argCount, const char* argv[])
                     }
                     continue;
                 }
-
-                if (longCommandWArg(&argument, "--long-param")) {
-                    if (*argument == '=') {
-                        int maxLevel = ZSTD_maxCLevel();
-                        int minLevel = ZSTD_minCLevel();
-                        int readLevel;
-                        ++argument;
-                        readLevel = readIntFromChar(&argument);
-                        if (readLevel > maxLevel) readLevel = maxLevel;
-                        if (readLevel < minLevel) readLevel = minLevel;
-                        cLevel = readLevel;
-                    } else {
-                        /* --long-param requires an argument */
-                        badusage(programName);
-                        CLEAN_RETURN(1);
-                    }
-                    continue;
-                }
 #endif
-
-                if (longCommandWArg(&argument, "--long")) {
-                    unsigned ldmWindowLog = 0;
-                    ldmFlag = 1;
-                    /* Parse optional window log */
-                    if (*argument == '=') {
-                        ++argument;
-                        ldmWindowLog = readU32FromChar(&argument);
-                    } else if (*argument != 0) {
-                        /* Invalid character following --long */
-                        badusage(programName);
-                        CLEAN_RETURN(1);
-                    }
-                    /* Only set windowLog if not already set by --zstd */
-                    if (compressionParams.windowLog == 0)
-                        compressionParams.windowLog = ldmWindowLog;
-                    continue;
-                }
 
                 if (longCommandWArg(&argument, "--filelist")) {
                     const char* listName;

@@ -1921,11 +1921,11 @@ static int basicUnitTests(U32 const seed, double compressibility)
             const void* const dict = (const char*)CNBuffer;
             const void* const contentStart = (const char*)dict + flatdictSize;
             /* These upper bounds are generally within a few bytes of the compressed size */
-            size_t const target_nodict_cSize[22+1] = { 3840, 3770, 3870, 3830, 3770,
-                                                       3770, 3770, 3770, 3750, 3750,
-                                                       3742, 3670, 3670, 3660, 3660,
-                                                       3660, 3660, 3660, 3660, 3660,
-                                                       3660, 3660, 3660 };
+            size_t target_nodict_cSize[22+1] = { 3840, 3770, 3870, 3830, 3770,
+                                                 3770, 3770, 3770, 3750, 3750,
+                                                 3742, 3670, 3670, 3660, 3660,
+                                                 3660, 3660, 3660, 3660, 3660,
+                                                 3660, 3660, 3660 };
             size_t const target_wdict_cSize[22+1] =  { 2830, 2890, 2890, 2820, 2940,
                                                        2950, 2950, 2925, 2900, 2891,
                                                        2910, 2910, 2910, 2770, 2760,
@@ -1933,6 +1933,9 @@ static int basicUnitTests(U32 const seed, double compressibility)
                                                        2750, 2750, 2750 };
             int l = 1;
             int const maxLevel = ZSTD_maxCLevel();
+            /* clevels with strategies that support rowhash on small inputs */
+            int rowLevel = 4;
+            int const rowLevelEnd = 8;
 
             DISPLAYLEVEL(3, "test%3i : flat-dictionary efficiency test : \n", testNb++);
             assert(maxLevel == 22);
@@ -1963,6 +1966,27 @@ static int basicUnitTests(U32 const seed, double compressibility)
                 }
                 DISPLAYLEVEL(4, "level %i with dictionary : max expected %u >= reached %u \n",
                                 l, (unsigned)target_wdict_cSize[l], (unsigned)wdict_cSize);
+            }
+            /* Compression with ZSTD_compress2 and row match finder force enabled.
+             * Give some slack for force-enabled row matchfinder since we're on a small input (9KB)
+             */
+            for ( ; rowLevel <= rowLevelEnd; ++rowLevel) target_nodict_cSize[rowLevel] += 5;
+            for (l=1 ; l <= maxLevel; l++) {
+                ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+                size_t nodict_cSize;
+                ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, l);
+                ZSTD_CCtx_setParameter(cctx, ZSTD_c_useRowMatchFinder, ZSTD_urm_enableRowMatchFinder);
+                nodict_cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize,
+                                                           contentStart, contentSize);
+                if (nodict_cSize > target_nodict_cSize[l]) {
+                    DISPLAYLEVEL(1, "error : compression with compress2 at level %i worse than expected (%u > %u) \n",
+                                    l, (unsigned)nodict_cSize, (unsigned)target_nodict_cSize[l]);
+                    ZSTD_freeCCtx(cctx);
+                    goto _output_error;
+                }
+                DISPLAYLEVEL(4, "level %i with compress2 : max expected %u >= reached %u \n",
+                                l, (unsigned)target_nodict_cSize[l], (unsigned)nodict_cSize);
+                ZSTD_freeCCtx(cctx);
             }
             /* Dict compression with DMS */
             for ( l=1 ; l <= maxLevel; l++) {

@@ -26,6 +26,18 @@ env:
 matrix:
   fast_finish: true
   include:
+    - name: S390X (big endian) + Fuzz test
+      dist: trusty
+      arch: s390x
+      script:
+        - FUZZER_FLAGS=--no-big-tests make -C tests fuzztest
+
+    - name: S390X (big endian) + Fuzz test + no intrinsics
+      dist: trusty
+      arch: s390x
+      script:
+        - MOREFLAGS="-DZSTD_NO_INTRINSICS" FUZZER_FLAGS=--no-big-tests make -C tests fuzztest
+
     - name: arm64    # ~2.5 mn
       os: linux
       arch: arm64

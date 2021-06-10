@@ -1403,7 +1403,7 @@ FIO_compressZstdFrame(FIO_ctx_t* const fCtx,
 
                 /* display progress notifications */
                 if (g_display_prefs.displayLevel >= 3) {
-                    DISPLAYUPDATE(3, "\r(L%i) Buffered :%6.*f%4s - Consumed :%6.*f%4s - Compressed :%6.*f%s => %.2f%% ",
+                    DISPLAYUPDATE(3, "\r(L%i) Buffered :%6.*f%4s - Consumed :%6.*f%4s - Compressed :%6.*f%4s => %.2f%% ",
                                 compressionLevel,
                                 buffered_hrs.precision, buffered_hrs.value, buffered_hrs.suffix,
                                 consumed_hrs.precision, consumed_hrs.value, consumed_hrs.suffix,
@@ -1600,13 +1600,13 @@ FIO_compressFilename_internal(FIO_ctx_t* const fCtx,
         UTIL_HumanReadableSize_t hr_isize = UTIL_makeHumanReadableSize((U64) readsize);
         UTIL_HumanReadableSize_t hr_osize = UTIL_makeHumanReadableSize((U64) compressedfilesize);
         if (readsize == 0) {
-            DISPLAYLEVEL(2,"%-20s :  (%.*f%s => %.*f%s, %s) \n",
+            DISPLAYLEVEL(2,"%-20s :  (%6.*f%4s => %6.*f%4s, %s) \n",
                 srcFileName,
                 hr_isize.precision, hr_isize.value, hr_isize.suffix,
                 hr_osize.precision, hr_osize.value, hr_osize.suffix,
                 dstFileName);
         } else {
-            DISPLAYLEVEL(2,"%-20s :%6.2f%%   (%.*f%s => %.*f%s, %s) \n",
+            DISPLAYLEVEL(2,"%-20s :%6.2f%%   (%6.*f%4s => %6.*f%4s, %s) \n",
                 srcFileName,
                 (double)compressedfilesize / (double)readsize * 100,
                 hr_isize.precision, hr_isize.value, hr_isize.suffix,
@@ -1903,7 +1903,7 @@ int FIO_compressMultipleFilenames(FIO_ctx_t* const fCtx,
         UTIL_HumanReadableSize_t hr_osize = UTIL_makeHumanReadableSize((U64) fCtx->totalBytesOutput);
 
         DISPLAYLEVEL(2, "\r%79s\r", "");
-        DISPLAYLEVEL(2, "%3d files compressed : %.2f%%   (%.*f%s => %.*f%s)\n",
+        DISPLAYLEVEL(2, "%3d files compressed :%.2f%%   (%6.*f%4s => %6.*f%4s)\n",
                         fCtx->nbFilesProcessed,
                         (double)fCtx->totalBytesOutput/((double)fCtx->totalBytesInput)*100,
                         hr_isize.precision, hr_isize.value, hr_isize.suffix,
@@ -2529,7 +2529,7 @@ static int FIO_decompressFrames(FIO_ctx_t* const fCtx,
     fCtx->totalBytesOutput += (size_t)filesize;
     DISPLAYLEVEL(2, "\r%79s\r", "");
     /* No status message in pipe mode (stdin - stdout) or multi-files mode */
-    if ((g_display_prefs.displayLevel >= 2 && fCtx->nbFilesTotal <= 1) || 
+    if ((g_display_prefs.displayLevel >= 2 && fCtx->nbFilesTotal <= 1) ||
         g_display_prefs.displayLevel >= 3 ||
         g_display_prefs.progressSetting == FIO_ps_always) {
         DISPLAYLEVEL(1, "\r%-20s: %llu bytes \n", srcFileName, filesize);

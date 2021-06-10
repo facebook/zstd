@@ -311,7 +311,7 @@ UTIL_HumanReadableSize_t UTIL_makeHumanReadableSize(U64 size) {
          * values that exceed the integral precision of a double. */
         if (size >= (1ull << 53)) {
             hrs.value = (double)size / (1ull << 20);
-            hrs.suffix = " MB";
+            hrs.suffix = " MiB";
             /* At worst, a double representation of a maximal size will be
              * accurate to better than tens of kilobytes. */
             hrs.precision = 2;
@@ -324,22 +324,22 @@ UTIL_HumanReadableSize_t UTIL_makeHumanReadableSize(U64 size) {
         /* In regular mode, scale sizes down and use suffixes. */
         if (size >= (1ull << 60)) {
             hrs.value = (double)size / (1ull << 60);
-            hrs.suffix = " EB";
+            hrs.suffix = " EiB";
         } else if (size >= (1ull << 50)) {
             hrs.value = (double)size / (1ull << 50);
-            hrs.suffix = " PB";
+            hrs.suffix = " PiB";
         } else if (size >= (1ull << 40)) {
             hrs.value = (double)size / (1ull << 40);
-            hrs.suffix = " TB";
+            hrs.suffix = " TiB";
         } else if (size >= (1ull << 30)) {
             hrs.value = (double)size / (1ull << 30);
-            hrs.suffix = " GB";
+            hrs.suffix = " GiB";
         } else if (size >= (1ull << 20)) {
             hrs.value = (double)size / (1ull << 20);
-            hrs.suffix = " MB";
+            hrs.suffix = " MiB";
         } else if (size >= (1ull << 10)) {
             hrs.value = (double)size / (1ull << 10);
-            hrs.suffix = " KB";
+            hrs.suffix = " KiB";
         } else {
             hrs.value = (double)size;
             hrs.suffix = " B";

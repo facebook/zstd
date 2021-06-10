@@ -122,6 +122,7 @@ int UTIL_requireUserConfirmation(const char* prompt, const char* abortMsg, const
 #define STRDUP(s) strdup(s)
 #endif
 
+
 /**
  * Calls platform's equivalent of stat() on filename and writes info to statbuf.
  * Returns success (1) or failure (0).
@@ -169,6 +170,19 @@ int UTIL_isFIFO(const char* infilename);
 #define UTIL_FILESIZE_UNKNOWN  ((U64)(-1))
 U64 UTIL_getFileSize(const char* infilename);
 U64 UTIL_getTotalFileSize(const char* const * fileNamesTable, unsigned nbFiles);
+
+/**
+ * Take a size in bytes and prepare the components to pretty-print it in a
+ * scaled way. The components in the returned struct should be passed in
+ * precision, value, suffix order to a "%.*f%s" format string.
+ */
+typedef struct {
+  double value;
+  int precision;
+  const char* suffix;
+} UTIL_HumanReadableSize_t;
+
+UTIL_HumanReadableSize_t UTIL_makeHumanReadableSize(U64 size);
 
 int UTIL_compareStr(const void *p1, const void *p2);
 const char* UTIL_getFileExtension(const char* infilename);

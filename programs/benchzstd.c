@@ -393,6 +393,8 @@ BMK_benchMemAdvancedNoAlloc(
         BMK_benchParams_t cbp, dbp;
         BMK_initCCtxArgs cctxprep;
         BMK_initDCtxArgs dctxprep;
+        UTIL_HumanReadableSize_t hr_isize;
+        UTIL_HumanReadableSize_t hr_osize;
 
         cbp.benchFn = local_defaultCompress;   /* ZSTD_compress2 */
         cbp.benchPayload = cctx;
@@ -429,8 +431,10 @@ BMK_benchMemAdvancedNoAlloc(
         dctxprep.dictBuffer = dictBuffer;
         dctxprep.dictBufferSize = dictBufferSize;
 
+        hr_isize = UTIL_makeHumanReadableSize((U64) srcSize);
+
         DISPLAYLEVEL(2, "\r%70s\r", "");   /* blank line */
-        DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->\r", marks[markNb], displayName, (unsigned)srcSize);
+        DISPLAYLEVEL(2, "%2s-%-17.17s : %.*f%s -> \r", marks[markNb], displayName, hr_isize.precision, hr_isize.value, hr_isize.suffix);
 
         while (!(compressionCompleted && decompressionCompleted)) {
             if (!compressionCompleted) {
@@ -451,9 +455,11 @@ BMK_benchMemAdvancedNoAlloc(
                 }   }
 
                 {   int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
-                    DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.*f),%6.*f MB/s\r",
+                    hr_osize = UTIL_makeHumanReadableSize((U64) cSize);
+                    DISPLAYLEVEL(2, "%2s-%-17.17s : %.*f%s -> %.*f%s (%5.*f), %6.*f MB/s\r",
                             marks[markNb], displayName,
-                            (unsigned)srcSize, (unsigned)cSize,
+                            hr_isize.precision, hr_isize.value, hr_isize.suffix,
+                            hr_osize.precision, hr_osize.value, hr_osize.suffix,
                             ratioAccuracy, ratio,
                             benchResult.cSpeed < (10 MB) ? 2 : 1, (double)benchResult.cSpeed / MB_UNIT);
                 }
@@ -474,9 +480,11 @@ BMK_benchMemAdvancedNoAlloc(
                 }
 
                 {   int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
-                    DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.*f),%6.*f MB/s ,%6.1f MB/s \r",
+                    hr_osize = UTIL_makeHumanReadableSize((U64) cSize);
+                    DISPLAYLEVEL(2, "%2s-%-17.17s : %.*f%s -> %.*f%s (%5.*f), %6.*f MB/s, %6.1f MB/s \r",
                             marks[markNb], displayName,
-                            (unsigned)srcSize, (unsigned)cSize,
+                            hr_isize.precision, hr_isize.value, hr_isize.suffix,
+                            hr_osize.precision, hr_osize.value, hr_osize.suffix,
                             ratioAccuracy, ratio,
                             benchResult.cSpeed < (10 MB) ? 2 : 1, (double)benchResult.cSpeed / MB_UNIT,
                             (double)benchResult.dSpeed / MB_UNIT);

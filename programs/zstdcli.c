@@ -1146,8 +1146,9 @@ int main(int const argCount, const char* argv[])
     (void)singleThread; (void)nbWorkers;
 #endif
 
-#ifdef UTIL_HAS_CREATEFILELIST
     g_utilDisplayLevel = g_displayLevel;
+
+#ifdef UTIL_HAS_CREATEFILELIST
     if (!followLinks) {
         unsigned u, fileNamesNb;
         unsigned const nbFilenames = (unsigned)filenames->tableSize;

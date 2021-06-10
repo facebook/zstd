@@ -1445,7 +1445,7 @@ datagen -g0 > tmp5
 zstd tmp5
 zstd -l tmp5.zst
 zstd -l tmp5* && die "-l must fail on non-zstd file"
-zstd -lv tmp5.zst | grep "Decompressed Size: 0.00 KB (0 B)"  # check that 0 size is present in header
+zstd -lv tmp5.zst | grep "Decompressed Size: 0 B (0 B)"  # check that 0 size is present in header
 zstd -lv tmp5* && die "-l must fail on non-zstd file"
 
 println "\n===>  zstd --list/-l test with no content size field "
@@ -1616,7 +1616,7 @@ roundTripTest -g600M -P50 "1 --single-thread --long --zstd=wlog=29,clog=28"
 
 if [ -n "$hasMT" ]
 then
-    println "\n===>   zstdmt long round-trip tests " 
+    println "\n===>   zstdmt long round-trip tests "
     roundTripTest -g80000000 -P99 "19 -T2" " "
     roundTripTest -g5000000000 -P99 "1 -T2" " "
     roundTripTest -g500000000 -P97 "1 -T999" " "

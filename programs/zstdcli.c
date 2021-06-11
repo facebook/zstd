@@ -354,6 +354,23 @@ static unsigned readU32FromChar(const char** stringPtr) {
     return result;
 }
 
+/*! readIntFromChar() :
+ * @return : signed integer value read from input in `char` format.
+ *  allows and interprets K, KB, KiB, M, MB and MiB suffix.
+ *  Will also modify `*stringPtr`, advancing it to position where it stopped reading.
+ *  Note : function will exit() program if digit sequence overflows */
+static int readIntFromChar(const char** stringPtr) {
+    static const char errorMsg[] = "error: numeric value overflows 32-bit int";
+    int sign = 1;
+    unsigned result;
+    if (**stringPtr=='-') {
+        (*stringPtr)++;
+        sign = -1;
+    }
+    if (readU32FromCharChecked(stringPtr, &result)) { errorOut(errorMsg); }
+    return (int) result * sign;
+}
+
 /*! readSizeTFromCharChecked() :
  * @return 0 if success, and store the result in *value.
  *  allows and interprets K, KB, KiB, M, MB and MiB suffix.
@@ -547,8 +564,8 @@ static ZDICT_fastCover_params_t defaultFastCoverParams(void)
 static unsigned parseAdaptParameters(const char* stringPtr, int* adaptMinPtr, int* adaptMaxPtr)
 {
     for ( ; ;) {
-        if (longCommandWArg(&stringPtr, "min=")) { *adaptMinPtr = (int)readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
-        if (longCommandWArg(&stringPtr, "max=")) { *adaptMaxPtr = (int)readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "min=")) { *adaptMinPtr = readIntFromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "max=")) { *adaptMaxPtr = readIntFromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         DISPLAYLEVEL(4, "invalid compression parameter \n");
         return 0;
     }

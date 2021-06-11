@@ -380,6 +380,19 @@ unsigned ZSTD_isFrame(const void* buffer, size_t size)
     return 0;
 }
 
+/*! ZSTD_isSkippableFrame() :
+ *  Tells if the content of `buffer` starts with a valid Frame Identifier for a skippable frame.
+ *  Note : Frame Identifier is 4 bytes. If `size < 4`, @return will always be 0.
+ */
+unsigned ZSTD_isSkippableFrame(const void* buffer, size_t size)
+{
+    if (size < ZSTD_FRAMEIDSIZE) return 0;
+    {   U32 const magic = MEM_readLE32(buffer);
+        if ((magic & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START) return 1;
+    }
+    return 0;
+}
+
 /** ZSTD_frameHeaderSize_internal() :
  *  srcSize must be large enough to reach header size fields.
  *  note : only works for formats ZSTD_f_zstd1 and ZSTD_f_zstd1_magicless.
@@ -503,7 +516,6 @@ size_t ZSTD_getFrameHeader(ZSTD_frameHeader* zfhPtr, const void* src, size_t src
     return ZSTD_getFrameHeader_advanced(zfhPtr, src, srcSize, ZSTD_f_zstd1);
 }
 
-
 /** ZSTD_getFrameContentSize() :
  *  compatible with legacy mode
  * @return : decompressed size of the single frame pointed to be `src` if known, otherwise
@@ -542,6 +554,37 @@ static size_t readSkippableFrameSize(void const* src, size_t srcSize)
         RETURN_ERROR_IF(skippableSize > srcSize, srcSize_wrong, "");
         return skippableSize;
     }
+}
+
+/*! ZSTD_readSkippableFrame() :
+ * Retrieves a zstd skippable frame containing data given by src, and writes it to dst buffer.
+ *
+ * The parameter magicVariant will receive the magicVariant that was supplied when the frame was written,
+ * i.e. magicNumber - ZSTD_MAGIC_SKIPPABLE_START.  This can be NULL if the caller is not interested
+ * in the magicVariant.
+ *
+ * Returns an error if destination buffer is not large enough, or if the frame is not skippable.
+ *
+ * @return : number of bytes written or a ZSTD error.
+ */
+ZSTDLIB_API size_t ZSTD_readSkippableFrame(void* dst, size_t dstCapacity, unsigned* magicVariant,
+                                            const void* src, size_t srcSize)
+{
+    U32 const magicNumber = MEM_readLE32(src);
+    size_t skippableFrameSize = readSkippableFrameSize(src, srcSize);
+    size_t skippableContentSize = skippableFrameSize - ZSTD_SKIPPABLEHEADERSIZE;
+
+    /* check input validity */
+    RETURN_ERROR_IF(!ZSTD_isSkippableFrame(src, srcSize), frameParameter_unsupported, "");
+    RETURN_ERROR_IF(skippableFrameSize < ZSTD_SKIPPABLEHEADERSIZE || skippableFrameSize > srcSize, srcSize_wrong, "");
+    RETURN_ERROR_IF(skippableContentSize > dstCapacity, dstSize_tooSmall, "");
+
+    /* deliver payload */
+    if (skippableContentSize > 0  && dst != NULL)
+        ZSTD_memcpy(dst, (const BYTE *)src + ZSTD_SKIPPABLEHEADERSIZE, skippableContentSize);
+    if (magicVariant != NULL)
+        *magicVariant = magicNumber - ZSTD_MAGIC_SKIPPABLE_START;
+    return skippableContentSize;
 }
 
 /** ZSTD_findDecompressedSize() :

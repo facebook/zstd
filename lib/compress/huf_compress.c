@@ -133,6 +133,7 @@ size_t HUF_writeCTable_wksp(void* dst, size_t maxDstSize,
         wksp->huffWeight[n] = wksp->bitsToWeight[CTable[n].nbBits];
 
     /* attempt weights compression by FSE */
+    if (maxDstSize < 1) return ERROR(dstSize_tooSmall);
     {   CHECK_V_F(hSize, HUF_compressWeights(op+1, maxDstSize-1, wksp->huffWeight, maxSymbolValue, &wksp->wksp, sizeof(wksp->wksp)) );
         if ((hSize>1) & (hSize < maxSymbolValue/2)) {   /* FSE compressed */
             op[0] = (BYTE)hSize;

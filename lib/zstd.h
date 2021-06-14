@@ -1441,6 +1441,26 @@ ZSTDLIB_API size_t ZSTD_compressSequences(ZSTD_CCtx* const cctx, void* dst, size
 ZSTDLIB_API size_t ZSTD_writeSkippableFrame(void* dst, size_t dstCapacity,
                                             const void* src, size_t srcSize, unsigned magicVariant);
 
+/*! ZSTD_readSkippableFrame() :
+ * Retrieves a zstd skippable frame containing data given by src, and writes it to dst buffer.
+ *
+ * The parameter magicVariant will receive the magicVariant that was supplied when the frame was written,
+ * i.e. magicNumber - ZSTD_MAGIC_SKIPPABLE_START.  This can be NULL if the caller is not interested
+ * in the magicVariant.
+ *
+ * Returns an error if destination buffer is not large enough, or if the frame is not skippable.
+ *
+ * @return : number of bytes written or a ZSTD error.
+ */
+ZSTDLIB_API size_t ZSTD_readSkippableFrame(void* dst, size_t dstCapacity, unsigned* magicVariant,
+                                            const void* src, size_t srcSize);
+
+/*! ZSTD_isSkippableFrame() :
+ *  Tells if the content of `buffer` starts with a valid Frame Identifier for a skippable frame.
+ */
+ZSTDLIB_API unsigned ZSTD_isSkippableFrame(const void* buffer, size_t size);
+
+
 
 /***************************************
 *  Memory management

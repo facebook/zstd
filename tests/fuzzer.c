@@ -1830,6 +1830,46 @@ static int basicUnitTests(U32 const seed, double compressibility)
     if (memcmp(decodedBuffer, CNBuffer, CNBuffSize / 2) != 0) goto _output_error;
     DISPLAYLEVEL(3, "OK \n");
 
+    /* Simple API skippable frame test */
+    DISPLAYLEVEL(3, "test%3i : read/write a skippable frame : ", testNb++);
+    {
+        U32 i;
+        unsigned readMagic;
+        unsigned long long receivedSize;
+        size_t skippableSize;
+        const U32 skipLen = 129 KB;
+        char* const skipBuff = (char*)malloc(skipLen);
+        assert(skipBuff != NULL);
+        for (i = 0; i < skipLen; i++)
+            skipBuff[i] = (BYTE) ((seed + i) % 256);
+        skippableSize = ZSTD_writeSkippableFrame((BYTE*)compressedBuffer, compressedBufferSize,
+                                        skipBuff, skipLen, seed % 15);
+        CHECK_Z(skippableSize);
+        CHECK_EQ(1, ZSTD_isSkippableFrame(compressedBuffer, skippableSize));
+        receivedSize = ZSTD_readSkippableFrame(decodedBuffer, CNBuffSize, &readMagic, compressedBuffer, skippableSize);
+        CHECK_EQ(skippableSize, receivedSize + ZSTD_SKIPPABLEHEADERSIZE);
+        CHECK_EQ(seed % 15, readMagic);
+        if (memcmp(decodedBuffer, skipBuff, skipLen) != 0) goto _output_error;
+
+        free(skipBuff);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : read/write an empty skippable frame : ", testNb++);
+    {
+        unsigned readMagic;
+        unsigned long long receivedSize;
+        size_t skippableSize;
+        skippableSize = ZSTD_writeSkippableFrame((BYTE*)compressedBuffer, compressedBufferSize,
+                                        CNBuffer, 0, seed % 15);
+        CHECK_EQ(ZSTD_SKIPPABLEHEADERSIZE, skippableSize);
+        CHECK_EQ(1, ZSTD_isSkippableFrame(compressedBuffer, skippableSize));
+        receivedSize = ZSTD_readSkippableFrame(NULL, 0, &readMagic, compressedBuffer, skippableSize);
+        CHECK_EQ(skippableSize, receivedSize + ZSTD_SKIPPABLEHEADERSIZE);
+        CHECK_EQ(seed % 15, readMagic);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     /* Dictionary and CCtx Duplication tests */
     {   ZSTD_CCtx* const ctxOrig = ZSTD_createCCtx();
         ZSTD_CCtx* const ctxDuplicated = ZSTD_createCCtx();

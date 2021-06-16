@@ -125,6 +125,9 @@ the last one takes effect.
     This mode is the only one available when multithread support is disabled.
     Single-thread mode features lower memory usage.
     Final compressed result is slightly different from `-T1`.
+* `--auto-threads={physical,logical} (default: physical)`:
+    When using a default amount of threads via `-T0`, choose the default based on the number
+    of detected physical or logical cores.
 * `--adapt[=min=#,max=#]` :
     `zstd` will dynamically adapt compression level to perceived I/O conditions.
     Compression level adaptation can be observed live by using command `-v`.

@@ -1351,6 +1351,8 @@ if [ -n "$hasMT" ]
 then
     println "\n===>  zstdmt round-trip tests "
     roundTripTest -g4M "1 -T0"
+    roundTripTest -g4M "1 -T0 --auto-threads=physical"
+    roundTripTest -g4M "1 -T0 --auto-threads=logical"
     roundTripTest -g8M "3 -T2"
     roundTripTest -g8M "19 --long"
     roundTripTest -g8000K "2 --threads=2"

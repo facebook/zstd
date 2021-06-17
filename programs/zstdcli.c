@@ -213,6 +213,7 @@ static void usage_advanced(const char* programName)
     DISPLAYOUT( " -T#    : spawns # compression threads (default: 1, 0==# cores) \n");
     DISPLAYOUT( " -B#    : select size of each job (default: 0==automatic) \n");
     DISPLAYOUT( "--single-thread : use a single thread for both I/O and compression (result slightly different than -T1) \n");
+    DISPLAYOUT( "--auto-threads={physical,logical} (default: physical} : use either physical cores or logical cores as default when specifying -T0 \n");
     DISPLAYOUT( "--rsyncable : compress using a rsync-friendly method (-B sets block size) \n");
 # endif
     DISPLAYOUT( "--exclude-compressed: only compress files that are not already compressed \n");
@@ -761,6 +762,9 @@ int main(int const argCount, const char* argv[])
         separateFiles = 0,
         setRealTimePrio = 0,
         singleThread = 0,
+#ifdef ZSTD_MULTITHREAD
+        defaultLogicalCores = 0,
+#endif
         showDefaultCParams = 0,
         ultra=0,
         contentSize=1;
@@ -950,6 +954,15 @@ int main(int const argCount, const char* argv[])
                 if (longCommandWArg(&argument, "--target-compressed-block-size=")) { targetCBlockSize = readSizeTFromChar(&argument); continue; }
                 if (longCommandWArg(&argument, "--size-hint=")) { srcSizeHint = readSizeTFromChar(&argument); continue; }
                 if (longCommandWArg(&argument, "--output-dir-flat")) { NEXT_FIELD(outDirName); continue; }
+#ifdef ZSTD_MULTITHREAD
+                if (longCommandWArg(&argument, "--auto-threads")) {
+                    const char* threadDefault = NULL;
+                    NEXT_FIELD(threadDefault);
+                    if (strcmp(threadDefault, "logical") == 0)
+                        defaultLogicalCores = 1;
+                    continue;
+                }
+#endif
 #ifdef UTIL_HAS_MIRRORFILELIST
                 if (longCommandWArg(&argument, "--output-dir-mirror")) { NEXT_FIELD(outMirroredDirName); continue; }
 #endif
@@ -1156,8 +1169,13 @@ int main(int const argCount, const char* argv[])
 #ifdef ZSTD_MULTITHREAD
     if ((nbWorkers==0) && (!singleThread)) {
         /* automatically set # workers based on # of reported cpus */
-        nbWorkers = UTIL_countPhysicalCores();
-        DISPLAYLEVEL(3, "Note: %d physical core(s) detected \n", nbWorkers);
+        if (defaultLogicalCores) {
+            nbWorkers = UTIL_countLogicalCores();
+            DISPLAYLEVEL(3, "Note: %d logical core(s) detected \n", nbWorkers);
+        } else {
+            nbWorkers = UTIL_countPhysicalCores();
+            DISPLAYLEVEL(3, "Note: %d physical core(s) detected \n", nbWorkers);
+        }
     }
 #else
     (void)singleThread; (void)nbWorkers;

@@ -16,9 +16,6 @@
 ***************************************/
 #include "../common/zstd_internal.h"
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
 
 /*-*************************************
 *  Constants
@@ -39,6 +36,29 @@ extern "C" {
 /* Set our tables and aligneds to align by 64 bytes */
 #define ZSTD_CWKSP_ALIGNMENT_BYTES 64
 
+
+/* This macro controls whether Zstd will try to allocate huge pages to back the
+ * cwksp.
+ */
+#ifndef ZSTD_CWKSP_ALLOC_HUGEPAGE
+#if defined(__x86_64__) && defined(__linux__)
+#define ZSTD_CWKSP_ALLOC_HUGEPAGE 1
+#else
+#define ZSTD_CWKSP_ALLOC_HUGEPAGE 0
+#endif
+#endif
+
+#if ZSTD_CWKSP_ALLOC_HUGEPAGE
+#include <errno.h>
+#include <string.h>
+#include <sys/mman.h>
+#endif
+
+
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
 /*-*************************************
 *  Structures
 ***************************************/
@@ -55,6 +75,7 @@ typedef enum {
  */
 typedef enum {
     ZSTD_cwksp_dynamic_alloc,
+    ZSTD_cwksp_mmap_alloc,
     ZSTD_cwksp_static_alloc
 } ZSTD_cwksp_alloc_type_e;
 
@@ -570,18 +591,63 @@ MEM_STATIC void ZSTD_cwksp_init(ZSTD_cwksp* ws, void* start, size_t size, ZSTD_c
 }
 
 MEM_STATIC size_t ZSTD_cwksp_create(ZSTD_cwksp* ws, size_t size, ZSTD_customMem customMem) {
-    void* workspace = ZSTD_customMalloc(size, customMem);
+    void* workspace = NULL;
+    ZSTD_cwksp_alloc_type_e allocType = ZSTD_cwksp_dynamic_alloc;
+#if ZSTD_CWKSP_ALLOC_HUGEPAGE
+    if (customMem.customAlloc == NULL) {
+#ifdef MAP_HUGETLB
+        /* round size up to next multiple of huge page size (assumed to be 2MB) */
+        const size_t mmap_size = ((size - 1) & ~((1 << 21) - 1)) + (1 << 21);
+#else
+        const size_t mmap_size = size;
+#endif
+        const int prot = PROT_READ | PROT_WRITE;
+        int flags = MAP_PRIVATE | MAP_ANONYMOUS;
+#ifdef MAP_HUGETLB
+        flags |= MAP_HUGETLB;
+#endif
+#ifdef MAP_UNINITIALIZED
+        flags |= MAP_UNINITIALIZED;
+#endif
+        workspace = mmap(NULL, mmap_size, prot, flags, -1, 0);
+        if (workspace == MAP_FAILED) {
+            DEBUGLOG(2, "cwksp: mmap(%zu) failed: %s", mmap_size, strerror(errno));
+            workspace = NULL;
+        } else {
+            DEBUGLOG(4, "cwksp: mmap(%zu) success: %p", mmap_size, workspace);
+            allocType = ZSTD_cwksp_mmap_alloc;
+            size = mmap_size;
+        }
+    }
+#endif
+    if (workspace == NULL) {
+        workspace = ZSTD_customMalloc(size, customMem);
+    }
     DEBUGLOG(4, "cwksp: creating new workspace with %zd bytes", size);
     RETURN_ERROR_IF(workspace == NULL, memory_allocation, "NULL pointer!");
-    ZSTD_cwksp_init(ws, workspace, size, ZSTD_cwksp_dynamic_alloc);
+    ZSTD_cwksp_init(ws, workspace, size, allocType);
     return 0;
 }
 
 MEM_STATIC void ZSTD_cwksp_free(ZSTD_cwksp* ws, ZSTD_customMem customMem) {
-    void *ptr = ws->workspace;
+    void * const ptr = ws->workspace;
+    size_t const len = (size_t)((const char *)ws->workspaceEnd - (const char *)ws->workspace);
+    ZSTD_cwksp_alloc_type_e const allocType = ws->allocType;
     DEBUGLOG(4, "cwksp: freeing workspace");
+    assert(allocType != ZSTD_cwksp_static_alloc);
     ZSTD_memset(ws, 0, sizeof(ZSTD_cwksp));
-    ZSTD_customFree(ptr, customMem);
+#if ZSTD_CWKSP_ALLOC_HUGEPAGE
+    if (allocType == ZSTD_cwksp_mmap_alloc) {
+        if (munmap(ptr, len) != 0) {
+            DEBUGLOG(2, "cwksp: munmap() failed: %s", strerror(errno));
+        } else {
+            DEBUGLOG(4, "cwksp: munmap(%p, %zu) success", ptr, len);
+        }
+    } else
+#endif
+    if (allocType == ZSTD_cwksp_dynamic_alloc) {
+        ZSTD_customFree(ptr, customMem);
+    }
 }
 
 /**
@@ -616,7 +682,7 @@ MEM_STATIC int ZSTD_cwksp_reserve_failed(const ZSTD_cwksp* ws) {
  */
 MEM_STATIC int ZSTD_cwksp_estimated_space_within_bounds(const ZSTD_cwksp* const ws,
                                                         size_t const estimatedSpace, int resizedWorkspace) {
-    if (resizedWorkspace) {
+    if (resizedWorkspace && ws->allocType == ZSTD_cwksp_dynamic_alloc) {
         /* Resized/newly allocated wksp should have exact bounds */
         return ZSTD_cwksp_used(ws) == estimatedSpace;
     } else {

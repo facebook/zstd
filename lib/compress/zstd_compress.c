@@ -3721,6 +3721,16 @@ static size_t ZSTD_compressBlock_splitBlock(ZSTD_CCtx* zc,
     return cSize;
 }
 
+/* ZSTD_convertBlockSequencesToSeqStore()
+ * Converts an array of ZSTD_Sequence* with the corresponding original src buffer into 
+ * the seqStore of a cctx.
+ * 
+ * Returns 0 on success, ZSTD_error on failure.
+ */
+static UNUSED_ATTR size_t ZSTD_convertBlockSequencesToSeqStore(ZSTD_CCtx* cctx,
+                                  const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
+                                  const void* src, size_t srcSize);
+
 static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
                                         void* dst, size_t dstCapacity,
                                         const void* src, size_t srcSize, U32 frame)
@@ -3756,12 +3766,6 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
             srcSize,
             zc->entropyWorkspace, ENTROPY_WORKSPACE_SIZE /* statically allocated in resetCCtx */,
             zc->bmi2);
-
-    if (zc->seqCollector.collectSequences) {
-        ZSTD_copyBlockSequences(zc);
-        return 0;
-    }
-
 
     if (frame &&
         /* We don't want to emit our first block as a RLE even if it qualifies because
@@ -5819,6 +5823,13 @@ static size_t ZSTD_copySequencesToSeqStoreExplicitBlockDelim(ZSTD_CCtx* cctx, ZS
     RETURN_ERROR_IF(ip != iend, corruption_detected, "Blocksize doesn't agree with block delimiter!");
     seqPos->idx = idx+1;
     return 0;
+}
+
+static size_t ZSTD_convertBlockSequencesToSeqStore(ZSTD_CCtx* cctx,
+                                  const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
+                                  const void* src, size_t srcSize) {
+    ZSTD_sequencePosition dummySeqPos = {0, 0, 0};
+    return ZSTD_copySequencesToSeqStoreExplicitBlockDelim(cctx, &dummySeqPos, inSeqs, inSeqsSize, src, srcSize);
 }
 
 /* Returns the number of bytes to move the current read position back by. Only non-zero

@@ -186,10 +186,6 @@ test('test-zstream-1',
   zstreamtest,
   args: ['-v', ZSTREAM_TESTTIME] + FUZZER_FLAGS,
   timeout: 240)
-test('test-zstream-2',
-  zstreamtest,
-  args: ['-mt', '-t1', ZSTREAM_TESTTIME] + FUZZER_FLAGS,
-  timeout: 120)
 test('test-zstream-3',
   zstreamtest,
   args: ['--newapi', '-t1', ZSTREAM_TESTTIME] + FUZZER_FLAGS,

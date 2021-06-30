@@ -329,6 +329,7 @@ zstd --long --rm -r precompressedFilterTestDir
 # Files should get compressed again without the --exclude-compressed flag.
 test -f precompressedFilterTestDir/input.5.zst.zst
 test -f precompressedFilterTestDir/input.6.zst.zst
+rm -rf precompressedFilterTestDir
 println "Test completed"
 
 

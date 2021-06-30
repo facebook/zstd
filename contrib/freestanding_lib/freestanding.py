@@ -27,7 +27,6 @@ SKIPPED_FILES = [
     "common/pool.h",
     "common/threading.c",
     "common/threading.h",
-    "common/zstd_trace.c",
     "common/zstd_trace.h",
     "compress/zstdmt_compress.h",
     "compress/zstdmt_compress.c",

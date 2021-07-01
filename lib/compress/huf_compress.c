@@ -758,6 +758,9 @@ typedef struct {
     } wksps;
 } HUF_compress_tables_t;
 
+#define SUSPECT_INCOMPRESSIBLE_SAMPLE_SIZE 4096
+#define SUSPECT_INCOMPRESSIBLE_SAMPLE_RATIO 10  /* Must be >= 2 */
+
 /* HUF_compress_internal() :
  * `workSpace_align4` must be aligned on 4-bytes boundaries,
  * and occupies the same space as a table of HUF_WORKSPACE_SIZE_U32 unsigned */
@@ -768,7 +771,7 @@ HUF_compress_internal (void* dst, size_t dstSize,
                        HUF_nbStreams_e nbStreams,
                        void* workSpace_align4, size_t wkspSize,
                        HUF_CElt* oldHufTable, HUF_repeat* repeat, int preferRepeat,
-                 const int bmi2)
+                 const int bmi2, unsigned suspectUncompressible)
 {
     HUF_compress_tables_t* const table = (HUF_compress_tables_t*)workSpace_align4;
     BYTE* const ostart = (BYTE*)dst;
@@ -793,6 +796,21 @@ HUF_compress_internal (void* dst, size_t dstSize,
         return HUF_compressCTable_internal(ostart, op, oend,
                                            src, srcSize,
                                            nbStreams, oldHufTable, bmi2);
+    }
+
+    /* If uncompressible data is suspected, do a smaller sampling first */
+    DEBUG_STATIC_ASSERT(SUSPECT_INCOMPRESSIBLE_SAMPLE_RATIO >= 2);
+    if (suspectUncompressible && srcSize >= (SUSPECT_INCOMPRESSIBLE_SAMPLE_SIZE * SUSPECT_INCOMPRESSIBLE_SAMPLE_RATIO)) {
+        size_t largestTotal = 0;
+        {   unsigned maxSymbolValueBegin = maxSymbolValue;
+            CHECK_V_F(largestBegin, HIST_count_simple (table->count, &maxSymbolValueBegin, (const BYTE*)src, SUSPECT_INCOMPRESSIBLE_SAMPLE_SIZE) );
+            largestTotal += largestBegin;
+        }
+        {   unsigned maxSymbolValueEnd = maxSymbolValue;
+            CHECK_V_F(largestEnd, HIST_count_simple (table->count, &maxSymbolValueEnd, (const BYTE*)src + srcSize - SUSPECT_INCOMPRESSIBLE_SAMPLE_SIZE, SUSPECT_INCOMPRESSIBLE_SAMPLE_SIZE) );
+            largestTotal += largestEnd;
+        }
+        if (largestTotal <= ((2 * SUSPECT_INCOMPRESSIBLE_SAMPLE_SIZE) >> 7)+4) return 0;   /* heuristic : probably not compressible enough */
     }
 
     /* Scan input and build symbol stats */
@@ -860,19 +878,20 @@ size_t HUF_compress1X_wksp (void* dst, size_t dstSize,
     return HUF_compress_internal(dst, dstSize, src, srcSize,
                                  maxSymbolValue, huffLog, HUF_singleStream,
                                  workSpace, wkspSize,
-                                 NULL, NULL, 0, 0 /*bmi2*/);
+                                 NULL, NULL, 0, 0 /*bmi2*/, 0);
 }
 
 size_t HUF_compress1X_repeat (void* dst, size_t dstSize,
                       const void* src, size_t srcSize,
                       unsigned maxSymbolValue, unsigned huffLog,
                       void* workSpace, size_t wkspSize,
-                      HUF_CElt* hufTable, HUF_repeat* repeat, int preferRepeat, int bmi2)
+                      HUF_CElt* hufTable, HUF_repeat* repeat, int preferRepeat,
+                      int bmi2, unsigned suspectUncompressible)
 {
     return HUF_compress_internal(dst, dstSize, src, srcSize,
                                  maxSymbolValue, huffLog, HUF_singleStream,
                                  workSpace, wkspSize, hufTable,
-                                 repeat, preferRepeat, bmi2);
+                                 repeat, preferRepeat, bmi2, suspectUncompressible);
 }
 
 /* HUF_compress4X_repeat():
@@ -886,22 +905,23 @@ size_t HUF_compress4X_wksp (void* dst, size_t dstSize,
     return HUF_compress_internal(dst, dstSize, src, srcSize,
                                  maxSymbolValue, huffLog, HUF_fourStreams,
                                  workSpace, wkspSize,
-                                 NULL, NULL, 0, 0 /*bmi2*/);
+                                 NULL, NULL, 0, 0 /*bmi2*/, 0);
 }
 
 /* HUF_compress4X_repeat():
  * compress input using 4 streams.
+ * consider skipping quickly
  * re-use an existing huffman compression table */
 size_t HUF_compress4X_repeat (void* dst, size_t dstSize,
                       const void* src, size_t srcSize,
                       unsigned maxSymbolValue, unsigned huffLog,
                       void* workSpace, size_t wkspSize,
-                      HUF_CElt* hufTable, HUF_repeat* repeat, int preferRepeat, int bmi2)
+                      HUF_CElt* hufTable, HUF_repeat* repeat, int preferRepeat, int bmi2, unsigned suspectUncompressible)
 {
     return HUF_compress_internal(dst, dstSize, src, srcSize,
                                  maxSymbolValue, huffLog, HUF_fourStreams,
                                  workSpace, wkspSize,
-                                 hufTable, repeat, preferRepeat, bmi2);
+                                 hufTable, repeat, preferRepeat, bmi2, suspectUncompressible);
 }
 
 #ifndef ZSTD_NO_UNUSED_FUNCTIONS

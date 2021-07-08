@@ -428,22 +428,122 @@ static U32 HUF_setMaxHeight(nodeElt* huffNode, U32 lastNonNull, U32 maxNbBits)
 }
 
 typedef struct {
-    U32 base;
-    U32 curr;
+    U16 base;
+    U16 curr;
 } rankPos;
 
 typedef nodeElt huffNodeTable[HUF_CTABLE_WORKSPACE_SIZE_U32];
 
-#define RANK_POSITION_TABLE_SIZE 32
+/* Number of buckets available for HUF_sort() */
+#define RANK_POSITION_TABLE_SIZE 128
 
 typedef struct {
   huffNodeTable huffNodeTbl;
   rankPos rankPosition[RANK_POSITION_TABLE_SIZE];
 } HUF_buildCTable_wksp_tables;
 
+/* RANK_POSITION_DISTINCT_COUNT_CUTOFF == Cutoff point in HUF_sort() buckets for which we use log2 bucketing.
+ * Strategy is to use as many buckets as possible for representing distinct
+ * counts while using the remainder to represent all counts up to HUF_BLOCKSIZE_MAX
+ * using log2 bucketing.
+ * 
+ * To satisfy this requirement for 128 buckets, we can do the following:
+ * Let buckets 0-114 represent distinct counts of [0, 114]
+ * Let buckets 115 to 126 represent counts of [115, HUF_BLOCKSIZE_MAX]. (the final bucket 127 must remain empty)
+ * 
+ * Note that we don't actually need 17 buckets (assuming 2^17 maxcount) for log2 bucketing since
+ * the first few buckets in the log2 bucketing representation are already covered by the distinct count bucketing.
+ */
+#define RANK_POSITION_LOG_BUCKETS_BEGIN (RANK_POSITION_TABLE_SIZE - 1) - BIT_highbit32(HUF_BLOCKSIZE_MAX) - 1
+#define RANK_POSITION_DISTINCT_COUNT_CUTOFF RANK_POSITION_LOG_BUCKETS_BEGIN + BIT_highbit32(RANK_POSITION_LOG_BUCKETS_BEGIN)
+
+/* Return the appropriate bucket index for a given count. See definition of
+ * RANK_POSITION_DISTINCT_COUNT_CUTOFF for explanation of bucketing strategy.
+ */
+static U32 HUF_getIndex(U32 const count) {
+    return (count < RANK_POSITION_DISTINCT_COUNT_CUTOFF)
+        ? count
+        : BIT_highbit32(count) + RANK_POSITION_LOG_BUCKETS_BEGIN;
+}
+
+/* Helper swap function for HUF_quickSortPartition() */
+static void HUF_swapNodes(nodeElt* a, nodeElt* b) {
+	nodeElt tmp = *a;
+	*a = *b;
+	*b = tmp;
+}
+
+/* Returns 0 if the huffNode array is not sorted by descending count */
+UNUSED_ATTR
+static int HUF_isSorted(nodeElt huffNode[], U32 const maxSymbolValue1) {
+    U32 i;
+    for (i = 1; i < maxSymbolValue1; ++i) {
+        if (huffNode[i].count > huffNode[i-1].count) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+/* Insertion sort by descending order */
+HINT_INLINE void HUF_insertionSort(nodeElt huffNode[], int const low, int const high) {
+    int i;
+    int const size = high-low+1;
+    huffNode += low;
+    for (i = 1; i < size; ++i) {
+        nodeElt const key = huffNode[i];
+        int j = i - 1;
+        while (j >= 0 && huffNode[j].count < key.count) {
+            huffNode[j + 1] = huffNode[j];
+            j--;
+        }
+        huffNode[j + 1] = key;
+    }
+}
+
+/* Pivot helper function for quicksort. */
+static int HUF_quickSortPartition(nodeElt arr[], int const low, int const high) {
+    /* Simply select rightmost element as pivot. "Better" selectors like
+     * median-of-three don't experimentally appear to have any benefit.
+     */
+    U32 const pivot = arr[high].count;
+    int i = low - 1;
+    int j = low;
+    for ( ; j < high; j++) {
+        if (arr[j].count > pivot) {
+            i++;
+            HUF_swapNodes(&arr[i], &arr[j]);
+        }
+    }
+    HUF_swapNodes(&arr[i + 1], &arr[high]);
+    return i + 1;
+}
+
+/* Classic quicksort by descending with partially iterative calls
+ * to reduce worst case callstack size. 
+ */
+static void HUF_simpleQuickSort(nodeElt arr[], int low, int high) {
+    int const kInsertionSortThreshold = 8;
+    if (high - low < kInsertionSortThreshold) {
+        HUF_insertionSort(arr, low, high);
+        return;
+    }
+    while (low < high) {
+        int const idx = HUF_quickSortPartition(arr, low, high);
+        if (idx - low < high - idx) {
+            HUF_simpleQuickSort(arr, low, idx - 1);
+            low = idx + 1;
+        } else {
+            HUF_simpleQuickSort(arr, idx + 1, high);
+            high = idx - 1;
+        }
+    }
+}
+
 /**
  * HUF_sort():
  * Sorts the symbols [0, maxSymbolValue] by count[symbol] in decreasing order.
+ * This is a typical bucket sorting strategy that uses either quicksort or insertion sort to sort each bucket.
  *
  * @param[out] huffNode       Sorted symbols by decreasing count. Only members `.count` and `.byte` are filled.
  *                            Must have (maxSymbolValue + 1) entries.
@@ -451,44 +551,52 @@ typedef struct {
  * @param[in]  maxSymbolValue Maximum symbol value.
  * @param      rankPosition   This is a scratch workspace. Must have RANK_POSITION_TABLE_SIZE entries.
  */
-static void HUF_sort(nodeElt* huffNode, const unsigned* count, U32 maxSymbolValue, rankPos* rankPosition)
-{
-    int n;
-    int const maxSymbolValue1 = (int)maxSymbolValue + 1;
+static void HUF_sort(nodeElt huffNode[], const unsigned count[], U32 const maxSymbolValue, rankPos rankPosition[]) {
+    U32 n;
+    U32 const maxSymbolValue1 = maxSymbolValue+1;
 
     /* Compute base and set curr to base.
-     * For symbol s let lowerRank = BIT_highbit32(count[n]+1) and rank = lowerRank + 1.
-     * Then 2^lowerRank <= count[n]+1 <= 2^rank.
+     * For symbol s let lowerRank = HUF_getIndex(count[n]) and rank = lowerRank + 1.
+     * See HUF_getIndex to see bucketing strategy.
      * We attribute each symbol to lowerRank's base value, because we want to know where
      * each rank begins in the output, so for rank R we want to count ranks R+1 and above.
      */
     ZSTD_memset(rankPosition, 0, sizeof(*rankPosition) * RANK_POSITION_TABLE_SIZE);
     for (n = 0; n < maxSymbolValue1; ++n) {
-        U32 lowerRank = BIT_highbit32(count[n] + 1);
+        U32 lowerRank = HUF_getIndex(count[n]);
+        assert(lowerRank < RANK_POSITION_TABLE_SIZE - 1);
         rankPosition[lowerRank].base++;
     }
+
     assert(rankPosition[RANK_POSITION_TABLE_SIZE - 1].base == 0);
+    /* Set up the rankPosition table */
     for (n = RANK_POSITION_TABLE_SIZE - 1; n > 0; --n) {
         rankPosition[n-1].base += rankPosition[n].base;
         rankPosition[n-1].curr = rankPosition[n-1].base;
     }
-    /* Sort */
+
+    /* Insert each symbol into their appropriate bucket, setting up rankPosition table. */
     for (n = 0; n < maxSymbolValue1; ++n) {
         U32 const c = count[n];
-        U32 const r = BIT_highbit32(c+1) + 1;
-        U32 pos = rankPosition[r].curr++;
-        /* Insert into the correct position in the rank.
-         * We have at most 256 symbols, so this insertion should be fine.
-         */
-        while ((pos > rankPosition[r].base) && (c > huffNode[pos-1].count)) {
-            huffNode[pos] = huffNode[pos-1];
-            pos--;
-        }
+        U32 const r = HUF_getIndex(c) + 1;
+        U32 const pos = rankPosition[r].curr++;
+        assert(pos < maxSymbolValue1);
         huffNode[pos].count = c;
         huffNode[pos].byte  = (BYTE)n;
     }
-}
 
+    /* Sort each bucket. */
+    for (n = RANK_POSITION_DISTINCT_COUNT_CUTOFF; n < RANK_POSITION_TABLE_SIZE - 1; ++n) {
+        U32 const bucketSize = rankPosition[n].curr-rankPosition[n].base;
+        U32 const bucketStartIdx = rankPosition[n].base;
+        if (bucketSize > 1) {
+            assert(bucketStartIdx < maxSymbolValue1);
+            HUF_simpleQuickSort(huffNode + bucketStartIdx, 0, bucketSize-1);
+        }
+    }
+
+    assert(HUF_isSorted(huffNode, maxSymbolValue1));
+}
 
 /** HUF_buildCTable_wksp() :
  *  Same as HUF_buildCTable(), but using externally allocated scratch buffer.

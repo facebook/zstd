@@ -79,6 +79,13 @@
 #  define UNUSED_ATTR
 #endif
 
+/* CONST_ARGC tells the compiler correct const argc specificator for -Wmain. */
+#if !defined(__LCC__)
+#  define CONST_ARGC const
+#else
+#  define CONST_ARGC
+#endif
+
 /* force no inlining */
 #ifdef _MSC_VER
 #  define FORCE_NOINLINE static __declspec(noinline)
@@ -151,7 +158,7 @@
 
 /* vectorization
  * older GCC (pre gcc-4.3 picked as the cutoff) uses a different syntax */
-#if !defined(__INTEL_COMPILER) && !defined(__clang__) && defined(__GNUC__)
+#if !defined(__INTEL_COMPILER) && !defined(__clang__) && defined(__GNUC__) && !defined(__LCC__)
 #  if (__GNUC__ == 4 && __GNUC_MINOR__ > 3) || (__GNUC__ >= 5)
 #    define DONT_VECTORIZE __attribute__((optimize("no-tree-vectorize")))
 #  else

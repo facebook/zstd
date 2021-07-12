@@ -185,7 +185,7 @@ BYTE SEQUENCE_LLCODE[ZSTD_BLOCKSIZE_MAX];
 BYTE SEQUENCE_MLCODE[ZSTD_BLOCKSIZE_MAX];
 BYTE SEQUENCE_OFCODE[ZSTD_BLOCKSIZE_MAX];
 
-unsigned WKSP[HUF_WORKSPACE_SIZE_U32];
+U64 WKSP[HUF_WORKSPACE_SIZE_U64];
 
 typedef struct {
     size_t contentSize; /* 0 means unknown (unless contentSize == windowSize == 0) */
@@ -199,7 +199,7 @@ typedef struct {
     int hufInit;
     /* the distribution used in the previous block for repeat mode */
     BYTE hufDist[DISTSIZE];
-    HUF_CElt hufTable [256];
+    HUF_CElt hufTable [HUF_CTABLE_SIZE_ST(255)];
 
     int fseInit;
     FSE_CTable offcodeCTable  [FSE_CTABLE_SIZE_U32(OffFSELog, MaxOff)];

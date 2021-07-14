@@ -85,7 +85,7 @@ SED_ERE_OPT ?= -E
 
 ZSTDCOMMON_FILES := $(sort $(wildcard common/*.c))
 ZSTDCOMP_FILES := $(sort $(wildcard compress/*.c))
-ZSTDDECOMP_FILES := $(sort $(wildcard decompress/*.c))
+ZSTDDECOMP_FILES := $(sort $(wildcard decompress/*.c) decompress/huf_decompress_x86_bmi2.S)
 ZDICT_FILES := $(sort $(wildcard dictBuilder/*.c))
 ZDEPR_FILES := $(sort $(wildcard deprecated/*.c))
 ZSTD_FILES := $(ZSTDCOMMON_FILES)
@@ -174,10 +174,12 @@ endif
 CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 
 ZSTD_LOCAL_SRC := $(notdir $(ZSTD_FILES))
-ZSTD_LOCAL_OBJ := $(ZSTD_LOCAL_SRC:.c=.o)
+ZSTD_LOCAL_OBJ0 := $(ZSTD_LOCAL_SRC:.c=.o)
+ZSTD_LOCAL_OBJ := $(ZSTD_LOCAL_OBJ0:.S=.o)
 
 ZSTD_SUBDIR := common compress decompress dictBuilder legacy deprecated
 vpath %.c $(ZSTD_SUBDIR)
+vpath %.S $(ZSTD_SUBDIR)
 
 UNAME := $(shell uname)
 
@@ -233,6 +235,7 @@ all: lib
 .PHONY: libzstd.a  # must be run every time
 libzstd.a: CPPFLAGS += $(CPPFLAGS_STATLIB)
 
+
 ifndef BUILD_DIR
 # determine BUILD_DIR from compilation flags
 
@@ -253,6 +256,9 @@ $(ZSTD_STATLIB): $(ZSTD_STATLIB_OBJ)
     @echo compiling multi-threaded static library $(LIBVER),\
     @echo compiling single-threaded static library $(LIBVER))
 	$(AR) $(ARFLAGS) $@ $^
+
+$(ZSTD_STATLIB_DIR)/%.o: %.S
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 libzstd.a: $(ZSTD_STATLIB)
 	cp -f $< $@

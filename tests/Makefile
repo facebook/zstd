@@ -45,7 +45,7 @@ CPPFLAGS   += $(MOREFLAGS)
 
 ZSTDCOMMON_FILES := $(ZSTDDIR)/common/*.c
 ZSTDCOMP_FILES   := $(ZSTDDIR)/compress/*.c
-ZSTDDECOMP_FILES := $(ZSTDDIR)/decompress/*.c
+ZSTDDECOMP_FILES := $(ZSTDDIR)/decompress/*.c $(ZSTDDIR)/decompress/*.S
 ZSTD_FILES  := $(ZSTDDECOMP_FILES) $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES)
 ZDICT_FILES := $(ZSTDDIR)/dictBuilder/*.c
 
@@ -53,12 +53,14 @@ ZSTD_F1 := $(wildcard $(ZSTD_FILES))
 ZSTD_OBJ1 := $(subst $(ZSTDDIR)/common/,zstdm_,$(ZSTD_F1))
 ZSTD_OBJ2 := $(subst $(ZSTDDIR)/compress/,zstdc_,$(ZSTD_OBJ1))
 ZSTD_OBJ3 := $(subst $(ZSTDDIR)/decompress/,zstdd_,$(ZSTD_OBJ2))
-ZSTD_OBJECTS := $(ZSTD_OBJ3:.c=.o)
+ZSTD_OBJ4 := $(ZSTD_OBJ3:.c=.o)
+ZSTD_OBJECTS := $(ZSTD_OBJ4:.S=.o)
 
 ZSTDMT_OBJ1 := $(subst $(ZSTDDIR)/common/,zstdmt_m_,$(ZSTD_F1))
 ZSTDMT_OBJ2 := $(subst $(ZSTDDIR)/compress/,zstdmt_c_,$(ZSTDMT_OBJ1))
 ZSTDMT_OBJ3 := $(subst $(ZSTDDIR)/decompress/,zstdmt_d_,$(ZSTDMT_OBJ2))
-ZSTDMT_OBJECTS := $(ZSTDMT_OBJ3:.c=.o)
+ZSTDMT_OBJ4 := $(ZSTDMT_OBJ3:.c=.o)
+ZSTDMT_OBJECTS := $(ZSTDMT_OBJ4:.S=.o)
 
 # Define *.exe as extension for Windows systems
 ifneq (,$(filter Windows%,$(OS)))
@@ -119,6 +121,9 @@ zstdc_%.o : $(ZSTDDIR)/compress/%.c
 zstdd_%.o : $(ZSTDDIR)/decompress/%.c
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
 
+zstdd_%.o : $(ZSTDDIR)/decompress/%.S
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
+
 zstdmt%.o : CPPFLAGS += $(MULTITHREAD_CPP)
 
 zstdmt_m_%.o : $(ZSTDDIR)/common/%.c
@@ -128,6 +133,9 @@ zstdmt_c_%.o : $(ZSTDDIR)/compress/%.c
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
 
 zstdmt_d_%.o : $(ZSTDDIR)/decompress/%.c
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
+
+zstdmt_d_%.o : $(ZSTDDIR)/decompress/%.S
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) $< -o $@
 
 fullbench32: CPPFLAGS += -m32

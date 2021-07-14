@@ -79,13 +79,6 @@
 #  define UNUSED_ATTR
 #endif
 
-/* CONST_ARGC tells the compiler correct const argc specificator for -Wmain. */
-#if !defined(__LCC__)
-#  define CONST_ARGC const
-#else
-#  define CONST_ARGC
-#endif
-
 /* force no inlining */
 #ifdef _MSC_VER
 #  define FORCE_NOINLINE static __declspec(noinline)

@@ -209,37 +209,37 @@ SET_CACHE_DIRECTORY = \
 
 
 .PHONY: all
-all: zstd
+all: zstd$(EXT)
 
 .PHONY: allVariants
-allVariants: zstd zstd-compress zstd-decompress zstd-small zstd-nolegacy zstd-dictBuilder
+allVariants: zstd$(EXT) zstd-compress$(EXT) zstd-decompress$(EXT) zstd-small$(EXT) zstd-nolegacy$(EXT) zstd-dictBuilder$(EXT)
 
 .PHONY: zstd  # must always be run
-zstd : CPPFLAGS += $(THREAD_CPP) $(ZLIBCPP) $(LZMACPP) $(LZ4CPP)
-zstd : LDFLAGS += $(THREAD_LD) $(DEBUGFLAGS_LD)
-zstd : LDLIBS += $(ZLIBLD) $(LZMALD) $(LZ4LD)
-zstd : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
+zstd$(EXT) : CPPFLAGS += $(THREAD_CPP) $(ZLIBCPP) $(LZMACPP) $(LZ4CPP)
+zstd$(EXT) : LDFLAGS += $(THREAD_LD) $(DEBUGFLAGS_LD)
+zstd$(EXT) : LDLIBS += $(ZLIBLD) $(LZMALD) $(LZ4LD)
+zstd$(EXT) : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 ifneq (,$(filter Windows%,$(OS)))
-zstd : $(RES_FILE)
+zstd$(EXT) : $(RES_FILE)
 endif
 
 ifndef BUILD_DIR
 # generate BUILD_DIR from flags
 
-zstd:
+zstd$(EXT):
 	$(SET_CACHE_DIRECTORY)
 
 else
 # BUILD_DIR is defined
 
 ZSTD_OBJ := $(addprefix $(BUILD_DIR)/, $(ZSTD_ALL_OBJ))
-$(BUILD_DIR)/zstd : $(ZSTD_OBJ)
+$(BUILD_DIR)/zstd$(EXT) : $(ZSTD_OBJ)
 	@echo "$(THREAD_MSG)"
 	@echo "$(ZLIB_MSG)"
 	@echo "$(LZMA_MSG)"
 	@echo "$(LZ4_MSG)"
 	@echo LINK $@
-	$(CC) $(FLAGS) $^ $(LDLIBS) -o $@$(EXT)
+	$(CC) $(FLAGS) $^ $(LDLIBS) -o $@
 
 ifeq ($(HAVE_HASH),1)
 SRCBIN_HASH = $(shell cat $(BUILD_DIR)/zstd 2> $(VOID) | $(HASH) | cut -f 1 -d " ")
@@ -249,7 +249,7 @@ else
 BIN_ISDIFFERENT = 1
 endif
 
-zstd : $(BUILD_DIR)/zstd
+zstd$(EXT) : $(BUILD_DIR)/zstd$(EXT)
 	if [ $(BIN_ISDIFFERENT) -eq 1 ]; then \
 		cp -f $< $@; \
 		echo zstd build completed; \
@@ -263,46 +263,46 @@ endif  # BUILD_DIR
 .PHONY: zstd-release
 zstd-release: DEBUGFLAGS := -DBACKTRACE_ENABLE=0
 zstd-release: DEBUGFLAGS_LD :=
-zstd-release: zstd
+zstd-release: zstd$(EXT)
 
-zstd32 : CPPFLAGS += $(THREAD_CPP)
-zstd32 : LDFLAGS  += $(THREAD_LD)
-zstd32 : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
+zstd32$(EXT) : CPPFLAGS += $(THREAD_CPP)
+zstd32$(EXT) : LDFLAGS  += $(THREAD_LD)
+zstd32$(EXT) : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 ifneq (,$(filter Windows%,$(OS)))
-zstd32 : $(RES32_FILE)
+zstd32$(EXT) : $(RES32_FILE)
 endif
-zstd32 : $(ZSTDLIB_FULL_SRC) $(ZSTD_CLI_SRC)
-	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
+zstd32$(EXT) : $(ZSTDLIB_FULL_SRC) $(ZSTD_CLI_SRC)
+	$(CC) -m32 $(FLAGS) $^ -o $@
 
 ## zstd-nolegacy: same scope as zstd, with just support of legacy formats removed
-zstd-nolegacy : LDFLAGS += $(THREAD_LD) $(ZLIBLD) $(LZMALD) $(LZ4LD) $(DEBUGFLAGS_LD)
-zstd-nolegacy : $(ZSTDLIB_CORE_SRC) $(ZDICT_SRC) $(ZSTD_CLI_OBJ)
-	$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
+zstd-nolegacy$(EXT) : LDFLAGS += $(THREAD_LD) $(ZLIBLD) $(LZMALD) $(LZ4LD) $(DEBUGFLAGS_LD)
+zstd-nolegacy$(EXT) : $(ZSTDLIB_CORE_SRC) $(ZDICT_SRC) $(ZSTD_CLI_OBJ)
+	$(CC) $(FLAGS) $^ -o $@ $(LDFLAGS)
 
 .PHONY: zstd-nomt
 zstd-nomt : THREAD_CPP :=
 zstd-nomt : THREAD_LD  :=
 zstd-nomt : THREAD_MSG := - multi-threading disabled
-zstd-nomt : zstd
+zstd-nomt : zstd$(EXT)
 
 .PHONY: zstd-nogz
 zstd-nogz : ZLIBCPP :=
 zstd-nogz : ZLIBLD  :=
 zstd-nogz : ZLIB_MSG := - gzip support is disabled
-zstd-nogz : zstd
+zstd-nogz : zstd$(EXT)
 
 .PHONY: zstd-noxz
 zstd-noxz : LZMACPP :=
 zstd-noxz : LZMALD  :=
 zstd-noxz : LZMA_MSG := - xz/lzma support is disabled
-zstd-noxz : zstd
+zstd-noxz : zstd$(EXT)
 
 ## zstd-dll: zstd executable linked to dynamic library libzstd (must have same version)
 .PHONY: zstd-dll
 zstd-dll : LDFLAGS+= -L$(ZSTDDIR)
 zstd-dll : LDLIBS += -lzstd
 zstd-dll : ZSTDLIB_LOCAL_SRC = xxhash.c
-zstd-dll : zstd
+zstd-dll : zstd$(EXT)
 
 
 ## zstd-pgo: zstd executable optimized with PGO.
@@ -321,23 +321,23 @@ zstd-pgo :
 	$(MAKE) zstd MOREFLAGS=-fprofile-use
 
 ## zstd-small: minimal target, supporting only zstd compression and decompression. no bench. no legacy. no other format.
-zstd-small: CFLAGS = -Os -s
-zstd-frugal zstd-small: $(ZSTDLIB_CORE_SRC) zstdcli.c util.c timefn.c fileio.c
-	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOTRACE $^ -o $@$(EXT)
+zstd-small$(EXT): CFLAGS = -Os -s
+zstd-frugal$(EXT) zstd-small$(EXT): $(ZSTDLIB_CORE_SRC) zstdcli.c util.c timefn.c fileio.c
+	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOTRACE $^ -o $@
 
-zstd-decompress: $(ZSTDLIB_COMMON_C) $(ZSTDLIB_DECOMPRESS_C) zstdcli.c util.c timefn.c fileio.c
-	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOCOMPRESS -DZSTD_NOTRACE $^ -o $@$(EXT)
+zstd-decompress$(EXT): $(ZSTDLIB_COMMON_C) $(ZSTDLIB_DECOMPRESS_C) zstdcli.c util.c timefn.c fileio.c
+	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOCOMPRESS -DZSTD_NOTRACE $^ -o $@
 
-zstd-compress: $(ZSTDLIB_COMMON_C) $(ZSTDLIB_COMPRESS_C) zstdcli.c util.c timefn.c fileio.c
-	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS -DZSTD_NOTRACE $^ -o $@$(EXT)
+zstd-compress$(EXT): $(ZSTDLIB_COMMON_C) $(ZSTDLIB_COMPRESS_C) zstdcli.c util.c timefn.c fileio.c
+	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS -DZSTD_NOTRACE $^ -o $@
 
 ## zstd-dictBuilder: executable supporting dictionary creation and compression (only)
-zstd-dictBuilder: CPPFLAGS += -DZSTD_NOBENCH -DZSTD_NODECOMPRESS -DZSTD_NOTRACE
-zstd-dictBuilder: $(ZSTDLIB_COMMON_C) $(ZSTDLIB_COMPRESS_C) $(ZDICT_SRC) zstdcli.c util.c timefn.c fileio.c dibio.c
-	$(CC) $(FLAGS) $^ -o $@$(EXT)
+zstd-dictBuilder$(EXT): CPPFLAGS += -DZSTD_NOBENCH -DZSTD_NODECOMPRESS -DZSTD_NOTRACE
+zstd-dictBuilder$(EXT): $(ZSTDLIB_COMMON_C) $(ZSTDLIB_COMPRESS_C) $(ZDICT_SRC) zstdcli.c util.c timefn.c fileio.c dibio.c
+	$(CC) $(FLAGS) $^ -o $@
 
-zstdmt: zstd
-	ln -sf zstd zstdmt
+zstdmt$(EXT): zstd$(EXT)
+	ln -sf zstd$(EXT) zstdmt$(EXT)
 
 .PHONY: generate_res
 generate_res: $(RES64_FILE) $(RES32_FILE)

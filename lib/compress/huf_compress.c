@@ -483,6 +483,7 @@ static int HUF_buildTree(nodeElt* huffNode, U32 maxSymbolValue)
  * HUF_buildCTableFromTree():
  * Build the CTable given the Huffman tree in huffNode.
  *
+ * 
  * @param[out] CTable         The output Huffman CTable.
  * @param      huffNode       The Huffman tree.
  * @param      nonNullRank    The last and smallest node in the Huffman tree.

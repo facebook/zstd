@@ -882,9 +882,19 @@ static U32 ZSTD_VecMask_next(ZSTD_VecMask val) {
     assert(val != 0);
 #   if defined(_MSC_VER) && defined(_WIN64)
     unsigned long r=0;
-    return _BitScanForward64(&r, val) ? (U64)r : 0; /* _BitScanForward64 not defined outside of x86/64 */
+    return _BitScanForward64(&r, val) ? (U32)r : 0; /* _BitScanForward64 not defined outside of x86/64 */
 #   elif (defined(__GNUC__) && ((__GNUC__ > 3) || ((__GNUC__ == 3) && (__GNUC_MINOR__ >= 4))))
-    return (U32)__builtin_ctzll(val);
+    if (sizeof(size_t) == 4) {
+        U32 mostSignificantWord = (U32)(val >> 32);
+        U32 leastSignificantWord = (U32)val;
+        if (leastSignificantWord == 0) {
+            return 32 + (U32)__builtin_ctz(mostSignificantWord);
+        } else {
+            return (U32)__builtin_ctz(leastSignificantWord);
+        }
+    } else {
+        return (U32)__builtin_ctzll(val);
+    }
 #   else
     /* Software ctz version: http://aggregate.org/MAGIC/#Trailing%20Zero%20Count
      * and: https://stackoverflow.com/questions/2709430/count-number-of-bits-in-a-64-bit-long-big-integer

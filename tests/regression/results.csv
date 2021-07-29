@@ -4,23 +4,13 @@ silesia.tar,                        level -3,                           compress
 silesia.tar,                        level -1,                           compress simple,                    6186042
 silesia.tar,                        level 0,                            compress simple,                    4861423
 silesia.tar,                        level 1,                            compress simple,                    5334885
-<<<<<<< HEAD
 silesia.tar,                        level 3,                            compress simple,                    4861423
 silesia.tar,                        level 4,                            compress simple,                    4799632
-silesia.tar,                        level 5,                            compress simple,                    4719256
-silesia.tar,                        level 6,                            compress simple,                    4677724
-silesia.tar,                        level 7,                            compress simple,                    4613545
-silesia.tar,                        level 9,                            compress simple,                    4555426
-silesia.tar,                        level 13,                           compress simple,                    4491768
-=======
-silesia.tar,                        level 3,                            compress simple,                    4861425
-silesia.tar,                        level 4,                            compress simple,                    4799630
-silesia.tar,                        level 5,                            compress simple,                    4650203
+silesia.tar,                        level 5,                            compress simple,                    4650202
 silesia.tar,                        level 6,                            compress simple,                    4616811
-silesia.tar,                        level 7,                            compress simple,                    4576830
-silesia.tar,                        level 9,                            compress simple,                    4552585
-silesia.tar,                        level 13,                           compress simple,                    4491764
->>>>>>> 546c2250 (Add 64 row entry support for lazy)
+silesia.tar,                        level 7,                            compress simple,                    4576828
+silesia.tar,                        level 9,                            compress simple,                    4552584
+silesia.tar,                        level 13,                           compress simple,                    4491768
 silesia.tar,                        level 16,                           compress simple,                    4356834
 silesia.tar,                        level 19,                           compress simple,                    4264388
 silesia.tar,                        uncompressed literals,              compress simple,                    4861423
@@ -46,27 +36,15 @@ github.tar,                         huffman literals,                   compress
 silesia,                            level -5,                           compress cctx,                      6737607
 silesia,                            level -3,                           compress cctx,                      6444677
 silesia,                            level -1,                           compress cctx,                      6178460
-<<<<<<< HEAD
 silesia,                            level 0,                            compress cctx,                      4849551
 silesia,                            level 1,                            compress cctx,                      5313202
 silesia,                            level 3,                            compress cctx,                      4849551
 silesia,                            level 4,                            compress cctx,                      4786969
-silesia,                            level 5,                            compress cctx,                      4707790
-silesia,                            level 6,                            compress cctx,                      4666383
-silesia,                            level 7,                            compress cctx,                      4603381
-silesia,                            level 9,                            compress cctx,                      4546005
-silesia,                            level 13,                           compress cctx,                      4482131
-=======
-silesia,                            level 0,                            compress cctx,                      4849552
-silesia,                            level 1,                            compress cctx,                      5313204
-silesia,                            level 3,                            compress cctx,                      4849552
-silesia,                            level 4,                            compress cctx,                      4786970
-silesia,                            level 5,                            compress cctx,                      4638959
+silesia,                            level 5,                            compress cctx,                      4638960
 silesia,                            level 6,                            compress cctx,                      4605369
-silesia,                            level 7,                            compress cctx,                      4567207
-silesia,                            level 9,                            compress cctx,                      4543310
-silesia,                            level 13,                           compress cctx,                      4482135
->>>>>>> 546c2250 (Add 64 row entry support for lazy)
+silesia,                            level 7,                            compress cctx,                      4567203
+silesia,                            level 9,                            compress cctx,                      4543311
+silesia,                            level 13,                           compress cctx,                      4482131
 silesia,                            level 16,                           compress cctx,                      4360251
 silesia,                            level 19,                           compress cctx,                      4283236
 silesia,                            long distance mode,                 compress cctx,                      4849551
@@ -122,27 +100,15 @@ github,                             multithreaded with advanced params, compress
 silesia,                            level -5,                           zstdcli,                            6737655
 silesia,                            level -3,                           zstdcli,                            6444725
 silesia,                            level -1,                           zstdcli,                            6178508
-<<<<<<< HEAD
 silesia,                            level 0,                            zstdcli,                            4849599
 silesia,                            level 1,                            zstdcli,                            5313250
 silesia,                            level 3,                            zstdcli,                            4849599
 silesia,                            level 4,                            zstdcli,                            4787017
-silesia,                            level 5,                            zstdcli,                            4707838
-silesia,                            level 6,                            zstdcli,                            4666431
-silesia,                            level 7,                            zstdcli,                            4603429
-silesia,                            level 9,                            zstdcli,                            4546053
-silesia,                            level 13,                           zstdcli,                            4482179
-=======
-silesia,                            level 0,                            zstdcli,                            4849600
-silesia,                            level 1,                            zstdcli,                            5313252
-silesia,                            level 3,                            zstdcli,                            4849600
-silesia,                            level 4,                            zstdcli,                            4787018
-silesia,                            level 5,                            zstdcli,                            4639007
+silesia,                            level 5,                            zstdcli,                            4639008
 silesia,                            level 6,                            zstdcli,                            4605417
-silesia,                            level 7,                            zstdcli,                            4567255
-silesia,                            level 9,                            zstdcli,                            4543358
-silesia,                            level 13,                           zstdcli,                            4482183
->>>>>>> 546c2250 (Add 64 row entry support for lazy)
+silesia,                            level 7,                            zstdcli,                            4567251
+silesia,                            level 9,                            zstdcli,                            4543359
+silesia,                            level 13,                           zstdcli,                            4482179
 silesia,                            level 16,                           zstdcli,                            4360299
 silesia,                            level 19,                           zstdcli,                            4283284
 silesia,                            long distance mode,                 zstdcli,                            4840807
@@ -163,19 +129,11 @@ silesia.tar,                        level 0,                            zstdcli,
 silesia.tar,                        level 1,                            zstdcli,                            5336318
 silesia.tar,                        level 3,                            zstdcli,                            4861511
 silesia.tar,                        level 4,                            zstdcli,                            4800529
-<<<<<<< HEAD
-silesia.tar,                        level 5,                            zstdcli,                            4720121
-silesia.tar,                        level 6,                            zstdcli,                            4678663
-silesia.tar,                        level 7,                            zstdcli,                            4614426
-silesia.tar,                        level 9,                            zstdcli,                            4556062
-silesia.tar,                        level 13,                           zstdcli,                            4491772
-=======
-silesia.tar,                        level 5,                            zstdcli,                            4651160
-silesia.tar,                        level 6,                            zstdcli,                            4618403
+silesia.tar,                        level 5,                            zstdcli,                            4651159
+silesia.tar,                        level 6,                            zstdcli,                            4618402
 silesia.tar,                        level 7,                            zstdcli,                            4578883
-silesia.tar,                        level 9,                            zstdcli,                            4553500
-silesia.tar,                        level 13,                           zstdcli,                            4491768
->>>>>>> 546c2250 (Add 64 row entry support for lazy)
+silesia.tar,                        level 9,                            zstdcli,                            4553498
+silesia.tar,                        level 13,                           zstdcli,                            4491772
 silesia.tar,                        level 16,                           zstdcli,                            4356838
 silesia.tar,                        level 19,                           zstdcli,                            4264392
 silesia.tar,                        no source size,                     zstdcli,                            4861507
@@ -273,41 +231,23 @@ github.tar,                         multithreaded with advanced params, zstdcli,
 silesia,                            level -5,                           advanced one pass,                  6737607
 silesia,                            level -3,                           advanced one pass,                  6444677
 silesia,                            level -1,                           advanced one pass,                  6178460
-<<<<<<< HEAD
 silesia,                            level 0,                            advanced one pass,                  4849551
 silesia,                            level 1,                            advanced one pass,                  5313202
 silesia,                            level 3,                            advanced one pass,                  4849551
 silesia,                            level 4,                            advanced one pass,                  4786969
-silesia,                            level 5 row 1,                      advanced one pass,                  4710233
-silesia,                            level 5 row 2,                      advanced one pass,                  4707790
-silesia,                            level 5,                            advanced one pass,                  4707790
-silesia,                            level 6,                            advanced one pass,                  4666383
-silesia,                            level 7 row 1,                      advanced one pass,                  4596297
-silesia,                            level 7 row 2,                      advanced one pass,                  4603381
-silesia,                            level 7,                            advanced one pass,                  4603381
-silesia,                            level 9,                            advanced one pass,                  4546005
-silesia,                            level 12 row 1,                     advanced one pass,                  4519288
-silesia,                            level 12 row 2,                     advanced one pass,                  4521406
-silesia,                            level 13,                           advanced one pass,                  4482131
-=======
-silesia,                            level 0,                            advanced one pass,                  4849552
-silesia,                            level 1,                            advanced one pass,                  5313204
-silesia,                            level 3,                            advanced one pass,                  4849552
-silesia,                            level 4,                            advanced one pass,                  4786970
-silesia,                            level 5 row 1,                      advanced one pass,                  4640752
-silesia,                            level 5 row 2,                      advanced one pass,                  4638959
-silesia,                            level 5,                            advanced one pass,                  4638959
+silesia,                            level 5 row 1,                      advanced one pass,                  4640753
+silesia,                            level 5 row 2,                      advanced one pass,                  4638960
+silesia,                            level 5,                            advanced one pass,                  4638960
 silesia,                            level 6,                            advanced one pass,                  4605369
-silesia,                            level 7 row 1,                      advanced one pass,                  4564867
-silesia,                            level 7 row 2,                      advanced one pass,                  4567207
-silesia,                            level 7,                            advanced one pass,                  4567207
-silesia,                            level 9,                            advanced one pass,                  4543310
+silesia,                            level 7 row 1,                      advanced one pass,                  4564870
+silesia,                            level 7 row 2,                      advanced one pass,                  4567203
+silesia,                            level 7,                            advanced one pass,                  4567203
+silesia,                            level 9,                            advanced one pass,                  4543311
 silesia,                            level 11 row 1,                     advanced one pass,                  4519288
-silesia,                            level 11 row 2,                     advanced one pass,                  4521397
-silesia,                            level 12 row 1,                     advanced one pass,                  4503116
-silesia,                            level 12 row 2,                     advanced one pass,                  4505151
-silesia,                            level 13,                           advanced one pass,                  4482135
->>>>>>> 546c2250 (Add 64 row entry support for lazy)
+silesia,                            level 11 row 2,                     advanced one pass,                  4521406
+silesia,                            level 12 row 1,                     advanced one pass,                  4503117
+silesia,                            level 12 row 2,                     advanced one pass,                  4505152
+silesia,                            level 13,                           advanced one pass,                  4482131
 silesia,                            level 16,                           advanced one pass,                  4360251
 silesia,                            level 19,                           advanced one pass,                  4283236
 silesia,                            no source size,                     advanced one pass,                  4849551
@@ -327,37 +267,21 @@ silesia.tar,                        level -3,                           advanced
 silesia.tar,                        level -1,                           advanced one pass,                  6186042
 silesia.tar,                        level 0,                            advanced one pass,                  4861423
 silesia.tar,                        level 1,                            advanced one pass,                  5334885
-<<<<<<< HEAD
 silesia.tar,                        level 3,                            advanced one pass,                  4861423
 silesia.tar,                        level 4,                            advanced one pass,                  4799632
-silesia.tar,                        level 5 row 1,                      advanced one pass,                  4722324
-silesia.tar,                        level 5 row 2,                      advanced one pass,                  4719256
-silesia.tar,                        level 5,                            advanced one pass,                  4719256
-silesia.tar,                        level 6,                            advanced one pass,                  4677724
-silesia.tar,                        level 7 row 1,                      advanced one pass,                  4606716
-silesia.tar,                        level 7 row 2,                      advanced one pass,                  4613545
-silesia.tar,                        level 7,                            advanced one pass,                  4613545
-silesia.tar,                        level 9,                            advanced one pass,                  4555426
-silesia.tar,                        level 12 row 1,                     advanced one pass,                  4529458
-silesia.tar,                        level 12 row 2,                     advanced one pass,                  4530257
-silesia.tar,                        level 13,                           advanced one pass,                  4491768
-=======
-silesia.tar,                        level 3,                            advanced one pass,                  4861425
-silesia.tar,                        level 4,                            advanced one pass,                  4799630
-silesia.tar,                        level 5 row 1,                      advanced one pass,                  4652860
-silesia.tar,                        level 5 row 2,                      advanced one pass,                  4650203
-silesia.tar,                        level 5,                            advanced one pass,                  4650203
+silesia.tar,                        level 5 row 1,                      advanced one pass,                  4652862
+silesia.tar,                        level 5 row 2,                      advanced one pass,                  4650202
+silesia.tar,                        level 5,                            advanced one pass,                  4650202
 silesia.tar,                        level 6,                            advanced one pass,                  4616811
 silesia.tar,                        level 7 row 1,                      advanced one pass,                  4575392
-silesia.tar,                        level 7 row 2,                      advanced one pass,                  4576830
-silesia.tar,                        level 7,                            advanced one pass,                  4576830
-silesia.tar,                        level 9,                            advanced one pass,                  4552585
-silesia.tar,                        level 11 row 1,                     advanced one pass,                  4529459
-silesia.tar,                        level 11 row 2,                     advanced one pass,                  4530256
-silesia.tar,                        level 12 row 1,                     advanced one pass,                  4513605
-silesia.tar,                        level 12 row 2,                     advanced one pass,                  4514567
-silesia.tar,                        level 13,                           advanced one pass,                  4491764
->>>>>>> 546c2250 (Add 64 row entry support for lazy)
+silesia.tar,                        level 7 row 2,                      advanced one pass,                  4576828
+silesia.tar,                        level 7,                            advanced one pass,                  4576828
+silesia.tar,                        level 9,                            advanced one pass,                  4552584
+silesia.tar,                        level 11 row 1,                     advanced one pass,                  4529458
+silesia.tar,                        level 11 row 2,                     advanced one pass,                  4530257
+silesia.tar,                        level 12 row 1,                     advanced one pass,                  4513603
+silesia.tar,                        level 12 row 2,                     advanced one pass,                  4514568
+silesia.tar,                        level 13,                           advanced one pass,                  4491768
 silesia.tar,                        level 16,                           advanced one pass,                  4356834
 silesia.tar,                        level 19,                           advanced one pass,                  4264388
 silesia.tar,                        no source size,                     advanced one pass,                  4861423
@@ -625,41 +549,23 @@ github.tar,                         multithreaded with advanced params, advanced
 silesia,                            level -5,                           advanced one pass small out,        6737607
 silesia,                            level -3,                           advanced one pass small out,        6444677
 silesia,                            level -1,                           advanced one pass small out,        6178460
-<<<<<<< HEAD
 silesia,                            level 0,                            advanced one pass small out,        4849551
 silesia,                            level 1,                            advanced one pass small out,        5313202
 silesia,                            level 3,                            advanced one pass small out,        4849551
 silesia,                            level 4,                            advanced one pass small out,        4786969
-silesia,                            level 5 row 1,                      advanced one pass small out,        4710233
-silesia,                            level 5 row 2,                      advanced one pass small out,        4707790
-silesia,                            level 5,                            advanced one pass small out,        4707790
-silesia,                            level 6,                            advanced one pass small out,        4666383
-silesia,                            level 7 row 1,                      advanced one pass small out,        4596297
-silesia,                            level 7 row 2,                      advanced one pass small out,        4603381
-silesia,                            level 7,                            advanced one pass small out,        4603381
-silesia,                            level 9,                            advanced one pass small out,        4546005
-silesia,                            level 12 row 1,                     advanced one pass small out,        4519288
-silesia,                            level 12 row 2,                     advanced one pass small out,        4521406
-silesia,                            level 13,                           advanced one pass small out,        4482131
-=======
-silesia,                            level 0,                            advanced one pass small out,        4849552
-silesia,                            level 1,                            advanced one pass small out,        5313204
-silesia,                            level 3,                            advanced one pass small out,        4849552
-silesia,                            level 4,                            advanced one pass small out,        4786970
-silesia,                            level 5 row 1,                      advanced one pass small out,        4640752
-silesia,                            level 5 row 2,                      advanced one pass small out,        4638959
-silesia,                            level 5,                            advanced one pass small out,        4638959
+silesia,                            level 5 row 1,                      advanced one pass small out,        4640753
+silesia,                            level 5 row 2,                      advanced one pass small out,        4638960
+silesia,                            level 5,                            advanced one pass small out,        4638960
 silesia,                            level 6,                            advanced one pass small out,        4605369
-silesia,                            level 7 row 1,                      advanced one pass small out,        4564867
-silesia,                            level 7 row 2,                      advanced one pass small out,        4567207
-silesia,                            level 7,                            advanced one pass small out,        4567207
-silesia,                            level 9,                            advanced one pass small out,        4543310
+silesia,                            level 7 row 1,                      advanced one pass small out,        4564870
+silesia,                            level 7 row 2,                      advanced one pass small out,        4567203
+silesia,                            level 7,                            advanced one pass small out,        4567203
+silesia,                            level 9,                            advanced one pass small out,        4543311
 silesia,                            level 11 row 1,                     advanced one pass small out,        4519288
-silesia,                            level 11 row 2,                     advanced one pass small out,        4521397
-silesia,                            level 12 row 1,                     advanced one pass small out,        4503116
-silesia,                            level 12 row 2,                     advanced one pass small out,        4505151
-silesia,                            level 13,                           advanced one pass small out,        4482135
->>>>>>> 546c2250 (Add 64 row entry support for lazy)
+silesia,                            level 11 row 2,                     advanced one pass small out,        4521406
+silesia,                            level 12 row 1,                     advanced one pass small out,        4503117
+silesia,                            level 12 row 2,                     advanced one pass small out,        4505152
+silesia,                            level 13,                           advanced one pass small out,        4482131
 silesia,                            level 16,                           advanced one pass small out,        4360251
 silesia,                            level 19,                           advanced one pass small out,        4283236
 silesia,                            no source size,                     advanced one pass small out,        4849551
@@ -679,37 +585,21 @@ silesia.tar,                        level -3,                           advanced
 silesia.tar,                        level -1,                           advanced one pass small out,        6186042
 silesia.tar,                        level 0,                            advanced one pass small out,        4861423
 silesia.tar,                        level 1,                            advanced one pass small out,        5334885
-<<<<<<< HEAD
 silesia.tar,                        level 3,                            advanced one pass small out,        4861423
 silesia.tar,                        level 4,                            advanced one pass small out,        4799632
-silesia.tar,                        level 5 row 1,                      advanced one pass small out,        4722324
-silesia.tar,                        level 5 row 2,                      advanced one pass small out,        4719256
-silesia.tar,                        level 5,                            advanced one pass small out,        4719256
-silesia.tar,                        level 6,                            advanced one pass small out,        4677724
-silesia.tar,                        level 7 row 1,                      advanced one pass small out,        4606716
-silesia.tar,                        level 7 row 2,                      advanced one pass small out,        4613545
-silesia.tar,                        level 7,                            advanced one pass small out,        4613545
-silesia.tar,                        level 9,                            advanced one pass small out,        4555426
-silesia.tar,                        level 12 row 1,                     advanced one pass small out,        4529458
-silesia.tar,                        level 12 row 2,                     advanced one pass small out,        4530257
-silesia.tar,                        level 13,                           advanced one pass small out,        4491768
-=======
-silesia.tar,                        level 3,                            advanced one pass small out,        4861425
-silesia.tar,                        level 4,                            advanced one pass small out,        4799630
-silesia.tar,                        level 5 row 1,                      advanced one pass small out,        4652860
-silesia.tar,                        level 5 row 2,                      advanced one pass small out,        4650203
-silesia.tar,                        level 5,                            advanced one pass small out,        4650203
+silesia.tar,                        level 5 row 1,                      advanced one pass small out,        4652862
+silesia.tar,                        level 5 row 2,                      advanced one pass small out,        4650202
+silesia.tar,                        level 5,                            advanced one pass small out,        4650202
 silesia.tar,                        level 6,                            advanced one pass small out,        4616811
 silesia.tar,                        level 7 row 1,                      advanced one pass small out,        4575392
-silesia.tar,                        level 7 row 2,                      advanced one pass small out,        4576830
-silesia.tar,                        level 7,                            advanced one pass small out,        4576830
-silesia.tar,                        level 9,                            advanced one pass small out,        4552585
-silesia.tar,                        level 11 row 1,                     advanced one pass small out,        4529459
-silesia.tar,                        level 11 row 2,                     advanced one pass small out,        4530256
-silesia.tar,                        level 12 row 1,                     advanced one pass small out,        4513605
-silesia.tar,                        level 12 row 2,                     advanced one pass small out,        4514567
-silesia.tar,                        level 13,                           advanced one pass small out,        4491764
->>>>>>> 546c2250 (Add 64 row entry support for lazy)
+silesia.tar,                        level 7 row 2,                      advanced one pass small out,        4576828
+silesia.tar,                        level 7,                            advanced one pass small out,        4576828
+silesia.tar,                        level 9,                            advanced one pass small out,        4552584
+silesia.tar,                        level 11 row 1,                     advanced one pass small out,        4529458
+silesia.tar,                        level 11 row 2,                     advanced one pass small out,        4530257
+silesia.tar,                        level 12 row 1,                     advanced one pass small out,        4513603
+silesia.tar,                        level 12 row 2,                     advanced one pass small out,        4514568
+silesia.tar,                        level 13,                           advanced one pass small out,        4491768
 silesia.tar,                        level 16,                           advanced one pass small out,        4356834
 silesia.tar,                        level 19,                           advanced one pass small out,        4264388
 silesia.tar,                        no source size,                     advanced one pass small out,        4861423
@@ -977,41 +867,23 @@ github.tar,                         multithreaded with advanced params, advanced
 silesia,                            level -5,                           advanced streaming,                 6882505
 silesia,                            level -3,                           advanced streaming,                 6568376
 silesia,                            level -1,                           advanced streaming,                 6183403
-<<<<<<< HEAD
 silesia,                            level 0,                            advanced streaming,                 4849551
 silesia,                            level 1,                            advanced streaming,                 5314161
 silesia,                            level 3,                            advanced streaming,                 4849551
 silesia,                            level 4,                            advanced streaming,                 4786969
-silesia,                            level 5 row 1,                      advanced streaming,                 4710233
-silesia,                            level 5 row 2,                      advanced streaming,                 4707790
-silesia,                            level 5,                            advanced streaming,                 4707790
-silesia,                            level 6,                            advanced streaming,                 4666383
-silesia,                            level 7 row 1,                      advanced streaming,                 4596297
-silesia,                            level 7 row 2,                      advanced streaming,                 4603381
-silesia,                            level 7,                            advanced streaming,                 4603381
-silesia,                            level 9,                            advanced streaming,                 4546005
-silesia,                            level 12 row 1,                     advanced streaming,                 4519288
-silesia,                            level 12 row 2,                     advanced streaming,                 4521406
-silesia,                            level 13,                           advanced streaming,                 4482131
-=======
-silesia,                            level 0,                            advanced streaming,                 4849552
-silesia,                            level 1,                            advanced streaming,                 5314162
-silesia,                            level 3,                            advanced streaming,                 4849552
-silesia,                            level 4,                            advanced streaming,                 4786970
-silesia,                            level 5 row 1,                      advanced streaming,                 4640752
-silesia,                            level 5 row 2,                      advanced streaming,                 4638959
-silesia,                            level 5,                            advanced streaming,                 4638959
+silesia,                            level 5 row 1,                      advanced streaming,                 4640753
+silesia,                            level 5 row 2,                      advanced streaming,                 4638960
+silesia,                            level 5,                            advanced streaming,                 4638960
 silesia,                            level 6,                            advanced streaming,                 4605369
-silesia,                            level 7 row 1,                      advanced streaming,                 4564867
-silesia,                            level 7 row 2,                      advanced streaming,                 4567207
-silesia,                            level 7,                            advanced streaming,                 4567207
-silesia,                            level 9,                            advanced streaming,                 4543310
+silesia,                            level 7 row 1,                      advanced streaming,                 4564870
+silesia,                            level 7 row 2,                      advanced streaming,                 4567203
+silesia,                            level 7,                            advanced streaming,                 4567203
+silesia,                            level 9,                            advanced streaming,                 4543311
 silesia,                            level 11 row 1,                     advanced streaming,                 4519288
-silesia,                            level 11 row 2,                     advanced streaming,                 4521397
-silesia,                            level 12 row 1,                     advanced streaming,                 4503116
-silesia,                            level 12 row 2,                     advanced streaming,                 4505151
-silesia,                            level 13,                           advanced streaming,                 4482135
->>>>>>> 546c2250 (Add 64 row entry support for lazy)
+silesia,                            level 11 row 2,                     advanced streaming,                 4521406
+silesia,                            level 12 row 1,                     advanced streaming,                 4503117
+silesia,                            level 12 row 2,                     advanced streaming,                 4505152
+silesia,                            level 13,                           advanced streaming,                 4482131
 silesia,                            level 16,                           advanced streaming,                 4360251
 silesia,                            level 19,                           advanced streaming,                 4283236
 silesia,                            no source size,                     advanced streaming,                 4849515
@@ -1029,41 +901,23 @@ silesia,                            multithreaded with advanced params, advanced
 silesia.tar,                        level -5,                           advanced streaming,                 6982759
 silesia.tar,                        level -3,                           advanced streaming,                 6641283
 silesia.tar,                        level -1,                           advanced streaming,                 6190795
-<<<<<<< HEAD
 silesia.tar,                        level 0,                            advanced streaming,                 4861425
 silesia.tar,                        level 1,                            advanced streaming,                 5336941
 silesia.tar,                        level 3,                            advanced streaming,                 4861425
 silesia.tar,                        level 4,                            advanced streaming,                 4799632
-silesia.tar,                        level 5 row 1,                      advanced streaming,                 4722329
-silesia.tar,                        level 5 row 2,                      advanced streaming,                 4719261
-silesia.tar,                        level 5,                            advanced streaming,                 4719261
-silesia.tar,                        level 6,                            advanced streaming,                 4677732
-silesia.tar,                        level 7 row 1,                      advanced streaming,                 4606717
-silesia.tar,                        level 7 row 2,                      advanced streaming,                 4613548
-silesia.tar,                        level 7,                            advanced streaming,                 4613548
-silesia.tar,                        level 9,                            advanced streaming,                 4555432
-silesia.tar,                        level 12 row 1,                     advanced streaming,                 4529458
-silesia.tar,                        level 12 row 2,                     advanced streaming,                 4530259
-silesia.tar,                        level 13,                           advanced streaming,                 4491769
-=======
-silesia.tar,                        level 0,                            advanced streaming,                 4861427
-silesia.tar,                        level 1,                            advanced streaming,                 5336939
-silesia.tar,                        level 3,                            advanced streaming,                 4861427
-silesia.tar,                        level 4,                            advanced streaming,                 4799630
-silesia.tar,                        level 5 row 1,                      advanced streaming,                 4652864
-silesia.tar,                        level 5 row 2,                      advanced streaming,                 4650208
-silesia.tar,                        level 5,                            advanced streaming,                 4650208
+silesia.tar,                        level 5 row 1,                      advanced streaming,                 4652866
+silesia.tar,                        level 5 row 2,                      advanced streaming,                 4650207
+silesia.tar,                        level 5,                            advanced streaming,                 4650207
 silesia.tar,                        level 6,                            advanced streaming,                 4616816
 silesia.tar,                        level 7 row 1,                      advanced streaming,                 4575393
-silesia.tar,                        level 7 row 2,                      advanced streaming,                 4576832
-silesia.tar,                        level 7,                            advanced streaming,                 4576832
-silesia.tar,                        level 9,                            advanced streaming,                 4552591
-silesia.tar,                        level 11 row 1,                     advanced streaming,                 4529459
-silesia.tar,                        level 11 row 2,                     advanced streaming,                 4530258
-silesia.tar,                        level 12 row 1,                     advanced streaming,                 4513605
-silesia.tar,                        level 12 row 2,                     advanced streaming,                 4514567
-silesia.tar,                        level 13,                           advanced streaming,                 4491765
->>>>>>> 546c2250 (Add 64 row entry support for lazy)
+silesia.tar,                        level 7 row 2,                      advanced streaming,                 4576830
+silesia.tar,                        level 7,                            advanced streaming,                 4576830
+silesia.tar,                        level 9,                            advanced streaming,                 4552590
+silesia.tar,                        level 11 row 1,                     advanced streaming,                 4529458
+silesia.tar,                        level 11 row 2,                     advanced streaming,                 4530259
+silesia.tar,                        level 12 row 1,                     advanced streaming,                 4513603
+silesia.tar,                        level 12 row 2,                     advanced streaming,                 4514569
+silesia.tar,                        level 13,                           advanced streaming,                 4491769
 silesia.tar,                        level 16,                           advanced streaming,                 4356834
 silesia.tar,                        level 19,                           advanced streaming,                 4264388
 silesia.tar,                        no source size,                     advanced streaming,                 4861421
@@ -1331,27 +1185,15 @@ github.tar,                         multithreaded with advanced params, advanced
 silesia,                            level -5,                           old streaming,                      6882505
 silesia,                            level -3,                           old streaming,                      6568376
 silesia,                            level -1,                           old streaming,                      6183403
-<<<<<<< HEAD
 silesia,                            level 0,                            old streaming,                      4849551
 silesia,                            level 1,                            old streaming,                      5314161
 silesia,                            level 3,                            old streaming,                      4849551
 silesia,                            level 4,                            old streaming,                      4786969
-silesia,                            level 5,                            old streaming,                      4707790
-silesia,                            level 6,                            old streaming,                      4666383
-silesia,                            level 7,                            old streaming,                      4603381
-silesia,                            level 9,                            old streaming,                      4546005
-silesia,                            level 13,                           old streaming,                      4482131
-=======
-silesia,                            level 0,                            old streaming,                      4849552
-silesia,                            level 1,                            old streaming,                      5314162
-silesia,                            level 3,                            old streaming,                      4849552
-silesia,                            level 4,                            old streaming,                      4786970
-silesia,                            level 5,                            old streaming,                      4638959
+silesia,                            level 5,                            old streaming,                      4638960
 silesia,                            level 6,                            old streaming,                      4605369
-silesia,                            level 7,                            old streaming,                      4567207
-silesia,                            level 9,                            old streaming,                      4543310
-silesia,                            level 13,                           old streaming,                      4482135
->>>>>>> 546c2250 (Add 64 row entry support for lazy)
+silesia,                            level 7,                            old streaming,                      4567203
+silesia,                            level 9,                            old streaming,                      4543311
+silesia,                            level 13,                           old streaming,                      4482131
 silesia,                            level 16,                           old streaming,                      4360251
 silesia,                            level 19,                           old streaming,                      4283236
 silesia,                            no source size,                     old streaming,                      4849515
@@ -1361,27 +1203,15 @@ silesia,                            huffman literals,                   old stre
 silesia.tar,                        level -5,                           old streaming,                      6982759
 silesia.tar,                        level -3,                           old streaming,                      6641283
 silesia.tar,                        level -1,                           old streaming,                      6190795
-<<<<<<< HEAD
 silesia.tar,                        level 0,                            old streaming,                      4861425
 silesia.tar,                        level 1,                            old streaming,                      5336941
 silesia.tar,                        level 3,                            old streaming,                      4861425
 silesia.tar,                        level 4,                            old streaming,                      4799632
-silesia.tar,                        level 5,                            old streaming,                      4719261
-silesia.tar,                        level 6,                            old streaming,                      4677732
-silesia.tar,                        level 7,                            old streaming,                      4613548
-silesia.tar,                        level 9,                            old streaming,                      4555432
-silesia.tar,                        level 13,                           old streaming,                      4491769
-=======
-silesia.tar,                        level 0,                            old streaming,                      4861427
-silesia.tar,                        level 1,                            old streaming,                      5336939
-silesia.tar,                        level 3,                            old streaming,                      4861427
-silesia.tar,                        level 4,                            old streaming,                      4799630
-silesia.tar,                        level 5,                            old streaming,                      4650208
+silesia.tar,                        level 5,                            old streaming,                      4650207
 silesia.tar,                        level 6,                            old streaming,                      4616816
-silesia.tar,                        level 7,                            old streaming,                      4576832
-silesia.tar,                        level 9,                            old streaming,                      4552591
-silesia.tar,                        level 13,                           old streaming,                      4491765
->>>>>>> 546c2250 (Add 64 row entry support for lazy)
+silesia.tar,                        level 7,                            old streaming,                      4576830
+silesia.tar,                        level 9,                            old streaming,                      4552590
+silesia.tar,                        level 13,                           old streaming,                      4491769
 silesia.tar,                        level 16,                           old streaming,                      4356834
 silesia.tar,                        level 19,                           old streaming,                      4264388
 silesia.tar,                        no source size,                     old streaming,                      4861421
@@ -1457,27 +1287,15 @@ github.tar,                         huffman literals,                   old stre
 silesia,                            level -5,                           old streaming advanced,             6882505
 silesia,                            level -3,                           old streaming advanced,             6568376
 silesia,                            level -1,                           old streaming advanced,             6183403
-<<<<<<< HEAD
 silesia,                            level 0,                            old streaming advanced,             4849551
 silesia,                            level 1,                            old streaming advanced,             5314161
 silesia,                            level 3,                            old streaming advanced,             4849551
 silesia,                            level 4,                            old streaming advanced,             4786969
-silesia,                            level 5,                            old streaming advanced,             4707790
-silesia,                            level 6,                            old streaming advanced,             4666383
-silesia,                            level 7,                            old streaming advanced,             4603381
-silesia,                            level 9,                            old streaming advanced,             4546005
-silesia,                            level 13,                           old streaming advanced,             4482131
-=======
-silesia,                            level 0,                            old streaming advanced,             4849552
-silesia,                            level 1,                            old streaming advanced,             5314162
-silesia,                            level 3,                            old streaming advanced,             4849552
-silesia,                            level 4,                            old streaming advanced,             4786970
-silesia,                            level 5,                            old streaming advanced,             4638959
+silesia,                            level 5,                            old streaming advanced,             4638960
 silesia,                            level 6,                            old streaming advanced,             4605369
-silesia,                            level 7,                            old streaming advanced,             4567207
-silesia,                            level 9,                            old streaming advanced,             4543310
-silesia,                            level 13,                           old streaming advanced,             4482135
->>>>>>> 546c2250 (Add 64 row entry support for lazy)
+silesia,                            level 7,                            old streaming advanced,             4567203
+silesia,                            level 9,                            old streaming advanced,             4543311
+silesia,                            level 13,                           old streaming advanced,             4482131
 silesia,                            level 16,                           old streaming advanced,             4360251
 silesia,                            level 19,                           old streaming advanced,             4283236
 silesia,                            no source size,                     old streaming advanced,             4849515
@@ -1495,27 +1313,15 @@ silesia,                            multithreaded with advanced params, old stre
 silesia.tar,                        level -5,                           old streaming advanced,             6982759
 silesia.tar,                        level -3,                           old streaming advanced,             6641283
 silesia.tar,                        level -1,                           old streaming advanced,             6190795
-<<<<<<< HEAD
 silesia.tar,                        level 0,                            old streaming advanced,             4861425
 silesia.tar,                        level 1,                            old streaming advanced,             5336941
 silesia.tar,                        level 3,                            old streaming advanced,             4861425
 silesia.tar,                        level 4,                            old streaming advanced,             4799632
-silesia.tar,                        level 5,                            old streaming advanced,             4719261
-silesia.tar,                        level 6,                            old streaming advanced,             4677732
-silesia.tar,                        level 7,                            old streaming advanced,             4613548
-silesia.tar,                        level 9,                            old streaming advanced,             4555432
-silesia.tar,                        level 13,                           old streaming advanced,             4491769
-=======
-silesia.tar,                        level 0,                            old streaming advanced,             4861427
-silesia.tar,                        level 1,                            old streaming advanced,             5336939
-silesia.tar,                        level 3,                            old streaming advanced,             4861427
-silesia.tar,                        level 4,                            old streaming advanced,             4799630
-silesia.tar,                        level 5,                            old streaming advanced,             4650208
+silesia.tar,                        level 5,                            old streaming advanced,             4650207
 silesia.tar,                        level 6,                            old streaming advanced,             4616816
-silesia.tar,                        level 7,                            old streaming advanced,             4576832
-silesia.tar,                        level 9,                            old streaming advanced,             4552591
-silesia.tar,                        level 13,                           old streaming advanced,             4491765
->>>>>>> 546c2250 (Add 64 row entry support for lazy)
+silesia.tar,                        level 7,                            old streaming advanced,             4576830
+silesia.tar,                        level 9,                            old streaming advanced,             4552590
+silesia.tar,                        level 13,                           old streaming advanced,             4491769
 silesia.tar,                        level 16,                           old streaming advanced,             4356834
 silesia.tar,                        level 19,                           old streaming advanced,             4264388
 silesia.tar,                        no source size,                     old streaming advanced,             4861421

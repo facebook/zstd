@@ -151,6 +151,23 @@ jobs:
           make gcc8install
           CC=gcc-8 CFLAGS="-Werror" make -j all
 
+  visual-2019:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        platform: [x64, Win32]
+        configuration: [Debug, Release]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v1.0.2
+    - name: Build
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
+      run: >
+        msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v142
+        /t:Clean,Build /p:Platform=${{matrix.platform}} /p:Configuration=${{matrix.configuration}}
+
   visual-2015:
     # only GH actions windows-2016 contains VS 2015
     runs-on: windows-2016
@@ -168,6 +185,21 @@ jobs:
         msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v140
         /t:Clean,Build /p:Platform=${{matrix.platform}} /p:Configuration=${{matrix.configuration}}
   
+  minimal-decompressor-macros:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: minimal decompressor macros
+      run: |
+        make clean && make -j all ZSTD_LIB_MINIFY=1 MOREFLAGS="-Werror"
+        make clean && make check ZSTD_LIB_MINIFY=1 MOREFLAGS="-Werror"
+        make clean && make -j all MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X1 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT"
+        make clean && make check MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X1 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT"
+        make clean && make -j all MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X2 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG"
+        make clean && make check MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X2 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG"
+        make clean && make -j all MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
+        make clean && make check MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
+
 # For reference : icc tests
 # icc tests are currently failing on Github Actions, likely to issues during installation stage
 # To be fixed later

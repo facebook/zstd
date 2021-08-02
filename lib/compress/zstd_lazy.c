@@ -1176,9 +1176,10 @@ size_t ZSTD_RowFindBestMatch_generic (
 
     /* DMS/DDS variables that may be referenced laster */
     const ZSTD_matchState_t* const dms = ms->dictMatchState;
-    size_t ddsIdx;
-    U32 ddsExtraAttempts; /* cctx hash tables are limited in searches, but allow extra searches into DDS */
-    U32 dmsTag;
+    /* Initialize the following variables to satisfy static analyzer */
+    size_t ddsIdx = 0;
+    U32 ddsExtraAttempts = 0; /* cctx hash tables are limited in searches, but allow extra searches into DDS */
+    U32 dmsTag = 0;
     U32* dmsRow = NULL;
     BYTE* dmsTagRow = NULL;
 

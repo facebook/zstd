@@ -810,7 +810,7 @@ rm -f ./*.tmp ./*.zstd
 println "frame concatenation tests completed"
 
 
-if [ "$isWindows" = false ] && [ "$UNAME" != 'SunOS' ] && [ "$UNAME" != "OpenBSD" ] ; then
+if [ "$isWindows" = false ] && [ "$UNAME" != 'SunOS' ] && [ "$UNAME" != "OpenBSD" ] && [ "$UNAME" != "AIX" ]; then
 println "\n**** flush write error test **** "
 
 println "println foo | zstd > /dev/full"

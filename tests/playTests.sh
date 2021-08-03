@@ -124,6 +124,13 @@ case "$UNAME" in
     Darwin | FreeBSD | OpenBSD | NetBSD) MTIME="stat -f %m" ;;
 esac
 
+assertSameMTime() {
+    MT1=$($MTIME "$1")
+    MT2=$($MTIME "$2")
+    echo MTIME $MT1 $MT2
+    [ "$MT1" = "$MT2" ] || die "mtime on $1 doesn't match mtime on $2 ($MT1 != $MT2)"
+}
+
 GET_PERMS="stat -c %a"
 case "$UNAME" in
     Darwin | FreeBSD | OpenBSD | NetBSD) GET_PERMS="stat -f %Lp" ;;
@@ -587,6 +594,18 @@ if [ -n "$READFROMBLOCKDEVICE" ] ; then
     $DIFF -s tmp.img tmp.img.copy || die "round trip failed"
     rm -f tmp.img tmp.img.zst tmp.img.copy
 fi
+
+println "\n===>  zstd created file timestamp tests"
+datagen > tmp
+sleep 1 # could also use touch -t but I don't know how portable that is.
+println "test : copy mtime in file -> file compression "
+zstd -f tmp -o tmp.zst
+assertSameMTime tmp tmp.zst
+sleep 1 # could also use touch -t but I don't know how portable that is.
+println "test : copy mtime in file -> file decompression "
+zstd -f -d tmp.zst -o tmp.out
+assertSameMTime tmp.zst tmp.out
+rm -f tmp
 
 println "\n===>  compress multiple files into an output directory, --output-dir-flat"
 println henlo > tmp1

@@ -965,7 +965,12 @@ HUF_compress1X_usingCTable_internal(void* dst, size_t dstSize,
 
 size_t HUF_compress1X_usingCTable(void* dst, size_t dstSize, const void* src, size_t srcSize, const HUF_CElt* CTable)
 {
-    return HUF_compress1X_usingCTable_internal(dst, dstSize, src, srcSize, CTable, /* bmi2 */ 0);
+    return HUF_compress1X_usingCTable_bmi2(dst, dstSize, src, srcSize, CTable, /* bmi2 */ 0);
+}
+
+size_t HUF_compress1X_usingCTable_bmi2(void* dst, size_t dstSize, const void* src, size_t srcSize, const HUF_CElt* CTable, int bmi2)
+{
+    return HUF_compress1X_usingCTable_internal(dst, dstSize, src, srcSize, CTable, bmi2);
 }
 
 static size_t
@@ -986,8 +991,7 @@ HUF_compress4X_usingCTable_internal(void* dst, size_t dstSize,
 
     assert(op <= oend);
     {   CHECK_V_F(cSize, HUF_compress1X_usingCTable_internal(op, (size_t)(oend-op), ip, segmentSize, CTable, bmi2) );
-        if (cSize==0) return 0;
-        assert(cSize <= 65535);
+        if (cSize == 0 || cSize > 65535) return 0;
         MEM_writeLE16(ostart, (U16)cSize);
         op += cSize;
     }
@@ -995,8 +999,7 @@ HUF_compress4X_usingCTable_internal(void* dst, size_t dstSize,
     ip += segmentSize;
     assert(op <= oend);
     {   CHECK_V_F(cSize, HUF_compress1X_usingCTable_internal(op, (size_t)(oend-op), ip, segmentSize, CTable, bmi2) );
-        if (cSize==0) return 0;
-        assert(cSize <= 65535);
+        if (cSize == 0 || cSize > 65535) return 0;
         MEM_writeLE16(ostart+2, (U16)cSize);
         op += cSize;
     }
@@ -1004,8 +1007,7 @@ HUF_compress4X_usingCTable_internal(void* dst, size_t dstSize,
     ip += segmentSize;
     assert(op <= oend);
     {   CHECK_V_F(cSize, HUF_compress1X_usingCTable_internal(op, (size_t)(oend-op), ip, segmentSize, CTable, bmi2) );
-        if (cSize==0) return 0;
-        assert(cSize <= 65535);
+        if (cSize == 0 || cSize > 65535) return 0;
         MEM_writeLE16(ostart+4, (U16)cSize);
         op += cSize;
     }
@@ -1014,7 +1016,7 @@ HUF_compress4X_usingCTable_internal(void* dst, size_t dstSize,
     assert(op <= oend);
     assert(ip <= iend);
     {   CHECK_V_F(cSize, HUF_compress1X_usingCTable_internal(op, (size_t)(oend-op), ip, (size_t)(iend-ip), CTable, bmi2) );
-        if (cSize==0) return 0;
+        if (cSize == 0 || cSize > 65535) return 0;
         op += cSize;
     }
 
@@ -1023,7 +1025,12 @@ HUF_compress4X_usingCTable_internal(void* dst, size_t dstSize,
 
 size_t HUF_compress4X_usingCTable(void* dst, size_t dstSize, const void* src, size_t srcSize, const HUF_CElt* CTable)
 {
-    return HUF_compress4X_usingCTable_internal(dst, dstSize, src, srcSize, CTable, /* bmi2 */ 0);
+    return HUF_compress4X_usingCTable_bmi2(dst, dstSize, src, srcSize, CTable, /* bmi2 */ 0);
+}
+
+size_t HUF_compress4X_usingCTable_bmi2(void* dst, size_t dstSize, const void* src, size_t srcSize, const HUF_CElt* CTable, int bmi2)
+{
+    return HUF_compress4X_usingCTable_internal(dst, dstSize, src, srcSize, CTable, bmi2);
 }
 
 typedef enum { HUF_singleStream, HUF_fourStreams } HUF_nbStreams_e;

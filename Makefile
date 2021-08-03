@@ -148,7 +148,7 @@ clean:
 #------------------------------------------------------------------------------
 # make install is validated only for Linux, macOS, Hurd and some BSD targets
 #------------------------------------------------------------------------------
-ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD DragonFly NetBSD MSYS_NT Haiku))
+ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD DragonFly NetBSD MSYS_NT Haiku AIX))
 
 HOST_OS = POSIX
 

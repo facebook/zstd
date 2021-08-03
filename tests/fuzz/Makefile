@@ -103,7 +103,8 @@ FUZZ_TARGETS :=       \
 	decompress_dstSize_tooSmall \
 	fse_read_ncount \
 	sequence_compression_api \
-	seekable_roundtrip
+	seekable_roundtrip \
+	huf_round_trip
 
 all: libregression.a $(FUZZ_TARGETS)
 
@@ -199,6 +200,9 @@ sequence_compression_api: $(FUZZ_HEADERS) $(FUZZ_ROUND_TRIP_OBJ) rt_fuzz_sequenc
 
 seekable_roundtrip: $(FUZZ_HEADERS) $(SEEKABLE_HEADERS) $(FUZZ_ROUND_TRIP_OBJ) $(SEEKABLE_OBJS)  rt_fuzz_seekable_roundtrip.o
 	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_ROUND_TRIP_OBJ) $(SEEKABLE_OBJS) rt_fuzz_seekable_roundtrip.o $(LIB_FUZZING_ENGINE) -o $@
+
+huf_round_trip: $(FUZZ_HEADERS) $(FUZZ_ROUND_TRIP_OBJ) rt_fuzz_huf_round_trip.o
+	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_ROUND_TRIP_OBJ) rt_fuzz_huf_round_trip.o $(LIB_FUZZING_ENGINE) -o $@
 
 libregression.a: $(FUZZ_HEADERS) $(PRGDIR)/util.h $(PRGDIR)/util.c d_fuzz_regression_driver.o
 	$(AR) $(FUZZ_ARFLAGS) $@ d_fuzz_regression_driver.o

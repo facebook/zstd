@@ -63,7 +63,7 @@ typedef struct {
 } ZSTD_localDict;
 
 typedef struct {
-    HUF_CElt CTable[HUF_CTABLE_SIZE_U32(255)];
+    HUF_CElt CTable[HUF_CTABLE_SIZE_ST(255)];
     HUF_repeat repeatMode;
 } ZSTD_hufCTables_t;
 

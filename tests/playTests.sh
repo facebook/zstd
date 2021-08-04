@@ -597,11 +597,10 @@ fi
 
 println "\n===>  zstd created file timestamp tests"
 datagen > tmp
-sleep 1 # could also use touch -t but I don't know how portable that is.
+touch -m -t 200001010000.00 tmp
 println "test : copy mtime in file -> file compression "
 zstd -f tmp -o tmp.zst
 assertSameMTime tmp tmp.zst
-sleep 1 # could also use touch -t but I don't know how portable that is.
 println "test : copy mtime in file -> file decompression "
 zstd -f -d tmp.zst -o tmp.out
 assertSameMTime tmp.zst tmp.out

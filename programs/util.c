@@ -159,6 +159,29 @@ int UTIL_chmod(char const* filename, const stat_t* statbuf, mode_t permissions)
     return chmod(filename, permissions);
 }
 
+/* set access and modification times */
+int UTIL_utime(const char* filename, const stat_t *statbuf)
+{
+    int ret;
+    /* We check that st_mtime is a macro here in order to give us confidence
+     * that struct stat has a struct timespec st_mtim member. We need this
+     * check because there are some platforms that claim to be POSIX 2008
+     * compliant but which do not have st_mtim... */
+#if (PLATFORM_POSIX_VERSION >= 200809L) && defined(st_mtime)
+    /* (atime, mtime) */
+    struct timespec timebuf[2] = { {0, UTIME_NOW} };
+    timebuf[1] = statbuf->st_mtim;
+    ret = utimensat(AT_FDCWD, filename, timebuf, 0);
+#else
+    struct utimbuf timebuf;
+    timebuf.actime = time(NULL);
+    timebuf.modtime = statbuf->st_mtime;
+    ret = utime(filename, &timebuf);
+#endif
+    errno = 0;
+    return ret;
+}
+
 int UTIL_setFileStat(const char *filename, const stat_t *statbuf)
 {
     int res = 0;
@@ -168,25 +191,7 @@ int UTIL_setFileStat(const char *filename, const stat_t *statbuf)
         return -1;
 
     /* set access and modification times */
-    /* We check that st_mtime is a macro here in order to give us confidence
-     * that struct stat has a struct timespec st_mtim member. We need this
-     * check because there are some platforms that claim to be POSIX 2008
-     * compliant but which do not have st_mtim... */
-#if (PLATFORM_POSIX_VERSION >= 200809L) && defined(st_mtime)
-    {
-        /* (atime, mtime) */
-        struct timespec timebuf[2] = { {0, UTIME_NOW} };
-        timebuf[1] = statbuf->st_mtim;
-        res += utimensat(AT_FDCWD, filename, timebuf, 0);
-    }
-#else
-    {
-        struct utimbuf timebuf;
-        timebuf.actime = time(NULL);
-        timebuf.modtime = statbuf->st_mtime;
-        res += utime(filename, &timebuf);
-    }
-#endif
+    res += UTIL_utime(filename, statbuf);
 
 #if !defined(_WIN32)
     res += chown(filename, statbuf->st_uid, statbuf->st_gid);  /* Copy ownership */

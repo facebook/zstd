@@ -1647,6 +1647,7 @@ static int FIO_compressFilename_dstFile(FIO_ctx_t* const fCtx,
     int closeDstFile = 0;
     int result;
     stat_t statbuf;
+    int transferMTime = 0;
     assert(ress.srcFile != NULL);
     if (ress.dstFile == NULL) {
         int dstFilePermissions = DEFAULT_FILE_PERMISSIONS;
@@ -1654,6 +1655,7 @@ static int FIO_compressFilename_dstFile(FIO_ctx_t* const fCtx,
           && UTIL_stat(srcFileName, &statbuf)
           && UTIL_isRegularFileStat(&statbuf) ) {
             dstFilePermissions = statbuf.st_mode;
+            transferMTime = 1;
         }
 
         closeDstFile = 1;
@@ -1679,6 +1681,9 @@ static int FIO_compressFilename_dstFile(FIO_ctx_t* const fCtx,
         if (fclose(dstFile)) { /* error closing dstFile */
             DISPLAYLEVEL(1, "zstd: %s: %s \n", dstFileName, strerror(errno));
             result=1;
+        }
+        if (transferMTime) {
+            UTIL_utime(dstFileName, &statbuf);
         }
         if ( (result != 0)  /* operation failure */
           && strcmp(dstFileName, stdoutmark)  /* special case : don't remove() stdout */
@@ -2553,6 +2558,7 @@ static int FIO_decompressDstFile(FIO_ctx_t* const fCtx,
     int result;
     stat_t statbuf;
     int releaseDstFile = 0;
+    int transferMTime = 0;
 
     if ((ress.dstFile == NULL) && (prefs->testMode==0)) {
         int dstFilePermissions = DEFAULT_FILE_PERMISSIONS;
@@ -2560,6 +2566,7 @@ static int FIO_decompressDstFile(FIO_ctx_t* const fCtx,
           && UTIL_stat(srcFileName, &statbuf)
           && UTIL_isRegularFileStat(&statbuf) ) {
             dstFilePermissions = statbuf.st_mode;
+            transferMTime = 1;
         }
 
         releaseDstFile = 1;
@@ -2583,6 +2590,10 @@ static int FIO_decompressDstFile(FIO_ctx_t* const fCtx,
         if (fclose(dstFile)) {
             DISPLAYLEVEL(1, "zstd: %s: %s \n", dstFileName, strerror(errno));
             result = 1;
+        }
+
+        if (transferMTime) {
+            UTIL_utime(dstFileName, &statbuf);
         }
 
         if ( (result != 0)  /* operation failure */

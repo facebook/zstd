@@ -136,6 +136,14 @@ int UTIL_stat(const char* filename, stat_t* statbuf);
  */
 int UTIL_setFileStat(const char* filename, const stat_t* statbuf);
 
+/**
+ * Set atime to now and mtime to the st_mtim in statbuf.
+ *
+ * Directly wraps utime() or utimensat(). Returns -1 on error.
+ * Does not validate filename is valid.
+ */
+int UTIL_utime(const char* filename, const stat_t *statbuf);
+
 /*
  * These helpers operate on a pre-populated stat_t, i.e., the result of
  * calling one of the above functions.

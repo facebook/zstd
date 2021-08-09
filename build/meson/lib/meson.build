@@ -108,6 +108,7 @@ libzstd = library('zstd',
   libzstd_sources,
   include_directories: libzstd_includes,
   c_args: libzstd_c_args,
+  gnu_symbol_visibility: 'hidden',
   dependencies: libzstd_deps,
   install: true,
   version: zstd_libversion)

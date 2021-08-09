@@ -21,7 +21,7 @@ project('zstd',
     #'werror=true'
   ],
   version: 'DUMMY',
-  meson_version: '>=0.47.0')
+  meson_version: '>=0.48.0')
 
 cc = meson.get_compiler('c')
 cxx = meson.get_compiler('cpp')

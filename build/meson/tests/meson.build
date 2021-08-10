@@ -116,11 +116,7 @@ decodecorpus = executable('decodecorpus',
   dependencies: [ testcommon_dep, libm_dep ],
   install: false)
 
-poolTests_sources = [join_paths(zstd_rootdir, 'tests/poolTests.c'),
-  join_paths(zstd_rootdir, 'lib/common/pool.c'),
-  join_paths(zstd_rootdir, 'lib/common/threading.c'),
-  join_paths(zstd_rootdir, 'lib/common/zstd_common.c'),
-  join_paths(zstd_rootdir, 'lib/common/error_private.c')]
+poolTests_sources = [join_paths(zstd_rootdir, 'tests/poolTests.c')]
 poolTests = executable('poolTests',
   poolTests_sources,
   include_directories: test_includes,

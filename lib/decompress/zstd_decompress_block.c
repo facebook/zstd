@@ -726,13 +726,15 @@ static void ZSTD_safecopy(BYTE* op, const BYTE* const oend_w, BYTE const* ip, pt
     ptrdiff_t const diff = op - ip;
     BYTE* const oend = op + length;
 
+    assert((ovtype == ZSTD_no_overlap && (diff <= -8 || diff >= 8 || op >= oend_w)) ||
+        (ovtype == ZSTD_overlap_src_before_dst && diff >= 0));
+
     if (length < 8) {
         /* Handle short lengths. */
         while (op < oend) *op++ = *ip++;
         return;
     }
     if (ovtype == ZSTD_overlap_src_before_dst) {
-        assert(diff >= 0);
         /* Copy 8 bytes and ensure the offset >= 8 when there can be overlap. */
         assert(length >= 8);
         ZSTD_overlapCopy8(&op, &ip, diff);
@@ -740,22 +742,18 @@ static void ZSTD_safecopy(BYTE* op, const BYTE* const oend_w, BYTE const* ip, pt
         assert(op <= oend);
     }
 
-    if (diff <= -WILDCOPY_OVERLENGTH && (ovtype != ZSTD_no_overlap || diff <= -8 || diff >= 8 || op >= oend_w))
-    {
-        if (oend <= oend_w) {
-            /* No risk of overwrite. */
-            ZSTD_wildcopy(op, ip, length, ovtype);
-            return;
-        }
-        if (op <= oend_w) {
-            /* Wildcopy until we get close to the end. */
-            assert(oend > oend_w);
-            ZSTD_wildcopy(op, ip, oend_w - op, ovtype);
-            ip += oend_w - op;
-            op += oend_w - op;
-        }
+    if (oend <= oend_w) {
+        /* No risk of overwrite. */
+        ZSTD_wildcopy(op, ip, length, ovtype);
+        return;
     }
-
+    if (op <= oend_w) {
+        /* Wildcopy until we get close to the end. */
+        assert(oend > oend_w);
+        ZSTD_wildcopy(op, ip, oend_w - op, ovtype);
+        ip += oend_w - op;
+        op = oend_w;
+    }
     /* Handle the leftovers. */
     while (op < oend) *op++ = *ip++;
 }
@@ -1184,21 +1182,41 @@ ZSTD_decompressSequences_body( ZSTD_DCtx* dctx,
 #  endif
 #endif
         /* decompress without overrunning litPtr begins */
-        for ( ; ; ) {
-            seq_t const sequence = ZSTD_decodeSequence(&seqState, isLongOffset);
-            const BYTE* oend_w = litInDst ? litPtr + sequence.litLength - WILDCOPY_OVERLENGTH : oend - WILDCOPY_OVERLENGTH;
-            size_t const oneSeqSize = ZSTD_execSequence(op, oend, oend_w, sequence, &litPtr, litEnd, prefixStart, vBase, dictEnd);
+        if (litInDst)
+        {
+            for (; ; ) {
+                seq_t const sequence = ZSTD_decodeSequence(&seqState, isLongOffset);
+                size_t const oneSeqSize = ZSTD_execSequence(op, oend, litPtr + sequence.litLength - WILDCOPY_OVERLENGTH, sequence, &litPtr, litEnd, prefixStart, vBase, dictEnd);
 #if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) && defined(FUZZING_ASSERT_VALID_SEQUENCE)
-            assert(!ZSTD_isError(oneSeqSize));
-            if (frame) ZSTD_assertValidSequence(dctx, op, oend, sequence, prefixStart, vBase);
+                assert(!ZSTD_isError(oneSeqSize));
+                if (frame) ZSTD_assertValidSequence(dctx, op, oend, sequence, prefixStart, vBase);
 #endif
-            if (UNLIKELY(ZSTD_isError(oneSeqSize)))
-                return oneSeqSize;
-            DEBUGLOG(6, "regenerated sequence size : %u", (U32)oneSeqSize);
-            op += oneSeqSize;
-            if (UNLIKELY(!--nbSeq))
-                break;
-            BIT_reloadDStream(&(seqState.DStream));
+                if (UNLIKELY(ZSTD_isError(oneSeqSize)))
+                    return oneSeqSize;
+                DEBUGLOG(6, "regenerated sequence size : %u", (U32)oneSeqSize);
+                op += oneSeqSize;
+                if (UNLIKELY(!--nbSeq))
+                    break;
+                BIT_reloadDStream(&(seqState.DStream));
+            }
+        }
+        else
+        {
+            for (; ; ) {
+                seq_t const sequence = ZSTD_decodeSequence(&seqState, isLongOffset);
+                size_t const oneSeqSize = ZSTD_execSequence(op, oend, oend - WILDCOPY_OVERLENGTH, sequence, &litPtr, litEnd, prefixStart, vBase, dictEnd);
+#if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) && defined(FUZZING_ASSERT_VALID_SEQUENCE)
+                assert(!ZSTD_isError(oneSeqSize));
+                if (frame) ZSTD_assertValidSequence(dctx, op, oend, sequence, prefixStart, vBase);
+#endif
+                if (UNLIKELY(ZSTD_isError(oneSeqSize)))
+                    return oneSeqSize;
+                DEBUGLOG(6, "regenerated sequence size : %u", (U32)oneSeqSize);
+                op += oneSeqSize;
+                if (UNLIKELY(!--nbSeq))
+                    break;
+                BIT_reloadDStream(&(seqState.DStream));
+            }
         }
 
         /* check if reached exact end */

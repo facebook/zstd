@@ -256,8 +256,7 @@ ZSTD_compressBlock_fast_generic_pipelined(
     size_t hash0; /* hash for ip0 */
     size_t hash1; /* hash for ip1 */
     size_t hash2; /* hash for ip2 */
-    U32 idx0; /* match idx for ip0 */
-    U32 idx1; /* match idx for ip1 */
+    U32 idx; /* match idx for ip0 */
     U32 mval; /* src value at match idx */
 
     U32 offcode;
@@ -294,7 +293,7 @@ _start: /* Requires: ip0 */
     hash0 = ZSTD_hashPtr(ip0, hlog, mls);
     hash1 = ZSTD_hashPtr(ip1, hlog, mls);
 
-    idx0 = hashTable[hash0];
+    idx = hashTable[hash0];
 
     do {
         const U32 rval = MEM_read32(ip2 - rep_offset1);
@@ -316,8 +315,8 @@ _start: /* Requires: ip0 */
         }
 
         /* load match for ip[0] */
-        if (idx0 >= prefixStartIndex) {
-            mval = MEM_read32(base + idx0);
+        if (idx >= prefixStartIndex) {
+            mval = MEM_read32(base + idx);
         } else {
             mval = MEM_read32(ip0) ^ 1; /* guaranteed to not match. */
         }
@@ -332,7 +331,7 @@ _start: /* Requires: ip0 */
         hash2 = ZSTD_hashPtr(ip2, hlog, mls);
 
         /* lookup ip[1] */
-        idx1 = hashTable[hash1];
+        idx = hashTable[hash1];
 
         /* advance to next positions */
         {
@@ -341,8 +340,6 @@ _start: /* Requires: ip0 */
                 step++;
                 nextStep += kStepIncr;
             }
-
-            idx0 = idx1;
 
             hash0 = hash1;
             hash1 = hash2;
@@ -365,10 +362,10 @@ _cleanup:
     /* Return the last literals size */
     return (size_t)(iend - anchor);
 
-_offset: /* Requires: ip0, idx0 */
+_offset: /* Requires: ip0, idx */
 
     /* Compute the offset code. */
-    match0 = base + idx0;
+    match0 = base + idx;
     rep_offset2 = rep_offset1;
     rep_offset1 = (U32)(ip0-match0);
     offcode = rep_offset1 + ZSTD_REP_MOVE;

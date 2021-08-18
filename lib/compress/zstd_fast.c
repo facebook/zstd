@@ -268,6 +268,10 @@ ZSTD_compressBlock_fast_generic_pipelined(
     const BYTE* match0;
     size_t mLength;
 
+    size_t step;
+    const BYTE* nextStep;
+    const size_t kStepIncr = (1 << (kSearchStrength - 1));
+
     DEBUGLOG(5, "ZSTD_compressBlock_fast_generic_pipelined");
     ip0 += (ip0 == prefixStart);
     {   U32 const curr = (U32)(ip0 - base);
@@ -279,6 +283,9 @@ ZSTD_compressBlock_fast_generic_pipelined(
 
     /* start each op */
 _start: /* Requires: ip0 */
+
+    step = stepSize;
+    nextStep = ip0 + kStepIncr;
 
     /* calculate positions, ip0 - anchor == 0, so we skip step calc */
     ip1 = ip0 + stepSize;
@@ -348,8 +355,10 @@ _start: /* Requires: ip0 */
 
         /* advance to next positions */
         {
-            size_t const step = ((size_t)(ip2 - anchor) >> (kSearchStrength - 1)) + stepSize;
-            assert(step >= 1);
+            if (ip2 >= nextStep) {
+                step++;
+                nextStep += kStepIncr;
+            }
 
             idx0 = idx1;
             idx1 = idx2;

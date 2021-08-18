@@ -247,7 +247,6 @@ ZSTD_compressBlock_fast_generic_pipelined(
     const BYTE* ip0 = istart;
     const BYTE* ip1;
     const BYTE* ip2;
-    const BYTE* ip3;
     U32 current0;
 
     U32 rep_offset1 = rep[0];
@@ -257,12 +256,9 @@ ZSTD_compressBlock_fast_generic_pipelined(
     size_t hash0; /* hash for ip0 */
     size_t hash1; /* hash for ip1 */
     size_t hash2; /* hash for ip2 */
-    size_t hash3; /* hash for ip3 */
     U32 idx0; /* match idx for ip0 */
     U32 idx1; /* match idx for ip1 */
-    U32 idx2; /* match idx for ip2 */
     U32 mval; /* src value at match idx */
-    U32 rval; /* src value at ip2 - repcode */
 
     U32 offcode;
     const BYTE* match0;
@@ -290,31 +286,19 @@ _start: /* Requires: ip0 */
     /* calculate positions, ip0 - anchor == 0, so we skip step calc */
     ip1 = ip0 + stepSize;
     ip2 = ip1 + stepSize;
-    ip3 = ip2 + stepSize;
 
-    if (ip3 >= ilimit) {
+    if (ip2 >= ilimit) {
         goto _cleanup;
     }
 
     hash0 = ZSTD_hashPtr(ip0, hlog, mls);
     hash1 = ZSTD_hashPtr(ip1, hlog, mls);
-    hash2 = ZSTD_hashPtr(ip2, hlog, mls);
 
     idx0 = hashTable[hash0];
-    idx1 = hashTable[hash1];
-
-    if (idx0 >= prefixStartIndex) {
-        mval = MEM_read32(base + idx0);
-    } else {
-        mval = MEM_read32(ip0) ^ 1;
-    }
-
-    rval = MEM_read32(ip2 - rep_offset1);
 
     do {
+        const U32 rval = MEM_read32(ip2 - rep_offset1);
         current0 = ip0 - base;
-
-        // DEBUGLOG(5, "Searching ip0 = %u", (U32)(ip0 - istart));
 
         /* write back hash table entry */
         hashTable[hash0] = current0;
@@ -331,7 +315,7 @@ _start: /* Requires: ip0 */
             goto _match;
         }
 
-        /* load match for ip[1] */
+        /* load match for ip[0] */
         if (idx0 >= prefixStartIndex) {
             mval = MEM_read32(base + idx0);
         } else {
@@ -344,35 +328,29 @@ _start: /* Requires: ip0 */
             goto _offset;
         }
 
-        /* hash ip[3] */
-        hash3 = ZSTD_hashPtr(ip3, hlog, mls);
+        /* hash ip[2] */
+        hash2 = ZSTD_hashPtr(ip2, hlog, mls);
 
-        /* lookup ip[2] */
-        idx2 = hashTable[hash2];
-
-        /* load next rval */
-        rval = MEM_read32(ip3 - rep_offset1);
+        /* lookup ip[1] */
+        idx1 = hashTable[hash1];
 
         /* advance to next positions */
         {
-            if (ip2 >= nextStep) {
+            if (ip1 >= nextStep) {
                 step++;
                 nextStep += kStepIncr;
             }
 
             idx0 = idx1;
-            idx1 = idx2;
 
             hash0 = hash1;
             hash1 = hash2;
-            hash2 = hash3;
 
             ip0 = ip1;
             ip1 = ip2;
-            ip2 = ip3;
-            ip3 = ip3 + step;
+            ip2 = ip2 + step;
         }
-    } while (ip3 < ilimit);
+    } while (ip2 < ilimit);
 
 _cleanup:
 

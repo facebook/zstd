@@ -331,27 +331,27 @@ _start: /* Requires: ip0 */
             goto _match;
         }
 
+        /* load match for ip[1] */
+        if (idx0 >= prefixStartIndex) {
+            mval = MEM_read32(base + idx0);
+        } else {
+            mval = MEM_read32(ip0) ^ 1; /* guaranteed to not match. */
+        }
+
         /* check match at ip[0] */
         if (MEM_read32(ip0) == mval) {
             /* found a match! */
             goto _offset;
         }
 
-        /* load next rval */
-        rval = MEM_read32(ip3 - rep_offset1);
-
-        /* load match for ip[1] */
-        if (idx1 >= prefixStartIndex) {
-            mval = MEM_read32(base + idx1);
-        } else {
-            mval = MEM_read32(ip1) ^ 1; /* guaranteed to not match. */
-        }
+        /* hash ip[3] */
+        hash3 = ZSTD_hashPtr(ip3, hlog, mls);
 
         /* lookup ip[2] */
         idx2 = hashTable[hash2];
 
-        /* hash ip[3] */
-        hash3 = ZSTD_hashPtr(ip3, hlog, mls);
+        /* load next rval */
+        rval = MEM_read32(ip3 - rep_offset1);
 
         /* advance to next positions */
         {

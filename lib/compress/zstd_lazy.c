@@ -971,7 +971,7 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_prefetch(U32 const* hashTable, U16 const* ta
  * Fill up the hash cache starting at idx, prefetching up to ZSTD_ROW_HASH_CACHE_SIZE entries,
  * but not beyond iLimit.
  */
-static void ZSTD_row_fillHashCache(ZSTD_matchState_t* ms, const BYTE* base,
+FORCE_INLINE_TEMPLATE void ZSTD_row_fillHashCache(ZSTD_matchState_t* ms, const BYTE* base,
                                    U32 const rowLog, U32 const mls,
                                    U32 idx, const BYTE* const iLimit)
 {
@@ -1022,9 +1022,20 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_update_internal(ZSTD_matchState_t* ms, const
     U32* const hashTable = ms->hashTable;
     U16* const tagTable = ms->tagTable;
     U32 const hashLog = ms->rowHashLog;
+    U32 idx = ms->nextToUpdate;
     const BYTE* const base = ms->window.base;
     const U32 target = (U32)(ip - base);
-    U32 idx = ms->nextToUpdate;
+    const U32 kMaxPositionsToUpdate = 256;
+
+    assert(target >= idx);
+    if (useCache) {
+        /* Only skip positions when using hash cache, i.e. 
+           if we are loading a dict, don't skip anything */
+        if (UNLIKELY(target - idx > kMaxPositionsToUpdate)) {
+            idx = target - kMaxPositionsToUpdate;
+            ZSTD_row_fillHashCache(ms, base, rowLog, mls, idx, ip+1);
+        }
+    }
 
     DEBUGLOG(6, "ZSTD_row_update_internal(): nextToUpdate=%u, current=%u", idx, target);
     for (; idx < target; ++idx) {
@@ -1037,7 +1048,7 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_update_internal(ZSTD_matchState_t* ms, const
         U32 const pos = ZSTD_row_nextIndex(tagRow, rowMask);
 
         assert(hash == ZSTD_hashPtr(base + idx, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls));
-        ((BYTE*)tagRow)[pos + ZSTD_ROW_HASH_TAG_OFFSET] = hash & ZSTD_ROW_HASH_TAG_MASK;
+        tagRow[pos + ZSTD_ROW_HASH_TAG_OFFSET] = hash & ZSTD_ROW_HASH_TAG_MASK;
         row[pos] = idx;
     }
     ms->nextToUpdate = target;

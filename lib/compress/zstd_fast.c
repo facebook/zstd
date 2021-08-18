@@ -354,10 +354,9 @@ _start: /* Requires: ip0 */
     } while (ip2 < ilimit);
 
 _cleanup:
-
-    /* Find matches at end of block. */
-
-    /* TODO */
+    /* Note that there are probably still a couple positions we could search.
+     * However, it seems to be a meaningful performance hit to try to search
+     * them. So let's not. */
 
     /* save reps for next block */
     rep[0] = rep_offset1 ? rep_offset1 : offsetSaved;

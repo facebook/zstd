@@ -337,6 +337,7 @@ _start: /* Requires: ip0 */
         /* advance to next positions */
         {
             if (ip1 >= nextStep) {
+                PREFETCH_L1(ip1 + 64);
                 step++;
                 nextStep += kStepIncr;
             }

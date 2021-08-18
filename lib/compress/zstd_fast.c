@@ -255,7 +255,6 @@ ZSTD_compressBlock_fast_generic_pipelined(
 
     size_t hash0; /* hash for ip0 */
     size_t hash1; /* hash for ip1 */
-    size_t hash2; /* hash for ip2 */
     U32 idx; /* match idx for ip0 */
     U32 mval; /* src value at match idx */
 
@@ -327,11 +326,13 @@ _start: /* Requires: ip0 */
             goto _offset;
         }
 
+        hash0 = hash1;
+
         /* hash ip[2] */
-        hash2 = ZSTD_hashPtr(ip2, hlog, mls);
+        hash1 = ZSTD_hashPtr(ip2, hlog, mls);
 
         /* lookup ip[1] */
-        idx = hashTable[hash1];
+        idx = hashTable[hash0];
 
         /* advance to next positions */
         {
@@ -340,9 +341,6 @@ _start: /* Requires: ip0 */
                 step++;
                 nextStep += kStepIncr;
             }
-
-            hash0 = hash1;
-            hash1 = hash2;
 
             ip0 = ip1;
             ip1 = ip2;

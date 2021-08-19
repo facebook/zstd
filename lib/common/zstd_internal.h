@@ -191,8 +191,8 @@ static void ZSTD_copy16(void* dst, const void* src) {
 
 typedef enum {
     ZSTD_no_overlap,
-    ZSTD_overlap_src_before_dst
-    /*  ZSTD_overlap_dst_before_src, */
+    ZSTD_overlap_src_before_dst,
+    ZSTD_overlap_dst_before_src
 } ZSTD_overlap_e;
 
 /*! ZSTD_wildcopy() :
@@ -210,7 +210,7 @@ void ZSTD_wildcopy(void* dst, const void* src, ptrdiff_t length, ZSTD_overlap_e 
     BYTE* op = (BYTE*)dst;
     BYTE* const oend = op + length;
 
-    assert(diff >= 8 || (ovtype == ZSTD_no_overlap && diff <= -WILDCOPY_VECLEN));
+    assert(diff >= 8 || ((ovtype == ZSTD_no_overlap || ovtype == ZSTD_overlap_dst_before_src) && diff <= -WILDCOPY_VECLEN));
 
     if (ovtype == ZSTD_overlap_src_before_dst && diff < WILDCOPY_VECLEN) {
         /* Handle short offset copies. */

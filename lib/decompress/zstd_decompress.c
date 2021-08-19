@@ -1824,7 +1824,7 @@ size_t ZSTD_sizeof_DStream(const ZSTD_DStream* dctx)
 size_t ZSTD_decodingBufferSize_min(unsigned long long windowSize, unsigned long long frameContentSize)
 {
     size_t const blockSize = (size_t) MIN(windowSize, ZSTD_BLOCKSIZE_MAX);
-    unsigned long long const neededRBSize = windowSize + blockSize + (WILDCOPY_OVERLENGTH * 2);
+    unsigned long long const neededRBSize = windowSize + blockSize + ZSTD_BLOCKSIZE_MAX + (WILDCOPY_OVERLENGTH * 2);
     unsigned long long const neededSize = MIN(frameContentSize, neededRBSize);
     size_t const minRBSize = (size_t) neededSize;
     RETURN_ERROR_IF((unsigned long long)minRBSize != neededSize,

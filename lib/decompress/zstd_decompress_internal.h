@@ -106,6 +106,8 @@ typedef struct {
     size_t ddictPtrCount;
 } ZSTD_DDictHashSet;
 
+#define ZSTD_LITBUFFEREXTRASIZE    4096 /* extra buffer reduces amount of dst required to store litBuffer */
+
 struct ZSTD_DCtx_s
 {
     const ZSTD_seqSymbol* LLTptr;
@@ -171,7 +173,9 @@ struct ZSTD_DCtx_s
     ZSTD_outBuffer expectedOutBuffer;
 
     /* workspace */
-    BYTE litBuffer[ZSTD_BLOCKSIZE_MAX + WILDCOPY_OVERLENGTH];
+    BYTE* litBuffer;
+    const BYTE* litBufferEnd;
+    BYTE litExtraBuffer[ZSTD_LITBUFFEREXTRASIZE + WILDCOPY_OVERLENGTH];
     BYTE headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
 
     size_t oversizedDuration;

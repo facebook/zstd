@@ -295,7 +295,9 @@ _start: /* Requires: ip0 */
     idx = hashTable[hash0];
 
     do {
+        /* load repcode match for ip[2]*/
         const U32 rval = MEM_read32(ip2 - rep_offset1);
+
         current0 = ip0 - base;
 
         /* write back hash table entry */
@@ -334,18 +336,18 @@ _start: /* Requires: ip0 */
         /* lookup ip[1] */
         idx = hashTable[hash0];
 
-        /* advance to next positions */
-        {
-            if (ip1 >= nextStep) {
-                PREFETCH_L1(ip1 + 64);
-                step++;
-                nextStep += kStepIncr;
-            }
-
-            ip0 = ip1;
-            ip1 = ip2;
-            ip2 = ip2 + step;
+        /* calculate step */
+        if (ip1 >= nextStep) {
+            PREFETCH_L1(ip1 + 64);
+            PREFETCH_L1(ip1 + 128);
+            step++;
+            nextStep += kStepIncr;
         }
+
+        /* advance to next positions */
+        ip0 = ip1;
+        ip1 = ip2;
+        ip2 += step;
     } while (ip2 < ilimit);
 
 _cleanup:

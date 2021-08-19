@@ -3741,6 +3741,49 @@ static UNUSED_ATTR size_t ZSTD_convertBlockSequencesToSeqStore(ZSTD_CCtx* cctx,
                                   const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
                                   const void* src, size_t srcSize);
 
+
+/* Generic function signature for hardware matchfinders.
+ * Accepts a void* pointer for a "bag" of parameters that the matchfinder may use,
+ * possibly derived from the ZSTD_CCtx parameters.
+
+ * As an example, one could define a function
+ * size_t ZSTD_accelerated_findMatches(ZSTD_Sequence* sequences, size_t sequencesCapacity,
+ *                               void* params, const void* src, size_t srcSize);
+ * 
+ * Returns number of sequences generated, storing the result in `sequences`, or a zstd error.
+ */
+typedef size_t (*ZSTD_hardwareMatchFinder) 
+     (ZSTD_Sequence* sequences, size_t sequencesCapacity, void* params,
+      const void* src, size_t srcSize);
+
+/* Example function of type ZSTD_hardwareMatchFinder that can be returned by ZSTD_selectHardwareMatchFinder().
+ * This function does the actual work of finding the matches and should be the integration point.
+ */
+static size_t hardwareAccelerated_findMatches(ZSTD_Sequence* sequences, size_t sequencesCapacity, void* params,
+                              const void* src, size_t srcSize) {
+    /* Implement this function */
+    (void)sequences; (void)sequencesCapacity; (void)params; (void)src, (void)srcSize;
+    return 0;
+}
+
+/* This function selects the final hardware match finder used, depending on the
+ * parameters in the ZSTD_CCtx. 
+ *
+ * ZSTD_selectHardwareMatchFinder() then will return ZSTD_accelerated_findMatches.
+ */
+static ZSTD_hardwareMatchFinder ZSTD_selectHardwareMatchFinder(const ZSTD_CCtx* zc) {
+    (void)zc;
+    return hardwareAccelerated_findMatches;
+}
+
+/* Determines whether or not this compression should use a hardware accelerated matchfinder.
+ * For now, return false. Set to return true if testing of hardware accelerated codepath is desired.
+ */
+static int ZSTD_useHardwareAccelerator(const ZSTD_CCtx* zc) {
+    (void)zc;
+    return 0;
+}
+
 static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
                                         void* dst, size_t dstCapacity,
                                         const void* src, size_t srcSize, U32 frame)
@@ -3756,8 +3799,23 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
     DEBUGLOG(5, "ZSTD_compressBlock_internal (dstCapacity=%u, dictLimit=%u, nextToUpdate=%u)",
                 (unsigned)dstCapacity, (unsigned)zc->blockState.matchState.window.dictLimit,
                 (unsigned)zc->blockState.matchState.nextToUpdate);
-
-    {   const size_t bss = ZSTD_buildSeqStore(zc, src, srcSize);
+    if (ZSTD_useHardwareAccelerator(zc)) {
+        /* Return value of matchfinder, number of sequences generated */
+        size_t nbSeqs;
+        /* Dummy params to pass into the sequences. This can be any arbitrary struct */
+        int dummyParams = 0;
+        /* Select the matchfinding function */
+        ZSTD_hardwareMatchFinder matchFinder = ZSTD_selectHardwareMatchFinder(zc);
+        /* Reset the existing seqStore */
+        ZSTD_resetSeqStore(&zc->seqStore);
+        /* Use hardware matchfinder to generate seqstore */
+        nbSeqs = matchFinder(zc->hardwareSequences, zc->hardwareSequencesCapacity,
+                                    &dummyParams, src, srcSize);
+        FORWARD_IF_ERROR(nbSeqs, "External matchfinder errored out!");
+        FORWARD_IF_ERROR(ZSTD_convertBlockSequencesToSeqStore(zc, zc->hardwareSequences, nbSeqs, src, srcSize),
+                         "Hardware seqstore conversion failed!");
+    } else {
+        const size_t bss = ZSTD_buildSeqStore(zc, src, srcSize);
         FORWARD_IF_ERROR(bss, "ZSTD_buildSeqStore failed");
         if (bss == ZSTDbss_noCompress) { cSize = 0; goto out; }
     }

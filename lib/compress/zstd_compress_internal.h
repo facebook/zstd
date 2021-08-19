@@ -410,6 +410,10 @@ struct ZSTD_CCtx_s {
 #if ZSTD_TRACE
     ZSTD_TraceCtx traceCtx;
 #endif
+
+    /* Hardware accelerated sequences */
+    ZSTD_Sequence* hardwareSequences;
+    size_t hardwareSequencesCapacity;
 };
 
 typedef enum { ZSTD_dtlm_fast, ZSTD_dtlm_full } ZSTD_dictTableLoadMethod_e;

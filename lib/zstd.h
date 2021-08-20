@@ -1157,9 +1157,6 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 #define ZSTD_SRCSIZEHINT_MIN        0
 #define ZSTD_SRCSIZEHINT_MAX        INT_MAX
 
-/* internal */
-#define ZSTD_HASHLOG3_MAX           17
-
 
 /* ---  Advanced types  --- */
 
@@ -2225,7 +2222,7 @@ size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs,
  * This function is DEPRECATED, and equivalent to:
  *     ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
  *     ZSTD_CCtx_refCDict(zcs, cdict);
- * 
+ *
  * note : cdict will just be referenced, and must outlive compression session
  * This prototype will generate compilation warnings.
  */

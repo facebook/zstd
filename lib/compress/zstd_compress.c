@@ -42,6 +42,18 @@
 #  define ZSTD_COMPRESS_HEAPMODE 0
 #endif
 
+/*!
+ * ZSTD_HASHLOG3_MAX :
+ * Maximum size of the hash table dedicated to find 3-bytes matches,
+ * in log format, aka 17 => 1 << 17 == 128Ki positions.
+ * This structure is only used in zstd_opt.
+ * Since allocation is centralized for all strategies, it has to be known here.
+ * The actual (selected) size of the hash table is then stored in ZSTD_matchState_t.hashLog3,
+ * so that zstd_opt.c doesn't need to know about this constant.
+ */
+#ifndef ZSTD_HASHLOG3_MAX
+#  define ZSTD_HASHLOG3_MAX 17
+#endif
 
 /*-*************************************
 *  Helper functions
@@ -3732,9 +3744,9 @@ static size_t ZSTD_compressBlock_splitBlock(ZSTD_CCtx* zc,
 }
 
 /* ZSTD_convertBlockSequencesToSeqStore()
- * Converts an array of ZSTD_Sequence* with the corresponding original src buffer into 
+ * Converts an array of ZSTD_Sequence* with the corresponding original src buffer into
  * the seqStore of a cctx.
- * 
+ *
  * Returns 0 on success, ZSTD_error on failure.
  */
 static UNUSED_ATTR size_t ZSTD_convertBlockSequencesToSeqStore(ZSTD_CCtx* cctx,

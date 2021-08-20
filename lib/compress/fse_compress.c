@@ -75,9 +75,11 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct,
     void* const FSCT = ((U32*)ptr) + 1 /* header */ + (tableLog ? tableSize>>1 : 1) ;
     FSE_symbolCompressionTransform* const symbolTT = (FSE_symbolCompressionTransform*) (FSCT);
     U32 const step = FSE_TABLESTEP(tableSize);
+    U32 const maxSV1 = maxSymbolValue+1;
 
-    U32* cumul = (U32*)workSpace;
-    FSE_FUNCTION_TYPE* tableSymbol = (FSE_FUNCTION_TYPE*)(cumul + (maxSymbolValue + 2));
+    U16* cumul = (U16*)workSpace;   /* size = maxSV1 */
+    FSE_FUNCTION_TYPE* tableSymbol = (FSE_FUNCTION_TYPE*)(cumul + (maxSV1+1));  /* size = tableSize */
+    BYTE* spread = tableSymbol + tableSize; /* size = tableSize */
 
     U32 highThreshold = tableSize-1;
 
@@ -98,20 +100,59 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct,
     /* symbol start positions */
     {   U32 u;
         cumul[0] = 0;
-        for (u=1; u <= maxSymbolValue+1; u++) {
+        for (u=1; u <= maxSV1; u++) {
             if (normalizedCounter[u-1]==-1) {  /* Low proba symbol */
                 cumul[u] = cumul[u-1] + 1;
                 tableSymbol[highThreshold--] = (FSE_FUNCTION_TYPE)(u-1);
             } else {
                 cumul[u] = cumul[u-1] + normalizedCounter[u-1];
         }   }
-        cumul[maxSymbolValue+1] = tableSize+1;
+        cumul[maxSV1] = (U16)(tableSize+1);
     }
 
     /* Spread symbols */
-    {   U32 position = 0;
+    if (highThreshold == tableSize - 1) {
+        /* Case for no low prob count symbols. Lay down 8 bytes at a time
+         * to reduce branch misses since we are operating on a small block
+         */
+        {
+            U64 const add = 0x0101010101010101ull;
+            size_t pos = 0;
+            U64 sv = 0;
+            U32 s;
+            for (s=0; s<maxSV1; ++s, sv += add) {
+                int i;
+                int const n = normalizedCounter[s];
+                MEM_write64(spread + pos, sv);
+                for (i = 8; i < n; i += 8) {
+                    MEM_write64(spread + pos + i, sv);
+                }
+                pos += n;
+            }
+        }
+        /* Spread symbols across the table. Lack of lowprob symbols means that
+         * we don't need variable sized inner loop, so we can unroll the loop and
+         * reduce branch misses.
+         */
+        {
+            size_t position = 0;
+            size_t s;
+            size_t const unroll = 2; /* Experimentally determined optimal unroll */
+            assert(tableSize % unroll == 0); /* FSE_MIN_TABLELOG is 5 */
+            for (s = 0; s < (size_t)tableSize; s += unroll) {
+                size_t u;
+                for (u = 0; u < unroll; ++u) {
+                    size_t const uPosition = (position + (u * step)) & tableMask;
+                    tableSymbol[uPosition] = spread[s + u];
+                }
+                position = (position + (unroll * step)) & tableMask;
+            }
+            assert(position == 0);
+        }
+    } else {
+        U32 position = 0;
         U32 symbol;
-        for (symbol=0; symbol<=maxSymbolValue; symbol++) {
+        for (symbol=0; symbol<maxSV1; symbol++) {
             int nbOccurrences;
             int const freq = normalizedCounter[symbol];
             for (nbOccurrences=0; nbOccurrences<freq; nbOccurrences++) {

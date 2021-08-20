@@ -340,7 +340,6 @@ _start: /* Requires: ip0 */
         ip0 = ip1;
         ip1 = ip2;
         ip2 = ip3;
-        ip3 += step;
 
         /* write back hash table entry */
         current0 = ip0 - base;
@@ -377,8 +376,8 @@ _start: /* Requires: ip0 */
         /* advance to next positions */
         ip0 = ip1;
         ip1 = ip2;
-        ip2 = ip3;
-        ip3 += step;
+        ip2 = ip2 + step;
+        ip3 = ip2 + step;
     } while (ip3 < ilimit);
 
 _cleanup:

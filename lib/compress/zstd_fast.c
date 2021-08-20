@@ -247,6 +247,7 @@ ZSTD_compressBlock_fast_generic_pipelined(
     const BYTE* ip0 = istart;
     const BYTE* ip1;
     const BYTE* ip2;
+    const BYTE* ip3;
     U32 current0;
 
     U32 rep_offset1 = rep[0];
@@ -284,8 +285,9 @@ _start: /* Requires: ip0 */
     /* calculate positions, ip0 - anchor == 0, so we skip step calc */
     ip1 = ip0 + stepSize;
     ip2 = ip1 + stepSize;
+    ip3 = ip2 + stepSize;
 
-    if (ip2 >= ilimit) {
+    if (ip3 >= ilimit) {
         goto _cleanup;
     }
 
@@ -298,9 +300,8 @@ _start: /* Requires: ip0 */
         /* load repcode match for ip[2]*/
         const U32 rval = MEM_read32(ip2 - rep_offset1);
 
-        current0 = ip0 - base;
-
         /* write back hash table entry */
+        current0 = ip0 - base;
         hashTable[hash0] = current0;
 
         /* check repcode at ip[2] */
@@ -328,16 +329,45 @@ _start: /* Requires: ip0 */
             goto _offset;
         }
 
-        hash0 = hash1;
+        /* lookup ip[1] */
+        idx = hashTable[hash1];
 
         /* hash ip[2] */
+        hash0 = hash1;
         hash1 = ZSTD_hashPtr(ip2, hlog, mls);
 
+        /* advance to next positions */
+        ip0 = ip1;
+        ip1 = ip2;
+        ip2 = ip3;
+        ip3 += step;
+
+        /* write back hash table entry */
+        current0 = ip0 - base;
+        hashTable[hash0] = current0;
+
+        /* load match for ip[0] */
+        if (idx >= prefixStartIndex) {
+            mval = MEM_read32(base + idx);
+        } else {
+            mval = MEM_read32(ip0) ^ 1; /* guaranteed to not match. */
+        }
+
+        /* check match at ip[0] */
+        if (MEM_read32(ip0) == mval) {
+            /* found a match! */
+            goto _offset;
+        }
+
         /* lookup ip[1] */
-        idx = hashTable[hash0];
+        idx = hashTable[hash1];
+
+        /* hash ip[2] */
+        hash0 = hash1;
+        hash1 = ZSTD_hashPtr(ip2, hlog, mls);
 
         /* calculate step */
-        if (ip1 >= nextStep) {
+        if (ip2 >= nextStep) {
             PREFETCH_L1(ip1 + 64);
             PREFETCH_L1(ip1 + 128);
             step++;
@@ -347,8 +377,9 @@ _start: /* Requires: ip0 */
         /* advance to next positions */
         ip0 = ip1;
         ip1 = ip2;
-        ip2 += step;
-    } while (ip2 < ilimit);
+        ip2 = ip3;
+        ip3 += step;
+    } while (ip3 < ilimit);
 
 _cleanup:
     /* Note that there are probably still a couple positions we could search.

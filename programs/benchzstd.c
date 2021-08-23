@@ -805,6 +805,10 @@ BMK_benchOutcome_t BMK_benchFilesAdvanced(
         RETURN_ERROR(15, BMK_benchOutcome_t, "Invalid Compression Level");
     }
 
+    if (totalSizeToLoad == UTIL_FILESIZE_UNKNOWN) {
+        RETURN_ERROR(9, BMK_benchOutcome_t, "Error loading files");
+    }
+
     fileSizes = (size_t*)calloc(nbFiles, sizeof(size_t));
     if (!fileSizes) RETURN_ERROR(12, BMK_benchOutcome_t, "not enough memory for fileSizes");
 

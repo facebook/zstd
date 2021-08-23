@@ -29,64 +29,62 @@ ZSTDRTTEST = ['--test-large-data']
 
 test_includes = [ include_directories(join_paths(zstd_rootdir, 'programs')) ]
 
-datagen_sources = [join_paths(zstd_rootdir, 'programs/datagen.c'),
-  join_paths(zstd_rootdir, 'tests/datagencli.c')]
+testcommon_sources = [join_paths(zstd_rootdir, 'programs/datagen.c'),
+  join_paths(zstd_rootdir, 'programs/util.c'),
+  join_paths(zstd_rootdir, 'programs/timefn.c'),
+  join_paths(zstd_rootdir, 'programs/benchfn.c'),
+  join_paths(zstd_rootdir, 'programs/benchzstd.c')]
+
+testcommon = static_library('testcommon',
+  testcommon_sources,
+  # needed due to use of private symbol + -fvisibility=hidden
+  objects: libzstd.extract_all_objects(recursive: false))
+
+testcommon_dep = declare_dependency(link_with: testcommon,
+  dependencies: libzstd_deps,
+  include_directories: libzstd_includes)
+
+datagen_sources = [join_paths(zstd_rootdir, 'tests/datagencli.c')]
 datagen = executable('datagen',
   datagen_sources,
   c_args: [ '-DNDEBUG' ],
   include_directories: test_includes,
-  dependencies: libzstd_dep,
+  dependencies: testcommon_dep,
   install: false)
 
-fullbench_sources = [join_paths(zstd_rootdir, 'programs/datagen.c'),
-  join_paths(zstd_rootdir, 'programs/util.c'),
-  join_paths(zstd_rootdir, 'programs/timefn.c'),
-  join_paths(zstd_rootdir, 'programs/benchfn.c'),
-  join_paths(zstd_rootdir, 'programs/benchzstd.c'),
-  join_paths(zstd_rootdir, 'tests/fullbench.c')]
+fullbench_sources = [join_paths(zstd_rootdir, 'tests/fullbench.c')]
 fullbench = executable('fullbench',
   fullbench_sources,
   include_directories: test_includes,
-  dependencies: libzstd_dep,
+  dependencies: testcommon_dep,
   install: false)
 
-fuzzer_sources = [join_paths(zstd_rootdir, 'programs/datagen.c'),
-  join_paths(zstd_rootdir, 'programs/util.c'),
-  join_paths(zstd_rootdir, 'programs/timefn.c'),
-  join_paths(zstd_rootdir, 'tests/fuzzer.c')]
+fuzzer_sources = [join_paths(zstd_rootdir, 'tests/fuzzer.c')]
 fuzzer = executable('fuzzer',
   fuzzer_sources,
   include_directories: test_includes,
-  dependencies: [ libzstd_dep, thread_dep ],
+  dependencies: [ testcommon_dep, thread_dep ],
   install: false)
 
-zstreamtest_sources = [join_paths(zstd_rootdir, 'programs/datagen.c'),
-  join_paths(zstd_rootdir, 'programs/util.c'),
-  join_paths(zstd_rootdir, 'programs/timefn.c'),
-  join_paths(zstd_rootdir, 'tests/seqgen.c'),
+zstreamtest_sources = [join_paths(zstd_rootdir, 'tests/seqgen.c'),
   join_paths(zstd_rootdir, 'tests/zstreamtest.c')]
 zstreamtest = executable('zstreamtest',
   zstreamtest_sources,
   include_directories: test_includes,
-  dependencies: libzstd_dep,
+  dependencies: testcommon_dep,
   install: false)
 
-paramgrill_sources = [join_paths(zstd_rootdir, 'programs/benchfn.c'),
-  join_paths(zstd_rootdir, 'programs/timefn.c'),
-  join_paths(zstd_rootdir, 'programs/benchzstd.c'),
-  join_paths(zstd_rootdir, 'programs/datagen.c'),
-  join_paths(zstd_rootdir, 'programs/util.c'),
-  join_paths(zstd_rootdir, 'tests/paramgrill.c')]
+paramgrill_sources = [join_paths(zstd_rootdir, 'tests/paramgrill.c')]
 paramgrill = executable('paramgrill',
   paramgrill_sources,
   include_directories: test_includes,
-  dependencies: [ libzstd_dep, libm_dep ],
+  dependencies: [ testcommon_dep, libm_dep ],
   install: false)
 
 roundTripCrash_sources = [join_paths(zstd_rootdir, 'tests/roundTripCrash.c')]
 roundTripCrash = executable('roundTripCrash',
   roundTripCrash_sources,
-  dependencies: [ libzstd_dep ],
+  dependencies: [ testcommon_dep ],
   install: false)
 
 longmatch_sources = [join_paths(zstd_rootdir, 'tests/longmatch.c')]
@@ -111,18 +109,14 @@ if 0 < legacy_level and legacy_level <= 4
     install: false)
 endif
 
-decodecorpus_sources = [join_paths(zstd_rootdir, 'programs/util.c'),
-  join_paths(zstd_rootdir, 'programs/timefn.c'),
-  join_paths(zstd_rootdir, 'tests/decodecorpus.c')]
+decodecorpus_sources = [join_paths(zstd_rootdir, 'tests/decodecorpus.c')]
 decodecorpus = executable('decodecorpus',
   decodecorpus_sources,
   include_directories: test_includes,
-  dependencies: [ libzstd_dep, libm_dep ],
+  dependencies: [ testcommon_dep, libm_dep ],
   install: false)
 
-poolTests_sources = [join_paths(zstd_rootdir, 'programs/util.c'),
-  join_paths(zstd_rootdir, 'programs/timefn.c'),
-  join_paths(zstd_rootdir, 'tests/poolTests.c'),
+poolTests_sources = [join_paths(zstd_rootdir, 'tests/poolTests.c'),
   join_paths(zstd_rootdir, 'lib/common/pool.c'),
   join_paths(zstd_rootdir, 'lib/common/threading.c'),
   join_paths(zstd_rootdir, 'lib/common/zstd_common.c'),
@@ -130,7 +124,7 @@ poolTests_sources = [join_paths(zstd_rootdir, 'programs/util.c'),
 poolTests = executable('poolTests',
   poolTests_sources,
   include_directories: test_includes,
-  dependencies: [ libzstd_dep, thread_dep ],
+  dependencies: [ testcommon_dep, thread_dep ],
   install: false)
 
 checkTag_sources = [join_paths(zstd_rootdir, 'tests/checkTag.c')]

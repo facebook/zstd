@@ -14,10 +14,14 @@ project('zstd',
   default_options : [
     'c_std=gnu99',
     'cpp_std=c++11',
-    'buildtype=release'
+    'buildtype=release',
+    'warning_level=3',
+    # -Wdocumentation does not actually pass, nor do the test binaries,
+    # so this isn't safe
+    #'werror=true'
   ],
   version: 'DUMMY',
-  meson_version: '>=0.47.0')
+  meson_version: '>=0.48.0')
 
 cc = meson.get_compiler('c')
 cxx = meson.get_compiler('cpp')
@@ -106,10 +110,8 @@ use_lz4 = lz4_dep.found()
 add_project_arguments('-DXXH_NAMESPACE=ZSTD_', language: ['c'])
 
 if [compiler_gcc, compiler_clang].contains(cc_id)
-  common_warning_flags = [ '-Wextra', '-Wundef', '-Wshadow', '-Wcast-align', '-Wcast-qual' ]
+  common_warning_flags = [ '-Wundef', '-Wshadow', '-Wcast-align', '-Wcast-qual' ]
   if cc_id == compiler_clang
-    # Should use Meson's own --werror build option
-    #common_warning_flags += '-Werror'
     common_warning_flags += ['-Wconversion', '-Wno-sign-conversion', '-Wdocumentation']
   endif
   cc_compile_flags = cc.get_supported_arguments(common_warning_flags + ['-Wstrict-prototypes'])

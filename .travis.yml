@@ -50,7 +50,7 @@ matrix:
       script:
         - make -C tests fuzztest
 
-    # TODO: migrate to GH actions once newest clang staticanalyze warnings are fixed
+    # TODO: migrate to GH Actions once newest clang staticanalyze warnings are fixed
     - name: static analyzer scanbuild    # ~8mn
       dist: trusty  # note : it's important to pin down a version of static analyzer, since different versions report different false positives
       script:

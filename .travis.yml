@@ -51,7 +51,7 @@ matrix:
         - make -C tests fuzztest
 
     # TODO: migrate to GH actions once newest clang staticanalyze warnings are fixed
-    - name: static analyzer scanbuild    # ~26mn
+    - name: static analyzer scanbuild    # ~8mn
       dist: trusty  # note : it's important to pin down a version of static analyzer, since different versions report different false positives
       script:
         - make staticAnalyze
@@ -104,8 +104,9 @@ matrix:
         - make arminstall
         - make aarch64fuzz
 
-    # To be removed once confirmed transferred to GA
-    - name: Versions Compatibility Test   # 11.5mn
+    # This test currently fails on GA specifically, for no obvious reason
+    # (it works fine on travisCI, and on local test platforms).
+    - name: Versions Compatibility Test   # ~6mn
       script:
         - make -C tests versionsTest
 

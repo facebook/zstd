@@ -244,6 +244,9 @@ if __name__ == '__main__':
                 make(['zstd'], False)
             else:
                 os.chdir(programs_dir)
+                print('-----------------------------------------------')
+                print('compiling head')
+                print('-----------------------------------------------')
                 make(['zstd'], False)
             shutil.copy2('zstd', dst_zstd)
 
@@ -260,7 +263,9 @@ if __name__ == '__main__':
         print('cp ' + dict_files + ' ' + dict_source_path)
         execute('cp ' + dict_files + ' ' + dict_source_path, param_shell=True)
 
+    print('-----------------------------------------------')
     print('Compress test.dat by all released zstd')
+    print('-----------------------------------------------')
 
     error_code = 0
     for tag in tags:

@@ -2,7 +2,7 @@ name: dev-short-tests
 # Faster tests: mostly build tests, along with some other
 # misc tests
 
-concurrency: 
+concurrency:
   group: fast-${{ github.ref }}
   cancel-in-progress: true
 
@@ -140,7 +140,7 @@ jobs:
         sudo apt-get -qqq update
         make libc6install
         CFLAGS="-Werror -m32" make -j all32
-  
+
   gcc-8-make:
     runs-on: ubuntu-latest
     steps:
@@ -184,7 +184,7 @@ jobs:
       run: >
         msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v140
         /t:Clean,Build /p:Platform=${{matrix.platform}} /p:Configuration=${{matrix.configuration}}
-  
+
   minimal-decompressor-macros:
     runs-on: ubuntu-latest
     steps:
@@ -199,6 +199,14 @@ jobs:
         make clean && make check MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X2 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG"
         make clean && make -j all MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
         make clean && make check MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
+
+  versions-compatibility:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Versions Compatibility Test
+      run: |
+        make -C tests versionsTest
 
 # For reference : icc tests
 # icc tests are currently failing on Github Actions, likely to issues during installation stage

@@ -43,31 +43,19 @@ matrix:
       arch: arm64
       script:
         - make check
-    
+
     - name: arm64fuzz
       os: linux
       arch: arm64
       script:
         - make -C tests fuzztest
-    
-    # TODO: migrate to GH actions once warnings are fixed
-    - name: Minimal Decompressor Macros    # ~5mn
-      script:
-        - make clean && make -j all ZSTD_LIB_MINIFY=1 MOREFLAGS="-Werror"
-        - make clean && make check ZSTD_LIB_MINIFY=1 MOREFLAGS="-Werror"
-        - make clean && make -j all MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X1 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT"
-        - make clean && make check MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X1 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT"
-        - make clean && make -j all MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X2 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG"
-        - make clean && make check MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X2 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG"
-        - make clean && make -j all MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
-        - make clean && make check MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
 
     # TODO: migrate to GH actions once newest clang staticanalyze warnings are fixed
     - name: static analyzer scanbuild    # ~26mn
       dist: trusty  # note : it's important to pin down a version of static analyzer, since different versions report different false positives
       script:
         - make staticAnalyze
-    
+
     # GH actions can't run this command on OS-X, non-tty issues
     - name: OS-X make all lib
       os: osx
@@ -115,7 +103,8 @@ matrix:
       script:
         - make arminstall
         - make aarch64fuzz
-    
+
+    # To be removed once confirmed transferred to GA
     - name: Versions Compatibility Test   # 11.5mn
       script:
         - make -C tests versionsTest

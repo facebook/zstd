@@ -234,23 +234,23 @@ jobs:
     - name: ARM
       if: ${{ matrix.name == 'ARM' }}
       run: |
-        LDFLAGS="-static" CC=$XCC RUN_ENV=$XEMU make clean check
+        LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
     - name: ARM64
       if: ${{ matrix.name == 'ARM64' }}
       run: |
-        LDFLAGS="-static" CC=$XCC RUN_ENV=$XEMU make clean check
+        LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
     - name: PPC64LE
       if: ${{ matrix.name == 'PPC64LE' }}
       run: |
-        LDFLAGS="-static" CC=$XCC RUN_ENV=$XEMU make clean check
+        LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
     - name: S390X
       if: ${{ matrix.name == 'S390X' }}
       run: |
-        LDFLAGS="-static" CC=$XCC RUN_ENV=$XEMU make clean check
+        LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
     - name: MIPS
       if: ${{ matrix.name == 'MIPS' }}
       run: |
-        LDFLAGS="-static" CC=$XCC RUN_ENV=$XEMU make clean check
+        LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
 
 
 # For reference : icc tests

@@ -2,7 +2,7 @@ name: dev-short-tests
 # Faster tests: mostly build tests, along with some other
 # misc tests
 
-concurrency: 
+concurrency:
   group: fast-${{ github.ref }}
   cancel-in-progress: true
 
@@ -140,7 +140,7 @@ jobs:
         sudo apt-get -qqq update
         make libc6install
         CFLAGS="-Werror -m32" make -j all32
-  
+
   gcc-8-make:
     runs-on: ubuntu-latest
     steps:
@@ -184,7 +184,7 @@ jobs:
       run: >
         msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v140
         /t:Clean,Build /p:Platform=${{matrix.platform}} /p:Configuration=${{matrix.configuration}}
-  
+
   minimal-decompressor-macros:
     runs-on: ubuntu-latest
     steps:
@@ -199,6 +199,59 @@ jobs:
         make clean && make check MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X2 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG"
         make clean && make -j all MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
         make clean && make check MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
+
+
+  qemu-consistency:
+    name: QEMU ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false  # 'false' means Don't stop matrix workflows even if some matrix failed.
+      matrix:
+        include: [
+          { name: ARM,      xcc_pkg: gcc-arm-linux-gnueabi,     xcc: arm-linux-gnueabi-gcc,     xemu_pkg: qemu-system-arm,    xemu: qemu-arm-static     },
+          { name: ARM64,    xcc_pkg: gcc-aarch64-linux-gnu,     xcc: aarch64-linux-gnu-gcc,     xemu_pkg: qemu-system-arm,    xemu: qemu-aarch64-static },
+          { name: PPC64LE,  xcc_pkg: gcc-powerpc64le-linux-gnu, xcc: powerpc64le-linux-gnu-gcc, xemu_pkg: qemu-system-ppc,    xemu: qemu-ppc64le-static },
+          { name: S390X,    xcc_pkg: gcc-s390x-linux-gnu,       xcc: s390x-linux-gnu-gcc,       xemu_pkg: qemu-system-s390x,  xemu: qemu-s390x-static   },
+          { name: MIPS,     xcc_pkg: gcc-mips-linux-gnu,        xcc: mips-linux-gnu-gcc,        xemu_pkg: qemu-system-mips,   xemu: qemu-mips-static    },
+        ]
+    env:                        # Set environment variables
+      XCC: ${{ matrix.xcc }}
+      XEMU: ${{ matrix.xemu }}
+    steps:
+    - uses: actions/checkout@v2 # https://github.com/actions/checkout
+    - name: apt update & install
+      run: |
+        sudo apt-get update
+        sudo apt-get install gcc-multilib g++-multilib qemu-utils qemu-user-static
+        sudo apt-get install ${{ matrix.xcc_pkg }} ${{ matrix.xemu_pkg }}
+    - name: Environment info
+      run: |
+        echo && which $XCC
+        echo && $XCC --version
+        echo && $XCC -v  # Show built-in specs
+        echo && which $XEMU
+        echo && $XEMU --version
+    - name: ARM
+      if: ${{ matrix.name == 'ARM' }}
+      run: |
+        LDFLAGS="-static" CC=$XCC RUN_ENV=$XEMU make clean check
+    - name: ARM64
+      if: ${{ matrix.name == 'ARM64' }}
+      run: |
+        LDFLAGS="-static" CC=$XCC RUN_ENV=$XEMU make clean check
+    - name: PPC64LE
+      if: ${{ matrix.name == 'PPC64LE' }}
+      run: |
+        LDFLAGS="-static" CC=$XCC RUN_ENV=$XEMU make clean check
+    - name: S390X
+      if: ${{ matrix.name == 'S390X' }}
+      run: |
+        LDFLAGS="-static" CC=$XCC RUN_ENV=$XEMU make clean check
+    - name: MIPS
+      if: ${{ matrix.name == 'MIPS' }}
+      run: |
+        LDFLAGS="-static" CC=$XCC RUN_ENV=$XEMU make clean check
+
 
 # For reference : icc tests
 # icc tests are currently failing on Github Actions, likely to issues during installation stage

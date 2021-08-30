@@ -166,7 +166,7 @@ _start: /* Requires: ip0 */
         const U32 rval = MEM_read32(ip2 - rep_offset1);
 
         /* write back hash table entry */
-        current0 = ip0 - base;
+        current0 = (U32)(ip0 - base);
         hashTable[hash0] = current0;
 
         /* check repcode at ip[2] */
@@ -207,7 +207,7 @@ _start: /* Requires: ip0 */
         ip2 = ip3;
 
         /* write back hash table entry */
-        current0 = ip0 - base;
+        current0 = (U32)(ip0 - base);
         hashTable[hash0] = current0;
 
         /* load match for ip[0] */
@@ -285,7 +285,7 @@ _match: /* Requires: ip0, match0, offcode */
 
     /* write next hash table entry */
     if (ip1 < ip0) {
-        hashTable[hash1] = ip1 - base;
+        hashTable[hash1] = (U32)(ip1 - base);
     }
 
     /* Fill table and check for immediate repcode. */

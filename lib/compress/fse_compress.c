@@ -78,12 +78,11 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct,
     U32 const maxSV1 = maxSymbolValue+1;
 
     U16* cumul = (U16*)workSpace;   /* size = maxSV1 */
-    FSE_FUNCTION_TYPE* tableSymbol = (FSE_FUNCTION_TYPE*)(cumul + (maxSV1+1));  /* size = tableSize */
-    BYTE* spread = tableSymbol + tableSize; /* size = tableSize */
+    FSE_FUNCTION_TYPE* const tableSymbol = (FSE_FUNCTION_TYPE*)(cumul + (maxSV1+1));  /* size = tableSize */
 
     U32 highThreshold = tableSize-1;
 
-    if ((size_t)workSpace & 3) return ERROR(GENERIC); /* Must be 4 byte aligned */
+    assert(((size_t)workSpace & 1) == 0);  /* Must be 2 bytes-aligned */
     if (FSE_BUILD_CTABLE_WORKSPACE_SIZE(maxSymbolValue, tableLog) > wkspSize) return ERROR(tableLog_tooLarge);
     /* CTable header */
     tableU16[-2] = (U16) tableLog;
@@ -105,7 +104,9 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct,
                 cumul[u] = cumul[u-1] + 1;
                 tableSymbol[highThreshold--] = (FSE_FUNCTION_TYPE)(u-1);
             } else {
-                cumul[u] = cumul[u-1] + normalizedCounter[u-1];
+                assert(normalizedCounter[u-1] >= 0);
+                cumul[u] = cumul[u-1] + (U16)normalizedCounter[u-1];
+                assert(cumul[u] >= cumul[u-1]);  /* no overflow */
         }   }
         cumul[maxSV1] = (U16)(tableSize+1);
     }
@@ -115,8 +116,8 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct,
         /* Case for no low prob count symbols. Lay down 8 bytes at a time
          * to reduce branch misses since we are operating on a small block
          */
-        {
-            U64 const add = 0x0101010101010101ull;
+        BYTE* const spread = tableSymbol + tableSize; /* size = tableSize */
+        {   U64 const add = 0x0101010101010101ull;
             size_t pos = 0;
             U64 sv = 0;
             U32 s;
@@ -127,15 +128,15 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct,
                 for (i = 8; i < n; i += 8) {
                     MEM_write64(spread + pos + i, sv);
                 }
-                pos += n;
+                assert(n>=0);
+                pos += (size_t)n;
             }
         }
         /* Spread symbols across the table. Lack of lowprob symbols means that
          * we don't need variable sized inner loop, so we can unroll the loop and
          * reduce branch misses.
          */
-        {
-            size_t position = 0;
+        {   size_t position = 0;
             size_t s;
             size_t const unroll = 2; /* Experimentally determined optimal unroll */
             assert(tableSize % unroll == 0); /* FSE_MIN_TABLELOG is 5 */
@@ -147,7 +148,7 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct,
                 }
                 position = (position + (unroll * step)) & tableMask;
             }
-            assert(position == 0);
+            assert(position == 0);   /* Must have initialized all positions */
         }
     } else {
         U32 position = 0;
@@ -161,7 +162,6 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct,
                 while (position > highThreshold)
                     position = (position + step) & tableMask;   /* Low proba area */
         }   }
-
         assert(position==0);  /* Must have initialized all positions */
     }
 
@@ -185,16 +185,17 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct,
             case -1:
             case  1:
                 symbolTT[s].deltaNbBits = (tableLog << 16) - (1<<tableLog);
-                symbolTT[s].deltaFindState = total - 1;
+                assert(total <= INT_MAX);
+                symbolTT[s].deltaFindState = (int)(total - 1);
                 total ++;
                 break;
             default :
-                {
-                    U32 const maxBitsOut = tableLog - BIT_highbit32 (normalizedCounter[s]-1);
-                    U32 const minStatePlus = normalizedCounter[s] << maxBitsOut;
+                assert(normalizedCounter[s] > 1);
+                {   U32 const maxBitsOut = tableLog - BIT_highbit32 ((U32)normalizedCounter[s]-1);
+                    U32 const minStatePlus = (U32)normalizedCounter[s] << maxBitsOut;
                     symbolTT[s].deltaNbBits = (maxBitsOut << 16) - minStatePlus;
-                    symbolTT[s].deltaFindState = total - normalizedCounter[s];
-                    total +=  normalizedCounter[s];
+                    symbolTT[s].deltaFindState = (int)(total - (unsigned)normalizedCounter[s]);
+                    total +=  (unsigned)normalizedCounter[s];
     }   }   }   }
 
 #if 0  /* debug : symbol costs */
@@ -205,25 +206,15 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct,
                 symbol, normalizedCounter[symbol],
                 FSE_getMaxNbBits(symbolTT, symbol),
                 (double)FSE_bitCost(symbolTT, tableLog, symbol, 8) / 256);
-        }
-    }
+    }   }
 #endif
 
     return 0;
 }
 
-#ifndef ZSTD_NO_UNUSED_FUNCTIONS
-size_t FSE_buildCTable(FSE_CTable* ct, const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog)
-{
-    FSE_FUNCTION_TYPE tableSymbol[FSE_MAX_TABLESIZE];   /* memset() is not necessary, even if static analyzer complain about it */
-    return FSE_buildCTable_wksp(ct, normalizedCounter, maxSymbolValue, tableLog, tableSymbol, sizeof(tableSymbol));
-}
-#endif
-
 
 
 #ifndef FSE_COMMONDEFS_ONLY
-
 
 /*-**************************************************************
 *  FSE NCount encoding

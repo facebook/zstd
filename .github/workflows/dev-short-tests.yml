@@ -210,6 +210,7 @@ jobs:
         include: [
           { name: ARM,      xcc_pkg: gcc-arm-linux-gnueabi,     xcc: arm-linux-gnueabi-gcc,     xemu_pkg: qemu-system-arm,    xemu: qemu-arm-static     },
           { name: ARM64,    xcc_pkg: gcc-aarch64-linux-gnu,     xcc: aarch64-linux-gnu-gcc,     xemu_pkg: qemu-system-arm,    xemu: qemu-aarch64-static },
+          { name: PPC,      xcc_pkg: gcc-powerpc-linux-gnu,     xcc: powerpc-linux-gnu-gcc,     xemu_pkg: qemu-system-ppc,    xemu: qemu-ppc-static     },
           { name: PPC64LE,  xcc_pkg: gcc-powerpc64le-linux-gnu, xcc: powerpc64le-linux-gnu-gcc, xemu_pkg: qemu-system-ppc,    xemu: qemu-ppc64le-static },
           { name: S390X,    xcc_pkg: gcc-s390x-linux-gnu,       xcc: s390x-linux-gnu-gcc,       xemu_pkg: qemu-system-s390x,  xemu: qemu-s390x-static   },
           { name: MIPS,     xcc_pkg: gcc-mips-linux-gnu,        xcc: mips-linux-gnu-gcc,        xemu_pkg: qemu-system-mips,   xemu: qemu-mips-static    },
@@ -240,6 +241,10 @@ jobs:
       if: ${{ matrix.name == 'ARM64' }}
       run: |
         LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
+    - name: PPC
+      if: ${{ matrix.name == 'PPC' }}
+      run: |
+        LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
     - name: PPC64LE
       if: ${{ matrix.name == 'PPC64LE' }}
       run: |
@@ -254,7 +259,7 @@ jobs:
         LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
     - name: M68K
       if: ${{ matrix.name == 'M68K' }}
-      continue-on-error: true
+      continue-on-error: true   # disable reporting errors (alignment issues)
       run: |
         LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
 

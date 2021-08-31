@@ -1,7 +1,7 @@
 name: dev-long-tests
 # Tests longer than 10mn
 
-concurrency: 
+concurrency:
   group: long-${{ github.ref }}
   cancel-in-progress: true
 
@@ -10,6 +10,7 @@ on:
     branches: [ dev, release, actionsTest ]
 
 jobs:
+  # lasts ~24mn
   make-test:
     runs-on: ubuntu-latest
     env:
@@ -20,6 +21,7 @@ jobs:
     - name: make test
       run: make test
 
+  # lasts ~26mn
   make-test-osx:
     runs-on: macos-latest
     steps:
@@ -41,6 +43,7 @@ jobs:
     - name: thread sanitizer zstreamtest
       run: CC=clang ZSTREAM_TESTTIME=-T3mn make tsan-test-zstream
 
+  # lasts ~15mn
   tsan-fuzztest:
     runs-on: ubuntu-latest
     steps:
@@ -48,6 +51,7 @@ jobs:
     - name: thread sanitizer fuzztest
       run: CC=clang make tsan-fuzztest
 
+  # lasts ~23mn
   gcc-8-asan-ubsan-testzstd:
     runs-on: ubuntu-latest
     steps:
@@ -113,6 +117,7 @@ jobs:
         sudo apt-get install clang
         CC=clang FUZZER_FLAGS="--long-tests" make clean msan-fuzztest
 
+  # lasts ~24mn
   clang-msan-testzstd:
     runs-on: ubuntu-latest
     steps:
@@ -145,6 +150,7 @@ jobs:
         make clean
         make -C tests test-fuzzer-stackmode
 
+  # lasts ~20mn
   oss-fuzz:
     runs-on: ubuntu-latest
     strategy:

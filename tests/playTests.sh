@@ -166,7 +166,8 @@ if [ -z "${DATAGEN_BIN}" ]; then
   DATAGEN_BIN="$TESTDIR/datagen"
 fi
 
-ZSTD_BIN="$EXE_PREFIX$ZSTD_BIN"
+# Why was this line here ? Generates a strange ZSTD_BIN when EXE_PREFIX is non empty
+# ZSTD_BIN="$EXE_PREFIX$ZSTD_BIN"
 
 # assertions
 [ -n "$ZSTD_BIN" ] || die "zstd not found at $ZSTD_BIN! \n Please define ZSTD_BIN pointing to the zstd binary. You might also consider rebuilding zstd follwing the instructions in README.md"

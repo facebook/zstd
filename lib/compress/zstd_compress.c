@@ -1797,7 +1797,7 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
             if (ms->tagTable) ZSTD_memset(ms->tagTable, 0, tagTableSize);
         }
         {   /* Switch to 32-entry rows if searchLog is 5 (or more) */
-            U32 const rowLog = MAX(MIN(cParams->searchLog, 6), 4);
+            U32 const rowLog = MAX(MIN(cParams->searchLog, 4), 6);
             assert(cParams->hashLog >= rowLog);
             ms->rowHashLog = cParams->hashLog - rowLog;
         }

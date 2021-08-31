@@ -43,31 +43,19 @@ matrix:
       arch: arm64
       script:
         - make check
-    
+
     - name: arm64fuzz
       os: linux
       arch: arm64
       script:
         - make -C tests fuzztest
-    
-    # TODO: migrate to GH actions once warnings are fixed
-    - name: Minimal Decompressor Macros    # ~5mn
-      script:
-        - make clean && make -j all ZSTD_LIB_MINIFY=1 MOREFLAGS="-Werror"
-        - make clean && make check ZSTD_LIB_MINIFY=1 MOREFLAGS="-Werror"
-        - make clean && make -j all MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X1 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT"
-        - make clean && make check MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X1 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT"
-        - make clean && make -j all MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X2 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG"
-        - make clean && make check MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X2 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG"
-        - make clean && make -j all MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
-        - make clean && make check MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
 
-    # TODO: migrate to GH actions once newest clang staticanalyze warnings are fixed
-    - name: static analyzer scanbuild    # ~26mn
+    # TODO: migrate to GH Actions once newest clang staticanalyze warnings are fixed
+    - name: static analyzer scanbuild    # ~8mn
       dist: trusty  # note : it's important to pin down a version of static analyzer, since different versions report different false positives
       script:
         - make staticAnalyze
-    
+
     # GH actions can't run this command on OS-X, non-tty issues
     - name: OS-X make all lib
       os: osx
@@ -80,12 +68,6 @@ matrix:
       script:
         - make arminstall
         - make armbuild
-
-    - name: Qemu PPC + Fuzz Test    # ~13mn
-      dist: trusty   # it seems ppc cross-compilation fails on "current"
-      script:
-        - make ppcinstall
-        - make ppcfuzz
 
     # check release number (release/new tag only)
     - name: Tag-Specific Test
@@ -103,20 +85,9 @@ matrix:
         - cat /proc/cpuinfo
         - make -C tests fuzztest
 
-    - name: Qemu PPC64 + Fuzz test  # ~13mn, presumed Big-Endian (?)
-      dist: trusty  # note : PPC64 cross-compilation for Qemu tests seems broken on Xenial
-      script:
-        - make ppcinstall
-        - make ppc64fuzz
-
-    # note : we already have aarch64 tests on hardware
-    - name: Qemu aarch64 + Fuzz Test (on Xenial)    # ~14mn
-      dist: xenial
-      script:
-        - make arminstall
-        - make aarch64fuzz
-    
-    - name: Versions Compatibility Test   # 11.5mn
+    # This test currently fails on GA specifically, for no obvious reason
+    # (it works fine on travisCI, and on local test platforms).
+    - name: Versions Compatibility Test   # ~6mn
       script:
         - make -C tests versionsTest
 

@@ -264,6 +264,19 @@ jobs:
         LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
 
 
+# This test currently fails on Github Actions specifically.
+# Possible reason : TTY emulation.
+# Note that the same test works fine locally and on travisCI.
+# This will have to be fixed before transfering the test to GA.
+#  versions-compatibility:
+#    runs-on: ubuntu-latest
+#    steps:
+#    - uses: actions/checkout@v2
+#    - name: Versions Compatibility Test
+#      run: |
+#        make -C tests versionsTest
+
+
 # For reference : icc tests
 # icc tests are currently failing on Github Actions, likely to issues during installation stage
 # To be fixed later

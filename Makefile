@@ -416,5 +416,5 @@ bmi32build: clean
 staticAnalyze: SCANBUILD ?= scan-build
 staticAnalyze:
 	$(CC) -v
-	CC=$(CC) CPPFLAGS=-g $(SCANBUILD) --status-bugs -v $(MAKE) allzstd examples contrib
+	CC=$(CC) CPPFLAGS=-g $(SCANBUILD) --status-bugs -v $(MAKE) zstd
 endif

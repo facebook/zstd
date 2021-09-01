@@ -70,6 +70,9 @@ size_t ZSTD_compressBlock_doubleFast_singleSegment_generic(
     const BYTE* const ilimit = iend - HASH_READ_SIZE;
     U32 offset_1=rep[0], offset_2=rep[1];
     U32 offsetSaved = 0;
+    size_t step = 1;
+    const size_t kStepIncr = 1 << kSearchStrength;
+    const BYTE* nextStep = ip + kStepIncr;
 
     DEBUGLOG(5, "ZSTD_compressBlock_doubleFast_singleSegment_generic");
 
@@ -121,7 +124,14 @@ size_t ZSTD_compressBlock_doubleFast_singleSegment_generic(
             }
         }
 
-        ip += ((ip-anchor) >> kSearchStrength) + 1;
+        if (ip >= nextStep) {
+            PREFETCH_L1(ip + 64);
+            PREFETCH_L1(ip + 128);
+            step++;
+            nextStep += kStepIncr;
+        }
+        ip += step;
+
 #if defined(__aarch64__)
         PREFETCH_L1(ip+256);
 #endif
@@ -190,6 +200,9 @@ _match_stored:
                 anchor = ip;
                 continue;   /* faster when present ... (?) */
         }   }
+
+        step = 1;
+        nextStep = ip + kStepIncr;
     }   /* while (ip < ilimit) */
 
     /* save reps for next block */

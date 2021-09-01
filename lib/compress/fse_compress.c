@@ -116,7 +116,7 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct,
         /* Case for no low prob count symbols. Lay down 8 bytes at a time
          * to reduce branch misses since we are operating on a small block
          */
-        BYTE* const spread = tableSymbol + tableSize; /* size = tableSize */
+        BYTE* const spread = tableSymbol + tableSize; /* size = tableSize + 8 (may write beyond tableSize) */
         {   U64 const add = 0x0101010101010101ull;
             size_t pos = 0;
             U64 sv = 0;

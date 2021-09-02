@@ -118,10 +118,11 @@ _start:
         goto _cleanup;
     }
 
+    hl0 = ZSTD_hashPtr(ip, hBitsL, 8);
+
     /* Main Search Loop */
     do {
         curr = (U32)(ip-base);
-        hl0 = ZSTD_hashPtr(ip, hBitsL, 8);
         hs0 = ZSTD_hashPtr(ip, hBitsS, mls);
         idxl0 = hashLong[hl0];
         idxs0 = hashSmall[hs0];
@@ -148,6 +149,8 @@ _start:
             }
         }
 
+        hl1 = ZSTD_hashPtr(ip1, hBitsL, 8);
+
         if (idxs0 > prefixLowestIndex) {
             /* check prefix short match */
             if (MEM_read32(matchs0) == MEM_read32(ip)) {
@@ -155,18 +158,20 @@ _start:
             }
         }
 
-        if (ip >= nextStep) {
-            PREFETCH_L1(ip + 64);
-            PREFETCH_L1(ip + 128);
+        if (ip1 >= nextStep) {
+            PREFETCH_L1(ip1 + 64);
+            PREFETCH_L1(ip1 + 128);
             step++;
             nextStep += kStepIncr;
         }
-        ip += step;
+        ip = ip1;
+        ip1 += step;
 
+        hl0 = hl1;
 #if defined(__aarch64__)
         PREFETCH_L1(ip+256);
 #endif
-    } while (ip < ilimit);
+    } while (ip1 < ilimit);
 
 _cleanup:
     /* save reps for next block */
@@ -177,8 +182,7 @@ _cleanup:
     return (size_t)(iend - anchor);
 
 _search_next_long:
-    {   hl1 = ZSTD_hashPtr(ip+1, hBitsL, 8);
-        idxl1 = hashLong[hl1];
+    {   idxl1 = hashLong[hl1];
         matchl1 = base + idxl1;
         hashLong[hl1] = curr + 1;
 

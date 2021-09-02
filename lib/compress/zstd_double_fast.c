@@ -74,6 +74,21 @@ size_t ZSTD_compressBlock_doubleFast_singleSegment_generic(
     const size_t kStepIncr = 1 << kSearchStrength;
     const BYTE* nextStep = ip + kStepIncr;
 
+    size_t hl0;
+    size_t hs0;
+    size_t hl1;
+    // size_t hs1;
+
+    U32 idxl0;
+    U32 idxs0;
+    U32 idxl1;
+    // U32 idxs0;
+
+    const BYTE* matchl0;
+    const BYTE* matchs0;
+    const BYTE* matchl1;
+    // const BYTE* matchs1;
+
     DEBUGLOG(5, "ZSTD_compressBlock_doubleFast_singleSegment_generic");
 
     /* init */
@@ -90,14 +105,15 @@ size_t ZSTD_compressBlock_doubleFast_singleSegment_generic(
     while (ip < ilimit) {   /* < instead of <=, because repcode check at (ip+1) */
         size_t mLength;
         U32 offset;
-        size_t const h2 = ZSTD_hashPtr(ip, hBitsL, 8);
-        size_t const h = ZSTD_hashPtr(ip, hBitsS, mls);
         U32 const curr = (U32)(ip-base);
-        U32 const matchIndexL = hashLong[h2];
-        U32 matchIndexS = hashSmall[h];
-        const BYTE* matchLong = base + matchIndexL;
-        const BYTE* match = base + matchIndexS;
-        hashLong[h2] = hashSmall[h] = curr;   /* update hash tables */
+        hl0 = ZSTD_hashPtr(ip, hBitsL, 8);
+        hs0 = ZSTD_hashPtr(ip, hBitsS, mls);
+        idxl0 = hashLong[hl0];
+        idxs0 = hashSmall[hs0];
+        matchl0 = base + idxl0;
+        matchs0 = base + idxs0;
+
+        hashLong[hl0] = hashSmall[hs0] = curr;   /* update hash tables */
 
         /* check noDict repcode */
         if ((offset_1 > 0) & (MEM_read32(ip+1-offset_1) == MEM_read32(ip+1))) {
@@ -107,19 +123,19 @@ size_t ZSTD_compressBlock_doubleFast_singleSegment_generic(
             goto _match_stored;
         }
 
-        if (matchIndexL > prefixLowestIndex) {
+        if (idxl0 > prefixLowestIndex) {
             /* check prefix long match */
-            if (MEM_read64(matchLong) == MEM_read64(ip)) {
-                mLength = ZSTD_count(ip+8, matchLong+8, iend) + 8;
-                offset = (U32)(ip-matchLong);
-                while (((ip>anchor) & (matchLong>prefixLowest)) && (ip[-1] == matchLong[-1])) { ip--; matchLong--; mLength++; } /* catch up */
+            if (MEM_read64(matchl0) == MEM_read64(ip)) {
+                mLength = ZSTD_count(ip+8, matchl0+8, iend) + 8;
+                offset = (U32)(ip-matchl0);
+                while (((ip>anchor) & (matchl0>prefixLowest)) && (ip[-1] == matchl0[-1])) { ip--; matchl0--; mLength++; } /* catch up */
                 goto _match_found;
             }
         }
 
-        if (matchIndexS > prefixLowestIndex) {
+        if (idxs0 > prefixLowestIndex) {
             /* check prefix short match */
-            if (MEM_read32(match) == MEM_read32(ip)) {
+            if (MEM_read32(matchs0) == MEM_read32(ip)) {
                 goto _search_next_long;
             }
         }
@@ -139,18 +155,18 @@ size_t ZSTD_compressBlock_doubleFast_singleSegment_generic(
 
 _search_next_long:
 
-        {   size_t const hl3 = ZSTD_hashPtr(ip+1, hBitsL, 8);
-            U32 const matchIndexL3 = hashLong[hl3];
-            const BYTE* matchL3 = base + matchIndexL3;
-            hashLong[hl3] = curr + 1;
+        {   hl1 = ZSTD_hashPtr(ip+1, hBitsL, 8);
+            idxl1 = hashLong[hl1];
+            matchl1 = base + idxl1;
+            hashLong[hl1] = curr + 1;
 
             /* check prefix long +1 match */
-            if (matchIndexL3 > prefixLowestIndex) {
-                if (MEM_read64(matchL3) == MEM_read64(ip+1)) {
-                    mLength = ZSTD_count(ip+9, matchL3+8, iend) + 8;
+            if (idxl1 > prefixLowestIndex) {
+                if (MEM_read64(matchl1) == MEM_read64(ip+1)) {
+                    mLength = ZSTD_count(ip+9, matchl1+8, iend) + 8;
                     ip++;
-                    offset = (U32)(ip-matchL3);
-                    while (((ip>anchor) & (matchL3>prefixLowest)) && (ip[-1] == matchL3[-1])) { ip--; matchL3--; mLength++; } /* catch up */
+                    offset = (U32)(ip-matchl1);
+                    while (((ip>anchor) & (matchl1>prefixLowest)) && (ip[-1] == matchl1[-1])) { ip--; matchl1--; mLength++; } /* catch up */
                     goto _match_found;
                 }
             }
@@ -158,14 +174,14 @@ _search_next_long:
 
         /* if no long +1 match, explore the short match we found */
         {
-            mLength = ZSTD_count(ip+4, match+4, iend) + 4;
-            offset = (U32)(ip - match);
-            while (((ip>anchor) & (match>prefixLowest)) && (ip[-1] == match[-1])) { ip--; match--; mLength++; } /* catch up */
+            mLength = ZSTD_count(ip+4, matchs0+4, iend) + 4;
+            offset = (U32)(ip - matchs0);
+            while (((ip>anchor) & (matchs0>prefixLowest)) && (ip[-1] == matchs0[-1])) { ip--; matchs0--; mLength++; } /* catch up */
         }
 
         /* fall-through */
 
-_match_found:
+_match_found: /* requires ip, offset, mLength */
         offset_2 = offset_1;
         offset_1 = offset;
 

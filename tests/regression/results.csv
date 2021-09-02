@@ -10,7 +10,7 @@ silesia.tar,                        level 5,                            compress
 silesia.tar,                        level 6,                            compress simple,                    4616811
 silesia.tar,                        level 7,                            compress simple,                    4576828
 silesia.tar,                        level 9,                            compress simple,                    4552584
-silesia.tar,                        level 13,                           compress simple,                    4491768
+silesia.tar,                        level 13,                           compress simple,                    4502955
 silesia.tar,                        level 16,                           compress simple,                    4356834
 silesia.tar,                        level 19,                           compress simple,                    4264388
 silesia.tar,                        uncompressed literals,              compress simple,                    4861423
@@ -27,7 +27,7 @@ github.tar,                         level 5,                            compress
 github.tar,                         level 6,                            compress simple,                    38610
 github.tar,                         level 7,                            compress simple,                    38073
 github.tar,                         level 9,                            compress simple,                    36767
-github.tar,                         level 13,                           compress simple,                    35621
+github.tar,                         level 13,                           compress simple,                    35501
 github.tar,                         level 16,                           compress simple,                    40255
 github.tar,                         level 19,                           compress simple,                    32837
 github.tar,                         uncompressed literals,              compress simple,                    38441
@@ -44,7 +44,7 @@ silesia,                            level 5,                            compress
 silesia,                            level 6,                            compress cctx,                      4605369
 silesia,                            level 7,                            compress cctx,                      4567203
 silesia,                            level 9,                            compress cctx,                      4543311
-silesia,                            level 13,                           compress cctx,                      4482131
+silesia,                            level 13,                           compress cctx,                      4493990
 silesia,                            level 16,                           compress cctx,                      4360251
 silesia,                            level 19,                           compress cctx,                      4283236
 silesia,                            long distance mode,                 compress cctx,                      4849551
@@ -108,7 +108,7 @@ silesia,                            level 5,                            zstdcli,
 silesia,                            level 6,                            zstdcli,                            4605417
 silesia,                            level 7,                            zstdcli,                            4567251
 silesia,                            level 9,                            zstdcli,                            4543359
-silesia,                            level 13,                           zstdcli,                            4482179
+silesia,                            level 13,                           zstdcli,                            4494038
 silesia,                            level 16,                           zstdcli,                            4360299
 silesia,                            level 19,                           zstdcli,                            4283284
 silesia,                            long distance mode,                 zstdcli,                            4840807
@@ -133,7 +133,7 @@ silesia.tar,                        level 5,                            zstdcli,
 silesia.tar,                        level 6,                            zstdcli,                            4618402
 silesia.tar,                        level 7,                            zstdcli,                            4578883
 silesia.tar,                        level 9,                            zstdcli,                            4553498
-silesia.tar,                        level 13,                           zstdcli,                            4491772
+silesia.tar,                        level 13,                           zstdcli,                            4502959
 silesia.tar,                        level 16,                           zstdcli,                            4356838
 silesia.tar,                        level 19,                           zstdcli,                            4264392
 silesia.tar,                        no source size,                     zstdcli,                            4861507
@@ -209,7 +209,7 @@ github.tar,                         level 7,                            zstdcli,
 github.tar,                         level 7 with dict,                  zstdcli,                            37873
 github.tar,                         level 9,                            zstdcli,                            36771
 github.tar,                         level 9 with dict,                  zstdcli,                            36623
-github.tar,                         level 13,                           zstdcli,                            35625
+github.tar,                         level 13,                           zstdcli,                            35505
 github.tar,                         level 13 with dict,                 zstdcli,                            38730
 github.tar,                         level 16,                           zstdcli,                            40259
 github.tar,                         level 16 with dict,                 zstdcli,                            33643
@@ -247,7 +247,7 @@ silesia,                            level 11 row 1,                     advanced
 silesia,                            level 11 row 2,                     advanced one pass,                  4521406
 silesia,                            level 12 row 1,                     advanced one pass,                  4503117
 silesia,                            level 12 row 2,                     advanced one pass,                  4505152
-silesia,                            level 13,                           advanced one pass,                  4482131
+silesia,                            level 13,                           advanced one pass,                  4493990
 silesia,                            level 16,                           advanced one pass,                  4360251
 silesia,                            level 19,                           advanced one pass,                  4283236
 silesia,                            no source size,                     advanced one pass,                  4849551
@@ -281,7 +281,7 @@ silesia.tar,                        level 11 row 1,                     advanced
 silesia.tar,                        level 11 row 2,                     advanced one pass,                  4530257
 silesia.tar,                        level 12 row 1,                     advanced one pass,                  4513603
 silesia.tar,                        level 12 row 2,                     advanced one pass,                  4514568
-silesia.tar,                        level 13,                           advanced one pass,                  4491768
+silesia.tar,                        level 13,                           advanced one pass,                  4502955
 silesia.tar,                        level 16,                           advanced one pass,                  4356834
 silesia.tar,                        level 19,                           advanced one pass,                  4264388
 silesia.tar,                        no source size,                     advanced one pass,                  4861423
@@ -515,12 +515,12 @@ github.tar,                         level 12 row 2 with dict dms,       advanced
 github.tar,                         level 12 row 2 with dict dds,       advanced one pass,                  36986
 github.tar,                         level 12 row 2 with dict copy,      advanced one pass,                  36609
 github.tar,                         level 12 row 2 with dict load,      advanced one pass,                  36460
-github.tar,                         level 13,                           advanced one pass,                  35621
+github.tar,                         level 13,                           advanced one pass,                  35501
 github.tar,                         level 13 with dict,                 advanced one pass,                  38726
 github.tar,                         level 13 with dict dms,             advanced one pass,                  38903
 github.tar,                         level 13 with dict dds,             advanced one pass,                  38903
 github.tar,                         level 13 with dict copy,            advanced one pass,                  38726
-github.tar,                         level 13 with dict load,            advanced one pass,                  36372
+github.tar,                         level 13 with dict load,            advanced one pass,                  36010
 github.tar,                         level 16,                           advanced one pass,                  40255
 github.tar,                         level 16 with dict,                 advanced one pass,                  33639
 github.tar,                         level 16 with dict dms,             advanced one pass,                  33544
@@ -565,7 +565,7 @@ silesia,                            level 11 row 1,                     advanced
 silesia,                            level 11 row 2,                     advanced one pass small out,        4521406
 silesia,                            level 12 row 1,                     advanced one pass small out,        4503117
 silesia,                            level 12 row 2,                     advanced one pass small out,        4505152
-silesia,                            level 13,                           advanced one pass small out,        4482131
+silesia,                            level 13,                           advanced one pass small out,        4493990
 silesia,                            level 16,                           advanced one pass small out,        4360251
 silesia,                            level 19,                           advanced one pass small out,        4283236
 silesia,                            no source size,                     advanced one pass small out,        4849551
@@ -599,7 +599,7 @@ silesia.tar,                        level 11 row 1,                     advanced
 silesia.tar,                        level 11 row 2,                     advanced one pass small out,        4530257
 silesia.tar,                        level 12 row 1,                     advanced one pass small out,        4513603
 silesia.tar,                        level 12 row 2,                     advanced one pass small out,        4514568
-silesia.tar,                        level 13,                           advanced one pass small out,        4491768
+silesia.tar,                        level 13,                           advanced one pass small out,        4502955
 silesia.tar,                        level 16,                           advanced one pass small out,        4356834
 silesia.tar,                        level 19,                           advanced one pass small out,        4264388
 silesia.tar,                        no source size,                     advanced one pass small out,        4861423
@@ -833,12 +833,12 @@ github.tar,                         level 12 row 2 with dict dms,       advanced
 github.tar,                         level 12 row 2 with dict dds,       advanced one pass small out,        36986
 github.tar,                         level 12 row 2 with dict copy,      advanced one pass small out,        36609
 github.tar,                         level 12 row 2 with dict load,      advanced one pass small out,        36460
-github.tar,                         level 13,                           advanced one pass small out,        35621
+github.tar,                         level 13,                           advanced one pass small out,        35501
 github.tar,                         level 13 with dict,                 advanced one pass small out,        38726
 github.tar,                         level 13 with dict dms,             advanced one pass small out,        38903
 github.tar,                         level 13 with dict dds,             advanced one pass small out,        38903
 github.tar,                         level 13 with dict copy,            advanced one pass small out,        38726
-github.tar,                         level 13 with dict load,            advanced one pass small out,        36372
+github.tar,                         level 13 with dict load,            advanced one pass small out,        36010
 github.tar,                         level 16,                           advanced one pass small out,        40255
 github.tar,                         level 16 with dict,                 advanced one pass small out,        33639
 github.tar,                         level 16 with dict dms,             advanced one pass small out,        33544
@@ -883,7 +883,7 @@ silesia,                            level 11 row 1,                     advanced
 silesia,                            level 11 row 2,                     advanced streaming,                 4521406
 silesia,                            level 12 row 1,                     advanced streaming,                 4503117
 silesia,                            level 12 row 2,                     advanced streaming,                 4505152
-silesia,                            level 13,                           advanced streaming,                 4482131
+silesia,                            level 13,                           advanced streaming,                 4493990
 silesia,                            level 16,                           advanced streaming,                 4360251
 silesia,                            level 19,                           advanced streaming,                 4283236
 silesia,                            no source size,                     advanced streaming,                 4849515
@@ -917,7 +917,7 @@ silesia.tar,                        level 11 row 1,                     advanced
 silesia.tar,                        level 11 row 2,                     advanced streaming,                 4530259
 silesia.tar,                        level 12 row 1,                     advanced streaming,                 4513603
 silesia.tar,                        level 12 row 2,                     advanced streaming,                 4514569
-silesia.tar,                        level 13,                           advanced streaming,                 4491769
+silesia.tar,                        level 13,                           advanced streaming,                 4502955
 silesia.tar,                        level 16,                           advanced streaming,                 4356834
 silesia.tar,                        level 19,                           advanced streaming,                 4264388
 silesia.tar,                        no source size,                     advanced streaming,                 4861421
@@ -1151,12 +1151,12 @@ github.tar,                         level 12 row 2 with dict dms,       advanced
 github.tar,                         level 12 row 2 with dict dds,       advanced streaming,                 36986
 github.tar,                         level 12 row 2 with dict copy,      advanced streaming,                 36609
 github.tar,                         level 12 row 2 with dict load,      advanced streaming,                 36460
-github.tar,                         level 13,                           advanced streaming,                 35621
+github.tar,                         level 13,                           advanced streaming,                 35501
 github.tar,                         level 13 with dict,                 advanced streaming,                 38726
 github.tar,                         level 13 with dict dms,             advanced streaming,                 38903
 github.tar,                         level 13 with dict dds,             advanced streaming,                 38903
 github.tar,                         level 13 with dict copy,            advanced streaming,                 38726
-github.tar,                         level 13 with dict load,            advanced streaming,                 36372
+github.tar,                         level 13 with dict load,            advanced streaming,                 36010
 github.tar,                         level 16,                           advanced streaming,                 40255
 github.tar,                         level 16 with dict,                 advanced streaming,                 33639
 github.tar,                         level 16 with dict dms,             advanced streaming,                 33544
@@ -1193,7 +1193,7 @@ silesia,                            level 5,                            old stre
 silesia,                            level 6,                            old streaming,                      4605369
 silesia,                            level 7,                            old streaming,                      4567203
 silesia,                            level 9,                            old streaming,                      4543311
-silesia,                            level 13,                           old streaming,                      4482131
+silesia,                            level 13,                           old streaming,                      4493990
 silesia,                            level 16,                           old streaming,                      4360251
 silesia,                            level 19,                           old streaming,                      4283236
 silesia,                            no source size,                     old streaming,                      4849515
@@ -1211,7 +1211,7 @@ silesia.tar,                        level 5,                            old stre
 silesia.tar,                        level 6,                            old streaming,                      4616816
 silesia.tar,                        level 7,                            old streaming,                      4576830
 silesia.tar,                        level 9,                            old streaming,                      4552590
-silesia.tar,                        level 13,                           old streaming,                      4491769
+silesia.tar,                        level 13,                           old streaming,                      4502955
 silesia.tar,                        level 16,                           old streaming,                      4356834
 silesia.tar,                        level 19,                           old streaming,                      4264388
 silesia.tar,                        no source size,                     old streaming,                      4861421
@@ -1273,7 +1273,7 @@ github.tar,                         level 7,                            old stre
 github.tar,                         level 7 with dict,                  old streaming,                      37848
 github.tar,                         level 9,                            old streaming,                      36767
 github.tar,                         level 9 with dict,                  old streaming,                      36457
-github.tar,                         level 13,                           old streaming,                      35621
+github.tar,                         level 13,                           old streaming,                      35501
 github.tar,                         level 13 with dict,                 old streaming,                      38726
 github.tar,                         level 16,                           old streaming,                      40255
 github.tar,                         level 16 with dict,                 old streaming,                      33639
@@ -1295,7 +1295,7 @@ silesia,                            level 5,                            old stre
 silesia,                            level 6,                            old streaming advanced,             4605369
 silesia,                            level 7,                            old streaming advanced,             4567203
 silesia,                            level 9,                            old streaming advanced,             4543311
-silesia,                            level 13,                           old streaming advanced,             4482131
+silesia,                            level 13,                           old streaming advanced,             4493990
 silesia,                            level 16,                           old streaming advanced,             4360251
 silesia,                            level 19,                           old streaming advanced,             4283236
 silesia,                            no source size,                     old streaming advanced,             4849515
@@ -1321,7 +1321,7 @@ silesia.tar,                        level 5,                            old stre
 silesia.tar,                        level 6,                            old streaming advanced,             4616816
 silesia.tar,                        level 7,                            old streaming advanced,             4576830
 silesia.tar,                        level 9,                            old streaming advanced,             4552590
-silesia.tar,                        level 13,                           old streaming advanced,             4491769
+silesia.tar,                        level 13,                           old streaming advanced,             4502955
 silesia.tar,                        level 16,                           old streaming advanced,             4356834
 silesia.tar,                        level 19,                           old streaming advanced,             4264388
 silesia.tar,                        no source size,                     old streaming advanced,             4861421
@@ -1359,7 +1359,7 @@ github,                             level 7 with dict,                  old stre
 github,                             level 9,                            old streaming advanced,             138676
 github,                             level 9 with dict,                  old streaming advanced,             38981
 github,                             level 13,                           old streaming advanced,             138676
-github,                             level 13 with dict,                 old streaming advanced,             39731
+github,                             level 13 with dict,                 old streaming advanced,             39721
 github,                             level 16,                           old streaming advanced,             138676
 github,                             level 16 with dict,                 old streaming advanced,             40789
 github,                             level 19,                           old streaming advanced,             134064
@@ -1399,8 +1399,8 @@ github.tar,                         level 7,                            old stre
 github.tar,                         level 7 with dict,                  old streaming advanced,             37322
 github.tar,                         level 9,                            old streaming advanced,             36767
 github.tar,                         level 9 with dict,                  old streaming advanced,             36233
-github.tar,                         level 13,                           old streaming advanced,             35621
-github.tar,                         level 13 with dict,                 old streaming advanced,             36035
+github.tar,                         level 13,                           old streaming advanced,             35501
+github.tar,                         level 13 with dict,                 old streaming advanced,             35807
 github.tar,                         level 16,                           old streaming advanced,             40255
 github.tar,                         level 16 with dict,                 old streaming advanced,             38736
 github.tar,                         level 19,                           old streaming advanced,             32837
@@ -1444,7 +1444,7 @@ github.tar,                         level 5 with dict,                  old stre
 github.tar,                         level 6 with dict,                  old streaming cdict,                37829
 github.tar,                         level 7 with dict,                  old streaming cdict,                37371
 github.tar,                         level 9 with dict,                  old streaming cdict,                36352
-github.tar,                         level 13 with dict,                 old streaming cdict,                36372
+github.tar,                         level 13 with dict,                 old streaming cdict,                36010
 github.tar,                         level 16 with dict,                 old streaming cdict,                39353
 github.tar,                         level 19 with dict,                 old streaming cdict,                32676
 github.tar,                         no source size with dict,           old streaming cdict,                38000
@@ -1459,7 +1459,7 @@ github,                             level 5 with dict,                  old stre
 github,                             level 6 with dict,                  old streaming advanced cdict,       39363
 github,                             level 7 with dict,                  old streaming advanced cdict,       38924
 github,                             level 9 with dict,                  old streaming advanced cdict,       38981
-github,                             level 13 with dict,                 old streaming advanced cdict,       39731
+github,                             level 13 with dict,                 old streaming advanced cdict,       39721
 github,                             level 16 with dict,                 old streaming advanced cdict,       40789
 github,                             level 19 with dict,                 old streaming advanced cdict,       37576
 github,                             no source size with dict,           old streaming advanced cdict,       40608
@@ -1474,7 +1474,7 @@ github.tar,                         level 5 with dict,                  old stre
 github.tar,                         level 6 with dict,                  old streaming advanced cdict,       37786
 github.tar,                         level 7 with dict,                  old streaming advanced cdict,       37322
 github.tar,                         level 9 with dict,                  old streaming advanced cdict,       36233
-github.tar,                         level 13 with dict,                 old streaming advanced cdict,       36035
+github.tar,                         level 13 with dict,                 old streaming advanced cdict,       35807
 github.tar,                         level 16 with dict,                 old streaming advanced cdict,       38736
 github.tar,                         level 19 with dict,                 old streaming advanced cdict,       32876
 github.tar,                         no source size with dict,           old streaming advanced cdict,       38015

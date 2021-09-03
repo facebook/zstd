@@ -987,7 +987,7 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
              * in every price. We include the literal length to avoid negative
              * prices when we subtract the previous literal length.
              */
-            opt[0].price = ZSTD_litLengthPrice(litlen, optStatePtr, optLevel);
+            opt[0].price = (int)ZSTD_litLengthPrice(litlen, optStatePtr, optLevel);
 
             /* large match -> immediate encoding */
             {   U32 const maxML = matches[nbMatches-1].len;
@@ -1007,6 +1007,7 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
             }   }
 
             /* set prices for first matches starting position == 0 */
+            assert(opt[0].price >= 0);
             {   U32 const literalsPrice = opt[0].price + ZSTD_litLengthPrice(0, optStatePtr, optLevel);
                 U32 pos;
                 U32 matchNb;

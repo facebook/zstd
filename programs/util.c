@@ -308,7 +308,8 @@ U64 UTIL_getFileSizeStat(const stat_t* statbuf)
     return (U64)statbuf->st_size;
 }
 
-UTIL_HumanReadableSize_t UTIL_makeHumanReadableSize(U64 size) {
+UTIL_HumanReadableSize_t UTIL_makeHumanReadableSize(U64 size)
+{
     UTIL_HumanReadableSize_t hrs;
 
     if (g_utilDisplayLevel > 3) {
@@ -1121,9 +1122,9 @@ DWORD CountSetBits(ULONG_PTR bitMask)
 {
     DWORD LSHIFT = sizeof(ULONG_PTR)*8 - 1;
     DWORD bitSetCount = 0;
-    ULONG_PTR bitTest = (ULONG_PTR)1 << LSHIFT;    
+    ULONG_PTR bitTest = (ULONG_PTR)1 << LSHIFT;
     DWORD i;
-    
+
     for (i = 0; i <= LSHIFT; ++i)
     {
         bitSetCount += ((bitMask & bitTest)?1:0);

@@ -180,9 +180,13 @@ U64 UTIL_getFileSize(const char* infilename);
 U64 UTIL_getTotalFileSize(const char* const * fileNamesTable, unsigned nbFiles);
 
 /**
- * Take a size in bytes and prepare the components to pretty-print it in a
- * scaled way. The components in the returned struct should be passed in
+ * Take @size in bytes,
+ * prepare the components to pretty-print it in a scaled way.
+ * The components in the returned struct should be passed in
  * precision, value, suffix order to a "%.*f%s" format string.
+ * Output policy is sensible to @g_utilDisplayLevel,
+ * for verbose mode (@g_utilDisplayLevel >= 4),
+ * does not scale down.
  */
 typedef struct {
   double value;

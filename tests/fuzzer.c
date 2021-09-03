@@ -1832,8 +1832,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
     /* Simple API skippable frame test */
     DISPLAYLEVEL(3, "test%3i : read/write a skippable frame : ", testNb++);
-    {
-        U32 i;
+    {   U32 i;
         unsigned readMagic;
         unsigned long long receivedSize;
         size_t skippableSize;
@@ -1841,9 +1840,10 @@ static int basicUnitTests(U32 const seed, double compressibility)
         char* const skipBuff = (char*)malloc(skipLen);
         assert(skipBuff != NULL);
         for (i = 0; i < skipLen; i++)
-            skipBuff[i] = (BYTE) ((seed + i) % 256);
-        skippableSize = ZSTD_writeSkippableFrame((BYTE*)compressedBuffer, compressedBufferSize,
-                                        skipBuff, skipLen, seed % 15);
+            skipBuff[i] = (char) ((seed + i) % 256);
+        skippableSize = ZSTD_writeSkippableFrame(
+                                compressedBuffer, compressedBufferSize,
+                                skipBuff, skipLen, seed % 15);
         CHECK_Z(skippableSize);
         CHECK_EQ(1, ZSTD_isSkippableFrame(compressedBuffer, skippableSize));
         receivedSize = ZSTD_readSkippableFrame(decodedBuffer, CNBuffSize, &readMagic, compressedBuffer, skippableSize);
@@ -1860,8 +1860,9 @@ static int basicUnitTests(U32 const seed, double compressibility)
         unsigned readMagic;
         unsigned long long receivedSize;
         size_t skippableSize;
-        skippableSize = ZSTD_writeSkippableFrame((BYTE*)compressedBuffer, compressedBufferSize,
-                                        CNBuffer, 0, seed % 15);
+        skippableSize = ZSTD_writeSkippableFrame(
+                                compressedBuffer, compressedBufferSize,
+                                CNBuffer, 0, seed % 15);
         CHECK_EQ(ZSTD_SKIPPABLEHEADERSIZE, skippableSize);
         CHECK_EQ(1, ZSTD_isSkippableFrame(compressedBuffer, skippableSize));
         receivedSize = ZSTD_readSkippableFrame(NULL, 0, &readMagic, compressedBuffer, skippableSize);
@@ -3670,7 +3671,7 @@ static int longUnitTests(U32 const seed, double compressibility)
                     CHECK(cdict != NULL);
 
                     CHECK_Z(ZSTD_CCtx_refCDict(cctx, cdict));
-                    CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_forceAttachDict, attachPref));
+                    CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_forceAttachDict, (int)attachPref));
 
                     cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize);
                     CHECK_Z(cSize);

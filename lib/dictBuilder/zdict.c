@@ -139,7 +139,7 @@ static unsigned ZDICT_NbCommonBytes (size_t val)
             _BitScanForward64( &r, (U64)val );
             return (unsigned)(r>>3);
 #       elif defined(__GNUC__) && (__GNUC__ >= 3)
-            return (__builtin_ctzll((U64)val) >> 3);
+            return (unsigned)(__builtin_ctzll((U64)val) >> 3);
 #       else
             static const int DeBruijnBytePos[64] = { 0, 0, 0, 0, 0, 1, 1, 2, 0, 3, 1, 3, 1, 4, 2, 7, 0, 2, 3, 6, 1, 5, 3, 5, 1, 3, 4, 4, 2, 5, 6, 7, 7, 0, 1, 2, 3, 3, 4, 6, 2, 6, 5, 5, 3, 4, 5, 6, 7, 1, 2, 4, 6, 4, 4, 5, 7, 2, 6, 5, 7, 6, 7, 7 };
             return DeBruijnBytePos[((U64)((val & -(long long)val) * 0x0218A392CDABBD3FULL)) >> 58];
@@ -150,7 +150,7 @@ static unsigned ZDICT_NbCommonBytes (size_t val)
             _BitScanForward( &r, (U32)val );
             return (unsigned)(r>>3);
 #       elif defined(__GNUC__) && (__GNUC__ >= 3)
-            return (__builtin_ctz((U32)val) >> 3);
+            return (unsigned)(__builtin_ctz((U32)val) >> 3);
 #       else
             static const int DeBruijnBytePos[32] = { 0, 0, 3, 0, 3, 1, 3, 0, 3, 2, 2, 1, 3, 2, 0, 1, 3, 3, 1, 2, 2, 2, 2, 0, 3, 1, 2, 0, 1, 0, 1, 1 };
             return DeBruijnBytePos[((U32)((val & -(S32)val) * 0x077CB531U)) >> 27];
@@ -163,7 +163,7 @@ static unsigned ZDICT_NbCommonBytes (size_t val)
             _BitScanReverse64( &r, val );
             return (unsigned)(r>>3);
 #       elif defined(__GNUC__) && (__GNUC__ >= 3)
-            return (__builtin_clzll(val) >> 3);
+            return (unsigned)(__builtin_clzll(val) >> 3);
 #       else
             unsigned r;
             const unsigned n32 = sizeof(size_t)*4;   /* calculate this way due to compiler complaining in 32-bits mode */
@@ -178,7 +178,7 @@ static unsigned ZDICT_NbCommonBytes (size_t val)
             _BitScanReverse( &r, (unsigned long)val );
             return (unsigned)(r>>3);
 #       elif defined(__GNUC__) && (__GNUC__ >= 3)
-            return (__builtin_clz((U32)val) >> 3);
+            return (unsigned)(__builtin_clz((U32)val) >> 3);
 #       else
             unsigned r;
             if (!(val>>16)) { r=2; val>>=8; } else { r=0; val>>=24; }
@@ -235,7 +235,7 @@ static dictItem ZDICT_analyzePos(
     U32 savings[LLIMIT] = {0};
     const BYTE* b = (const BYTE*)buffer;
     size_t maxLength = LLIMIT;
-    size_t pos = suffix[start];
+    size_t pos = (size_t)suffix[start];
     U32 end = start;
     dictItem solution;
 
@@ -369,7 +369,7 @@ static dictItem ZDICT_analyzePos(
             savings[i] = savings[i-1] + (lengthList[i] * (i-3));
 
         DISPLAYLEVEL(4, "Selected dict at position %u, of length %u : saves %u (ratio: %.2f)  \n",
-                     (unsigned)pos, (unsigned)maxLength, (unsigned)savings[maxLength], (double)savings[maxLength] / maxLength);
+                     (unsigned)pos, (unsigned)maxLength, (unsigned)savings[maxLength], (double)savings[maxLength] / (double)maxLength);
 
         solution.pos = (U32)pos;
         solution.length = (U32)maxLength;
@@ -379,7 +379,7 @@ static dictItem ZDICT_analyzePos(
         {   U32 id;
             for (id=start; id<end; id++) {
                 U32 p, pEnd, length;
-                U32 const testedPos = suffix[id];
+                U32 const testedPos = (U32)suffix[id];
                 if (testedPos == pos)
                     length = solution.length;
                 else {
@@ -442,7 +442,7 @@ static U32 ZDICT_tryMerge(dictItem* table, dictItem elt, U32 eltNbToSkip, const 
 
         if ((table[u].pos + table[u].length >= elt.pos) && (table[u].pos < elt.pos)) {  /* overlap, existing < new */
             /* append */
-            int const addedLength = (int)eltEnd - (table[u].pos + table[u].length);
+            int const addedLength = (int)eltEnd - (int)(table[u].pos + table[u].length);
             table[u].savings += elt.length / 8;    /* rough approx bonus */
             if (addedLength > 0) {   /* otherwise, elt fully included into existing */
                 table[u].length += addedLength;
@@ -766,6 +766,13 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
         pos += fileSizes[u];
     }
 
+    if (notificationLevel >= 4) {
+        /* writeStats */
+        DISPLAYLEVEL(4, "Offset Code Frequencies : \n");
+        for (u=0; u<=offcodeMax; u++) {
+            DISPLAYLEVEL(4, "%2u :%7u \n", u, offcodeCount[u]);
+    }   }
+
     /* analyze, build stats, starting with literals */
     {   size_t maxNbBits = HUF_buildCTable (hufTable, countLit, 255, huffLog);
         if (HUF_isError(maxNbBits)) {
@@ -872,7 +879,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     MEM_writeLE32(dstPtr+8, bestRepOffset[2].offset);
 #else
     /* at this stage, we don't use the result of "most common first offset",
-       as the impact of statistics is not properly evaluated */
+     * as the impact of statistics is not properly evaluated */
     MEM_writeLE32(dstPtr+0, repStartValue[0]);
     MEM_writeLE32(dstPtr+4, repStartValue[1]);
     MEM_writeLE32(dstPtr+8, repStartValue[2]);

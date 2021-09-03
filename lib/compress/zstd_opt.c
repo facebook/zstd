@@ -24,11 +24,11 @@
 *  Price functions for optimal parser
 ***************************************/
 
-#if 0    /* approximation at bit level */
+#if 0    /* approximation at bit level (for tests) */
 #  define BITCOST_ACCURACY 0
 #  define BITCOST_MULTIPLIER (1 << BITCOST_ACCURACY)
-#  define WEIGHT(stat)  ((void)opt, ZSTD_bitWeight(stat))
-#elif 0  /* fractional bit accuracy */
+#  define WEIGHT(stat, opt) ((void)opt, ZSTD_bitWeight(stat))
+#elif 0  /* fractional bit accuracy (for tests) */
 #  define BITCOST_ACCURACY 8
 #  define BITCOST_MULTIPLIER (1 << BITCOST_ACCURACY)
 #  define WEIGHT(stat,opt) ((void)opt, ZSTD_fracWeight(stat))
@@ -94,10 +94,21 @@ static U32 ZSTD_downscaleStat(unsigned* table, U32 lastEltIndex, int malus)
     return sum;
 }
 
+static U32 sum_u32(const unsigned table[], size_t nbElts)
+{
+    size_t n;
+    U32 total = 0;
+    for (n=0; n<nbElts; n++) {
+        total += table[n];
+    }
+    return total;
+}
+
 /* ZSTD_rescaleFreqs() :
  * if first block (detected by optPtr->litLengthSum == 0) : init statistics
  *    take hints from dictionary if there is one
- *    or init from zero, using src for literals stats, or flat 1 for match symbols
+ *    and init from zero if there is none,
+ *    using src for literals stats, and baseline stats for sequence symbols
  * otherwise downscale existing stats, to be used as seed for next block.
  */
 static void
@@ -177,11 +188,16 @@ ZSTD_rescaleFreqs(optState_t* const optPtr,
                 optPtr->litSum = ZSTD_downscaleStat(optPtr->litFreq, MaxLit, 1);
             }
 
-            {   unsigned ll;
-                for (ll=0; ll<=MaxLL; ll++)
-                    optPtr->litLengthFreq[ll] = 1;
+            {   unsigned const baseLLfreqs[MaxLL+1] = {
+                    4, 2, 1, 1, 1, 1, 1, 1,
+                    1, 1, 1, 1, 1, 1, 1, 1,
+                    1, 1, 1, 1, 1, 1, 1, 1,
+                    1, 1, 1, 1, 1, 1, 1, 1,
+                    1, 1, 1, 1
+                };
+                memcpy(optPtr->litLengthFreq, baseLLfreqs, sizeof(baseLLfreqs)); optPtr->litLengthSum = sum_u32(baseLLfreqs, MaxLL+1);
+                //unsigned ll; for (ll=0; ll<=MaxLL; ll++) optPtr->litLengthFreq[ll] = 1; optPtr->litLengthSum = MaxLL+1;
             }
-            optPtr->litLengthSum = MaxLL+1;
 
             {   unsigned ml;
                 for (ml=0; ml<=MaxML; ml++)
@@ -189,11 +205,16 @@ ZSTD_rescaleFreqs(optState_t* const optPtr,
             }
             optPtr->matchLengthSum = MaxML+1;
 
-            {   unsigned of;
-                for (of=0; of<=MaxOff; of++)
-                    optPtr->offCodeFreq[of] = 1;
+            {   unsigned const baseOFCfreqs[MaxOff+1] = {
+                        8, 4, 3, 3, 3, 4, 4, 4,
+                        4, 4, 3, 3, 3, 2, 2, 2,
+                        1, 1, 1, 1, 1, 1, 1, 1,
+                        1, 1, 1, 1, 1, 1, 1, 1,
+                    };
+                //memcpy(optPtr->offCodeFreq, baseOFCfreqs, sizeof(baseOFCfreqs)); optPtr->offCodeSum = sum_u32(baseOFCfreqs, MaxOff+1);
+                unsigned of; for (of=0; of<=MaxOff; of++) optPtr->offCodeFreq[of] = 1; optPtr->offCodeSum = MaxOff+1;
             }
-            optPtr->offCodeSum = MaxOff+1;
+
 
         }
 
@@ -901,10 +922,10 @@ static void ZSTD_optLdm_processMatchCandidate(ZSTD_optLdm_t* optLdm, ZSTD_match_
     ZSTD_optLdm_maybeAddMatch(matches, nbMatches, optLdm, currPosInBlock);
 }
 
+
 /*-*******************************
 *  Optimal parser
 *********************************/
-
 
 static U32 ZSTD_totalLen(ZSTD_optimal_t sol)
 {

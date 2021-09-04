@@ -79,21 +79,6 @@ static void ZSTD_setBasePrices(optState_t* optPtr, int optLevel)
 }
 
 
-/* ZSTD_downscaleStat() :
- * reduce all elements in table by a factor 2^(ZSTD_FREQ_DIV+malus)
- * return the resulting sum of elements */
-static U32 ZSTD_downscaleStat(unsigned* table, U32 lastEltIndex, int malus)
-{
-    U32 s, sum=0;
-    DEBUGLOG(5, "ZSTD_downscaleStat (nbElts=%u)", (unsigned)lastEltIndex+1);
-    assert(ZSTD_FREQ_DIV+malus > 0 && ZSTD_FREQ_DIV+malus < 31);
-    for (s=0; s<lastEltIndex+1; s++) {
-        table[s] = 1 + (table[s] >> (ZSTD_FREQ_DIV+malus));
-        sum += table[s];
-    }
-    return sum;
-}
-
 static U32 sum_u32(const unsigned table[], size_t nbElts)
 {
     size_t n;
@@ -102,6 +87,31 @@ static U32 sum_u32(const unsigned table[], size_t nbElts)
         total += table[n];
     }
     return total;
+}
+
+static U32 ZSTD_downscaleStats(unsigned* table, U32 lastEltIndex, U32 shift)
+{
+    U32 s, sum=0;
+    DEBUGLOG(5, "ZSTD_downscaleStats (nbElts=%u, shift=%u)", (unsigned)lastEltIndex+1, (unsigned)shift);
+    assert(shift < 30);
+    for (s=0; s<lastEltIndex+1; s++) {
+        table[s] = 1 + (table[s] >> shift);
+        sum += table[s];
+    }
+    return sum;
+}
+
+/* ZSTD_scaleStats() :
+ * reduce all elements in table is sum too large
+ * return the resulting sum of elements */
+static U32 ZSTD_scaleStats(unsigned* table, U32 lastEltIndex, U32 logTarget)
+{
+    U32 const prevsum = sum_u32(table, lastEltIndex+1);
+    U32 const factor = prevsum >> logTarget;
+    DEBUGLOG(5, "ZSTD_scaleStats (nbElts=%u, target=%u)", (unsigned)lastEltIndex+1, (unsigned)logTarget);
+    assert(logTarget < 30);
+    if (factor <= 1) return prevsum;
+    return ZSTD_downscaleStats(table, lastEltIndex, ZSTD_highbit32(factor));
 }
 
 /* ZSTD_rescaleFreqs() :
@@ -185,7 +195,7 @@ ZSTD_rescaleFreqs(optState_t* const optPtr,
             if (compressedLiterals) {
                 unsigned lit = MaxLit;
                 HIST_count_simple(optPtr->litFreq, &lit, src, srcSize);   /* use raw first block to init statistics */
-                optPtr->litSum = ZSTD_downscaleStat(optPtr->litFreq, MaxLit, 1);
+                optPtr->litSum = ZSTD_downscaleStats(optPtr->litFreq, MaxLit, 8);
             }
 
             {   unsigned const baseLLfreqs[MaxLL+1] = {
@@ -219,10 +229,10 @@ ZSTD_rescaleFreqs(optState_t* const optPtr,
     } else {   /* new block : re-use previous statistics, scaled down */
 
         if (compressedLiterals)
-            optPtr->litSum = ZSTD_downscaleStat(optPtr->litFreq, MaxLit, 1);
-        optPtr->litLengthSum = ZSTD_downscaleStat(optPtr->litLengthFreq, MaxLL, 0);
-        optPtr->matchLengthSum = ZSTD_downscaleStat(optPtr->matchLengthFreq, MaxML, 0);
-        optPtr->offCodeSum = ZSTD_downscaleStat(optPtr->offCodeFreq, MaxOff, 0);
+            optPtr->litSum = ZSTD_scaleStats(optPtr->litFreq, MaxLit, 10);
+        optPtr->litLengthSum = ZSTD_scaleStats(optPtr->litLengthFreq, MaxLL, 9);
+        optPtr->matchLengthSum = ZSTD_scaleStats(optPtr->matchLengthFreq, MaxML, 9);
+        optPtr->offCodeSum = ZSTD_scaleStats(optPtr->offCodeFreq, MaxOff, 9);
     }
 
     ZSTD_setBasePrices(optPtr, optLevel);

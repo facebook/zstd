@@ -196,7 +196,6 @@ ZSTD_rescaleFreqs(optState_t* const optPtr,
                     1, 1, 1, 1
                 };
                 memcpy(optPtr->litLengthFreq, baseLLfreqs, sizeof(baseLLfreqs)); optPtr->litLengthSum = sum_u32(baseLLfreqs, MaxLL+1);
-                //unsigned ll; for (ll=0; ll<=MaxLL; ll++) optPtr->litLengthFreq[ll] = 1; optPtr->litLengthSum = MaxLL+1;
             }
 
             {   unsigned ml;
@@ -206,13 +205,12 @@ ZSTD_rescaleFreqs(optState_t* const optPtr,
             optPtr->matchLengthSum = MaxML+1;
 
             {   unsigned const baseOFCfreqs[MaxOff+1] = {
-                        8, 4, 3, 3, 3, 4, 4, 4,
-                        4, 4, 3, 3, 3, 2, 2, 2,
-                        1, 1, 1, 1, 1, 1, 1, 1,
-                        1, 1, 1, 1, 1, 1, 1, 1,
-                    };
-                //memcpy(optPtr->offCodeFreq, baseOFCfreqs, sizeof(baseOFCfreqs)); optPtr->offCodeSum = sum_u32(baseOFCfreqs, MaxOff+1);
-                unsigned of; for (of=0; of<=MaxOff; of++) optPtr->offCodeFreq[of] = 1; optPtr->offCodeSum = MaxOff+1;
+                    6, 2, 1, 1, 2, 3, 4, 4,
+                    4, 3, 2, 1, 1, 1, 1, 1,
+                    1, 1, 1, 1, 1, 1, 1, 1,
+                    1, 1, 1, 1, 1, 1, 1, 1
+                };
+                memcpy(optPtr->offCodeFreq, baseOFCfreqs, sizeof(baseOFCfreqs)); optPtr->offCodeSum = sum_u32(baseOFCfreqs, MaxOff+1);
             }
 
 

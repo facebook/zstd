@@ -962,7 +962,7 @@ static void FIO_adjustParamsForPatchFromMode(FIO_prefs_t* const prefs,
         DISPLAYLEVEL(1, "- Use --single-thread mode in the zstd cli\n");
         DISPLAYLEVEL(1, "- Set a larger targetLength (eg. --zstd=targetLength=4096)\n");
         DISPLAYLEVEL(1, "- Set a larger chainLog (eg. --zstd=chainLog=%u)\n", ZSTD_CHAINLOG_MAX);
-        DISPLAYLEVEL(1, "Also consdier playing around with searchLog and hashLog\n");
+        DISPLAYLEVEL(1, "Also consider playing around with searchLog and hashLog\n");
     }
 }
 

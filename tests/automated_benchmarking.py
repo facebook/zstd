@@ -87,7 +87,7 @@ def clone_and_build(build):
             git clone {github_url} zstd-{user}-{sha} &&
             cd zstd-{user}-{sha} &&
             {checkout_command}
-            make &&
+            make -j &&
             cd ../
         """.format(
                 user=build["user"],
@@ -100,7 +100,7 @@ def clone_and_build(build):
         )
         return "zstd-{user}-{sha}/zstd".format(user=build["user"], sha=build["hash"])
     else:
-        os.system("cd ../ && make && cd tests")
+        os.system("cd ../ && make -j && cd tests")
         return "../zstd"
 
 

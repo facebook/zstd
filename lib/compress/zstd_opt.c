@@ -228,10 +228,10 @@ ZSTD_rescaleFreqs(optState_t* const optPtr,
     } else {   /* new block : re-use previous statistics, scaled down */
 
         if (compressedLiterals)
-            optPtr->litSum = ZSTD_scaleStats(optPtr->litFreq, MaxLit, 10);
-        optPtr->litLengthSum = ZSTD_scaleStats(optPtr->litLengthFreq, MaxLL, 9);
-        optPtr->matchLengthSum = ZSTD_scaleStats(optPtr->matchLengthFreq, MaxML, 9);
-        optPtr->offCodeSum = ZSTD_scaleStats(optPtr->offCodeFreq, MaxOff, 9);
+            optPtr->litSum = ZSTD_scaleStats(optPtr->litFreq, MaxLit, 11);
+        optPtr->litLengthSum = ZSTD_scaleStats(optPtr->litLengthFreq, MaxLL, 10);
+        optPtr->matchLengthSum = ZSTD_scaleStats(optPtr->matchLengthFreq, MaxML, 10);
+        optPtr->offCodeSum = ZSTD_scaleStats(optPtr->offCodeFreq, MaxOff, 10);
     }
 
     ZSTD_setBasePrices(optPtr, optLevel);

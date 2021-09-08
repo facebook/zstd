@@ -204,7 +204,7 @@ ZSTD_rescaleFreqs(optState_t* const optPtr,
                     1, 1, 1, 1, 1, 1, 1, 1,
                     1, 1, 1, 1
                 };
-                memcpy(optPtr->litLengthFreq, baseLLfreqs, sizeof(baseLLfreqs)); optPtr->litLengthSum = sum_u32(baseLLfreqs, MaxLL+1);
+                ZSTD_memcpy(optPtr->litLengthFreq, baseLLfreqs, sizeof(baseLLfreqs)); optPtr->litLengthSum = sum_u32(baseLLfreqs, MaxLL+1);
             }
 
             {   unsigned ml;
@@ -219,7 +219,7 @@ ZSTD_rescaleFreqs(optState_t* const optPtr,
                     1, 1, 1, 1, 1, 1, 1, 1,
                     1, 1, 1, 1, 1, 1, 1, 1
                 };
-                memcpy(optPtr->offCodeFreq, baseOFCfreqs, sizeof(baseOFCfreqs)); optPtr->offCodeSum = sum_u32(baseOFCfreqs, MaxOff+1);
+                ZSTD_memcpy(optPtr->offCodeFreq, baseOFCfreqs, sizeof(baseOFCfreqs)); optPtr->offCodeSum = sum_u32(baseOFCfreqs, MaxOff+1);
             }
 
 

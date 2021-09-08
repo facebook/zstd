@@ -204,6 +204,12 @@ _search_next_long:
         while (((ip>anchor) & (matchs0>prefixLowest)) && (ip[-1] == matchs0[-1])) { ip--; matchs0--; mLength++; } /* catch up */
     }
 
+    /* fall-through */
+
+_match_found: /* requires ip, offset, mLength */
+    offset_2 = offset_1;
+    offset_1 = offset;
+
     if (step < 4) {
         /* It is unsafe to write this value back to the hashtable when ip1 is
          * greater than or equal to the new ip we will have after we're done
@@ -214,12 +220,6 @@ _search_next_long:
          * (initially) is less than 4, we know ip1 < new ip. */
         hashLong[hl1] = (U32)(ip1 - base);
     }
-
-    /* fall-through */
-
-_match_found: /* requires ip, offset, mLength */
-    offset_2 = offset_1;
-    offset_1 = offset;
 
     ZSTD_storeSeq(seqStore, (size_t)(ip-anchor), anchor, iend, offset + ZSTD_REP_MOVE, mLength-MINMATCH);
 

@@ -14,7 +14,6 @@
 
 
 #define ZSTD_LITFREQ_ADD    2   /* scaling factor for litFreq, so that frequencies adapt faster to new stats */
-#define ZSTD_FREQ_DIV       4   /* log factor when using previous stats to init next stats */
 #define ZSTD_MAX_PRICE     (1<<30)
 
 #define ZSTD_PREDEF_THRESHOLD 1024   /* if srcSize < ZSTD_PREDEF_THRESHOLD, symbols' cost is assumed static, directly determined by pre-defined distributions */
@@ -1253,28 +1252,7 @@ size_t ZSTD_compressBlock_btopt(
 }
 
 
-/* used in 2-pass strategy */
-static U32 ZSTD_upscaleStat(unsigned* table, U32 lastEltIndex, int bonus)
-{
-    U32 s, sum=0;
-    assert(ZSTD_FREQ_DIV+bonus >= 0);
-    for (s=0; s<lastEltIndex+1; s++) {
-        table[s] <<= ZSTD_FREQ_DIV+bonus;
-        table[s]--;
-        sum += table[s];
-    }
-    return sum;
-}
 
-/* used in 2-pass strategy */
-MEM_STATIC void ZSTD_upscaleStats(optState_t* optPtr)
-{
-    if (ZSTD_compressedLiterals(optPtr))
-        optPtr->litSum = ZSTD_upscaleStat(optPtr->litFreq, MaxLit, 0);
-    optPtr->litLengthSum = ZSTD_upscaleStat(optPtr->litLengthFreq, MaxLL, 0);
-    optPtr->matchLengthSum = ZSTD_upscaleStat(optPtr->matchLengthFreq, MaxML, 0);
-    optPtr->offCodeSum = ZSTD_upscaleStat(optPtr->offCodeFreq, MaxOff, 0);
-}
 
 /* ZSTD_initStats_ultra():
  * make a first compression pass, just to seed stats with more accurate starting values.
@@ -1305,8 +1283,6 @@ ZSTD_initStats_ultra(ZSTD_matchState_t* ms,
     ms->window.lowLimit = ms->window.dictLimit;
     ms->nextToUpdate = ms->window.dictLimit;
 
-    /* re-inforce weight of collected statistics */
-    ZSTD_upscaleStats(&ms->opt);
 }
 
 size_t ZSTD_compressBlock_btultra(

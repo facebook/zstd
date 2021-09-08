@@ -81,17 +81,14 @@ size_t ZSTD_compressBlock_doubleFast_singleSegment_generic(
     size_t hl0;
     size_t hs0;
     size_t hl1;
-    // size_t hs1;
 
     U32 idxl0;
     U32 idxs0;
     U32 idxl1;
-    // U32 idxs0;
 
     const BYTE* matchl0;
     const BYTE* matchs0;
     const BYTE* matchl1;
-    // const BYTE* matchs1;
 
     const BYTE* ip = istart;
     const BYTE* ip1;
@@ -119,14 +116,14 @@ _start:
     }
 
     hl0 = ZSTD_hashPtr(ip, hBitsL, 8);
+    idxl0 = hashLong[hl0];
+    matchl0 = base + idxl0;
 
     /* Main Search Loop */
     do {
         curr = (U32)(ip-base);
         hs0 = ZSTD_hashPtr(ip, hBitsS, mls);
-        idxl0 = hashLong[hl0];
         idxs0 = hashSmall[hs0];
-        matchl0 = base + idxl0;
         matchs0 = base + idxs0;
 
         hashLong[hl0] = hashSmall[hs0] = curr;   /* update hash tables */
@@ -151,6 +148,9 @@ _start:
             }
         }
 
+        idxl1 = hashLong[hl1];
+        matchl1 = base + idxl1;
+
         if (idxs0 > prefixLowestIndex) {
             /* check prefix short match */
             if (MEM_read32(matchs0) == MEM_read32(ip)) {
@@ -168,6 +168,8 @@ _start:
         ip1 += step;
 
         hl0 = hl1;
+        idxl0 = idxl1;
+        matchl0 = matchl1;
 #if defined(__aarch64__)
         PREFETCH_L1(ip+256);
 #endif
@@ -182,8 +184,7 @@ _cleanup:
     return (size_t)(iend - anchor);
 
 _search_next_long:
-    {   idxl1 = hashLong[hl1];
-        matchl1 = base + idxl1;
+    {
 
         /* check prefix long +1 match */
         if (idxl1 > prefixLowestIndex) {

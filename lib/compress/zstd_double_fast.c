@@ -139,6 +139,8 @@ _start:
             goto _match_stored;
         }
 
+        hl1 = ZSTD_hashPtr(ip1, hBitsL, 8);
+
         if (idxl0 > prefixLowestIndex) {
             /* check prefix long match */
             if (MEM_read64(matchl0) == MEM_read64(ip)) {
@@ -148,8 +150,6 @@ _start:
                 goto _match_found;
             }
         }
-
-        hl1 = ZSTD_hashPtr(ip1, hBitsL, 8);
 
         if (idxs0 > prefixLowestIndex) {
             /* check prefix short match */
@@ -184,13 +184,12 @@ _cleanup:
 _search_next_long:
     {   idxl1 = hashLong[hl1];
         matchl1 = base + idxl1;
-        hashLong[hl1] = curr + 1;
 
         /* check prefix long +1 match */
         if (idxl1 > prefixLowestIndex) {
-            if (MEM_read64(matchl1) == MEM_read64(ip+1)) {
-                mLength = ZSTD_count(ip+9, matchl1+8, iend) + 8;
-                ip++;
+            if (MEM_read64(matchl1) == MEM_read64(ip1)) {
+                ip = ip1;
+                mLength = ZSTD_count(ip+8, matchl1+8, iend) + 8;
                 offset = (U32)(ip-matchl1);
                 while (((ip>anchor) & (matchl1>prefixLowest)) && (ip[-1] == matchl1[-1])) { ip--; matchl1--; mLength++; } /* catch up */
                 goto _match_found;
@@ -203,6 +202,17 @@ _search_next_long:
         mLength = ZSTD_count(ip+4, matchs0+4, iend) + 4;
         offset = (U32)(ip - matchs0);
         while (((ip>anchor) & (matchs0>prefixLowest)) && (ip[-1] == matchs0[-1])) { ip--; matchs0--; mLength++; } /* catch up */
+    }
+
+    if (step < 4) {
+        /* It is unsafe to write this value back to the hashtable when ip1 is
+         * greater than or equal to the new ip we will have after we're done
+         * processing this match. Rather than perform that test directly
+         * (ip1 >= ip + mLength), which costs speed in practice, we do a simpler
+         * more predictable test. The minmatch even if we take a short match is
+         * 4 bytes, so as long as step, the distance between ip and ip1
+         * (initially) is less than 4, we know ip1 < new ip. */
+        hashLong[hl1] = (U32)(ip1 - base);
     }
 
     /* fall-through */

@@ -111,7 +111,7 @@ _start:
     nextStep = ip + kStepIncr;
     ip1 = ip + step;
 
-    if (ip1 >= ilimit) {
+    if (ip1 > ilimit) {
         goto _cleanup;
     }
 
@@ -173,7 +173,7 @@ _start:
 #if defined(__aarch64__)
         PREFETCH_L1(ip+256);
 #endif
-    } while (ip1 < ilimit);
+    } while (ip1 <= ilimit);
 
 _cleanup:
     /* save reps for next block */

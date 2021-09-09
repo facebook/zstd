@@ -41,7 +41,7 @@
  */
 size_t ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
                                void* dst, size_t dstCapacity,
-                         const void* src, size_t srcSize, const int frame);
+                         const void* src, size_t srcSize, const int frame, const unsigned streaming);
 
 /* ZSTD_buildFSETable() :
  * generate FSE decoding table for one symbol (ll, ml or off)

@@ -175,6 +175,7 @@ struct ZSTD_DCtx_s
     /* workspace */
     BYTE* litBuffer;
     const BYTE* litBufferEnd;
+    unsigned splitLitBuffer;
     BYTE litExtraBuffer[ZSTD_LITBUFFEREXTRASIZE + WILDCOPY_OVERLENGTH];
     BYTE headerBuffer[ZSTD_FRAMEHEADERSIZE_MAX];
 

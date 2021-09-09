@@ -48,10 +48,9 @@ void ZSTD_fillDoubleHashTable(ZSTD_matchState_t* ms,
 
 
 FORCE_INLINE_TEMPLATE
-size_t ZSTD_compressBlock_doubleFast_singleSegment_generic(
+size_t ZSTD_compressBlock_doubleFast_noDict_generic(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
-        void const* src, size_t srcSize,
-        U32 const mls /* template */)
+        void const* src, size_t srcSize, U32 const mls /* template */)
 {
     ZSTD_compressionParameters const* cParams = &ms->cParams;
     U32* const hashLong = ms->hashTable;
@@ -93,7 +92,7 @@ size_t ZSTD_compressBlock_doubleFast_singleSegment_generic(
     const BYTE* ip = istart;
     const BYTE* ip1;
 
-    DEBUGLOG(5, "ZSTD_compressBlock_doubleFast_singleSegment_generic");
+    DEBUGLOG(5, "ZSTD_compressBlock_doubleFast_noDict_generic");
 
     /* init */
     ip += ((ip - prefixLowest) == 0);
@@ -530,13 +529,13 @@ size_t ZSTD_compressBlock_doubleFast(
     {
     default: /* includes case 3 */
     case 4 :
-        return ZSTD_compressBlock_doubleFast_singleSegment_generic(ms, seqStore, rep, src, srcSize, 4);
+        return ZSTD_compressBlock_doubleFast_noDict_generic(ms, seqStore, rep, src, srcSize, 4);
     case 5 :
-        return ZSTD_compressBlock_doubleFast_singleSegment_generic(ms, seqStore, rep, src, srcSize, 5);
+        return ZSTD_compressBlock_doubleFast_noDict_generic(ms, seqStore, rep, src, srcSize, 5);
     case 6 :
-        return ZSTD_compressBlock_doubleFast_singleSegment_generic(ms, seqStore, rep, src, srcSize, 6);
+        return ZSTD_compressBlock_doubleFast_noDict_generic(ms, seqStore, rep, src, srcSize, 6);
     case 7 :
-        return ZSTD_compressBlock_doubleFast_singleSegment_generic(ms, seqStore, rep, src, srcSize, 7);
+        return ZSTD_compressBlock_doubleFast_noDict_generic(ms, seqStore, rep, src, srcSize, 7);
     }
 }
 

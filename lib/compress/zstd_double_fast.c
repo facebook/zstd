@@ -591,7 +591,7 @@ static size_t ZSTD_compressBlock_doubleFast_extDict_generic(
 
     /* if extDict is invalidated due to maxDistance, switch to "regular" variant */
     if (prefixStartIndex == dictStartIndex)
-        return ZSTD_compressBlock_doubleFast_generic(ms, seqStore, rep, src, srcSize, mls, ZSTD_noDict);
+        return ZSTD_compressBlock_doubleFast_noDict_generic(ms, seqStore, rep, src, srcSize, mls);
 
     /* Search Loop */
     while (ip < ilimit) {  /* < instead of <=, because (ip+1) */

@@ -43,6 +43,52 @@ void ZSTD_fillHashTable(ZSTD_matchState_t* ms,
 }
 
 
+/**
+ * If you squint hard enough (and ignore repcodes), the search operation at any
+ * given position is broken into 4 stages:
+ *
+ * 1. Hash   (map position to hash value via input read)
+ * 2. Lookup (map hash val to index via hashtable read)
+ * 3. Load   (map index to value at that position via input read)
+ * 4. Compare
+ *
+ * Each of these steps involves a memory read at an address which is computed
+ * from the previous step. This means these steps must be sequenced and their
+ * latencies are cumulative.
+ *
+ * Rather than do 1->2->3->4 sequentially for a single position before moving
+ * onto the next, this implementation interleaves these operations across the
+ * next few positions:
+ *
+ * R = Repcode Read & Compare
+ * H = Hash
+ * T = Table Lookup
+ * M = Match Read & Compare
+ *
+ * Pos | Time -->
+ * ----+-------------------
+ * N   | ... M
+ * N+1 | ...   TM
+ * N+2 |    R H   T M
+ * N+3 |         H    TM
+ * N+4 |           R H   T M
+ * N+5 |                H   ...
+ * N+6 |                  R ...
+ *
+ * This is very much analogous to the pipelining of execution in a CPU. And just
+ * like a CPU, we have to dump the pipeline when we find a match (i.e., take a
+ * branch).
+ *
+ * When this happens, we throw away our current state, and do the following prep
+ * to re-enter the loop:
+ *
+ * Pos | Time -->
+ * ----+-------------------
+ * N   | H T
+ * N+1 |  H
+ *
+ * This is also the work we do at the beginning to enter the loop initially.
+ */
 FORCE_INLINE_TEMPLATE size_t
 ZSTD_compressBlock_fast_generic(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
@@ -53,133 +99,215 @@ ZSTD_compressBlock_fast_generic(
     U32* const hashTable = ms->hashTable;
     U32 const hlog = cParams->hashLog;
     /* support stepSize of 0 */
-    size_t const stepSize = cParams->targetLength + !(cParams->targetLength) + 1;
+    size_t const stepSize = cParams->targetLength + !(cParams->targetLength);
     const BYTE* const base = ms->window.base;
     const BYTE* const istart = (const BYTE*)src;
-    /* We check ip0 (ip + 0) and ip1 (ip + 1) each loop */
-    const BYTE* ip0 = istart;
-    const BYTE* ip1;
-    const BYTE* anchor = istart;
     const U32   endIndex = (U32)((size_t)(istart - base) + srcSize);
     const U32   prefixStartIndex = ZSTD_getLowestPrefixIndex(ms, endIndex, cParams->windowLog);
     const BYTE* const prefixStart = base + prefixStartIndex;
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - HASH_READ_SIZE;
-    U32 offset_1=rep[0], offset_2=rep[1];
+
+    const BYTE* anchor = istart;
+    const BYTE* ip0 = istart;
+    const BYTE* ip1;
+    const BYTE* ip2;
+    const BYTE* ip3;
+    U32 current0;
+
+    U32 rep_offset1 = rep[0];
+    U32 rep_offset2 = rep[1];
     U32 offsetSaved = 0;
 
-    /* init */
+    size_t hash0; /* hash for ip0 */
+    size_t hash1; /* hash for ip1 */
+    U32 idx; /* match idx for ip0 */
+    U32 mval; /* src value at match idx */
+
+    U32 offcode;
+    const BYTE* match0;
+    size_t mLength;
+
+    size_t step;
+    const BYTE* nextStep;
+    const size_t kStepIncr = (1 << (kSearchStrength - 1));
+
     DEBUGLOG(5, "ZSTD_compressBlock_fast_generic");
     ip0 += (ip0 == prefixStart);
-    ip1 = ip0 + 1;
     {   U32 const curr = (U32)(ip0 - base);
         U32 const windowLow = ZSTD_getLowestPrefixIndex(ms, curr, cParams->windowLog);
         U32 const maxRep = curr - windowLow;
-        if (offset_2 > maxRep) offsetSaved = offset_2, offset_2 = 0;
-        if (offset_1 > maxRep) offsetSaved = offset_1, offset_1 = 0;
+        if (rep_offset2 > maxRep) offsetSaved = rep_offset2, rep_offset2 = 0;
+        if (rep_offset1 > maxRep) offsetSaved = rep_offset1, rep_offset1 = 0;
     }
 
-    /* Main Search Loop */
-#ifdef __INTEL_COMPILER
-    /* From intel 'The vector pragma indicates that the loop should be
-     * vectorized if it is legal to do so'. Can be used together with
-     * #pragma ivdep (but have opted to exclude that because intel
-     * warns against using it).*/
-    #pragma vector always
-#endif
-    while (ip1 < ilimit) {   /* < instead of <=, because check at ip0+2 */
-        size_t mLength;
-        BYTE const* ip2 = ip0 + 2;
-        size_t const h0 = ZSTD_hashPtr(ip0, hlog, mls);
-        U32 const val0 = MEM_read32(ip0);
-        size_t const h1 = ZSTD_hashPtr(ip1, hlog, mls);
-        U32 const val1 = MEM_read32(ip1);
-        U32 const current0 = (U32)(ip0-base);
-        U32 const current1 = (U32)(ip1-base);
-        U32 const matchIndex0 = hashTable[h0];
-        U32 const matchIndex1 = hashTable[h1];
-        BYTE const* repMatch = ip2 - offset_1;
-        const BYTE* match0 = base + matchIndex0;
-        const BYTE* match1 = base + matchIndex1;
-        U32 offcode;
+    /* start each op */
+_start: /* Requires: ip0 */
 
-#if defined(__aarch64__)
-        PREFETCH_L1(ip0+256);
-#endif
+    step = stepSize;
+    nextStep = ip0 + kStepIncr;
 
-        hashTable[h0] = current0;   /* update hash table */
-        hashTable[h1] = current1;   /* update hash table */
+    /* calculate positions, ip0 - anchor == 0, so we skip step calc */
+    ip1 = ip0 + stepSize;
+    ip2 = ip1 + stepSize;
+    ip3 = ip2 + stepSize;
 
-        assert(ip0 + 1 == ip1);
+    if (ip3 >= ilimit) {
+        goto _cleanup;
+    }
 
-        if ((offset_1 > 0) & (MEM_read32(repMatch) == MEM_read32(ip2))) {
-            mLength = (ip2[-1] == repMatch[-1]) ? 1 : 0;
-            ip0 = ip2 - mLength;
-            match0 = repMatch - mLength;
-            mLength += 4;
+    hash0 = ZSTD_hashPtr(ip0, hlog, mls);
+    hash1 = ZSTD_hashPtr(ip1, hlog, mls);
+
+    idx = hashTable[hash0];
+
+    do {
+        /* load repcode match for ip[2]*/
+        const U32 rval = MEM_read32(ip2 - rep_offset1);
+
+        /* write back hash table entry */
+        current0 = (U32)(ip0 - base);
+        hashTable[hash0] = current0;
+
+        /* check repcode at ip[2] */
+        if ((MEM_read32(ip2) == rval) & (rep_offset1 > 0)) {
+            ip0 = ip2;
+            match0 = ip0 - rep_offset1;
+            mLength = ip0[-1] == match0[-1];
+            ip0 -= mLength;
+            match0 -= mLength;
             offcode = 0;
+            mLength += 4;
             goto _match;
         }
-        if ((matchIndex0 > prefixStartIndex) && MEM_read32(match0) == val0) {
-            /* found a regular match */
+
+        /* load match for ip[0] */
+        if (idx >= prefixStartIndex) {
+            mval = MEM_read32(base + idx);
+        } else {
+            mval = MEM_read32(ip0) ^ 1; /* guaranteed to not match. */
+        }
+
+        /* check match at ip[0] */
+        if (MEM_read32(ip0) == mval) {
+            /* found a match! */
             goto _offset;
         }
-        if ((matchIndex1 > prefixStartIndex) && MEM_read32(match1) == val1) {
-            /* found a regular match after one literal */
-            ip0 = ip1;
-            match0 = match1;
+
+        /* lookup ip[1] */
+        idx = hashTable[hash1];
+
+        /* hash ip[2] */
+        hash0 = hash1;
+        hash1 = ZSTD_hashPtr(ip2, hlog, mls);
+
+        /* advance to next positions */
+        ip0 = ip1;
+        ip1 = ip2;
+        ip2 = ip3;
+
+        /* write back hash table entry */
+        current0 = (U32)(ip0 - base);
+        hashTable[hash0] = current0;
+
+        /* load match for ip[0] */
+        if (idx >= prefixStartIndex) {
+            mval = MEM_read32(base + idx);
+        } else {
+            mval = MEM_read32(ip0) ^ 1; /* guaranteed to not match. */
+        }
+
+        /* check match at ip[0] */
+        if (MEM_read32(ip0) == mval) {
+            /* found a match! */
             goto _offset;
         }
-        {   size_t const step = ((size_t)(ip0-anchor) >> (kSearchStrength - 1)) + stepSize;
-            assert(step >= 2);
-            ip0 += step;
-            ip1 += step;
-            continue;
+
+        /* lookup ip[1] */
+        idx = hashTable[hash1];
+
+        /* hash ip[2] */
+        hash0 = hash1;
+        hash1 = ZSTD_hashPtr(ip2, hlog, mls);
+
+        /* calculate step */
+        if (ip2 >= nextStep) {
+            PREFETCH_L1(ip1 + 64);
+            PREFETCH_L1(ip1 + 128);
+            step++;
+            nextStep += kStepIncr;
         }
-_offset: /* Requires: ip0, match0 */
-        /* Compute the offset code */
-        offset_2 = offset_1;
-        offset_1 = (U32)(ip0-match0);
-        offcode = offset_1 + ZSTD_REP_MOVE;
-        mLength = 4;
-        /* Count the backwards match length */
-        while (((ip0>anchor) & (match0>prefixStart))
-             && (ip0[-1] == match0[-1])) { ip0--; match0--; mLength++; } /* catch up */
 
-_match: /* Requires: ip0, match0, offcode */
-        /* Count the forward length */
-        mLength += ZSTD_count(ip0+mLength, match0+mLength, iend);
-        ZSTD_storeSeq(seqStore, (size_t)(ip0-anchor), anchor, iend, offcode, mLength-MINMATCH);
-        /* match found */
-        ip0 += mLength;
-        anchor = ip0;
+        /* advance to next positions */
+        ip0 = ip1;
+        ip1 = ip2;
+        ip2 = ip2 + step;
+        ip3 = ip2 + step;
+    } while (ip3 < ilimit);
 
-        if (ip0 <= ilimit) {
-            /* Fill Table */
-            assert(base+current0+2 > istart);  /* check base overflow */
-            hashTable[ZSTD_hashPtr(base+current0+2, hlog, mls)] = current0+2;  /* here because current+2 could be > iend-8 */
-            hashTable[ZSTD_hashPtr(ip0-2, hlog, mls)] = (U32)(ip0-2-base);
-
-            if (offset_2 > 0) { /* offset_2==0 means offset_2 is invalidated */
-                while ( (ip0 <= ilimit) && (MEM_read32(ip0) == MEM_read32(ip0 - offset_2)) ) {
-                    /* store sequence */
-                    size_t const rLength = ZSTD_count(ip0+4, ip0+4-offset_2, iend) + 4;
-                    { U32 const tmpOff = offset_2; offset_2 = offset_1; offset_1 = tmpOff; } /* swap offset_2 <=> offset_1 */
-                    hashTable[ZSTD_hashPtr(ip0, hlog, mls)] = (U32)(ip0-base);
-                    ip0 += rLength;
-                    ZSTD_storeSeq(seqStore, 0 /*litLen*/, anchor, iend, 0 /*offCode*/, rLength-MINMATCH);
-                    anchor = ip0;
-                    continue;   /* faster when present (confirmed on gcc-8) ... (?) */
-        }   }   }
-        ip1 = ip0 + 1;
-    }
+_cleanup:
+    /* Note that there are probably still a couple positions we could search.
+     * However, it seems to be a meaningful performance hit to try to search
+     * them. So let's not. */
 
     /* save reps for next block */
-    rep[0] = offset_1 ? offset_1 : offsetSaved;
-    rep[1] = offset_2 ? offset_2 : offsetSaved;
+    rep[0] = rep_offset1 ? rep_offset1 : offsetSaved;
+    rep[1] = rep_offset2 ? rep_offset2 : offsetSaved;
 
     /* Return the last literals size */
     return (size_t)(iend - anchor);
+
+_offset: /* Requires: ip0, idx */
+
+    /* Compute the offset code. */
+    match0 = base + idx;
+    rep_offset2 = rep_offset1;
+    rep_offset1 = (U32)(ip0-match0);
+    offcode = rep_offset1 + ZSTD_REP_MOVE;
+    mLength = 4;
+
+    /* Count the backwards match length. */
+    while (((ip0>anchor) & (match0>prefixStart)) && (ip0[-1] == match0[-1])) {
+        ip0--;
+        match0--;
+        mLength++;
+    }
+
+_match: /* Requires: ip0, match0, offcode */
+
+    /* Count the forward length. */
+    mLength += ZSTD_count(ip0 + mLength, match0 + mLength, iend);
+
+    ZSTD_storeSeq(seqStore, (size_t)(ip0 - anchor), anchor, iend, offcode, mLength - MINMATCH);
+
+    ip0 += mLength;
+    anchor = ip0;
+
+    /* write next hash table entry */
+    if (ip1 < ip0) {
+        hashTable[hash1] = (U32)(ip1 - base);
+    }
+
+    /* Fill table and check for immediate repcode. */
+    if (ip0 <= ilimit) {
+        /* Fill Table */
+        assert(base+current0+2 > istart);  /* check base overflow */
+        hashTable[ZSTD_hashPtr(base+current0+2, hlog, mls)] = current0+2;  /* here because current+2 could be > iend-8 */
+        hashTable[ZSTD_hashPtr(ip0-2, hlog, mls)] = (U32)(ip0-2-base);
+
+        if (rep_offset2 > 0) { /* rep_offset2==0 means rep_offset2 is invalidated */
+            while ( (ip0 <= ilimit) && (MEM_read32(ip0) == MEM_read32(ip0 - rep_offset2)) ) {
+                /* store sequence */
+                size_t const rLength = ZSTD_count(ip0+4, ip0+4-rep_offset2, iend) + 4;
+                { U32 const tmpOff = rep_offset2; rep_offset2 = rep_offset1; rep_offset1 = tmpOff; } /* swap rep_offset2 <=> rep_offset1 */
+                hashTable[ZSTD_hashPtr(ip0, hlog, mls)] = (U32)(ip0-base);
+                ip0 += rLength;
+                ZSTD_storeSeq(seqStore, 0 /*litLen*/, anchor, iend, 0 /*offCode*/, rLength-MINMATCH);
+                anchor = ip0;
+                continue;   /* faster when present (confirmed on gcc-8) ... (?) */
+    }   }   }
+
+    goto _start;
 }
 
 

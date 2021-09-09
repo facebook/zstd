@@ -1966,7 +1966,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
                                                  3742, 3670, 3670, 3660, 3660,
                                                  3660, 3660, 3660, 3660, 3660,
                                                  3660, 3660, 3660 };
-            size_t const target_wdict_cSize[22+1] =  { 2830, 2890, 2890, 2820, 2940,
+            size_t const target_wdict_cSize[22+1] =  { 2830, 2896, 2890, 2820, 2940,
                                                        2950, 2950, 2925, 2900, 2891,
                                                        2910, 2910, 2910, 2770, 2760,
                                                        2750, 2750, 2750, 2750, 2750,

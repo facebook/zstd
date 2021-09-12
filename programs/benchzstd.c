@@ -373,10 +373,7 @@ BMK_benchMemAdvancedNoAlloc(
                 if (adv->mode == BMK_decodeOnly) {
                     cSizes[nbBlocks] = thisBlockSize;
                     benchResult.cSize = thisBlockSize;
-                }
-            }
-        }
-    }
+    }   }   }   }
 
     /* warming up `compressedBuffer` */
     if (adv->mode == BMK_decodeOnly) {

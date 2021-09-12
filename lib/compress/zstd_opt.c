@@ -113,6 +113,21 @@ static U32 ZSTD_scaleStats(unsigned* table, U32 lastEltIndex, U32 logTarget)
     return ZSTD_downscaleStats(table, lastEltIndex, ZSTD_highbit32(factor));
 }
 
+static unsigned const k_baseLLfreqs[MaxLL+1] = {
+        4, 2, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1
+    };
+
+static unsigned const k_baseOFCfreqs[MaxOff+1] = {
+            6, 2, 1, 1, 2, 3, 4, 4,
+            4, 3, 2, 1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1, 1, 1, 1
+        };
+
 /* ZSTD_rescaleFreqs() :
  * if first block (detected by optPtr->litLengthSum == 0) : init statistics
  *    take hints from dictionary if there is one
@@ -192,20 +207,13 @@ ZSTD_rescaleFreqs(optState_t* const optPtr,
 
             assert(optPtr->litFreq != NULL);
             if (compressedLiterals) {
-                unsigned lit = MaxLit;
-                HIST_count_simple(optPtr->litFreq, &lit, src, srcSize);   /* use raw first block to init statistics */
+                unsigned maxlit = MaxLit;
+                HIST_count_simple(optPtr->litFreq, &maxlit, src, srcSize);   /* use raw first block to init statistics */
                 optPtr->litSum = ZSTD_downscaleStats(optPtr->litFreq, MaxLit, 8);
             }
 
-            {   unsigned const baseLLfreqs[MaxLL+1] = {
-                    4, 2, 1, 1, 1, 1, 1, 1,
-                    1, 1, 1, 1, 1, 1, 1, 1,
-                    1, 1, 1, 1, 1, 1, 1, 1,
-                    1, 1, 1, 1, 1, 1, 1, 1,
-                    1, 1, 1, 1
-                };
-                ZSTD_memcpy(optPtr->litLengthFreq, baseLLfreqs, sizeof(baseLLfreqs)); optPtr->litLengthSum = sum_u32(baseLLfreqs, MaxLL+1);
-            }
+            ZSTD_memcpy(optPtr->litLengthFreq, k_baseLLfreqs, sizeof(k_baseLLfreqs));
+            optPtr->litLengthSum = sum_u32(k_baseLLfreqs, MaxLL+1);
 
             {   unsigned ml;
                 for (ml=0; ml<=MaxML; ml++)
@@ -213,15 +221,8 @@ ZSTD_rescaleFreqs(optState_t* const optPtr,
             }
             optPtr->matchLengthSum = MaxML+1;
 
-            {   unsigned const baseOFCfreqs[MaxOff+1] = {
-                    6, 2, 1, 1, 2, 3, 4, 4,
-                    4, 3, 2, 1, 1, 1, 1, 1,
-                    1, 1, 1, 1, 1, 1, 1, 1,
-                    1, 1, 1, 1, 1, 1, 1, 1
-                };
-                ZSTD_memcpy(optPtr->offCodeFreq, baseOFCfreqs, sizeof(baseOFCfreqs)); optPtr->offCodeSum = sum_u32(baseOFCfreqs, MaxOff+1);
-            }
-
+            ZSTD_memcpy(optPtr->offCodeFreq, k_baseOFCfreqs, sizeof(k_baseOFCfreqs));
+            optPtr->offCodeSum = sum_u32(k_baseOFCfreqs, MaxOff+1);
 
         }
 
@@ -1253,6 +1254,107 @@ size_t ZSTD_compressBlock_btopt(
 
 
 
+#include "zstd_lazy.h"
+/* ZSTD_initStats_greedy():
+ * make a first compression pass, just to seed stats with more accurate starting values.
+ * only works on first block, with no dictionary and no ldm.
+ * this function cannot error, hence its contract must be respected.
+ */
+static void
+ZSTD_initStats_greedy(ZSTD_matchState_t* ms,
+                     seqStore_t* seqStore,
+                     U32 rep[ZSTD_REP_NUM],
+               const void* src, size_t srcSize)
+{
+    U32 tmpRep[ZSTD_REP_NUM];  /* updated rep codes will sink here */
+    ZSTD_memcpy(tmpRep, rep, sizeof(tmpRep));
+
+    DEBUGLOG(4, "ZSTD_initStats_greedy (srcSize=%zu)", srcSize);
+    assert(ms->opt.litLengthSum == 0);    /* first block */
+    assert(seqStore->sequences == seqStore->sequencesStart);   /* no ldm */
+    assert(ms->window.dictLimit == ms->window.lowLimit);   /* no dictionary */
+    assert(ms->window.dictLimit - ms->nextToUpdate <= 1);  /* no prefix (note: intentional overflow, defined as 2-complement) */
+
+    ZSTD_compressBlock_greedy(ms, seqStore, tmpRep, src, srcSize);   /* generate stats into seqstore */
+
+    /* transfer stats into ms-opt */
+    /* literals stats */
+    {   unsigned maxlit = MaxLit;
+        assert(seqStore->lit >= seqStore->litStart);
+        HIST_count_simple(ms->opt.litFreq, &maxlit, seqStore->litStart, (size_t)(seqStore->lit - seqStore->litStart));
+        ms->opt.litSum = ZSTD_downscaleStats(ms->opt.litFreq, MaxLit, 0);  /* flatten stats, by providing at least 1 to every symbol */
+    }
+
+    /* seqStats */
+    assert(seqStore->sequences >= seqStore->sequencesStart);
+    {   U32 const nbSeq = (U32)(seqStore->sequences - seqStore->sequencesStart);
+        ZSTD_seqToCodes(seqStore);
+
+        {   const BYTE* codePtr = seqStore->ofCode;
+            U32 u;
+            memset(ms->opt.offCodeFreq, 0, sizeof(U32) * (MaxOff+1));
+            ZSTD_STATIC_ASSERT(MaxOff >= 17);
+            for (u=0; u<17; u++) ms->opt.offCodeFreq[u]=1;  /* flatten stats; some offcode may not be produced by greedy but still be present */
+            for (u=0; u<nbSeq; u++) ms->opt.offCodeFreq[codePtr[u]]++;
+            assert(ms->opt.offCodeFreq[1] == 1);   /* greedy can't find rep1/rep2 */
+            ms->opt.offCodeFreq[1] = (ms->opt.offCodeFreq[0] / 3) + 1; /* bias correction */
+            ms->opt.offCodeSum = sum_u32(ms->opt.offCodeFreq, 18);
+        }
+
+        {   const BYTE* codePtr = seqStore->mlCode;
+            U32 u;
+            for (u=0; u<MaxML+1; u++) ms->opt.matchLengthFreq[u]=1;  /* flatten stats; some match length not produced by greedy might end up present */
+            for (u=0; u<nbSeq; u++) ms->opt.matchLengthFreq[codePtr[u]]++;
+            assert(ms->opt.matchLengthFreq[0] == 1);   /* greedy can't find mml=3 */
+            ms->opt.matchLengthFreq[0] = ms->opt.matchLengthFreq[1] + 1; /* bias correction */
+            ms->opt.matchLengthSum = sum_u32(ms->opt.matchLengthFreq, MaxML+1);
+        }
+
+        {   const BYTE* codePtr = seqStore->llCode;
+            U32 u;
+            ZSTD_memcpy(ms->opt.litLengthFreq, k_baseLLfreqs, sizeof(k_baseLLfreqs));
+            for (u=0; u<nbSeq; u++) ms->opt.litLengthFreq[codePtr[u]]++;
+            ms->opt.litLengthSum = sum_u32(ms->opt.litLengthFreq, MaxLL+1);
+    }   }
+
+    /* invalidate first scan from history */
+    ZSTD_resetSeqStore(seqStore);
+    ms->window.base -= srcSize;
+    ms->window.dictLimit += (U32)srcSize;
+    ms->window.lowLimit = ms->window.dictLimit;
+    ms->nextToUpdate = ms->window.dictLimit;
+
+}
+
+size_t ZSTD_compressBlock_btultra(
+        ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
+        const void* src, size_t srcSize)
+{
+    U32 const curr = (U32)((const BYTE*)src - ms->window.base);
+    DEBUGLOG(5, "ZSTD_compressBlock_btultra (srcSize=%zu)", srcSize);
+
+    /* 2-pass strategy:
+     * this strategy makes a first pass over first block to collect statistics
+     * and seed next round's statistics with it.
+     * After 1st pass, function forgets everything, and starts a new block.
+     * Consequently, this can only work if no data has been previously loaded in tables,
+     * aka, no dictionary, no prefix, no ldm preprocessing.
+     * The compression ratio gain is generally small (~0.5% on first block),
+     * the cost is 2x cpu time on first block. */
+    assert(srcSize <= ZSTD_BLOCKSIZE_MAX);
+    if ( (ms->opt.litLengthSum==0)   /* first block */
+      && (seqStore->sequences == seqStore->sequencesStart)  /* no ldm */
+      && (ms->window.dictLimit == ms->window.lowLimit)   /* no dictionary */
+      && (curr == ms->window.dictLimit)   /* start of frame, nothing already loaded nor skipped */
+      && (srcSize > ZSTD_PREDEF_THRESHOLD)
+      ) {
+        ZSTD_initStats_greedy(ms, seqStore, rep, src, srcSize);
+    }
+
+    return ZSTD_compressBlock_opt_generic(ms, seqStore, rep, src, srcSize, 2 /*optLevel*/, ZSTD_noDict);
+}
+
+
 
 /* ZSTD_initStats_ultra():
  * make a first compression pass, just to seed stats with more accurate starting values.
@@ -1274,7 +1376,14 @@ ZSTD_initStats_ultra(ZSTD_matchState_t* ms,
     assert(ms->window.dictLimit == ms->window.lowLimit);   /* no dictionary */
     assert(ms->window.dictLimit - ms->nextToUpdate <= 1);  /* no prefix (note: intentional overflow, defined as 2-complement) */
 
-    ZSTD_compressBlock_opt_generic(ms, seqStore, tmpRep, src, srcSize, 2 /*optLevel*/, ZSTD_noDict);   /* generate stats into ms->opt*/
+    if (srcSize <= 16 KB) {
+        /* raw btultra, initialized by default starting stats */
+        ZSTD_compressBlock_opt_generic(ms, seqStore, tmpRep, src, srcSize, 2 /*optLevel*/, ZSTD_noDict);  /* generate stats into ms->opt*/
+    } else {
+        /* in this mode, btultra is initialized greedy;
+         * measured better for larger blocks, but not for small ones */
+        ZSTD_compressBlock_btultra(ms, seqStore, tmpRep, src, srcSize);  /* generate stats into ms->opt*/
+    }
 
     /* invalidate first scan from history */
     ZSTD_resetSeqStore(seqStore);
@@ -1283,14 +1392,6 @@ ZSTD_initStats_ultra(ZSTD_matchState_t* ms,
     ms->window.lowLimit = ms->window.dictLimit;
     ms->nextToUpdate = ms->window.dictLimit;
 
-}
-
-size_t ZSTD_compressBlock_btultra(
-        ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
-        const void* src, size_t srcSize)
-{
-    DEBUGLOG(5, "ZSTD_compressBlock_btultra (srcSize=%zu)", srcSize);
-    return ZSTD_compressBlock_opt_generic(ms, seqStore, rep, src, srcSize, 2 /*optLevel*/, ZSTD_noDict);
 }
 
 size_t ZSTD_compressBlock_btultra2(

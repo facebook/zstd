@@ -627,7 +627,6 @@ static void ZDICT_countEStats(EStats_ress_t esr, const ZSTD_parameters* params,
     if (srcSize > blockSizeMax) srcSize = blockSizeMax;   /* protection vs large samples */
     {   size_t const errorCode = ZSTD_compressBegin_usingCDict(esr.zc, esr.dict);
         if (ZSTD_isError(errorCode)) { DISPLAYLEVEL(1, "warning : ZSTD_compressBegin_usingCDict failed \n"); return; }
-
     }
     cSize = ZSTD_compressBlock(esr.zc, esr.workPlace, ZSTD_BLOCKSIZE_MAX, src, srcSize);
     if (ZSTD_isError(cSize)) { DISPLAYLEVEL(3, "warning : could not compress sample size %u \n", (unsigned)srcSize); return; }
@@ -637,7 +636,7 @@ static void ZDICT_countEStats(EStats_ress_t esr, const ZSTD_parameters* params,
 
         /* literals stats */
         {   const BYTE* bytePtr;
-            for(bytePtr = seqStorePtr->litStart; bytePtr < seqStorePtr->lit; bytePtr++)
+            for (bytePtr = seqStorePtr->litStart; bytePtr < seqStorePtr->lit; bytePtr++)
                 countLit[*bytePtr]++;
         }
 

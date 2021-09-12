@@ -97,137 +97,137 @@ github,                             uncompressed literals,              compress
 github,                             uncompressed literals optimal,      compress cctx,                      134064
 github,                             huffman literals,                   compress cctx,                      175468
 github,                             multithreaded with advanced params, compress cctx,                      141102
-silesia,                            level -5,                           zstdcli,                            compression error
-silesia,                            level -3,                           zstdcli,                            compression error
-silesia,                            level -1,                           zstdcli,                            compression error
-silesia,                            level 0,                            zstdcli,                            compression error
-silesia,                            level 1,                            zstdcli,                            compression error
-silesia,                            level 3,                            zstdcli,                            compression error
-silesia,                            level 4,                            zstdcli,                            compression error
-silesia,                            level 5,                            zstdcli,                            compression error
-silesia,                            level 6,                            zstdcli,                            compression error
-silesia,                            level 7,                            zstdcli,                            compression error
-silesia,                            level 9,                            zstdcli,                            compression error
-silesia,                            level 13,                           zstdcli,                            compression error
-silesia,                            level 16,                           zstdcli,                            compression error
-silesia,                            level 19,                           zstdcli,                            compression error
-silesia,                            long distance mode,                 zstdcli,                            compression error
-silesia,                            multithreaded,                      zstdcli,                            compression error
-silesia,                            multithreaded long distance mode,   zstdcli,                            compression error
-silesia,                            small window log,                   zstdcli,                            compression error
-silesia,                            small hash log,                     zstdcli,                            compression error
-silesia,                            small chain log,                    zstdcli,                            compression error
-silesia,                            explicit params,                    zstdcli,                            compression error
-silesia,                            uncompressed literals,              zstdcli,                            compression error
-silesia,                            uncompressed literals optimal,      zstdcli,                            compression error
-silesia,                            huffman literals,                   zstdcli,                            compression error
-silesia,                            multithreaded with advanced params, zstdcli,                            compression error
-silesia.tar,                        level -5,                           zstdcli,                            compression error
-silesia.tar,                        level -3,                           zstdcli,                            compression error
-silesia.tar,                        level -1,                           zstdcli,                            compression error
-silesia.tar,                        level 0,                            zstdcli,                            compression error
-silesia.tar,                        level 1,                            zstdcli,                            compression error
-silesia.tar,                        level 3,                            zstdcli,                            compression error
-silesia.tar,                        level 4,                            zstdcli,                            compression error
-silesia.tar,                        level 5,                            zstdcli,                            compression error
-silesia.tar,                        level 6,                            zstdcli,                            compression error
-silesia.tar,                        level 7,                            zstdcli,                            compression error
-silesia.tar,                        level 9,                            zstdcli,                            compression error
-silesia.tar,                        level 13,                           zstdcli,                            compression error
-silesia.tar,                        level 16,                           zstdcli,                            compression error
-silesia.tar,                        level 19,                           zstdcli,                            compression error
-silesia.tar,                        no source size,                     zstdcli,                            compression error
-silesia.tar,                        long distance mode,                 zstdcli,                            compression error
-silesia.tar,                        multithreaded,                      zstdcli,                            compression error
-silesia.tar,                        multithreaded long distance mode,   zstdcli,                            compression error
-silesia.tar,                        small window log,                   zstdcli,                            compression error
-silesia.tar,                        small hash log,                     zstdcli,                            compression error
-silesia.tar,                        small chain log,                    zstdcli,                            compression error
-silesia.tar,                        explicit params,                    zstdcli,                            compression error
-silesia.tar,                        uncompressed literals,              zstdcli,                            compression error
-silesia.tar,                        uncompressed literals optimal,      zstdcli,                            compression error
-silesia.tar,                        huffman literals,                   zstdcli,                            compression error
-silesia.tar,                        multithreaded with advanced params, zstdcli,                            compression error
-github,                             level -5,                           zstdcli,                            compression error
-github,                             level -5 with dict,                 zstdcli,                            compression error
-github,                             level -3,                           zstdcli,                            compression error
-github,                             level -3 with dict,                 zstdcli,                            compression error
-github,                             level -1,                           zstdcli,                            compression error
-github,                             level -1 with dict,                 zstdcli,                            compression error
-github,                             level 0,                            zstdcli,                            compression error
-github,                             level 0 with dict,                  zstdcli,                            compression error
-github,                             level 1,                            zstdcli,                            compression error
-github,                             level 1 with dict,                  zstdcli,                            compression error
-github,                             level 3,                            zstdcli,                            compression error
-github,                             level 3 with dict,                  zstdcli,                            compression error
-github,                             level 4,                            zstdcli,                            compression error
-github,                             level 4 with dict,                  zstdcli,                            compression error
-github,                             level 5,                            zstdcli,                            compression error
-github,                             level 5 with dict,                  zstdcli,                            compression error
-github,                             level 6,                            zstdcli,                            compression error
-github,                             level 6 with dict,                  zstdcli,                            compression error
-github,                             level 7,                            zstdcli,                            compression error
-github,                             level 7 with dict,                  zstdcli,                            compression error
-github,                             level 9,                            zstdcli,                            compression error
-github,                             level 9 with dict,                  zstdcli,                            compression error
-github,                             level 13,                           zstdcli,                            compression error
-github,                             level 13 with dict,                 zstdcli,                            compression error
-github,                             level 16,                           zstdcli,                            compression error
-github,                             level 16 with dict,                 zstdcli,                            compression error
-github,                             level 19,                           zstdcli,                            compression error
-github,                             level 19 with dict,                 zstdcli,                            compression error
-github,                             long distance mode,                 zstdcli,                            compression error
-github,                             multithreaded,                      zstdcli,                            compression error
-github,                             multithreaded long distance mode,   zstdcli,                            compression error
-github,                             small window log,                   zstdcli,                            compression error
-github,                             small hash log,                     zstdcli,                            compression error
-github,                             small chain log,                    zstdcli,                            compression error
-github,                             explicit params,                    zstdcli,                            compression error
-github,                             uncompressed literals,              zstdcli,                            compression error
-github,                             uncompressed literals optimal,      zstdcli,                            compression error
-github,                             huffman literals,                   zstdcli,                            compression error
-github,                             multithreaded with advanced params, zstdcli,                            compression error
-github.tar,                         level -5,                           zstdcli,                            compression error
-github.tar,                         level -5 with dict,                 zstdcli,                            compression error
-github.tar,                         level -3,                           zstdcli,                            compression error
-github.tar,                         level -3 with dict,                 zstdcli,                            compression error
-github.tar,                         level -1,                           zstdcli,                            compression error
-github.tar,                         level -1 with dict,                 zstdcli,                            compression error
-github.tar,                         level 0,                            zstdcli,                            compression error
-github.tar,                         level 0 with dict,                  zstdcli,                            compression error
-github.tar,                         level 1,                            zstdcli,                            compression error
-github.tar,                         level 1 with dict,                  zstdcli,                            compression error
-github.tar,                         level 3,                            zstdcli,                            compression error
-github.tar,                         level 3 with dict,                  zstdcli,                            compression error
-github.tar,                         level 4,                            zstdcli,                            compression error
-github.tar,                         level 4 with dict,                  zstdcli,                            compression error
-github.tar,                         level 5,                            zstdcli,                            compression error
-github.tar,                         level 5 with dict,                  zstdcli,                            compression error
-github.tar,                         level 6,                            zstdcli,                            compression error
-github.tar,                         level 6 with dict,                  zstdcli,                            compression error
-github.tar,                         level 7,                            zstdcli,                            compression error
-github.tar,                         level 7 with dict,                  zstdcli,                            compression error
-github.tar,                         level 9,                            zstdcli,                            compression error
-github.tar,                         level 9 with dict,                  zstdcli,                            compression error
-github.tar,                         level 13,                           zstdcli,                            compression error
-github.tar,                         level 13 with dict,                 zstdcli,                            compression error
-github.tar,                         level 16,                           zstdcli,                            compression error
-github.tar,                         level 16 with dict,                 zstdcli,                            compression error
-github.tar,                         level 19,                           zstdcli,                            compression error
-github.tar,                         level 19 with dict,                 zstdcli,                            compression error
-github.tar,                         no source size,                     zstdcli,                            compression error
-github.tar,                         no source size with dict,           zstdcli,                            compression error
-github.tar,                         long distance mode,                 zstdcli,                            compression error
-github.tar,                         multithreaded,                      zstdcli,                            compression error
-github.tar,                         multithreaded long distance mode,   zstdcli,                            compression error
-github.tar,                         small window log,                   zstdcli,                            compression error
-github.tar,                         small hash log,                     zstdcli,                            compression error
-github.tar,                         small chain log,                    zstdcli,                            compression error
-github.tar,                         explicit params,                    zstdcli,                            compression error
-github.tar,                         uncompressed literals,              zstdcli,                            compression error
-github.tar,                         uncompressed literals optimal,      zstdcli,                            compression error
-github.tar,                         huffman literals,                   zstdcli,                            compression error
-github.tar,                         multithreaded with advanced params, zstdcli,                            compression error
+silesia,                            level -5,                           zstdcli,                            7354723
+silesia,                            level -3,                           zstdcli,                            6902422
+silesia,                            level -1,                           zstdcli,                            6177613
+silesia,                            level 0,                            zstdcli,                            4849599
+silesia,                            level 1,                            zstdcli,                            5309145
+silesia,                            level 3,                            zstdcli,                            4849599
+silesia,                            level 4,                            zstdcli,                            4787017
+silesia,                            level 5,                            zstdcli,                            4639008
+silesia,                            level 6,                            zstdcli,                            4605417
+silesia,                            level 7,                            zstdcli,                            4567251
+silesia,                            level 9,                            zstdcli,                            4543359
+silesia,                            level 13,                           zstdcli,                            4494038
+silesia,                            level 16,                           zstdcli,                            4359912
+silesia,                            level 19,                           zstdcli,                            4296928
+silesia,                            long distance mode,                 zstdcli,                            4840807
+silesia,                            multithreaded,                      zstdcli,                            4849599
+silesia,                            multithreaded long distance mode,   zstdcli,                            4840807
+silesia,                            small window log,                   zstdcli,                            7095967
+silesia,                            small hash log,                     zstdcli,                            6526189
+silesia,                            small chain log,                    zstdcli,                            4912247
+silesia,                            explicit params,                    zstdcli,                            4795856
+silesia,                            uncompressed literals,              zstdcli,                            5128030
+silesia,                            uncompressed literals optimal,      zstdcli,                            4319566
+silesia,                            huffman literals,                   zstdcli,                            5326394
+silesia,                            multithreaded with advanced params, zstdcli,                            5128030
+silesia.tar,                        level -5,                           zstdcli,                            7363866
+silesia.tar,                        level -3,                           zstdcli,                            6902158
+silesia.tar,                        level -1,                           zstdcli,                            6182939
+silesia.tar,                        level 0,                            zstdcli,                            4861511
+silesia.tar,                        level 1,                            zstdcli,                            5333184
+silesia.tar,                        level 3,                            zstdcli,                            4861511
+silesia.tar,                        level 4,                            zstdcli,                            4800529
+silesia.tar,                        level 5,                            zstdcli,                            4651159
+silesia.tar,                        level 6,                            zstdcli,                            4618402
+silesia.tar,                        level 7,                            zstdcli,                            4578883
+silesia.tar,                        level 9,                            zstdcli,                            4553498
+silesia.tar,                        level 13,                           zstdcli,                            4502959
+silesia.tar,                        level 16,                           zstdcli,                            4360530
+silesia.tar,                        level 19,                           zstdcli,                            4267270
+silesia.tar,                        no source size,                     zstdcli,                            4861507
+silesia.tar,                        long distance mode,                 zstdcli,                            4853225
+silesia.tar,                        multithreaded,                      zstdcli,                            4861511
+silesia.tar,                        multithreaded long distance mode,   zstdcli,                            4853225
+silesia.tar,                        small window log,                   zstdcli,                            7101576
+silesia.tar,                        small hash log,                     zstdcli,                            6529286
+silesia.tar,                        small chain log,                    zstdcli,                            4917020
+silesia.tar,                        explicit params,                    zstdcli,                            4821277
+silesia.tar,                        uncompressed literals,              zstdcli,                            5129559
+silesia.tar,                        uncompressed literals optimal,      zstdcli,                            4310145
+silesia.tar,                        huffman literals,                   zstdcli,                            5344915
+silesia.tar,                        multithreaded with advanced params, zstdcli,                            5129559
+github,                             level -5,                           zstdcli,                            234315
+github,                             level -5 with dict,                 zstdcli,                            48718
+github,                             level -3,                           zstdcli,                            222760
+github,                             level -3 with dict,                 zstdcli,                            47395
+github,                             level -1,                           zstdcli,                            177468
+github,                             level -1 with dict,                 zstdcli,                            45170
+github,                             level 0,                            zstdcli,                            138335
+github,                             level 0 with dict,                  zstdcli,                            43148
+github,                             level 1,                            zstdcli,                            144365
+github,                             level 1 with dict,                  zstdcli,                            43682
+github,                             level 3,                            zstdcli,                            138335
+github,                             level 3 with dict,                  zstdcli,                            43148
+github,                             level 4,                            zstdcli,                            138199
+github,                             level 4 with dict,                  zstdcli,                            43251
+github,                             level 5,                            zstdcli,                            137121
+github,                             level 5 with dict,                  zstdcli,                            40728
+github,                             level 6,                            zstdcli,                            137122
+github,                             level 6 with dict,                  zstdcli,                            40636
+github,                             level 7,                            zstdcli,                            137122
+github,                             level 7 with dict,                  zstdcli,                            40745
+github,                             level 9,                            zstdcli,                            137122
+github,                             level 9 with dict,                  zstdcli,                            41393
+github,                             level 13,                           zstdcli,                            136064
+github,                             level 13 with dict,                 zstdcli,                            41743
+github,                             level 16,                           zstdcli,                            136064
+github,                             level 16 with dict,                 zstdcli,                            39577
+github,                             level 19,                           zstdcli,                            136064
+github,                             level 19 with dict,                 zstdcli,                            39576
+github,                             long distance mode,                 zstdcli,                            138335
+github,                             multithreaded,                      zstdcli,                            138335
+github,                             multithreaded long distance mode,   zstdcli,                            138335
+github,                             small window log,                   zstdcli,                            138335
+github,                             small hash log,                     zstdcli,                            137590
+github,                             small chain log,                    zstdcli,                            138341
+github,                             explicit params,                    zstdcli,                            136197
+github,                             uncompressed literals,              zstdcli,                            167915
+github,                             uncompressed literals optimal,      zstdcli,                            159227
+github,                             huffman literals,                   zstdcli,                            144365
+github,                             multithreaded with advanced params, zstdcli,                            167915
+github.tar,                         level -5,                           zstdcli,                            66918
+github.tar,                         level -5 with dict,                 zstdcli,                            51529
+github.tar,                         level -3,                           zstdcli,                            52131
+github.tar,                         level -3 with dict,                 zstdcli,                            44246
+github.tar,                         level -1,                           zstdcli,                            42564
+github.tar,                         level -1 with dict,                 zstdcli,                            41140
+github.tar,                         level 0,                            zstdcli,                            38445
+github.tar,                         level 0 with dict,                  zstdcli,                            37999
+github.tar,                         level 1,                            zstdcli,                            39204
+github.tar,                         level 1 with dict,                  zstdcli,                            38288
+github.tar,                         level 3,                            zstdcli,                            38445
+github.tar,                         level 3 with dict,                  zstdcli,                            37999
+github.tar,                         level 4,                            zstdcli,                            38471
+github.tar,                         level 4 with dict,                  zstdcli,                            37952
+github.tar,                         level 5,                            zstdcli,                            38380
+github.tar,                         level 5 with dict,                  zstdcli,                            39032
+github.tar,                         level 6,                            zstdcli,                            38614
+github.tar,                         level 6 with dict,                  zstdcli,                            38614
+github.tar,                         level 7,                            zstdcli,                            38077
+github.tar,                         level 7 with dict,                  zstdcli,                            37873
+github.tar,                         level 9,                            zstdcli,                            36771
+github.tar,                         level 9 with dict,                  zstdcli,                            36623
+github.tar,                         level 13,                           zstdcli,                            35505
+github.tar,                         level 13 with dict,                 zstdcli,                            37134
+github.tar,                         level 16,                           zstdcli,                            40475
+github.tar,                         level 16 with dict,                 zstdcli,                            33382
+github.tar,                         level 19,                           zstdcli,                            32138
+github.tar,                         level 19 with dict,                 zstdcli,                            32713
+github.tar,                         no source size,                     zstdcli,                            38442
+github.tar,                         no source size with dict,           zstdcli,                            38004
+github.tar,                         long distance mode,                 zstdcli,                            39730
+github.tar,                         multithreaded,                      zstdcli,                            38445
+github.tar,                         multithreaded long distance mode,   zstdcli,                            39730
+github.tar,                         small window log,                   zstdcli,                            198544
+github.tar,                         small hash log,                     zstdcli,                            129874
+github.tar,                         small chain log,                    zstdcli,                            41673
+github.tar,                         explicit params,                    zstdcli,                            41227
+github.tar,                         uncompressed literals,              zstdcli,                            41126
+github.tar,                         uncompressed literals optimal,      zstdcli,                            35401
+github.tar,                         huffman literals,                   zstdcli,                            38857
+github.tar,                         multithreaded with advanced params, zstdcli,                            41126
 silesia,                            level -5,                           advanced one pass,                  7354675
 silesia,                            level -3,                           advanced one pass,                  6902374
 silesia,                            level -1,                           advanced one pass,                  6177565

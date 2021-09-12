@@ -112,9 +112,9 @@ def parse_benchmark_output(output):
 def benchmark_single(executable, level, filename):
     return parse_benchmark_output((
         subprocess.run(
-            [executable, "-qb{}".format(level), filename], stderr=subprocess.PIPE
+            [executable, "-qb{}".format(level), filename], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
         )
-        .stderr.decode("utf-8")
+        .stdout.decode("utf-8")
         .split(" ")
     ))
 
@@ -145,7 +145,7 @@ def benchmark(build, filenames, levels, iterations):
 def benchmark_dictionary_single(executable, filenames_directory, dictionary_filename, level, iterations):
     cspeeds, dspeeds = [], []
     for _ in range(iterations):
-        output = subprocess.run([executable, "-qb{}".format(level), "-D", dictionary_filename, "-r", filenames_directory], stderr=subprocess.PIPE).stderr.decode("utf-8").split(" ")
+        output = subprocess.run([executable, "-qb{}".format(level), "-D", dictionary_filename, "-r", filenames_directory], stdout=subprocess.PIPE).stdout.decode("utf-8").split(" ")
         cspeed, dspeed = parse_benchmark_output(output)
         cspeeds.append(cspeed)
         dspeeds.append(dspeed)

@@ -373,10 +373,7 @@ BMK_benchMemAdvancedNoAlloc(
                 if (adv->mode == BMK_decodeOnly) {
                     cSizes[nbBlocks] = thisBlockSize;
                     benchResult.cSize = thisBlockSize;
-                }
-            }
-        }
-    }
+    }   }   }   }
 
     /* warming up `compressedBuffer` */
     if (adv->mode == BMK_decodeOnly) {
@@ -519,7 +516,7 @@ BMK_benchMemAdvancedNoAlloc(
                                 DISPLAY("%02X ", ((const BYTE*)srcBuffer)[u+n]);
                             DISPLAY(" \n");
                             DISPLAY("decode: ");
-                            for (n=lowest; n>0; n++)
+                            for (n=lowest; n>0; n--)
                                 DISPLAY("%02X ", resultBuffer[u-n]);
                             DISPLAY(" :%02X:  ", resultBuffer[u]);
                             for (n=1; n<3; n++)

@@ -1255,7 +1255,7 @@ size_t ZSTD_compressBlock_btopt(
 
 #include "zstd_compress_literals.h"   /* COMPRESS_LITERALS_SIZE_MIN */
 
-static void transfer_LiteralStats(optState_t* opt, const seqStore_t* seqStore)
+static void transfer_literalStats(optState_t* opt, const seqStore_t* seqStore)
 {
     size_t const nbLiterals = (size_t)(seqStore->lit - seqStore->litStart);
     assert(seqStore->lit >= seqStore->litStart);
@@ -1278,6 +1278,46 @@ static void transfer_LiteralStats(optState_t* opt, const seqStore_t* seqStore)
     opt->litSum = ZSTD_downscaleStats(opt->litFreq, MaxLit, 0);  /* flatten stats, by providing at least 1 to every symbol */
 }
 
+
+typedef enum { fix_greedy_bias, from_btultra } biasfix_e;
+
+static void transfer_seqStats(optState_t* opt, const seqStore_t* seqStore, biasfix_e biasfix)
+{
+    U32 const nbSeq = (U32)(seqStore->sequences - seqStore->sequencesStart);
+    assert(seqStore->sequences >= seqStore->sequencesStart);
+    ZSTD_seqToCodes(seqStore);
+
+    {   const BYTE* codePtr = seqStore->ofCode;
+        U32 u;
+        memset(opt->offCodeFreq, 0, sizeof(U32) * (MaxOff+1));
+        ZSTD_STATIC_ASSERT(MaxOff >= 17);
+        for (u=0; u<17; u++) opt->offCodeFreq[u]=1;  /* flatten stats; some offcode may not be produced by greedy but still be present */
+        for (u=0; u<nbSeq; u++) opt->offCodeFreq[codePtr[u]]++;
+        if (biasfix == fix_greedy_bias) {
+            assert(opt->offCodeFreq[1] == 1);   /* greedy can't find rep1/rep2 */
+            opt->offCodeFreq[1] = (opt->offCodeFreq[0] / 3) + 1; /* bias correction */
+        }
+        opt->offCodeSum = sum_u32(opt->offCodeFreq, 18);
+    }
+
+    {   const BYTE* codePtr = seqStore->mlCode;
+        U32 u;
+        for (u=0; u<MaxML+1; u++) opt->matchLengthFreq[u]=1;  /* flatten stats; some match length not produced by greedy might end up present */
+        for (u=0; u<nbSeq; u++) opt->matchLengthFreq[codePtr[u]]++;
+        if (biasfix == fix_greedy_bias) {
+            assert(opt->matchLengthFreq[0] == 1);   /* greedy can't find mml=3 */
+            opt->matchLengthFreq[0] = opt->matchLengthFreq[1] + 1; /* bias correction */
+        }
+        opt->matchLengthSum = sum_u32(opt->matchLengthFreq, MaxML+1);
+    }
+
+    {   const BYTE* codePtr = seqStore->llCode;
+        U32 u;
+        ZSTD_memcpy(opt->litLengthFreq, k_baseLLfreqs, sizeof(k_baseLLfreqs));
+        for (u=0; u<nbSeq; u++) opt->litLengthFreq[codePtr[u]]++;
+        opt->litLengthSum = sum_u32(opt->litLengthFreq, MaxLL+1);
+    }
+}
 
 #include "zstd_lazy.h"
 /* ZSTD_initStats_greedy():
@@ -1308,39 +1348,8 @@ ZSTD_initStats_greedy(ZSTD_matchState_t* ms,
     }
 
     /* transfer stats from seqStore into ms-opt */
-    transfer_LiteralStats(&ms->opt, seqStore);
-
-    /* seqStats */
-    assert(seqStore->sequences >= seqStore->sequencesStart);
-    {   U32 const nbSeq = (U32)(seqStore->sequences - seqStore->sequencesStart);
-        ZSTD_seqToCodes(seqStore);
-
-        {   const BYTE* codePtr = seqStore->ofCode;
-            U32 u;
-            memset(ms->opt.offCodeFreq, 0, sizeof(U32) * (MaxOff+1));
-            ZSTD_STATIC_ASSERT(MaxOff >= 17);
-            for (u=0; u<17; u++) ms->opt.offCodeFreq[u]=1;  /* flatten stats; some offcode may not be produced by greedy but still be present */
-            for (u=0; u<nbSeq; u++) ms->opt.offCodeFreq[codePtr[u]]++;
-            assert(ms->opt.offCodeFreq[1] == 1);   /* greedy can't find rep1/rep2 */
-            ms->opt.offCodeFreq[1] = (ms->opt.offCodeFreq[0] / 3) + 1; /* bias correction */
-            ms->opt.offCodeSum = sum_u32(ms->opt.offCodeFreq, 18);
-        }
-
-        {   const BYTE* codePtr = seqStore->mlCode;
-            U32 u;
-            for (u=0; u<MaxML+1; u++) ms->opt.matchLengthFreq[u]=1;  /* flatten stats; some match length not produced by greedy might end up present */
-            for (u=0; u<nbSeq; u++) ms->opt.matchLengthFreq[codePtr[u]]++;
-            assert(ms->opt.matchLengthFreq[0] == 1);   /* greedy can't find mml=3 */
-            ms->opt.matchLengthFreq[0] = ms->opt.matchLengthFreq[1] + 1; /* bias correction */
-            ms->opt.matchLengthSum = sum_u32(ms->opt.matchLengthFreq, MaxML+1);
-        }
-
-        {   const BYTE* codePtr = seqStore->llCode;
-            U32 u;
-            ZSTD_memcpy(ms->opt.litLengthFreq, k_baseLLfreqs, sizeof(k_baseLLfreqs));
-            for (u=0; u<nbSeq; u++) ms->opt.litLengthFreq[codePtr[u]]++;
-            ms->opt.litLengthSum = sum_u32(ms->opt.litLengthFreq, MaxLL+1);
-    }   }
+    transfer_literalStats(&ms->opt, seqStore);
+    transfer_seqStats(&ms->opt, seqStore, fix_greedy_bias);
 
     /* invalidate first scan from history */
     ZSTD_resetSeqStore(seqStore);
@@ -1415,7 +1424,8 @@ ZSTD_initStats_ultra(ZSTD_matchState_t* ms,
     assert(lastLits <= srcSize);
     ZSTD_memcpy(seqStore->lit , (const char*)src + srcSize - lastLits, lastLits);
     seqStore->lit += lastLits;
-    transfer_LiteralStats(&ms->opt, seqStore);
+    transfer_literalStats(&ms->opt, seqStore);
+    transfer_seqStats(&ms->opt, seqStore, from_btultra);
 
     /* invalidate first scan from history */
     ZSTD_resetSeqStore(seqStore);

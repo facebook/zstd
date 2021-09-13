@@ -1057,8 +1057,7 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                         opt[pos].price = (int)sequencePrice;
                 }   }
                 last_pos = pos-1;
-            }
-        }
+        }   }
 
         /* check further positions */
         for (cur = 1; cur <= last_pos; cur++) {
@@ -1085,8 +1084,7 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                     DEBUGLOG(7, "cPos:%zi==rPos:%u : literal would cost more (%.2f>%.2f) (hist:%u,%u,%u)",
                                 inr-istart, cur, ZSTD_fCost(price), ZSTD_fCost(opt[cur].price),
                                 opt[cur].rep[0], opt[cur].rep[1], opt[cur].rep[2]);
-                }
-            }
+            }   }
 
             /* Set the repcodes of the current position. We must do it here
              * because we rely on the repcodes of the 2nd to last sequence being
@@ -1260,15 +1258,11 @@ static void transfer_literalStats(optState_t* opt, const seqStore_t* seqStore)
     size_t const nbLiterals = (size_t)(seqStore->lit - seqStore->litStart);
     assert(seqStore->lit >= seqStore->litStart);
 
-    // test if literals are compressible
-    //char block[ZSTD_BLOCKSIZE_MAX];
-    //size_t const cLitSize = HUF_compress(block, sizeof(block), seqStore->litStart, nbLiterals);
-    //printf("nb literals = %zu  => %zu huf_compress\n", nbLiterals, cLitSize);
-
     if (nbLiterals < COMPRESS_LITERALS_SIZE_MIN) {
-        /* literals won't be compressed anyway, give them a flat cost */
+        /* literals won't be compressed, so give them an all-flat cost */
         /* note : it would be better if it was also possible to extend this category
-         * to non-compressible literals which are more numerous than threshold */
+         * to non-compressible literals, even when they are more numerous than threshold.
+         * However, this requires additional cpu and memory workspace */
         unsigned u;
         for (u=0; u<=MaxLit; u++) opt->litFreq[u]=2;
     } else {
@@ -1367,14 +1361,14 @@ size_t ZSTD_compressBlock_btultra(
     U32 const curr = (U32)((const BYTE*)src - ms->window.base);
     DEBUGLOG(5, "ZSTD_compressBlock_btultra (srcSize=%zu)", srcSize);
 
-    /* 2-pass strategy:
+    /* 2-pass strategy (when possible):
      * this strategy makes a first pass over first block to collect statistics
      * and seed next round's statistics with it.
      * After 1st pass, function forgets everything, and starts a new block.
      * Consequently, this can only work if no data has been previously loaded in tables,
      * aka, no dictionary, no prefix, no ldm preprocessing.
-     * The compression ratio gain is generally small (~0.5% on first block),
-     * the cost is 2x cpu time on first block. */
+     * The compression ratio gain is generally small (~0.4% on first block),
+     * the cost is +5% cpu time on first block. */
     assert(srcSize <= ZSTD_BLOCKSIZE_MAX);
     if ( (ms->opt.litLengthSum==0)   /* first block */
       && (seqStore->sequences == seqStore->sequencesStart)  /* no ldm */
@@ -1411,12 +1405,14 @@ ZSTD_initStats_ultra(ZSTD_matchState_t* ms,
     assert(ms->window.dictLimit == ms->window.lowLimit);   /* no dictionary */
     assert(ms->window.dictLimit - ms->nextToUpdate <= 1);  /* no prefix (note: intentional overflow, defined as 2-complement) */
 
-    if (srcSize <= 16 KB) {
-        /* raw btultra, initialized by default starting stats */
+    if (srcSize < 8 KB) {
+        /* use raw btultra, initialized by default starting stats
+         * generally preferable for small blocks
+         */
         lastLits = ZSTD_compressBlock_opt_generic(ms, seqStore, tmpRep, src, srcSize, 2 /*optLevel*/, ZSTD_noDict);  /* generate stats into ms->opt*/
     } else {
-        /* in this mode, btultra is initialized greedy;
-         * measured better for larger blocks, but not for small ones */
+        /* in this mode, btultra is initialized with greedy strategy;
+         * it's generally better for larger block sizes */
         lastLits = ZSTD_compressBlock_btultra(ms, seqStore, tmpRep, src, srcSize);  /* generate stats into ms->opt*/
     }
 

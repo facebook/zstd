@@ -1253,6 +1253,31 @@ size_t ZSTD_compressBlock_btopt(
 }
 
 
+#include "zstd_compress_literals.h"   /* COMPRESS_LITERALS_SIZE_MIN */
+
+static void transfer_LiteralStats(optState_t* opt, const seqStore_t* seqStore)
+{
+    size_t const nbLiterals = (size_t)(seqStore->lit - seqStore->litStart);
+    assert(seqStore->lit >= seqStore->litStart);
+
+    // test if literals are compressible
+    //char block[ZSTD_BLOCKSIZE_MAX];
+    //size_t const cLitSize = HUF_compress(block, sizeof(block), seqStore->litStart, nbLiterals);
+    //printf("nb literals = %zu  => %zu huf_compress\n", nbLiterals, cLitSize);
+
+    if (nbLiterals < COMPRESS_LITERALS_SIZE_MIN) {
+        /* literals won't be compressed anyway, give them a flat cost */
+        /* note : it would be better if it was also possible to extend this category
+         * to non-compressible literals which are more numerous than threshold */
+        unsigned u;
+        for (u=0; u<=MaxLit; u++) opt->litFreq[u]=2;
+    } else {
+        unsigned maxlit = MaxLit;
+        HIST_count_simple(opt->litFreq, &maxlit, seqStore->litStart, nbLiterals);
+    }
+    opt->litSum = ZSTD_downscaleStats(opt->litFreq, MaxLit, 0);  /* flatten stats, by providing at least 1 to every symbol */
+}
+
 
 #include "zstd_lazy.h"
 /* ZSTD_initStats_greedy():
@@ -1275,15 +1300,15 @@ ZSTD_initStats_greedy(ZSTD_matchState_t* ms,
     assert(ms->window.dictLimit == ms->window.lowLimit);   /* no dictionary */
     assert(ms->window.dictLimit - ms->nextToUpdate <= 1);  /* no prefix (note: intentional overflow, defined as 2-complement) */
 
-    ZSTD_compressBlock_greedy(ms, seqStore, tmpRep, src, srcSize);   /* generate stats into seqstore */
-
-    /* transfer stats into ms-opt */
-    /* literals stats */
-    {   unsigned maxlit = MaxLit;
-        assert(seqStore->lit >= seqStore->litStart);
-        HIST_count_simple(ms->opt.litFreq, &maxlit, seqStore->litStart, (size_t)(seqStore->lit - seqStore->litStart));
-        ms->opt.litSum = ZSTD_downscaleStats(ms->opt.litFreq, MaxLit, 0);  /* flatten stats, by providing at least 1 to every symbol */
+    {   size_t const lastLits = ZSTD_compressBlock_greedy(ms, seqStore, tmpRep, src, srcSize);   /* generate stats into seqstore */
+        /* add last lits into literals buffers for proper accounting */
+        assert(lastLits <= srcSize);
+        ZSTD_memcpy(seqStore->lit , (const char*)src + srcSize - lastLits, lastLits);
+        seqStore->lit += lastLits;
     }
+
+    /* transfer stats from seqStore into ms-opt */
+    transfer_LiteralStats(&ms->opt, seqStore);
 
     /* seqStats */
     assert(seqStore->sequences >= seqStore->sequencesStart);
@@ -1367,6 +1392,7 @@ ZSTD_initStats_ultra(ZSTD_matchState_t* ms,
                      U32 rep[ZSTD_REP_NUM],
                const void* src, size_t srcSize)
 {
+    size_t lastLits;
     U32 tmpRep[ZSTD_REP_NUM];  /* updated rep codes will sink here */
     ZSTD_memcpy(tmpRep, rep, sizeof(tmpRep));
 
@@ -1378,12 +1404,18 @@ ZSTD_initStats_ultra(ZSTD_matchState_t* ms,
 
     if (srcSize <= 16 KB) {
         /* raw btultra, initialized by default starting stats */
-        ZSTD_compressBlock_opt_generic(ms, seqStore, tmpRep, src, srcSize, 2 /*optLevel*/, ZSTD_noDict);  /* generate stats into ms->opt*/
+        lastLits = ZSTD_compressBlock_opt_generic(ms, seqStore, tmpRep, src, srcSize, 2 /*optLevel*/, ZSTD_noDict);  /* generate stats into ms->opt*/
     } else {
         /* in this mode, btultra is initialized greedy;
          * measured better for larger blocks, but not for small ones */
-        ZSTD_compressBlock_btultra(ms, seqStore, tmpRep, src, srcSize);  /* generate stats into ms->opt*/
+        lastLits = ZSTD_compressBlock_btultra(ms, seqStore, tmpRep, src, srcSize);  /* generate stats into ms->opt*/
     }
+
+    /* transfer stats from seqStore into ms-opt */
+    assert(lastLits <= srcSize);
+    ZSTD_memcpy(seqStore->lit , (const char*)src + srcSize - lastLits, lastLits);
+    seqStore->lit += lastLits;
+    transfer_LiteralStats(&ms->opt, seqStore);
 
     /* invalidate first scan from history */
     ZSTD_resetSeqStore(seqStore);

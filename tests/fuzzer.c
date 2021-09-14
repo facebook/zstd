@@ -42,7 +42,7 @@
 #include "util.h"
 #include "timefn.h"       /* SEC_TO_MICRO, UTIL_time_t, UTIL_TIME_INITIALIZER, UTIL_clockSpanMicro, UTIL_getTime */
 /* must be included after util.h, due to ERROR macro redefinition issue on Visual Studio */
-#include "zstd_internal.h"  /* ZSTD_WORKSPACETOOLARGE_MAXDURATION, ZSTD_WORKSPACETOOLARGE_FACTOR, KB, MB */
+#include "zstd_internal.h" /* ZSTD_WORKSPACETOOLARGE_MAXDURATION, ZSTD_WORKSPACETOOLARGE_FACTOR, KB, MB */
 #include "threading.h"    /* ZSTD_pthread_create, ZSTD_pthread_join */
 
 
@@ -128,7 +128,7 @@ static U32 FUZ_highbit32(U32 v32)
 
 #define CHECK_VAR(var, fn)  var = fn; if (ZSTD_isError(var)) { DISPLAYLEVEL(1, "%s : fails : %s \n", #fn, ZSTD_getErrorName(var)); goto _output_error; }
 #define CHECK_NEWV(var, fn)  size_t const CHECK_VAR(var, fn)
-#define CHECK(fn)  { CHECK_NEWV(err, fn); }
+#define CHECK(fn)  { CHECK_NEWV(__err, fn); }
 #define CHECKPLUS(var, fn, more)  { CHECK_NEWV(var, fn); more; }
 
 #define CHECK_OP(op, lhs, rhs) {                                  \
@@ -1832,8 +1832,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
     /* Simple API skippable frame test */
     DISPLAYLEVEL(3, "test%3i : read/write a skippable frame : ", testNb++);
-    {
-        U32 i;
+    {   U32 i;
         unsigned readMagic;
         unsigned long long receivedSize;
         size_t skippableSize;
@@ -1841,9 +1840,10 @@ static int basicUnitTests(U32 const seed, double compressibility)
         char* const skipBuff = (char*)malloc(skipLen);
         assert(skipBuff != NULL);
         for (i = 0; i < skipLen; i++)
-            skipBuff[i] = (BYTE) ((seed + i) % 256);
-        skippableSize = ZSTD_writeSkippableFrame((BYTE*)compressedBuffer, compressedBufferSize,
-                                        skipBuff, skipLen, seed % 15);
+            skipBuff[i] = (char) ((seed + i) % 256);
+        skippableSize = ZSTD_writeSkippableFrame(
+                                compressedBuffer, compressedBufferSize,
+                                skipBuff, skipLen, seed % 15);
         CHECK_Z(skippableSize);
         CHECK_EQ(1, ZSTD_isSkippableFrame(compressedBuffer, skippableSize));
         receivedSize = ZSTD_readSkippableFrame(decodedBuffer, CNBuffSize, &readMagic, compressedBuffer, skippableSize);
@@ -1860,8 +1860,9 @@ static int basicUnitTests(U32 const seed, double compressibility)
         unsigned readMagic;
         unsigned long long receivedSize;
         size_t skippableSize;
-        skippableSize = ZSTD_writeSkippableFrame((BYTE*)compressedBuffer, compressedBufferSize,
-                                        CNBuffer, 0, seed % 15);
+        skippableSize = ZSTD_writeSkippableFrame(
+                                compressedBuffer, compressedBufferSize,
+                                CNBuffer, 0, seed % 15);
         CHECK_EQ(ZSTD_SKIPPABLEHEADERSIZE, skippableSize);
         CHECK_EQ(1, ZSTD_isSkippableFrame(compressedBuffer, skippableSize));
         receivedSize = ZSTD_readSkippableFrame(NULL, 0, &readMagic, compressedBuffer, skippableSize);
@@ -1955,6 +1956,9 @@ static int basicUnitTests(U32 const seed, double compressibility)
         }   }
         DISPLAYLEVEL(3, "OK \n");
 
+        /* Note : these tests should be replaced by proper regression tests,
+         *         but existing ones do not focus on small data + dictionary + all levels.
+         */
         if ((int)(compressibility * 100 + 0.1) == FUZ_compressibility_default) { /* test only valid with known input */
             size_t const flatdictSize = 22 KB;
             size_t const contentSize = 9 KB;
@@ -1963,14 +1967,14 @@ static int basicUnitTests(U32 const seed, double compressibility)
             /* These upper bounds are generally within a few bytes of the compressed size */
             size_t target_nodict_cSize[22+1] = { 3840, 3770, 3870, 3830, 3770,
                                                  3770, 3770, 3770, 3750, 3750,
-                                                 3742, 3670, 3670, 3660, 3660,
-                                                 3660, 3660, 3660, 3660, 3660,
+                                                 3742, 3675, 3674, 3665, 3664,
+                                                 3663, 3662, 3661, 3660, 3660,
                                                  3660, 3660, 3660 };
             size_t const target_wdict_cSize[22+1] =  { 2830, 2896, 2890, 2820, 2940,
                                                        2950, 2950, 2925, 2900, 2891,
-                                                       2910, 2910, 2910, 2770, 2760,
-                                                       2750, 2750, 2750, 2750, 2750,
-                                                       2750, 2750, 2750 };
+                                                       2910, 2910, 2910, 2780, 2775,
+                                                       2765, 2760, 2755, 2754, 2753,
+                                                       2753, 2753, 2753 };
             int l = 1;
             int const maxLevel = ZSTD_maxCLevel();
             /* clevels with strategies that support rowhash on small inputs */
@@ -3471,11 +3475,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
                         DISPLAYLEVEL(3, "error! l: %d dict: %zu srcSize: %zu cctx size cpar: %zu, cctx size level: %zu\n",
                                      level, dictSize, srcSize, cctxSizeUsingCParams, cctxSizeUsingLevel);
                         goto _output_error;
-                    }
-                }
-            }
-        }
-    }
+    }   }   }   }   }
     DISPLAYLEVEL(3, "OK \n");
 
     DISPLAYLEVEL(3, "test%3i : thread pool API tests : \n", testNb++)
@@ -3591,8 +3591,7 @@ static int longUnitTests(U32 const seed, double compressibility)
     DISPLAYLEVEL(3, "OK \n");
 
     DISPLAYLEVEL(3, "longtest%3i : testing ldm no regressions in size for opt parser : ", testNb++);
-    {
-        size_t cSizeLdm;
+    {   size_t cSizeLdm;
         size_t cSizeNoLdm;
         ZSTD_CCtx* const cctx = ZSTD_createCCtx();
 
@@ -3670,7 +3669,7 @@ static int longUnitTests(U32 const seed, double compressibility)
                     CHECK(cdict != NULL);
 
                     CHECK_Z(ZSTD_CCtx_refCDict(cctx, cdict));
-                    CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_forceAttachDict, attachPref));
+                    CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_forceAttachDict, (int)attachPref));
 
                     cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize);
                     CHECK_Z(cSize);

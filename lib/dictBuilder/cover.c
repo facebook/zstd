@@ -47,7 +47,7 @@
 *  Console display
 ***************************************/
 #ifndef LOCALDISPLAYLEVEL
-static int g_displayLevel = 2;
+static int g_displayLevel = 0;
 #endif
 #undef  DISPLAY
 #define DISPLAY(...)                                                           \
@@ -735,7 +735,7 @@ ZDICTLIB_API size_t ZDICT_trainFromBuffer_cover(
   COVER_map_t activeDmers;
   parameters.splitPoint = 1.0;
   /* Initialize global data */
-  g_displayLevel = parameters.zParams.notificationLevel;
+  g_displayLevel = (int)parameters.zParams.notificationLevel;
   /* Checks */
   if (!COVER_checkParameters(parameters, dictBufferCapacity)) {
     DISPLAYLEVEL(1, "Cover parameters incorrect\n");

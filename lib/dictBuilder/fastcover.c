@@ -44,7 +44,7 @@
 *  Console display
 ***************************************/
 #ifndef LOCALDISPLAYLEVEL
-static int g_displayLevel = 2;
+static int g_displayLevel = 0;
 #endif
 #undef  DISPLAY
 #define DISPLAY(...)                                                           \
@@ -549,7 +549,7 @@ ZDICT_trainFromBuffer_fastCover(void* dictBuffer, size_t dictBufferCapacity,
     ZDICT_cover_params_t coverParams;
     FASTCOVER_accel_t accelParams;
     /* Initialize global data */
-    g_displayLevel = parameters.zParams.notificationLevel;
+    g_displayLevel = (int)parameters.zParams.notificationLevel;
     /* Assign splitPoint and f if not provided */
     parameters.splitPoint = 1.0;
     parameters.f = parameters.f == 0 ? DEFAULT_F : parameters.f;
@@ -632,7 +632,7 @@ ZDICT_optimizeTrainFromBuffer_fastCover(
     const unsigned accel = parameters->accel == 0 ? DEFAULT_ACCEL : parameters->accel;
     const unsigned shrinkDict = 0;
     /* Local variables */
-    const int displayLevel = parameters->zParams.notificationLevel;
+    const int displayLevel = (int)parameters->zParams.notificationLevel;
     unsigned iteration = 1;
     unsigned d;
     unsigned k;
@@ -716,7 +716,7 @@ ZDICT_optimizeTrainFromBuffer_fastCover(
         data->parameters.splitPoint = splitPoint;
         data->parameters.steps = kSteps;
         data->parameters.shrinkDict = shrinkDict;
-        data->parameters.zParams.notificationLevel = g_displayLevel;
+        data->parameters.zParams.notificationLevel = (unsigned)g_displayLevel;
         /* Check the parameters */
         if (!FASTCOVER_checkParameters(data->parameters, dictBufferCapacity,
                                        data->ctx->f, accel)) {

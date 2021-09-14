@@ -936,8 +936,13 @@ cat tmp | zstd -14 -f --size-hint=5500  | zstd -t  # considerably too low
 
 
 println "\n===>  dictionary tests "
-
-println "- test with raw dict (content only) "
+println "- Test high/low compressibility corpus training"
+datagen -g12M -P90 > tmpCorpusHighCompress
+datagen -g12M -P5 > tmpCorpusLowCompress
+zstd --train -B2K tmpCorpusHighCompress -o tmpDictHighCompress
+zstd --train -B2K tmpCorpusLowCompress -o tmpDictLowCompress
+rm -f tmpCorpusHighCompress tmpCorpusLowCompress tmpDictHighCompress tmpDictLowCompress
+println "- Test with raw dict (content only) "
 datagen > tmpDict
 datagen -g1M | $MD5SUM > tmp1
 datagen -g1M | zstd -D tmpDict | zstd -D tmpDict -dvq | $MD5SUM > tmp2

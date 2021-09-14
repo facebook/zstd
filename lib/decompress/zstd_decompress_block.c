@@ -799,10 +799,9 @@ static void ZSTD_safecopy(BYTE* op, const BYTE* const oend_w, BYTE const* ip, pt
     BYTE* const oend = op + length;
 
     assert((ovtype == ZSTD_no_overlap && (diff <= -8 || diff >= 8 || op >= oend_w)) ||
-        (ovtype == ZSTD_overlap_src_before_dst && diff >= 0) ||
-        (ovtype == ZSTD_overlap_dst_before_src && (diff <= 0 || diff >= 8 || op >= oend_w)));
+        (ovtype == ZSTD_overlap_src_before_dst && diff >= 0));
 
-    if (length < 8 || (ovtype == ZSTD_overlap_dst_before_src && diff > -8 && diff <= 0)) {
+    if (length < 8) {
         /* Handle short lengths. */
         while (op < oend) *op++ = *ip++;
         return;
@@ -816,23 +815,44 @@ static void ZSTD_safecopy(BYTE* op, const BYTE* const oend_w, BYTE const* ip, pt
         assert(op <= oend);
     }
 
-    if (oend <= oend_w && ovtype != ZSTD_overlap_dst_before_src) {
+    if (oend <= oend_w) {
         /* No risk of overwrite. */
         ZSTD_wildcopy(op, ip, length, ovtype);
         return;
     }
-    if (op <= oend_w && ovtype != ZSTD_overlap_dst_before_src) {
+    if (op <= oend_w) {
         /* Wildcopy until we get close to the end. */
         assert(oend > oend_w);
         ZSTD_wildcopy(op, ip, oend_w - op, ovtype);
         ip += oend_w - op;
         op += oend_w - op;
     }
-    else if (op <= oend - WILDCOPY_OVERLENGTH && ovtype == ZSTD_overlap_dst_before_src && diff < -WILDCOPY_VECLEN) {
-        ZSTD_wildcopy(op, ip, oend - WILDCOPY_OVERLENGTH - op, ovtype);
+    /* Handle the leftovers. */
+    while (op < oend) *op++ = *ip++;
+}
+
+/* ZSTD_safecopyDstBeforeSrc():
+ * This version allows overlap with dst before src, or handles the non-overlap case with dst after src
+ * Kept separate from more common ZSTD_safecopy case to avoid performance impact to the safecopy common case */
+static void ZSTD_safecopyDstBeforeSrc(BYTE* op, const BYTE* const oend_w, BYTE const* ip, ptrdiff_t length) {
+    ptrdiff_t const diff = op - ip;
+    BYTE* const oend = op + length;
+
+    assert(diff <= 0 || diff >= 8 || op >= oend_w);
+    (void)(oend_w);
+
+    if (length < 8 || (diff > -8 && diff <= 0)) {
+        /* Handle short lengths and close overlaps. */
+        while (op < oend) *op++ = *ip++;
+        return;
+    }
+
+    if (op <= oend - WILDCOPY_OVERLENGTH && diff < -WILDCOPY_VECLEN) {
+        ZSTD_wildcopy(op, ip, oend - WILDCOPY_OVERLENGTH - op, ZSTD_overlap_dst_before_src);
         ip += oend - WILDCOPY_OVERLENGTH - op;
         op += oend - WILDCOPY_OVERLENGTH - op;
     }
+
     /* Handle the leftovers. */
     while (op < oend) *op++ = *ip++;
 }
@@ -865,7 +885,7 @@ size_t ZSTD_execSequenceEnd(BYTE* op,
 
     /* copy literals */
     RETURN_ERROR_IF(op > *litPtr && op < *litPtr + sequence.litLength, dstSize_tooSmall, "output should not catch up to and overwrite literal buffer");
-    ZSTD_safecopy(op, oend_w, *litPtr, sequence.litLength, ZSTD_overlap_dst_before_src);
+    ZSTD_safecopyDstBeforeSrc(op, oend_w, *litPtr, sequence.litLength);
     op = oLitEnd;
     *litPtr = iLitEnd;
 
@@ -1278,7 +1298,7 @@ ZSTD_decompressSequences_bodySplitLitBuffer( ZSTD_DCtx* dctx,
                 if (leftoverLit)
                 {
                     RETURN_ERROR_IF(leftoverLit > (size_t)(oend - op), dstSize_tooSmall, "remaining lit must fit within dstBuffer");
-                    ZSTD_safecopy(op, oend_w, litPtr, leftoverLit, ZSTD_overlap_dst_before_src);
+                    ZSTD_safecopyDstBeforeSrc(op, oend_w, litPtr, leftoverLit);
                     sequence.litLength -= leftoverLit;
                     op += leftoverLit;
                 }
@@ -1545,7 +1565,7 @@ ZSTD_decompressSequencesLong_body(
                 if (leftoverLit)
                 {
                     RETURN_ERROR_IF(leftoverLit > (size_t)(oend - op), dstSize_tooSmall, "remaining lit must fit within dstBuffer");
-                    ZSTD_safecopy(op, oend_w, litPtr, leftoverLit, ZSTD_overlap_dst_before_src);
+                    ZSTD_safecopyDstBeforeSrc(op, oend_w, litPtr, leftoverLit);
                     sequences[(seqNb - ADVANCED_SEQS) & STORED_SEQS_MASK].litLength -= leftoverLit;
                     op += leftoverLit;
                 }
@@ -1592,7 +1612,7 @@ ZSTD_decompressSequencesLong_body(
                 if (leftoverLit)
                 {
                     RETURN_ERROR_IF(leftoverLit > (size_t)(oend - op), dstSize_tooSmall, "remaining lit must fit within dstBuffer");
-                    ZSTD_safecopy(op, oend_w, litPtr, leftoverLit, ZSTD_overlap_dst_before_src);
+                    ZSTD_safecopyDstBeforeSrc(op, oend_w, litPtr, leftoverLit);
                     sequence->litLength -= leftoverLit;
                     op += leftoverLit;
                 }

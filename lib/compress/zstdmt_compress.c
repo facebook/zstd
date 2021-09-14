@@ -1705,24 +1705,32 @@ findSynchronizationPoint(ZSTDMT_CCtx const* mtctx, ZSTD_inBuffer const input)
          */
         return syncPoint;
     /* Initialize the loop variables. */
-    if (mtctx->inBuff.filled < RSYNC_MIN_BLOCK_SIZE - RSYNC_LENGTH) {
+    if (mtctx->inBuff.filled < RSYNC_MIN_BLOCK_SIZE) {
         /* We don't need to scan the first RSYNC_MIN_BLOCK_SIZE positions
          * because they can't possibly be a sync point. So we can start
          * part way through the input buffer.
          */
         pos = RSYNC_MIN_BLOCK_SIZE - mtctx->inBuff.filled;
-        assert(pos <= input.size - input.pos /* validated earlier */);
-        assert(pos >= RSYNC_LENGTH);
-        prev = istart + pos - RSYNC_LENGTH;
-        hash = ZSTD_rollingHash_compute(prev, RSYNC_LENGTH);
-    } else if (mtctx->inBuff.filled >= RSYNC_LENGTH) {
-        /* We have enough bytes buffered to initialize the hash.
+        if (pos >= RSYNC_LENGTH) {
+            prev = istart + pos - RSYNC_LENGTH;
+            hash = ZSTD_rollingHash_compute(prev, RSYNC_LENGTH);
+        } else {
+            assert(mtctx->inBuff.filled >= RSYNC_LENGTH);
+            prev = (BYTE const*)mtctx->inBuff.buffer.start + mtctx->inBuff.filled - RSYNC_LENGTH;
+            hash = ZSTD_rollingHash_compute(prev + pos, (RSYNC_LENGTH - pos));
+            hash = ZSTD_rollingHash_append(hash, istart, pos);
+        }
+    } else {
+        /* We have enough bytes buffered to initialize the hash,
+         * and are have processed enough bytes to find a sync point.
          * Start scanning at the beginning of the input.
          */
+        assert(mtctx->inBuff.filled >= RSYNC_MIN_BLOCK_SIZE);
+        assert(RSYNC_MIN_BLOCK_SIZE >= RSYNC_LENGTH);
         pos = 0;
         prev = (BYTE const*)mtctx->inBuff.buffer.start + mtctx->inBuff.filled - RSYNC_LENGTH;
         hash = ZSTD_rollingHash_compute(prev, RSYNC_LENGTH);
-        if ((hash & hitMask) == hitMask && mtctx->inBuff.filled >= RSYNC_MIN_BLOCK_SIZE) {
+        if ((hash & hitMask) == hitMask) {
             /* We're already at a sync point so don't load any more until
              * we're able to flush this sync point.
              * This likely happened because the job table was full so we
@@ -1732,16 +1740,6 @@ findSynchronizationPoint(ZSTDMT_CCtx const* mtctx, ZSTD_inBuffer const input)
             syncPoint.flush = 1;
             return syncPoint;
         }
-    } else {
-        /* We don't have enough bytes buffered to initialize the hash, but
-         * we know we have at least RSYNC_LENGTH bytes total.
-         * Start scanning after the first RSYNC_LENGTH bytes less the bytes
-         * already buffered.
-         */
-        pos = RSYNC_LENGTH - mtctx->inBuff.filled;
-        prev = (BYTE const*)mtctx->inBuff.buffer.start - pos;
-        hash = ZSTD_rollingHash_compute(mtctx->inBuff.buffer.start, mtctx->inBuff.filled);
-        hash = ZSTD_rollingHash_append(hash, istart, pos);
     }
     /* Starting with the hash of the previous RSYNC_LENGTH bytes, roll
      * through the input. If we hit a synchronization point, then cut the
@@ -1753,7 +1751,7 @@ findSynchronizationPoint(ZSTDMT_CCtx const* mtctx, ZSTD_inBuffer const input)
      */
     for (; pos < syncPoint.toLoad; ++pos) {
         BYTE const toRemove = pos < RSYNC_LENGTH ? prev[pos] : istart[pos - RSYNC_LENGTH];
-        /* if (pos >= RSYNC_LENGTH) assert(ZSTD_rollingHash_compute(istart + pos - RSYNC_LENGTH, RSYNC_LENGTH) == hash); */
+        assert(pos < RSYNC_LENGTH || ZSTD_rollingHash_compute(istart + pos - RSYNC_LENGTH, RSYNC_LENGTH) == hash);
         hash = ZSTD_rollingHash_rotate(hash, toRemove, istart[pos], primePower);
         assert(mtctx->inBuff.filled + pos >= RSYNC_MIN_BLOCK_SIZE);
         if ((hash & hitMask) == hitMask) {

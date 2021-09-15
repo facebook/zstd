@@ -281,10 +281,11 @@ static U32 ZSTD_litLengthPrice(U32 const litLength, const optState_t* const optP
  * Provides the cost of the match part (offset + matchLength) of a sequence
  * Must be combined with ZSTD_fullLiteralsCost() to get the full cost of a sequence.
  * optLevel: when <2, favors small offset for decompression speed (improved cache efficiency) */
-static U32 ZSTD_getMatchPrice(U32 const offset,
-                              U32 const matchLength,
-                        const optState_t* const optPtr,
-                              int const optLevel)
+FORCE_INLINE_TEMPLATE U32
+ZSTD_getMatchPrice(U32 const offset,
+                   U32 const matchLength,
+             const optState_t* const optPtr,
+                   int const optLevel)
 {
     U32 price;
     U32 const offCode = ZSTD_highbit32(offset+1);
@@ -512,9 +513,11 @@ static U32 ZSTD_insertBt1(
     }
 }
 
-static void ZSTD_updateTree_internal(ZSTD_matchState_t* ms,
-                               const BYTE* const ip, const BYTE* const iend,
-                               const U32 mls, const ZSTD_dictMode_e dictMode)
+FORCE_INLINE_TEMPLATE
+void ZSTD_updateTree_internal(
+                ZSTD_matchState_t* ms,
+                const BYTE* const ip, const BYTE* const iend,
+                const U32 mls, const ZSTD_dictMode_e dictMode)
 {
     const BYTE* const base = ms->window.base;
     U32 const target = (U32)(ip - base);
@@ -536,7 +539,8 @@ void ZSTD_updateTree(ZSTD_matchState_t* ms, const BYTE* ip, const BYTE* iend) {
     ZSTD_updateTree_internal(ms, ip, iend, ms->cParams.minMatch, ZSTD_noDict);
 }
 
-static U32 ZSTD_insertBtAndGetAllMatches (
+FORCE_INLINE_TEMPLATE
+U32 ZSTD_insertBtAndGetAllMatches (
                     ZSTD_match_t* matches,   /* store result (found matches) in this table (presumed large enough) */
                     ZSTD_matchState_t* ms,
                     U32* nextToUpdate3,
@@ -769,7 +773,7 @@ static U32 ZSTD_insertBtAndGetAllMatches (
 }
 
 
-static U32 ZSTD_BtGetAllMatches (
+FORCE_INLINE_TEMPLATE U32 ZSTD_BtGetAllMatches (
                         ZSTD_match_t* matches,   /* store result (match found, increasing size) in this table */
                         ZSTD_matchState_t* ms,
                         U32* nextToUpdate3,
@@ -956,7 +960,7 @@ listStats(const U32* table, int lastEltID)
 
 #endif
 
-static size_t
+FORCE_INLINE_TEMPLATE size_t
 ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                                seqStore_t* seqStore,
                                U32 rep[ZSTD_REP_NUM],

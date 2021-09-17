@@ -9,7 +9,7 @@
 # ##########################################################################
 # zstd : Command Line Utility, supporting gzip-like arguments
 # zstd32 : Same as zstd, but forced to compile in 32-bits mode
-# zstd_nolegacy : zstd without support of decompression of legacy versions
+# zstd-nolegacy : zstd without support of decompression of legacy versions
 # zstd-small : minimal zstd without dictionary builder and benchmark
 # zstd-compress : compressor-only version of zstd
 # zstd-decompress : decompressor-only version of zstd
@@ -18,31 +18,9 @@
 .PHONY: default
 default: zstd-release
 
-# silent mode by default; verbose can be triggered by V=1 or VERBOSE=1
-$(V)$(VERBOSE).SILENT:
+LIBZSTD := ../lib
 
-
-ZSTDDIR := ../lib
-
-# Version numbers
-LIBVER_SRC := $(ZSTDDIR)/zstd.h
-LIBVER_MAJOR_SCRIPT:=`sed -n '/define ZSTD_VERSION_MAJOR/s/.*[[:blank:]]\([0-9][0-9]*\).*/\1/p' < $(LIBVER_SRC)`
-LIBVER_MINOR_SCRIPT:=`sed -n '/define ZSTD_VERSION_MINOR/s/.*[[:blank:]]\([0-9][0-9]*\).*/\1/p' < $(LIBVER_SRC)`
-LIBVER_PATCH_SCRIPT:=`sed -n '/define ZSTD_VERSION_RELEASE/s/.*[[:blank:]]\([0-9][0-9]*\).*/\1/p' < $(LIBVER_SRC)`
-LIBVER_SCRIPT:= $(LIBVER_MAJOR_SCRIPT).$(LIBVER_MINOR_SCRIPT).$(LIBVER_PATCH_SCRIPT)
-LIBVER_MAJOR := $(shell echo $(LIBVER_MAJOR_SCRIPT))
-LIBVER_MINOR := $(shell echo $(LIBVER_MINOR_SCRIPT))
-LIBVER_PATCH := $(shell echo $(LIBVER_PATCH_SCRIPT))
-LIBVER  := $(shell echo $(LIBVER_SCRIPT))
-
-ZSTD_VERSION = $(LIBVER)
-
-HAVE_COLORNEVER = $(shell echo a | grep --color=never a > /dev/null 2> /dev/null && echo 1 || echo 0)
-GREP_OPTIONS ?=
-ifeq ($HAVE_COLORNEVER, 1)
-  GREP_OPTIONS += --color=never
-endif
-GREP = grep $(GREP_OPTIONS)
+include $(LIBZSTD)/libzstd.mk
 
 ifeq ($(shell $(CC) -v 2>&1 | $(GREP) -c "gcc version "), 1)
   ALIGN_LOOP = -falign-loops=32
@@ -50,78 +28,25 @@ else
   ALIGN_LOOP =
 endif
 
-DEBUGLEVEL ?= 0
-CPPFLAGS += -DXXH_NAMESPACE=ZSTD_ -DDEBUGLEVEL=$(DEBUGLEVEL)
-ifeq ($(OS),Windows_NT)   # MinGW assumed
-  CPPFLAGS += -D__USE_MINGW_ANSI_STDIO   # compatibility with %zu formatting
-endif
-CFLAGS   ?= -O3
-DEBUGFLAGS+=-Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
-            -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
-            -Wstrict-prototypes -Wundef -Wpointer-arith \
-            -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings \
-            -Wredundant-decls -Wmissing-prototypes -Wc++-compat
-CFLAGS   += $(DEBUGFLAGS)
-CPPFLAGS += $(MOREFLAGS)
-LDFLAGS  += $(MOREFLAGS)
-FLAGS     = $(CFLAGS) $(CPPFLAGS) $(LDFLAGS)
-
-ZSTDLIB_COMMON := $(ZSTDDIR)/common
-ZSTDLIB_COMPRESS := $(ZSTDDIR)/compress
-ZSTDLIB_DECOMPRESS := $(ZSTDDIR)/decompress
-ZDICT_DIR := $(ZSTDDIR)/dictBuilder
-ZSTDLEGACY_DIR := $(ZSTDDIR)/legacy
-
-vpath %.c $(ZSTDLIB_COMMON) $(ZSTDLIB_COMPRESS) $(ZSTDLIB_DECOMPRESS) $(ZDICT_DIR) $(ZSTDLEGACY_DIR)
-
-ZSTDLIB_COMMON_C := $(wildcard $(ZSTDLIB_COMMON)/*.c)
-ZSTDLIB_COMPRESS_C := $(wildcard $(ZSTDLIB_COMPRESS)/*.c)
-ZSTDLIB_DECOMPRESS_C := $(wildcard $(ZSTDLIB_DECOMPRESS)/*.c)
-ZSTDLIB_CORE_SRC := $(ZSTDLIB_DECOMPRESS_C) $(ZSTDLIB_COMMON_C) $(ZSTDLIB_COMPRESS_C)
-ZDICT_SRC := $(wildcard $(ZDICT_DIR)/*.c)
-
-ZSTD_LEGACY_SUPPORT ?= 5
-ZSTDLEGACY_SRC :=
-ifneq ($(ZSTD_LEGACY_SUPPORT), 0)
-ifeq ($(shell test $(ZSTD_LEGACY_SUPPORT) -lt 8; echo $$?), 0)
-  ZSTDLEGACY_SRC += $(shell ls $(ZSTDLEGACY_DIR)/*.c | $(GREP) 'v0[$(ZSTD_LEGACY_SUPPORT)-7]')
-endif
-endif
+ZSTDLIB_COMMON_SRC := $(sort $(ZSTD_COMMON_FILES))
+ZSTDLIB_COMPRESS_SRC := $(sort $(ZSTD_COMPRESS_FILES))
+ZSTDLIB_DECOMPRESS_SRC := $(sort $(ZSTD_DECOMPRESS_FILES))
+ZSTDLIB_CORE_SRC := $(sort $(ZSTD_DECOMPRESS_FILES) $(ZSTD_COMMON_FILES) $(ZSTD_COMPRESS_FILES))
+ZDICT_SRC := $(sort $(ZSTD_DICTBUILDER_FILES))
+ZSTDLEGACY_SRC := $(sort $(ZSTD_LEGACY_FILES))
 
 # Sort files in alphabetical order for reproducible builds
 ZSTDLIB_FULL_SRC = $(sort $(ZSTDLIB_CORE_SRC) $(ZSTDLEGACY_SRC) $(ZDICT_SRC))
 ZSTDLIB_LOCAL_SRC = $(notdir $(ZSTDLIB_FULL_SRC))
-ZSTDLIB_LOCAL_OBJ := $(ZSTDLIB_LOCAL_SRC:.c=.o)
+ZSTDLIB_LOCAL_OBJ0 := $(ZSTDLIB_LOCAL_SRC:.c=.o)
+ZSTDLIB_LOCAL_OBJ := $(ZSTDLIB_LOCAL_OBJ0:.S=.o)
 
 ZSTD_CLI_SRC := $(wildcard *.c)
 ZSTD_CLI_OBJ := $(ZSTD_CLI_SRC:.c=.o)
 
 ZSTD_ALL_SRC = $(ZSTDLIB_LOCAL_SRC) $(ZSTD_CLI_SRC)
-ZSTD_ALL_OBJ := $(ZSTD_ALL_SRC:.c=.o)
-
-UNAME := $(shell uname)
-
-ifndef BUILD_DIR
-ifeq ($(UNAME), Darwin)
-  ifeq ($(shell md5 < /dev/null > /dev/null; echo $$?), 0)
-    HASH ?= md5
-  endif
-else ifeq ($(UNAME), FreeBSD)
-  HASH ?= gmd5sum
-else ifeq ($(UNAME), NetBSD)
-  HASH ?= md5 -n
-else ifeq ($(UNAME), OpenBSD)
-  HASH ?= md5
-endif
-HASH ?= md5sum
-HAVE_HASH :=$(shell echo 1 | $(HASH) > /dev/null && echo 1 || echo 0)
-
-HASH_DIR = conf_$(shell echo $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(LDLIBS) $(ZSTD_FILES) | $(HASH) | cut -f 1 -d " ")
-ifeq ($(HAVE_HASH),0)
-  $(info warning : could not find HASH ($(HASH)), needed to differentiate builds using different flags)
-  BUILD_DIR := obj/generic_noconf
-endif
-endif # BUILD_DIR
+ZSTD_ALL_OBJ0 := $(ZSTD_ALL_SRC:.c=.o)
+ZSTD_ALL_OBJ := $(ZSTD_ALL_OBJ0:.S=.o)
 
 # Define *.exe as extension for Windows systems
 ifneq (,$(filter Windows%,$(OS)))
@@ -138,9 +63,6 @@ else
 endif
 
 VOID = /dev/null
-
-# Make 4.3 doesn't support '\#' anymore (https://lwn.net/Articles/810071/)
-NUM_SYMBOL := \#
 
 # thread detection
 NO_THREAD_MSG := ==> no threads, building without multithreading support
@@ -212,7 +134,7 @@ SET_CACHE_DIRECTORY = \
 all: zstd
 
 .PHONY: allVariants
-allVariants: zstd zstd-compress zstd-decompress zstd-small zstd-nolegacy zstd-dictBuilder
+allVariants: zstd zstd-compress zstd-decompress zstd-small zstd-frugal zstd-nolegacy zstd-dictBuilder
 
 .PHONY: zstd  # must always be run
 zstd : CPPFLAGS += $(THREAD_CPP) $(ZLIBCPP) $(LZMACPP) $(LZ4CPP)
@@ -276,6 +198,7 @@ zstd32 : $(ZSTDLIB_FULL_SRC) $(ZSTD_CLI_SRC)
 
 ## zstd-nolegacy: same scope as zstd, with just support of legacy formats removed
 zstd-nolegacy : LDFLAGS += $(THREAD_LD) $(ZLIBLD) $(LZMALD) $(LZ4LD) $(DEBUGFLAGS_LD)
+zstd-nolegacy : CPPFLAGS += -UZSTD_LEGACY_SUPPORT -DZSTD_LEGACY_SUPPORT=0
 zstd-nolegacy : $(ZSTDLIB_CORE_SRC) $(ZDICT_SRC) $(ZSTD_CLI_OBJ)
 	$(CC) $(FLAGS) $^ -o $@$(EXT) $(LDFLAGS)
 
@@ -299,7 +222,7 @@ zstd-noxz : zstd
 
 ## zstd-dll: zstd executable linked to dynamic library libzstd (must have same version)
 .PHONY: zstd-dll
-zstd-dll : LDFLAGS+= -L$(ZSTDDIR)
+zstd-dll : LDFLAGS+= -L$(LIBZSTD)
 zstd-dll : LDLIBS += -lzstd
 zstd-dll : ZSTDLIB_LOCAL_SRC = xxhash.c
 zstd-dll : zstd
@@ -323,18 +246,17 @@ zstd-pgo :
 ## zstd-small: minimal target, supporting only zstd compression and decompression. no bench. no legacy. no other format.
 zstd-small: CFLAGS = -Os -s
 zstd-frugal zstd-small: $(ZSTDLIB_CORE_SRC) zstdcli.c util.c timefn.c fileio.c
-	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOTRACE $^ -o $@$(EXT)
+	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOTRACE -UZSTD_LEGACY_SUPPORT -DZSTD_LEGACY_SUPPORT=0 $^ -o $@$(EXT)
 
-zstd-decompress: $(ZSTDLIB_COMMON_C) $(ZSTDLIB_DECOMPRESS_C) zstdcli.c util.c timefn.c fileio.c
-	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOCOMPRESS -DZSTD_NOTRACE $^ -o $@$(EXT)
+zstd-decompress: $(ZSTDLIB_COMMON_SRC) $(ZSTDLIB_DECOMPRESS_SRC) zstdcli.c util.c timefn.c fileio.c
+	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOCOMPRESS -DZSTD_NOTRACE -UZSTD_LEGACY_SUPPORT -DZSTD_LEGACY_SUPPORT=0 $^ -o $@$(EXT)
 
-zstd-compress: $(ZSTDLIB_COMMON_C) $(ZSTDLIB_COMPRESS_C) zstdcli.c util.c timefn.c fileio.c
-	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS -DZSTD_NOTRACE $^ -o $@$(EXT)
+zstd-compress: $(ZSTDLIB_COMMON_SRC) $(ZSTDLIB_COMPRESS_SRC) zstdcli.c util.c timefn.c fileio.c
+	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS -DZSTD_NOTRACE -UZSTD_LEGACY_SUPPORT -DZSTD_LEGACY_SUPPORT=0 $^ -o $@$(EXT)
 
 ## zstd-dictBuilder: executable supporting dictionary creation and compression (only)
-zstd-dictBuilder: CPPFLAGS += -DZSTD_NOBENCH -DZSTD_NODECOMPRESS -DZSTD_NOTRACE
-zstd-dictBuilder: $(ZSTDLIB_COMMON_C) $(ZSTDLIB_COMPRESS_C) $(ZDICT_SRC) zstdcli.c util.c timefn.c fileio.c dibio.c
-	$(CC) $(FLAGS) $^ -o $@$(EXT)
+zstd-dictBuilder: $(ZSTDLIB_COMMON_SRC) $(ZSTDLIB_COMPRESS_SRC) $(ZDICT_SRC) zstdcli.c util.c timefn.c fileio.c dibio.c
+	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODECOMPRESS -DZSTD_NOTRACE $^ -o $@$(EXT)
 
 zstdmt: zstd
 	ln -sf zstd zstdmt
@@ -397,6 +319,10 @@ DEPFLAGS = -MT $@ -MMD -MP -MF
 $(BUILD_DIR)/%.o : %.c $(BUILD_DIR)/%.d | $(BUILD_DIR)
 	@echo CC $@
 	$(COMPILE.c) $(DEPFLAGS) $(BUILD_DIR)/$*.d $(OUTPUT_OPTION) $<
+
+$(BUILD_DIR)/%.o : %.S | $(BUILD_DIR)
+	@echo AS $@
+	$(COMPILE.c) $(OUTPUT_OPTION) $<
 
 MKDIR ?= mkdir
 $(BUILD_DIR): ; $(MKDIR) -p $@

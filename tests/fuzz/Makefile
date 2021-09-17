@@ -23,6 +23,12 @@ else
 endif
 CORPORA_URL_PREFIX:=https://github.com/facebook/zstd/releases/download/fuzz-corpora/
 
+LIBZSTD = ../../lib
+DEBUGLEVEL ?= 2
+ZSTD_LEGACY_SUPPORT ?= 1
+
+include $(LIBZSTD)/libzstd.mk
+
 ZSTDDIR = ../../lib
 PRGDIR = ../../programs
 CONTRIBDIR = ../../contrib
@@ -34,7 +40,7 @@ FUZZ_EXTRA_FLAGS := -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
 	-Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
 	-Wstrict-prototypes -Wundef \
 	-Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings \
-	-Wredundant-decls \
+	-Wredundant-decls -Wno-deprecated-declarations \
 	-g -fno-omit-frame-pointer
 FUZZ_CFLAGS := $(FUZZ_EXTRA_FLAGS) $(CFLAGS)
 FUZZ_CXXFLAGS := $(FUZZ_EXTRA_FLAGS) -std=c++11 $(CXXFLAGS)
@@ -50,11 +56,11 @@ FUZZ_SRC := $(PRGDIR)/util.c ./fuzz_helpers.c ./zstd_helpers.c ./fuzz_data_produ
 SEEKABLE_HEADERS = $(CONTRIBDIR)/seekable_format/zstd_seekable.h
 SEEKABLE_OBJS = $(CONTRIBDIR)/seekable_format/zstdseek_compress.c $(CONTRIBDIR)/seekable_format/zstdseek_decompress.c
 
-ZSTDCOMMON_SRC := $(ZSTDDIR)/common/*.c
-ZSTDCOMP_SRC   := $(ZSTDDIR)/compress/*.c
-ZSTDDECOMP_SRC := $(ZSTDDIR)/decompress/*.c
-ZSTDDICT_SRC := $(ZSTDDIR)/dictBuilder/*.c
-ZSTDLEGACY_SRC := $(ZSTDDIR)/legacy/*.c
+ZSTDCOMMON_SRC := $(ZSTD_COMMON_FILES)
+ZSTDCOMP_SRC   := $(ZSTD_COMPRESS_FILES)
+ZSTDDECOMP_SRC := $(ZSTD_DECOMPRESS_FILES)
+ZSTDDICT_SRC := $(ZSTD_DICTBUILDER_FILES)
+ZSTDLEGACY_SRC := $(ZSTD_LEGACY_FILES)
 FUZZ_SRC       := \
 	$(FUZZ_SRC) \
 	$(ZSTDDECOMP_SRC) \
@@ -71,7 +77,8 @@ FUZZ_D_OBJ4 := $(subst $(ZSTDDIR)/dictBuilder/,d_lib_dictBuilder_,$(FUZZ_D_OBJ3)
 FUZZ_D_OBJ5 := $(subst $(ZSTDDIR)/legacy/,d_lib_legacy_,$(FUZZ_D_OBJ4))
 FUZZ_D_OBJ6 := $(subst $(PRGDIR)/,d_prg_,$(FUZZ_D_OBJ5))
 FUZZ_D_OBJ7 := $(subst $\./,d_fuzz_,$(FUZZ_D_OBJ6))
-FUZZ_DECOMPRESS_OBJ := $(FUZZ_D_OBJ7:.c=.o)
+FUZZ_D_OBJ8 := $(FUZZ_D_OBJ7:.c=.o)
+FUZZ_DECOMPRESS_OBJ := $(FUZZ_D_OBJ8:.S=.o)
 
 FUZZ_RT_OBJ1 := $(subst $(ZSTDDIR)/common/,rt_lib_common_,$(FUZZ_SRC))
 FUZZ_RT_OBJ2 := $(subst $(ZSTDDIR)/compress/,rt_lib_compress_,$(FUZZ_RT_OBJ1))
@@ -80,7 +87,8 @@ FUZZ_RT_OBJ4 := $(subst $(ZSTDDIR)/dictBuilder/,rt_lib_dictBuilder_,$(FUZZ_RT_OB
 FUZZ_RT_OBJ5 := $(subst $(ZSTDDIR)/legacy/,rt_lib_legacy_,$(FUZZ_RT_OBJ4))
 FUZZ_RT_OBJ6 := $(subst $(PRGDIR)/,rt_prg_,$(FUZZ_RT_OBJ5))
 FUZZ_RT_OBJ7 := $(subst $\./,rt_fuzz_,$(FUZZ_RT_OBJ6))
-FUZZ_ROUND_TRIP_OBJ := $(FUZZ_RT_OBJ7:.c=.o)
+FUZZ_RT_OBJ8 := $(FUZZ_RT_OBJ7:.c=.o)
+FUZZ_ROUND_TRIP_OBJ := $(FUZZ_RT_OBJ8:.S=.o)
 
 .PHONY: default all clean cleanall
 
@@ -117,6 +125,9 @@ rt_lib_compress_%.o: $(ZSTDDIR)/compress/%.c
 rt_lib_decompress_%.o: $(ZSTDDIR)/decompress/%.c
 	$(CC) $(FUZZ_CPPFLAGS) $(FUZZ_CFLAGS) $(FUZZ_ROUND_TRIP_FLAGS) $< -c -o $@
 
+rt_lib_decompress_%.o: $(ZSTDDIR)/decompress/%.S
+	$(CC) $(FUZZ_CPPFLAGS) $(FUZZ_CFLAGS) $(FUZZ_ROUND_TRIP_FLAGS) $< -c -o $@
+
 rt_lib_dictBuilder_%.o: $(ZSTDDIR)/dictBuilder/%.c
 	$(CC) $(FUZZ_CPPFLAGS) $(FUZZ_CFLAGS) $(FUZZ_ROUND_TRIP_FLAGS) $< -c -o $@
 
@@ -136,6 +147,9 @@ d_lib_compress_%.o: $(ZSTDDIR)/compress/%.c
 	$(CC) $(FUZZ_CPPFLAGS) $(FUZZ_CFLAGS) $< -c -o $@
 
 d_lib_decompress_%.o: $(ZSTDDIR)/decompress/%.c
+	$(CC) $(FUZZ_CPPFLAGS) $(FUZZ_CFLAGS) $< -c -o $@
+
+d_lib_decompress_%.o: $(ZSTDDIR)/decompress/%.S
 	$(CC) $(FUZZ_CPPFLAGS) $(FUZZ_CFLAGS) $< -c -o $@
 
 d_lib_dictBuilder_%.o: $(ZSTDDIR)/dictBuilder/%.c

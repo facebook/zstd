@@ -46,6 +46,7 @@ result.o: result.c result.h
 test.o: test.c data.h config.h method.h
 	$(CC) $(REGRESSION_CFLAGS) $(REGRESSION_CPPFLAGS) $< -c -o $@
 
+.PHONY: libzstd.a
 libzstd.a:
 	$(MAKE) -C $(LIBDIR) libzstd.a-mt
 	cp $(LIBDIR)/libzstd.a .

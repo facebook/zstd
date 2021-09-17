@@ -57,19 +57,6 @@ LD_COMMAND  = $(CXX) $^          $(ALL_LDFLAGS) $(LIBS) -pthread -o $@
 CC_COMMAND  = $(CC)  $(DEPFLAGS) $(ALL_CFLAGS)   -c $<  -o $@
 CXX_COMMAND = $(CXX) $(DEPFLAGS) $(ALL_CXXFLAGS) -c $<  -o $@
 
-# Get a list of all zstd files so we rebuild the static library when we need to
-ZSTDCOMMON_FILES := $(wildcard $(ZSTDDIR)/common/*.c) \
-                    $(wildcard $(ZSTDDIR)/common/*.h)
-ZSTDCOMP_FILES   := $(wildcard $(ZSTDDIR)/compress/*.c) \
-                    $(wildcard $(ZSTDDIR)/compress/*.h)
-ZSTDDECOMP_FILES := $(wildcard $(ZSTDDIR)/decompress/*.c) \
-                    $(wildcard $(ZSTDDIR)/decompress/*.h)
-ZSTDPROG_FILES   := $(wildcard $(PROGDIR)/*.c) \
-                    $(wildcard $(PROGDIR)/*.h)
-ZSTD_FILES       := $(wildcard $(ZSTDDIR)/*.h) \
-                    $(ZSTDDECOMP_FILES) $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) \
-                    $(ZSTDPROG_FILES)
-
 # List all the pzstd source files so we can determine their dependencies
 PZSTD_SRCS  := $(wildcard *.cpp)
 PZSTD_TESTS := $(wildcard test/*.cpp)
@@ -189,7 +176,8 @@ roundtrip: test/RoundTripTest$(EXT)
 
 # Use the static library that zstd builds for simplicity and
 # so we get the compiler options correct
-$(ZSTDDIR)/libzstd.a: $(ZSTD_FILES)
+.PHONY: $(ZSTDDIR)/libzstd.a
+$(ZSTDDIR)/libzstd.a:
 	CFLAGS="$(ALL_CFLAGS)" LDFLAGS="$(ALL_LDFLAGS)" $(MAKE) -C $(ZSTDDIR) libzstd.a
 
 # Rules to build the tests

@@ -460,7 +460,8 @@ class Freestanding(object):
         print(*args, **kwargs)
 
     def _copy_file(self, lib_path):
-        if not (lib_path.endswith(".c") or lib_path.endswith(".h")):
+        suffixes = [".c", ".h", ".S"]
+        if not any((lib_path.endswith(suffix) for suffix in suffixes)):
             return
         if lib_path in SKIPPED_FILES:
             self._log(f"\tSkipping file: {lib_path}")

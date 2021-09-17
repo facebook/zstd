@@ -200,6 +200,15 @@ jobs:
         make clean && make -j all MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
         make clean && make check MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
 
+  test-variants:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: make all variants & validate
+      run: |
+        make -j -C programs allVariants MOREFLAGS=-O0
+        ./tests/test-variants.sh
+
 
   qemu-consistency:
     name: QEMU ${{ matrix.name }}
@@ -262,7 +271,6 @@ jobs:
       continue-on-error: true   # disable reporting errors (alignment issues)
       run: |
         LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
-
 
 # This test currently fails on Github Actions specifically.
 # Possible reason : TTY emulation.

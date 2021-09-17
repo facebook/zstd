@@ -217,7 +217,7 @@ armbuild: clean
 	CC=arm-linux-gnueabi-gcc CFLAGS="-Werror" $(MAKE) allzstd
 
 aarch64build: clean
-	CC=aarch64-linux-gnu-gcc CFLAGS="-Werror" $(MAKE) allzstd
+	CC=aarch64-linux-gnu-gcc CFLAGS="-Werror -O0" $(MAKE) allzstd
 
 ppcbuild: clean
 	CC=powerpc-linux-gnu-gcc CFLAGS="-m32 -Wno-attributes -Werror" $(MAKE) -j allzstd
@@ -381,23 +381,23 @@ cmakebuild:
 
 c89build: clean
 	$(CC) -v
-	CFLAGS="-std=c89 -Werror" $(MAKE) allmost  # will fail, due to missing support for `long long`
+	CFLAGS="-std=c89 -Werror -O0" $(MAKE) allmost  # will fail, due to missing support for `long long`
 
 gnu90build: clean
 	$(CC) -v
-	CFLAGS="-std=gnu90 -Werror" $(MAKE) allmost
+	CFLAGS="-std=gnu90 -Werror -O0" $(MAKE) allmost
 
 c99build: clean
 	$(CC) -v
-	CFLAGS="-std=c99 -Werror" $(MAKE) allmost
+	CFLAGS="-std=c99 -Werror -O0" $(MAKE) allmost
 
 gnu99build: clean
 	$(CC) -v
-	CFLAGS="-std=gnu99 -Werror" $(MAKE) allmost
+	CFLAGS="-std=gnu99 -Werror -O0" $(MAKE) allmost
 
 c11build: clean
 	$(CC) -v
-	CFLAGS="-std=c11 -Werror" $(MAKE) allmost
+	CFLAGS="-std=c11 -Werror -O0" $(MAKE) allmost
 
 bmix64build: clean
 	$(CC) -v

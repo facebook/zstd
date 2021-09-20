@@ -36,7 +36,7 @@ LEVEL(3)
 LEVEL(4)
 /* ROW_LEVEL triggers the row hash (force enabled and disabled) with different
  * dictionary strategies, and 16/32/64 row entries based on the level/searchLog.
- * 1 == disabled, 2 == enabled.
+ * 1 == enabled, 2 == disabled.
  */
 ROW_LEVEL(5, 1)
 ROW_LEVEL(5, 2) /* 16-entry rows */

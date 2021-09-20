@@ -417,7 +417,7 @@ typedef enum {
      * ZSTD_c_stableOutBuffer
      * ZSTD_c_blockDelimiters
      * ZSTD_c_validateSequences
-     * ZSTD_c_splitBlocks
+     * ZSTD_c_useBlockSplitter
      * ZSTD_c_useRowMatchFinder
      * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
      * note : never ever use experimentalParam? names directly;
@@ -1299,10 +1299,14 @@ typedef enum {
 } ZSTD_literalCompressionMode_e;
 
 typedef enum {
-  ZSTD_urm_auto = 0,                   /* Automatically determine whether or not we use row matchfinder */
-  ZSTD_urm_disableRowMatchFinder = 1,  /* Never use row matchfinder */
-  ZSTD_urm_enableRowMatchFinder = 2    /* Always use row matchfinder when applicable */
-} ZSTD_useRowMatchFinderMode_e;
+  /* Note: This enum controls features which are conditionally beneficial. Zstd typically will make a final
+   * decision on whether or not to enable the feature (ZSTD_ps_auto), but setting the switch to ZSTD_ps_enable
+   * or ZSTD_ps_disable allow for a force enable/disable the feature.
+   */
+  ZSTD_ps_auto = 0,         /* Let the library automatically determine whether the feature shall be enabled */
+  ZSTD_ps_enable = 1,       /* Force-enable the feature */
+  ZSTD_ps_disable = 2       /* Do not use the feature */
+} ZSTD_paramSwitch_e;
 
 /***************************************
 *  Frame size functions
@@ -1729,9 +1733,15 @@ ZSTDLIB_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* pre
  * See the comments on that enum for an explanation of the feature. */
 #define ZSTD_c_forceAttachDict ZSTD_c_experimentalParam4
 
-/* Controls how the literals are compressed (default is auto).
- * The value must be of type ZSTD_literalCompressionMode_e.
- * See ZSTD_literalCompressionMode_e enum definition for details.
+/* Controlled with ZSTD_paramSwitch_e enum.
+ * Default is ZSTD_ps_auto.
+ * Set to ZSTD_ps_disable to never compress literals.
+ * Set to ZSTD_ps_enable to always compress literals. (Note: uncompressed literals
+ * may still be emitted if huffman is not beneficial to use.)
+ *
+ * By default, in ZSTD_ps_auto, the library will decide at runtime whether to use
+ * literals compression based on the compression parameters - specifically,
+ * negative compression levels do not use literal compression.
  */
 #define ZSTD_c_literalCompressionMode ZSTD_c_experimentalParam5
 
@@ -1883,23 +1893,26 @@ ZSTDLIB_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* pre
  */
 #define ZSTD_c_validateSequences ZSTD_c_experimentalParam12
 
-/* ZSTD_c_splitBlocks
- * Default is 0 == disabled. Set to 1 to enable block splitting.
+/* ZSTD_c_useBlockSplitter
+ * Controlled with ZSTD_paramSwitch_e enum.
+ * Default is ZSTD_ps_auto.
+ * Set to ZSTD_ps_disable to never use block splitter.
+ * Set to ZSTD_ps_enable to always use block splitter.
  *
- * Will attempt to split blocks in order to improve compression ratio at the cost of speed.
+ * By default, in ZSTD_ps_auto, the library will decide at runtime whether to use
+ * block splitting based on the compression parameters.
  */
-#define ZSTD_c_splitBlocks ZSTD_c_experimentalParam13
+#define ZSTD_c_useBlockSplitter ZSTD_c_experimentalParam13
 
 /* ZSTD_c_useRowMatchFinder
- * Default is ZSTD_urm_auto.
- * Controlled with ZSTD_useRowMatchFinderMode_e enum.
+ * Controlled with ZSTD_paramSwitch_e enum.
+ * Default is ZSTD_ps_auto.
+ * Set to ZSTD_ps_disable to never use row-based matchfinder.
+ * Set to ZSTD_ps_enable to force usage of row-based matchfinder.
  *
- * By default, in ZSTD_urm_auto, when finalizing the compression parameters, the library
- * will decide at runtime whether to use the row-based matchfinder based on support for SIMD
- * instructions as well as the windowLog.
- *
- * Set to ZSTD_urm_disableRowMatchFinder to never use row-based matchfinder.
- * Set to ZSTD_urm_enableRowMatchFinder to force usage of row-based matchfinder.
+ * By default, in ZSTD_ps_auto, the library will decide at runtime whether to use
+ * the row-based matchfinder based on support for SIMD instructions and the window log.
+ * Note that this only pertains to compression strategies: greedy, lazy, and lazy2
  */
 #define ZSTD_c_useRowMatchFinder ZSTD_c_experimentalParam14
 

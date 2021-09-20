@@ -64,6 +64,7 @@ TARGET_INFO = {
     'sequence_compression_api': TargetInfo(InputType.RAW_DATA),
     'seekable_roundtrip': TargetInfo(InputType.RAW_DATA),
     'huf_round_trip': TargetInfo(InputType.RAW_DATA),
+    'huf_decompress': TargetInfo(InputType.RAW_DATA),
 }
 TARGETS = list(TARGET_INFO.keys())
 ALL_TARGETS = TARGETS + ['all']

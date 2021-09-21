@@ -467,7 +467,7 @@ ZSTDMT_serialState_reset(serialState_t* serialState,
                          ZSTD_dictContentType_e dictContentType)
 {
     /* Adjust parameters */
-    if (params.ldmParams.enableLdm) {
+    if (params.ldmParams.enableLdm == ZSTD_ps_enable) {
         DEBUGLOG(4, "LDM window size = %u KB", (1U << params.cParams.windowLog) >> 10);
         ZSTD_ldm_adjustParameters(&params.ldmParams, &params.cParams);
         assert(params.ldmParams.hashLog >= params.ldmParams.bucketSizeLog);
@@ -478,7 +478,7 @@ ZSTDMT_serialState_reset(serialState_t* serialState,
     serialState->nextJobID = 0;
     if (params.fParams.checksumFlag)
         XXH64_reset(&serialState->xxhState, 0);
-    if (params.ldmParams.enableLdm) {
+    if (params.ldmParams.enableLdm == ZSTD_ps_enable) {
         ZSTD_customMem cMem = params.customMem;
         unsigned const hashLog = params.ldmParams.hashLog;
         size_t const hashSize = ((size_t)1 << hashLog) * sizeof(ldmEntry_t);
@@ -564,7 +564,7 @@ static void ZSTDMT_serialState_update(serialState_t* serialState,
     /* A future job may error and skip our job */
     if (serialState->nextJobID == jobID) {
         /* It is now our turn, do any processing necessary */
-        if (serialState->params.ldmParams.enableLdm) {
+        if (serialState->params.ldmParams.enableLdm == ZSTD_ps_enable) {
             size_t error;
             assert(seqStore.seq != NULL && seqStore.pos == 0 &&
                    seqStore.size == 0 && seqStore.capacity > 0);
@@ -594,7 +594,7 @@ static void ZSTDMT_serialState_update(serialState_t* serialState,
     if (seqStore.size > 0) {
         size_t const err = ZSTD_referenceExternalSequences(
             jobCCtx, seqStore.seq, seqStore.size);
-        assert(serialState->params.ldmParams.enableLdm);
+        assert(serialState->params.ldmParams.enableLdm == ZSTD_ps_enable);
         assert(!ZSTD_isError(err));
         (void)err;
     }
@@ -672,7 +672,7 @@ static void ZSTDMT_compressionJob(void* jobDescription)
         if (dstBuff.start==NULL) JOB_ERROR(ERROR(memory_allocation));
         job->dstBuff = dstBuff;   /* this value can be read in ZSTDMT_flush, when it copies the whole job */
     }
-    if (jobParams.ldmParams.enableLdm && rawSeqStore.seq == NULL)
+    if (jobParams.ldmParams.enableLdm == ZSTD_ps_enable && rawSeqStore.seq == NULL)
         JOB_ERROR(ERROR(memory_allocation));
 
     /* Don't compute the checksum for chunks, since we compute it externally,
@@ -680,7 +680,7 @@ static void ZSTDMT_compressionJob(void* jobDescription)
      */
     if (job->jobID != 0) jobParams.fParams.checksumFlag = 0;
     /* Don't run LDM for the chunks, since we handle it externally */
-    jobParams.ldmParams.enableLdm = 0;
+    jobParams.ldmParams.enableLdm = ZSTD_ps_disable;
     /* Correct nbWorkers to 0. */
     jobParams.nbWorkers = 0;
 
@@ -1144,7 +1144,7 @@ size_t ZSTDMT_toFlushNow(ZSTDMT_CCtx* mtctx)
 static unsigned ZSTDMT_computeTargetJobLog(const ZSTD_CCtx_params* params)
 {
     unsigned jobLog;
-    if (params->ldmParams.enableLdm) {
+    if (params->ldmParams.enableLdm == ZSTD_ps_enable) {
         /* In Long Range Mode, the windowLog is typically oversized.
          * In which case, it's preferable to determine the jobSize
          * based on cycleLog instead. */
@@ -1188,7 +1188,7 @@ static size_t ZSTDMT_computeOverlapSize(const ZSTD_CCtx_params* params)
     int const overlapRLog = 9 - ZSTDMT_overlapLog(params->overlapLog, params->cParams.strategy);
     int ovLog = (overlapRLog >= 8) ? 0 : (params->cParams.windowLog - overlapRLog);
     assert(0 <= overlapRLog && overlapRLog <= 8);
-    if (params->ldmParams.enableLdm) {
+    if (params->ldmParams.enableLdm == ZSTD_ps_enable) {
         /* In Long Range Mode, the windowLog is typically oversized.
          * In which case, it's preferable to determine the jobSize
          * based on chainLog instead.
@@ -1275,7 +1275,7 @@ size_t ZSTDMT_initCStream_internal(
     ZSTDMT_setBufferSize(mtctx->bufPool, ZSTD_compressBound(mtctx->targetSectionSize));
     {
         /* If ldm is enabled we need windowSize space. */
-        size_t const windowSize = mtctx->params.ldmParams.enableLdm ? (1U << mtctx->params.cParams.windowLog) : 0;
+        size_t const windowSize = mtctx->params.ldmParams.enableLdm == ZSTD_ps_enable ? (1U << mtctx->params.cParams.windowLog) : 0;
         /* Two buffers of slack, plus extra space for the overlap
          * This is the minimum slack that LDM works with. One extra because
          * flush might waste up to targetSectionSize-1 bytes. Another extra
@@ -1587,7 +1587,7 @@ static int ZSTDMT_doesOverlapWindow(buffer_t buffer, ZSTD_window_t window)
 
 static void ZSTDMT_waitForLdmComplete(ZSTDMT_CCtx* mtctx, buffer_t buffer)
 {
-    if (mtctx->params.ldmParams.enableLdm) {
+    if (mtctx->params.ldmParams.enableLdm == ZSTD_ps_enable) {
         ZSTD_pthread_mutex_t* mutex = &mtctx->serial.ldmWindowMutex;
         DEBUGLOG(5, "ZSTDMT_waitForLdmComplete");
         DEBUGLOG(5, "source  [0x%zx, 0x%zx)",

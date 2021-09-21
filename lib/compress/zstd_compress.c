@@ -272,8 +272,10 @@ static int ZSTD_allocateChainTable(const ZSTD_strategy strategy,
  * enable long distance matching (wlog >= 27, strategy >= btopt).
  * Returns 0 otherwise.
  */
-static U32 ZSTD_CParams_shouldEnableLdm(const ZSTD_compressionParameters* const cParams) {
-    return cParams->strategy >= ZSTD_btopt && cParams->windowLog >= 27;
+static ZSTD_paramSwitch_e ZSTD_resolveEnableLdm(ZSTD_paramSwitch_e mode,
+                                 const ZSTD_compressionParameters* const cParams) {
+    if (mode != ZSTD_ps_auto) return mode;
+    return (cParams->strategy >= ZSTD_btopt && cParams->windowLog >= 27) ? ZSTD_ps_enable : ZSTD_ps_disable;
 }
 
 static ZSTD_CCtx_params ZSTD_makeCCtxParamsFromCParams(
@@ -285,15 +287,12 @@ static ZSTD_CCtx_params ZSTD_makeCCtxParamsFromCParams(
     cctxParams.cParams = cParams;
 
     /* Adjust advanced params according to cParams */
-    if (ZSTD_CParams_shouldEnableLdm(&cParams)) {
-        DEBUGLOG(4, "ZSTD_makeCCtxParamsFromCParams(): Including LDM into cctx params");
-        cctxParams.ldmParams.enableLdm = 1;
-        /* LDM is enabled by default for optimal parser and window size >= 128MB */
+    cctxParams.ldmParams.enableLdm = ZSTD_resolveEnableLdm(cctxParams.ldmParams.enableLdm, &cParams);
+    if (cctxParams.ldmParams.enableLdm == ZSTD_ps_enable) {
         ZSTD_ldm_adjustParameters(&cctxParams.ldmParams, &cParams);
         assert(cctxParams.ldmParams.hashLog >= cctxParams.ldmParams.bucketSizeLog);
         assert(cctxParams.ldmParams.hashRateLog < 32);
     }
-
     cctxParams.useBlockSplitter = ZSTD_resolveBlockSplitterMode(cctxParams.useBlockSplitter, &cParams);
     cctxParams.useRowMatchFinder = ZSTD_resolveRowMatchFinderMode(cctxParams.useRowMatchFinder, &cParams);
     assert(!ZSTD_checkCParams(cParams));
@@ -356,13 +355,9 @@ static void ZSTD_CCtxParams_init_internal(ZSTD_CCtx_params* cctxParams, ZSTD_par
     cctxParams->compressionLevel = compressionLevel;
     cctxParams->useRowMatchFinder = ZSTD_resolveRowMatchFinderMode(cctxParams->useRowMatchFinder, &params->cParams);
     cctxParams->useBlockSplitter = ZSTD_resolveBlockSplitterMode(cctxParams->useBlockSplitter, &params->cParams);
-    DEBUGLOG(4, "ZSTD_CCtxParams_init_internal: useRowMatchFinder=%d, useBlockSplitter=%d", cctxParams->useRowMatchFinder, cctxParams->useBlockSplitter);
-
-    if (ZSTD_CParams_shouldEnableLdm(&params->cParams)) {
-        /* Enable LDM by default for optimal parser and window size >= 128MB */
-        DEBUGLOG(4, "LDM enabled by default (window size >= 128MB, strategy >= btopt)");
-        cctxParams->ldmParams.enableLdm = 1;
-    }
+    cctxParams->ldmParams.enableLdm = ZSTD_resolveEnableLdm(cctxParams->ldmParams.enableLdm, &params->cParams);
+    DEBUGLOG(4, "ZSTD_CCtxParams_init_internal: useRowMatchFinder=%d, useBlockSplitter=%d ldm=%d",
+                cctxParams->useRowMatchFinder, cctxParams->useBlockSplitter, cctxParams->ldmParams.enableLdm);
 }
 
 size_t ZSTD_CCtxParams_init_advanced(ZSTD_CCtx_params* cctxParams, ZSTD_parameters params)
@@ -849,7 +844,7 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
         return CCtxParams->enableDedicatedDictSearch;
 
     case ZSTD_c_enableLongDistanceMatching :
-        CCtxParams->ldmParams.enableLdm = (value!=0);
+        CCtxParams->ldmParams.enableLdm = (ZSTD_paramSwitch_e)value;
         return CCtxParams->ldmParams.enableLdm;
 
     case ZSTD_c_ldmHashLog :
@@ -1412,7 +1407,7 @@ ZSTD_compressionParameters ZSTD_getCParamsFromCCtxParams(
       srcSizeHint = CCtxParams->srcSizeHint;
     }
     cParams = ZSTD_getCParams_internal(CCtxParams->compressionLevel, srcSizeHint, dictSize, mode);
-    if (CCtxParams->ldmParams.enableLdm) cParams.windowLog = ZSTD_LDM_DEFAULT_WINDOW_LOG;
+    if (CCtxParams->ldmParams.enableLdm == ZSTD_ps_enable) cParams.windowLog = ZSTD_LDM_DEFAULT_WINDOW_LOG;
     ZSTD_overrideCParams(&cParams, &CCtxParams->cParams);
     assert(!ZSTD_checkCParams(cParams));
     /* srcSizeHint == 0 means 0 */
@@ -1483,7 +1478,7 @@ static size_t ZSTD_estimateCCtxSize_usingCCtxParams_internal(
 
     size_t const ldmSpace = ZSTD_ldm_getTableSize(*ldmParams);
     size_t const maxNbLdmSeq = ZSTD_ldm_getMaxNbSeq(*ldmParams, blockSize);
-    size_t const ldmSeqSpace = ldmParams->enableLdm ?
+    size_t const ldmSeqSpace = ldmParams->enableLdm == ZSTD_ps_enable ?
         ZSTD_cwksp_aligned_alloc_size(maxNbLdmSeq * sizeof(rawSeq)) : 0;
 
 
@@ -1852,7 +1847,8 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
 
     assert(params->useRowMatchFinder != ZSTD_ps_auto);
     assert(params->useBlockSplitter != ZSTD_ps_auto);
-    if (params->ldmParams.enableLdm) {
+    assert(params->ldmParams.enableLdm != ZSTD_ps_auto);
+    if (params->ldmParams.enableLdm == ZSTD_ps_enable) {
         /* Adjust long distance matching parameters */
         ZSTD_ldm_adjustParameters(&zc->appliedParams.ldmParams, &params->cParams);
         assert(params->ldmParams.hashLog >= params->ldmParams.bucketSizeLog);
@@ -1952,7 +1948,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         zc->outBuff = (char*)ZSTD_cwksp_reserve_buffer(ws, buffOutSize);
 
         /* ldm bucketOffsets table */
-        if (params->ldmParams.enableLdm) {
+        if (params->ldmParams.enableLdm == ZSTD_ps_enable) {
             /* TODO: avoid memset? */
             size_t const numBuckets =
                   ((size_t)1) << (params->ldmParams.hashLog -
@@ -1979,7 +1975,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             ZSTD_resetTarget_CCtx), "");
 
         /* ldm hash table */
-        if (params->ldmParams.enableLdm) {
+        if (params->ldmParams.enableLdm == ZSTD_ps_enable) {
             /* TODO: avoid memset? */
             size_t const ldmHSize = ((size_t)1) << params->ldmParams.hashLog;
             zc->ldmState.hashTable = (ldmEntry_t*)ZSTD_cwksp_reserve_aligned(ws, ldmHSize * sizeof(ldmEntry_t));
@@ -2226,8 +2222,10 @@ static size_t ZSTD_copyCCtx_internal(ZSTD_CCtx* dstCCtx,
         params.cParams = srcCCtx->appliedParams.cParams;
         assert(srcCCtx->appliedParams.useRowMatchFinder != ZSTD_ps_auto);
         assert(srcCCtx->appliedParams.useBlockSplitter != ZSTD_ps_auto);
+        assert(srcCCtx->appliedParams.ldmParams.enableLdm != ZSTD_ps_auto);
         params.useRowMatchFinder = srcCCtx->appliedParams.useRowMatchFinder;
         params.useBlockSplitter = srcCCtx->appliedParams.useBlockSplitter;
+        params.ldmParams = srcCCtx->appliedParams.ldmParams;
         params.fParams = fParams;
         ZSTD_resetCCtx_internal(dstCCtx, &params, pledgedSrcSize,
                                 /* loadedDictSize */ 0,
@@ -2849,7 +2847,7 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
                 zc->blockState.nextCBlock->rep[i] = zc->blockState.prevCBlock->rep[i];
         }
         if (zc->externSeqStore.pos < zc->externSeqStore.size) {
-            assert(!zc->appliedParams.ldmParams.enableLdm);
+            assert(zc->appliedParams.ldmParams.enableLdm == ZSTD_ps_disable);
             /* Updates ldmSeqStore.pos */
             lastLLSize =
                 ZSTD_ldm_blockCompress(&zc->externSeqStore,
@@ -2858,7 +2856,7 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
                                        zc->appliedParams.useRowMatchFinder,
                                        src, srcSize);
             assert(zc->externSeqStore.pos <= zc->externSeqStore.size);
-        } else if (zc->appliedParams.ldmParams.enableLdm) {
+        } else if (zc->appliedParams.ldmParams.enableLdm == ZSTD_ps_enable) {
             rawSeqStore_t ldmSeqStore = kNullRawSeqStore;
 
             ldmSeqStore.seq = zc->ldmSequences;
@@ -4081,7 +4079,7 @@ size_t ZSTD_referenceExternalSequences(ZSTD_CCtx* cctx, rawSeq* seq, size_t nbSe
 {
     RETURN_ERROR_IF(cctx->stage != ZSTDcs_init, stage_wrong,
                     "wrong cctx stage");
-    RETURN_ERROR_IF(cctx->appliedParams.ldmParams.enableLdm,
+    RETURN_ERROR_IF(cctx->appliedParams.ldmParams.enableLdm == ZSTD_ps_enable,
                     parameter_unsupported,
                     "incompatible with ldm");
     cctx->externSeqStore.seq = seq;
@@ -4122,7 +4120,7 @@ static size_t ZSTD_compressContinue_internal (ZSTD_CCtx* cctx,
         ms->forceNonContiguous = 0;
         ms->nextToUpdate = ms->window.dictLimit;
     }
-    if (cctx->appliedParams.ldmParams.enableLdm) {
+    if (cctx->appliedParams.ldmParams.enableLdm == ZSTD_ps_enable) {
         ZSTD_window_update(&cctx->ldmState.window, src, srcSize, /* forceNonContiguous */ 0);
     }
 
@@ -4191,7 +4189,7 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
 {
     const BYTE* ip = (const BYTE*) src;
     const BYTE* const iend = ip + srcSize;
-    int const loadLdmDict = params->ldmParams.enableLdm && ls != NULL;
+    int const loadLdmDict = params->ldmParams.enableLdm == ZSTD_ps_enable && ls != NULL;
 
     /* Assert that we the ms params match the params we're being given */
     ZSTD_assertEqualCParams(params->cParams, ms->cParams);
@@ -5557,14 +5555,9 @@ static size_t ZSTD_CCtx_init_compressStream2(ZSTD_CCtx* cctx,
                 &params, cctx->pledgedSrcSizePlusOne-1,
                 dictSize, mode);
     }
-
-    if (ZSTD_CParams_shouldEnableLdm(&params.cParams)) {
-        /* Enable LDM by default for optimal parser and window size >= 128MB */
-        DEBUGLOG(4, "LDM enabled by default (window size >= 128MB, strategy >= btopt)");
-        params.ldmParams.enableLdm = 1;
-    }
-
+    
     params.useBlockSplitter = ZSTD_resolveBlockSplitterMode(params.useBlockSplitter, &params.cParams);
+    params.ldmParams.enableLdm = ZSTD_resolveEnableLdm(params.ldmParams.enableLdm, &params.cParams);
     params.useRowMatchFinder = ZSTD_resolveRowMatchFinderMode(params.useRowMatchFinder, &params.cParams);
 
 #ifdef ZSTD_MULTITHREAD

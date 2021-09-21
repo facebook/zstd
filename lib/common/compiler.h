@@ -108,7 +108,7 @@
   #if ((defined(__clang__) && __has_attribute(__target__)) \
       || (defined(__GNUC__) \
           && (__GNUC__ >= 5 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)))) \
-      && (defined(__x86_64__) || defined(_M_X86)) \
+      && (defined(__x86_64__) || defined(_M_X64)) \
       && !defined(__BMI2__)
   #  define DYNAMIC_BMI2 1
   #else
@@ -212,7 +212,7 @@
 #  elif defined(ZSTD_ARCH_ARM_NEON)
 #    include <arm_neon.h>
 #  endif
-#endif  
+#endif
 
 /* compat. with non-clang compilers */
 #ifndef __has_builtin

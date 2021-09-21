@@ -42,6 +42,7 @@ zstd_decompress-y := \
 		common/fse_decompress.o \
 		common/zstd_common.o \
 		decompress/huf_decompress.o \
+		decompress/huf_decompress_amd64.o \
 		decompress/zstd_ddict.o \
 		decompress/zstd_decompress.o \
 		decompress/zstd_decompress_block.o \

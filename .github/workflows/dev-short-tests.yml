@@ -200,6 +200,18 @@ jobs:
         make clean && make -j all MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
         make clean && make check MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
 
+  dynamic-bmi2:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: dynamic bmi2 tests
+      run: |
+        make clean && make -j check MOREFLAGS="-O0 -Werror -mbmi2"
+        make clean && make -j check MOREFLAGS="-O0 -Werror -DDYNAMIC_BMI2=1"
+        make clean && make -j check MOREFLAGS="-O0 -Werror -DDYNAMIC_BMI2=1 -mbmi2"
+        make clean && make -j check MOREFLAGS="-O0 -Werror -DDYNAMIC_BMI2=0"
+        make clean && make -j check MOREFLAGS="-O0 -Werror -DDYNAMIC_BMI2=0 -mbmi2"
+
   test-variants:
     runs-on: ubuntu-latest
     steps:

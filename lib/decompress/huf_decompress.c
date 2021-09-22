@@ -78,6 +78,18 @@
 #endif
 #define HUF_ASM_DECL HUF_EXTERN_C
 
+#if DYNAMIC_BMI2 || (HUF_ENABLE_ASM_X86_64_BMI2 && defined(__BMI2__))
+# define HUF_NEED_BMI2_FUNCTION 1
+#else
+# define HUF_NEED_BMI2_FUNCTION 0
+#endif
+
+#if !(HUF_ENABLE_ASM_X86_64_BMI2 && defined(__BMI2__))
+# define HUF_NEED_DEFAULT_FUNCTION 1
+#else
+# define HUF_NEED_DEFAULT_FUNCTION 0
+#endif
+
 /* **************************************************************
 *  Error Management
 ****************************************************************/
@@ -653,7 +665,7 @@ HUF_decompress4X1_usingDTable_internal_body(
     }
 }
 
-#if DYNAMIC_BMI2
+#if HUF_NEED_BMI2_FUNCTION
 static TARGET_ATTRIBUTE("bmi2")
 size_t HUF_decompress4X1_usingDTable_internal_bmi2(void* dst, size_t dstSize, void const* cSrc,
                     size_t cSrcSize, HUF_DTable const* DTable) {
@@ -661,11 +673,13 @@ size_t HUF_decompress4X1_usingDTable_internal_bmi2(void* dst, size_t dstSize, vo
 }
 #endif
 
+#if HUF_NEED_DEFAULT_FUNCTION
 static
 size_t HUF_decompress4X1_usingDTable_internal_default(void* dst, size_t dstSize, void const* cSrc,
                     size_t cSrcSize, HUF_DTable const* DTable) {
     return HUF_decompress4X1_usingDTable_internal_body(dst, dstSize, cSrc, cSrcSize, DTable);
 }
+#endif
 
 #if HUF_ENABLE_ASM_X86_64_BMI2
 
@@ -1365,7 +1379,7 @@ HUF_decompress4X2_usingDTable_internal_body(
     }
 }
 
-#if DYNAMIC_BMI2
+#if HUF_NEED_BMI2_FUNCTION
 static TARGET_ATTRIBUTE("bmi2")
 size_t HUF_decompress4X2_usingDTable_internal_bmi2(void* dst, size_t dstSize, void const* cSrc,
                     size_t cSrcSize, HUF_DTable const* DTable) {
@@ -1373,11 +1387,13 @@ size_t HUF_decompress4X2_usingDTable_internal_bmi2(void* dst, size_t dstSize, vo
 }
 #endif
 
+#if HUF_NEED_DEFAULT_FUNCTION
 static
 size_t HUF_decompress4X2_usingDTable_internal_default(void* dst, size_t dstSize, void const* cSrc,
                     size_t cSrcSize, HUF_DTable const* DTable) {
     return HUF_decompress4X2_usingDTable_internal_body(dst, dstSize, cSrc, cSrcSize, DTable);
 }
+#endif
 
 #if HUF_ENABLE_ASM_X86_64_BMI2
 

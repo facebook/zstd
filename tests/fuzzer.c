@@ -3353,6 +3353,23 @@ static int basicUnitTests(U32 const seed, double compressibility)
         FSE_normalizeCount(norm, tableLog, count, nbSeq, maxSymbolValue, /* useLowProbCount */ 1);
     }
     DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : testing FSE_writeNCount() PR#2779: ", testNb++);
+    {
+        size_t const outBufSize = 9;
+        short const count[11] = {1, 0, 1, 0, 1, 0, 1, 0, 1, 9, 18};
+        unsigned const tableLog = 5;
+        unsigned const maxSymbolValue = 10;
+        BYTE* outBuf = (BYTE*)malloc(outBufSize*sizeof(BYTE));
+
+        /* Ensure that this write doesn't write out of bounds, and that 
+         * FSE_writeNCount_generic() is *not* called with writeIsSafe == 1.
+         */
+        FSE_writeNCount(outBuf, outBufSize, count, maxSymbolValue, tableLog);
+        free(outBuf);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
 #ifdef ZSTD_MULTITHREAD
     DISPLAYLEVEL(3, "test%3i : passing wrong full dict should fail on compressStream2 refPrefix ", testNb++);
     {   ZSTD_CCtx* cctx = ZSTD_createCCtx();

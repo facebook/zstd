@@ -93,4 +93,4 @@ test: libzstd
 
 .PHONY: clean
 clean:
-	$(RM) -rf linux
+	$(RM) -rf linux test/test test/static_test

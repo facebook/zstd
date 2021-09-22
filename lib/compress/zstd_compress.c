@@ -1506,7 +1506,7 @@ size_t ZSTD_estimateCCtxSize_usingCCtxParams(const ZSTD_CCtx_params* params)
     ZSTD_compressionParameters const cParams =
                 ZSTD_getCParamsFromCCtxParams(params, ZSTD_CONTENTSIZE_UNKNOWN, 0, ZSTD_cpm_noAttachDict);
     ZSTD_paramSwitch_e const useRowMatchFinder = ZSTD_resolveRowMatchFinderMode(params->useRowMatchFinder,
-                                                                                         &cParams);
+                                                                               &cParams);
 
     RETURN_ERROR_IF(params->nbWorkers > 0, GENERIC, "Estimate CCtx size is supported for single-threaded compression only.");
     /* estimateCCtxSize is for one-shot compression. So no buffers should
@@ -1987,8 +1987,8 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             zc->ldmState.loadedDictEnd = 0;
         }
 
-        assert(ZSTD_cwksp_estimated_space_within_bounds(ws, neededSpace, resizeWorkspace));
         DEBUGLOG(3, "wksp: finished allocating, %zd bytes remain available", ZSTD_cwksp_available_space(ws));
+        assert(ZSTD_cwksp_estimated_space_within_bounds(ws, neededSpace, resizeWorkspace));
 
         zc->initialized = 1;
 
@@ -3341,20 +3341,20 @@ static size_t ZSTD_estimateBlockSize(const BYTE* literals, size_t litSize,
  *
  * Returns the estimated compressed size of the seqStore, or a zstd error.
  */
-static size_t ZSTD_buildEntropyStatisticsAndEstimateSubBlockSize(seqStore_t* seqStore, const ZSTD_CCtx* zc) {
-    ZSTD_entropyCTablesMetadata_t entropyMetadata;
+static size_t ZSTD_buildEntropyStatisticsAndEstimateSubBlockSize(seqStore_t* seqStore, ZSTD_CCtx* zc) {
+    ZSTD_entropyCTablesMetadata_t* entropyMetadata = &zc->blockSplitCtx.entropyMetadata;
     DEBUGLOG(6, "ZSTD_buildEntropyStatisticsAndEstimateSubBlockSize()");
     FORWARD_IF_ERROR(ZSTD_buildBlockEntropyStats(seqStore,
                     &zc->blockState.prevCBlock->entropy,
                     &zc->blockState.nextCBlock->entropy,
                     &zc->appliedParams,
-                    &entropyMetadata,
+                    entropyMetadata,
                     zc->entropyWorkspace, ENTROPY_WORKSPACE_SIZE /* statically allocated in resetCCtx */), "");
     return ZSTD_estimateBlockSize(seqStore->litStart, (size_t)(seqStore->lit - seqStore->litStart),
                     seqStore->ofCode, seqStore->llCode, seqStore->mlCode,
                     (size_t)(seqStore->sequences - seqStore->sequencesStart),
-                    &zc->blockState.nextCBlock->entropy, &entropyMetadata, zc->entropyWorkspace, ENTROPY_WORKSPACE_SIZE,
-                    (int)(entropyMetadata.hufMetadata.hType == set_compressed), 1);
+                    &zc->blockState.nextCBlock->entropy, entropyMetadata, zc->entropyWorkspace, ENTROPY_WORKSPACE_SIZE,
+                    (int)(entropyMetadata->hufMetadata.hType == set_compressed), 1);
 }
 
 /* Returns literals bytes represented in a seqStore */
@@ -3553,7 +3553,6 @@ typedef struct {
 } seqStoreSplits;
 
 #define MIN_SEQUENCES_BLOCK_SPLITTING 300
-#define MAX_NB_SPLITS 196
 
 /* Helper function to perform the recursive search for block splits.
  * Estimates the cost of seqStore prior to split, and estimates the cost of splitting the sequences in half.
@@ -3564,30 +3563,31 @@ typedef struct {
  * In theory, this means the absolute largest recursion depth is 10 == log2(maxNbSeqInBlock/MIN_SEQUENCES_BLOCK_SPLITTING).
  * In practice, recursion depth usually doesn't go beyond 4.
  *
- * Furthermore, the number of splits is capped by MAX_NB_SPLITS. At MAX_NB_SPLITS == 196 with the current existing blockSize
+ * Furthermore, the number of splits is capped by ZSTD_MAX_NB_BLOCK_SPLITS. At ZSTD_MAX_NB_BLOCK_SPLITS == 196 with the current existing blockSize
  * maximum of 128 KB, this value is actually impossible to reach.
  */
 static void ZSTD_deriveBlockSplitsHelper(seqStoreSplits* splits, size_t startIdx, size_t endIdx,
-                                         const ZSTD_CCtx* zc, const seqStore_t* origSeqStore) {
-    seqStore_t fullSeqStoreChunk;
-    seqStore_t firstHalfSeqStore;
-    seqStore_t secondHalfSeqStore;
+                                         ZSTD_CCtx* zc, const seqStore_t* origSeqStore) {
+    seqStore_t* fullSeqStoreChunk = &zc->blockSplitCtx.fullSeqStoreChunk;
+    seqStore_t* firstHalfSeqStore = &zc->blockSplitCtx.firstHalfSeqStore;
+    seqStore_t* secondHalfSeqStore = &zc->blockSplitCtx.secondHalfSeqStore;
     size_t estimatedOriginalSize;
     size_t estimatedFirstHalfSize;
     size_t estimatedSecondHalfSize;
     size_t midIdx = (startIdx + endIdx)/2;
 
-    if (endIdx - startIdx < MIN_SEQUENCES_BLOCK_SPLITTING || splits->idx >= MAX_NB_SPLITS) {
+    if (endIdx - startIdx < MIN_SEQUENCES_BLOCK_SPLITTING || splits->idx >= ZSTD_MAX_NB_BLOCK_SPLITS) {
         DEBUGLOG(6, "ZSTD_deriveBlockSplitsHelper: Too few sequences");
         return;
     }
-    ZSTD_deriveSeqStoreChunk(&fullSeqStoreChunk, origSeqStore, startIdx, endIdx);
-    ZSTD_deriveSeqStoreChunk(&firstHalfSeqStore, origSeqStore, startIdx, midIdx);
-    ZSTD_deriveSeqStoreChunk(&secondHalfSeqStore, origSeqStore, midIdx, endIdx);
-    estimatedOriginalSize = ZSTD_buildEntropyStatisticsAndEstimateSubBlockSize(&fullSeqStoreChunk, zc);
-    estimatedFirstHalfSize = ZSTD_buildEntropyStatisticsAndEstimateSubBlockSize(&firstHalfSeqStore, zc);
-    estimatedSecondHalfSize = ZSTD_buildEntropyStatisticsAndEstimateSubBlockSize(&secondHalfSeqStore, zc);
-    DEBUGLOG(5, "Estimated original block size: %zu -- First half split: %zu -- Second half split: %zu",
+    DEBUGLOG(4, "ZSTD_deriveBlockSplitsHelper: startIdx=%zu endIdx=%zu", startIdx, endIdx);
+    ZSTD_deriveSeqStoreChunk(fullSeqStoreChunk, origSeqStore, startIdx, endIdx);
+    ZSTD_deriveSeqStoreChunk(firstHalfSeqStore, origSeqStore, startIdx, midIdx);
+    ZSTD_deriveSeqStoreChunk(secondHalfSeqStore, origSeqStore, midIdx, endIdx);
+    estimatedOriginalSize = ZSTD_buildEntropyStatisticsAndEstimateSubBlockSize(fullSeqStoreChunk, zc);
+    estimatedFirstHalfSize = ZSTD_buildEntropyStatisticsAndEstimateSubBlockSize(firstHalfSeqStore, zc);
+    estimatedSecondHalfSize = ZSTD_buildEntropyStatisticsAndEstimateSubBlockSize(secondHalfSeqStore, zc);
+    DEBUGLOG(4, "Estimated original block size: %zu -- First half split: %zu -- Second half split: %zu",
              estimatedOriginalSize, estimatedFirstHalfSize, estimatedSecondHalfSize);
     if (ZSTD_isError(estimatedOriginalSize) || ZSTD_isError(estimatedFirstHalfSize) || ZSTD_isError(estimatedSecondHalfSize)) {
         return;
@@ -3627,12 +3627,12 @@ static size_t ZSTD_compressBlock_splitBlock_internal(ZSTD_CCtx* zc, void* dst, s
     size_t cSize = 0;
     const BYTE* ip = (const BYTE*)src;
     BYTE* op = (BYTE*)dst;
-    U32 partitions[MAX_NB_SPLITS];
     size_t i = 0;
     size_t srcBytesTotal = 0;
+    U32* partitions = zc->blockSplitCtx.partitions; /* size == ZSTD_MAX_NB_BLOCK_SPLITS */
+    seqStore_t* nextSeqStore = &zc->blockSplitCtx.nextSeqStore;
+    seqStore_t* currSeqStore = &zc->blockSplitCtx.currSeqStore;
     size_t numSplits = ZSTD_deriveBlockSplits(zc, partitions, nbSeq);
-    seqStore_t nextSeqStore;
-    seqStore_t currSeqStore;
 
     /* If a block is split and some partitions are emitted as RLE/uncompressed, then repcode history
      * may become invalid. In order to reconcile potentially invalid repcodes, we keep track of two
@@ -3652,7 +3652,7 @@ static size_t ZSTD_compressBlock_splitBlock_internal(ZSTD_CCtx* zc, void* dst, s
     repcodes_t cRep;
     ZSTD_memcpy(dRep.rep, zc->blockState.prevCBlock->rep, sizeof(repcodes_t));
     ZSTD_memcpy(cRep.rep, zc->blockState.prevCBlock->rep, sizeof(repcodes_t));
-    ZSTD_memset(&nextSeqStore, 0, sizeof(seqStore_t));
+    ZSTD_memset(nextSeqStore, 0, sizeof(seqStore_t));
 
     DEBUGLOG(4, "ZSTD_compressBlock_splitBlock_internal (dstCapacity=%u, dictLimit=%u, nextToUpdate=%u)",
                 (unsigned)dstCapacity, (unsigned)zc->blockState.matchState.window.dictLimit,
@@ -3670,36 +3670,36 @@ static size_t ZSTD_compressBlock_splitBlock_internal(ZSTD_CCtx* zc, void* dst, s
         return cSizeSingleBlock;
     }
 
-    ZSTD_deriveSeqStoreChunk(&currSeqStore, &zc->seqStore, 0, partitions[0]);
+    ZSTD_deriveSeqStoreChunk(currSeqStore, &zc->seqStore, 0, partitions[0]);
     for (i = 0; i <= numSplits; ++i) {
         size_t srcBytes;
         size_t cSizeChunk;
         U32 const lastPartition = (i == numSplits);
         U32 lastBlockEntireSrc = 0;
 
-        srcBytes = ZSTD_countSeqStoreLiteralsBytes(&currSeqStore) + ZSTD_countSeqStoreMatchBytes(&currSeqStore);
+        srcBytes = ZSTD_countSeqStoreLiteralsBytes(currSeqStore) + ZSTD_countSeqStoreMatchBytes(currSeqStore);
         srcBytesTotal += srcBytes;
         if (lastPartition) {
             /* This is the final partition, need to account for possible last literals */
             srcBytes += blockSize - srcBytesTotal;
             lastBlockEntireSrc = lastBlock;
         } else {
-            ZSTD_deriveSeqStoreChunk(&nextSeqStore, &zc->seqStore, partitions[i], partitions[i+1]);
+            ZSTD_deriveSeqStoreChunk(nextSeqStore, &zc->seqStore, partitions[i], partitions[i+1]);
         }
 
-        cSizeChunk = ZSTD_compressSeqStore_singleBlock(zc, &currSeqStore,
+        cSizeChunk = ZSTD_compressSeqStore_singleBlock(zc, currSeqStore,
                                                       &dRep, &cRep,
                                                        op, dstCapacity,
                                                        ip, srcBytes,
                                                        lastBlockEntireSrc, 1 /* isPartition */);
-        DEBUGLOG(5, "Estimated size: %zu actual size: %zu", ZSTD_buildEntropyStatisticsAndEstimateSubBlockSize(&currSeqStore, zc), cSizeChunk);
+        DEBUGLOG(5, "Estimated size: %zu actual size: %zu", ZSTD_buildEntropyStatisticsAndEstimateSubBlockSize(currSeqStore, zc), cSizeChunk);
         FORWARD_IF_ERROR(cSizeChunk, "Compressing chunk failed!");
 
         ip += srcBytes;
         op += cSizeChunk;
         dstCapacity -= cSizeChunk;
         cSize += cSizeChunk;
-        currSeqStore = nextSeqStore;
+        *currSeqStore = *nextSeqStore;
         assert(cSizeChunk <= ZSTD_BLOCKSIZE_MAX + ZSTD_blockHeaderSize);
     }
     /* cRep and dRep may have diverged during the compression. If so, we use the dRep repcodes

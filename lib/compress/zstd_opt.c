@@ -65,7 +65,7 @@ MEM_STATIC double ZSTD_fCost(U32 price)
 
 static int ZSTD_compressedLiterals(optState_t const* const optPtr)
 {
-    return optPtr->literalCompressionMode != ZSTD_lcm_uncompressed;
+    return optPtr->literalCompressionMode != ZSTD_ps_disable;
 }
 
 static void ZSTD_setBasePrices(optState_t* optPtr, int optLevel)

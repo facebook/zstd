@@ -179,7 +179,7 @@ typedef struct {
     U32  offCodeSumBasePrice;    /* to compare to log2(offreq)  */
     ZSTD_OptPrice_e priceType;   /* prices can be determined dynamically, or follow a pre-defined cost structure */
     const ZSTD_entropyCTables_t* symbolCosts;  /* pre-calculated dictionary statistics */
-    ZSTD_literalCompressionMode_e literalCompressionMode;
+    ZSTD_paramSwitch_e literalCompressionMode;
 } optState_t;
 
 typedef struct {
@@ -266,7 +266,7 @@ typedef struct {
 } ldmState_t;
 
 typedef struct {
-    U32 enableLdm;          /* 1 if enable long distance matching */
+    ZSTD_paramSwitch_e enableLdm; /* ZSTD_ps_enable to enable LDM. ZSTD_ps_auto by default */
     U32 hashLog;            /* Log size of hashTable */
     U32 bucketSizeLog;      /* Log bucket size for collision resolution, at most 8 */
     U32 minMatchLength;     /* Minimum match length */
@@ -297,7 +297,7 @@ struct ZSTD_CCtx_params_s {
                                 * There is no guarantee that hint is close to actual source size */
 
     ZSTD_dictAttachPref_e attachDictPref;
-    ZSTD_literalCompressionMode_e literalCompressionMode;
+    ZSTD_paramSwitch_e literalCompressionMode;
 
     /* Multithreading: used to pass parameters to mtctx */
     int nbWorkers;
@@ -320,10 +320,10 @@ struct ZSTD_CCtx_params_s {
     int validateSequences;
 
     /* Block splitting */
-    int splitBlocks;
+    ZSTD_paramSwitch_e useBlockSplitter;
 
     /* Param for deciding whether to use row-based matchfinder */
-    ZSTD_useRowMatchFinderMode_e useRowMatchFinder;
+    ZSTD_paramSwitch_e useRowMatchFinder;
 
     /* Always load a dictionary in ext-dict mode (not prefix mode)? */
     int deterministicRefPrefix;
@@ -444,7 +444,7 @@ typedef enum {
 typedef size_t (*ZSTD_blockCompressor) (
         ZSTD_matchState_t* bs, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize);
-ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_useRowMatchFinderMode_e rowMatchfinderMode, ZSTD_dictMode_e dictMode);
+ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_paramSwitch_e rowMatchfinderMode, ZSTD_dictMode_e dictMode);
 
 
 MEM_STATIC U32 ZSTD_LLcode(U32 litLength)
@@ -551,17 +551,17 @@ MEM_STATIC size_t ZSTD_minGain(size_t srcSize, ZSTD_strategy strat)
     return (srcSize >> minlog) + 2;
 }
 
-MEM_STATIC int ZSTD_disableLiteralsCompression(const ZSTD_CCtx_params* cctxParams)
+MEM_STATIC int ZSTD_literalsCompressionIsDisabled(const ZSTD_CCtx_params* cctxParams)
 {
     switch (cctxParams->literalCompressionMode) {
-    case ZSTD_lcm_huffman:
+    case ZSTD_ps_enable:
         return 0;
-    case ZSTD_lcm_uncompressed:
+    case ZSTD_ps_disable:
         return 1;
     default:
         assert(0 /* impossible: pre-validated */);
         /* fall-through */
-    case ZSTD_lcm_auto:
+    case ZSTD_ps_auto:
         return (cctxParams->cParams.strategy == ZSTD_fast) && (cctxParams->cParams.targetLength > 0);
     }
 }

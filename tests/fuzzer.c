@@ -1718,7 +1718,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
     DISPLAYLEVEL(3, "test%3i : compress with block splitting : ", testNb++)
     {   ZSTD_CCtx* cctx = ZSTD_createCCtx();
-        CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_splitBlocks, 1) );
+        CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_useBlockSplitter, ZSTD_ps_enable) );
         cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize);
         CHECK(cSize);
         ZSTD_freeCCtx(cctx);
@@ -1732,7 +1732,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 2) );
         cSize1 = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize);
         CHECK(cSize1);
-        CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_literalCompressionMode, ZSTD_lcm_uncompressed) );
+        CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_literalCompressionMode, ZSTD_ps_disable) );
         cSize2 = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize);
         CHECK(cSize2);
         CHECK_LT(cSize1, cSize2);
@@ -2019,7 +2019,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
                 ZSTD_CCtx* const cctx = ZSTD_createCCtx();
                 size_t nodict_cSize;
                 ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, l);
-                ZSTD_CCtx_setParameter(cctx, ZSTD_c_useRowMatchFinder, ZSTD_urm_enableRowMatchFinder);
+                ZSTD_CCtx_setParameter(cctx, ZSTD_c_useRowMatchFinder, ZSTD_ps_enable);
                 nodict_cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize,
                                                            contentStart, contentSize);
                 if (nodict_cSize > target_nodict_cSize[l]) {

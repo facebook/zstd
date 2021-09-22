@@ -320,7 +320,7 @@ struct FIO_prefs_s {
     size_t targetCBlockSize;
     int srcSizeHint;
     int testMode;
-    ZSTD_literalCompressionMode_e literalCompressionMode;
+    ZSTD_paramSwitch_e literalCompressionMode;
 
     /* IO preferences */
     U32 removeSrcFile;
@@ -392,7 +392,7 @@ FIO_prefs_t* FIO_createPreferences(void)
     ret->targetCBlockSize = 0;
     ret->srcSizeHint = 0;
     ret->testMode = 0;
-    ret->literalCompressionMode = ZSTD_lcm_auto;
+    ret->literalCompressionMode = ZSTD_ps_auto;
     ret->excludeCompressedFiles = 0;
     ret->allowBlockDevices = 0;
     return ret;
@@ -510,7 +510,7 @@ void FIO_setTestMode(FIO_prefs_t* const prefs, int testMode) {
 
 void FIO_setLiteralCompressionMode(
         FIO_prefs_t* const prefs,
-        ZSTD_literalCompressionMode_e mode) {
+        ZSTD_paramSwitch_e mode) {
     prefs->literalCompressionMode = mode;
 }
 

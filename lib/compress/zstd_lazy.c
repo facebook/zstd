@@ -61,7 +61,7 @@ ZSTD_updateDUBT(ZSTD_matchState_t* ms,
  *  assumption : curr >= btlow == (curr - btmask)
  *  doesn't fail */
 static void
-ZSTD_insertDUBT1(ZSTD_matchState_t* ms,
+ZSTD_insertDUBT1(const ZSTD_matchState_t* ms,
                  U32 curr, const BYTE* inputEnd,
                  U32 nbCompares, U32 btLow,
                  const ZSTD_dictMode_e dictMode)
@@ -151,7 +151,7 @@ ZSTD_insertDUBT1(ZSTD_matchState_t* ms,
 
 static size_t
 ZSTD_DUBT_findBetterDictMatch (
-        ZSTD_matchState_t* ms,
+        const ZSTD_matchState_t* ms,
         const BYTE* const ip, const BYTE* const iend,
         size_t* offsetPtr,
         size_t bestLength,
@@ -868,7 +868,7 @@ FORCE_INLINE_TEMPLATE size_t ZSTD_HcFindBestMatch_extDict_selectMLS (
 #define ZSTD_ROW_HASH_TAG_OFFSET 16     /* byte offset of hashes in the match state's tagTable from the beginning of a row */
 #define ZSTD_ROW_HASH_TAG_BITS 8        /* nb bits to use for the tag */
 #define ZSTD_ROW_HASH_TAG_MASK ((1u << ZSTD_ROW_HASH_TAG_BITS) - 1)
-#define ZSTD_ROW_HASH_MAX_ENTRIES 64    /* absolute maximum number of entries per row, for all configurations */               
+#define ZSTD_ROW_HASH_MAX_ENTRIES 64    /* absolute maximum number of entries per row, for all configurations */
 
 #define ZSTD_ROW_HASH_CACHE_MASK (ZSTD_ROW_HASH_CACHE_SIZE - 1)
 

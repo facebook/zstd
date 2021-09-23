@@ -1228,15 +1228,15 @@ MEM_STATIC U32 ZSTD_window_update(ZSTD_window_t* window,
  */
 MEM_STATIC U32 ZSTD_getLowestMatchIndex(const ZSTD_matchState_t* ms, U32 curr, unsigned windowLog)
 {
-    U32    const maxDistance = 1U << windowLog;
-    U32    const lowestValid = ms->window.lowLimit;
-    U32    const withinWindow = (curr - lowestValid > maxDistance) ? curr - maxDistance : lowestValid;
-    U32    const isDictionary = (ms->loadedDictEnd != 0);
+    U32 const maxDistance = 1U << windowLog;
+    U32 const lowestValid = ms->window.lowLimit;
+    U32 const withinWindow = (curr - lowestValid > maxDistance) ? curr - maxDistance : lowestValid;
+    U32 const isDictionary = (ms->loadedDictEnd != 0);
     /* When using a dictionary the entire dictionary is valid if a single byte of the dictionary
      * is within the window. We invalidate the dictionary (and set loadedDictEnd to 0) when it isn't
      * valid for the entire block. So this check is sufficient to find the lowest valid match index.
      */
-    U32    const matchLowest = isDictionary ? lowestValid : withinWindow;
+    U32 const matchLowest = isDictionary ? lowestValid : withinWindow;
     return matchLowest;
 }
 

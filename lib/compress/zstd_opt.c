@@ -366,7 +366,7 @@ MEM_STATIC U32 ZSTD_readMINMATCH(const void* memPtr, U32 length)
 
 /* Update hashTable3 up to ip (excluded)
    Assumption : always within prefix (i.e. not within extDict) */
-static U32 ZSTD_insertAndFindFirstIndexHash3 (ZSTD_matchState_t* ms,
+static U32 ZSTD_insertAndFindFirstIndexHash3 (const ZSTD_matchState_t* ms,
                                               U32* nextToUpdate3,
                                               const BYTE* const ip)
 {
@@ -396,7 +396,7 @@ static U32 ZSTD_insertAndFindFirstIndexHash3 (ZSTD_matchState_t* ms,
  * @param target The target of ZSTD_updateTree_internal() - we are filling to this position
  * @return : nb of positions added */
 static U32 ZSTD_insertBt1(
-                ZSTD_matchState_t* ms,
+                const ZSTD_matchState_t* ms,
                 const BYTE* const ip, const BYTE* const iend,
                 U32 const target,
                 U32 const mls, const int extDict)
@@ -421,8 +421,8 @@ static U32 ZSTD_insertBt1(
     U32* smallerPtr = bt + 2*(curr&btMask);
     U32* largerPtr  = smallerPtr + 1;
     U32 dummy32;   /* to be nullified at the end */
-    /* windowLow is based on target because we're only need positions that will be
-     * in the window at the end of the tree update.
+    /* windowLow is based on target because
+     * we only need positions that will be in the window at the end of the tree update.
      */
     U32 const windowLow = ZSTD_getLowestMatchIndex(ms, target, cParams->windowLog);
     U32 matchEndIdx = curr+8+1;
@@ -669,7 +669,7 @@ U32 ZSTD_insertBtAndGetAllMatches (
                     return 1;
         }   }   }
         /* no dictMatchState lookup: dicts don't have a populated HC3 table */
-    }
+    }  /* if (mls == 3) */
 
     hashTable[h] = curr;   /* Update Hash Table */
 
@@ -706,8 +706,7 @@ U32 ZSTD_insertBtAndGetAllMatches (
                | (ip+matchLength == iLimit) /* equal : no way to know if inf or sup */) {
                 if (dictMode == ZSTD_dictMatchState) nbCompares = 0; /* break should also skip searching dms */
                 break; /* drop, to preserve bt consistency (miss a little bit of compression) */
-            }
-        }
+        }   }
 
         if (match[matchLength] < ip[matchLength]) {
             /* match smaller than current */
@@ -752,8 +751,7 @@ U32 ZSTD_insertBtAndGetAllMatches (
                 if ( (matchLength > ZSTD_OPT_NUM)
                    | (ip+matchLength == iLimit) /* equal : no way to know if inf or sup */) {
                     break;   /* drop, to guarantee consistency (miss a little bit of compression) */
-                }
-            }
+            }   }
 
             if (dictMatchIndex <= dmsBtLow) { break; }   /* beyond tree size, stop the search */
             if (match[matchLength] < ip[matchLength]) {
@@ -763,9 +761,7 @@ U32 ZSTD_insertBtAndGetAllMatches (
                 /* match is larger than current */
                 commonLengthLarger = matchLength;
                 dictMatchIndex = nextPtr[0];
-            }
-        }
-    }
+    }   }   }  /* if (dictMode == ZSTD_dictMatchState) */
 
     assert(matchEndIdx > curr+8);
     ms->nextToUpdate = matchEndIdx - 8;  /* skip repetitive patterns */

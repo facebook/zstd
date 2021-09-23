@@ -29,6 +29,7 @@ dictionary
 NUL
 
 # Build artefacts
+contrib/linux-kernel/linux/
 projects/
 bin/
 .buckd/

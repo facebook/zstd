@@ -1025,14 +1025,29 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_update_internal(ZSTD_matchState_t* ms, const
     U32 idx = ms->nextToUpdate;
     const BYTE* const base = ms->window.base;
     const U32 target = (U32)(ip - base);
-    const U32 kMaxPositionsToUpdate = 256;
+    const U32 kMaxPositionsToUpdate = 128;
 
     assert(target >= idx);
     if (useCache) {
         /* Only skip positions when using hash cache, i.e. 
-           if we are loading a dict, don't skip anything */
+         * if we are loading a dict, don't skip anything.
+         */
         if (UNLIKELY(target - idx > kMaxPositionsToUpdate)) {
-            idx = target - kMaxPositionsToUpdate;
+            U32 const bound = idx + 3*kMaxPositionsToUpdate/4;
+            for (; idx < bound; ++idx) {
+                U32 const hash = useCache ? ZSTD_row_nextCachedHash(ms->hashCache, hashTable, tagTable, base, idx, hashLog, rowLog, mls)
+                                        : (U32)ZSTD_hashPtr(base + idx, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls);
+                U32 const relRow = (hash >> ZSTD_ROW_HASH_TAG_BITS) << rowLog;
+                U32* const row = hashTable + relRow;
+                BYTE* tagRow = (BYTE*)(tagTable + relRow);  /* Though tagTable is laid out as a table of U16, each tag is only 1 byte.
+                                                            Explicit cast allows us to get exact desired position within each row */
+                U32 const pos = ZSTD_row_nextIndex(tagRow, rowMask);
+
+                assert(hash == ZSTD_hashPtr(base + idx, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls));
+                tagRow[pos + ZSTD_ROW_HASH_TAG_OFFSET] = hash & ZSTD_ROW_HASH_TAG_MASK;
+                row[pos] = idx;
+            }
+            idx = target - kMaxPositionsToUpdate/4;
             ZSTD_row_fillHashCache(ms, base, rowLog, mls, idx, ip+1);
         }
     }

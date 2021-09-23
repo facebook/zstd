@@ -224,6 +224,39 @@
 #  define __has_feature(x) 0
 #endif
 
+/* C-language Attributes are added in C23. */
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ > 201710L) && defined(__has_c_attribute)
+# define ZSTD_HAS_C_ATTRIBUTE(x) __has_c_attribute(x)
+#else
+# define ZSTD_HAS_C_ATTRIBUTE(x) 0
+#endif
+
+/* Only use C++ attributes in C++. Some compilers report support for C++
+ * attributes when compiling with C.
+ */
+#if defined(__cplusplus) && defined(__has_cpp_attribute)
+# define ZSTD_HAS_CPP_ATTRIBUTE(x) __has_cpp_attribute(x)
+#else
+# define ZSTD_HAS_CPP_ATTRIBUTE(x) 0
+#endif
+
+/* Define ZSTD_FALLTHROUGH macro for annotating switch case with the 'fallthrough' attribute.
+ * - C23: https://en.cppreference.com/w/c/language/attributes/fallthrough
+ * - CPP17: https://en.cppreference.com/w/cpp/language/attributes/fallthrough
+ * - Else: __attribute__((__fallthrough__))
+ */
+#ifndef ZSTD_FALLTHROUGH
+# if ZSTD_HAS_C_ATTRIBUTE(fallthrough)
+#  define ZSTD_FALLTHROUGH [[fallthrough]]
+# elif ZSTD_HAS_CPP_ATTRIBUTE(fallthrough)
+#  define ZSTD_FALLTHROUGH [[fallthrough]]
+# elif __has_attribute(__fallthrough__)
+#  define ZSTD_FALLTHROUGH __attribute__((__fallthrough__))
+# else
+#  define ZSTD_FALLTHROUGH
+# endif
+#endif
+
 /* detects whether we are being compiled under msan */
 #ifndef ZSTD_MEMORY_SANITIZER
 #  if __has_feature(memory_sanitizer)

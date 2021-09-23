@@ -151,6 +151,18 @@ jobs:
           make gcc8install
           CC=gcc-8 CFLAGS="-Werror" make -j all
 
+  implicit-fall-through:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: -Wimplicit-fallthrough build
+        run: |
+          make clean
+          CC=gcc MOREFLAGS="-Werror -Wimplicit-fallthrough=2 -O0" make -C lib -j libzstd.a ZSTD_LEGACY_SUPPORT=0
+          make clean
+          CC=clang MOREFLAGS="-Werror -Wimplicit-fallthrough -O0" make -C lib -j libzstd.a ZSTD_LEGACY_SUPPORT=0
+
+
   visual-2019:
     runs-on: windows-latest
     strategy:

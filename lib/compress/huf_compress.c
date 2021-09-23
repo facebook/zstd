@@ -989,12 +989,12 @@ HUF_compress1X_usingCTable_internal_body(void* dst, size_t dstSize,
             case 11:
                 HUF_compress1X_usingCTable_internal_body_loop(&bitC, ip, srcSize, ct, /* kUnroll */ 2, /* kFastFlush */ 1, /* kLastFast */ 0);
                 break;
-            case 10:
-            case 9:
+            case 10: ZSTD_FALLTHROUGH;
+            case 9: ZSTD_FALLTHROUGH;
             case 8:
                 HUF_compress1X_usingCTable_internal_body_loop(&bitC, ip, srcSize, ct, /* kUnroll */ 2, /* kFastFlush */ 1, /* kLastFast */ 1);
                 break;
-            case 7:
+            case 7: ZSTD_FALLTHROUGH;
             default:
                 HUF_compress1X_usingCTable_internal_body_loop(&bitC, ip, srcSize, ct, /* kUnroll */ 3, /* kFastFlush */ 1, /* kLastFast */ 1);
                 break;
@@ -1016,7 +1016,7 @@ HUF_compress1X_usingCTable_internal_body(void* dst, size_t dstSize,
             case 7:
                 HUF_compress1X_usingCTable_internal_body_loop(&bitC, ip, srcSize, ct, /* kUnroll */ 8, /* kFastFlush */ 1, /* kLastFast */ 0);
                 break;
-            case 6:
+            case 6: ZSTD_FALLTHROUGH;
             default:
                 HUF_compress1X_usingCTable_internal_body_loop(&bitC, ip, srcSize, ct, /* kUnroll */ 9, /* kFastFlush */ 1, /* kLastFast */ 1);
                 break;

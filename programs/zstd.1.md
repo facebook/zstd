@@ -224,7 +224,11 @@ the last one takes effect.
     keep source file(s) after successful compression or decompression.
     This is the default behavior.
 * `-r`:
-    operate recursively on directories
+    operate recursively on directories.
+    It selects all files in the named directory and all its subdirectories.
+    This can be useful both to reduce command line typing,
+    and to circumvent shell expansion limitations,
+    when there are a lot of files and naming breaks the maximum size of a command line.
 * `--filelist FILE`
     read a list of files to process as content from `FILE`.
     Format is compatible with `ls` output, with one file per line.
@@ -307,12 +311,14 @@ Compression of small files similar to the sample set will be greatly improved.
     The training set should contain a lot of small files (> 100),
     and weight typically 100x the target dictionary size
     (for example, 10 MB for a 100 KB dictionary).
+    `--train` can be combined with `-r` to indicate a directory rather than listing all the files,
+    which can be useful to circumvent shell expansion limits.
 
-    Supports multithreading if `zstd` is compiled with threading support.
+    `--train` supports multithreading if `zstd` is compiled with threading support (default).
     Additional parameters can be specified with `--train-fastcover`.
     The legacy dictionary builder can be accessed with `--train-legacy`.
-    The cover dictionary builder can be accessed with `--train-cover`.
-    Equivalent to `--train-fastcover=d=8,steps=4`.
+    The slower cover dictionary builder can be accessed with `--train-cover`.
+    Default is equivalent to `--train-fastcover=d=8,steps=4`.
 * `-o file`:
     Dictionary saved into `file` (default name: dictionary).
 * `--maxdict=#`:
@@ -322,10 +328,10 @@ Compression of small files similar to the sample set will be greatly improved.
     Will generate statistics more tuned for selected compression level,
     resulting in a _small_ compression ratio improvement for this level.
 * `-B#`:
-    Split input files in blocks of size # (default: no split)
+    Split input files into blocks of size # (default: no split)
 * `--dictID=#`:
-    A dictionary ID is a locally unique ID that a decoder can use to verify it is
-    using the right dictionary.
+    A dictionary ID is a locally unique ID
+    that a decoder can use to verify it is using the right dictionary.
     By default, zstd will create a 4-bytes random number ID.
     It's possible to give a precise number instead.
     Short numbers have an advantage : an ID < 256 will only need 1 byte in the

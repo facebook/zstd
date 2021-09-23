@@ -233,6 +233,15 @@
 #  endif
 #endif
 
+/* detects whether we are being compiled undef dfsan */
+#ifndef ZSTD_DATAFLOW_SANITIZER
+# if __has_feature(dataflow_sanitizer)
+#  define ZSTD_DATAFLOW_SANITIZER 1
+# else
+#  define ZSTD_DATAFLOW_SANITIZER 0
+# endif
+#endif
+
 #if ZSTD_MEMORY_SANITIZER
 /* Not all platforms that support msan provide sanitizers/msan_interface.h.
  * We therefore declare the functions we need ourselves, rather than trying to

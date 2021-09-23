@@ -47,7 +47,7 @@
  * Disable when MSAN is enabled.
  */
 #if defined(__linux__) || defined(__linux) || defined(__APPLE__)
-# if ZSTD_MEMORY_SANITIZER
+# if ZSTD_MEMORY_SANITIZER || ZSTD_DATAFLOW_SANITIZER
 #  define HUF_ASM_SUPPORTED 0
 # else
 #  define HUF_ASM_SUPPORTED 1

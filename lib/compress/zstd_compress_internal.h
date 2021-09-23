@@ -345,6 +345,22 @@ typedef enum {
     ZSTDb_buffered
 } ZSTD_buffered_policy_e;
 
+/**
+ * Struct that contains all elements of block splitter that should be allocated
+ * in a wksp.
+ */
+#define ZSTD_MAX_NB_BLOCK_SPLITS 196
+typedef struct {
+    seqStore_t fullSeqStoreChunk;
+    seqStore_t firstHalfSeqStore;
+    seqStore_t secondHalfSeqStore;
+    seqStore_t currSeqStore;
+    seqStore_t nextSeqStore;
+
+    U32 partitions[ZSTD_MAX_NB_BLOCK_SPLITS];
+    ZSTD_entropyCTablesMetadata_t entropyMetadata;
+} ZSTD_blockSplitCtx;
+
 struct ZSTD_CCtx_s {
     ZSTD_compressionStage_e stage;
     int cParamsChanged;                  /* == 1 if cParams(except wlog) or compression level are changed in requestedParams. Triggers transmission of new params to ZSTDMT (if available) then reset to 0. */
@@ -410,6 +426,9 @@ struct ZSTD_CCtx_s {
 #if ZSTD_TRACE
     ZSTD_TraceCtx traceCtx;
 #endif
+
+    /* Workspace for block splitter */
+    ZSTD_blockSplitCtx blockSplitCtx;
 };
 
 typedef enum { ZSTD_dtlm_fast, ZSTD_dtlm_full } ZSTD_dictTableLoadMethod_e;

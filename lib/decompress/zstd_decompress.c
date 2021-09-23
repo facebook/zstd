@@ -466,7 +466,9 @@ size_t ZSTD_getFrameHeader_advanced(ZSTD_frameHeader* zfhPtr, const void* src, s
         }
         switch(dictIDSizeCode)
         {
-            default: assert(0);  /* impossible */
+            default:
+                assert(0);  /* impossible */
+                ZSTD_FALLTHROUGH;
             case 0 : break;
             case 1 : dictID = ip[pos]; pos++; break;
             case 2 : dictID = MEM_readLE16(ip+pos); pos+=2; break;
@@ -474,7 +476,9 @@ size_t ZSTD_getFrameHeader_advanced(ZSTD_frameHeader* zfhPtr, const void* src, s
         }
         switch(fcsID)
         {
-            default: assert(0);  /* impossible */
+            default:
+                assert(0);  /* impossible */
+                ZSTD_FALLTHROUGH;
             case 0 : if (singleSegment) frameContentSize = ip[pos]; break;
             case 1 : frameContentSize = MEM_readLE16(ip+pos)+256; break;
             case 2 : frameContentSize = MEM_readLE32(ip+pos); break;
@@ -1009,7 +1013,7 @@ static ZSTD_DDict const* ZSTD_getDDict(ZSTD_DCtx* dctx)
     switch (dctx->dictUses) {
     default:
         assert(0 /* Impossible */);
-        /* fall-through */
+        ZSTD_FALLTHROUGH;
     case ZSTD_dont_use:
         ZSTD_clearDict(dctx);
         return NULL;
@@ -1073,7 +1077,9 @@ ZSTD_nextInputType_e ZSTD_nextInputType(ZSTD_DCtx* dctx) {
     {
     default:   /* should not happen */
         assert(0);
+        ZSTD_FALLTHROUGH;
     case ZSTDds_getFrameHeaderSize:
+        ZSTD_FALLTHROUGH;
     case ZSTDds_decodeFrameHeader:
         return ZSTDnit_frameHeader;
     case ZSTDds_decodeBlockHeader:
@@ -1085,6 +1091,7 @@ ZSTD_nextInputType_e ZSTD_nextInputType(ZSTD_DCtx* dctx) {
     case ZSTDds_checkChecksum:
         return ZSTDnit_checksum;
     case ZSTDds_decodeSkippableHeader:
+        ZSTD_FALLTHROUGH;
     case ZSTDds_skipFrame:
         return ZSTDnit_skippableFrame;
     }
@@ -1900,7 +1907,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             zds->legacyVersion = 0;
             zds->hostageByte = 0;
             zds->expectedOutBuffer = *output;
-            /* fall-through */
+            ZSTD_FALLTHROUGH;
 
         case zdss_loadHeader :
             DEBUGLOG(5, "stage zdss_loadHeader (srcSize : %u)", (U32)(iend - ip));
@@ -2038,7 +2045,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                         zds->outBuffSize = neededOutBuffSize;
             }   }   }
             zds->streamStage = zdss_read;
-            /* fall-through */
+            ZSTD_FALLTHROUGH;
 
         case zdss_read:
             DEBUGLOG(5, "stage zdss_read");
@@ -2057,7 +2064,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             }   }
             if (ip==iend) { someMoreWork = 0; break; }   /* no more input */
             zds->streamStage = zdss_load;
-            /* fall-through */
+            ZSTD_FALLTHROUGH;
 
         case zdss_load:
             {   size_t const neededInSize = ZSTD_nextSrcSizeToDecompress(zds);

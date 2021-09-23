@@ -486,7 +486,7 @@ MEM_STATIC int ZSTD_disableLiteralsCompression(const ZSTD_CCtx_params* cctxParam
         return 1;
     default:
         assert(0 /* impossible: pre-validated */);
-        /* fall-through */
+        ZSTD_FALLTHROUGH;
     case ZSTD_lcm_auto:
         return (cctxParams->cParams.strategy == ZSTD_fast) && (cctxParams->cParams.targetLength > 0);
     }

@@ -244,8 +244,6 @@ _search_next_long:
             while (((ip>anchor) & (match>prefixLowest)) && (ip[-1] == match[-1])) { ip--; match--; mLength++; } /* catch up */
         }
 
-        /* fall-through */
-
 _match_found:
         offset_2 = offset_1;
         offset_1 = offset;

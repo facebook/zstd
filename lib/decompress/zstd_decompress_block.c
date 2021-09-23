@@ -90,7 +90,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
         case set_repeat:
             DEBUGLOG(5, "set_repeat flag : re-using stats from previous compressed literals block");
             RETURN_ERROR_IF(dctx->litEntropy==0, dictionary_corrupted, "");
-            /* fall-through */
+            ZSTD_FALLTHROUGH;
 
         case set_compressed:
             RETURN_ERROR_IF(srcSize < 5, corruption_detected, "srcSize >= MIN_CBLOCK_SIZE == 3; here we need up to 5 for case 3");

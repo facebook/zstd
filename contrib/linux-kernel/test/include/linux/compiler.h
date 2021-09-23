@@ -18,4 +18,8 @@
 #define noinline __attribute__((noinline))
 #endif
 
+#ifndef fallthrough
+#define fallthrough __attribute__((__fallthrough__))
+#endif
+
 #endif

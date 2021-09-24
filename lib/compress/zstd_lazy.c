@@ -881,8 +881,11 @@ typedef U64 ZSTD_VecMask;   /* Clarifies when we are interacting with a U64 repr
 static U32 ZSTD_VecMask_next(ZSTD_VecMask val) {
     assert(val != 0);
 #   if defined(_MSC_VER) && defined(_WIN64)
-    unsigned long r=0;
-    return _BitScanForward64(&r, val) ? (U32)r : 0; /* _BitScanForward64 not defined outside of x86/64 */
+    {
+        unsigned long r = 0;
+        /* _BitScanForward64 is not defined outside of x64 */
+        return _BitScanForward64(&r, val) ? (U32)r : 0;
+    }
 #   elif (defined(__GNUC__) && ((__GNUC__ > 3) || ((__GNUC__ == 3) && (__GNUC_MINOR__ >= 4))))
     if (sizeof(size_t) == 4) {
         U32 mostSignificantWord = (U32)(val >> 32);

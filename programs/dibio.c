@@ -49,6 +49,7 @@
 static const size_t g_maxMemory = (sizeof(size_t) == 4) ? (2 GB - 64 MB) : ((size_t)(512 MB) << sizeof(size_t));
 
 #define NOISELENGTH 32
+#define MAX_SAMPLES_SIZE (2 GB) /* training dataset limited to 2GB */
 
 
 /*-*************************************
@@ -272,6 +273,10 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
                            FASTCOVER_MEMMULT;
     size_t const maxMem =  DiB_findMaxMem(fs.totalSizeToLoad * memMult) / memMult;
     size_t loadedSize = (size_t) MIN ((unsigned long long)maxMem, fs.totalSizeToLoad);
+
+    /* Limit the total size of the training samples to 2GB */
+    if (loadedSize > MAX_SAMPLES_SIZE)
+        loadedSize = MAX_SAMPLES_SIZE;
     void* const srcBuffer = malloc(loadedSize+NOISELENGTH);
     int result = 0;
 
@@ -296,7 +301,9 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
 
     /* init */
     if (loadedSize < fs.totalSizeToLoad)
-        DISPLAYLEVEL(1, "Not enough memory; training on %u MB only...\n", (unsigned)(loadedSize >> 20));
+        DISPLAYLEVEL(1, "Trainig samples set too large (%u MB); training on %u MB only...\n",
+            (unsigned)(fs.totalSizeToLoad >> 20),
+            (unsigned)(loadedSize >> 20));
 
     /* Load input buffer */
     DISPLAYLEVEL(3, "Shuffling input files\n");

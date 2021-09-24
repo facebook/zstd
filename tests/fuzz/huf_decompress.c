@@ -46,7 +46,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
         if (ZSTD_isError(err))
             goto _out;
     } else {
-        size_t const err = HUF_readDTableX2_wksp_bmi2(dt, src, size, wksp, wkspSize, bmi2);
+        size_t const err = HUF_readDTableX2_wksp(dt, src, size, wksp, wkspSize);
         if (ZSTD_isError(err))
             goto _out;
     }

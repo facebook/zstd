@@ -708,7 +708,7 @@ static unsigned ZSTD_NbCommonBytes (size_t val)
 #           if STATIC_BMI2
 			    return _lzcnt_u64(val) >> 3;
 #           else
-			    unsigned long r = 0;
+			    unsigned long r;
 			    return _BitScanReverse64(&r, (U64)val) ? (unsigned)(r >> 3) : 0;
 #           endif
 #       elif defined(__GNUC__) && (__GNUC__ >= 4)
@@ -723,7 +723,7 @@ static unsigned ZSTD_NbCommonBytes (size_t val)
 #       endif
         } else { /* 32 bits */
 #       if defined(_MSC_VER)
-            unsigned long r = 0;
+            unsigned long r;
             return _BitScanReverse( &r, (unsigned long)val ) ? (unsigned)(r >> 3) : 0;
 #       elif defined(__GNUC__) && (__GNUC__ >= 3)
             return (__builtin_clz((U32)val) >> 3);

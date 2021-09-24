@@ -145,7 +145,7 @@ MEM_STATIC unsigned BIT_highbit32 (U32 val)
 #       if STATIC_BMI2 == 1
 		return _lzcnt_u32(val) ^ 31;
 #       else
-		unsigned long r = 0;
+		unsigned long r;
 		return _BitScanReverse(&r, val) ? (unsigned)r : 0;
 #       endif
 #   elif defined(__GNUC__) && (__GNUC__ >= 3)   /* Use GCC Intrinsic */

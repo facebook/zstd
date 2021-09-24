@@ -391,7 +391,7 @@ MEM_STATIC unsigned ZSTD_countTrailingZeros(size_t val)
 #           if STATIC_BMI2
                 return _tzcnt_u64(val);
 #           else
-                unsigned long r = 0;
+                unsigned long r;
                 return _BitScanForward64( &r, (U64)val ) ? (unsigned)(r >> 3) : 0;
 #           endif
 #       elif defined(__GNUC__) && (__GNUC__ >= 4)
@@ -409,7 +409,7 @@ MEM_STATIC unsigned ZSTD_countTrailingZeros(size_t val)
 #       endif
     } else { /* 32 bits */
 #       if defined(_MSC_VER)
-            unsigned long r=0;
+            unsigned long r;
             return _BitScanForward( &r, (U32)val ) ? (unsigned)(r >> 3) : 0;
 #       elif defined(__GNUC__) && (__GNUC__ >= 3)
             return (__builtin_ctz((U32)val) >> 3);

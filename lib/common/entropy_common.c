@@ -43,7 +43,7 @@ static U32 FSE_ctz(U32 val)
     assert(val != 0);
     {
 #   if defined(_MSC_VER)   /* Visual */
-        unsigned long r=0;
+        unsigned long r;
         return _BitScanForward(&r, val) ? (unsigned)r : 0;
 #   elif defined(__GNUC__) && (__GNUC__ >= 3)   /* GCC Intrinsic */
         return __builtin_ctz(val);

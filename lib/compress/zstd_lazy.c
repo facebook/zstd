@@ -882,7 +882,7 @@ static U32 ZSTD_VecMask_next(ZSTD_VecMask val) {
     assert(val != 0);
 #   if defined(_MSC_VER) && defined(_WIN64)
     {
-        unsigned long r = 0;
+        unsigned long r;
         /* _BitScanForward64 is not defined outside of x64 */
         return _BitScanForward64(&r, val) ? (U32)r : 0;
     }

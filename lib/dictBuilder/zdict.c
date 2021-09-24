@@ -135,9 +135,8 @@ static unsigned ZDICT_NbCommonBytes (size_t val)
     if (MEM_isLittleEndian()) {
         if (MEM_64bits()) {
 #       if defined(_MSC_VER) && defined(_WIN64)
-            unsigned long r = 0;
-            _BitScanForward64( &r, (U64)val );
-            return (unsigned)(r>>3);
+            unsigned long r;
+            return _BitScanForward64(&r, (U64)val) ? (unsigned)(r >> 3) : 0;
 #       elif defined(__GNUC__) && (__GNUC__ >= 3)
             return (unsigned)(__builtin_ctzll((U64)val) >> 3);
 #       else
@@ -146,9 +145,8 @@ static unsigned ZDICT_NbCommonBytes (size_t val)
 #       endif
         } else { /* 32 bits */
 #       if defined(_MSC_VER)
-            unsigned long r=0;
-            _BitScanForward( &r, (U32)val );
-            return (unsigned)(r>>3);
+            unsigned long r;
+            return _BitScanForward(&r, (U32)val) ? (unsigned)(r >> 3) : 0;
 #       elif defined(__GNUC__) && (__GNUC__ >= 3)
             return (unsigned)(__builtin_ctz((U32)val) >> 3);
 #       else

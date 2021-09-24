@@ -158,9 +158,11 @@ struct ZSTD_DCtx_s
     size_t outStart;
     size_t outEnd;
     size_t lhSize;
+#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
     void* legacyContext;
     U32 previousLegacyVersion;
     U32 legacyVersion;
+#endif
     U32 hostageByte;
     int noForwardProgress;
     ZSTD_bufferMode_e outBufferMode;

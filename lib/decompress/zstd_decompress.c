@@ -255,8 +255,10 @@ static void ZSTD_initDCtx_internal(ZSTD_DCtx* dctx)
     dctx->inBuffSize  = 0;
     dctx->outBuffSize = 0;
     dctx->streamStage = zdss_init;
+#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
     dctx->legacyContext = NULL;
     dctx->previousLegacyVersion = 0;
+#endif
     dctx->noForwardProgress = 0;
     dctx->oversizedDuration = 0;
     dctx->bmi2 = ZSTD_cpuid_bmi2(ZSTD_cpuid());
@@ -1947,7 +1949,9 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             DEBUGLOG(5, "stage zdss_init => transparent reset ");
             zds->streamStage = zdss_loadHeader;
             zds->lhSize = zds->inPos = zds->outStart = zds->outEnd = 0;
+#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
             zds->legacyVersion = 0;
+#endif
             zds->hostageByte = 0;
             zds->expectedOutBuffer = *output;
             ZSTD_FALLTHROUGH;

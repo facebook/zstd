@@ -39,6 +39,7 @@ libzstd:
 		-DSTATIC_BMI2=0 \
 		-DZSTD_ADDRESS_SANITIZER=0 \
 		-DZSTD_MEMORY_SANITIZER=0 \
+		-DZSTD_DATAFLOW_SANITIZER=0 \
 		-DZSTD_COMPRESS_HEAPMODE=1 \
 		-UZSTD_NO_INLINE \
 		-UNO_PREFETCH \
@@ -88,9 +89,16 @@ import-upstream:
 	rm $(LINUX)/lib/zstd/common/xxhash.*
 	rm $(LINUX)/lib/zstd/compress/zstdmt_*
 
+DEBUGFLAGS= -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
+            -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
+            -Wstrict-prototypes -Wundef -Wpointer-arith \
+            -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings \
+            -Wredundant-decls -Wmissing-prototypes -Wc++-compat \
+	    -Wimplicit-fallthrough
+
 .PHONY: test
 test: libzstd
-	$(MAKE) -C test run-test CFLAGS="-O3 $(CFLAGS)" -j
+	$(MAKE) -C test run-test CFLAGS="-O3 $(CFLAGS) $(DEBUGFLAGS) -Werror" -j
 
 .PHONY: clean
 clean:

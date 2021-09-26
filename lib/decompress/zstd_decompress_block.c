@@ -133,11 +133,11 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                     if (singleStream) {
                         hufSuccess = HUF_decompress1X_usingDTable_bmi2(
                             dctx->litBuffer, litSize, istart+lhSize, litCSize,
-                            dctx->HUFptr, dctx->bmi2);
+                            dctx->HUFptr, ZSTD_DCtx_get_bmi2(dctx));
                     } else {
                         hufSuccess = HUF_decompress4X_usingDTable_bmi2(
                             dctx->litBuffer, litSize, istart+lhSize, litCSize,
-                            dctx->HUFptr, dctx->bmi2);
+                            dctx->HUFptr, ZSTD_DCtx_get_bmi2(dctx));
                     }
                 } else {
                     if (singleStream) {
@@ -150,13 +150,13 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                         hufSuccess = HUF_decompress1X1_DCtx_wksp_bmi2(
                             dctx->entropy.hufTable, dctx->litBuffer, litSize,
                             istart+lhSize, litCSize, dctx->workspace,
-                            sizeof(dctx->workspace), dctx->bmi2);
+                            sizeof(dctx->workspace), ZSTD_DCtx_get_bmi2(dctx));
 #endif
                     } else {
                         hufSuccess = HUF_decompress4X_hufOnly_wksp_bmi2(
                             dctx->entropy.hufTable, dctx->litBuffer, litSize,
                             istart+lhSize, litCSize, dctx->workspace,
-                            sizeof(dctx->workspace), dctx->bmi2);
+                            sizeof(dctx->workspace), ZSTD_DCtx_get_bmi2(dctx));
                     }
                 }
 
@@ -620,7 +620,7 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
                                                       LL_defaultDTable, dctx->fseEntropy,
                                                       dctx->ddictIsCold, nbSeq,
                                                       dctx->workspace, sizeof(dctx->workspace),
-                                                      dctx->bmi2);
+                                                      ZSTD_DCtx_get_bmi2(dctx));
             RETURN_ERROR_IF(ZSTD_isError(llhSize), corruption_detected, "ZSTD_buildSeqTable failed");
             ip += llhSize;
         }
@@ -632,7 +632,7 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
                                                       OF_defaultDTable, dctx->fseEntropy,
                                                       dctx->ddictIsCold, nbSeq,
                                                       dctx->workspace, sizeof(dctx->workspace),
-                                                      dctx->bmi2);
+                                                      ZSTD_DCtx_get_bmi2(dctx));
             RETURN_ERROR_IF(ZSTD_isError(ofhSize), corruption_detected, "ZSTD_buildSeqTable failed");
             ip += ofhSize;
         }
@@ -644,7 +644,7 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
                                                       ML_defaultDTable, dctx->fseEntropy,
                                                       dctx->ddictIsCold, nbSeq,
                                                       dctx->workspace, sizeof(dctx->workspace),
-                                                      dctx->bmi2);
+                                                      ZSTD_DCtx_get_bmi2(dctx));
             RETURN_ERROR_IF(ZSTD_isError(mlhSize), corruption_detected, "ZSTD_buildSeqTable failed");
             ip += mlhSize;
         }
@@ -1379,7 +1379,7 @@ ZSTD_decompressSequences(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize,
 {
     DEBUGLOG(5, "ZSTD_decompressSequences");
 #if DYNAMIC_BMI2
-    if (dctx->bmi2) {
+    if (ZSTD_DCtx_get_bmi2(dctx)) {
         return ZSTD_decompressSequences_bmi2(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset, frame);
     }
 #endif
@@ -1403,7 +1403,7 @@ ZSTD_decompressSequencesLong(ZSTD_DCtx* dctx,
 {
     DEBUGLOG(5, "ZSTD_decompressSequencesLong");
 #if DYNAMIC_BMI2
-    if (dctx->bmi2) {
+    if (ZSTD_DCtx_get_bmi2(dctx)) {
         return ZSTD_decompressSequencesLong_bmi2(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset, frame);
     }
 #endif

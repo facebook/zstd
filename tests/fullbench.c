@@ -177,7 +177,7 @@ FORCE_NOINLINE size_t ZSTD_decodeLiteralsHeader(ZSTD_DCtx* dctx, void const* src
                         dctx->entropy.hufTable,
                         istart+lhSize, litCSize,
                         dctx->workspace, sizeof(dctx->workspace),
-                        dctx->bmi2);
+                        ZSTD_DCtx_get_bmi2(dctx));
 #else
                 return HUF_readDTableX2_wksp(
                         dctx->entropy.hufTable,

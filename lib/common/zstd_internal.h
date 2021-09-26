@@ -358,8 +358,14 @@ MEM_STATIC U32 ZSTD_highbit32(U32 val)   /* compress, dictBuilder, decodeCorpus 
 #       if STATIC_BMI2 == 1
             return _lzcnt_u32(val)^31;
 #       else
-            unsigned long r;
-            return _BitScanReverse(&r, val) ? (unsigned)r : 0;
+            if (val != 0) {
+                unsigned long r;
+                _BitScanReverse(&r, val);
+                return (unsigned)r;
+            } else {
+                /* Should not reach this code path */
+                __assume(0);
+            }
 #       endif
 #   elif defined(__GNUC__) && (__GNUC__ >= 3)   /* GCC Intrinsic */
         return __builtin_clz (val) ^ 31;
@@ -391,8 +397,14 @@ MEM_STATIC unsigned ZSTD_countTrailingZeros(size_t val)
 #           if STATIC_BMI2
                 return _tzcnt_u64(val);
 #           else
-                unsigned long r;
-                return _BitScanForward64( &r, (U64)val ) ? (unsigned)(r >> 3) : 0;
+                if (val != 0) {
+                    unsigned long r;
+                    _BitScanForward64(&r, (U64)val);
+                    return (unsigned)(r >> 3);
+                } else {
+                    /* Should not reach this code path */
+                    __assume(0);
+                }
 #           endif
 #       elif defined(__GNUC__) && (__GNUC__ >= 4)
             return __builtin_ctzll((U64)val);
@@ -409,8 +421,14 @@ MEM_STATIC unsigned ZSTD_countTrailingZeros(size_t val)
 #       endif
     } else { /* 32 bits */
 #       if defined(_MSC_VER)
-            unsigned long r;
-            return _BitScanForward( &r, (U32)val ) ? (unsigned)(r >> 3) : 0;
+            if (val != 0) {
+                unsigned long r;
+                _BitScanForward(&r, (U32)val);
+                return (unsigned)(r >> 3);
+            } else {
+                /* Should not reach this code path */
+                __assume(0);
+            }
 #       elif defined(__GNUC__) && (__GNUC__ >= 3)
             return (__builtin_ctz((U32)val) >> 3);
 #       else

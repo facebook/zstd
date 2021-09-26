@@ -135,8 +135,14 @@ static unsigned ZDICT_NbCommonBytes (size_t val)
     if (MEM_isLittleEndian()) {
         if (MEM_64bits()) {
 #       if defined(_MSC_VER) && defined(_WIN64)
-            unsigned long r;
-            return _BitScanForward64(&r, (U64)val) ? (unsigned)(r >> 3) : 0;
+            if (val != 0) {
+                unsigned long r;
+                _BitScanForward64(&r, (U64)val);
+                return (unsigned)(r >> 3);
+            } else {
+                /* Should not reach this code path */
+                __assume(0);
+            }
 #       elif defined(__GNUC__) && (__GNUC__ >= 3)
             return (unsigned)(__builtin_ctzll((U64)val) >> 3);
 #       else
@@ -145,8 +151,14 @@ static unsigned ZDICT_NbCommonBytes (size_t val)
 #       endif
         } else { /* 32 bits */
 #       if defined(_MSC_VER)
-            unsigned long r;
-            return _BitScanForward(&r, (U32)val) ? (unsigned)(r >> 3) : 0;
+            if (val != 0) {
+                unsigned long r;
+                _BitScanForward(&r, (U32)val);
+                return (unsigned)(r >> 3);
+            } else {
+                /* Should not reach this code path */
+                __assume(0);
+            }
 #       elif defined(__GNUC__) && (__GNUC__ >= 3)
             return (unsigned)(__builtin_ctz((U32)val) >> 3);
 #       else
@@ -157,8 +169,14 @@ static unsigned ZDICT_NbCommonBytes (size_t val)
     } else {  /* Big Endian CPU */
         if (MEM_64bits()) {
 #       if defined(_MSC_VER) && defined(_WIN64)
-            unsigned long r;
-            return _BitScanReverse64(&r, val) ? (unsigned)(r >> 3) : 0;
+            if (val != 0) {
+                unsigned long r;
+                _BitScanReverse64(&r, val);
+                return (unsigned)(r >> 3);
+            } else {
+                /* Should not reach this code path */
+                __assume(0);
+            }
 #       elif defined(__GNUC__) && (__GNUC__ >= 3)
             return (unsigned)(__builtin_clzll(val) >> 3);
 #       else
@@ -171,8 +189,14 @@ static unsigned ZDICT_NbCommonBytes (size_t val)
 #       endif
         } else { /* 32 bits */
 #       if defined(_MSC_VER)
-            unsigned long r;
-            return _BitScanReverse(&r, (unsigned long)val) ? (unsigned)(r >> 3) : 0;
+            if (val != 0) {
+                unsigned long r;
+                _BitScanReverse(&r, (unsigned long)val);
+                return (unsigned)(r >> 3);
+            } else {
+                /* Should not reach this code path */
+                __assume(0);
+            }
 #       elif defined(__GNUC__) && (__GNUC__ >= 3)
             return (unsigned)(__builtin_clz((U32)val) >> 3);
 #       else

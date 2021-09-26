@@ -262,7 +262,7 @@ static void ZSTD_initDCtx_internal(ZSTD_DCtx* dctx)
     dctx->noForwardProgress = 0;
     dctx->oversizedDuration = 0;
 #if DYNAMIC_BMI2
-    dctx->bmi2 = ZSTD_cpuid_bmi2(ZSTD_cpuid())
+    dctx->bmi2 = ZSTD_cpuid_bmi2(ZSTD_cpuid());
 #endif
     dctx->ddictSet = NULL;
     ZSTD_DCtx_resetParameters(dctx);
@@ -284,8 +284,7 @@ ZSTD_DCtx* ZSTD_initStaticDCtx(void *workspace, size_t workspaceSize)
     return dctx;
 }
 
-ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem)
-{
+static ZSTD_DCtx* ZSTD_createDCtx_internal(ZSTD_customMem customMem) {
     if ((!customMem.customAlloc) ^ (!customMem.customFree)) return NULL;
 
     {   ZSTD_DCtx* const dctx = (ZSTD_DCtx*)ZSTD_customMalloc(sizeof(*dctx), customMem);
@@ -296,10 +295,15 @@ ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem)
     }
 }
 
+ZSTD_DCtx* ZSTD_createDCtx_advanced(ZSTD_customMem customMem)
+{
+    return ZSTD_createDCtx_internal(customMem);
+}
+
 ZSTD_DCtx* ZSTD_createDCtx(void)
 {
     DEBUGLOG(3, "ZSTD_createDCtx");
-    return ZSTD_createDCtx_advanced(ZSTD_defaultCMem);
+    return ZSTD_createDCtx_internal(ZSTD_defaultCMem);
 }
 
 static void ZSTD_clearDict(ZSTD_DCtx* dctx)
@@ -1082,7 +1086,7 @@ size_t ZSTD_decompress(void* dst, size_t dstCapacity, const void* src, size_t sr
 {
 #if defined(ZSTD_HEAPMODE) && (ZSTD_HEAPMODE>=1)
     size_t regenSize;
-    ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+    ZSTD_DCtx* const dctx =  ZSTD_createDCtx_internal(ZSTD_defaultCMem);
     RETURN_ERROR_IF(dctx==NULL, memory_allocation, "NULL pointer!");
     regenSize = ZSTD_decompressDCtx(dctx, dst, dstCapacity, src, srcSize);
     ZSTD_freeDCtx(dctx);
@@ -1547,7 +1551,7 @@ size_t ZSTD_decompress_usingDDict(ZSTD_DCtx* dctx,
 ZSTD_DStream* ZSTD_createDStream(void)
 {
     DEBUGLOG(3, "ZSTD_createDStream");
-    return ZSTD_createDStream_advanced(ZSTD_defaultCMem);
+    return ZSTD_createDCtx_internal(ZSTD_defaultCMem);
 }
 
 ZSTD_DStream* ZSTD_initStaticDStream(void *workspace, size_t workspaceSize)
@@ -1557,7 +1561,7 @@ ZSTD_DStream* ZSTD_initStaticDStream(void *workspace, size_t workspaceSize)
 
 ZSTD_DStream* ZSTD_createDStream_advanced(ZSTD_customMem customMem)
 {
-    return ZSTD_createDCtx_advanced(customMem);
+    return ZSTD_createDCtx_internal(customMem);
 }
 
 size_t ZSTD_freeDStream(ZSTD_DStream* zds)

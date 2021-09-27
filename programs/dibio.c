@@ -55,16 +55,20 @@ static const size_t g_maxMemory = (sizeof(size_t) == 4) ? (2 GB - 64 MB) : ((siz
 /*-*************************************
 *  Console display
 ***************************************/
+#define DISPLAY_LEVEL_DEFAULT 2
+static int g_displayLevel = DISPLAY_LEVEL_DEFAULT;
+
 #define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
-#define DISPLAYLEVEL(l, ...) if (displayLevel>=l) { DISPLAY(__VA_ARGS__); }
+#define DISPLAYLEVEL(l, ...) if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); }
+
 
 static const U64 g_refreshRate = SEC_TO_MICRO / 6;
 static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
 
-#define DISPLAYUPDATE(l, ...) { if (displayLevel>=l) { \
-            if ((UTIL_clockSpanMicro(g_displayClock) > g_refreshRate) || (displayLevel>=4)) \
+#define DISPLAYUPDATE(l, ...) { if (g_displayLevel>=l) { \
+            if ((UTIL_clockSpanMicro(g_displayClock) > g_refreshRate) || (g_displayLevel>=4)) \
             { g_displayClock = UTIL_getTime(); DISPLAY(__VA_ARGS__); \
-            if (displayLevel>=4) fflush(stderr); } } }
+            if (g_displayLevel>=4) fflush(stderr); } } }
 
 /*-*************************************
 *  Exceptions
@@ -104,8 +108,8 @@ static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
  */
 static unsigned DiB_loadFiles(void* buffer, size_t* bufferSizePtr,
                               size_t* sampleSizes, unsigned sstSize,
-                              const char** fileNamesTable, unsigned nbFiles, size_t targetChunkSize,
-                              unsigned displayLevel)
+                              const char** fileNamesTable, unsigned nbFiles,
+                              size_t targetChunkSize )
 {
     char* const buff = (char*)buffer;
     size_t pos = 0;
@@ -236,7 +240,7 @@ typedef struct {
  *  provides the amount of data to be loaded and the resulting nb of samples.
  *  This is useful primarily for allocation purpose => sample buffer, and sample sizes table.
  */
-static fileStats DiB_fileStats(const char** fileNamesTable, unsigned nbFiles, size_t chunkSize, unsigned displayLevel)
+static fileStats DiB_fileStats(const char** fileNamesTable, unsigned nbFiles, size_t chunkSize)
 {
     fileStats fs;
     unsigned n;
@@ -261,12 +265,12 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
                        ZDICT_legacy_params_t* params, ZDICT_cover_params_t* coverParams,
                        ZDICT_fastCover_params_t* fastCoverParams, int optimize)
 {
-    unsigned const displayLevel = params ? params->zParams.notificationLevel :
+    g_displayLevel = params ? params->zParams.notificationLevel :
                         coverParams ? coverParams->zParams.notificationLevel :
                         fastCoverParams ? fastCoverParams->zParams.notificationLevel :
                         0;   /* should never happen */
     void* const dictBuffer = malloc(maxDictSize);
-    fileStats const fs = DiB_fileStats(fileNamesTable, nbFiles, chunkSize, displayLevel);
+    fileStats const fs = DiB_fileStats(fileNamesTable, nbFiles, chunkSize);
     size_t* const sampleSizes = (size_t*)malloc(fs.nbSamples * sizeof(size_t));
     size_t const memMult = params ? MEMMULT :
                            coverParams ? COVER_MEMMULT:
@@ -309,7 +313,7 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
     DISPLAYLEVEL(3, "Shuffling input files\n");
     DiB_shuffle(fileNamesTable, nbFiles);
 
-    DiB_loadFiles(srcBuffer, &loadedSize, sampleSizes, fs.nbSamples, fileNamesTable, nbFiles, chunkSize, displayLevel);
+    DiB_loadFiles(srcBuffer, &loadedSize, sampleSizes, fs.nbSamples, fileNamesTable, nbFiles, chunkSize);
 
     {   size_t dictSize;
         if (params) {

@@ -385,10 +385,10 @@ MEM_STATIC U32 ZSTD_highbit32(U32 val)   /* compress, dictBuilder, decodeCorpus 
 }
 
 /**
- * Computes CTZ on a U64.
- * This will be slow on 32-bit mode, and on unsupported compilers.
- * If you need this function to be fast (because it is hot) expand
- * support.
+ * Counts the number of trailing zeros of a `size_t`.
+ * Most compilers should support CTZ as a builtin. A backup
+ * implementation is provided if the builtin isn't supported, but
+ * it may not be terribly efficient.
  */
 MEM_STATIC unsigned ZSTD_countTrailingZeros(size_t val)
 {
@@ -400,7 +400,7 @@ MEM_STATIC unsigned ZSTD_countTrailingZeros(size_t val)
                 if (val != 0) {
                     unsigned long r;
                     _BitScanForward64(&r, (U64)val);
-                    return (unsigned)(r >> 3);
+                    return (unsigned)r;
                 } else {
                     /* Should not reach this code path */
                     __assume(0);
@@ -424,13 +424,13 @@ MEM_STATIC unsigned ZSTD_countTrailingZeros(size_t val)
             if (val != 0) {
                 unsigned long r;
                 _BitScanForward(&r, (U32)val);
-                return (unsigned)(r >> 3);
+                return (unsigned)r;
             } else {
                 /* Should not reach this code path */
                 __assume(0);
             }
 #       elif defined(__GNUC__) && (__GNUC__ >= 3)
-            return (__builtin_ctz((U32)val) >> 3);
+            return __builtin_ctz((U32)val);
 #       else
             static const int DeBruijnBytePos[32] = {  0,  1, 28,  2, 29, 14, 24,  3,
                                                      30, 22, 20, 15, 25, 17,  4,  8,

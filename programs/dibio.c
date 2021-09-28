@@ -145,15 +145,15 @@ static unsigned DiB_loadFiles(void* buffer, size_t* bufferSizePtr,
         DISPLAYUPDATE(2, "Loading %s...       \r", fileNamesTable[fileIndex]);
 
         /* Load the first chunk of data from the file */
-        size_t const chunkSize = targetChunkSize > 0 ?
+        size_t const headSize = targetChunkSize > 0 ?
                                     MIN(fileSize, targetChunkSize) :
                                     MIN(fileSize, SAMPLESIZE_MAX );
-        if (totalDataLoaded + chunkSize > *bufferSizePtr)
+        if (totalDataLoaded + headSize > *bufferSizePtr)
             break;
 
         size_t fileDataLoaded = fread(
-            buff+totalDataLoaded, 1, chunkSize, f );
-        if (fileDataLoaded != chunkSize)
+            buff+totalDataLoaded, 1, headSize, f );
+        if (fileDataLoaded != headSize)
             EXM_THROW(11, "Pb reading %s", fileNamesTable[fileIndex]);
         sampleSizes[nbSamplesLoaded++] = fileDataLoaded;
         totalDataLoaded += fileDataLoaded;

@@ -55,19 +55,16 @@ static const size_t g_maxMemory = (sizeof(size_t) == 4) ? (2 GB - 64 MB) : ((siz
 /*-*************************************
 *  Console display
 ***************************************/
-#define DISPLAY_LEVEL_DEFAULT 2
-static int g_displayLevel = DISPLAY_LEVEL_DEFAULT;
-
 #define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
-#define DISPLAYLEVEL(l, ...) if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); }
+#define DISPLAYLEVEL(l, ...) if (displayLevel>=l) { DISPLAY(__VA_ARGS__); }
 
 static const U64 g_refreshRate = SEC_TO_MICRO / 6;
 static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
 
-#define DISPLAYUPDATE(l, ...) { if (g_displayLevel>=l) { \
-            if ((UTIL_clockSpanMicro(g_displayClock) > g_refreshRate) || (g_displayLevel>=4)) \
+#define DISPLAYUPDATE(l, ...) { if (displayLevel>=l) { \
+            if ((UTIL_clockSpanMicro(g_displayClock) > g_refreshRate) || (displayLevel>=4)) \
             { g_displayClock = UTIL_getTime(); DISPLAY(__VA_ARGS__); \
-            if (g_displayLevel>=4) fflush(stderr); } } }
+            if (displayLevel>=4) fflush(stderr); } } }
 
 /*-*************************************
 *  Exceptions
@@ -97,12 +94,10 @@ static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
   If error returns 0. Zero filesize or error is same for us.
   Emit warning when the file is inaccessible or zero size.
 */
-static size_t Dib_getFileSize (const char * fileName)
+static size_t DiB_getFileSize (const char * fileName)
 {
-    size_t fileSize = UTIL_getFileSize(fileName);
-    if (fileSize == UTIL_FILESIZE_UNKNOWN)
-      fileSize = 0;
-    return fileSize;
+    size_t const fileSize = UTIL_getFileSize(fileName);
+    return (fileSize == UTIL_FILESIZE_UNKNOWN) ? 0 : fileSize;
 }
 
 
@@ -122,7 +117,7 @@ static size_t Dib_getFileSize (const char * fileName)
 static unsigned DiB_loadFiles(void* buffer, size_t* bufferSizePtr,
                               size_t* sampleSizes, int sstSize,
                               const char** fileNamesTable, int nbFiles,
-                              size_t targetChunkSize )
+                              size_t targetChunkSize, int displayLevel )
 {
     char * buff = (char*)buffer;
     size_t totalDataLoaded = 0;
@@ -132,10 +127,8 @@ static unsigned DiB_loadFiles(void* buffer, size_t* bufferSizePtr,
 
     assert(targetChunkSize <= SAMPLESIZE_MAX);
 
-    while ( nbSamplesLoaded < sstSize
-            && fileIndex < nbFiles )
-    {
-        size_t const fileSize = Dib_getFileSize(fileNamesTable[fileIndex]);
+    while ( nbSamplesLoaded < sstSize && fileIndex < nbFiles ) {
+        size_t const fileSize = DiB_getFileSize(fileNamesTable[fileIndex]);
         if (fileSize == 0)
             continue;
 
@@ -145,34 +138,36 @@ static unsigned DiB_loadFiles(void* buffer, size_t* bufferSizePtr,
         DISPLAYUPDATE(2, "Loading %s...       \r", fileNamesTable[fileIndex]);
 
         /* Load the first chunk of data from the file */
-        size_t const headSize = targetChunkSize > 0 ?
-                                    MIN(fileSize, targetChunkSize) :
-                                    MIN(fileSize, SAMPLESIZE_MAX );
-        if (totalDataLoaded + headSize > *bufferSizePtr)
-            break;
+        size_t fileDataLoaded = 0;
+        {
+            size_t const headSize = targetChunkSize > 0 ?
+                                        MIN(fileSize, targetChunkSize) :
+                                        MIN(fileSize, SAMPLESIZE_MAX );
+            if (totalDataLoaded + headSize > *bufferSizePtr)
+                break;
 
-        size_t fileDataLoaded = fread(
-            buff+totalDataLoaded, 1, headSize, f );
-        if (fileDataLoaded != headSize)
-            EXM_THROW(11, "Pb reading %s", fileNamesTable[fileIndex]);
+            fileDataLoaded = fread( buff+totalDataLoaded, 1, headSize, f );
+            if (fileDataLoaded != headSize)
+                EXM_THROW(11, "Pb reading %s", fileNamesTable[fileIndex]);
+        }
         sampleSizes[nbSamplesLoaded++] = fileDataLoaded;
         totalDataLoaded += fileDataLoaded;
 
         /* If file-chunking is enabled, load the rest of the file as more samples */
         if (targetChunkSize > 0) {
             while( fileDataLoaded < fileSize && nbSamplesLoaded < sstSize ) {
+                size_t chunkDataLoaded = 0;
+                {
+                    size_t const chunkSize = MIN(fileSize-fileDataLoaded, targetChunkSize);
+                    if (chunkSize == 0) /* no more to read */
+                        break;
+                    if (totalDataLoaded + chunkSize > *bufferSizePtr) /* buffer is full */
+                        break;
 
-                size_t const chunkSize = MIN(fileSize-fileDataLoaded, targetChunkSize);
-                if (chunkSize == 0) /* no more to read */
-                    break;
-                if (totalDataLoaded + chunkSize > *bufferSizePtr) /* buffer is full */
-                    break;
-
-                size_t chunkDataLoaded = fread(
-                    buff+totalDataLoaded, 1, chunkSize, f );
-                if (chunkDataLoaded != chunkSize)
-                    EXM_THROW(11, "Pb reading %s", fileNamesTable[fileIndex]);
-
+                    chunkDataLoaded = fread( buff+totalDataLoaded, 1, chunkSize, f );
+                    if (chunkDataLoaded != chunkSize)
+                        EXM_THROW(11, "Pb reading %s", fileNamesTable[fileIndex]);
+                }
                 sampleSizes[nbSamplesLoaded++] = chunkDataLoaded;
                 totalDataLoaded += chunkDataLoaded;
                 fileDataLoaded += chunkDataLoaded;
@@ -280,7 +275,7 @@ typedef struct {
  *  provides the amount of data to be loaded and the resulting nb of samples.
  *  This is useful primarily for allocation purpose => sample buffer, and sample sizes table.
  */
-static fileStats DiB_fileStats(const char** fileNamesTable, unsigned nbFiles, size_t chunkSize)
+static fileStats DiB_fileStats(const char** fileNamesTable, unsigned nbFiles, size_t chunkSize, int displayLevel)
 {
     fileStats fs;
     unsigned n;
@@ -290,7 +285,8 @@ static fileStats DiB_fileStats(const char** fileNamesTable, unsigned nbFiles, si
     assert( chunkSize <= SAMPLESIZE_MAX );
 
     for (n=0; n<nbFiles; n++) {
-      U64 fileSize = Dib_getFileSize(fileNamesTable[n]);
+      U64 const fileSize = DiB_getFileSize(fileNamesTable[n]);
+      // TODO: is there a minimum sample size? What if the file is 1-byte?
       if (fileSize == 0) {
         DISPLAYLEVEL(3, "Sample file '%s' has zero size, skipping...\n", fileNamesTable[n]);
         continue;
@@ -299,10 +295,9 @@ static fileStats DiB_fileStats(const char** fileNamesTable, unsigned nbFiles, si
       /* the case where we are breaking up files in sample chunks */
       if (chunkSize > 0)
       {
-        size_t nbWholeChunks = fileSize / chunkSize;
-        size_t leftoverChunkSize = fileSize % chunkSize;
-        fs.nbSamples += nbWholeChunks + (leftoverChunkSize > 0);
-        fs.totalSizeToLoad += nbWholeChunks * chunkSize + leftoverChunkSize;
+        // TODO: is there a minimum sample size? Can we have a 1-byte sample?
+        fs.nbSamples += ((fileSize + chunkSize-1) / chunkSize) * chunkSize;
+        fs.totalSizeToLoad += fileSize;
       }
       else {
       /* the case where one file is one sample */
@@ -313,10 +308,9 @@ static fileStats DiB_fileStats(const char** fileNamesTable, unsigned nbFiles, si
           /* Limit to the first SAMPLESIZE_MAX (128kB) of the file */
           DISPLAYLEVEL(3, "Sample file '%s' is too large, limiting to %ukB",
               fileNamesTable[n], SAMPLESIZE_MAX >> 10);
-          fileSize = SAMPLESIZE_MAX;
         }
         fs.nbSamples += 1;
-        fs.totalSizeToLoad += fileSize;
+        fs.totalSizeToLoad += MIN(fileSize, SAMPLESIZE_MAX);
       }
     }
     DISPLAYLEVEL(4, "Preparing to load : %u KB \n", (unsigned)(fs.totalSizeToLoad >> 10));
@@ -330,11 +324,12 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
                        ZDICT_legacy_params_t* params, ZDICT_cover_params_t* coverParams,
                        ZDICT_fastCover_params_t* fastCoverParams, int optimize)
 {
-    g_displayLevel = params ? params->zParams.notificationLevel :
-                        coverParams ? coverParams->zParams.notificationLevel :
-                        fastCoverParams ? fastCoverParams->zParams.notificationLevel :
-                        0;   /* should never happen */
+    fileStats fs;
     void* const dictBuffer = malloc(maxDictSize);
+
+    int const displayLevel = params ? params->zParams.notificationLevel :
+        coverParams ? coverParams->zParams.notificationLevel :
+        fastCoverParams ? fastCoverParams->zParams.notificationLevel : 0;
 
     /* Shuffle input files before we start assessing how much sample date to load.
        The purpose of the shuffle is to pick random samples when the sample
@@ -343,7 +338,7 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
     DiB_shuffle(fileNamesTable, nbFiles);
 
     /* Figure out how much sample data to load with how many samples */
-    fileStats const fs = DiB_fileStats(fileNamesTable, nbFiles, chunkSize);
+    fs = DiB_fileStats(fileNamesTable, nbFiles, chunkSize, displayLevel);
 
     size_t* const sampleSizes = (size_t*)malloc(fs.nbSamples * sizeof(size_t));
     size_t const memMult = params ? MEMMULT :
@@ -383,7 +378,8 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
             (unsigned)(loadedSize >> 20));
 
     /* Load input buffer */
-    DiB_loadFiles(srcBuffer, &loadedSize, sampleSizes, fs.nbSamples, fileNamesTable, nbFiles, chunkSize);
+    DiB_loadFiles(srcBuffer, &loadedSize, sampleSizes, fs.nbSamples, fileNamesTable,
+         nbFiles, chunkSize, displayLevel);
 
     {   size_t dictSize;
         if (params) {

@@ -849,29 +849,6 @@ static void ZSTD_safecopyDstBeforeSrc(BYTE* op, BYTE const* ip, ptrdiff_t length
     while (op < oend) *op++ = *ip++;
 }
 
-/* If the literal buffer is currently split between dst and litExtraBuffer, copy the remainder within dst to op
- * and update litPtr to point into the litExtraBuffer */
-static size_t
-ZSTD_transitionSplitLitBuffer(unsigned* splitLitBuffer, BYTE* litExtraBuffer, const BYTE** litPtr, const BYTE** litEnd, BYTE** op, BYTE* const oend)
-{
-    if (*splitLitBuffer)
-    {
-        size_t const lastLLSize = *litEnd - *litPtr;
-        RETURN_ERROR_IF(lastLLSize > (size_t)(oend - *op), dstSize_tooSmall, "");
-        if (lastLLSize > 0 && *op != NULL) {
-            ZSTD_memmove(*op, *litPtr, lastLLSize);
-            *op += lastLLSize;
-        }
-
-        *litPtr = litExtraBuffer;
-        *litEnd = litExtraBuffer + ZSTD_LITBUFFEREXTRASIZE;
-        *splitLitBuffer = 0;
-        return lastLLSize;
-    }
-
-    return 0;
-}
-
 /* ZSTD_execSequenceEnd():
  * This version handles cases that are near the end of the output buffer or beginning of lit buffer. It requires
  * more careful checks to make sure there is no overflow. By separating out these hard
@@ -1311,9 +1288,17 @@ ZSTD_decompressSequences_bodySplitLitBuffer( ZSTD_DCtx* dctx,
             /* If there are more sequences, they will need to read literals from litExtraBuffer; copy over the remainder from dst and update litPtr and litEnd */
             if (nbSeq > 0) {
                 const BYTE* const oend_w = oend - WILDCOPY_OVERLENGTH;
-                size_t res = ZSTD_transitionSplitLitBuffer(&dctx->splitLitBuffer, dctx->litExtraBuffer, &litPtr, &litEnd, &op, oend);
-                if (ZSTD_isError(res)) return res;
-                sequence.litLength -= res;
+                const size_t leftoverLit = dctx->litBufferEnd - litPtr;
+                if (leftoverLit)
+                {
+                    RETURN_ERROR_IF(leftoverLit > (size_t)(oend - op), dstSize_tooSmall, "remaining lit must fit within dstBuffer");
+                    ZSTD_safecopyDstBeforeSrc(op, litPtr, leftoverLit);
+                    sequence.litLength -= leftoverLit;
+                    op += leftoverLit;
+                }
+                litPtr = dctx->litExtraBuffer;
+                litEnd = dctx->litExtraBuffer + ZSTD_LITBUFFEREXTRASIZE;
+                dctx->splitLitBuffer = 0;
                 {
                     size_t const oneSeqSize = ZSTD_execSequence(op, oend, oend_w, sequence, &litPtr, litEnd, prefixStart, vBase, dictEnd);
 #if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) && defined(FUZZING_ASSERT_VALID_SEQUENCE)
@@ -1372,9 +1357,17 @@ ZSTD_decompressSequences_bodySplitLitBuffer( ZSTD_DCtx* dctx,
     }
 
     /* last literal segment */
+    if (dctx->splitLitBuffer)  /* split hasn't been reached yet, first get dst then copy litExtraBuffer */
     {
-        size_t res = ZSTD_transitionSplitLitBuffer(&dctx->splitLitBuffer, dctx->litExtraBuffer, &litPtr, &litEnd, &op, oend);
-        if (ZSTD_isError(res)) return res;
+        size_t const lastLLSize = litEnd - litPtr;
+        RETURN_ERROR_IF(lastLLSize > (size_t)(oend - op), dstSize_tooSmall, "");
+        if (op != NULL) {
+            ZSTD_memmove(op, litPtr, lastLLSize);
+            op += lastLLSize;
+        }
+        litPtr = dctx->litExtraBuffer;
+        litEnd = dctx->litExtraBuffer + ZSTD_LITBUFFEREXTRASIZE;
+        dctx->splitLitBuffer = 0;
     }
     {   size_t const lastLLSize = litEnd - litPtr;
         RETURN_ERROR_IF(lastLLSize > (size_t)(oend-op), dstSize_tooSmall, "");
@@ -1564,9 +1557,17 @@ ZSTD_decompressSequencesLong_body(
             {
                 /* lit buffer is reaching split point, empty out the first buffer and transition to litExtraBuffer */
                 const BYTE* const oend_w = oend - WILDCOPY_OVERLENGTH;
-                size_t res = ZSTD_transitionSplitLitBuffer(&dctx->splitLitBuffer, dctx->litExtraBuffer, &litPtr, &litEnd, &op, oend);
-                if (ZSTD_isError(res)) return res;
-                sequences[(seqNb - ADVANCED_SEQS) & STORED_SEQS_MASK].litLength -= res;
+                const size_t leftoverLit = dctx->litBufferEnd - litPtr;
+                if (leftoverLit)
+                {
+                    RETURN_ERROR_IF(leftoverLit > (size_t)(oend - op), dstSize_tooSmall, "remaining lit must fit within dstBuffer");
+                    ZSTD_safecopyDstBeforeSrc(op, litPtr, leftoverLit);
+                    sequences[(seqNb - ADVANCED_SEQS) & STORED_SEQS_MASK].litLength -= leftoverLit;
+                    op += leftoverLit;
+                }
+                litPtr = dctx->litExtraBuffer;
+                litEnd = dctx->litExtraBuffer + ZSTD_LITBUFFEREXTRASIZE;
+                dctx->splitLitBuffer = 0;
                 oneSeqSize = ZSTD_execSequence(op, oend, oend_w, sequences[(seqNb - ADVANCED_SEQS) & STORED_SEQS_MASK], &litPtr, litEnd, prefixStart, dictStart, dictEnd);
 #if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) && defined(FUZZING_ASSERT_VALID_SEQUENCE)
                 assert(!ZSTD_isError(oneSeqSize));
@@ -1603,9 +1604,17 @@ ZSTD_decompressSequencesLong_body(
             if (dctx->splitLitBuffer && litPtr + sequence->litLength > dctx->litBufferEnd)
             {
                 const BYTE* const oend_w = oend - WILDCOPY_OVERLENGTH;
-                size_t res = ZSTD_transitionSplitLitBuffer(&dctx->splitLitBuffer, dctx->litExtraBuffer, &litPtr, &litEnd, &op, oend);
-                if (ZSTD_isError(res)) return res;
-                sequence->litLength -= res;
+                const size_t leftoverLit = dctx->litBufferEnd - litPtr;
+                if (leftoverLit)
+                {
+                    RETURN_ERROR_IF(leftoverLit > (size_t)(oend - op), dstSize_tooSmall, "remaining lit must fit within dstBuffer");
+                    ZSTD_safecopyDstBeforeSrc(op, litPtr, leftoverLit);
+                    sequence->litLength -= leftoverLit;
+                    op += leftoverLit;
+                }
+                litPtr = dctx->litExtraBuffer;
+                litEnd = dctx->litExtraBuffer + ZSTD_LITBUFFEREXTRASIZE;
+                dctx->splitLitBuffer = 0;
                 {
                     size_t const oneSeqSize = ZSTD_execSequence(op, oend, oend_w, *sequence, &litPtr, litEnd, prefixStart, dictStart, dictEnd);
 #if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) && defined(FUZZING_ASSERT_VALID_SEQUENCE)
@@ -1634,9 +1643,16 @@ ZSTD_decompressSequencesLong_body(
     }
 
     /* last literal segment */
+    if (dctx->splitLitBuffer)  /* first deplete literal buffer in dst, then copy litExtraBuffer */
     {
-        size_t res = ZSTD_transitionSplitLitBuffer(&dctx->splitLitBuffer, dctx->litExtraBuffer, &litPtr, &litEnd, &op, oend);
-        if (ZSTD_isError(res)) return res;
+        size_t const lastLLSize = litEnd - litPtr;
+        RETURN_ERROR_IF(lastLLSize > (size_t)(oend - op), dstSize_tooSmall, "");
+        if (op != NULL) {
+            ZSTD_memmove(op, litPtr, lastLLSize);
+            op += lastLLSize;
+        }
+        litPtr = dctx->litExtraBuffer;
+        litEnd = dctx->litExtraBuffer + ZSTD_LITBUFFEREXTRASIZE;
     }
     {   size_t const lastLLSize = litEnd - litPtr;
         RETURN_ERROR_IF(lastLLSize > (size_t)(oend-op), dstSize_tooSmall, "");

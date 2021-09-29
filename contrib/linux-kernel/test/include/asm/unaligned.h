@@ -20,6 +20,7 @@ static unsigned _isLittleEndian(void)
 {
     const union { uint32_t u; uint8_t c[4]; } one = { 1 };
     assert(_IS_LITTLE_ENDIAN == one.c[0]);
+    (void)one;
     return _IS_LITTLE_ENDIAN;
 }
 

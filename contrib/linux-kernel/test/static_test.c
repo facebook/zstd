@@ -28,17 +28,19 @@ static const char kEmptyZstdFrame[] = {
     0x28, 0xb5, 0x2f, 0xfd, 0x24, 0x00, 0x01, 0x00, 0x00, 0x99, 0xe9, 0xd8, 0x51
 };
 
-static void test_decompress_unzstd() {
+static void test_decompress_unzstd(void) {
     fprintf(stderr, "Testing decompress unzstd... ");
     {
         size_t const wkspSize = zstd_dctx_workspace_bound();
         void* wksp = malloc(wkspSize);
-        CONTROL(wksp != NULL);
         ZSTD_DCtx* dctx = zstd_init_dctx(wksp, wkspSize);
+        CONTROL(wksp != NULL);
         CONTROL(dctx != NULL);
-        size_t const dSize = zstd_decompress_dctx(dctx, NULL, 0, kEmptyZstdFrame, sizeof(kEmptyZstdFrame));
-        CONTROL(!zstd_is_error(dSize));
-        CONTROL(dSize == 0);
+        {
+          size_t const dSize = zstd_decompress_dctx(dctx, NULL, 0, kEmptyZstdFrame, sizeof(kEmptyZstdFrame));
+          CONTROL(!zstd_is_error(dSize));
+          CONTROL(dSize == 0);
+        }
         free(wksp);
     }
     fprintf(stderr, "Ok\n");

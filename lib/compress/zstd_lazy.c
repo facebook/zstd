@@ -971,7 +971,7 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_prefetch(U32 const* hashTable, U16 const* ta
  * Fill up the hash cache starting at idx, prefetching up to ZSTD_ROW_HASH_CACHE_SIZE entries,
  * but not beyond iLimit.
  */
-static void ZSTD_row_fillHashCache(ZSTD_matchState_t* ms, const BYTE* base,
+FORCE_INLINE_TEMPLATE void ZSTD_row_fillHashCache(ZSTD_matchState_t* ms, const BYTE* base,
                                    U32 const rowLog, U32 const mls,
                                    U32 idx, const BYTE* const iLimit)
 {
@@ -1011,35 +1011,65 @@ FORCE_INLINE_TEMPLATE U32 ZSTD_row_nextCachedHash(U32* cache, U32 const* hashTab
     }
 }
 
-/* ZSTD_row_update_internal():
- * Inserts the byte at ip into the appropriate position in the hash table.
- * Determines the relative row, and the position within the {16, 32} entry row to insert at.
+/* ZSTD_row_update_internalImpl():
+ * Updates the hash table with positions starting from updateStartIdx until updateEndIdx.
  */
-FORCE_INLINE_TEMPLATE void ZSTD_row_update_internal(ZSTD_matchState_t* ms, const BYTE* ip,
-                                                    U32 const mls, U32 const rowLog,
-                                                    U32 const rowMask, U32 const useCache)
+FORCE_INLINE_TEMPLATE void ZSTD_row_update_internalImpl(ZSTD_matchState_t* ms,
+                                                        U32 updateStartIdx, U32 const updateEndIdx,
+                                                        U32 const mls, U32 const rowLog,
+                                                        U32 const rowMask, U32 const useCache)
 {
     U32* const hashTable = ms->hashTable;
     U16* const tagTable = ms->tagTable;
     U32 const hashLog = ms->rowHashLog;
     const BYTE* const base = ms->window.base;
-    const U32 target = (U32)(ip - base);
-    U32 idx = ms->nextToUpdate;
 
-    DEBUGLOG(6, "ZSTD_row_update_internal(): nextToUpdate=%u, current=%u", idx, target);
-    for (; idx < target; ++idx) {
-        U32 const hash = useCache ? ZSTD_row_nextCachedHash(ms->hashCache, hashTable, tagTable, base, idx, hashLog, rowLog, mls)
-                                  : (U32)ZSTD_hashPtr(base + idx, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls);
+    DEBUGLOG(6, "ZSTD_row_update_internalImpl(): updateStartIdx=%u, updateEndIdx=%u", updateStartIdx, updateEndIdx);
+    for (; updateStartIdx < updateEndIdx; ++updateStartIdx) {
+        U32 const hash = useCache ? ZSTD_row_nextCachedHash(ms->hashCache, hashTable, tagTable, base, updateStartIdx, hashLog, rowLog, mls)
+                                  : (U32)ZSTD_hashPtr(base + updateStartIdx, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls);
         U32 const relRow = (hash >> ZSTD_ROW_HASH_TAG_BITS) << rowLog;
         U32* const row = hashTable + relRow;
         BYTE* tagRow = (BYTE*)(tagTable + relRow);  /* Though tagTable is laid out as a table of U16, each tag is only 1 byte.
                                                        Explicit cast allows us to get exact desired position within each row */
         U32 const pos = ZSTD_row_nextIndex(tagRow, rowMask);
 
-        assert(hash == ZSTD_hashPtr(base + idx, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls));
+        assert(hash == ZSTD_hashPtr(base + updateStartIdx, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls));
         ((BYTE*)tagRow)[pos + ZSTD_ROW_HASH_TAG_OFFSET] = hash & ZSTD_ROW_HASH_TAG_MASK;
-        row[pos] = idx;
+        row[pos] = updateStartIdx;
     }
+}
+
+/* ZSTD_row_update_internal():
+ * Inserts the byte at ip into the appropriate position in the hash table, and updates ms->nextToUpdate.
+ * Skips sections of long matches as is necessary.
+ */
+FORCE_INLINE_TEMPLATE void ZSTD_row_update_internal(ZSTD_matchState_t* ms, const BYTE* ip,
+                                                    U32 const mls, U32 const rowLog,
+                                                    U32 const rowMask, U32 const useCache)
+{
+    U32 idx = ms->nextToUpdate;
+    const BYTE* const base = ms->window.base;
+    const U32 target = (U32)(ip - base);
+    const U32 kSkipThreshold = 384;
+    const U32 kMaxMatchStartPositionsToUpdate = 96;
+    const U32 kMaxMatchEndPositionsToUpdate = 32;
+
+    if (useCache) {
+        /* Only skip positions when using hash cache, i.e. 
+         * if we are loading a dict, don't skip anything.
+         * If we decide to skip, then we only update a set number
+         * of positions at the beginning and end of the match.
+         */
+        if (UNLIKELY(target - idx > kSkipThreshold)) {
+            U32 const bound = idx + kMaxMatchStartPositionsToUpdate;
+            ZSTD_row_update_internalImpl(ms, idx, bound, mls, rowLog, rowMask, useCache);
+            idx = target - kMaxMatchEndPositionsToUpdate;
+            ZSTD_row_fillHashCache(ms, base, rowLog, mls, idx, ip+1);
+        }
+    }
+    assert(target >= idx);
+    ZSTD_row_update_internalImpl(ms, idx, target, mls, rowLog, rowMask, useCache);
     ms->nextToUpdate = target;
 }
 

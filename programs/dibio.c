@@ -172,7 +172,8 @@ static int DiB_loadFiles(
         fclose(f);
 
     DISPLAYLEVEL(2, "\r%79s\r", "");
-    DISPLAYLEVEL(4, "loaded %zuKB total data, %d nb samples \n", totalDataLoaded >> 10, nbSamplesLoaded );
+    DISPLAYLEVEL(4, "Loaded %d KB total training data, %d nb samples \n",
+        (int)(totalDataLoaded / (1 KB)), nbSamplesLoaded );
     *bufferSizePtr = totalDataLoaded;
     return nbSamplesLoaded;
 }
@@ -298,14 +299,14 @@ static fileStats DiB_fileStats(const char** fileNamesTable, int nbFiles, int chu
           fs.oneSampleTooLarge |= (fileSize > 2*SAMPLESIZE_MAX);
 
           /* Limit to the first SAMPLESIZE_MAX (128kB) of the file */
-          DISPLAYLEVEL(3, "Sample file '%s' is too large, limiting to %ukB",
-              fileNamesTable[n], SAMPLESIZE_MAX >> 10);
+          DISPLAYLEVEL(3, "Sample file '%s' is too large, limiting to %d KB",
+              fileNamesTable[n], SAMPLESIZE_MAX / (1 KB));
         }
         fs.nbSamples += 1;
         fs.totalSizeToLoad += MIN(fileSize, SAMPLESIZE_MAX);
       }
     }
-    DISPLAYLEVEL(4, "Training files are %lldKB, %d samples\n", fs.totalSizeToLoad >> 10, fs.nbSamples);
+    DISPLAYLEVEL(4, "Found training data %d files, %d KB, %d samples\n", nbFiles, (int)(fs.totalSizeToLoad / (1 KB)), fs.nbSamples);
     return fs;
 }
 
@@ -369,23 +370,24 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
     /* init */
     if ((S64)loadedSize < fs.totalSizeToLoad)
         DISPLAYLEVEL(1, "Training samples set too large (%u MB); training on %u MB only...\n",
-            (unsigned)(fs.totalSizeToLoad >> 20),
-            (unsigned)(loadedSize >> 20));
+            (unsigned)(fs.totalSizeToLoad / (1 MB)),
+            (unsigned)(loadedSize / (1 MB)));
 
     /* Load input buffer */
-    DiB_loadFiles(srcBuffer, &loadedSize, sampleSizes, fs.nbSamples, fileNamesTable,
-         nbFiles, chunkSize, displayLevel);
+    int const nbSamplesLoaded = DiB_loadFiles(
+        srcBuffer, &loadedSize, sampleSizes, fs.nbSamples, fileNamesTable,
+        nbFiles, chunkSize, displayLevel);
 
     {   size_t dictSize;
         if (params) {
             DiB_fillNoise((char*)srcBuffer + loadedSize, NOISELENGTH);   /* guard band, for end of buffer condition */
             dictSize = ZDICT_trainFromBuffer_legacy(dictBuffer, maxDictSize,
-                                                    srcBuffer, sampleSizes, fs.nbSamples,
+                                                    srcBuffer, sampleSizes, nbSamplesLoaded,
                                                     *params);
         } else if (coverParams) {
             if (optimize) {
               dictSize = ZDICT_optimizeTrainFromBuffer_cover(dictBuffer, maxDictSize,
-                                                             srcBuffer, sampleSizes, fs.nbSamples,
+                                                             srcBuffer, sampleSizes, nbSamplesLoaded,
                                                              coverParams);
               if (!ZDICT_isError(dictSize)) {
                   unsigned splitPercentage = (unsigned)(coverParams->splitPoint * 100);
@@ -394,13 +396,13 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
               }
             } else {
               dictSize = ZDICT_trainFromBuffer_cover(dictBuffer, maxDictSize, srcBuffer,
-                                                     sampleSizes, fs.nbSamples, *coverParams);
+                                                     sampleSizes, nbSamplesLoaded, *coverParams);
             }
         } else {
             assert(fastCoverParams != NULL);
             if (optimize) {
               dictSize = ZDICT_optimizeTrainFromBuffer_fastCover(dictBuffer, maxDictSize,
-                                                              srcBuffer, sampleSizes, fs.nbSamples,
+                                                              srcBuffer, sampleSizes, nbSamplesLoaded,
                                                               fastCoverParams);
               if (!ZDICT_isError(dictSize)) {
                 unsigned splitPercentage = (unsigned)(fastCoverParams->splitPoint * 100);
@@ -410,7 +412,7 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
               }
             } else {
               dictSize = ZDICT_trainFromBuffer_fastCover(dictBuffer, maxDictSize, srcBuffer,
-                                                        sampleSizes, fs.nbSamples, *fastCoverParams);
+                                                        sampleSizes, nbSamplesLoaded, *fastCoverParams);
             }
         }
         if (ZDICT_isError(dictSize)) {

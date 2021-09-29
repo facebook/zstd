@@ -96,7 +96,7 @@ static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
 static S64 DiB_getFileSize (const char * fileName)
 {
     U64 const fileSize = UTIL_getFileSize(fileName);
-    return (fileSize == UTIL_FILESIZE_UNKNOWN) ? -1 : fileSize;
+    return (fileSize == UTIL_FILESIZE_UNKNOWN) ? -1 : (S64)fileSize;
 }
 
 /* ********************************************************
@@ -305,7 +305,7 @@ static fileStats DiB_fileStats(const char** fileNamesTable, int nbFiles, int chu
         fs.totalSizeToLoad += MIN(fileSize, SAMPLESIZE_MAX);
       }
     }
-    DISPLAYLEVEL(4, "Training files are %lluKB, %d samples\n", fs.totalSizeToLoad >> 10, fs.nbSamples);
+    DISPLAYLEVEL(4, "Training files are %lldKB, %d samples\n", fs.totalSizeToLoad >> 10, fs.nbSamples);
     return fs;
 }
 
@@ -335,7 +335,6 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
     fs = DiB_fileStats(fileNamesTable, nbFiles, chunkSize, displayLevel);
 
     {
-        sampleSizes = (size_t*)malloc(fs.nbSamples * sizeof(size_t));
         int const memMult = params ? MEMMULT :
                             coverParams ? COVER_MEMMULT:
                             FASTCOVER_MEMMULT;
@@ -345,6 +344,7 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
         /* TODO: there is oportunity to stop DiB_fileStats() early when the data limit is reached */
         loadedSize = MIN( MIN(maxMem, fs.totalSizeToLoad), MAX_SAMPLES_SIZE );
         srcBuffer = malloc(loadedSize+NOISELENGTH);
+        sampleSizes = (size_t*)malloc(fs.nbSamples * sizeof(size_t));
     }
 
     /* Checks */

@@ -149,7 +149,7 @@ static int DiB_loadFiles(
 
         /* If file-chunking is enabled, load the rest of the file as more samples */
         if (targetChunkSize > 0) {
-            while( fileDataLoaded < fileSize && nbSamplesLoaded < sstSize ) {
+            while( (S64)fileDataLoaded < fileSize && nbSamplesLoaded < sstSize ) {
                 size_t const chunkSize = MIN(fileSize-fileDataLoaded, targetChunkSize);
                 if (totalDataLoaded + chunkSize > *bufferSizePtr) /* buffer is full */
                     break;

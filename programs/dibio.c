@@ -257,7 +257,7 @@ static void DiB_saveDict(const char* dictFileName,
 }
 
 typedef struct {
-    U64 totalSizeToLoad;
+    S64 totalSizeToLoad;
     int nbSamples;
     int oneSampleTooLarge;
 } fileStats;
@@ -342,7 +342,7 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
         /* Limit the size of the training data to the free memory */
         /* Limit the size of the training data to 2GB */
         /* TODO: there is oportunity to stop DiB_fileStats() early when the data limit is reached */
-        loadedSize = MIN( MIN(maxMem, fs.totalSizeToLoad), MAX_SAMPLES_SIZE );
+        loadedSize = MIN( MIN((S64)maxMem, fs.totalSizeToLoad), MAX_SAMPLES_SIZE );
         srcBuffer = malloc(loadedSize+NOISELENGTH);
         sampleSizes = (size_t*)malloc(fs.nbSamples * sizeof(size_t));
     }
@@ -361,14 +361,14 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
         DISPLAYLEVEL(2, "!  Alternatively, split files into fixed-size blocks representative of samples, with -B# \n");
         EXM_THROW(14, "nb of samples too low");   /* we now clearly forbid this case */
     }
-    if (fs.totalSizeToLoad < (unsigned long long)maxDictSize * 8) {
+    if (fs.totalSizeToLoad < maxDictSize * 8) {
         DISPLAYLEVEL(2, "!  Warning : data size of samples too small for target dictionary size \n");
         DISPLAYLEVEL(2, "!  Samples should be about 100x larger than target dictionary size \n");
     }
 
     /* init */
-    if (loadedSize < fs.totalSizeToLoad)
-        DISPLAYLEVEL(1, "Trainig samples set too large (%u MB); training on %u MB only...\n",
+    if ((S64)loadedSize < fs.totalSizeToLoad)
+        DISPLAYLEVEL(1, "Training samples set too large (%u MB); training on %u MB only...\n",
             (unsigned)(fs.totalSizeToLoad >> 20),
             (unsigned)(loadedSize >> 20));
 

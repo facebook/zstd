@@ -317,8 +317,9 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
 {
     fileStats fs;
     size_t* sampleSizes; /* vector of sample sizes. Each sample can be up to SAMPLESIZE_MAX */
-    size_t loadedSize; /* total data loaded for all samples */
-    void* srcBuffer;
+    int nbSamplesLoaded; /* nb of samples effectively loaded in srcBuffer */
+    size_t loadedSize; /* total data loaded in srcBuffer for all samples */
+    void* srcBuffer /* contiguous buffer with training data/samples */;
     void* const dictBuffer = malloc(maxDictSize);
     int result = 0;
 
@@ -374,7 +375,7 @@ int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
             (unsigned)(loadedSize / (1 MB)));
 
     /* Load input buffer */
-    int const nbSamplesLoaded = DiB_loadFiles(
+    nbSamplesLoaded = DiB_loadFiles(
         srcBuffer, &loadedSize, sampleSizes, fs.nbSamples, fileNamesTable,
         nbFiles, chunkSize, displayLevel);
 

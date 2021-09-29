@@ -148,8 +148,8 @@ static int DiB_loadFiles(
             if (fileDataLoaded != headSize)
                 EXM_THROW(11, "Pb reading %s", fileNamesTable[fileIndex]);
         }
-        sampleSizes[nbSamplesLoaded++] = fileDataLoaded;
-        totalDataLoaded += fileDataLoaded;
+        sampleSizes[nbSamplesLoaded++] = (size_t)fileDataLoaded;
+        totalDataLoaded += (size_t)fileDataLoaded;
 
         /* If file-chunking is enabled, load the rest of the file as more samples */
         if (targetChunkSize > 0) {
@@ -344,7 +344,7 @@ int DiB_trainFromFiles(const char* dictFileName, int maxDictSize,
         /* Limit the size of the training data to the free memory */
         /* Limit the size of the training data to 2GB */
         /* TODO: there is oportunity to stop DiB_fileStats() early when the data limit is reached */
-        loadedSize = MIN( MIN((S64)maxMem, fs.totalSizeToLoad), MAX_SAMPLES_SIZE );
+        loadedSize = (size_t)MIN( MIN((S64)maxMem, fs.totalSizeToLoad), MAX_SAMPLES_SIZE );
         srcBuffer = malloc(loadedSize+NOISELENGTH);
         sampleSizes = (size_t*)malloc(fs.nbSamples * sizeof(size_t));
     }

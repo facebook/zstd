@@ -1290,18 +1290,18 @@ int main(int argCount, const char* argv[])
             int const optimize = !coverParams.k || !coverParams.d;
             coverParams.nbThreads = (unsigned)nbWorkers;
             coverParams.zParams = zParams;
-            operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenames->fileNames, (unsigned)filenames->tableSize, blockSize, NULL, &coverParams, NULL, optimize);
+            operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenames->fileNames, (int)filenames->tableSize, blockSize, NULL, &coverParams, NULL, optimize);
         } else if (dict == fastCover) {
             int const optimize = !fastCoverParams.k || !fastCoverParams.d;
             fastCoverParams.nbThreads = (unsigned)nbWorkers;
             fastCoverParams.zParams = zParams;
-            operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenames->fileNames, (unsigned)filenames->tableSize, blockSize, NULL, NULL, &fastCoverParams, optimize);
+            operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenames->fileNames, (int)filenames->tableSize, blockSize, NULL, NULL, &fastCoverParams, optimize);
         } else {
             ZDICT_legacy_params_t dictParams;
             memset(&dictParams, 0, sizeof(dictParams));
             dictParams.selectivityLevel = dictSelect;
             dictParams.zParams = zParams;
-            operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenames->fileNames, (unsigned)filenames->tableSize, blockSize, &dictParams, NULL, NULL, 0);
+            operationResult = DiB_trainFromFiles(outFileName, maxDictSize, filenames->fileNames, (int)filenames->tableSize, blockSize, &dictParams, NULL, NULL, 0);
         }
 #else
         (void)dictCLevel; (void)dictSelect; (void)dictID;  (void)maxDictSize; /* not used when ZSTD_NODICT set */

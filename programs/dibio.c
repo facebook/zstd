@@ -139,8 +139,8 @@ static int DiB_loadFiles(
         /* Load the first chunk of data from the file */
         {
             int const headSize = targetChunkSize > 0 ?
-                                        MIN(fileSize, targetChunkSize) :
-                                        MIN(fileSize, SAMPLESIZE_MAX );
+                                        (int)MIN(fileSize, targetChunkSize) :
+                                        (int)MIN(fileSize, SAMPLESIZE_MAX );
             if (totalDataLoaded + headSize > *bufferSizePtr)
                 break;
 
@@ -154,7 +154,7 @@ static int DiB_loadFiles(
         /* If file-chunking is enabled, load the rest of the file as more samples */
         if (targetChunkSize > 0) {
             while( fileDataLoaded < fileSize && nbSamplesLoaded < sstSize ) {
-                int const chunkSize = MIN(fileSize-fileDataLoaded, targetChunkSize);
+                int const chunkSize = (int)MIN(fileSize-fileDataLoaded, targetChunkSize);
                 if (totalDataLoaded + chunkSize > *bufferSizePtr) /* buffer is full */
                     break;
 
@@ -289,7 +289,7 @@ static fileStats DiB_fileStats(const char** fileNamesTable, int nbFiles, int chu
       if (chunkSize > 0)
       {
         // TODO: is there a minimum sample size? Can we have a 1-byte sample?
-        fs.nbSamples += (fileSize + chunkSize-1) / chunkSize;
+        fs.nbSamples += (int)((fileSize + chunkSize-1) / chunkSize);
         fs.totalSizeToLoad += fileSize;
       }
       else {
@@ -310,8 +310,8 @@ static fileStats DiB_fileStats(const char** fileNamesTable, int nbFiles, int chu
     return fs;
 }
 
-int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
-                       const char** fileNamesTable, unsigned nbFiles, size_t chunkSize,
+int DiB_trainFromFiles(const char* dictFileName, int maxDictSize,
+                       const char** fileNamesTable, int nbFiles, int chunkSize,
                        ZDICT_legacy_params_t* params, ZDICT_cover_params_t* coverParams,
                        ZDICT_fastCover_params_t* fastCoverParams, int optimize)
 {

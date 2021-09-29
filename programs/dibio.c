@@ -268,7 +268,7 @@ typedef struct {
  *  provides the amount of data to be loaded and the resulting nb of samples.
  *  This is useful primarily for allocation purpose => sample buffer, and sample sizes table.
  */
-static fileStats DiB_fileStats(const char** fileNamesTable, int nbFiles, int chunkSize, int displayLevel)
+static fileStats DiB_fileStats(const char** fileNamesTable, int nbFiles, size_t chunkSize, int displayLevel)
 {
     fileStats fs;
     int n;
@@ -310,8 +310,8 @@ static fileStats DiB_fileStats(const char** fileNamesTable, int nbFiles, int chu
     return fs;
 }
 
-int DiB_trainFromFiles(const char* dictFileName, int maxDictSize,
-                       const char** fileNamesTable, int nbFiles, int chunkSize,
+int DiB_trainFromFiles(const char* dictFileName, size_t maxDictSize,
+                       const char** fileNamesTable, int nbFiles, size_t chunkSize,
                        ZDICT_legacy_params_t* params, ZDICT_cover_params_t* coverParams,
                        ZDICT_fastCover_params_t* fastCoverParams, int optimize)
 {
@@ -363,7 +363,7 @@ int DiB_trainFromFiles(const char* dictFileName, int maxDictSize,
         DISPLAYLEVEL(2, "!  Alternatively, split files into fixed-size blocks representative of samples, with -B# \n");
         EXM_THROW(14, "nb of samples too low");   /* we now clearly forbid this case */
     }
-    if (fs.totalSizeToLoad < maxDictSize * 8) {
+    if (fs.totalSizeToLoad < (S64)maxDictSize * 8) {
         DISPLAYLEVEL(2, "!  Warning : data size of samples too small for target dictionary size \n");
         DISPLAYLEVEL(2, "!  Samples should be about 100x larger than target dictionary size \n");
     }

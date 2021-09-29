@@ -115,7 +115,7 @@ static int DiB_loadFiles(
     void* buffer, size_t* bufferSizePtr,
     size_t* sampleSizes, int sstSize,
     const char** fileNamesTable, int nbFiles,
-    int targetChunkSize, int displayLevel )
+    size_t targetChunkSize, int displayLevel )
 {
     char* const buff = (char*)buffer;
     size_t totalDataLoaded = 0;
@@ -126,7 +126,7 @@ static int DiB_loadFiles(
     assert(targetChunkSize <= SAMPLESIZE_MAX);
 
     while ( nbSamplesLoaded < sstSize && fileIndex < nbFiles ) {
-        S64 fileDataLoaded;
+        size_t fileDataLoaded;
         S64 const fileSize = DiB_getFileSize(fileNamesTable[fileIndex]);
         if (fileSize <= 0) /* skip if zero-size or file error */
             continue;
@@ -137,28 +137,24 @@ static int DiB_loadFiles(
         DISPLAYUPDATE(2, "Loading %s...       \r", fileNamesTable[fileIndex]);
 
         /* Load the first chunk of data from the file */
-        {
-            int const headSize = targetChunkSize > 0 ?
-                                        (int)MIN(fileSize, targetChunkSize) :
-                                        (int)MIN(fileSize, SAMPLESIZE_MAX );
-            if (totalDataLoaded + headSize > *bufferSizePtr)
-                break;
-
-            fileDataLoaded = fread( buff+totalDataLoaded, 1, headSize, f );
-            if (fileDataLoaded != headSize)
-                EXM_THROW(11, "Pb reading %s", fileNamesTable[fileIndex]);
-        }
-        sampleSizes[nbSamplesLoaded++] = (size_t)fileDataLoaded;
-        totalDataLoaded += (size_t)fileDataLoaded;
+        fileDataLoaded = targetChunkSize > 0 ?
+                            (size_t)MIN(fileSize, (S64)targetChunkSize) :
+                            (size_t)MIN(fileSize, SAMPLESIZE_MAX );
+        if (totalDataLoaded + fileDataLoaded > *bufferSizePtr)
+            break;
+        if (fread( buff+totalDataLoaded, 1, fileDataLoaded, f ) != fileDataLoaded)
+            EXM_THROW(11, "Pb reading %s", fileNamesTable[fileIndex]);
+        sampleSizes[nbSamplesLoaded++] = fileDataLoaded;
+        totalDataLoaded += fileDataLoaded;
 
         /* If file-chunking is enabled, load the rest of the file as more samples */
         if (targetChunkSize > 0) {
             while( fileDataLoaded < fileSize && nbSamplesLoaded < sstSize ) {
-                int const chunkSize = (int)MIN(fileSize-fileDataLoaded, targetChunkSize);
+                size_t const chunkSize = MIN(fileSize-fileDataLoaded, targetChunkSize);
                 if (totalDataLoaded + chunkSize > *bufferSizePtr) /* buffer is full */
                     break;
 
-                if (fread( buff+totalDataLoaded, 1, chunkSize, f ) != (unsigned)chunkSize)
+                if (fread( buff+totalDataLoaded, 1, chunkSize, f ) != chunkSize)
                     EXM_THROW(11, "Pb reading %s", fileNamesTable[fileIndex]);
                 sampleSizes[nbSamplesLoaded++] = chunkSize;
                 totalDataLoaded += chunkSize;

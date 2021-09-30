@@ -7,7 +7,7 @@
 # in the COPYING file in the root directory of this source tree).
 # ################################################################
 
-project(libzstd C)
+project(libzstd C ASM)
 
 set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 option(ZSTD_BUILD_STATIC "BUILD STATIC LIBRARIES" ON)
@@ -22,7 +22,7 @@ include_directories(${LIBRARY_DIR} ${LIBRARY_DIR}/common)
 
 file(GLOB CommonSources ${LIBRARY_DIR}/common/*.c)
 file(GLOB CompressSources ${LIBRARY_DIR}/compress/*.c)
-file(GLOB DecompressSources ${LIBRARY_DIR}/decompress/*.c)
+file(GLOB DecompressSources ${LIBRARY_DIR}/decompress/*.c ${LIBRARY_DIR}/decompress/*.S)
 file(GLOB DictBuilderSources ${LIBRARY_DIR}/dictBuilder/*.c)
 
 set(Sources
@@ -168,6 +168,7 @@ install(TARGETS ${library_targets}
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
     RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+    BUNDLE DESTINATION "${CMAKE_INSTALL_BINDIR}"
     )
 
 # uninstall target

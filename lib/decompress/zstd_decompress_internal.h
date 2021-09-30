@@ -20,7 +20,7 @@
  *  Dependencies
  *********************************************************/
 #include "../common/mem.h"             /* BYTE, U16, U32 */
-#include "../common/zstd_internal.h"   /* ZSTD_seqSymbol */
+#include "../common/zstd_internal.h"   /* constants : MaxLL, MaxML, MaxOff, LLFSELog, etc. */
 
 
 
@@ -136,7 +136,9 @@ struct ZSTD_DCtx_s
     size_t litSize;
     size_t rleSize;
     size_t staticSize;
+#if DYNAMIC_BMI2 != 0
     int bmi2;                     /* == 1 if the CPU supports BMI2 and 0 otherwise. CPU support is determined dynamically once per context lifetime. */
+#endif
 
     /* dictionary */
     ZSTD_DDict* ddictLocal;
@@ -158,9 +160,11 @@ struct ZSTD_DCtx_s
     size_t outStart;
     size_t outEnd;
     size_t lhSize;
+#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
     void* legacyContext;
     U32 previousLegacyVersion;
     U32 legacyVersion;
+#endif
     U32 hostageByte;
     int noForwardProgress;
     ZSTD_bufferMode_e outBufferMode;
@@ -183,6 +187,14 @@ struct ZSTD_DCtx_s
 #endif
 };  /* typedef'd to ZSTD_DCtx within "zstd.h" */
 
+MEM_STATIC int ZSTD_DCtx_get_bmi2(const struct ZSTD_DCtx_s *dctx) {
+#if DYNAMIC_BMI2 != 0
+	return dctx->bmi2;
+#else
+    (void)dctx;
+	return 0;
+#endif
+}
 
 /*-*******************************************************
  *  Shared internal functions

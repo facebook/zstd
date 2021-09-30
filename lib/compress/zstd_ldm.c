@@ -159,12 +159,12 @@ size_t ZSTD_ldm_getTableSize(ldmParams_t params)
     size_t const ldmBucketSize = ((size_t)1) << (params.hashLog - ldmBucketSizeLog);
     size_t const totalSize = ZSTD_cwksp_alloc_size(ldmBucketSize)
                            + ZSTD_cwksp_alloc_size(ldmHSize * sizeof(ldmEntry_t));
-    return params.enableLdm ? totalSize : 0;
+    return params.enableLdm == ZSTD_ps_enable ? totalSize : 0;
 }
 
 size_t ZSTD_ldm_getMaxNbSeq(ldmParams_t params, size_t maxChunkSize)
 {
-    return params.enableLdm ? (maxChunkSize / params.minMatchLength) : 0;
+    return params.enableLdm == ZSTD_ps_enable ? (maxChunkSize / params.minMatchLength) : 0;
 }
 
 /** ZSTD_ldm_getBucket() :
@@ -657,7 +657,7 @@ void ZSTD_ldm_skipRawSeqStoreBytes(rawSeqStore_t* rawSeqStore, size_t nbBytes) {
 
 size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
     ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
-    ZSTD_useRowMatchFinderMode_e useRowMatchFinder,
+    ZSTD_paramSwitch_e useRowMatchFinder,
     void const* src, size_t srcSize)
 {
     const ZSTD_compressionParameters* const cParams = &ms->cParams;

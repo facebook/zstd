@@ -100,7 +100,7 @@ void FIO_setSrcSizeHint(FIO_prefs_t* const prefs, size_t srcSizeHint);
 void FIO_setTestMode(FIO_prefs_t* const prefs, int testMode);
 void FIO_setLiteralCompressionMode(
         FIO_prefs_t* const prefs,
-        ZSTD_literalCompressionMode_e mode);
+        ZSTD_paramSwitch_e mode);
 
 void FIO_setProgressSetting(FIO_progressSetting_e progressSetting);
 void FIO_setNotificationLevel(int level);

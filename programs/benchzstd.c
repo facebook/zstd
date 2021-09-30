@@ -131,7 +131,7 @@ BMK_advancedParams_t BMK_initAdvancedParams(void) {
         0, /* ldmHashLog */
         0, /* ldmBuckSizeLog */
         0,  /* ldmHashRateLog */
-        ZSTD_lcm_auto, /* literalCompressionMode */
+        ZSTD_ps_auto, /* literalCompressionMode */
         0 /* useRowMatchFinder */
     };
     return res;

@@ -804,7 +804,7 @@ int main(int argCount, const char* argv[])
 #ifndef ZSTD_NOBENCH
     BMK_advancedParams_t benchParams = BMK_initAdvancedParams();
 #endif
-    ZSTD_literalCompressionMode_e literalCompressionMode = ZSTD_lcm_auto;
+    ZSTD_paramSwitch_e literalCompressionMode = ZSTD_ps_auto;
 
 
     /* init */
@@ -900,8 +900,8 @@ int main(int argCount, const char* argv[])
                 if (!strcmp(argument, "--format=lz4")) { suffix = LZ4_EXTENSION; FIO_setCompressionType(prefs, FIO_lz4Compression);  continue; }
 #endif
                 if (!strcmp(argument, "--rsyncable")) { rsyncable = 1; continue; }
-                if (!strcmp(argument, "--compress-literals")) { literalCompressionMode = ZSTD_lcm_huffman; continue; }
-                if (!strcmp(argument, "--no-compress-literals")) { literalCompressionMode = ZSTD_lcm_uncompressed; continue; }
+                if (!strcmp(argument, "--compress-literals")) { literalCompressionMode = ZSTD_ps_enable; continue; }
+                if (!strcmp(argument, "--no-compress-literals")) { literalCompressionMode = ZSTD_ps_disable; continue; }
                 if (!strcmp(argument, "--no-progress")) { FIO_setProgressSetting(FIO_ps_never); continue; }
                 if (!strcmp(argument, "--progress")) { FIO_setProgressSetting(FIO_ps_always); continue; }
                 if (!strcmp(argument, "--exclude-compressed")) { FIO_setExcludeCompressedFile(prefs, 1); continue; }

@@ -179,7 +179,7 @@ typedef struct {
     U32  offCodeSumBasePrice;    /* to compare to log2(offreq)  */
     ZSTD_OptPrice_e priceType;   /* prices can be determined dynamically, or follow a pre-defined cost structure */
     const ZSTD_entropyCTables_t* symbolCosts;  /* pre-calculated dictionary statistics */
-    ZSTD_literalCompressionMode_e literalCompressionMode;
+    ZSTD_paramSwitch_e literalCompressionMode;
 } optState_t;
 
 typedef struct {
@@ -266,7 +266,7 @@ typedef struct {
 } ldmState_t;
 
 typedef struct {
-    U32 enableLdm;          /* 1 if enable long distance matching */
+    ZSTD_paramSwitch_e enableLdm; /* ZSTD_ps_enable to enable LDM. ZSTD_ps_auto by default */
     U32 hashLog;            /* Log size of hashTable */
     U32 bucketSizeLog;      /* Log bucket size for collision resolution, at most 8 */
     U32 minMatchLength;     /* Minimum match length */
@@ -297,7 +297,7 @@ struct ZSTD_CCtx_params_s {
                                 * There is no guarantee that hint is close to actual source size */
 
     ZSTD_dictAttachPref_e attachDictPref;
-    ZSTD_literalCompressionMode_e literalCompressionMode;
+    ZSTD_paramSwitch_e literalCompressionMode;
 
     /* Multithreading: used to pass parameters to mtctx */
     int nbWorkers;
@@ -320,10 +320,10 @@ struct ZSTD_CCtx_params_s {
     int validateSequences;
 
     /* Block splitting */
-    int splitBlocks;
+    ZSTD_paramSwitch_e useBlockSplitter;
 
     /* Param for deciding whether to use row-based matchfinder */
-    ZSTD_useRowMatchFinderMode_e useRowMatchFinder;
+    ZSTD_paramSwitch_e useRowMatchFinder;
 
     /* Always load a dictionary in ext-dict mode (not prefix mode)? */
     int deterministicRefPrefix;
@@ -344,6 +344,22 @@ typedef enum {
     ZSTDb_not_buffered,
     ZSTDb_buffered
 } ZSTD_buffered_policy_e;
+
+/**
+ * Struct that contains all elements of block splitter that should be allocated
+ * in a wksp.
+ */
+#define ZSTD_MAX_NB_BLOCK_SPLITS 196
+typedef struct {
+    seqStore_t fullSeqStoreChunk;
+    seqStore_t firstHalfSeqStore;
+    seqStore_t secondHalfSeqStore;
+    seqStore_t currSeqStore;
+    seqStore_t nextSeqStore;
+
+    U32 partitions[ZSTD_MAX_NB_BLOCK_SPLITS];
+    ZSTD_entropyCTablesMetadata_t entropyMetadata;
+} ZSTD_blockSplitCtx;
 
 struct ZSTD_CCtx_s {
     ZSTD_compressionStage_e stage;
@@ -410,6 +426,9 @@ struct ZSTD_CCtx_s {
 #if ZSTD_TRACE
     ZSTD_TraceCtx traceCtx;
 #endif
+
+    /* Workspace for block splitter */
+    ZSTD_blockSplitCtx blockSplitCtx;
 };
 
 typedef enum { ZSTD_dtlm_fast, ZSTD_dtlm_full } ZSTD_dictTableLoadMethod_e;
@@ -444,7 +463,7 @@ typedef enum {
 typedef size_t (*ZSTD_blockCompressor) (
         ZSTD_matchState_t* bs, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize);
-ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_useRowMatchFinderMode_e rowMatchfinderMode, ZSTD_dictMode_e dictMode);
+ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_paramSwitch_e rowMatchfinderMode, ZSTD_dictMode_e dictMode);
 
 
 MEM_STATIC U32 ZSTD_LLcode(U32 litLength)
@@ -551,17 +570,17 @@ MEM_STATIC size_t ZSTD_minGain(size_t srcSize, ZSTD_strategy strat)
     return (srcSize >> minlog) + 2;
 }
 
-MEM_STATIC int ZSTD_disableLiteralsCompression(const ZSTD_CCtx_params* cctxParams)
+MEM_STATIC int ZSTD_literalsCompressionIsDisabled(const ZSTD_CCtx_params* cctxParams)
 {
     switch (cctxParams->literalCompressionMode) {
-    case ZSTD_lcm_huffman:
+    case ZSTD_ps_enable:
         return 0;
-    case ZSTD_lcm_uncompressed:
+    case ZSTD_ps_disable:
         return 1;
     default:
         assert(0 /* impossible: pre-validated */);
-        /* fall-through */
-    case ZSTD_lcm_auto:
+        ZSTD_FALLTHROUGH;
+    case ZSTD_ps_auto:
         return (cctxParams->cParams.strategy == ZSTD_fast) && (cctxParams->cParams.targetLength > 0);
     }
 }
@@ -1209,15 +1228,15 @@ MEM_STATIC U32 ZSTD_window_update(ZSTD_window_t* window,
  */
 MEM_STATIC U32 ZSTD_getLowestMatchIndex(const ZSTD_matchState_t* ms, U32 curr, unsigned windowLog)
 {
-    U32    const maxDistance = 1U << windowLog;
-    U32    const lowestValid = ms->window.lowLimit;
-    U32    const withinWindow = (curr - lowestValid > maxDistance) ? curr - maxDistance : lowestValid;
-    U32    const isDictionary = (ms->loadedDictEnd != 0);
+    U32 const maxDistance = 1U << windowLog;
+    U32 const lowestValid = ms->window.lowLimit;
+    U32 const withinWindow = (curr - lowestValid > maxDistance) ? curr - maxDistance : lowestValid;
+    U32 const isDictionary = (ms->loadedDictEnd != 0);
     /* When using a dictionary the entire dictionary is valid if a single byte of the dictionary
      * is within the window. We invalidate the dictionary (and set loadedDictEnd to 0) when it isn't
      * valid for the entire block. So this check is sufficient to find the lowest valid match index.
      */
-    U32    const matchLowest = isDictionary ? lowestValid : withinWindow;
+    U32 const matchLowest = isDictionary ? lowestValid : withinWindow;
     return matchLowest;
 }
 

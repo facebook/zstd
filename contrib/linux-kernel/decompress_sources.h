@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
+/* SPDX-License-Identifier: GPL-2.0+ OR BSD-3-Clause */
 /*
  * Copyright (c) Facebook, Inc.
  * All rights reserved.
@@ -21,6 +21,11 @@
 #include "common/error_private.c"
 #include "common/fse_decompress.c"
 #include "common/zstd_common.c"
+/*
+ * Disable the ASM Huffman implementation because we need to
+ * include all the sources.
+ */
+#define HUF_DISABLE_ASM 1
 #include "decompress/huf_decompress.c"
 #include "decompress/zstd_ddict.c"
 #include "decompress/zstd_decompress.c"

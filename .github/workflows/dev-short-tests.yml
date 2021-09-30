@@ -151,6 +151,18 @@ jobs:
           make gcc8install
           CC=gcc-8 CFLAGS="-Werror" make -j all
 
+  implicit-fall-through:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: -Wimplicit-fallthrough build
+        run: |
+          make clean
+          CC=gcc MOREFLAGS="-Werror -Wimplicit-fallthrough=2 -O0" make -C lib -j libzstd.a ZSTD_LEGACY_SUPPORT=0
+          make clean
+          CC=clang MOREFLAGS="-Werror -Wimplicit-fallthrough -O0" make -C lib -j libzstd.a ZSTD_LEGACY_SUPPORT=0
+
+
   visual-2019:
     runs-on: windows-latest
     strategy:
@@ -199,6 +211,27 @@ jobs:
         make clean && make check MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X2 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG"
         make clean && make -j all MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
         make clean && make check MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
+
+  dynamic-bmi2:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: dynamic bmi2 tests
+      run: |
+        make clean && make -j check MOREFLAGS="-O0 -Werror -mbmi2"
+        make clean && make -j check MOREFLAGS="-O0 -Werror -DDYNAMIC_BMI2=1"
+        make clean && make -j check MOREFLAGS="-O0 -Werror -DDYNAMIC_BMI2=1 -mbmi2"
+        make clean && make -j check MOREFLAGS="-O0 -Werror -DDYNAMIC_BMI2=0"
+        make clean && make -j check MOREFLAGS="-O0 -Werror -DDYNAMIC_BMI2=0 -mbmi2"
+
+  test-variants:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: make all variants & validate
+      run: |
+        make -j -C programs allVariants MOREFLAGS=-O0
+        ./tests/test-variants.sh
 
 
   qemu-consistency:
@@ -262,7 +295,6 @@ jobs:
       continue-on-error: true   # disable reporting errors (alignment issues)
       run: |
         LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
-
 
 # This test currently fails on Github Actions specifically.
 # Possible reason : TTY emulation.

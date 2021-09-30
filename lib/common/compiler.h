@@ -108,7 +108,7 @@
   #if ((defined(__clang__) && __has_attribute(__target__)) \
       || (defined(__GNUC__) \
           && (__GNUC__ >= 5 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)))) \
-      && (defined(__x86_64__) || defined(_M_X86)) \
+      && (defined(__x86_64__) || defined(_M_X64)) \
       && !defined(__BMI2__)
   #  define DYNAMIC_BMI2 1
   #else
@@ -212,7 +212,7 @@
 #  elif defined(ZSTD_ARCH_ARM_NEON)
 #    include <arm_neon.h>
 #  endif
-#endif  
+#endif
 
 /* compat. with non-clang compilers */
 #ifndef __has_builtin
@@ -224,6 +224,39 @@
 #  define __has_feature(x) 0
 #endif
 
+/* C-language Attributes are added in C23. */
+#if defined(__STDC_VERSION__) && (__STDC_VERSION__ > 201710L) && defined(__has_c_attribute)
+# define ZSTD_HAS_C_ATTRIBUTE(x) __has_c_attribute(x)
+#else
+# define ZSTD_HAS_C_ATTRIBUTE(x) 0
+#endif
+
+/* Only use C++ attributes in C++. Some compilers report support for C++
+ * attributes when compiling with C.
+ */
+#if defined(__cplusplus) && defined(__has_cpp_attribute)
+# define ZSTD_HAS_CPP_ATTRIBUTE(x) __has_cpp_attribute(x)
+#else
+# define ZSTD_HAS_CPP_ATTRIBUTE(x) 0
+#endif
+
+/* Define ZSTD_FALLTHROUGH macro for annotating switch case with the 'fallthrough' attribute.
+ * - C23: https://en.cppreference.com/w/c/language/attributes/fallthrough
+ * - CPP17: https://en.cppreference.com/w/cpp/language/attributes/fallthrough
+ * - Else: __attribute__((__fallthrough__))
+ */
+#ifndef ZSTD_FALLTHROUGH
+# if ZSTD_HAS_C_ATTRIBUTE(fallthrough)
+#  define ZSTD_FALLTHROUGH [[fallthrough]]
+# elif ZSTD_HAS_CPP_ATTRIBUTE(fallthrough)
+#  define ZSTD_FALLTHROUGH [[fallthrough]]
+# elif __has_attribute(__fallthrough__)
+#  define ZSTD_FALLTHROUGH __attribute__((__fallthrough__))
+# else
+#  define ZSTD_FALLTHROUGH
+# endif
+#endif
+
 /* detects whether we are being compiled under msan */
 #ifndef ZSTD_MEMORY_SANITIZER
 #  if __has_feature(memory_sanitizer)
@@ -231,6 +264,15 @@
 #  else
 #    define ZSTD_MEMORY_SANITIZER 0
 #  endif
+#endif
+
+/* detects whether we are being compiled undef dfsan */
+#ifndef ZSTD_DATAFLOW_SANITIZER
+# if __has_feature(dataflow_sanitizer)
+#  define ZSTD_DATAFLOW_SANITIZER 1
+# else
+#  define ZSTD_DATAFLOW_SANITIZER 0
+# endif
 #endif
 
 #if ZSTD_MEMORY_SANITIZER

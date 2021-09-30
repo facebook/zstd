@@ -445,7 +445,7 @@ typedef struct {
 /* RANK_POSITION_DISTINCT_COUNT_CUTOFF == Cutoff point in HUF_sort() buckets for which we use log2 bucketing.
  * Strategy is to use as many buckets as possible for representing distinct
  * counts while using the remainder to represent all "large" counts.
- * 
+ *
  * To satisfy this requirement for 192 buckets, we can do the following:
  * Let buckets 0-166 represent distinct counts of [0, 166]
  * Let buckets 166 to 192 represent all remaining counts up to RANK_POSITION_MAX_COUNT_LOG using log2 bucketing.
@@ -517,7 +517,7 @@ static int HUF_quickSortPartition(nodeElt arr[], int const low, int const high) 
 }
 
 /* Classic quicksort by descending with partially iterative calls
- * to reduce worst case callstack size. 
+ * to reduce worst case callstack size.
  */
 static void HUF_simpleQuickSort(nodeElt arr[], int low, int high) {
     int const kInsertionSortThreshold = 8;
@@ -809,10 +809,12 @@ FORCE_INLINE_TEMPLATE void HUF_addBits(HUF_CStream_t* bitC, HUF_CElt elt, int id
     {
         size_t const nbBits = HUF_getNbBits(elt);
         size_t const dirtyBits = nbBits == 0 ? 0 : BIT_highbit32((U32)nbBits) + 1;
+        (void)dirtyBits;
         /* Middle bits are 0. */
         assert(((elt >> dirtyBits) << (dirtyBits + nbBits)) == 0);
         /* We didn't overwrite any bits in the bit container. */
         assert(!kFast || (bitC->bitPos[idx] & 0xFF) <= HUF_BITS_IN_CONTAINER);
+        (void)dirtyBits;
     }
 #endif
 }
@@ -987,12 +989,12 @@ HUF_compress1X_usingCTable_internal_body(void* dst, size_t dstSize,
             case 11:
                 HUF_compress1X_usingCTable_internal_body_loop(&bitC, ip, srcSize, ct, /* kUnroll */ 2, /* kFastFlush */ 1, /* kLastFast */ 0);
                 break;
-            case 10:
-            case 9:
+            case 10: ZSTD_FALLTHROUGH;
+            case 9: ZSTD_FALLTHROUGH;
             case 8:
                 HUF_compress1X_usingCTable_internal_body_loop(&bitC, ip, srcSize, ct, /* kUnroll */ 2, /* kFastFlush */ 1, /* kLastFast */ 1);
                 break;
-            case 7:
+            case 7: ZSTD_FALLTHROUGH;
             default:
                 HUF_compress1X_usingCTable_internal_body_loop(&bitC, ip, srcSize, ct, /* kUnroll */ 3, /* kFastFlush */ 1, /* kLastFast */ 1);
                 break;
@@ -1014,7 +1016,7 @@ HUF_compress1X_usingCTable_internal_body(void* dst, size_t dstSize,
             case 7:
                 HUF_compress1X_usingCTable_internal_body_loop(&bitC, ip, srcSize, ct, /* kUnroll */ 8, /* kFastFlush */ 1, /* kLastFast */ 0);
                 break;
-            case 6:
+            case 6: ZSTD_FALLTHROUGH;
             default:
                 HUF_compress1X_usingCTable_internal_body_loop(&bitC, ip, srcSize, ct, /* kUnroll */ 9, /* kFastFlush */ 1, /* kLastFast */ 1);
                 break;

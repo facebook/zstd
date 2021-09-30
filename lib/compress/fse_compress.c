@@ -221,7 +221,11 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct,
 ****************************************************************/
 size_t FSE_NCountWriteBound(unsigned maxSymbolValue, unsigned tableLog)
 {
-    size_t const maxHeaderSize = (((maxSymbolValue+1) * tableLog) >> 3) + 3;
+    size_t const maxHeaderSize = (((maxSymbolValue+1) * tableLog
+                                   + 4 /* bitCount initialized at 4 */
+                                   + 2 /* first two symbols may use one additional bit each */) / 8)
+                                    + 1 /* round up to whole nb bytes */
+                                    + 2 /* additional two bytes for bitstream flush */;
     return maxSymbolValue ? maxHeaderSize : FSE_NCOUNTBOUND;  /* maxSymbolValue==0 ? use default */
 }
 

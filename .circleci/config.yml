@@ -7,6 +7,8 @@ jobs:
     #       preinstalled to reduce installation time.
     docker:
       - image: fbopensource/zstd-circleci-primary:0.0.1
+    # TODO: Re-enable aarch64 build:
+    #       make aarch64build     && make clean
     steps:
       - checkout
       - run:
@@ -14,12 +16,11 @@ jobs:
           command: |
             ./tests/test-license.py
             cc -v; CFLAGS="-O0 -Werror -pedantic" make all && make clean
-            make c99build         ; make clean
-            make c11build         ; make clean
-            make aarch64build     ; make clean
-            make -j regressiontest; make clean
-            make shortest         ; make clean
-            make cxxtest          ; make clean
+            make c99build         && make clean
+            make c11build         && make clean
+            make -j regressiontest&& make clean
+            make shortest         && make clean
+            make cxxtest          && make clean
   # the second half of the jobs are in this test
   short-tests-1:
     docker:

@@ -248,7 +248,7 @@ clean:
 # valgrind tests are validated only for some posix platforms
 #----------------------------------------------------------------------------------
 UNAME := $(shell uname)
-ifneq (,$(filter $(UNAME),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS))
+ifneq (,$(filter $(UNAME),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS AIX))
 HOST_OS = POSIX
 
 valgrindTest: VALGRIND = valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1
@@ -266,7 +266,6 @@ valgrindTest: zstd datagen fuzzer fullbench
 	$(VALGRIND) ./fullbench -i1
 
 endif
-
 
 ifneq (,$(filter MINGW% MSYS%,$(UNAME)))
   HOST_OS = MSYS

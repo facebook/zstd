@@ -75,7 +75,11 @@ ifeq ($(UNAME), Darwin)
   SHARED_EXT_VER = $(LIBVER).$(SHARED_EXT)
   SONAME_FLAGS = -install_name $(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR) -compatibility_version $(LIBVER_MAJOR) -current_version $(LIBVER)
 else
-  SONAME_FLAGS = -Wl,-soname=libzstd.$(SHARED_EXT).$(LIBVER_MAJOR)
+  ifeq ($(UNAME), AIX)
+    SONAME_FLAGS =
+  else
+    SONAME_FLAGS = -Wl,-soname=libzstd.$(SHARED_EXT).$(LIBVER_MAJOR)
+  endif
   SHARED_EXT = so
   SHARED_EXT_MAJOR = $(SHARED_EXT).$(LIBVER_MAJOR)
   SHARED_EXT_VER = $(SHARED_EXT).$(LIBVER)
@@ -245,7 +249,7 @@ clean:
 #-----------------------------------------------------------------------------
 # make install is validated only for below listed environments
 #-----------------------------------------------------------------------------
-ifneq (,$(filter $(UNAME),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku))
+ifneq (,$(filter $(UNAME),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku AIX))
 
 all: libzstd.pc
 

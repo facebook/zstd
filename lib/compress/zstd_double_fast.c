@@ -73,24 +73,24 @@ size_t ZSTD_compressBlock_doubleFast_noDict_generic(
     U32 offset;
     U32 curr;
 
+    /* how many positions to search before increasing step size */
     const size_t kStepIncr = 1 << kSearchStrength;
+    /* the position at which to increment the step size if no match is found */
     const BYTE* nextStep;
-    size_t step;
+    size_t step; /* the current step size */
 
-    size_t hl0;
-    size_t hs0;
-    size_t hl1;
+    size_t hl0; /* the long hash at ip */
+    size_t hl1; /* the long hash at ip1 */
 
-    U32 idxl0;
-    U32 idxs0;
-    U32 idxl1;
+    U32 idxl0; /* the long match index for ip */
+    U32 idxl1; /* the long match index for ip1 */
 
-    const BYTE* matchl0;
-    const BYTE* matchs0;
-    const BYTE* matchl1;
+    const BYTE* matchl0; /* the long match for ip */
+    const BYTE* matchs0; /* the short match for ip */
+    const BYTE* matchl1; /* the long match for ip1 */
 
-    const BYTE* ip = istart;
-    const BYTE* ip1;
+    const BYTE* ip = istart; /* the current position */
+    const BYTE* ip1; /* the next position */
 
     DEBUGLOG(5, "ZSTD_compressBlock_doubleFast_noDict_generic");
 
@@ -120,9 +120,9 @@ _start:
 
     /* Main Search Loop */
     do {
+        const size_t hs0 = ZSTD_hashPtr(ip, hBitsS, mls);
+        const U32 idxs0 = hashSmall[hs0];
         curr = (U32)(ip-base);
-        hs0 = ZSTD_hashPtr(ip, hBitsS, mls);
-        idxs0 = hashSmall[hs0];
         matchs0 = base + idxs0;
 
         hashLong[hl0] = hashSmall[hs0] = curr;   /* update hash tables */

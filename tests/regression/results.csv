@@ -171,7 +171,7 @@ github,                             level 7 with dict,                  zstdcli,
 github,                             level 9,                            zstdcli,                            137122
 github,                             level 9 with dict,                  zstdcli,                            41332
 github,                             level 13,                           zstdcli,                            136064
-github,                             level 13 with dict,                 zstdcli,                            41743
+github,                             level 13 with dict,                 zstdcli,                            41900
 github,                             level 16,                           zstdcli,                            136064
 github,                             level 16 with dict,                 zstdcli,                            39577
 github,                             level 19,                           zstdcli,                            136064
@@ -303,7 +303,7 @@ github,                             level 7 with dict,                  advanced
 github,                             level 9,                            advanced one pass,                  135122
 github,                             level 9 with dict,                  advanced one pass,                  39332
 github,                             level 13,                           advanced one pass,                  134064
-github,                             level 13 with dict,                 advanced one pass,                  39743
+github,                             level 13 with dict,                 advanced one pass,                  39900
 github,                             level 16,                           advanced one pass,                  134064
 github,                             level 16 with dict,                 advanced one pass,                  37577
 github,                             level 19,                           advanced one pass,                  134064
@@ -437,7 +437,7 @@ github,                             level 7 with dict,                  advanced
 github,                             level 9,                            advanced one pass small out,        135122
 github,                             level 9 with dict,                  advanced one pass small out,        39332
 github,                             level 13,                           advanced one pass small out,        134064
-github,                             level 13 with dict,                 advanced one pass small out,        39743
+github,                             level 13 with dict,                 advanced one pass small out,        39900
 github,                             level 16,                           advanced one pass small out,        134064
 github,                             level 16 with dict,                 advanced one pass small out,        37577
 github,                             level 19,                           advanced one pass small out,        134064
@@ -571,7 +571,7 @@ github,                             level 7 with dict,                  advanced
 github,                             level 9,                            advanced streaming,                 135122
 github,                             level 9 with dict,                  advanced streaming,                 39332
 github,                             level 13,                           advanced streaming,                 134064
-github,                             level 13 with dict,                 advanced streaming,                 39743
+github,                             level 13 with dict,                 advanced streaming,                 39900
 github,                             level 16,                           advanced streaming,                 134064
 github,                             level 16 with dict,                 advanced streaming,                 37577
 github,                             level 19,                           advanced streaming,                 134064
@@ -689,7 +689,7 @@ github,                             level 7 with dict,                  old stre
 github,                             level 9,                            old streaming,                      135122
 github,                             level 9 with dict,                  old streaming,                      39332
 github,                             level 13,                           old streaming,                      134064
-github,                             level 13 with dict,                 old streaming,                      39743
+github,                             level 13 with dict,                 old streaming,                      39900
 github,                             level 16,                           old streaming,                      134064
 github,                             level 16 with dict,                 old streaming,                      37577
 github,                             level 19,                           old streaming,                      134064
@@ -877,7 +877,7 @@ github,                             level 5 with dict,                  old stre
 github,                             level 6 with dict,                  old streaming cdcit,                38632
 github,                             level 7 with dict,                  old streaming cdcit,                38771
 github,                             level 9 with dict,                  old streaming cdcit,                39332
-github,                             level 13 with dict,                 old streaming cdcit,                39743
+github,                             level 13 with dict,                 old streaming cdcit,                39900
 github,                             level 16 with dict,                 old streaming cdcit,                37577
 github,                             level 19 with dict,                 old streaming cdcit,                37576
 github,                             no source size with dict,           old streaming cdcit,                40654

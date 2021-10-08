@@ -866,8 +866,8 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
         return CCtxParams->ldmParams.bucketSizeLog;
 
     case ZSTD_c_ldmHashRateLog :
-        RETURN_ERROR_IF(value > ZSTD_WINDOWLOG_MAX - ZSTD_HASHLOG_MIN,
-                        parameter_outOfBound, "Param out of bounds!");
+        if (value!=0)   /* 0 ==> default */
+            BOUNDCHECK(ZSTD_c_ldmHashRateLog, value);
         CCtxParams->ldmParams.hashRateLog = value;
         return CCtxParams->ldmParams.hashRateLog;
 

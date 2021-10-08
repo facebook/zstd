@@ -442,7 +442,7 @@ static U32 ZSTD_insertBt1(
     hashTable[h] = curr;   /* Update Hash Table */
 
     assert(windowLow > 0);
-    while (nbCompares-- && (matchIndex >= windowLow)) {
+    for (; nbCompares && (matchIndex >= windowLow); --nbCompares) {
         U32* const nextPtr = bt + 2*(matchIndex & btMask);
         size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */
         assert(matchIndex < curr);
@@ -673,7 +673,7 @@ U32 ZSTD_insertBtAndGetAllMatches (
 
     hashTable[h] = curr;   /* Update Hash Table */
 
-    while (nbCompares-- && (matchIndex >= matchLow)) {
+    for (; nbCompares && (matchIndex >= matchLow); --nbCompares) {
         U32* const nextPtr = bt + 2*(matchIndex & btMask);
         const BYTE* match;
         size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */
@@ -725,12 +725,13 @@ U32 ZSTD_insertBtAndGetAllMatches (
 
     *smallerPtr = *largerPtr = 0;
 
+    assert(nbCompares <= (1U << ZSTD_SEARCHLOG_MAX)); /* Check we haven't underflowed. */
     if (dictMode == ZSTD_dictMatchState && nbCompares) {
         size_t const dmsH = ZSTD_hashPtr(ip, dmsHashLog, mls);
         U32 dictMatchIndex = dms->hashTable[dmsH];
         const U32* const dmsBt = dms->chainTable;
         commonLengthSmaller = commonLengthLarger = 0;
-        while (nbCompares-- && (dictMatchIndex > dmsLowLimit)) {
+        for (; nbCompares && (dictMatchIndex > dmsLowLimit); --nbCompares) {
             const U32* const nextPtr = dmsBt + 2*(dictMatchIndex & dmsBtMask);
             size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */
             const BYTE* match = dmsBase + dictMatchIndex;

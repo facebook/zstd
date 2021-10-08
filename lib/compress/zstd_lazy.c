@@ -93,7 +93,7 @@ ZSTD_insertDUBT1(const ZSTD_matchState_t* ms,
     assert(curr >= btLow);
     assert(ip < iend);   /* condition for ZSTD_count */
 
-    while (nbCompares-- && (matchIndex > windowLow)) {
+    for (; nbCompares && (matchIndex > windowLow); --nbCompares) {
         U32* const nextPtr = bt + 2*(matchIndex & btMask);
         size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */
         assert(matchIndex < curr);
@@ -185,7 +185,7 @@ ZSTD_DUBT_findBetterDictMatch (
     (void)dictMode;
     assert(dictMode == ZSTD_dictMatchState);
 
-    while (nbCompares-- && (dictMatchIndex > dictLowLimit)) {
+    for (; nbCompares && (dictMatchIndex > dictLowLimit); --nbCompares) {
         U32* const nextPtr = dictBt + 2*(dictMatchIndex & btMask);
         size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */
         const BYTE* match = dictBase + dictMatchIndex;
@@ -309,7 +309,7 @@ ZSTD_DUBT_findBestMatch(ZSTD_matchState_t* ms,
         matchIndex  = hashTable[h];
         hashTable[h] = curr;   /* Update Hash Table */
 
-        while (nbCompares-- && (matchIndex > windowLow)) {
+        for (; nbCompares && (matchIndex > windowLow); --nbCompares) {
             U32* const nextPtr = bt + 2*(matchIndex & btMask);
             size_t matchLength = MIN(commonLengthSmaller, commonLengthLarger);   /* guaranteed minimum nb of common bytes */
             const BYTE* match;
@@ -357,6 +357,7 @@ ZSTD_DUBT_findBestMatch(ZSTD_matchState_t* ms,
 
         *smallerPtr = *largerPtr = 0;
 
+        assert(nbCompares <= (1U << ZSTD_SEARCHLOG_MAX)); /* Check we haven't underflowed. */
         if (dictMode == ZSTD_dictMatchState && nbCompares) {
             bestLength = ZSTD_DUBT_findBetterDictMatch(
                     ms, ip, iend,
@@ -758,6 +759,7 @@ size_t ZSTD_HcFindBestMatch_generic (
         matchIndex = NEXT_IN_CHAIN(matchIndex, chainMask);
     }
 
+    assert(nbAttempts <= (1U << ZSTD_SEARCHLOG_MAX)); /* Check we haven't underflowed. */
     if (dictMode == ZSTD_dedicatedDictSearch) {
         ml = ZSTD_dedicatedDictSearch_lazy_search(offsetPtr, ml, nbAttempts, dms,
                                                   ip, iLimit, prefixStart, curr, dictLimit, ddsIdx);
@@ -1056,7 +1058,7 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_update_internal(ZSTD_matchState_t* ms, const
     const U32 kMaxMatchEndPositionsToUpdate = 32;
 
     if (useCache) {
-        /* Only skip positions when using hash cache, i.e. 
+        /* Only skip positions when using hash cache, i.e.
          * if we are loading a dict, don't skip anything.
          * If we decide to skip, then we only update a set number
          * of positions at the beginning and end of the match.
@@ -1356,6 +1358,7 @@ size_t ZSTD_RowFindBestMatch_generic (
         }
     }
 
+    assert(nbAttempts <= (1U << ZSTD_SEARCHLOG_MAX)); /* Check we haven't underflowed. */
     if (dictMode == ZSTD_dedicatedDictSearch) {
         ml = ZSTD_dedicatedDictSearch_lazy_search(offsetPtr, ml, nbAttempts + ddsExtraAttempts, dms,
                                                   ip, iLimit, prefixStart, curr, dictLimit, ddsIdx);

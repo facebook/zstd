@@ -171,7 +171,7 @@ github,                             level 7 with dict,                  zstdcli,
 github,                             level 9,                            zstdcli,                            137122
 github,                             level 9 with dict,                  zstdcli,                            41393
 github,                             level 13,                           zstdcli,                            136064
-github,                             level 13 with dict,                 zstdcli,                            41743
+github,                             level 13 with dict,                 zstdcli,                            41900
 github,                             level 16,                           zstdcli,                            136064
 github,                             level 16 with dict,                 zstdcli,                            39577
 github,                             level 19,                           zstdcli,                            136064
@@ -391,9 +391,9 @@ github,                             level 12 row 2 with dict dds,       advanced
 github,                             level 12 row 2 with dict copy,      advanced one pass,                  39677
 github,                             level 12 row 2 with dict load,      advanced one pass,                  41166
 github,                             level 13,                           advanced one pass,                  134064
-github,                             level 13 with dict,                 advanced one pass,                  39743
-github,                             level 13 with dict dms,             advanced one pass,                  39743
-github,                             level 13 with dict dds,             advanced one pass,                  39743
+github,                             level 13 with dict,                 advanced one pass,                  39900
+github,                             level 13 with dict dms,             advanced one pass,                  39900
+github,                             level 13 with dict dds,             advanced one pass,                  39900
 github,                             level 13 with dict copy,            advanced one pass,                  39948
 github,                             level 13 with dict load,            advanced one pass,                  42626
 github,                             level 16,                           advanced one pass,                  134064
@@ -517,8 +517,8 @@ github.tar,                         level 12 row 2 with dict copy,      advanced
 github.tar,                         level 12 row 2 with dict load,      advanced one pass,                  36459
 github.tar,                         level 13,                           advanced one pass,                  35501
 github.tar,                         level 13 with dict,                 advanced one pass,                  37130
-github.tar,                         level 13 with dict dms,             advanced one pass,                  37267
-github.tar,                         level 13 with dict dds,             advanced one pass,                  37267
+github.tar,                         level 13 with dict dms,             advanced one pass,                  37220
+github.tar,                         level 13 with dict dds,             advanced one pass,                  37220
 github.tar,                         level 13 with dict copy,            advanced one pass,                  37130
 github.tar,                         level 13 with dict load,            advanced one pass,                  36010
 github.tar,                         level 16,                           advanced one pass,                  40471
@@ -709,9 +709,9 @@ github,                             level 12 row 2 with dict dds,       advanced
 github,                             level 12 row 2 with dict copy,      advanced one pass small out,        39677
 github,                             level 12 row 2 with dict load,      advanced one pass small out,        41166
 github,                             level 13,                           advanced one pass small out,        134064
-github,                             level 13 with dict,                 advanced one pass small out,        39743
-github,                             level 13 with dict dms,             advanced one pass small out,        39743
-github,                             level 13 with dict dds,             advanced one pass small out,        39743
+github,                             level 13 with dict,                 advanced one pass small out,        39900
+github,                             level 13 with dict dms,             advanced one pass small out,        39900
+github,                             level 13 with dict dds,             advanced one pass small out,        39900
 github,                             level 13 with dict copy,            advanced one pass small out,        39948
 github,                             level 13 with dict load,            advanced one pass small out,        42626
 github,                             level 16,                           advanced one pass small out,        134064
@@ -835,8 +835,8 @@ github.tar,                         level 12 row 2 with dict copy,      advanced
 github.tar,                         level 12 row 2 with dict load,      advanced one pass small out,        36459
 github.tar,                         level 13,                           advanced one pass small out,        35501
 github.tar,                         level 13 with dict,                 advanced one pass small out,        37130
-github.tar,                         level 13 with dict dms,             advanced one pass small out,        37267
-github.tar,                         level 13 with dict dds,             advanced one pass small out,        37267
+github.tar,                         level 13 with dict dms,             advanced one pass small out,        37220
+github.tar,                         level 13 with dict dds,             advanced one pass small out,        37220
 github.tar,                         level 13 with dict copy,            advanced one pass small out,        37130
 github.tar,                         level 13 with dict load,            advanced one pass small out,        36010
 github.tar,                         level 16,                           advanced one pass small out,        40471
@@ -1027,9 +1027,9 @@ github,                             level 12 row 2 with dict dds,       advanced
 github,                             level 12 row 2 with dict copy,      advanced streaming,                 39677
 github,                             level 12 row 2 with dict load,      advanced streaming,                 41166
 github,                             level 13,                           advanced streaming,                 134064
-github,                             level 13 with dict,                 advanced streaming,                 39743
-github,                             level 13 with dict dms,             advanced streaming,                 39743
-github,                             level 13 with dict dds,             advanced streaming,                 39743
+github,                             level 13 with dict,                 advanced streaming,                 39900
+github,                             level 13 with dict dms,             advanced streaming,                 39900
+github,                             level 13 with dict dds,             advanced streaming,                 39900
 github,                             level 13 with dict copy,            advanced streaming,                 39948
 github,                             level 13 with dict load,            advanced streaming,                 42626
 github,                             level 16,                           advanced streaming,                 134064
@@ -1153,8 +1153,8 @@ github.tar,                         level 12 row 2 with dict copy,      advanced
 github.tar,                         level 12 row 2 with dict load,      advanced streaming,                 36459
 github.tar,                         level 13,                           advanced streaming,                 35501
 github.tar,                         level 13 with dict,                 advanced streaming,                 37130
-github.tar,                         level 13 with dict dms,             advanced streaming,                 37267
-github.tar,                         level 13 with dict dds,             advanced streaming,                 37267
+github.tar,                         level 13 with dict dms,             advanced streaming,                 37220
+github.tar,                         level 13 with dict dds,             advanced streaming,                 37220
 github.tar,                         level 13 with dict copy,            advanced streaming,                 37130
 github.tar,                         level 13 with dict load,            advanced streaming,                 36010
 github.tar,                         level 16,                           advanced streaming,                 40471
@@ -1241,7 +1241,7 @@ github,                             level 7 with dict,                  old stre
 github,                             level 9,                            old streaming,                      135122
 github,                             level 9 with dict,                  old streaming,                      39437
 github,                             level 13,                           old streaming,                      134064
-github,                             level 13 with dict,                 old streaming,                      39743
+github,                             level 13 with dict,                 old streaming,                      39900
 github,                             level 16,                           old streaming,                      134064
 github,                             level 16 with dict,                 old streaming,                      37577
 github,                             level 19,                           old streaming,                      134064
@@ -1359,7 +1359,7 @@ github,                             level 7 with dict,                  old stre
 github,                             level 9,                            old streaming advanced,             138676
 github,                             level 9 with dict,                  old streaming advanced,             38981
 github,                             level 13,                           old streaming advanced,             138676
-github,                             level 13 with dict,                 old streaming advanced,             39721
+github,                             level 13 with dict,                 old streaming advanced,             39725
 github,                             level 16,                           old streaming advanced,             138676
 github,                             level 16 with dict,                 old streaming advanced,             40789
 github,                             level 19,                           old streaming advanced,             134064
@@ -1429,7 +1429,7 @@ github,                             level 5 with dict,                  old stre
 github,                             level 6 with dict,                  old streaming cdict,                38671
 github,                             level 7 with dict,                  old streaming cdict,                38758
 github,                             level 9 with dict,                  old streaming cdict,                39437
-github,                             level 13 with dict,                 old streaming cdict,                39743
+github,                             level 13 with dict,                 old streaming cdict,                39900
 github,                             level 16 with dict,                 old streaming cdict,                37577
 github,                             level 19 with dict,                 old streaming cdict,                37576
 github,                             no source size with dict,           old streaming cdict,                40654
@@ -1459,7 +1459,7 @@ github,                             level 5 with dict,                  old stre
 github,                             level 6 with dict,                  old streaming advanced cdict,       39363
 github,                             level 7 with dict,                  old streaming advanced cdict,       38924
 github,                             level 9 with dict,                  old streaming advanced cdict,       38981
-github,                             level 13 with dict,                 old streaming advanced cdict,       39721
+github,                             level 13 with dict,                 old streaming advanced cdict,       39725
 github,                             level 16 with dict,                 old streaming advanced cdict,       40789
 github,                             level 19 with dict,                 old streaming advanced cdict,       37576
 github,                             no source size with dict,           old streaming advanced cdict,       40608

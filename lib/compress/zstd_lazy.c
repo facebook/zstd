@@ -1264,7 +1264,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
                 matchLength = ml2, start = ip, offset=offsetFound;
         }
 
-         if (matchLength < 4) {
+        if (matchLength < 4) {
             ip += ((ip-anchor) >> kSearchStrength) + 1;   /* jump faster over incompressible sections */
             continue;
         }

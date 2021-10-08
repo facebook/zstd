@@ -177,12 +177,15 @@ static const ZSTD_DDict* ZSTD_DDictHashSet_getDDict(ZSTD_DDictHashSet* hashSet, 
 static ZSTD_DDictHashSet* ZSTD_createDDictHashSet(ZSTD_customMem customMem) {
     ZSTD_DDictHashSet* ret = (ZSTD_DDictHashSet*)ZSTD_customMalloc(sizeof(ZSTD_DDictHashSet), customMem);
     DEBUGLOG(4, "Allocating new hash set");
+    if (!ret)
+        return NULL;
     ret->ddictPtrTable = (const ZSTD_DDict**)ZSTD_customCalloc(DDICT_HASHSET_TABLE_BASE_SIZE * sizeof(ZSTD_DDict*), customMem);
-    ret->ddictPtrTableSize = DDICT_HASHSET_TABLE_BASE_SIZE;
-    ret->ddictPtrCount = 0;
-    if (!ret || !ret->ddictPtrTable) {
+    if (!ret->ddictPtrTable) {
+        ZSTD_customFree(ret, customMem);
         return NULL;
     }
+    ret->ddictPtrTableSize = DDICT_HASHSET_TABLE_BASE_SIZE;
+    ret->ddictPtrCount = 0;
     return ret;
 }
 

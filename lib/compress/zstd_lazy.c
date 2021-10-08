@@ -1056,7 +1056,7 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_update_internal(ZSTD_matchState_t* ms, const
     const U32 kMaxMatchEndPositionsToUpdate = 32;
 
     if (useCache) {
-        /* Only skip positions when using hash cache, i.e. 
+        /* Only skip positions when using hash cache, i.e.
          * if we are loading a dict, don't skip anything.
          * If we decide to skip, then we only update a set number
          * of positions at the beginning and end of the match.
@@ -1985,7 +1985,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
                 matchLength = ml2, start = ip, offset=offsetFound;
         }
 
-         if (matchLength < 4) {
+        if (matchLength < 4) {
             ip += ((ip-anchor) >> kSearchStrength) + 1;   /* jump faster over incompressible sections */
             continue;
         }

@@ -70,8 +70,8 @@ size_t ZSTD_getcBlockSize(const void* src, size_t srcSize,
 }
 
 /* Allocate buffer for literals, either overlapping current dst, or split between dst and litExtraBuffer, or stored entirely within litExtraBuffer */
-static void ZSTD_allocateLiteralsBuffer(const streaming_operation streaming, void* const dst, const size_t dstCapacity, const size_t litSize,
-    ZSTD_DCtx* dctx, const size_t expectedWriteSize, const unsigned splitImmediately)
+static void ZSTD_allocateLiteralsBuffer(ZSTD_DCtx* dctx, void* const dst, const size_t dstCapacity, const size_t litSize,
+    const streaming_operation streaming, const size_t expectedWriteSize, const unsigned splitImmediately)
 {
     if (streaming == not_streaming && dstCapacity > ZSTD_BLOCKSIZE_MAX + WILDCOPY_OVERLENGTH + litSize + WILDCOPY_OVERLENGTH)
     {
@@ -167,7 +167,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 RETURN_ERROR_IF(litSize > ZSTD_BLOCKSIZE_MAX, corruption_detected, "");
                 RETURN_ERROR_IF(litCSize + lhSize > srcSize, corruption_detected, "");
                 RETURN_ERROR_IF(expectedWriteSize < litSize , dstSize_tooSmall, "");
-                ZSTD_allocateLiteralsBuffer(streaming, dst, dstCapacity, litSize, dctx, expectedWriteSize, 0);
+                ZSTD_allocateLiteralsBuffer(dctx, dst, dstCapacity, litSize, streaming, expectedWriteSize, 0);
 
                 /* prefetch huffman table if cold */
                 if (dctx->ddictIsCold && (litSize > 768 /* heuristic */)) {
@@ -243,7 +243,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
 
                 RETURN_ERROR_IF(litSize > 0 && dst == NULL, dstSize_tooSmall, "NULL not handled");
                 RETURN_ERROR_IF(expectedWriteSize < litSize, dstSize_tooSmall, "");
-                ZSTD_allocateLiteralsBuffer(streaming, dst, dstCapacity, litSize, dctx, expectedWriteSize, 1);
+                ZSTD_allocateLiteralsBuffer(dctx, dst, dstCapacity, litSize, streaming, expectedWriteSize, 1);
                 if (lhSize+litSize+WILDCOPY_OVERLENGTH > srcSize) {  /* risk reading beyond src buffer with wildcopy */
                     RETURN_ERROR_IF(litSize+lhSize > srcSize, corruption_detected, "");
                     if (dctx->splitLitBuffer)
@@ -290,7 +290,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 RETURN_ERROR_IF(litSize > 0 && dst == NULL, dstSize_tooSmall, "NULL not handled");
                 RETURN_ERROR_IF(litSize > ZSTD_BLOCKSIZE_MAX, corruption_detected, "");
                 RETURN_ERROR_IF(expectedWriteSize < litSize, dstSize_tooSmall, "");
-                ZSTD_allocateLiteralsBuffer(streaming, dst, dstCapacity, litSize, dctx, expectedWriteSize, 1);
+                ZSTD_allocateLiteralsBuffer(dctx, dst, dstCapacity, litSize, streaming, expectedWriteSize, 1);
                 if (dctx->splitLitBuffer)
                 {
                     ZSTD_memset(dctx->litBuffer, istart[lhSize], litSize - ZSTD_LITBUFFEREXTRASIZE);

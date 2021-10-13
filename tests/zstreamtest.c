@@ -906,7 +906,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         in.pos = 0;
         in.size = CNBufferSize - in.size;
         CHECK(!(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end) == 0), "Not finished");
-        CHECK_Z(ZSTD_decompress(decodedBuffer, CNBufferSize, compressedBuffer, cSize));
+        CHECK_Z(ZSTD_decompress(decodedBuffer, CNBufferSize, compressedBuffer, out.pos));
         DISPLAYLEVEL(3, "OK \n");
 
         DISPLAYLEVEL(3, "test%3i : ZSTD_compressStream2() ZSTD_c_stableOutBuffer modify buffer : ", testNb++);

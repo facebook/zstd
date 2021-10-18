@@ -78,7 +78,7 @@ static void ZSTD_allocateLiteralsBuffer(ZSTD_DCtx* dctx, void* const dst, const 
         /* room for litbuffer to fit without read faulting */
         dctx->litBuffer = (BYTE*)dst + ZSTD_BLOCKSIZE_MAX + WILDCOPY_OVERLENGTH;
         dctx->litBufferEnd = dctx->litBuffer + litSize;
-        dctx->splitLitBuffer = 0;
+        dctx->litBufferLocation = ZSTD_in_dst;
     }
     else if (litSize > ZSTD_LITBUFFEREXTRASIZE)
     {
@@ -93,14 +93,14 @@ static void ZSTD_allocateLiteralsBuffer(ZSTD_DCtx* dctx, void* const dst, const 
             dctx->litBuffer = (BYTE*)dst + expectedWriteSize - litSize;
             dctx->litBufferEnd = (BYTE*)dst + expectedWriteSize;
         }
-        dctx->splitLitBuffer = 1;
+        dctx->litBufferLocation = ZSTD_split;
     }
     else
     {
         /* fits entirely within litExtraBuffer, so no split is necessary */
         dctx->litBuffer = dctx->litExtraBuffer;
         dctx->litBufferEnd = dctx->litBuffer + litSize;
-        dctx->splitLitBuffer = 0;
+        dctx->litBufferLocation = ZSTD_not_in_dst;
     }
 }
 
@@ -204,7 +204,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                             sizeof(dctx->workspace), ZSTD_DCtx_get_bmi2(dctx));
                     }
                 }
-                if (dctx->splitLitBuffer)
+                if (dctx->litBufferLocation == ZSTD_split)
                 {
                     ZSTD_memcpy(dctx->litExtraBuffer, dctx->litBufferEnd - ZSTD_LITBUFFEREXTRASIZE, ZSTD_LITBUFFEREXTRASIZE);
                     ZSTD_memmove(dctx->litBuffer + ZSTD_LITBUFFEREXTRASIZE - WILDCOPY_OVERLENGTH, dctx->litBuffer, litSize - ZSTD_LITBUFFEREXTRASIZE);
@@ -246,7 +246,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 ZSTD_allocateLiteralsBuffer(dctx, dst, dstCapacity, litSize, streaming, expectedWriteSize, 1);
                 if (lhSize+litSize+WILDCOPY_OVERLENGTH > srcSize) {  /* risk reading beyond src buffer with wildcopy */
                     RETURN_ERROR_IF(litSize+lhSize > srcSize, corruption_detected, "");
-                    if (dctx->splitLitBuffer)
+                    if (dctx->litBufferLocation == ZSTD_split)
                     {
                         ZSTD_memcpy(dctx->litBuffer, istart + lhSize, litSize - ZSTD_LITBUFFEREXTRASIZE);
                         ZSTD_memcpy(dctx->litExtraBuffer, istart + lhSize + litSize - ZSTD_LITBUFFEREXTRASIZE, ZSTD_LITBUFFEREXTRASIZE);
@@ -263,7 +263,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 dctx->litPtr = istart+lhSize;
                 dctx->litSize = litSize;
                 dctx->litBufferEnd = dctx->litPtr + litSize;
-                dctx->splitLitBuffer = 0;
+                dctx->litBufferLocation = ZSTD_not_in_dst;
                 return lhSize+litSize;
             }
 
@@ -291,7 +291,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 RETURN_ERROR_IF(litSize > ZSTD_BLOCKSIZE_MAX, corruption_detected, "");
                 RETURN_ERROR_IF(expectedWriteSize < litSize, dstSize_tooSmall, "");
                 ZSTD_allocateLiteralsBuffer(dctx, dst, dstCapacity, litSize, streaming, expectedWriteSize, 1);
-                if (dctx->splitLitBuffer)
+                if (dctx->litBufferLocation == ZSTD_split)
                 {
                     ZSTD_memset(dctx->litBuffer, istart[lhSize], litSize - ZSTD_LITBUFFEREXTRASIZE);
                     ZSTD_memset(dctx->litExtraBuffer, istart[lhSize], ZSTD_LITBUFFEREXTRASIZE);
@@ -1406,16 +1406,19 @@ ZSTD_decompressSequences_bodySplitLitBuffer( ZSTD_DCtx* dctx,
 #if defined(__GNUC__) && defined(__x86_64__)
             __asm__(".p2align 6");
 #  if __GNUC__ >= 7
-#    if __GNUC__ == 8
+	    /* good for gcc-7 and gcc-9 */
             __asm__("nop");
             __asm__(".p2align 5");
-#    endif
             __asm__("nop");
             __asm__(".p2align 4");
+#    if __GNUC__ == 8 || __GNUC__ == 10
+	    /* good for gcc-8 and gcc-10 */
             __asm__("nop");
             __asm__(".p2align 3");
+#    endif
 #  endif
 #endif
+
             /* Handle the initial state where litBuffer is currently split between dst and litExtraBuffer */
             for (; litPtr + sequence.litLength <= dctx->litBufferEnd; ) {
                 size_t const oneSeqSize = ZSTD_execSequenceSplitLitBuffer(op, oend, litPtr + sequence.litLength - WILDCOPY_OVERLENGTH, sequence, &litPtr, litBufferEnd, prefixStart, vBase, dictEnd);
@@ -1445,7 +1448,7 @@ ZSTD_decompressSequences_bodySplitLitBuffer( ZSTD_DCtx* dctx,
                 }
                 litPtr = dctx->litExtraBuffer;
                 litBufferEnd = dctx->litExtraBuffer + ZSTD_LITBUFFEREXTRASIZE;
-                dctx->splitLitBuffer = 0;
+                dctx->litBufferLocation = ZSTD_not_in_dst;
                 {
                     size_t const oneSeqSize = ZSTD_execSequence(op, oend, sequence, &litPtr, litBufferEnd, prefixStart, vBase, dictEnd);
 #if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) && defined(FUZZING_ASSERT_VALID_SEQUENCE)
@@ -1467,12 +1470,19 @@ ZSTD_decompressSequences_bodySplitLitBuffer( ZSTD_DCtx* dctx,
 
 #if defined(__GNUC__) && defined(__x86_64__)
             __asm__(".p2align 6");
-#  if __GNUC__ != 8
-            /* worse for gcc-8 better for gcc-7, gcc-9, and gcc-10 and clang */
             __asm__("nop");
+#  if __GNUC__ != 7
+            /* worse for gcc-7 better for gcc-8, gcc-9, and gcc-10 and clang */
             __asm__(".p2align 4");
+            __asm__("nop");
+            __asm__(".p2align 3");
+#  else
+            __asm__(".p2align 5");
+            __asm__("nop");
+            __asm__(".p2align 3");
 #  endif
 #endif
+
             for (; ; ) {
                 seq_t const sequence = ZSTD_decodeSequence(&seqState, isLongOffset);
                 size_t const oneSeqSize = ZSTD_execSequence(op, oend, sequence, &litPtr, litBufferEnd, prefixStart, vBase, dictEnd);
@@ -1499,7 +1509,7 @@ ZSTD_decompressSequences_bodySplitLitBuffer( ZSTD_DCtx* dctx,
     }
 
     /* last literal segment */
-    if (dctx->splitLitBuffer)  /* split hasn't been reached yet, first get dst then copy litExtraBuffer */
+    if (dctx->litBufferLocation == ZSTD_split)  /* split hasn't been reached yet, first get dst then copy litExtraBuffer */
     {
         size_t const lastLLSize = litBufferEnd - litPtr;
         RETURN_ERROR_IF(lastLLSize > (size_t)(oend - op), dstSize_tooSmall, "");
@@ -1509,7 +1519,7 @@ ZSTD_decompressSequences_bodySplitLitBuffer( ZSTD_DCtx* dctx,
         }
         litPtr = dctx->litExtraBuffer;
         litBufferEnd = dctx->litExtraBuffer + ZSTD_LITBUFFEREXTRASIZE;
-        dctx->splitLitBuffer = 0;
+        dctx->litBufferLocation = ZSTD_not_in_dst;
     }
     {   size_t const lastLLSize = litBufferEnd - litPtr;
         RETURN_ERROR_IF(lastLLSize > (size_t)(oend-op), dstSize_tooSmall, "");
@@ -1533,7 +1543,7 @@ ZSTD_decompressSequences_body(ZSTD_DCtx* dctx,
     const BYTE* ip = (const BYTE*)seqStart;
     const BYTE* const iend = ip + seqSize;
     BYTE* const ostart = (BYTE*)dst;
-    BYTE* const oend = ostart + maxDstSize;
+    BYTE* const oend = dctx->litBufferLocation == ZSTD_not_in_dst ? ostart + maxDstSize : dctx->litBuffer;
     BYTE* op = ostart;
     const BYTE* litPtr = dctx->litPtr;
     const BYTE* const litEnd = litPtr + dctx->litSize;
@@ -1563,10 +1573,15 @@ ZSTD_decompressSequences_body(ZSTD_DCtx* dctx,
 
 #if defined(__GNUC__) && defined(__x86_64__)
             __asm__(".p2align 6");
-#  if __GNUC__ <= 7
-            /* better for gcc-7 and clang, worse for gcc-8, gcc-9, and gcc-10 */
             __asm__("nop");
+#  if __GNUC__ >= 7 && __GNUC__ < 11
             __asm__(".p2align 5");
+            __asm__("nop");
+            __asm__(".p2align 3");
+#  else
+            __asm__(".p2align 4");
+            __asm__("nop");
+            __asm__(".p2align 3");
 #  endif
 #endif
 
@@ -1613,8 +1628,17 @@ ZSTD_decompressSequences_default(ZSTD_DCtx* dctx,
                            const ZSTD_longOffset_e isLongOffset,
                            const int frame)
 {
-    return dctx->splitLitBuffer ? ZSTD_decompressSequences_bodySplitLitBuffer(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset, frame) :
-        ZSTD_decompressSequences_body(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset, frame);
+    return ZSTD_decompressSequences_body(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset, frame);
+}
+
+static size_t
+ZSTD_decompressSequencesSplitLitBuffer_default(ZSTD_DCtx* dctx,
+                                               void* dst, size_t maxDstSize,
+                                         const void* seqStart, size_t seqSize, int nbSeq,
+                                         const ZSTD_longOffset_e isLongOffset,
+                                         const int frame)
+{
+    return ZSTD_decompressSequences_bodySplitLitBuffer(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset, frame);
 }
 #endif /* ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG */
 
@@ -1692,7 +1716,7 @@ ZSTD_decompressSequencesLong_body(
             seq_t sequence = ZSTD_decodeSequence(&seqState, isLongOffset);
             size_t oneSeqSize;
 
-            if (dctx->splitLitBuffer && litPtr + sequences[(seqNb - ADVANCED_SEQS) & STORED_SEQS_MASK].litLength > dctx->litBufferEnd)
+            if (dctx->litBufferLocation == ZSTD_split && litPtr + sequences[(seqNb - ADVANCED_SEQS) & STORED_SEQS_MASK].litLength > dctx->litBufferEnd)
             {
                 /* lit buffer is reaching split point, empty out the first buffer and transition to litExtraBuffer */
                 const BYTE* const oend_w = oend - WILDCOPY_OVERLENGTH;
@@ -1706,7 +1730,7 @@ ZSTD_decompressSequencesLong_body(
                 }
                 litPtr = dctx->litExtraBuffer;
                 litBufferEnd = dctx->litExtraBuffer + ZSTD_LITBUFFEREXTRASIZE;
-                dctx->splitLitBuffer = 0;
+                dctx->litBufferLocation = ZSTD_not_in_dst;
                 oneSeqSize = ZSTD_execSequenceSplitLitBuffer(op, oend, oend_w, sequences[(seqNb - ADVANCED_SEQS) & STORED_SEQS_MASK], &litPtr, litBufferEnd, prefixStart, dictStart, dictEnd);
 #if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) && defined(FUZZING_ASSERT_VALID_SEQUENCE)
                 assert(!ZSTD_isError(oneSeqSize));
@@ -1721,7 +1745,7 @@ ZSTD_decompressSequencesLong_body(
             else
             {
                 /* lit buffer is either wholly contained in first or second split, or not split at all*/
-                const BYTE* const oend_w = dctx->splitLitBuffer ? litPtr + sequences[(seqNb - ADVANCED_SEQS) & STORED_SEQS_MASK].litLength - WILDCOPY_OVERLENGTH : oend - WILDCOPY_OVERLENGTH;
+                const BYTE* const oend_w = dctx->litBufferLocation == ZSTD_split ? litPtr + sequences[(seqNb - ADVANCED_SEQS) & STORED_SEQS_MASK].litLength - WILDCOPY_OVERLENGTH : oend - WILDCOPY_OVERLENGTH;
                 oneSeqSize = ZSTD_execSequenceSplitLitBuffer(op, oend, oend_w, sequences[(seqNb - ADVANCED_SEQS) & STORED_SEQS_MASK], &litPtr, litBufferEnd, prefixStart, dictStart, dictEnd);
 #if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) && defined(FUZZING_ASSERT_VALID_SEQUENCE)
                 assert(!ZSTD_isError(oneSeqSize));
@@ -1740,7 +1764,7 @@ ZSTD_decompressSequencesLong_body(
         seqNb -= seqAdvance;
         for ( ; seqNb<nbSeq ; seqNb++) {
             seq_t *sequence = &(sequences[seqNb&STORED_SEQS_MASK]);
-            if (dctx->splitLitBuffer && litPtr + sequence->litLength > dctx->litBufferEnd)
+            if (dctx->litBufferLocation == ZSTD_split && litPtr + sequence->litLength > dctx->litBufferEnd)
             {
                 const BYTE* const oend_w = oend - WILDCOPY_OVERLENGTH;
                 const size_t leftoverLit = dctx->litBufferEnd - litPtr;
@@ -1753,7 +1777,7 @@ ZSTD_decompressSequencesLong_body(
                 }
                 litPtr = dctx->litExtraBuffer;
                 litBufferEnd = dctx->litExtraBuffer + ZSTD_LITBUFFEREXTRASIZE;
-                dctx->splitLitBuffer = 0;
+                dctx->litBufferLocation = ZSTD_not_in_dst;
                 {
                     size_t const oneSeqSize = ZSTD_execSequenceSplitLitBuffer(op, oend, oend_w, *sequence, &litPtr, litBufferEnd, prefixStart, dictStart, dictEnd);
 #if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) && defined(FUZZING_ASSERT_VALID_SEQUENCE)
@@ -1766,7 +1790,7 @@ ZSTD_decompressSequencesLong_body(
             }
             else
             {
-                const BYTE* oend_w = dctx->splitLitBuffer ? litPtr + sequence->litLength - WILDCOPY_OVERLENGTH : oend - WILDCOPY_OVERLENGTH;
+                const BYTE* oend_w = dctx->litBufferLocation == ZSTD_split ? litPtr + sequence->litLength - WILDCOPY_OVERLENGTH : oend - WILDCOPY_OVERLENGTH;
                 size_t const oneSeqSize = ZSTD_execSequenceSplitLitBuffer(op, oend, oend_w, *sequence, &litPtr, litBufferEnd, prefixStart, dictStart, dictEnd);
 #if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) && defined(FUZZING_ASSERT_VALID_SEQUENCE)
                 assert(!ZSTD_isError(oneSeqSize));
@@ -1782,7 +1806,7 @@ ZSTD_decompressSequencesLong_body(
     }
 
     /* last literal segment */
-    if (dctx->splitLitBuffer)  /* first deplete literal buffer in dst, then copy litExtraBuffer */
+    if (dctx->litBufferLocation == ZSTD_split)  /* first deplete literal buffer in dst, then copy litExtraBuffer */
     {
         size_t const lastLLSize = litBufferEnd - litPtr;
         RETURN_ERROR_IF(lastLLSize > (size_t)(oend - op), dstSize_tooSmall, "");
@@ -1828,8 +1852,17 @@ ZSTD_decompressSequences_bmi2(ZSTD_DCtx* dctx,
                            const ZSTD_longOffset_e isLongOffset,
                            const int frame)
 {
-    return dctx->splitLitBuffer ? ZSTD_decompressSequences_bodySplitLitBuffer(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset, frame) :
-        ZSTD_decompressSequences_body(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset, frame);
+    return ZSTD_decompressSequences_body(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset, frame);
+}
+static TARGET_ATTRIBUTE("bmi2") size_t
+DONT_VECTORIZE
+ZSTD_decompressSequencesSplitLitBuffer_bmi2(ZSTD_DCtx* dctx,
+                                 void* dst, size_t maxDstSize,
+                           const void* seqStart, size_t seqSize, int nbSeq,
+                           const ZSTD_longOffset_e isLongOffset,
+                           const int frame)
+{
+    return ZSTD_decompressSequences_bodySplitLitBuffer(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset, frame);
 }
 #endif /* ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG */
 
@@ -1867,7 +1900,21 @@ ZSTD_decompressSequences(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize,
         return ZSTD_decompressSequences_bmi2(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset, frame);
     }
 #endif
-  return ZSTD_decompressSequences_default(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset, frame);
+    return ZSTD_decompressSequences_default(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset, frame);
+}
+static size_t
+ZSTD_decompressSequencesSplitLitBuffer(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize,
+                                 const void* seqStart, size_t seqSize, int nbSeq,
+                                 const ZSTD_longOffset_e isLongOffset,
+                                 const int frame)
+{
+    DEBUGLOG(5, "ZSTD_decompressSequencesSplitLitBuffer");
+#if DYNAMIC_BMI2
+    if (ZSTD_DCtx_get_bmi2(dctx)) {
+        return ZSTD_decompressSequencesSplitLitBuffer_bmi2(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset, frame);
+    }
+#endif
+    return ZSTD_decompressSequencesSplitLitBuffer_default(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset, frame);
 }
 #endif /* ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG */
 
@@ -1991,7 +2038,10 @@ ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
 
 #ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG
         /* else */
-        return ZSTD_decompressSequences(dctx, dst, dstCapacity, ip, srcSize, nbSeq, isLongOffset, frame);
+        if (dctx->litBufferLocation == ZSTD_split)
+            return ZSTD_decompressSequencesSplitLitBuffer(dctx, dst, dstCapacity, ip, srcSize, nbSeq, isLongOffset, frame);
+        else
+            return ZSTD_decompressSequences(dctx, dst, dstCapacity, ip, srcSize, nbSeq, isLongOffset, frame);
 #endif
     }
 }

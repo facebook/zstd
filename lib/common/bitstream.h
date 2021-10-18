@@ -143,10 +143,16 @@ MEM_STATIC unsigned BIT_highbit32 (U32 val)
     {
 #   if defined(_MSC_VER)   /* Visual */
 #       if STATIC_BMI2 == 1
-		return _lzcnt_u32(val) ^ 31;
+            return _lzcnt_u32(val) ^ 31;
 #       else
-		unsigned long r = 0;
-		return _BitScanReverse(&r, val) ? (unsigned)r : 0;
+            if (val != 0) {
+                unsigned long r;
+                _BitScanReverse(&r, val);
+                return (unsigned)r;
+            } else {
+                /* Should not reach this code path */
+                __assume(0);
+            }
 #       endif
 #   elif defined(__GNUC__) && (__GNUC__ >= 3)   /* Use GCC Intrinsic */
         return __builtin_clz (val) ^ 31;

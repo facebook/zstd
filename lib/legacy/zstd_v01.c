@@ -343,8 +343,7 @@ FORCE_INLINE unsigned FSE_highbit32 (U32 val)
 {
 #   if defined(_MSC_VER)   /* Visual */
     unsigned long r;
-    _BitScanReverse ( &r, val );
-    return (unsigned) r;
+    return _BitScanReverse(&r, val) ? (unsigned)r : 0;
 #   elif defined(__GNUC__) && (GCC_VERSION >= 304)   /* GCC Intrinsic */
     return __builtin_clz (val) ^ 31;
 #   else   /* Software version */

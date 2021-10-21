@@ -107,7 +107,7 @@ typedef struct {
 } ZSTD_DDictHashSet;
 
 #ifndef ZSTD_LITBUFFEREXTRASIZE
-#define ZSTD_LITBUFFEREXTRASIZE    (1 << 15) /* extra buffer reduces amount of dst required to store litBuffer */
+#define ZSTD_LITBUFFEREXTRASIZE    (1 << 16) /* extra buffer reduces amount of dst required to store litBuffer */
 #endif
 
 typedef enum {

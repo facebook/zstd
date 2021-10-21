@@ -395,7 +395,7 @@ MEM_STATIC unsigned ZSTD_countTrailingZeros(size_t val)
     if (MEM_64bits()) {
 #       if defined(_MSC_VER) && defined(_WIN64)
 #           if STATIC_BMI2
-                return _tzcnt_u64(val);
+                return (unsigned)_tzcnt_u64(val);
 #           else
                 if (val != 0) {
                     unsigned long r;

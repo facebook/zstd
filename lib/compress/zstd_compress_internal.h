@@ -670,7 +670,7 @@ static unsigned ZSTD_NbCommonBytes (size_t val)
         if (MEM_64bits()) {
 #       if defined(_MSC_VER) && defined(_WIN64)
 #           if STATIC_BMI2
-                return _tzcnt_u64(val) >> 3;
+                return (unsigned)(_tzcnt_u64(val) >> 3);
 #           else
                 if (val != 0) {
                     unsigned long r;
@@ -718,7 +718,7 @@ static unsigned ZSTD_NbCommonBytes (size_t val)
         if (MEM_64bits()) {
 #       if defined(_MSC_VER) && defined(_WIN64)
 #           if STATIC_BMI2
-			    return _lzcnt_u64(val) >> 3;
+                return (unsigned)(_lzcnt_u64(val) >> 3);
 #           else
                 if (val != 0) {
                     unsigned long r;

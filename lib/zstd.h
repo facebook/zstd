@@ -1589,15 +1589,15 @@ ZSTDLIB_API ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictS
                                                   ZSTD_compressionParameters cParams,
                                                   ZSTD_customMem customMem);
 
-/* ! Thread pool :
- * These prototypes make it possible to share a thread pool among multiple compression contexts.
- * This can limit resources for applications with multiple threads where each one uses
- * a threaded compression mode (via ZSTD_c_nbWorkers parameter).
- * ZSTD_createThreadPool creates a new thread pool with a given number of threads.
- * Note that the lifetime of such pool must exist while being used.
- * ZSTD_CCtx_refThreadPool assigns a thread pool to a context (use NULL argument value
- * to use an internal thread pool).
- * ZSTD_freeThreadPool frees a thread pool, accepts NULL pointer.
+/*! Thread pool :
+ *  These prototypes make it possible to share a thread pool among multiple compression contexts.
+ *  This can limit resources for applications with multiple threads where each one uses
+ *  a threaded compression mode (via ZSTD_c_nbWorkers parameter).
+ *  ZSTD_createThreadPool creates a new thread pool with a given number of threads.
+ *  Note that the lifetime of such pool must exist while being used.
+ *  ZSTD_CCtx_refThreadPool assigns a thread pool to a context (use NULL argument value
+ *  to use an internal thread pool).
+ *  ZSTD_freeThreadPool frees a thread pool, accepts NULL pointer.
  */
 typedef struct POOL_ctx_s ZSTD_threadPool;
 ZSTDLIB_API ZSTD_threadPool* ZSTD_createThreadPool(size_t numThreads);

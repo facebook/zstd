@@ -137,41 +137,196 @@ MEM_STATIC size_t BIT_readBitsFast(BIT_DStream_t* bitD, unsigned nbBits);
 /*-**************************************************************
 *  Internal functions
 ****************************************************************/
-MEM_STATIC unsigned BIT_highbit32 (U32 val)
+
+/* Counts the number of trailing zeros of `val`, from the least significant
+   bit (LSB) to the most significant bit (MSB).
+   If `val` is 0, the result is undefined. */
+MEM_STATIC U32 BIT_ctz32(U32 val)
+{
+#if defined(_MSC_VER) && STATIC_BMI2 == 1
+    /* unsigned int _tzcnt_u32 (unsigned int a) */
+    return _tzcnt_u32(val);
+#elif defined(_MSC_VER)
+    {   /* unsigned char _BitScanForward(
+                unsigned long * Index,
+                unsigned long Mask) */
+        unsigned long r;
+        _BitScanForward(&r, val);
+        return (U32) r;
+    }
+#elif defined(__GNUC__) && (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4))
+    /* int __builtin_ctz (unsigned int x) */
+    return (U32) __builtin_ctz(val);
+#else
+    #define BIT_CTZ32_SOFTWARE
+
+    static const BYTE DeBruijnBytePos[32] =
+        { 0,  1, 28,  2, 29, 14, 24,  3,
+         30, 22, 20, 15, 25, 17,  4,  8,
+         31, 27, 13, 23, 21, 19, 16,  7,
+         26, 12, 18,  6, 11,  5, 10,  9};
+    return (U32) DeBruijnBytePos[((U32)((val & -(S32)val) * 0x077CB531U)) >> 27];
+#endif
+}
+
+/* Counts the number of trailing zeros of `val`, from the least significant
+   bit (LSB) to the most significant bit (MSB).
+   If `val` is 0, the result is undefined. */
+MEM_STATIC U64 BIT_ctz64(U64 val)
+{
+    if (MEM_32bits()) {
+        assert(0);  /* Only use in 64-bit build */
+    }
+
+#if defined(_MSC_VER) && defined(_WIN64) && STATIC_BMI2 == 1
+    /* unsigned __int64 _tzcnt_u64 (unsigned __int64 a) */
+    return _tzcnt_u64(val);
+#elif defined(_MSC_VER) && defined(_WIN64)
+    {   /* unsigned char _BitScanForward64(
+                unsigned long * Index,
+                unsigned __int64 Mask) */
+        unsigned long r;
+        _BitScanForward64(&r, val);
+        return (U64) r;
+    }
+#elif defined(__GNUC__) && defined(__x86_64__)
+    {   /* Remove the S32->U64 cast */
+        U64 ret;
+        __asm__ ("rep bsfq %1, %0"
+                 : "=r" (ret)  /* = means overwriting an existing value */
+                 : "rm" (val)  /* register or memory */
+                 : "cc");
+        return ret;
+    }
+#elif defined(__GNUC__) && (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4))
+    /* int __builtin_ctzll (unsigned long long) */
+    return (U64) __builtin_ctzll(val);
+#else
+    #define BIT_CTZ64_SOFTWARE
+
+    static const BYTE DeBruijnBytePos[64] =
+        { 0,  1,  2,  7,  3, 13,  8, 19,
+          4, 25, 14, 28,  9, 34, 20, 56,
+          5, 17, 26, 54, 15, 41, 29, 43,
+         10, 31, 38, 35, 21, 45, 49, 57,
+         63,  6, 12, 18, 24, 27, 33, 55,
+         16, 53, 40, 42, 30, 37, 44, 48,
+         62, 11, 23, 32, 52, 39, 36, 47,
+         61, 22, 51, 46, 60, 50, 59, 58};
+    return (U64) DeBruijnBytePos[((U64)((val & -(S64)val) * 0x0218A392CDABBD3FULL)) >> 58];
+#endif
+}
+
+/* Counts the number of leading zeros of `val`, from the most significant
+   bit (MSB) to the least significant bit (LSB).
+   To get the index of the first set bit (1), use `BIT_clz32(v) ^ 31`.
+   If `val` is 0, the result is undefined. */
+MEM_STATIC U32 BIT_clz32(U32 val)
+{
+#if defined(_MSC_VER) && STATIC_BMI2 == 1
+    /* unsigned int _lzcnt_u32 (unsigned int a) */
+    return _lzcnt_u32(val);
+#elif defined(_MSC_VER)
+    {   /* unsigned char _BitScanReverse(
+                unsigned long * Index,
+                unsigned long Mask) */
+        unsigned long r;
+        _BitScanReverse(&r, val);
+        return (U32) (r ^ 31);
+    }
+#elif defined(__GNUC__) && (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4))
+    /* int __builtin_clz (unsigned int x) */
+    return (U32) __builtin_clz(val);
+#elif defined(__ICCARM__)    /* IAR Intrinsic */
+    /* unsigned int __CLZ(unsigned int) */
+    return __CLZ(val);
+#else
+    #define BIT_CLZ32_SOFTWARE
+
+    static const BYTE DeBruijnClz[32] =
+        {31, 22, 30, 21, 18, 10, 29,  2,
+         20, 17, 15, 13,  9,  6, 28,  1,
+         23, 19, 11,  3, 16, 14,  7, 24,
+         12,  4,  8, 25,  5, 26, 27, 0};
+    U32 v = val;
+    v |= v >> 1;
+    v |= v >> 2;
+    v |= v >> 4;
+    v |= v >> 8;
+    v |= v >> 16;
+    return DeBruijnClz[(U32)(v*0x07C4ACDDU) >> 27];
+#endif
+}
+
+/* Counts the number of leading zeros of `val`, from the most significant
+   bit (MSB) to the least significant bit (LSB).
+   To get the index of the first set bit (1), use `BIT_clz64(v) ^ 63`.
+   If `val` is 0, the result is undefined. */
+MEM_STATIC U64 BIT_clz64(U64 val)
+{
+    if (MEM_32bits()) {
+        assert(0);  /* Only use in 64-bit build */
+    }
+
+#if defined(_MSC_VER) && defined(_WIN64) && STATIC_BMI2 == 1
+    /* unsigned __int64 _lzcnt_u64 (unsigned __int64 a) */
+    return _lzcnt_u64(val);
+#elif defined(_MSC_VER) && defined(_WIN64)
+    {
+        /* unsigned char _BitScanReverse64(
+                unsigned long * Index,
+                unsigned __int64 Mask) */
+        unsigned long r;
+        _BitScanReverse64(&r, val);
+        return ((U64)r) ^ 63;
+    }
+#elif defined(__GNUC__) && defined(__x86_64__)
+    {   /* Remove the S32->U64 cast */
+        U64 ret;
+        __asm__ ("bsrq %1, %0"
+                 : "=r" (ret)  /* = means overwriting an existing value */
+                 : "rm" (val)  /* register or memory */
+                 : "cc");
+        return ret ^ 63;
+    }
+#elif defined(__GNUC__) && (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4))
+    /* int __builtin_clzll (unsigned long long) */
+    return (U64) __builtin_clzll(val);
+#else
+    #define BIT_CLZ64_SOFTWARE
+
+    U32 mostSignificantWord = (U32)(val >> 32);
+    U32 leastSignificantWord = (U32)val;
+    if (mostSignificantWord == 0) {
+        return 32 + BIT_clz32(leastSignificantWord);
+    } else {
+        return BIT_clz32(mostSignificantWord);
+    }
+#endif
+}
+
+MEM_STATIC U32 BIT_highbit32(U32 val)
 {
     assert(val != 0);
-    {
-#   if defined(_MSC_VER)   /* Visual */
-#       if STATIC_BMI2 == 1
-            return _lzcnt_u32(val) ^ 31;
-#       else
-            if (val != 0) {
-                unsigned long r;
-                _BitScanReverse(&r, val);
-                return (unsigned)r;
-            } else {
-                /* Should not reach this code path */
-                __assume(0);
-            }
-#       endif
-#   elif defined(__GNUC__) && (__GNUC__ >= 3)   /* Use GCC Intrinsic */
-        return __builtin_clz (val) ^ 31;
-#   elif defined(__ICCARM__)    /* IAR Intrinsic */
-        return 31 - __CLZ(val);
-#   else   /* Software version */
-        static const unsigned DeBruijnClz[32] = { 0,  9,  1, 10, 13, 21,  2, 29,
-                                                 11, 14, 16, 18, 22, 25,  3, 30,
-                                                  8, 12, 20, 28, 15, 17, 24,  7,
-                                                 19, 27, 23,  6, 26,  5,  4, 31 };
-        U32 v = val;
-        v |= v >> 1;
-        v |= v >> 2;
-        v |= v >> 4;
-        v |= v >> 8;
-        v |= v >> 16;
-        return DeBruijnClz[ (U32) (v * 0x07C4ACDDU) >> 27];
+
+#   ifndef BIT_CLZ32_SOFTWARE
+        return BIT_clz32(val) ^ 31;
+#   else
+        {
+            static const BYTE DeBruijnMSB[32] =
+                { 0,  9,  1, 10, 13, 21,  2, 29,
+                 11, 14, 16, 18, 22, 25,  3, 30,
+                  8, 12, 20, 28, 15, 17, 24,  7,
+                 19, 27, 23,  6, 26,  5,  4, 31};
+            U32 v = val;
+            v |= v >> 1;
+            v |= v >> 2;
+            v |= v >> 4;
+            v |= v >> 8;
+            v |= v >> 16;
+            return DeBruijnMSB[(U32)(v*0x07C4ACDDU) >> 27];
+        }
 #   endif
-    }
 }
 
 /*=====    Local Constants   =====*/

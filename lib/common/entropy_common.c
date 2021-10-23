@@ -38,32 +38,10 @@ const char* HUF_getErrorName(size_t code) { return ERR_getErrorName(code); }
 /*-**************************************************************
 *  FSE NCount encoding-decoding
 ****************************************************************/
-static U32 FSE_ctz(U32 val)
+MEM_STATIC U32 FSE_ctz(U32 val)
 {
     assert(val != 0);
-    {
-#   if defined(_MSC_VER)   /* Visual */
-        if (val != 0) {
-            unsigned long r;
-            _BitScanForward(&r, val);
-            return (unsigned)r;
-        } else {
-            /* Should not reach this code path */
-            __assume(0);
-        }
-#   elif defined(__GNUC__) && (__GNUC__ >= 3)   /* GCC Intrinsic */
-        return __builtin_ctz(val);
-#   elif defined(__ICCARM__)    /* IAR Intrinsic */
-        return __CTZ(val);
-#   else   /* Software version */
-        U32 count = 0;
-        while ((val & 1) == 0) {
-            val >>= 1;
-            ++count;
-        }
-        return count;
-#   endif
-    }
+    return BIT_ctz32(val);
 }
 
 FORCE_INLINE_TEMPLATE

@@ -106,9 +106,14 @@ typedef struct {
     size_t ddictPtrCount;
 } ZSTD_DDictHashSet;
 
-#ifndef ZSTD_LITBUFFEREXTRASIZE
-#define ZSTD_LITBUFFEREXTRASIZE    (1 << 16) /* extra buffer reduces amount of dst required to store litBuffer */
+#ifndef ZSTD_DECODER_INTERNAL_BUFFER
+#  define ZSTD_DECODER_INTERNAL_BUFFER  (1 << 16)
 #endif
+
+#define ZSTD_LBMAX (128 << 10)
+
+/* extra buffer, compensates amount of dst required to store litBuffer */
+#define ZSTD_LITBUFFEREXTRASIZE  MIN(ZSTD_DECODER_INTERNAL_BUFFER, ZSTD_LBMAX)
 
 typedef enum {
     ZSTD_not_in_dst = 0,  /* Stored entirely within litExtraBuffer */

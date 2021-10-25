@@ -33,6 +33,12 @@
  */
 
 
+ /* Streaming state is used to inform allocation of the literal buffer */
+typedef enum {
+    not_streaming = 0,
+    is_streaming = 1
+} streaming_operation;
+
 /* ZSTD_decompressBlock_internal() :
  * decompress block, starting at `src`,
  * into destination buffer `dst`.
@@ -41,7 +47,7 @@
  */
 size_t ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
                                void* dst, size_t dstCapacity,
-                         const void* src, size_t srcSize, const int frame);
+                         const void* src, size_t srcSize, const int frame, const streaming_operation streaming);
 
 /* ZSTD_buildFSETable() :
  * generate FSE decoding table for one symbol (ll, ml or off)

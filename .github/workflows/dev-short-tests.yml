@@ -296,6 +296,42 @@ jobs:
       run: |
         LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
 
+  mingw-short-test:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: [
+          { compiler: gcc, platform: x64, script: "CFLAGS=-Werror make -j allzstd DEBUGLEVEL=2"},
+          { compiler: gcc, platform: x86, script: "CFLAGS=-Werror make -j allzstd"},
+          { compiler: clang, platform: x64, script: "CFLAGS='--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion' make -j allzstd V=1"},
+        ]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Mingw short test
+      run: |
+        ECHO "Building ${{matrix.compiler}} ${{matrix.platform}}"
+        $env:PATH_ORIGINAL = $env:PATH
+        $env:PATH_MINGW32 = "C:\msys64\mingw32\bin"
+        $env:PATH_MINGW64 = "C:\msys64\mingw64\bin"
+        COPY C:\msys64\usr\bin\make.exe C:\msys64\mingw32\bin\make.exe
+        COPY C:\msys64\usr\bin\make.exe C:\msys64\mingw64\bin\make.exe
+        IF ("${{matrix.platform}}" -eq "x64")
+        {
+            $env:PATH = $env:PATH_MINGW64 + ";" + $env:PATH_ORIGINAL
+        }
+        ELSEIF ("${{matrix.platform}}" -eq "x86")
+        {
+            $env:PATH = $env:PATH_MINGW32 + ";" + $env:PATH_ORIGINAL
+        }
+        make -v
+        sh -c "${{matrix.compiler}} -v"
+        $env:CC = "${{matrix.compiler}}"
+        sh -c "${{matrix.script}}"
+        ECHO "Testing ${{matrix.compiler}} ${{matrix.platform}}"
+        make clean
+        make check
+
 # This test currently fails on Github Actions specifically.
 # Possible reason : TTY emulation.
 # Note that the same test works fine locally and on travisCI.

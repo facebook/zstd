@@ -23,17 +23,6 @@
       SCRIPT:   "make allzstd MOREFLAGS=-static"
       ARTIFACT: "true"
       BUILD:    "true"
-    - COMPILER: "clang"
-      HOST:     "mingw"
-      PLATFORM: "x64"
-      SCRIPT:   "MOREFLAGS='--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion' make -j allzstd V=1"
-      BUILD:    "true"
-
-    - COMPILER: "gcc"
-      HOST:     "mingw"
-      PLATFORM: "x64"
-      SCRIPT:   ""
-      TEST:     "cmake"
 
     - COMPILER: "visual"
       HOST:     "visual"
@@ -201,18 +190,6 @@
     - COMPILER: "gcc"
       HOST:     "cygwin"
       PLATFORM: "x64"
-    - COMPILER: "gcc"
-      HOST:     "mingw"
-      PLATFORM: "x64"
-      SCRIPT:   "CFLAGS=-Werror make -j allzstd DEBUGLEVEL=2"
-    - COMPILER: "gcc"
-      HOST:     "mingw"
-      PLATFORM: "x86"
-      SCRIPT:   "CFLAGS=-Werror make -j allzstd"
-    - COMPILER: "clang"
-      HOST:     "mingw"
-      PLATFORM: "x64"
-      SCRIPT:   "CFLAGS='--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion' make -j allzstd V=1"
 
     - COMPILER: "clang-cl"
       HOST:     "cmake-visual"
@@ -233,12 +210,6 @@
         cmake,^
         make
     )
-  - if [%HOST%]==[mingw] (
-      SET "PATH_MINGW32=C:\mingw-w64\i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32\bin" &&
-      SET "PATH_MINGW64=C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin" &&
-      COPY C:\msys64\usr\bin\make.exe C:\mingw-w64\i686-6.3.0-posix-dwarf-rt_v5-rev1\mingw32\bin\make.exe &&
-      COPY C:\msys64\usr\bin\make.exe C:\mingw-w64\x86_64-6.3.0-posix-seh-rt_v5-rev1\mingw64\bin\make.exe
-    )
 
   build_script:
   - ECHO Building %COMPILER% %PLATFORM% %CONFIGURATION%
@@ -252,17 +223,6 @@
         make VERBOSE=1 -j;
         ctest -V -L Medium;
       "
-    )
-  - if [%HOST%]==[mingw] (
-      ( if [%PLATFORM%]==[x64] (
-        SET "PATH=%PATH_MINGW64%;%PATH_ORIGINAL%"
-      ) else if [%PLATFORM%]==[x86] (
-        SET "PATH=%PATH_MINGW32%;%PATH_ORIGINAL%"
-      ) ) &&
-      make -v &&
-      sh -c "%COMPILER% -v" &&
-      set "CC=%COMPILER%" &&
-      sh -c "%SCRIPT%"
     )
   - if [%HOST%]==[cmake-visual] (
       ECHO *** &&

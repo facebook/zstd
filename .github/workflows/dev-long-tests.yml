@@ -150,6 +150,59 @@ jobs:
         make clean
         make -C tests test-fuzzer-stackmode
 
+  mingw-long-test:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: [
+          { compiler: clang, platform: x64, action: build, script: "MOREFLAGS='--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion -Wno-unused-command-line-argument -Wno-implicit-int-float-conversion' make -j allzstd V=1"},
+          { compiler: gcc, platform: x64, action: test, script: ""},
+        ]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Mingw long test
+      run: |
+        $env:PATH_ORIGINAL = $env:PATH
+        $env:PATH_MINGW32 = "C:\msys64\mingw32\bin"
+        $env:PATH_MINGW64 = "C:\msys64\mingw64\bin"
+        COPY C:\msys64\usr\bin\make.exe C:\msys64\mingw32\bin\make.exe
+        COPY C:\msys64\usr\bin\make.exe C:\msys64\mingw64\bin\make.exe
+        IF ("${{matrix.platform}}" -eq "x64")
+        {
+            $env:PATH = $env:PATH_MINGW64 + ";" + $env:PATH_ORIGINAL
+        }
+        ELSEIF ("${{matrix.platform}}" -eq "x86")
+        {
+            $env:PATH = $env:PATH_MINGW32 + ";" + $env:PATH_ORIGINAL
+        }
+        IF ("${{matrix.action}}" -eq "build")
+        {
+          make -v
+          sh -c "${{matrix.compiler}} -v"
+          ECHO "Building zlib to static link"
+          $env:CC = "${{matrix.compiler}}"
+          sh -c "cd .. && git clone --depth 1 --branch v1.2.11 https://github.com/madler/zlib"
+          sh -c "cd ../zlib && make -f win32/Makefile.gcc libz.a"
+          ECHO "Building zstd"
+          $env:CPPFLAGS = "-I../../zlib"
+          $env:LDFLAGS = "../../zlib/libz.a"
+          sh -c "${{matrix.script}}"
+        }
+        ELSEIF ("${{matrix.action}}" -eq "test")
+        {
+            ECHO "Testing ${{matrix.compiler}} ${{matrix.platform}}"
+            $env:CC = "gcc"
+            $env:CXX = "g++"
+            MKDIR build\cmake\build
+            CD build\cmake\build
+            $env:FUZZERTEST = "-T2mn"
+            $env:ZSTREAM_TESTTIME = "-T2mn"
+            cmake -G "Visual Studio 14 2015 Win64" ..
+            cd ..\..\..
+            make clean
+        }
+
   # lasts ~20mn
   oss-fuzz:
     runs-on: ubuntu-latest

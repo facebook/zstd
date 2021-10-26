@@ -155,11 +155,11 @@ The file structure is designed to make this selection manually achievable for an
 - The build macro `ZSTD_NO_INTRINSICS` can be defined to disable all explicit intrinsics.
   Compiler builtins are still used.
 
-- The build macro `ZSTD_LITBUFFEREXTRASIZE` can be set to control the amount of extra memory used
-  during decompression to store literals.  This defaults to 64kB.  Reducing it can reduce the
-  memory footprint required for decompression by increasing the portion of the literal buffer that
-  is stored in the unwritten portion of the dst buffer, at the cost of performance impact for
-  decompression.
+- The build macro `ZSTD_DECODER_INTERNAL_BUFFER` can be set to control
+  the amount of extra memory used during decompression to store literals.
+  This defaults to 64kB.  Reducing this value reduces the memory footprint of
+  `ZSTD_DCtx` decompression contexts,
+  but might also result in a small decompression speed cost.
 
 
 #### Windows : using MinGW+MSYS to create DLL

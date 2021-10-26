@@ -974,7 +974,7 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_update_internal(ZSTD_matchState_t* ms, const
  * processing.
  */
 void ZSTD_row_update(ZSTD_matchState_t* const ms, const BYTE* ip) {
-    const U32 rowLog = MAX(MIN(ms->cParams.searchLog, 6), 4);
+    const U32 rowLog = BOUNDED(4, ms->cParams.searchLog, 6);
     const U32 rowMask = (1u << rowLog) - 1;
     const U32 mls = MIN(ms->cParams.minMatch, 6 /* mls caps out at 6 */);
 

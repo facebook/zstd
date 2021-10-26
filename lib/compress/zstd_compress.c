@@ -1465,7 +1465,7 @@ static size_t ZSTD_estimateCCtxSize_usingCCtxParams_internal(
         const size_t buffOutSize,
         const U64 pledgedSrcSize)
 {
-    size_t const windowSize = BOUNDED(1, 1 << cParams->windowLog, pledgedSrcSize);
+    size_t const windowSize = (size_t) BOUNDED(1ULL, 1ULL << cParams->windowLog, pledgedSrcSize);
     size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, windowSize);
     U32    const divider = (cParams->minMatch==3) ? 3 : 4;
     size_t const maxNbSeq = blockSize / divider;

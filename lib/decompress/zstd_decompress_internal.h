@@ -110,10 +110,11 @@ typedef struct {
 #  define ZSTD_DECODER_INTERNAL_BUFFER  (1 << 16)
 #endif
 
+#define ZSTD_LBMIN 64
 #define ZSTD_LBMAX (128 << 10)
 
-/* extra buffer, compensates amount of dst required to store litBuffer */
-#define ZSTD_LITBUFFEREXTRASIZE  MIN(ZSTD_DECODER_INTERNAL_BUFFER, ZSTD_LBMAX)
+/* extra buffer, compensates when dst is not large enough to store litBuffer */
+#define ZSTD_LITBUFFEREXTRASIZE  BOUNDED(ZSTD_LBMIN, ZSTD_DECODER_INTERNAL_BUFFER, ZSTD_LBMAX)
 
 typedef enum {
     ZSTD_not_in_dst = 0,  /* Stored entirely within litExtraBuffer */

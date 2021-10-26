@@ -1465,7 +1465,7 @@ static size_t ZSTD_estimateCCtxSize_usingCCtxParams_internal(
         const size_t buffOutSize,
         const U64 pledgedSrcSize)
 {
-    size_t const windowSize = MAX(1, (size_t)MIN(((U64)1 << cParams->windowLog), pledgedSrcSize));
+    size_t const windowSize = BOUNDED(1, 1 << cParams->windowLog, pledgedSrcSize);
     size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, windowSize);
     U32    const divider = (cParams->minMatch==3) ? 3 : 4;
     size_t const maxNbSeq = blockSize / divider;
@@ -1783,7 +1783,7 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
             if (ms->tagTable) ZSTD_memset(ms->tagTable, 0, tagTableSize);
         }
         {   /* Switch to 32-entry rows if searchLog is 5 (or more) */
-            U32 const rowLog = MAX(MIN(cParams->searchLog, 6), 4);
+            U32 const rowLog = BOUNDED(4, cParams->searchLog, 6);
             assert(cParams->hashLog >= rowLog);
             ms->rowHashLog = cParams->hashLog - rowLog;
         }

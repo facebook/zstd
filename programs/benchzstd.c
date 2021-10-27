@@ -452,11 +452,11 @@ BMK_benchMemAdvancedNoAlloc(
 
                 {   int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
                     assert(cSize < UINT_MAX);
-                    OUTPUTLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.*f), %6.*f MB/s\r",
+                    OUTPUTLEVEL(2, "%2s-%-17.17s :%10u ->%10u (x%5.*f), %6.*f MB/s \r",
                             marks[markNb], displayName,
                             (unsigned)srcSize, (unsigned)cSize,
                             ratioAccuracy, ratio,
-                            benchResult.cSpeed < (10 MB) ? 2 : 1, (double)benchResult.cSpeed / MB_UNIT);
+                            benchResult.cSpeed < (10 * MB_UNIT) ? 2 : 1, (double)benchResult.cSpeed / MB_UNIT);
                 }
                 compressionCompleted = BMK_isCompleted_TimedFn(timeStateCompress);
             }
@@ -475,11 +475,11 @@ BMK_benchMemAdvancedNoAlloc(
                 }
 
                 {   int const ratioAccuracy = (ratio < 10.) ? 3 : 2;
-                    OUTPUTLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.*f), %6.*f MB/s, %6.1f MB/s \r",
+                    OUTPUTLEVEL(2, "%2s-%-17.17s :%10u ->%10u (x%5.*f), %6.*f MB/s, %6.1f MB/s\r",
                             marks[markNb], displayName,
                             (unsigned)srcSize, (unsigned)cSize,
                             ratioAccuracy, ratio,
-                            benchResult.cSpeed < (10 MB) ? 2 : 1, (double)benchResult.cSpeed / MB_UNIT,
+                            benchResult.cSpeed < (10 * MB_UNIT) ? 2 : 1, (double)benchResult.cSpeed / MB_UNIT,
                             (double)benchResult.dSpeed / MB_UNIT);
                 }
                 decompressionCompleted = BMK_isCompleted_TimedFn(timeStateDecompress);

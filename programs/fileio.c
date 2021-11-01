@@ -1332,6 +1332,7 @@ FIO_compressZstdFrame(FIO_ctx_t* const fCtx,
     FILE* const dstFile = ress.dstFile;
     U64 compressedfilesize = 0;
     ZSTD_EndDirective directive = ZSTD_e_continue;
+    U64 pledgedSrcSize = ZSTD_CONTENTSIZE_UNKNOWN;
 
     /* stats */
     ZSTD_frameProgression previous_zfp_update = { 0, 0, 0, 0, 0, 0 };
@@ -1348,12 +1349,25 @@ FIO_compressZstdFrame(FIO_ctx_t* const fCtx,
 
     /* init */
     if (fileSize != UTIL_FILESIZE_UNKNOWN) {
+        pledgedSrcSize = fileSize;
         CHECK(ZSTD_CCtx_setPledgedSrcSize(ress.cctx, fileSize));
     } else if (prefs->streamSrcSize > 0) {
       /* unknown source size; use the declared stream size */
+      pledgedSrcSize = prefs->streamSrcSize;
       CHECK( ZSTD_CCtx_setPledgedSrcSize(ress.cctx, prefs->streamSrcSize) );
     }
 
+    {
+        int windowLog;
+        UTIL_HumanReadableSize_t windowSize;
+        CHECK(ZSTD_CCtx_getParameter(ress.cctx, ZSTD_c_windowLog, &windowLog));
+        if (windowLog == 0) {
+            const ZSTD_compressionParameters cParams = ZSTD_getCParams(compressionLevel, fileSize, 0);
+            windowLog = cParams.windowLog;
+        }
+        windowSize = UTIL_makeHumanReadableSize(MAX(1ULL, MIN(1ULL << windowLog, pledgedSrcSize)));
+        DISPLAYLEVEL(4, "Decompression will require %.*f%s of memory\n", windowSize.precision, windowSize.value, windowSize.suffix);
+    }
     (void)srcFileName;
 
     /* Main compression loop */

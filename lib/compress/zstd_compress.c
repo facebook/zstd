@@ -3743,7 +3743,8 @@ static size_t ZSTD_compressBlock_splitBlock(ZSTD_CCtx* zc,
  *
  * Returns 0 on success, ZSTD_error on failure.
  */
-static UNUSED_ATTR size_t ZSTD_convertBlockSequencesToSeqStore(ZSTD_CCtx* cctx,
+UNUSED_ATTR
+static size_t ZSTD_convertBlockSequencesToSeqStore(ZSTD_CCtx* cctx,
                                   const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
                                   const void* src, size_t srcSize);
 
@@ -3773,6 +3774,10 @@ static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
         ZSTD_blockState_confirmRepcodesAndEntropyTables(&zc->blockState);
         return 0;
     }
+
+#ifdef _MSC_VER 
+    (void)ZSTD_convertBlockSequencesToSeqStore; /* Unused for Visual Studio */
+#endif
 
     /* encode sequences and literals */
     cSize = ZSTD_entropyCompressSeqStore(&zc->seqStore,

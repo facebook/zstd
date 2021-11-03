@@ -593,6 +593,9 @@ static void HUF_sort(nodeElt huffNode[], const unsigned count[], U32 const maxSy
     }
 
     assert(HUF_isSorted(huffNode, maxSymbolValue1));
+#ifdef _MSC_VER 
+    (void)HUF_isSorted; /* Unused for Visual Studio */
+#endif
 }
 
 /** HUF_buildCTable_wksp() :

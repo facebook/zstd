@@ -1782,6 +1782,48 @@ FIO_compressFilename_srcFile(FIO_ctx_t* const fCtx,
     return result;
 }
 
+static const char* checked_index(const char* options[], size_t length, size_t index) {
+    assert(index < length);
+    return options[index];
+}
+
+#define INDEX(options, index) checked_index((options), sizeof(options)  / sizeof(char*), (index))
+
+void FIO_displayCompressionParameters(FIO_prefs_t* const prefs) {
+    static const char* formatOptions[5] = {ZSTD_EXTENSION, GZ_EXTENSION, XZ_EXTENSION,
+                                           LZMA_EXTENSION, LZ4_EXTENSION};
+    static const char* sparseOptions[3] = {" --no-sparse", "", " --sparse"};
+    static const char* checkSumOptions[3] = {" --no-check", "", " --check"};
+    static const char* rowMatchFinderOptions[3] = {"", " --no-row-match-finder", " --row-match-finder"};
+    static const char* compressLiteralsOptions[3] = {"", " --compress-literals", " --no-compress-literals"};
+
+    assert(g_display_prefs.displayLevel >= 4);
+
+    DISPLAY("--format=%s", formatOptions[prefs->compressionType]);
+    DISPLAY("%s", INDEX(sparseOptions, prefs->sparseFileSupport));
+    DISPLAY("%s", prefs->dictIDFlag ? "" : " --no-dictID");
+    DISPLAY("%s", INDEX(checkSumOptions, prefs->checksumFlag));
+    DISPLAY(" --block-size=%d", prefs->blockSize);
+    if (prefs->adaptiveMode)
+        DISPLAY(" --adapt=min=%d,max=%d", prefs->minAdaptLevel, prefs->maxAdaptLevel);
+    DISPLAY("%s", INDEX(rowMatchFinderOptions, prefs->useRowMatchFinder));
+    DISPLAY("%s", prefs->rsyncable ? " --rsyncable" : "");
+    if (prefs->streamSrcSize)
+        DISPLAY(" --stream-size=%lu", prefs->streamSrcSize);
+    if (prefs->srcSizeHint)
+        DISPLAY(" --size-hint=%d", prefs->srcSizeHint);
+    if (prefs->targetCBlockSize)
+        DISPLAY(" --target-compressed-block-size=%lu", prefs->targetCBlockSize);
+    DISPLAY("%s", INDEX(compressLiteralsOptions, prefs->literalCompressionMode));
+    DISPLAY(" --memory=%u", prefs->memLimit ? prefs->memLimit : 128 MB);
+    DISPLAY(" --threads=%d", prefs->nbWorkers);
+    DISPLAY("%s", prefs->excludeCompressedFiles ? " --exclude-compressed" : "");
+    DISPLAY(" --%scontent-size", prefs->contentSize ? "" : "no-");
+    DISPLAY("\n");
+}
+
+#undef INDEX
+
 int FIO_compressFilename(FIO_ctx_t* const fCtx, FIO_prefs_t* const prefs, const char* dstFileName,
                          const char* srcFileName, const char* dictFileName,
                          int compressionLevel, ZSTD_compressionParameters comprParams)

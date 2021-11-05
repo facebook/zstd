@@ -1430,6 +1430,8 @@ int main(int argCount, const char* argv[])
             }
         }
 
+        if (g_displayLevel >= 4)
+            FIO_displayCompressionParameters(prefs);
         if ((filenames->tableSize==1) && outFileName)
             operationResult = FIO_compressFilename(fCtx, prefs, outFileName, filenames->fileNames[0], dictFileName, cLevel, compressionParams);
         else

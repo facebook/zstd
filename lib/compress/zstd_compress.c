@@ -2332,12 +2332,17 @@ ZSTD_reduceTable_internal (U32* const table, U32 const size, U32 const reducerVa
     for (rowNb=0 ; rowNb < nbRows ; rowNb++) {
         int column;
         for (column=0; column<ZSTD_ROWSIZE; column++) {
+            U32 newVal;
             if (preserveMark && table[cellNb] == ZSTD_DUBT_UNSORTED_MARK) {
+                /* This write is pointless, but is required(?) for the compiler
+                 * to auto-vectorize the loop. */
+                newVal = ZSTD_DUBT_UNSORTED_MARK;
             } else if (table[cellNb] < reducerThreshold) {
-                table[cellNb] = 0;
+                newVal = 0;
             } else {
-                table[cellNb] -= reducerValue;
+                newVal = table[cellNb] - reducerValue;
             }
+            table[cellNb] = newVal;
             cellNb++;
     }   }
 }

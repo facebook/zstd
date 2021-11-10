@@ -2311,6 +2311,8 @@ ZSTD_reduceTable_internal (U32* const table, U32 const size, U32 const reducerVa
     int const nbRows = (int)size / ZSTD_ROWSIZE;
     int cellNb = 0;
     int rowNb;
+    /* Protect special index values < ZSTD_WINDOW_START_INDEX. */
+    U32 const reducerThreshold = reducerValue + ZSTD_WINDOW_START_INDEX;
     assert((size & (ZSTD_ROWSIZE-1)) == 0);  /* multiple of ZSTD_ROWSIZE */
     assert(size < (1U<<31));   /* can be casted to int */
 
@@ -2330,12 +2332,17 @@ ZSTD_reduceTable_internal (U32* const table, U32 const size, U32 const reducerVa
     for (rowNb=0 ; rowNb < nbRows ; rowNb++) {
         int column;
         for (column=0; column<ZSTD_ROWSIZE; column++) {
-            if (preserveMark) {
-                U32 const adder = (table[cellNb] == ZSTD_DUBT_UNSORTED_MARK) ? reducerValue : 0;
-                table[cellNb] += adder;
+            U32 newVal;
+            if (preserveMark && table[cellNb] == ZSTD_DUBT_UNSORTED_MARK) {
+                /* This write is pointless, but is required(?) for the compiler
+                 * to auto-vectorize the loop. */
+                newVal = ZSTD_DUBT_UNSORTED_MARK;
+            } else if (table[cellNb] < reducerThreshold) {
+                newVal = 0;
+            } else {
+                newVal = table[cellNb] - reducerValue;
             }
-            if (table[cellNb] < reducerValue) table[cellNb] = 0;
-            else table[cellNb] -= reducerValue;
+            table[cellNb] = newVal;
             cellNb++;
     }   }
 }

@@ -1784,6 +1784,8 @@ FIO_compressFilename_srcFile(FIO_ctx_t* const fCtx,
 
 static const char* checked_index(const char* options[], size_t length, size_t index) {
     assert(index < length);
+    // Necessary to avoid warnings since -O3 will omit the above `assert`
+    (void) length;
     return options[index];
 }
 

@@ -1789,7 +1789,7 @@ static const char* checked_index(const char* options[], size_t length, size_t in
 
 #define INDEX(options, index) checked_index((options), sizeof(options)  / sizeof(char*), (index))
 
-void FIO_displayCompressionParameters(FIO_prefs_t* const prefs) {
+void FIO_displayCompressionParameters(const FIO_prefs_t* prefs) {
     static const char* formatOptions[5] = {ZSTD_EXTENSION, GZ_EXTENSION, XZ_EXTENSION,
                                            LZMA_EXTENSION, LZ4_EXTENSION};
     static const char* sparseOptions[3] = {" --no-sparse", "", " --sparse"};

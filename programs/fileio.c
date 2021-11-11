@@ -1809,11 +1809,11 @@ void FIO_displayCompressionParameters(const FIO_prefs_t* prefs) {
     DISPLAY("%s", INDEX(rowMatchFinderOptions, prefs->useRowMatchFinder));
     DISPLAY("%s", prefs->rsyncable ? " --rsyncable" : "");
     if (prefs->streamSrcSize)
-        DISPLAY(" --stream-size=%lu", prefs->streamSrcSize);
+        DISPLAY(" --stream-size=%u", (unsigned) prefs->streamSrcSize);
     if (prefs->srcSizeHint)
         DISPLAY(" --size-hint=%d", prefs->srcSizeHint);
     if (prefs->targetCBlockSize)
-        DISPLAY(" --target-compressed-block-size=%lu", prefs->targetCBlockSize);
+        DISPLAY(" --target-compressed-block-size=%u", (unsigned) prefs->targetCBlockSize);
     DISPLAY("%s", INDEX(compressLiteralsOptions, prefs->literalCompressionMode));
     DISPLAY(" --memory=%u", prefs->memLimit ? prefs->memLimit : 128 MB);
     DISPLAY(" --threads=%d", prefs->nbWorkers);

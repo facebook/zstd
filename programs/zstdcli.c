@@ -652,6 +652,8 @@ static const char* ZSTD_strategyMap[ZSTD_NB_STRATEGIES + 1] = { "", "ZSTD_fast",
                 "ZSTD_dfast", "ZSTD_greedy", "ZSTD_lazy", "ZSTD_lazy2", "ZSTD_btlazy2",
                 "ZSTD_btopt", "ZSTD_btultra", "ZSTD_btultra2"};
 
+#ifndef ZSTD_NOCOMPRESS
+
 static void printDefaultCParams(const char* filename, const char* dictFileName, int cLevel) {
     unsigned long long fileSize = UTIL_getFileSize(filename);
     const size_t dictSize = dictFileName != NULL ? (size_t)UTIL_getFileSize(dictFileName) : 0;
@@ -684,6 +686,8 @@ static void printActualCParams(const char* filename, const char* dictFileName, i
             actualCParams.windowLog, actualCParams.chainLog, actualCParams.hashLog, actualCParams.searchLog,
             actualCParams.minMatch, actualCParams.targetLength, actualCParams.strategy);
 }
+
+#endif
 
 /* Environment variables for parameter setting */
 #define ENV_CLEVEL "ZSTD_CLEVEL"

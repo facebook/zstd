@@ -189,15 +189,6 @@ MEM_STATIC U64 BIT_ctz64(U64 val)
         _BitScanForward64(&r, val);
         return (U64) r;
     }
-#elif defined(__GNUC__) && defined(__x86_64__)
-    {   /* Remove the S32->U64 cast */
-        U64 ret;
-        __asm__ ("rep bsfq %1, %0"
-                 : "=r" (ret)  /* = means overwriting an existing value */
-                 : "rm" (val)  /* register or memory */
-                 : "cc");
-        return ret;
-    }
 #elif defined(__GNUC__) && (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4))
     /* int __builtin_ctzll (unsigned long long) */
     return (U64) __builtin_ctzll(val);
@@ -279,15 +270,6 @@ MEM_STATIC U64 BIT_clz64(U64 val)
         unsigned long r;
         _BitScanReverse64(&r, val);
         return ((U64)r) ^ 63;
-    }
-#elif defined(__GNUC__) && defined(__x86_64__)
-    {   /* Remove the S32->U64 cast */
-        U64 ret;
-        __asm__ ("bsrq %1, %0"
-                 : "=r" (ret)  /* = means overwriting an existing value */
-                 : "rm" (val)  /* register or memory */
-                 : "cc");
-        return ret ^ 63;
     }
 #elif defined(__GNUC__) && (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4))
     /* int __builtin_clzll (unsigned long long) */

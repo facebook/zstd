@@ -753,6 +753,13 @@ datagen -g257000 > tmp_files/tmp3
 zstd --show-default-cparams -f -r tmp_files
 rm -rf tmp*
 
+println "test : show compression parameters in verbose mode"
+datagen > tmp
+zstd -vv tmp 2>&1 | \
+grep -q -E -- "--zstd=wlog=[[:digit:]]+,clog=[[:digit:]]+,hlog=[[:digit:]]+,\
+slog=[[:digit:]]+,mml=[[:digit:]]+,tlen=[[:digit:]]+,strat=[[:digit:]]+"
+rm -rf tmp*
+
 println "\n===>  Advanced compression parameters "
 println "Hello world!" | zstd --zstd=windowLog=21,      - -o tmp.zst && die "wrong parameters not detected!"
 println "Hello world!" | zstd --zstd=windowLo=21        - -o tmp.zst && die "wrong parameters not detected!"

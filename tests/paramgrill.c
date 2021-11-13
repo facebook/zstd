@@ -2652,7 +2652,7 @@ static int usage_advanced(void)
                                 (unsigned)g_timeLimit_s, (double)g_timeLimit_s / 3600);
     DISPLAY( " -v           : Prints Benchmarking output\n");
     DISPLAY( " -D           : Next argument dictionary file\n");
-    DISPLAY( " -s           : Seperate Files\n");
+    DISPLAY( " -s           : Separate Files\n");
     return 0;
 }
 
@@ -2707,7 +2707,7 @@ int main(int argc, const char** argv)
     const char* dictFileName = NULL;
     U32 main_pause = 0;
     int cLevelOpt = 0, cLevelRun = 0;
-    int seperateFiles = 0;
+    int separateFiles = 0;
     double compressibility = COMPRESSIBILITY_DEFAULT;
     U32 memoTableLog = PARAM_UNSET;
     constraint_t target = { 0, 0, (U32)-1 };
@@ -2895,7 +2895,7 @@ int main(int argc, const char** argv)
 
                 case 's':
                     argument++;
-                    seperateFiles = 1;
+                    separateFiles = 1;
                     break;
 
                 case 'q':
@@ -2940,7 +2940,7 @@ int main(int argc, const char** argv)
             result = benchSample(compressibility, cLevelRun);
         }
     } else {
-        if(seperateFiles) {
+        if(separateFiles) {
             for(i = 0; i < argc - filenamesStart; i++) {
                 if (g_optimizer) {
                     result = optimizeForSize(argv+filenamesStart + i, 1, dictFileName, target, paramTarget, cLevelOpt, cLevelRun, memoTableLog);

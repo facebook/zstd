@@ -335,7 +335,7 @@ jobs:
 # This test currently fails on Github Actions specifically.
 # Possible reason : TTY emulation.
 # Note that the same test works fine locally and on travisCI.
-# This will have to be fixed before transfering the test to GA.
+# This will have to be fixed before transferring the test to GA.
 #  versions-compatibility:
 #    runs-on: ubuntu-latest
 #    steps:

@@ -25,7 +25,7 @@
  * Note: MEM_MODULE stops xxhash redefining BYTE, U16, etc., which are also
  * defined in mem.h (breaking C99 compatibility).
  *
- * Note: the undefs for xxHash allow Zstd's implementation to coinside with with
+ * Note: the undefs for xxHash allow Zstd's implementation to coincide with with
  * standalone xxHash usage (with global defines).
  *
  * Note: multithreading is enabled for all platforms apart from Emscripten.

@@ -219,7 +219,7 @@ MEM_STATIC size_t ZSTD_cwksp_aligned_alloc_size(size_t size) {
 MEM_STATIC size_t ZSTD_cwksp_slack_space_required(void) {
     /* For alignment, the wksp will always allocate an additional n_1=[1, 64] bytes
      * to align the beginning of tables section, as well as another n_2=[0, 63] bytes
-     * to align the beginning of the aligned secion.
+     * to align the beginning of the aligned section.
      *
      * n_1 + n_2 == 64 bytes if the cwksp is freshly allocated, due to tables and
      * aligneds being sized in multiples of 64 bytes.

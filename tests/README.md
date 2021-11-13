@@ -56,7 +56,7 @@ optional arguments:
   --mode MODE           'fastmode', 'onetime', 'current', or 'continuous' (see
                         README.md for details)
   --dict DICT           filename of dictionary to use (when set, this
-                        dictioanry will be used to compress the files provided
+                        dictionary will be used to compress the files provided
                         inside --directory)
 ```
 

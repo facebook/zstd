@@ -247,7 +247,7 @@ ZSTDLIB_API size_t ZSTD_decompressDCtx(ZSTD_DCtx* dctx,
  *
  *   It's possible to reset all parameters to "default" using ZSTD_CCtx_reset().
  *
- *   This API supercedes all other "advanced" API entry points in the experimental section.
+ *   This API supersedes all other "advanced" API entry points in the experimental section.
  *   In the future, we expect to remove from experimental API entry points which are redundant with this API.
  */
 
@@ -1804,7 +1804,7 @@ ZSTDLIB_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* pre
  *
  * Note that this means that the CDict tables can no longer be copied into the
  * CCtx, so the dict attachment mode ZSTD_dictForceCopy will no longer be
- * useable. The dictionary can only be attached or reloaded.
+ * usable. The dictionary can only be attached or reloaded.
  *
  * In general, you should expect compression to be faster--sometimes very much
  * so--and CDict creation to be slightly slower. Eventually, we will probably

@@ -64,7 +64,7 @@ extern "C" {
 #    define SET_REALTIME_PRIORITY /* disabled */
 #  endif
 
-#else  /* unknown non-unix operating systen */
+#else  /* unknown non-unix operating system */
 #  define UTIL_sleep(s)          /* disabled */
 #  define UTIL_sleepMilli(milli) /* disabled */
 #  define SET_REALTIME_PRIORITY  /* disabled */

@@ -475,7 +475,7 @@ static size_t ZSTD_compressSubBlock_multi(const seqStore_t* seqStorePtr,
         /* I think there is an optimization opportunity here.
          * Calling ZSTD_estimateSubBlockSize for every sequence can be wasteful
          * since it recalculates estimate from scratch.
-         * For example, it would recount literal distribution and symbol codes everytime.
+         * For example, it would recount literal distribution and symbol codes every time.
          */
         cBlockSizeEstimate = ZSTD_estimateSubBlockSize(lp, litSize, ofCodePtr, llCodePtr, mlCodePtr, seqCount,
                                                        &nextCBlock->entropy, entropyMetadata,

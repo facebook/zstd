@@ -1333,7 +1333,7 @@ ZSTD_adjustCParams_internal(ZSTD_compressionParameters cPar,
         break;
     case ZSTD_cpm_createCDict:
         /* Assume a small source size when creating a dictionary
-         * with an unkown source size.
+         * with an unknown source size.
          */
         if (dictSize && srcSize == ZSTD_CONTENTSIZE_UNKNOWN)
             srcSize = minSrcSize;

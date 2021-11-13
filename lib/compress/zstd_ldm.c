@@ -478,7 +478,7 @@ static size_t ZSTD_ldm_generateSequences_internal(
              */
             if (anchor > ip + hashed) {
                 ZSTD_ldm_gear_reset(&hashState, anchor - minMatchLength, minMatchLength);
-                /* Continue the outter loop at anchor (ip + hashed == anchor). */
+                /* Continue the outer loop at anchor (ip + hashed == anchor). */
                 ip = anchor - hashed;
                 break;
             }

@@ -2538,7 +2538,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
             ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters);
             CHECK_Z( ZSTD_DCtx_loadDictionary(dctx, dictBuffer, dictSize) );
             CHECK_Z( ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize) );
-            /* The dictionary should presist across calls. */
+            /* The dictionary should persist across calls. */
             CHECK_Z( ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize) );
             /* When we reset the context the dictionary is cleared. */
             ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters);
@@ -2557,7 +2557,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
             ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters);
             CHECK_Z( ZSTD_DCtx_refDDict(dctx, ddict) );
             CHECK_Z( ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize) );
-            /* The ddict should presist across calls. */
+            /* The ddict should persist across calls. */
             CHECK_Z( ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize) );
             /* When we reset the context the ddict is cleared. */
             ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters);

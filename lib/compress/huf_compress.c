@@ -760,7 +760,7 @@ typedef struct {
 } HUF_CStream_t;
 
 /**! HUF_initCStream():
- * Initializes the bistream.
+ * Initializes the bitstream.
  * @returns 0 or an error code.
  */
 static size_t HUF_initCStream(HUF_CStream_t* bitC,
@@ -779,7 +779,7 @@ static size_t HUF_initCStream(HUF_CStream_t* bitC,
  *
  * @param elt   The element we're adding. This is a (nbBits, value) pair.
  *              See the HUF_CStream_t docs for the format.
- * @param idx   Insert into the bistream at this idx.
+ * @param idx   Insert into the bitstream at this idx.
  * @param kFast This is a template parameter. If the bitstream is guaranteed
  *              to have at least 4 unused bits after this call it may be 1,
  *              otherwise it must be 0. HUF_addBits() is faster when fast is set.

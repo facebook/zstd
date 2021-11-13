@@ -429,7 +429,7 @@ size_t HUF_readDTableX1_wksp_bmi2(HUF_DTable* DTable, const void* src, size_t sr
 
     /* fill DTable
      * We fill all entries of each weight in order.
-     * That way length is a constant for each iteration of the outter loop.
+     * That way length is a constant for each iteration of the outer loop.
      * We can switch based on the length to a different inner loop which is
      * optimized for that particular case.
      */

@@ -119,7 +119,7 @@ local int recompress(z_streamp inf, z_streamp def)
         if (ret == Z_MEM_ERROR)
             return ret;
 
-        /* compress what was decompresed until done or no room */
+        /* compress what was decompressed until done or no room */
         def->avail_in = RAWLEN - inf->avail_out;
         def->next_in = raw;
         if (inf->avail_out != 0)

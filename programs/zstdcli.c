@@ -647,6 +647,48 @@ static void printVersion(void)
     }   }
 }
 
+#define ZSTD_NB_STRATEGIES 9
+static const char* ZSTD_strategyMap[ZSTD_NB_STRATEGIES + 1] = { "", "ZSTD_fast",
+                "ZSTD_dfast", "ZSTD_greedy", "ZSTD_lazy", "ZSTD_lazy2", "ZSTD_btlazy2",
+                "ZSTD_btopt", "ZSTD_btultra", "ZSTD_btultra2"};
+
+#ifndef ZSTD_NOCOMPRESS
+
+static void printDefaultCParams(const char* filename, const char* dictFileName, int cLevel) {
+    unsigned long long fileSize = UTIL_getFileSize(filename);
+    const size_t dictSize = dictFileName != NULL ? (size_t)UTIL_getFileSize(dictFileName) : 0;
+    const ZSTD_compressionParameters cParams = ZSTD_getCParams(cLevel, fileSize, dictSize);
+    if (fileSize != UTIL_FILESIZE_UNKNOWN) DISPLAY("%s (%u bytes)\n", filename, (unsigned)fileSize);
+    else DISPLAY("%s (src size unknown)\n", filename);
+    DISPLAY(" - windowLog     : %u\n", cParams.windowLog);
+    DISPLAY(" - chainLog      : %u\n", cParams.chainLog);
+    DISPLAY(" - hashLog       : %u\n", cParams.hashLog);
+    DISPLAY(" - searchLog     : %u\n", cParams.searchLog);
+    DISPLAY(" - minMatch      : %u\n", cParams.minMatch);
+    DISPLAY(" - targetLength  : %u\n", cParams.targetLength);
+    assert(cParams.strategy < ZSTD_NB_STRATEGIES + 1);
+    DISPLAY(" - strategy      : %s (%u)\n", ZSTD_strategyMap[(int)cParams.strategy], (unsigned)cParams.strategy);
+}
+
+static void printActualCParams(const char* filename, const char* dictFileName, int cLevel, const ZSTD_compressionParameters* cParams) {
+    unsigned long long fileSize = UTIL_getFileSize(filename);
+    const size_t dictSize = dictFileName != NULL ? (size_t)UTIL_getFileSize(dictFileName) : 0;
+    ZSTD_compressionParameters actualCParams = ZSTD_getCParams(cLevel, fileSize, dictSize);
+    assert(g_displayLevel >= 4);
+    actualCParams.windowLog = cParams->windowLog == 0 ? actualCParams.windowLog : cParams->windowLog;
+    actualCParams.chainLog = cParams->chainLog == 0 ? actualCParams.chainLog : cParams->chainLog;
+    actualCParams.hashLog = cParams->hashLog == 0 ? actualCParams.hashLog : cParams->hashLog;
+    actualCParams.searchLog = cParams->searchLog == 0 ? actualCParams.searchLog : cParams->searchLog;
+    actualCParams.minMatch = cParams->minMatch == 0 ? actualCParams.minMatch : cParams->minMatch;
+    actualCParams.targetLength = cParams->targetLength == 0 ? actualCParams.targetLength : cParams->targetLength;
+    actualCParams.strategy = cParams->strategy == 0 ? actualCParams.strategy : cParams->strategy;
+    DISPLAY("--zstd=wlog=%d,clog=%d,hlog=%d,slog=%d,mml=%d,tlen=%d,strat=%d\n",
+            actualCParams.windowLog, actualCParams.chainLog, actualCParams.hashLog, actualCParams.searchLog,
+            actualCParams.minMatch, actualCParams.targetLength, actualCParams.strategy);
+}
+
+#endif
+
 /* Environment variables for parameter setting */
 #define ENV_CLEVEL "ZSTD_CLEVEL"
 #define ENV_NBTHREADS "ZSTD_NBTHREADS"    /* takes lower precedence than directly specifying -T# in the CLI */
@@ -722,11 +764,6 @@ static unsigned init_nbThreads(void) {
     NEXT_FIELD(__nb);             \
     val32 = readU32FromChar(&__nb); \
 }
-
-#define ZSTD_NB_STRATEGIES 9
-static const char* ZSTD_strategyMap[ZSTD_NB_STRATEGIES + 1] = { "", "ZSTD_fast",
-                "ZSTD_dfast", "ZSTD_greedy", "ZSTD_lazy", "ZSTD_lazy2", "ZSTD_btlazy2",
-                "ZSTD_btopt", "ZSTD_btultra", "ZSTD_btultra2"};
 
 typedef enum { zom_compress, zom_decompress, zom_test, zom_bench, zom_train, zom_list } zstd_operation_mode;
 
@@ -1411,25 +1448,18 @@ int main(int argCount, const char* argv[])
           assert(ZSTD_NB_STRATEGIES == strategyBounds.upperBound);
           (void)strategyBounds; }
 
-        if (showDefaultCParams) {
+        if (showDefaultCParams || g_displayLevel >= 4) {
             size_t fileNb;
             for (fileNb = 0; fileNb < (size_t)filenames->tableSize; fileNb++) {
-                unsigned long long fileSize = UTIL_getFileSize(filenames->fileNames[fileNb]);
-                const size_t dictSize = dictFileName != NULL ? (size_t)UTIL_getFileSize(dictFileName) : 0;
-                const ZSTD_compressionParameters cParams = ZSTD_getCParams(cLevel, fileSize, dictSize);
-                if (fileSize != UTIL_FILESIZE_UNKNOWN) DISPLAY("%s (%u bytes)\n", filenames->fileNames[fileNb], (unsigned)fileSize);
-                else DISPLAY("%s (src size unknown)\n", filenames->fileNames[fileNb]);
-                DISPLAY(" - windowLog     : %u\n", cParams.windowLog);
-                DISPLAY(" - chainLog      : %u\n", cParams.chainLog);
-                DISPLAY(" - hashLog       : %u\n", cParams.hashLog);
-                DISPLAY(" - searchLog     : %u\n", cParams.searchLog);
-                DISPLAY(" - minMatch      : %u\n", cParams.minMatch);
-                DISPLAY(" - targetLength  : %u\n", cParams.targetLength);
-                assert(cParams.strategy < ZSTD_NB_STRATEGIES + 1);
-                DISPLAY(" - strategy      : %s (%u)\n", ZSTD_strategyMap[(int)cParams.strategy], (unsigned)cParams.strategy);
+                if (showDefaultCParams)
+                    printDefaultCParams(filenames->fileNames[fileNb], dictFileName, cLevel);
+                if (g_displayLevel >= 4)
+                    printActualCParams(filenames->fileNames[fileNb], dictFileName, cLevel, &compressionParams);
             }
         }
 
+        if (g_displayLevel >= 4)
+            FIO_displayCompressionParameters(prefs);
         if ((filenames->tableSize==1) && outFileName)
             operationResult = FIO_compressFilename(fCtx, prefs, outFileName, filenames->fileNames[0], dictFileName, cLevel, compressionParams);
         else

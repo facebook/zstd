@@ -90,7 +90,7 @@ void ZSTD_fillHashTable(ZSTD_matchState_t* ms,
  * This is also the work we do at the beginning to enter the loop initially.
  */
 FORCE_INLINE_TEMPLATE size_t
-ZSTD_compressBlock_fast_generic(
+ZSTD_compressBlock_fast_noDict_generic(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize,
         U32 const mls)
@@ -310,6 +310,18 @@ _match: /* Requires: ip0, match0, offcode */
     goto _start;
 }
 
+#define ZSTD_GEN_FAST_FN(dictMode, mls)                                                            \
+    static size_t ZSTD_compressBlock_fast_##dictMode##_##mls(                                      \
+            ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],                    \
+            void const* src, size_t srcSize)                                                       \
+    {                                                                                              \
+        return ZSTD_compressBlock_fast_##dictMode##_generic(ms, seqStore, rep, src, srcSize, mls); \
+    }
+
+ZSTD_GEN_FAST_FN(noDict, 4)
+ZSTD_GEN_FAST_FN(noDict, 5)
+ZSTD_GEN_FAST_FN(noDict, 6)
+ZSTD_GEN_FAST_FN(noDict, 7)
 
 size_t ZSTD_compressBlock_fast(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
@@ -321,13 +333,13 @@ size_t ZSTD_compressBlock_fast(
     {
     default: /* includes case 3 */
     case 4 :
-        return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, 4);
+        return ZSTD_compressBlock_fast_noDict_4(ms, seqStore, rep, src, srcSize);
     case 5 :
-        return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, 5);
+        return ZSTD_compressBlock_fast_noDict_5(ms, seqStore, rep, src, srcSize);
     case 6 :
-        return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, 6);
+        return ZSTD_compressBlock_fast_noDict_6(ms, seqStore, rep, src, srcSize);
     case 7 :
-        return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, 7);
+        return ZSTD_compressBlock_fast_noDict_7(ms, seqStore, rep, src, srcSize);
     }
 }
 
@@ -479,6 +491,12 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
     return (size_t)(iend - anchor);
 }
 
+
+ZSTD_GEN_FAST_FN(dictMatchState, 4)
+ZSTD_GEN_FAST_FN(dictMatchState, 5)
+ZSTD_GEN_FAST_FN(dictMatchState, 6)
+ZSTD_GEN_FAST_FN(dictMatchState, 7)
+
 size_t ZSTD_compressBlock_fast_dictMatchState(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize)
@@ -489,13 +507,13 @@ size_t ZSTD_compressBlock_fast_dictMatchState(
     {
     default: /* includes case 3 */
     case 4 :
-        return ZSTD_compressBlock_fast_dictMatchState_generic(ms, seqStore, rep, src, srcSize, 4);
+        return ZSTD_compressBlock_fast_dictMatchState_4(ms, seqStore, rep, src, srcSize);
     case 5 :
-        return ZSTD_compressBlock_fast_dictMatchState_generic(ms, seqStore, rep, src, srcSize, 5);
+        return ZSTD_compressBlock_fast_dictMatchState_5(ms, seqStore, rep, src, srcSize);
     case 6 :
-        return ZSTD_compressBlock_fast_dictMatchState_generic(ms, seqStore, rep, src, srcSize, 6);
+        return ZSTD_compressBlock_fast_dictMatchState_6(ms, seqStore, rep, src, srcSize);
     case 7 :
-        return ZSTD_compressBlock_fast_dictMatchState_generic(ms, seqStore, rep, src, srcSize, 7);
+        return ZSTD_compressBlock_fast_dictMatchState_7(ms, seqStore, rep, src, srcSize);
     }
 }
 
@@ -530,7 +548,7 @@ static size_t ZSTD_compressBlock_fast_extDict_generic(
 
     /* switch to "regular" variant if extDict is invalidated due to maxDistance */
     if (prefixStartIndex == dictStartIndex)
-        return ZSTD_compressBlock_fast_generic(ms, seqStore, rep, src, srcSize, mls);
+        return ZSTD_compressBlock_fast(ms, seqStore, rep, src, srcSize);
 
     /* Search Loop */
     while (ip < ilimit) {  /* < instead of <=, because (ip+1) */
@@ -603,6 +621,10 @@ static size_t ZSTD_compressBlock_fast_extDict_generic(
     return (size_t)(iend - anchor);
 }
 
+ZSTD_GEN_FAST_FN(extDict, 4)
+ZSTD_GEN_FAST_FN(extDict, 5)
+ZSTD_GEN_FAST_FN(extDict, 6)
+ZSTD_GEN_FAST_FN(extDict, 7)
 
 size_t ZSTD_compressBlock_fast_extDict(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
@@ -613,12 +635,12 @@ size_t ZSTD_compressBlock_fast_extDict(
     {
     default: /* includes case 3 */
     case 4 :
-        return ZSTD_compressBlock_fast_extDict_generic(ms, seqStore, rep, src, srcSize, 4);
+        return ZSTD_compressBlock_fast_extDict_4(ms, seqStore, rep, src, srcSize);
     case 5 :
-        return ZSTD_compressBlock_fast_extDict_generic(ms, seqStore, rep, src, srcSize, 5);
+        return ZSTD_compressBlock_fast_extDict_5(ms, seqStore, rep, src, srcSize);
     case 6 :
-        return ZSTD_compressBlock_fast_extDict_generic(ms, seqStore, rep, src, srcSize, 6);
+        return ZSTD_compressBlock_fast_extDict_6(ms, seqStore, rep, src, srcSize);
     case 7 :
-        return ZSTD_compressBlock_fast_extDict_generic(ms, seqStore, rep, src, srcSize, 7);
+        return ZSTD_compressBlock_fast_extDict_7(ms, seqStore, rep, src, srcSize);
     }
 }

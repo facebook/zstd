@@ -1,5 +1,12 @@
 #if !defined(HUF_DISABLE_ASM) && defined(__x86_64__)
 
+/* Stack marking
+ * ref: https://wiki.gentoo.org/wiki/Hardened/GNU_stack_quickstart
+ */
+#if defined(__linux__) && defined(__ELF__)
+.section .note.GNU-stack,"",%progbits
+#endif
+
 /* Calling convention:
  *
  * %rdi contains the first argument: HUF_DecompressAsmArgs*.

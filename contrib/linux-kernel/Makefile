@@ -41,7 +41,6 @@ libzstd:
 		-DZSTD_MEMORY_SANITIZER=0 \
 		-DZSTD_DATAFLOW_SANITIZER=0 \
 		-DZSTD_COMPRESS_HEAPMODE=1 \
-		-UZSTD_NO_INLINE \
 		-UNO_PREFETCH \
 		-U__cplusplus \
 		-UZSTD_DLL_EXPORT \
@@ -55,7 +54,8 @@ libzstd:
 		-RZSTD_FALLTHROUGH=fallthrough \
 		-DZSTD_HAVE_WEAK_SYMBOLS=0 \
 		-DZSTD_TRACE=0 \
-		-DZSTD_NO_TRACE
+		-DZSTD_NO_TRACE \
+		-DZSTD_LINUX_KERNEL
 	mv linux/lib/zstd/zstd.h linux/include/linux/zstd_lib.h
 	mv linux/lib/zstd/zstd_errors.h linux/include/linux/
 	cp linux_zstd.h linux/include/linux/zstd.h

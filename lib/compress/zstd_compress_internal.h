@@ -982,7 +982,9 @@ MEM_STATIC U32 ZSTD_window_canOverflowCorrect(ZSTD_window_t const window,
 {
     U32 const cycleSize = 1u << cycleLog;
     U32 const curr = (U32)((BYTE const*)src - window.base);
-    U32 const minIndexToOverflowCorrect = cycleSize + MAX(maxDist, cycleSize);
+    U32 const minIndexToOverflowCorrect = cycleSize
+                                        + MAX(maxDist, cycleSize)
+                                        + ZSTD_WINDOW_START_INDEX;
 
     /* Adjust the min index to backoff the overflow correction frequency,
      * so we don't waste too much CPU in overflow correction. If this
@@ -1057,10 +1059,14 @@ MEM_STATIC U32 ZSTD_window_correctOverflow(ZSTD_window_t* window, U32 cycleLog,
     U32 const cycleSize = 1u << cycleLog;
     U32 const cycleMask = cycleSize - 1;
     U32 const curr = (U32)((BYTE const*)src - window->base);
-    U32 const currentCycle0 = curr & cycleMask;
-    /* Exclude zero so that newCurrent - maxDist >= 1. */
-    U32 const currentCycle1 = currentCycle0 == 0 ? cycleSize : currentCycle0;
-    U32 const newCurrent = currentCycle1 + MAX(maxDist, cycleSize);
+    U32 const currentCycle = curr & cycleMask;
+    /* Ensure newCurrent - maxDist >= ZSTD_WINDOW_START_INDEX. */
+    U32 const currentCycleCorrection = currentCycle < ZSTD_WINDOW_START_INDEX
+                                     ? MAX(cycleSize, ZSTD_WINDOW_START_INDEX)
+                                     : 0;
+    U32 const newCurrent = currentCycle
+                         + currentCycleCorrection
+                         + MAX(maxDist, cycleSize);
     U32 const correction = curr - newCurrent;
     /* maxDist must be a power of two so that:
      *   (newCurrent & cycleMask) == (curr & cycleMask)
@@ -1076,14 +1082,20 @@ MEM_STATIC U32 ZSTD_window_correctOverflow(ZSTD_window_t* window, U32 cycleLog,
 
     window->base += correction;
     window->dictBase += correction;
-    if (window->lowLimit <= correction) window->lowLimit = 1;
-    else window->lowLimit -= correction;
-    if (window->dictLimit <= correction) window->dictLimit = 1;
-    else window->dictLimit -= correction;
+    if (window->lowLimit < correction + ZSTD_WINDOW_START_INDEX) {
+        window->lowLimit = ZSTD_WINDOW_START_INDEX;
+    } else {
+        window->lowLimit -= correction;
+    }
+    if (window->dictLimit < correction + ZSTD_WINDOW_START_INDEX) {
+        window->dictLimit = ZSTD_WINDOW_START_INDEX;
+    } else {
+        window->dictLimit -= correction;
+    }
 
     /* Ensure we can still reference the full window. */
     assert(newCurrent >= maxDist);
-    assert(newCurrent - maxDist >= 1);
+    assert(newCurrent - maxDist >= ZSTD_WINDOW_START_INDEX);
     /* Ensure that lowLimit and dictLimit didn't underflow. */
     assert(window->lowLimit <= newCurrent);
     assert(window->dictLimit <= newCurrent);

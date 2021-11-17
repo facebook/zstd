@@ -1063,7 +1063,7 @@ static int basicUnitTests(U32 seed, double compressibility)
             if (ZSTD_decompressStream(dctx, &out, &in) != 0) goto _output_error;
             if (in.pos != in.size) goto _output_error;
         }
-        /* The dictionary should presist across calls. */
+        /* The dictionary should persist across calls. */
         {   ZSTD_outBuffer out = {decodedBuffer, decodedBufferSize, 0};
             ZSTD_inBuffer in = {compressedBuffer, cSize, 0};
             if (ZSTD_decompressStream(dctx, &out, &in) != 0) goto _output_error;
@@ -1128,7 +1128,7 @@ static int basicUnitTests(U32 seed, double compressibility)
             if (ZSTD_decompressStream(dctx, &out, &in) != 0) goto _output_error;
             if (in.pos != in.size) goto _output_error;
         }
-        /* The ddict should presist across calls. */
+        /* The ddict should persist across calls. */
         {   ZSTD_outBuffer out = {decodedBuffer, decodedBufferSize, 0};
             ZSTD_inBuffer in = {compressedBuffer, cSize, 0};
             if (ZSTD_decompressStream(dctx, &out, &in) != 0) goto _output_error;
@@ -1175,12 +1175,12 @@ static int basicUnitTests(U32 seed, double compressibility)
         /* We should succeed to decompress with the dictionary. */
         CHECK_Z( ZSTD_initDStream_usingDict(dctx, dictionary.start, dictionary.filled) );
         CHECK_Z( ZSTD_decompressDCtx(dctx, decodedBuffer, decodedBufferSize, compressedBuffer, cSize) );
-        /* The dictionary should presist across calls. */
+        /* The dictionary should persist across calls. */
         CHECK_Z( ZSTD_decompressDCtx(dctx, decodedBuffer, decodedBufferSize, compressedBuffer, cSize) );
         /* We should succeed to decompress with the ddict. */
         CHECK_Z( ZSTD_initDStream_usingDDict(dctx, ddict) );
         CHECK_Z( ZSTD_decompressDCtx(dctx, decodedBuffer, decodedBufferSize, compressedBuffer, cSize) );
-        /* The ddict should presist across calls. */
+        /* The ddict should persist across calls. */
         CHECK_Z( ZSTD_decompressDCtx(dctx, decodedBuffer, decodedBufferSize, compressedBuffer, cSize) );
         /* When we reset the context the ddict is cleared. */
         CHECK_Z( ZSTD_initDStream(dctx) );
@@ -2277,7 +2277,7 @@ static int fuzzerTests_newAPI(U32 seed, int nbTests, int startTest,
                     CHECK_Z( ZSTD_CCtx_refPrefix(zc, dict, dictSize) );
                 }
 
-                /* Adjust number of workers occassionally - result must be deterministic independent of nbWorkers */
+                /* Adjust number of workers occasionally - result must be deterministic independent of nbWorkers */
                 CHECK_Z(ZSTD_CCtx_getParameter(zc, ZSTD_c_nbWorkers, &nbWorkers));
                 if (nbWorkers > 0 && (FUZ_rand(&lseed) & 7) == 0) {
                     DISPLAYLEVEL(6, "t%u: Modify nbWorkers: %d -> %d \n", testNb, nbWorkers, nbWorkers + iter);

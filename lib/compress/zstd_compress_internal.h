@@ -392,7 +392,7 @@ struct ZSTD_CCtx_s {
     ZSTD_blockState_t blockState;
     U32* entropyWorkspace;  /* entropy workspace of ENTROPY_WORKSPACE_SIZE bytes */
 
-    /* Wether we are streaming or not */
+    /* Whether we are streaming or not */
     ZSTD_buffered_policy_e bufferedPolicy;
 
     /* streaming */

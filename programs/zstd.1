@@ -91,7 +91,7 @@ Note: If \fBwindowLog\fR is set to larger than 27, \fB\-\-long=windowLog\fR or \
 .IP
 Note: cannot use both this and \-D together Note: \fB\-\-long\fR mode will be automatically activated if chainLog < fileLog (fileLog being the windowLog required to cover the whole file)\. You can also manually force it\. Node: for all levels, you can use \-\-patch\-from in \-\-single\-thread mode to improve compression ratio at the cost of speed Note: for level 19, you can get increased compression ratio at the cost of speed by specifying \fB\-\-zstd=targetLength=\fR to be something large (i\.e 4096), and by setting a large \fB\-\-zstd=chainLog=\fR
 .IP "\[ci]" 4
-\fB\-\-rsyncable\fR : \fBzstd\fR will periodically synchronize the compression state to make the compressed file more rsync\-friendly\. There is a negligible impact to compression ratio, and the faster compression levels will see a small compression speed hit\. This feature does not work with \fB\-\-single\-thread\fR\. You probably don\'t want to use it with long range mode, since it will decrease the effectiveness of the synchronization points, but your milage may vary\.
+\fB\-\-rsyncable\fR : \fBzstd\fR will periodically synchronize the compression state to make the compressed file more rsync\-friendly\. There is a negligible impact to compression ratio, and the faster compression levels will see a small compression speed hit\. This feature does not work with \fB\-\-single\-thread\fR\. You probably don\'t want to use it with long range mode, since it will decrease the effectiveness of the synchronization points, but your mileage may vary\.
 .IP "\[ci]" 4
 \fB\-C\fR, \fB\-\-[no\-]check\fR: add integrity check computed from uncompressed data (default: enabled)
 .IP "\[ci]" 4

@@ -47,7 +47,7 @@ Our contribution process works in three main stages:
     * Topic and development:
         * Make a new branch on your fork about the topic you're developing for
         ```
-        # branch names should be consise but sufficiently informative
+        # branch names should be concise but sufficiently informative
         git checkout -b <branch-name>
         git push origin <branch-name>
         ```
@@ -104,7 +104,7 @@ Our contribution process works in three main stages:
         issue at hand, then please indicate this by requesting that an issue be closed by commenting.
         * Just because your changes have been merged does not mean the topic or larger issue is complete. Remember
         that the change must make it to an official zstd release for it to be meaningful. We recommend
-        that contributers track the activity on their pull request and corresponding issue(s) page(s) until
+        that contributors track the activity on their pull request and corresponding issue(s) page(s) until
         their change makes it to the next release of zstd. Users will often discover bugs in your code or
         suggest ways to refine and improve your initial changes even after the pull request is merged.
 
@@ -270,15 +270,15 @@ for level 1 compression on Zstd. Typically this means, you have identified a sec
 code that you think can be made to run faster.
 
 The first thing you will want to do is make sure that the piece of code is actually taking up
-a notable amount of time to run. It is usually not worth optimzing something which accounts for less than
+a notable amount of time to run. It is usually not worth optimizing something which accounts for less than
 0.0001% of the total running time. Luckily, there are tools to help with this.
 Profilers will let you see how much time your code spends inside a particular function.
-If your target code snippit is only part of a function, it might be worth trying to
-isolate that snippit by moving it to its own function (this is usually not necessary but
+If your target code snippet is only part of a function, it might be worth trying to
+isolate that snippet by moving it to its own function (this is usually not necessary but
 might be).
 
-Most profilers (including the profilers dicusssed below) will generate a call graph of
-functions for you. Your goal will be to find your function of interest in this call grapch
+Most profilers (including the profilers discussed below) will generate a call graph of
+functions for you. Your goal will be to find your function of interest in this call graph
 and then inspect the time spent inside of it. You might also want to to look at the
 annotated assembly which most profilers will provide you with.
 
@@ -301,16 +301,16 @@ $ zstd -b1 -i5 <my-data> # this will run for 5 seconds
 5. Once you run your benchmarking script, switch back over to instruments and attach your
 process to the time profiler. You can do this by:
     * Clicking on the `All Processes` drop down in the top left of the toolbar.
-    * Selecting your process from the dropdown. In my case, it is just going to be labled
+    * Selecting your process from the dropdown. In my case, it is just going to be labeled
     `zstd`
     * Hitting the bright red record circle button on the top left of the toolbar
-6. You profiler will now start collecting metrics from your bencharking script. Once
+6. You profiler will now start collecting metrics from your benchmarking script. Once
 you think you have collected enough samples (usually this is the case after 3 seconds of
 recording), stop your profiler.
 7. Make sure that in toolbar of the bottom window, `profile` is selected.
 8. You should be able to see your call graph.
     * If you don't see the call graph or an incomplete call graph, make sure you have compiled
-    zstd and your benchmarking scripg using debug flags. On mac and linux, this just means
+    zstd and your benchmarking script using debug flags. On mac and linux, this just means
     you will have to supply the `-g` flag alone with your build script. You might also
     have to provide the `-fno-omit-frame-pointer` flag
 9. Dig down the graph to find your function call and then inspect it by double clicking
@@ -329,7 +329,7 @@ Some general notes on perf:
 counter statistics. Perf uses a high resolution timer and this is likely one
 of the first things your team will run when assessing your PR.
 * Perf has a long list of hardware counters that can be viewed with `perf --list`.
-When measuring optimizations, something worth trying is to make sure the handware
+When measuring optimizations, something worth trying is to make sure the hardware
 counters you expect to be impacted by your change are in fact being so. For example,
 if you expect the L1 cache misses to decrease with your change, you can look at the
 counter `L1-dcache-load-misses`
@@ -368,7 +368,7 @@ Follow these steps to link travis-ci with your github fork of zstd
 TODO
 
 ### appveyor
-Follow these steps to link circle-ci with your girhub fork of zstd
+Follow these steps to link circle-ci with your github fork of zstd
 
 1. Make sure you are logged into your github account
 2. Go to https://www.appveyor.com/

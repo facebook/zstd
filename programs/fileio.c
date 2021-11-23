@@ -889,26 +889,25 @@ static int FIO_removeMultiFilesWarning(FIO_ctx_t* const fCtx, const FIO_prefs_t*
     if (fCtx->nbFilesTotal > 1 && !prefs->overwrite) {
         if (g_display_prefs.displayLevel <= displayLevelCutoff) {
             if (prefs->removeSrcFile) {
-                DISPLAYLEVEL(1, "zstd: Aborting... not deleting files and processing into dst: %s", outFileName);
+                DISPLAYLEVEL(1, "zstd: Aborting... not deleting files and processing into dst: %s\n", outFileName);
                 error =  1;
             }
         } else {
             if (!strcmp(outFileName, stdoutmark)) {
-                DISPLAYLEVEL(2, "zstd: WARNING: all input files will be processed and concatenated into stdout. ");
+                DISPLAYLEVEL(2, "zstd: WARNING: all input files will be processed and concatenated into stdout. \n");
             } else {
-                DISPLAYLEVEL(2, "zstd: WARNING: all input files will be processed and concatenated into a single output file: %s ", outFileName);
+                DISPLAYLEVEL(2, "zstd: WARNING: all input files will be processed and concatenated into a single output file: %s \n", outFileName);
             }
-            DISPLAYLEVEL(2, "\nThe concatenated output CANNOT regenerate the original directory tree. ")
+            DISPLAYLEVEL(2, "The concatenated output CANNOT regenerate the original directory tree. \n")
             if (prefs->removeSrcFile) {
                 if (fCtx->hasStdoutOutput) {
-                    DISPLAYLEVEL(1, "\nAborting. Use -f if you really want to delete the files and output to stdout");
+                    DISPLAYLEVEL(1, "Aborting. Use -f if you really want to delete the files and output to stdout\n");
                     error = 1;
                 } else {
                     error = g_display_prefs.displayLevel > displayLevelCutoff && UTIL_requireUserConfirmation("This is a destructive operation. Proceed? (y/n): ", "Aborting...", "yY", fCtx->hasStdinInput);
                 }
             }
         }
-        DISPLAY("\n");
     }
     return error;
 }

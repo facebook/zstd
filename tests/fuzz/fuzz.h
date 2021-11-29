@@ -26,8 +26,7 @@
  * @param MEM_FORCE_MEMORY_ACCESS:
  *        This flag controls how the zstd library accesses unaligned memory.
  *        It can be undefined, or 0 through 2. If it is undefined, it selects
- *        the method to use based on the compiler. If testing with UBSAN set
- *        MEM_FORCE_MEMORY_ACCESS=0 to use the standard compliant method.
+ *        the method to use based on the compiler.
  * @param FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
  *        This is the canonical flag to enable deterministic builds for fuzzing.
  *        Changes to zstd for fuzzing are gated behind this define.

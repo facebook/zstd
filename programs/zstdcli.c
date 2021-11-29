@@ -163,7 +163,7 @@ static void usage_advanced(const char* programName)
     DISPLAYOUT( "Advanced arguments : \n");
     DISPLAYOUT( " -V     : display Version number and exit \n");
 
-    DISPLAYOUT( " -c     : force write to standard output, even if it is the console \n");
+    DISPLAYOUT( " -c     : write to standard output (even if it is the console) \n");
 
     DISPLAYOUT( " -v     : verbose mode; specify multiple times to increase verbosity \n");
     DISPLAYOUT( " -q     : suppress warnings; specify twice to suppress errors too \n");

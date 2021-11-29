@@ -1359,10 +1359,10 @@ int UTIL_countCores(int logical)
  * see: man 3 sysconf */
 int UTIL_countCores(int logical)
 {
-    /* suppress unused parameter warning */
-    (void) logical;
-
     static int numCores = 0;
+
+    /* suppress unused parameter warning */
+    (void)logical;
 
     if (numCores != 0) return numCores;
 

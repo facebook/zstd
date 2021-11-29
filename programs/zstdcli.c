@@ -1163,6 +1163,11 @@ int main(int argCount, const char* argv[])
         UTIL_refFilename(filenames, argument);
     }
 
+    /* If stderr is not a TTY, imply -q */
+    if (!IS_CONSOLE(stderr) && g_displayLevel == DISPLAY_LEVEL_DEFAULT) {
+        g_displayLevel--;
+    }
+
     /* Welcome message (if verbose) */
     DISPLAYLEVEL(3, WELCOME_MESSAGE);
 

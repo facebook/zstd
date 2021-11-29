@@ -156,7 +156,7 @@ Arguments :
 
 Advanced arguments :
  -V     : display Version number and exit
- -c     : force write to standard output, even if it is the console
+ -c     : write to standard output (even if it is the console)
  -v     : verbose mode; specify multiple times to increase verbosity
  -q     : suppress warnings; specify twice to suppress errors too
 --no-progress : do not display the progress counter

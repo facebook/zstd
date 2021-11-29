@@ -190,12 +190,8 @@
       ECHO *** &&
       msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v110 /p:ForceImportBeforeCppTargets=%APPVEYOR_BUILD_FOLDER%\build\VS2010\CompileAsCpp.props /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
       DIR build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\*.exe &&
-      MD5sum build/VS2010/bin/%PLATFORM%_%CONFIGURATION%/*.exe &&
       msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v110 /t:Clean,Build /p:Platform=%PLATFORM% /p:Configuration=%CONFIGURATION% /logger:"C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll" &&
-      DIR build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\*.exe &&
-      MD5sum build/VS2010/bin/%PLATFORM%_%CONFIGURATION%/*.exe &&
-      COPY build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\fuzzer.exe tests\fuzzer_VS2012_%PLATFORM%_%CONFIGURATION%.exe &&
-      COPY build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\*.exe tests\
+      DIR build\VS2010\bin\%PLATFORM%_%CONFIGURATION%\*.exe
     )
 
 
@@ -206,13 +202,4 @@
       set "CC=%COMPILER%" &&
       make clean &&
       make check
-    )
-  - if [%HOST%]==[visual] if [%CONFIGURATION%]==[Release] (
-      CD tests &&
-      SET ZSTD_BIN=./zstd.exe&&
-      SET DATAGEN_BIN=./datagen.exe&&
-      sh -e playTests.sh --test-large-data &&
-      fullbench.exe -i1 &&
-      fullbench.exe -i1 -P0 &&
-      fuzzer_VS2012_%PLATFORM%_Release.exe %FUZZERTEST%
     )

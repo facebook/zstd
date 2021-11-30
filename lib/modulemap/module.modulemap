@@ -1,4 +1,4 @@
-module libzstd {
-    umbrella header "../zstd.h"
+module libzstd [extern_c] {
+    header "../zstd.h"
     export *
 }

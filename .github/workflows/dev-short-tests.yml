@@ -332,6 +332,31 @@ jobs:
         make clean
         make check
 
+
+  visual-runtime-tests:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        platform: [x64, Win32]
+        configuration: [Release]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v1.0.2
+    - name: Build and run tests
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      env:
+        ZSTD_BIN: ./zstd.exe
+        DATAGEN_BIN: ./datagen.exe
+      # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
+      run: |
+        msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v142 /t:Clean,Build /p:Platform=${{matrix.platform}} /p:Configuration=${{matrix.configuration}}
+        COPY build\VS2010\bin\${{matrix.platform}}_${{matrix.configuration}}\*.exe tests\
+        CD tests
+        sh -e playTests.sh
+        DIR
+        .\fuzzer.exe -T2m
+
 # This test currently fails on Github Actions specifically.
 # Possible reason : TTY emulation.
 # Note that the same test works fine locally and on travisCI.

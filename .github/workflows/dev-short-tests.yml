@@ -117,11 +117,11 @@ jobs:
         make -C zlibWrapper test
         make -C zlibWrapper valgrindTest
 
-  lz4-threadpool-partial-libs:
+  lz4-threadpool-libs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: LZ4, thread pool, and partial libs testslib wrapper test
+    - name: LZ4, thread pool, and libs build testslib wrapper test
       run: |
         make lz4install
         make -C tests test-lz4
@@ -129,7 +129,7 @@ jobs:
         make clean
         make -C tests test-pool
         make clean
-        bash tests/libzstd_partial_builds.sh
+        bash tests/libzstd_builds.sh
 
   gcc-make-tests-32bit:
     runs-on: ubuntu-latest

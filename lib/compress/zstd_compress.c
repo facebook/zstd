@@ -723,36 +723,36 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
     case ZSTD_c_windowLog :
         if (value!=0)   /* 0 => use default */
             BOUNDCHECK(ZSTD_c_windowLog, value);
-        CCtxParams->cParams.windowLog = (U32)value;
+        CCtxParams->cParams.windowLog = (unsigned)value;
         return CCtxParams->cParams.windowLog;
 
     case ZSTD_c_hashLog :
         if (value!=0)   /* 0 => use default */
             BOUNDCHECK(ZSTD_c_hashLog, value);
-        CCtxParams->cParams.hashLog = (U32)value;
+        CCtxParams->cParams.hashLog = (unsigned)value;
         return CCtxParams->cParams.hashLog;
 
     case ZSTD_c_chainLog :
         if (value!=0)   /* 0 => use default */
             BOUNDCHECK(ZSTD_c_chainLog, value);
-        CCtxParams->cParams.chainLog = (U32)value;
+        CCtxParams->cParams.chainLog = (unsigned)value;
         return CCtxParams->cParams.chainLog;
 
     case ZSTD_c_searchLog :
         if (value!=0)   /* 0 => use default */
             BOUNDCHECK(ZSTD_c_searchLog, value);
-        CCtxParams->cParams.searchLog = (U32)value;
+        CCtxParams->cParams.searchLog = (unsigned)value;
         return (size_t)value;
 
     case ZSTD_c_minMatch :
         if (value!=0)   /* 0 => use default */
             BOUNDCHECK(ZSTD_c_minMatch, value);
-        CCtxParams->cParams.minMatch = value;
+        CCtxParams->cParams.minMatch = (unsigned)value;
         return CCtxParams->cParams.minMatch;
 
     case ZSTD_c_targetLength :
         BOUNDCHECK(ZSTD_c_targetLength, value);
-        CCtxParams->cParams.targetLength = value;
+        CCtxParams->cParams.targetLength = (unsigned)value;
         return CCtxParams->cParams.targetLength;
 
     case ZSTD_c_strategy :
@@ -765,12 +765,12 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
         /* Content size written in frame header _when known_ (default:1) */
         DEBUGLOG(4, "set content size flag = %u", (value!=0));
         CCtxParams->fParams.contentSizeFlag = value != 0;
-        return CCtxParams->fParams.contentSizeFlag;
+        return (size_t)CCtxParams->fParams.contentSizeFlag;
 
     case ZSTD_c_checksumFlag :
         /* A 32-bits content checksum will be calculated and written at end of frame (default:0) */
         CCtxParams->fParams.checksumFlag = value != 0;
-        return CCtxParams->fParams.checksumFlag;
+        return (size_t)CCtxParams->fParams.checksumFlag;
 
     case ZSTD_c_dictIDFlag : /* When applicable, dictionary's dictID is provided in frame header (default:1) */
         DEBUGLOG(4, "set dictIDFlag = %u", (value!=0));
@@ -779,11 +779,11 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
 
     case ZSTD_c_forceMaxWindow :
         CCtxParams->forceWindow = (value != 0);
-        return CCtxParams->forceWindow;
+        return (size_t)CCtxParams->forceWindow;
 
     case ZSTD_c_forceAttachDict : {
         const ZSTD_dictAttachPref_e pref = (ZSTD_dictAttachPref_e)value;
-        BOUNDCHECK(ZSTD_c_forceAttachDict, pref);
+        BOUNDCHECK(ZSTD_c_forceAttachDict, (int)pref);
         CCtxParams->attachDictPref = pref;
         return CCtxParams->attachDictPref;
     }

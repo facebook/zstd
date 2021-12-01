@@ -14,6 +14,11 @@
 #include "zstd_compress_internal.h" /* ZSTD_hufCTables_t, ZSTD_minGain() */
 
 
+/* Below this limit, the heuristic does not even attempt compression of literals,
+ * as the cost of the headers is expected to outweight the benefits.
+ * This limit is not applicable when re-using statistics from dictionary or previous block */
+#define COMPRESS_LITERALS_SIZE_MIN 63
+
 size_t ZSTD_noCompressLiterals (void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 
 size_t ZSTD_compressRleLiteralsBlock (void* dst, size_t dstCapacity, const void* src, size_t srcSize);

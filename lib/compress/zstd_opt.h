@@ -20,6 +20,8 @@ extern "C" {
 /* used in ZSTD_loadDictionaryContent() */
 void ZSTD_updateTree(ZSTD_matchState_t* ms, const BYTE* ip, const BYTE* iend);
 
+/* All parsers @return the size of "last literals" segment */
+
 size_t ZSTD_compressBlock_btopt(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize);

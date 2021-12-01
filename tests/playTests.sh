@@ -257,7 +257,7 @@ zstd -d -f tmp.zst --memlimit=2K -c > $INTOVOID && die "decompression needs more
 zstd -d -f tmp.zst --memory=2K -c > $INTOVOID && die "decompression needs more memory than allowed"  # long command
 zstd -d -f tmp.zst --memlimit-decompress=2K -c > $INTOVOID && die "decompression needs more memory than allowed"  # long command
 println "test : overwrite protection"
-zstd -q tmp && die "overwrite check failed!"
+echo "no" | zstd -q tmp && die "overwrite check failed!"
 println "test : force overwrite"
 zstd -q -f tmp
 zstd -q --force tmp
@@ -266,7 +266,7 @@ rm -f tmpro tmpro.zst
 println foo > tmpro.zst
 println foo > tmpro
 chmod 400 tmpro.zst
-zstd -q tmpro && die "should have refused to overwrite read-only file"
+echo "no" | zstd -q tmpro && die "should have refused to overwrite read-only file"
 zstd -q -f tmpro
 println "test: --no-progress flag"
 zstd tmpro -c --no-progress | zstd -d -f -o "$INTOVOID" --no-progress
@@ -416,7 +416,7 @@ zstd tmp1.zst tmp2.zst -o "$INTOVOID" -f
 zstd -d tmp1.zst tmp2.zst -o tmp
 touch tmpexists
 zstd tmp1 tmp2 -f -o tmpexists
-zstd tmp1 tmp2 -q -o tmpexists && die "should have refused to overwrite"
+echo "no" | zstd tmp1 tmp2 -q -o tmpexists && die "should have refused to overwrite"
 println gooder > tmp_rm1
 println boi > tmp_rm2
 println worldly > tmp_rm3

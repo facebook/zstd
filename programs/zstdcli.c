@@ -1365,12 +1365,7 @@ int main(int argCount, const char* argv[])
     /* No status message in pipe mode (stdin - stdout) */
     hasStdout = outFileName && !strcmp(outFileName,stdoutmark);
 
-    if (hasStdout && (g_displayLevel==2)) g_displayLevel=1;
-
-    /* If stderr is not a TTY, imply -q */
-    if (!IS_CONSOLE(stderr) && g_displayLevel == DISPLAY_LEVEL_DEFAULT) {
-        g_displayLevel--;
-    }
+    if ((hasStdout || !IS_CONSOLE(stderr)) && (g_displayLevel==2)) g_displayLevel=1;
 
     /* IO Stream/File */
     FIO_setHasStdoutOutput(fCtx, hasStdout);

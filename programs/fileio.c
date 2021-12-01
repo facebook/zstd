@@ -683,7 +683,7 @@ FIO_openDstFile(FIO_ctx_t* fCtx, FIO_prefs_t* const prefs,
         }
 #endif
         if (!prefs->overwrite) {
-            if (g_display_prefs.displayLevel <= 1) {
+            if (g_display_prefs.displayLevel == 0) {
                 /* No interaction possible */
                 DISPLAY("zstd: %s already exists; not overwritten  \n",
                         dstFileName);
@@ -1870,7 +1870,7 @@ int FIO_compressMultipleFilenames(FIO_ctx_t* const fCtx,
     /* init */
     assert(outFileName != NULL || suffix != NULL);
     if (outFileName != NULL) {   /* output into a single destination (stdout typically) */
-        if (FIO_removeMultiFilesWarning(fCtx, prefs, outFileName, 1 /* displayLevelCutoff */)) {
+        if (FIO_removeMultiFilesWarning(fCtx, prefs, outFileName, 0 /* displayLevelCutoff */)) {
             FIO_freeCResources(&ress);
             return 1;
         }
@@ -2810,7 +2810,7 @@ FIO_decompressMultipleFilenames(FIO_ctx_t* const fCtx,
     dRess_t ress = FIO_createDResources(prefs, dictFileName);
 
     if (outFileName) {
-        if (FIO_removeMultiFilesWarning(fCtx, prefs, outFileName, 1 /* displayLevelCutoff */)) {
+        if (FIO_removeMultiFilesWarning(fCtx, prefs, outFileName, 0 /* displayLevelCutoff */)) {
             FIO_freeDResources(ress);
             return 1;
         }

@@ -45,7 +45,7 @@ class Buffer {
       : buffer_(buffer), range_(data) {}
 
   Buffer(Buffer&&) = default;
-  Buffer& operator=(Buffer&&) & = default;
+  Buffer& operator=(Buffer&&) = default;
 
   /**
    * Splits the data into two pieces: [begin, begin + n), [begin + n, end).

@@ -12,7 +12,6 @@
 *  Dependencies
 ***************************************/
 #include "../common/zstd_deps.h"  /* INT_MAX, ZSTD_memset, ZSTD_memcpy */
-#include "../common/cpu.h"
 #include "../common/mem.h"
 #include "hist.h"           /* HIST_countFast_wksp */
 #define FSE_STATIC_LINKING_ONLY   /* FSE_encodeSymbol */
@@ -100,7 +99,7 @@ static void ZSTD_initCCtx(ZSTD_CCtx* cctx, ZSTD_customMem memManager)
     assert(cctx != NULL);
     ZSTD_memset(cctx, 0, sizeof(*cctx));
     cctx->customMem = memManager;
-    cctx->bmi2 = ZSTD_cpuid_bmi2(ZSTD_cpuid());
+    cctx->bmi2 = ZSTD_cpuSupportsBmi2();
     {   size_t const err = ZSTD_CCtx_reset(cctx, ZSTD_reset_parameters);
         assert(!ZSTD_isError(err));
         (void)err;

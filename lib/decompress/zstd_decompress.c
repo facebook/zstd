@@ -56,7 +56,6 @@
 *  Dependencies
 *********************************************************/
 #include "../common/zstd_deps.h"   /* ZSTD_memcpy, ZSTD_memmove, ZSTD_memset */
-#include "../common/cpu.h"         /* bmi2 */
 #include "../common/mem.h"         /* low level memory routines */
 #define FSE_STATIC_LINKING_ONLY
 #include "../common/fse.h"
@@ -265,7 +264,7 @@ static void ZSTD_initDCtx_internal(ZSTD_DCtx* dctx)
     dctx->noForwardProgress = 0;
     dctx->oversizedDuration = 0;
 #if DYNAMIC_BMI2
-    dctx->bmi2 = ZSTD_cpuid_bmi2(ZSTD_cpuid());
+    dctx->bmi2 = ZSTD_cpuSupportsBmi2();
 #endif
     dctx->ddictSet = NULL;
     ZSTD_DCtx_resetParameters(dctx);

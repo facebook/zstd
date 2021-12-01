@@ -68,7 +68,7 @@
 #endif
 
 #if HUF_ENABLE_ASM_X86_64_BMI2 && DYNAMIC_BMI2
-# define HUF_ASM_X86_64_BMI2_ATTRS TARGET_ATTRIBUTE("bmi2")
+# define HUF_ASM_X86_64_BMI2_ATTRS BMI2_TARGET_ATTRIBUTE
 #else
 # define HUF_ASM_X86_64_BMI2_ATTRS
 #endif
@@ -120,7 +120,7 @@
         return fn##_body(dst, dstSize, cSrc, cSrcSize, DTable);             \
     }                                                                       \
                                                                             \
-    static TARGET_ATTRIBUTE("bmi2") size_t fn##_bmi2(                       \
+    static BMI2_TARGET_ATTRIBUTE size_t fn##_bmi2(                          \
                   void* dst,  size_t dstSize,                               \
             const void* cSrc, size_t cSrcSize,                              \
             const HUF_DTable* DTable)                                       \
@@ -670,7 +670,7 @@ HUF_decompress4X1_usingDTable_internal_body(
 }
 
 #if HUF_NEED_BMI2_FUNCTION
-static TARGET_ATTRIBUTE("bmi2")
+static BMI2_TARGET_ATTRIBUTE
 size_t HUF_decompress4X1_usingDTable_internal_bmi2(void* dst, size_t dstSize, void const* cSrc,
                     size_t cSrcSize, HUF_DTable const* DTable) {
     return HUF_decompress4X1_usingDTable_internal_body(dst, dstSize, cSrc, cSrcSize, DTable);
@@ -1386,7 +1386,7 @@ HUF_decompress4X2_usingDTable_internal_body(
 }
 
 #if HUF_NEED_BMI2_FUNCTION
-static TARGET_ATTRIBUTE("bmi2")
+static BMI2_TARGET_ATTRIBUTE
 size_t HUF_decompress4X2_usingDTable_internal_bmi2(void* dst, size_t dstSize, void const* cSrc,
                     size_t cSrcSize, HUF_DTable const* DTable) {
     return HUF_decompress4X2_usingDTable_internal_body(dst, dstSize, cSrc, cSrcSize, DTable);

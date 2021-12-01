@@ -114,7 +114,7 @@ ZSTD_LEGACY_FILES :=
 ZSTD_DECOMPRESS_AMD64_ASM_FILES := $(sort $(wildcard $(LIBZSTD)/decompress/*_amd64.S))
 
 ifneq ($(ZSTD_NO_ASM), 0)
-  CPPFLAGS += -DHUF_DISABLE_ASM
+  CPPFLAGS += -DZSTD_DISABLE_ASM
 else
   # Unconditionally add the ASM files they are disabled by
   # macros in the .S file.

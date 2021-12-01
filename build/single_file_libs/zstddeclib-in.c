@@ -40,7 +40,7 @@
 #define ZSTD_STRIP_ERROR_STRINGS
 #define ZSTD_TRACE 0
 /* TODO: Can't amalgamate ASM function */
-#define HUF_DISABLE_ASM 1
+#define ZSTD_DISABLE_ASM 1
 
 /* Include zstd_deps.h first with all the options we need enabled. */
 #define ZSTD_DEPS_NEED_MALLOC

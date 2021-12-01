@@ -106,7 +106,7 @@ if (MSVC)
 endif ()
 
 # With MSVC static library needs to be renamed to avoid conflict with import library
-if (MSVC)
+if (MSVC OR (WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
     set(STATIC_LIBRARY_BASE_NAME zstd_static)
 else ()
     set(STATIC_LIBRARY_BASE_NAME zstd)

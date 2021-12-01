@@ -101,6 +101,13 @@
 #  define TARGET_ATTRIBUTE(target)
 #endif
 
+/* Target attribute for BMI2 dynamic dispatch.
+ * Enable lzcnt, bmi, and bmi2.
+ * We test for bmi1 & bmi2. lzcnt is included in bmi1.
+ */
+#define BMI2_TARGET_ATTRIBUTE TARGET_ATTRIBUTE("lzcnt,bmi,bmi2")
+
+
 /* Enable runtime BMI2 dispatch based on the CPU.
  * Enabled for clang & gcc >=4.8 on x86 when BMI2 isn't enabled by default.
  */

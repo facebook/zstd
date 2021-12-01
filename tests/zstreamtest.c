@@ -1855,7 +1855,7 @@ static int fuzzerTests(U32 seed, unsigned nbTests, unsigned startTest, double co
             && oldTestLog /* at least one test happened */ && resetAllowed) {
             maxTestSize = FUZ_randomLength(&lseed, oldTestLog+2);
             maxTestSize = MIN(maxTestSize, srcBufferSize-16);
-            {   U64 const pledgedSrcSize = (FUZ_rand(&lseed) & 3) ? ZSTD_CONTENTSIZE_UNKNOWN : maxTestSize; 
+            {   U64 const pledgedSrcSize = (FUZ_rand(&lseed) & 3) ? ZSTD_CONTENTSIZE_UNKNOWN : maxTestSize;
                 CHECK_Z( ZSTD_CCtx_reset(zc, ZSTD_reset_session_only) );
                 CHECK_Z( ZSTD_CCtx_setPledgedSrcSize(zc, pledgedSrcSize) );
             }
@@ -2357,7 +2357,7 @@ static int fuzzerTests_newAPI(U32 seed, int nbTests, int startTest,
 
         /* multi - fragments decompression test */
         if (!dictSize /* don't reset if dictionary : could be different */ && (FUZ_rand(&lseed) & 1)) {
-            DISPLAYLEVEL(5, "resetting DCtx (dict:%p) \n", dict);
+            DISPLAYLEVEL(5, "resetting DCtx (dict:%p) \n", (void const*)dict);
             CHECK_Z( ZSTD_resetDStream(zd) );
         } else {
             if (dictSize)

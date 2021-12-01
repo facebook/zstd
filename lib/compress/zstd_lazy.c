@@ -1333,7 +1333,7 @@ typedef struct {
     searchMax_f searchMax;
 } ZSTD_LazyVTable;
 
-#define GEN_ZSTD_BT_VTABLE(dictMode, mls, ...)                                        \
+#define GEN_ZSTD_BT_VTABLE(dictMode, mls)                                             \
     static size_t ZSTD_BtFindBestMatch_##dictMode##_##mls(                            \
             ZSTD_matchState_t* ms,                                                    \
             const BYTE* ip, const BYTE* const iLimit,                                 \
@@ -1346,7 +1346,7 @@ typedef struct {
         ZSTD_BtFindBestMatch_##dictMode##_##mls                                       \
     };
 
-#define GEN_ZSTD_HC_VTABLE(dictMode, mls, ...)                                        \
+#define GEN_ZSTD_HC_VTABLE(dictMode, mls)                                             \
     static size_t ZSTD_HcFindBestMatch_##dictMode##_##mls(                            \
             ZSTD_matchState_t* ms,                                                    \
             const BYTE* ip, const BYTE* const iLimit,                                 \

@@ -258,7 +258,10 @@
 # elif ZSTD_HAS_CPP_ATTRIBUTE(fallthrough)
 #  define ZSTD_FALLTHROUGH [[fallthrough]]
 # elif __has_attribute(__fallthrough__)
-#  define ZSTD_FALLTHROUGH __attribute__((__fallthrough__))
+/* Leading semicolon is to satisfy gcc-11 with -pedantic. Without the semicolon
+ * gcc complains about: a label can only be part of a statement and a declaration is not a statement.
+ */
+#  define ZSTD_FALLTHROUGH ; __attribute__((__fallthrough__))
 # else
 #  define ZSTD_FALLTHROUGH
 # endif

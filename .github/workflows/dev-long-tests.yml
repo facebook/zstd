@@ -10,6 +10,13 @@ on:
     branches: [ dev, release, actionsTest ]
 
 jobs:
+  make-all:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: make all
+      run: make all
+
   # lasts ~24mn
   make-test:
     runs-on: ubuntu-latest

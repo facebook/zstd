@@ -6,7 +6,7 @@
  * LICENSE file in the root directory of this source tree) and the GPLv2 (found
  * in the COPYING file in the root directory of this source tree).
  */
- 
+
 /**
  * A subset of `folly/Range.h`.
  * All code copied verbatim modulo formatting
@@ -83,8 +83,8 @@ class Range {
   Range(const Range&) = default;
   Range(Range&&) = default;
 
-  Range& operator=(const Range&) & = default;
-  Range& operator=(Range&&) & = default;
+  Range& operator=(const Range&) = default;
+  Range& operator=(Range&&) = default;
 
   constexpr size_type size() const {
     return e_ - b_;

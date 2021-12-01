@@ -915,6 +915,17 @@ _cleanup:
 }
 
 
+/**
+ * @returns the maximum repcode value
+ */
+static U32 ZDICT_maxRep(U32 const reps[ZSTD_REP_NUM])
+{
+    U32 maxRep = reps[0];
+    int r;
+    for (r = 1; r < ZSTD_REP_NUM; ++r)
+        maxRep = MAX(maxRep, reps[r]);
+    return maxRep;
+}
 
 size_t ZDICT_finalizeDictionary(void* dictBuffer, size_t dictBufferCapacity,
                           const void* customDictContent, size_t dictContentSize,
@@ -926,11 +937,13 @@ size_t ZDICT_finalizeDictionary(void* dictBuffer, size_t dictBufferCapacity,
     BYTE header[HBUFFSIZE];
     int const compressionLevel = (params.compressionLevel == 0) ? ZSTD_CLEVEL_DEFAULT : params.compressionLevel;
     U32 const notificationLevel = params.notificationLevel;
+    /* The final dictionary content must be at least as large as the largest repcode */
+    size_t const minContentSize = (size_t)ZDICT_maxRep(repStartValue);
+    size_t paddingSize;
 
     /* check conditions */
     DEBUGLOG(4, "ZDICT_finalizeDictionary");
     if (dictBufferCapacity < dictContentSize) return ERROR(dstSize_tooSmall);
-    if (dictContentSize < ZDICT_CONTENTSIZE_MIN) return ERROR(srcSize_wrong);
     if (dictBufferCapacity < ZDICT_DICTSIZE_MIN) return ERROR(dstSize_tooSmall);
 
     /* dictionary header */
@@ -954,12 +967,43 @@ size_t ZDICT_finalizeDictionary(void* dictBuffer, size_t dictBufferCapacity,
         hSize += eSize;
     }
 
-    /* copy elements in final buffer ; note : src and dst buffer can overlap */
-    if (hSize + dictContentSize > dictBufferCapacity) dictContentSize = dictBufferCapacity - hSize;
-    {   size_t const dictSize = hSize + dictContentSize;
-        char* dictEnd = (char*)dictBuffer + dictSize;
-        memmove(dictEnd - dictContentSize, customDictContent, dictContentSize);
-        memcpy(dictBuffer, header, hSize);
+    /* Shrink the content size if it doesn't fit in the buffer */
+    if (hSize + dictContentSize > dictBufferCapacity) {
+        dictContentSize = dictBufferCapacity - hSize;
+    }
+
+    /* Pad the dictionary content with zeros if it is too small */
+    if (dictContentSize < minContentSize) {
+        RETURN_ERROR_IF(hSize + minContentSize > dictBufferCapacity, dstSize_tooSmall,
+                        "dictBufferCapacity too small to fit max repcode");
+        paddingSize = minContentSize - dictContentSize;
+    } else {
+        paddingSize = 0;
+    }
+
+    {
+        size_t const dictSize = hSize + paddingSize + dictContentSize;
+
+        /* The dictionary consists of the header, optional padding, and the content.
+         * The padding comes before the content because the "best" position in the
+         * dictionary is the last byte.
+         */
+        BYTE* const outDictHeader = (BYTE*)dictBuffer;
+        BYTE* const outDictPadding = outDictHeader + hSize;
+        BYTE* const outDictContent = outDictPadding + paddingSize;
+
+        assert(dictSize <= dictBufferCapacity);
+        assert(outDictContent + dictContentSize == (BYTE*)dictBuffer + dictSize);
+
+        /* First copy the customDictContent into its final location.
+         * `customDictContent` and `dictBuffer` may overlap, so we must
+         * do this before any other writes into the output buffer.
+         * Then copy the header & padding into the output buffer.
+         */
+        memmove(outDictContent, customDictContent, dictContentSize);
+        memcpy(outDictHeader, header, hSize);
+        memset(outDictPadding, 0, paddingSize);
+
         return dictSize;
     }
 }

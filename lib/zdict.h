@@ -237,7 +237,6 @@ typedef struct {
  * is presumed that the most profitable content is at the end of the dictionary,
  * since that is the cheapest to reference.
  *
- * `dictContentSize` must be >= ZDICT_CONTENTSIZE_MIN bytes.
  * `maxDictSize` must be >= max(dictContentSize, ZSTD_DICTSIZE_MIN).
  *
  * @return: size of dictionary stored into `dstDictBuffer` (<= `maxDictSize`),
@@ -272,8 +271,9 @@ ZDICTLIB_API const char* ZDICT_getErrorName(size_t errorCode);
  * Use them only in association with static linking.
  * ==================================================================================== */
 
-#define ZDICT_CONTENTSIZE_MIN 128
 #define ZDICT_DICTSIZE_MIN    256
+/* Deprecated: Remove in v1.6.0 */
+#define ZDICT_CONTENTSIZE_MIN 128
 
 /*! ZDICT_cover_params_t:
  *  k and d are the only required parameters.

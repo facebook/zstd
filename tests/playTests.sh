@@ -1022,12 +1022,8 @@ zstd -o tmpDict --train "$TESTDIR"/*.c "$PRGDIR"/*.c
 test -f tmpDict
 zstd --train "$TESTDIR"/*.c "$PRGDIR"/*.c
 test -f dictionary
-println "- Test dictionary training fails"
-echo "000000000000000000000000000000000" > tmpz
-zstd --train tmpz tmpz tmpz tmpz tmpz tmpz tmpz tmpz tmpz && die "Dictionary training should fail : source is all zeros"
 if [ -n "$hasMT" ]
 then
-  zstd --train -T0 tmpz tmpz tmpz tmpz tmpz tmpz tmpz tmpz tmpz && die "Dictionary training should fail : source is all zeros"
   println "- Create dictionary with multithreading enabled"
   zstd --train -T0 "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpDict
 fi

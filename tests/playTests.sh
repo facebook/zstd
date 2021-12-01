@@ -371,9 +371,9 @@ test ! -f tmp.zst   # tmp.zst should no longer be present
 println "test : should quietly not remove non-regular file"
 println hello > tmp
 zstd tmp -f -o "$DEVDEVICE" 2>tmplog > "$INTOVOID"
-grep -v "Refusing to remove non-regular file" tmplog
+grep "Refusing to remove non-regular file" tmplog && die
 rm -f tmplog
-zstd tmp -f -o "$INTOVOID" 2>&1 | grep -v "Refusing to remove non-regular file"
+zstd tmp -f -o "$INTOVOID" 2>&1 | grep "Refusing to remove non-regular file" && die
 println "test : --rm on stdin"
 println a | zstd --rm > $INTOVOID   # --rm should remain silent
 rm -f tmp

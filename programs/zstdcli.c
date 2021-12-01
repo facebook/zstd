@@ -1163,11 +1163,6 @@ int main(int argCount, const char* argv[])
         UTIL_refFilename(filenames, argument);
     }
 
-    /* If stderr is not a TTY, imply -q */
-    if (!IS_CONSOLE(stderr) && g_displayLevel == DISPLAY_LEVEL_DEFAULT) {
-        g_displayLevel--;
-    }
-
     /* Welcome message (if verbose) */
     DISPLAYLEVEL(3, WELCOME_MESSAGE);
 
@@ -1371,6 +1366,11 @@ int main(int argCount, const char* argv[])
     hasStdout = outFileName && !strcmp(outFileName,stdoutmark);
 
     if (hasStdout && (g_displayLevel==2)) g_displayLevel=1;
+
+    /* If stderr is not a TTY, imply -q */
+    if (!IS_CONSOLE(stderr) && g_displayLevel == DISPLAY_LEVEL_DEFAULT) {
+        g_displayLevel--;
+    }
 
     /* IO Stream/File */
     FIO_setHasStdoutOutput(fCtx, hasStdout);

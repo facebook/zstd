@@ -713,6 +713,10 @@ test -f tmp2
 test -f tmp3
 test -f tmp4
 
+println "test : survive the list of files with too long filenames (--filelist=FILE)"
+datagen -g51M > tmp_badList
+zstd -f --filelist=tmp_badList && die "should have failed : file name length is too long"
+
 println "test : survive a list of files which is text garbage (--filelist=FILE)"
 datagen > tmp_badList
 zstd -f --filelist=tmp_badList && die "should have failed : list is text garbage"

@@ -42,8 +42,23 @@ static size_t roundTripTest(void *result, size_t resultCapacity,
                 src, srcSize,
                 dict.buff, dict.size,
                 cLevel);
+        FUZZ_ZASSERT(cSize);
+        // Compress a second time and check for determinism
+        {
+            size_t const cSize0 = cSize;
+            XXH64_hash_t const hash0 = XXH64(compressed, cSize, 0);
+            cSize = ZSTD_compress_usingDict(cctx,
+                    compressed, compressedCapacity,
+                    src, srcSize,
+                    dict.buff, dict.size,
+                    cLevel);
+            FUZZ_ASSERT(cSize == cSize0);
+            FUZZ_ASSERT(XXH64(compressed, cSize, 0) == hash0);
+        }
     } else {
+        size_t remainingBytes;
         dictContentType = FUZZ_dataProducer_uint32Range(producer, 0, 2);
+        remainingBytes = FUZZ_dataProducer_remainingBytes(producer);
         FUZZ_setRandomParameters(cctx, srcSize, producer);
         /* Disable checksum so we can use sizes smaller than compress bound. */
         FUZZ_ZASSERT(ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 0));
@@ -51,14 +66,29 @@ static size_t roundTripTest(void *result, size_t resultCapacity,
             FUZZ_ZASSERT(ZSTD_CCtx_refPrefix_advanced(
                 cctx, dict.buff, dict.size,
                 dictContentType));
-        else 
+        else
             FUZZ_ZASSERT(ZSTD_CCtx_loadDictionary_advanced(
                 cctx, dict.buff, dict.size,
                 (ZSTD_dictLoadMethod_e)FUZZ_dataProducer_uint32Range(producer, 0, 1),
                 dictContentType));
         cSize = ZSTD_compress2(cctx, compressed, compressedCapacity, src, srcSize);
+        FUZZ_ZASSERT(cSize);
+        // Compress a second time and check for determinism
+        {
+            size_t const cSize0 = cSize;
+            XXH64_hash_t const hash0 = XXH64(compressed, cSize, 0);
+            FUZZ_dataProducer_rollBack(producer, remainingBytes);
+            FUZZ_setRandomParameters(cctx, srcSize, producer);
+            FUZZ_ZASSERT(ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 0));
+            if (refPrefix)
+                FUZZ_ZASSERT(ZSTD_CCtx_refPrefix_advanced(
+                    cctx, dict.buff, dict.size,
+                    dictContentType));
+            cSize = ZSTD_compress2(cctx, compressed, compressedCapacity, src, srcSize);
+            FUZZ_ASSERT(cSize == cSize0);
+            FUZZ_ASSERT(XXH64(compressed, cSize, 0) == hash0);
+        }
     }
-    FUZZ_ZASSERT(cSize);
     if (refPrefix)
         FUZZ_ZASSERT(ZSTD_DCtx_refPrefix_advanced(
             dctx, dict.buff, dict.size,

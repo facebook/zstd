@@ -23,6 +23,7 @@ from subprocess import Popen, PIPE
 repo_url = 'https://github.com/facebook/zstd.git'
 tmp_dir_name = 'tests/versionsTest'
 make_cmd = 'make'
+make_args = ['-j','CFLAGS=-O1']
 git_cmd = 'git'
 test_dat_src = 'README.md'
 test_dat = 'test_dat'
@@ -56,8 +57,11 @@ def proc(cmd_args, pipe=True, dummy=False):
     return subproc.communicate()
 
 
-def make(args, pipe=True):
-    return proc([make_cmd] + args, pipe)
+def make(targets, pipe=True):
+    cmd = [make_cmd] + make_args + targets
+    cmd_str = str(cmd)
+    print('compilation command : ' + cmd_str)
+    return proc(cmd, pipe)
 
 
 def git(args, pipe=True):
@@ -223,20 +227,28 @@ if __name__ == '__main__':
         dst_zstd = '{}/zstd.{}'.format(tmp_dir, tag)  # /path/to/zstd/tests/versionsTest/zstd.<TAG>
         if not os.path.isfile(dst_zstd) or tag == head:
             if tag != head:
+                print('-----------------------------------------------')
+                print('compiling ' + tag)
+                print('-----------------------------------------------')
                 r_dir = '{}/{}'.format(tmp_dir, tag)  # /path/to/zstd/tests/versionsTest/<TAG>
                 os.makedirs(r_dir, exist_ok=True)
                 os.chdir(clone_dir)
                 git(['--work-tree=' + r_dir, 'checkout', tag, '--', '.'], False)
                 if tag == 'v0.5.0':
                     os.chdir(r_dir + '/dictBuilder')  # /path/to/zstd/tests/versionsTest/v0.5.0/dictBuilder
-                    make(['clean', 'dictBuilder'], False)
+                    make(['clean'], False)   # separate 'clean' target to allow parallel build
+                    make(['dictBuilder'], False)
                     shutil.copy2('dictBuilder', '{}/dictBuilder.{}'.format(tmp_dir, tag))
                 os.chdir(r_dir + '/programs')  # /path/to/zstd/tests/versionsTest/<TAG>/programs
-                make(['clean', 'zstd'], False)
+                make(['clean'], False)  # separate 'clean' target to allow parallel build
+                make(['zstd'], False)
             else:
                 os.chdir(programs_dir)
+                print('-----------------------------------------------')
+                print('compiling head')
+                print('-----------------------------------------------')
                 make(['zstd'], False)
-            shutil.copy2('zstd',   dst_zstd)
+            shutil.copy2('zstd', dst_zstd)
 
     # remove any remaining *.zst and *.dec from previous test
     os.chdir(tmp_dir)
@@ -251,7 +263,9 @@ if __name__ == '__main__':
         print('cp ' + dict_files + ' ' + dict_source_path)
         execute('cp ' + dict_files + ' ' + dict_source_path, param_shell=True)
 
+    print('-----------------------------------------------')
     print('Compress test.dat by all released zstd')
+    print('-----------------------------------------------')
 
     error_code = 0
     for tag in tags:

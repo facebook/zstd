@@ -74,7 +74,7 @@ extern "C" {
 /*------   Version   ------*/
 #define ZSTD_VERSION_MAJOR    1
 #define ZSTD_VERSION_MINOR    5
-#define ZSTD_VERSION_RELEASE  0
+#define ZSTD_VERSION_RELEASE  1
 #define ZSTD_VERSION_NUMBER  (ZSTD_VERSION_MAJOR *100*100 + ZSTD_VERSION_MINOR *100 + ZSTD_VERSION_RELEASE)
 
 /*! ZSTD_versionNumber() :
@@ -249,7 +249,7 @@ ZSTDLIB_API size_t ZSTD_decompressDCtx(ZSTD_DCtx* dctx,
  *
  *   It's possible to reset all parameters to "default" using ZSTD_CCtx_reset().
  *
- *   This API supercedes all other "advanced" API entry points in the experimental section.
+ *   This API supersedes all other "advanced" API entry points in the experimental section.
  *   In the future, we expect to remove from experimental API entry points which are redundant with this API.
  */
 
@@ -419,7 +419,7 @@ typedef enum {
      * ZSTD_c_stableOutBuffer
      * ZSTD_c_blockDelimiters
      * ZSTD_c_validateSequences
-     * ZSTD_c_splitBlocks
+     * ZSTD_c_useBlockSplitter
      * ZSTD_c_useRowMatchFinder
      * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
      * note : never ever use experimentalParam? names directly;
@@ -934,7 +934,7 @@ ZSTDLIB_API unsigned ZSTD_getDictID_fromFrame(const void* src, size_t srcSize);
  * Advanced dictionary and prefix API (Requires v1.4.0+)
  *
  * This API allows dictionaries to be used with ZSTD_compress2(),
- * ZSTD_compressStream2(), and ZSTD_decompress(). Dictionaries are sticky, and
+ * ZSTD_compressStream2(), and ZSTD_decompressDCtx(). Dictionaries are sticky, and
  * only reset with the context is reset with ZSTD_reset_parameters or
  * ZSTD_reset_session_and_parameters. Prefixes are single-use.
  ******************************************************************************/
@@ -1170,9 +1170,6 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 #define ZSTD_SRCSIZEHINT_MIN        0
 #define ZSTD_SRCSIZEHINT_MAX        INT_MAX
 
-/* internal */
-#define ZSTD_HASHLOG3_MAX           17
-
 
 /* ---  Advanced types  --- */
 
@@ -1315,10 +1312,14 @@ typedef enum {
 } ZSTD_literalCompressionMode_e;
 
 typedef enum {
-  ZSTD_urm_auto = 0,                   /* Automatically determine whether or not we use row matchfinder */
-  ZSTD_urm_disableRowMatchFinder = 1,  /* Never use row matchfinder */
-  ZSTD_urm_enableRowMatchFinder = 2    /* Always use row matchfinder when applicable */
-} ZSTD_useRowMatchFinderMode_e;
+  /* Note: This enum controls features which are conditionally beneficial. Zstd typically will make a final
+   * decision on whether or not to enable the feature (ZSTD_ps_auto), but setting the switch to ZSTD_ps_enable
+   * or ZSTD_ps_disable allow for a force enable/disable the feature.
+   */
+  ZSTD_ps_auto = 0,         /* Let the library automatically determine whether the feature shall be enabled */
+  ZSTD_ps_enable = 1,       /* Force-enable the feature */
+  ZSTD_ps_disable = 2       /* Do not use the feature */
+} ZSTD_paramSwitch_e;
 
 /***************************************
 *  Frame size functions
@@ -1454,6 +1455,26 @@ ZSTDLIB_STATIC_API size_t ZSTD_compressSequences(ZSTD_CCtx* const cctx, void* ds
 ZSTDLIB_STATIC_API size_t ZSTD_writeSkippableFrame(void* dst, size_t dstCapacity,
                                             const void* src, size_t srcSize, unsigned magicVariant);
 
+/*! ZSTD_readSkippableFrame() :
+ * Retrieves a zstd skippable frame containing data given by src, and writes it to dst buffer.
+ *
+ * The parameter magicVariant will receive the magicVariant that was supplied when the frame was written,
+ * i.e. magicNumber - ZSTD_MAGIC_SKIPPABLE_START.  This can be NULL if the caller is not interested
+ * in the magicVariant.
+ *
+ * Returns an error if destination buffer is not large enough, or if the frame is not skippable.
+ *
+ * @return : number of bytes written or a ZSTD error.
+ */
+ZSTDLIB_API size_t ZSTD_readSkippableFrame(void* dst, size_t dstCapacity, unsigned* magicVariant,
+                                            const void* src, size_t srcSize);
+
+/*! ZSTD_isSkippableFrame() :
+ *  Tells if the content of `buffer` starts with a valid Frame Identifier for a skippable frame.
+ */
+ZSTDLIB_API unsigned ZSTD_isSkippableFrame(const void* buffer, size_t size);
+
+
 
 /***************************************
 *  Memory management
@@ -1581,15 +1602,15 @@ ZSTDLIB_STATIC_API ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_
                                                   ZSTD_compressionParameters cParams,
                                                   ZSTD_customMem customMem);
 
-/* ! Thread pool :
- * These prototypes make it possible to share a thread pool among multiple compression contexts.
- * This can limit resources for applications with multiple threads where each one uses
- * a threaded compression mode (via ZSTD_c_nbWorkers parameter).
- * ZSTD_createThreadPool creates a new thread pool with a given number of threads.
- * Note that the lifetime of such pool must exist while being used.
- * ZSTD_CCtx_refThreadPool assigns a thread pool to a context (use NULL argument value
- * to use an internal thread pool).
- * ZSTD_freeThreadPool frees a thread pool, accepts NULL pointer.
+/*! Thread pool :
+ *  These prototypes make it possible to share a thread pool among multiple compression contexts.
+ *  This can limit resources for applications with multiple threads where each one uses
+ *  a threaded compression mode (via ZSTD_c_nbWorkers parameter).
+ *  ZSTD_createThreadPool creates a new thread pool with a given number of threads.
+ *  Note that the lifetime of such pool must exist while being used.
+ *  ZSTD_CCtx_refThreadPool assigns a thread pool to a context (use NULL argument value
+ *  to use an internal thread pool).
+ *  ZSTD_freeThreadPool frees a thread pool, accepts NULL pointer.
  */
 typedef struct POOL_ctx_s ZSTD_threadPool;
 ZSTDLIB_STATIC_API ZSTD_threadPool* ZSTD_createThreadPool(size_t numThreads);
@@ -1725,9 +1746,15 @@ ZSTDLIB_STATIC_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const vo
  * See the comments on that enum for an explanation of the feature. */
 #define ZSTD_c_forceAttachDict ZSTD_c_experimentalParam4
 
-/* Controls how the literals are compressed (default is auto).
- * The value must be of type ZSTD_literalCompressionMode_e.
- * See ZSTD_literalCompressionMode_e enum definition for details.
+/* Controlled with ZSTD_paramSwitch_e enum.
+ * Default is ZSTD_ps_auto.
+ * Set to ZSTD_ps_disable to never compress literals.
+ * Set to ZSTD_ps_enable to always compress literals. (Note: uncompressed literals
+ * may still be emitted if huffman is not beneficial to use.)
+ *
+ * By default, in ZSTD_ps_auto, the library will decide at runtime whether to use
+ * literals compression based on the compression parameters - specifically,
+ * negative compression levels do not use literal compression.
  */
 #define ZSTD_c_literalCompressionMode ZSTD_c_experimentalParam5
 
@@ -1790,7 +1817,7 @@ ZSTDLIB_STATIC_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const vo
  *
  * Note that this means that the CDict tables can no longer be copied into the
  * CCtx, so the dict attachment mode ZSTD_dictForceCopy will no longer be
- * useable. The dictionary can only be attached or reloaded.
+ * usable. The dictionary can only be attached or reloaded.
  *
  * In general, you should expect compression to be faster--sometimes very much
  * so--and CDict creation to be slightly slower. Eventually, we will probably
@@ -1879,23 +1906,26 @@ ZSTDLIB_STATIC_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const vo
  */
 #define ZSTD_c_validateSequences ZSTD_c_experimentalParam12
 
-/* ZSTD_c_splitBlocks
- * Default is 0 == disabled. Set to 1 to enable block splitting.
+/* ZSTD_c_useBlockSplitter
+ * Controlled with ZSTD_paramSwitch_e enum.
+ * Default is ZSTD_ps_auto.
+ * Set to ZSTD_ps_disable to never use block splitter.
+ * Set to ZSTD_ps_enable to always use block splitter.
  *
- * Will attempt to split blocks in order to improve compression ratio at the cost of speed.
+ * By default, in ZSTD_ps_auto, the library will decide at runtime whether to use
+ * block splitting based on the compression parameters.
  */
-#define ZSTD_c_splitBlocks ZSTD_c_experimentalParam13
+#define ZSTD_c_useBlockSplitter ZSTD_c_experimentalParam13
 
 /* ZSTD_c_useRowMatchFinder
- * Default is ZSTD_urm_auto.
- * Controlled with ZSTD_useRowMatchFinderMode_e enum.
+ * Controlled with ZSTD_paramSwitch_e enum.
+ * Default is ZSTD_ps_auto.
+ * Set to ZSTD_ps_disable to never use row-based matchfinder.
+ * Set to ZSTD_ps_enable to force usage of row-based matchfinder.
  *
- * By default, in ZSTD_urm_auto, when finalizing the compression parameters, the library
- * will decide at runtime whether to use the row-based matchfinder based on support for SIMD
- * instructions as well as the windowLog.
- *
- * Set to ZSTD_urm_disableRowMatchFinder to never use row-based matchfinder.
- * Set to ZSTD_urm_enableRowMatchFinder to force usage of row-based matchfinder.
+ * By default, in ZSTD_ps_auto, the library will decide at runtime whether to use
+ * the row-based matchfinder based on support for SIMD instructions and the window log.
+ * Note that this only pertains to compression strategies: greedy, lazy, and lazy2
  */
 #define ZSTD_c_useRowMatchFinder ZSTD_c_experimentalParam14
 
@@ -2218,7 +2248,7 @@ size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs,
  * This function is DEPRECATED, and equivalent to:
  *     ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
  *     ZSTD_CCtx_refCDict(zcs, cdict);
- * 
+ *
  * note : cdict will just be referenced, and must outlive compression session
  * This prototype will generate compilation warnings.
  */

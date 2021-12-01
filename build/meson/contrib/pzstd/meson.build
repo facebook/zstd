@@ -18,7 +18,7 @@ pzstd_sources = [join_paths(zstd_rootdir, 'programs/util.c'),
   join_paths(zstd_rootdir, 'contrib/pzstd/SkippableFrame.cpp')]
 pzstd = executable('pzstd',
   pzstd_sources,
-  cpp_args: [ '-DNDEBUG', '-Wno-shadow', '-pedantic', '-Wno-deprecated-declarations' ],
+  cpp_args: [ '-DNDEBUG', '-Wno-shadow', '-Wno-deprecated-declarations' ],
   include_directories: pzstd_includes,
   dependencies: [ libzstd_dep, thread_dep ],
   install: true)

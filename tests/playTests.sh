@@ -124,6 +124,13 @@ case "$UNAME" in
     Darwin | FreeBSD | OpenBSD | NetBSD) MTIME="stat -f %m" ;;
 esac
 
+assertSameMTime() {
+    MT1=$($MTIME "$1")
+    MT2=$($MTIME "$2")
+    echo MTIME $MT1 $MT2
+    [ "$MT1" = "$MT2" ] || die "mtime on $1 doesn't match mtime on $2 ($MT1 != $MT2)"
+}
+
 GET_PERMS="stat -c %a"
 case "$UNAME" in
     Darwin | FreeBSD | OpenBSD | NetBSD) GET_PERMS="stat -f %Lp" ;;
@@ -159,10 +166,11 @@ if [ -z "${DATAGEN_BIN}" ]; then
   DATAGEN_BIN="$TESTDIR/datagen"
 fi
 
-ZSTD_BIN="$EXE_PREFIX$ZSTD_BIN"
+# Why was this line here ? Generates a strange ZSTD_BIN when EXE_PREFIX is non empty
+# ZSTD_BIN="$EXE_PREFIX$ZSTD_BIN"
 
 # assertions
-[ -n "$ZSTD_BIN" ] || die "zstd not found at $ZSTD_BIN! \n Please define ZSTD_BIN pointing to the zstd binary. You might also consider rebuilding zstd follwing the instructions in README.md"
+[ -n "$ZSTD_BIN" ] || die "zstd not found at $ZSTD_BIN! \n Please define ZSTD_BIN pointing to the zstd binary. You might also consider rebuilding zstd following the instructions in README.md"
 [ -n "$DATAGEN_BIN" ] || die "datagen not found at $DATAGEN_BIN! \n Please define DATAGEN_BIN pointing to the datagen binary. You might also consider rebuilding zstd tests following the instructions in README.md. "
 println "\nStarting playTests.sh isWindows=$isWindows EXE_PREFIX='$EXE_PREFIX' ZSTD_BIN='$ZSTD_BIN' DATAGEN_BIN='$DATAGEN_BIN'"
 
@@ -263,6 +271,10 @@ zstd -q -f tmpro
 println "test: --no-progress flag"
 zstd tmpro -c --no-progress | zstd -d -f -o "$INTOVOID" --no-progress
 zstd tmpro -cv --no-progress | zstd -dv -f -o "$INTOVOID" --no-progress
+println "test: --progress flag"
+zstd tmpro -c | zstd -d -f -o "$INTOVOID" --progress 2>&1 | grep -E "[A-Za-z0-9._ ]+: [0-9]+ bytes"
+zstd tmpro -c | zstd -d -f -q -o "$INTOVOID" --progress 2>&1 | grep -E "[A-Za-z0-9._ ]+: [0-9]+ bytes"
+zstd tmpro -c | zstd -d -f -v -o "$INTOVOID" 2>&1 | grep -E "[A-Za-z0-9._ ]+: [0-9]+ bytes"
 rm -f tmpro tmpro.zst
 println "test: overwrite input file (must fail)"
 zstd tmp -fo tmp && die "zstd compression overwrote the input file"
@@ -325,6 +337,7 @@ zstd --long --rm -r precompressedFilterTestDir
 # Files should get compressed again without the --exclude-compressed flag.
 test -f precompressedFilterTestDir/input.5.zst.zst
 test -f precompressedFilterTestDir/input.6.zst.zst
+rm -rf precompressedFilterTestDir
 println "Test completed"
 
 
@@ -583,6 +596,17 @@ if [ -n "$READFROMBLOCKDEVICE" ] ; then
     rm -f tmp.img tmp.img.zst tmp.img.copy
 fi
 
+println "\n===>  zstd created file timestamp tests"
+datagen > tmp
+touch -m -t 200001010000.00 tmp
+println "test : copy mtime in file -> file compression "
+zstd -f tmp -o tmp.zst
+assertSameMTime tmp tmp.zst
+println "test : copy mtime in file -> file decompression "
+zstd -f -d tmp.zst -o tmp.out
+assertSameMTime tmp.zst tmp.out
+rm -f tmp
+
 println "\n===>  compress multiple files into an output directory, --output-dir-flat"
 println henlo > tmp1
 mkdir tmpInputTestDir
@@ -689,6 +713,10 @@ test -f tmp2
 test -f tmp3
 test -f tmp4
 
+println "test : survive the list of files with too long filenames (--filelist=FILE)"
+datagen -g5M > tmp_badList
+zstd -f --filelist=tmp_badList && die "should have failed : file name length is too long"
+
 println "test : survive a list of files which is text garbage (--filelist=FILE)"
 datagen > tmp_badList
 zstd -f --filelist=tmp_badList && die "should have failed : list is text garbage"
@@ -727,6 +755,13 @@ datagen -g15000 > tmp_files/tmp1
 datagen -g129000 > tmp_files/tmp2
 datagen -g257000 > tmp_files/tmp3
 zstd --show-default-cparams -f -r tmp_files
+rm -rf tmp*
+
+println "test : show compression parameters in verbose mode"
+datagen > tmp
+zstd -vv tmp 2>&1 | \
+grep -q -E -- "--zstd=wlog=[[:digit:]]+,clog=[[:digit:]]+,hlog=[[:digit:]]+,\
+slog=[[:digit:]]+,mml=[[:digit:]]+,tlen=[[:digit:]]+,strat=[[:digit:]]+"
 rm -rf tmp*
 
 println "\n===>  Advanced compression parameters "
@@ -787,7 +822,7 @@ rm -f ./*.tmp ./*.zstd
 println "frame concatenation tests completed"
 
 
-if [ "$isWindows" = false ] && [ "$UNAME" != 'SunOS' ] && [ "$UNAME" != "OpenBSD" ] ; then
+if [ "$isWindows" = false ] && [ "$UNAME" != 'SunOS' ] && [ "$UNAME" != "OpenBSD" ] && [ "$UNAME" != "AIX" ]; then
 println "\n**** flush write error test **** "
 
 println "println foo | zstd > /dev/full"
@@ -912,8 +947,13 @@ cat tmp | zstd -14 -f --size-hint=5500  | zstd -t  # considerably too low
 
 
 println "\n===>  dictionary tests "
-
-println "- test with raw dict (content only) "
+println "- Test high/low compressibility corpus training"
+datagen -g12M -P90 > tmpCorpusHighCompress
+datagen -g12M -P5 > tmpCorpusLowCompress
+zstd --train -B2K tmpCorpusHighCompress -o tmpDictHighCompress
+zstd --train -B2K tmpCorpusLowCompress -o tmpDictLowCompress
+rm -f tmpCorpusHighCompress tmpCorpusLowCompress tmpDictHighCompress tmpDictLowCompress
+println "- Test with raw dict (content only) "
 datagen > tmpDict
 datagen -g1M | $MD5SUM > tmp1
 datagen -g1M | zstd -D tmpDict | zstd -D tmpDict -dvq | $MD5SUM > tmp2
@@ -982,12 +1022,8 @@ zstd -o tmpDict --train "$TESTDIR"/*.c "$PRGDIR"/*.c
 test -f tmpDict
 zstd --train "$TESTDIR"/*.c "$PRGDIR"/*.c
 test -f dictionary
-println "- Test dictionary training fails"
-echo "000000000000000000000000000000000" > tmpz
-zstd --train tmpz tmpz tmpz tmpz tmpz tmpz tmpz tmpz tmpz && die "Dictionary training should fail : source is all zeros"
 if [ -n "$hasMT" ]
 then
-  zstd --train -T0 tmpz tmpz tmpz tmpz tmpz tmpz tmpz tmpz tmpz && die "Dictionary training should fail : source is all zeros"
   println "- Create dictionary with multithreading enabled"
   zstd --train -T0 "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpDict
 fi
@@ -1285,7 +1321,7 @@ println "\n===>  tar extension tests "
 rm -f tmp tmp.tar tmp.tzst tmp.tgz tmp.txz tmp.tlz4 tmp1.zstd
 
 datagen > tmp
-tar cf tmp.tar tmp
+tar -cf tmp.tar tmp
 zstd tmp.tar -o tmp.tzst
 rm -f tmp.tar
 zstd -d tmp.tzst
@@ -1293,21 +1329,21 @@ zstd -d tmp.tzst
 rm -f tmp.tar tmp.tzst
 
 if [ $GZIPMODE -eq 1 ]; then
-    tar czf tmp.tgz tmp
+    tar -c tmp | gzip > tmp.tgz
     zstd -d tmp.tgz
     [ -e tmp.tar ] || die ".tgz failed to decompress to .tar!"
     rm -f tmp.tar tmp.tgz
 fi
 
 if [ $LZMAMODE -eq 1 ]; then
-    tar c tmp | zstd --format=xz > tmp.txz
+    tar -c tmp | zstd --format=xz > tmp.txz
     zstd -d tmp.txz
     [ -e tmp.tar ] || die ".txz failed to decompress to .tar!"
     rm -f tmp.tar tmp.txz
 fi
 
 if [ $LZ4MODE -eq 1 ]; then
-    tar c tmp | zstd --format=lz4 > tmp.tlz4
+    tar -c tmp | zstd --format=lz4 > tmp.tlz4
     zstd -d tmp.tlz4
     [ -e tmp.tar ] || die ".tlz4 failed to decompress to .tar!"
     rm -f tmp.tar tmp.tlz4
@@ -1347,6 +1383,8 @@ if [ -n "$hasMT" ]
 then
     println "\n===>  zstdmt round-trip tests "
     roundTripTest -g4M "1 -T0"
+    roundTripTest -g4M "1 -T0 --auto-threads=physical"
+    roundTripTest -g4M "1 -T0 --auto-threads=logical"
     roundTripTest -g8M "3 -T2"
     roundTripTest -g8M "19 --long"
     roundTripTest -g8000K "2 --threads=2"
@@ -1441,7 +1479,7 @@ datagen -g0 > tmp5
 zstd tmp5
 zstd -l tmp5.zst
 zstd -l tmp5* && die "-l must fail on non-zstd file"
-zstd -lv tmp5.zst | grep "Decompressed Size: 0.00 KB (0 B)"  # check that 0 size is present in header
+zstd -lv tmp5.zst | grep "Decompressed Size: 0 B (0 B)"  # check that 0 size is present in header
 zstd -lv tmp5* && die "-l must fail on non-zstd file"
 
 println "\n===>  zstd --list/-l test with no content size field "
@@ -1500,6 +1538,11 @@ elif [ "$longCSize19wlog23" -gt "$optCSize19wlog23" ]; then
     exit 1
 fi
 
+if [ -n "$CHECK_CONSTRAINED_MEM" ]; then
+    println "\n===>  zsdt constrained memory tests "
+    # shellcheck disable=SC2039
+    (ulimit -Sv 500000 ; datagen -g2M | zstd -22 --single-thread --ultra > /dev/null)
+fi
 
 if [ "$1" != "--test-large-data" ]; then
     println "Skipping large data tests"
@@ -1515,6 +1558,7 @@ then
     println "\n===>   adaptive mode "
     roundTripTest -g270000000 " --adapt"
     roundTripTest -g27000000 " --adapt=min=1,max=4"
+    roundTripTest -g27000000 " --adapt=min=-2,max=-1"
     println "===>   test: --adapt must fail on incoherent bounds "
     datagen > tmp
     zstd -f -vv --adapt=min=10,max=9 tmp && die "--adapt must fail on incoherent bounds"

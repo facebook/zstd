@@ -64,7 +64,7 @@ extern "C" {
 #    define SET_REALTIME_PRIORITY /* disabled */
 #  endif
 
-#else  /* unknown non-unix operating systen */
+#else  /* unknown non-unix operating system */
 #  define UTIL_sleep(s)          /* disabled */
 #  define UTIL_sleepMilli(milli) /* disabled */
 #  define SET_REALTIME_PRIORITY  /* disabled */
@@ -122,6 +122,7 @@ int UTIL_requireUserConfirmation(const char* prompt, const char* abortMsg, const
 #define STRDUP(s) strdup(s)
 #endif
 
+
 /**
  * Calls platform's equivalent of stat() on filename and writes info to statbuf.
  * Returns success (1) or failure (0).
@@ -134,6 +135,14 @@ int UTIL_stat(const char* filename, stat_t* statbuf);
  * update this info for regular files.
  */
 int UTIL_setFileStat(const char* filename, const stat_t* statbuf);
+
+/**
+ * Set atime to now and mtime to the st_mtim in statbuf.
+ *
+ * Directly wraps utime() or utimensat(). Returns -1 on error.
+ * Does not validate filename is valid.
+ */
+int UTIL_utime(const char* filename, const stat_t *statbuf);
 
 /*
  * These helpers operate on a pre-populated stat_t, i.e., the result of
@@ -169,6 +178,23 @@ int UTIL_isFIFO(const char* infilename);
 #define UTIL_FILESIZE_UNKNOWN  ((U64)(-1))
 U64 UTIL_getFileSize(const char* infilename);
 U64 UTIL_getTotalFileSize(const char* const * fileNamesTable, unsigned nbFiles);
+
+/**
+ * Take @size in bytes,
+ * prepare the components to pretty-print it in a scaled way.
+ * The components in the returned struct should be passed in
+ * precision, value, suffix order to a "%.*f%s" format string.
+ * Output policy is sensible to @g_utilDisplayLevel,
+ * for verbose mode (@g_utilDisplayLevel >= 4),
+ * does not scale down.
+ */
+typedef struct {
+  double value;
+  int precision;
+  const char* suffix;
+} UTIL_HumanReadableSize_t;
+
+UTIL_HumanReadableSize_t UTIL_makeHumanReadableSize(U64 size);
 
 int UTIL_compareStr(const void *p1, const void *p2);
 const char* UTIL_getFileExtension(const char* infilename);
@@ -275,13 +301,19 @@ void UTIL_refFilename(FileNamesTable* fnt, const char* filename);
 FileNamesTable*
 UTIL_createExpandedFNT(const char* const* filenames, size_t nbFilenames, int followLinks);
 
+#if defined(_WIN32) || defined(WIN32)
+DWORD CountSetBits(ULONG_PTR bitMask);
+#endif
 
 /*-****************************************
  *  System
  ******************************************/
 
+int UTIL_countCores(int logical);
+
 int UTIL_countPhysicalCores(void);
 
+int UTIL_countLogicalCores(void);
 
 #if defined (__cplusplus)
 }

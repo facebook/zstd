@@ -100,18 +100,7 @@ ZSTD_LIB_DECOMPRESSION ?= 1
 ZSTD_LIB_DICTBUILDER ?= 1
 ZSTD_LIB_DEPRECATED ?= 0
 
-# Legacy support
-ZSTD_LEGACY_SUPPORT ?= 5
-ZSTD_LEGACY_MULTITHREADED_API ?= 0
-
-# Build size optimizations
-HUF_FORCE_DECOMPRESS_X1 ?= 0
-HUF_FORCE_DECOMPRESS_X2 ?= 0
-ZSTD_FORCE_DECOMPRESS_SHORT ?= 0
-ZSTD_FORCE_DECOMPRESS_LONG ?= 0
-ZSTD_NO_INLINE ?= 0
-ZSTD_STRIP_ERROR_STRINGS ?= 0
-
+# Input variables for libzstd.mk
 ifeq ($(ZSTD_LIB_COMPRESSION), 0)
   ZSTD_LIB_DICTBUILDER = 0
   ZSTD_LIB_DEPRECATED = 0
@@ -122,86 +111,46 @@ ifeq ($(ZSTD_LIB_DECOMPRESSION), 0)
   ZSTD_LIB_DEPRECATED = 0
 endif
 
+include libzstd.mk
+
+ZSTD_FILES := $(ZSTD_COMMON_FILES) $(ZSTD_LEGACY_FILES)
+
 ifneq ($(ZSTD_LIB_COMPRESSION), 0)
-  ZSTD_FILES += $(ZSTDCOMP_FILES)
+  ZSTD_FILES += $(ZSTD_COMPRESS_FILES)
 endif
 
 ifneq ($(ZSTD_LIB_DECOMPRESSION), 0)
-  ZSTD_FILES += $(ZSTDDECOMP_FILES)
+  ZSTD_FILES += $(ZSTD_DECOMPRESS_FILES)
 endif
 
 ifneq ($(ZSTD_LIB_DEPRECATED), 0)
-  ZSTD_FILES += $(ZDEPR_FILES)
+  ZSTD_FILES += $(ZSTD_DEPRECATED_FILES)
 endif
 
 ifneq ($(ZSTD_LIB_DICTBUILDER), 0)
-  ZSTD_FILES += $(ZDICT_FILES)
+  ZSTD_FILES += $(ZSTD_DICTBUILDER_FILES)
 endif
-
-ifneq ($(HUF_FORCE_DECOMPRESS_X1), 0)
-  CFLAGS += -DHUF_FORCE_DECOMPRESS_X1
-endif
-
-ifneq ($(HUF_FORCE_DECOMPRESS_X2), 0)
-  CFLAGS += -DHUF_FORCE_DECOMPRESS_X2
-endif
-
-ifneq ($(ZSTD_FORCE_DECOMPRESS_SHORT), 0)
-  CFLAGS += -DZSTD_FORCE_DECOMPRESS_SHORT
-endif
-
-ifneq ($(ZSTD_FORCE_DECOMPRESS_LONG), 0)
-  CFLAGS += -DZSTD_FORCE_DECOMPRESS_LONG
-endif
-
-ifneq ($(ZSTD_NO_INLINE), 0)
-  CFLAGS += -DZSTD_NO_INLINE
-endif
-
-ifneq ($(ZSTD_STRIP_ERROR_STRINGS), 0)
-  CFLAGS += -DZSTD_STRIP_ERROR_STRINGS
-endif
-
-ifneq ($(ZSTD_LEGACY_MULTITHREADED_API), 0)
-  CFLAGS += -DZSTD_LEGACY_MULTITHREADED_API
-endif
-
-ifneq ($(ZSTD_LEGACY_SUPPORT), 0)
-ifeq ($(shell test $(ZSTD_LEGACY_SUPPORT) -lt 8; echo $$?), 0)
-  ZSTD_FILES += $(shell ls legacy/*.c | $(GREP) 'v0[$(ZSTD_LEGACY_SUPPORT)-7]')
-endif
-endif
-CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 
 ZSTD_LOCAL_SRC := $(notdir $(ZSTD_FILES))
-ZSTD_LOCAL_OBJ := $(ZSTD_LOCAL_SRC:.c=.o)
+ZSTD_LOCAL_OBJ0 := $(ZSTD_LOCAL_SRC:.c=.o)
+ZSTD_LOCAL_OBJ := $(ZSTD_LOCAL_OBJ0:.S=.o)
 
-ZSTD_SUBDIR := common compress decompress dictBuilder legacy deprecated
-vpath %.c $(ZSTD_SUBDIR)
+VERSION := $(ZSTD_VERSION)
 
-UNAME := $(shell uname)
+# Note: by default, the static library is built single-threaded and dynamic library is built
+# multi-threaded. It is possible to force multi or single threaded builds by appending
+# -mt or -nomt to the build target (like lib-mt for multi-threaded, lib-nomt for single-threaded).
+.PHONY: default
+default: lib-release
 
-ifndef BUILD_DIR
-ifeq ($(UNAME), Darwin)
-  ifeq ($(shell md5 < /dev/null > /dev/null; echo $$?), 0)
-    HASH ?= md5
-  endif
-else ifeq ($(UNAME), FreeBSD)
-  HASH ?= gmd5sum
-else ifeq ($(UNAME), NetBSD)
-  HASH ?= md5 -n
-else ifeq ($(UNAME), OpenBSD)
-  HASH ?= md5
+CPPFLAGS_DYNLIB  = -DZSTD_MULTITHREAD # dynamic library build defaults to multi-threaded
+LDFLAGS_DYNLIB   = -pthread
+CPPFLAGS_STATLIB =                    # static library build defaults to single-threaded
+
+
+ifeq ($(findstring GCC,$(CCVER)),GCC)
+decompress/zstd_decompress_block.o : CFLAGS+=-fno-tree-vectorize
 endif
-HASH ?= md5sum
-
-HASH_DIR = conf_$(shell echo $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(ZSTD_FILES) | $(HASH) | cut -f 1 -d " " )
-HAVE_HASH :=$(shell echo 1 | $(HASH) > /dev/null && echo 1 || echo 0)
-ifeq ($(HAVE_HASH),0)
-  $(info warning : could not find HASH ($(HASH)), needed to differentiate builds using different flags)
-  BUILD_DIR := obj/generic_noconf
-endif
-endif # BUILD_DIR
 
 
 # macOS linker doesn't support -soname, and use different extension
@@ -212,18 +161,15 @@ ifeq ($(UNAME), Darwin)
   SHARED_EXT_VER = $(LIBVER).$(SHARED_EXT)
   SONAME_FLAGS = -install_name $(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR) -compatibility_version $(LIBVER_MAJOR) -current_version $(LIBVER)
 else
-  SONAME_FLAGS = -Wl,-soname=libzstd.$(SHARED_EXT).$(LIBVER_MAJOR)
+  ifeq ($(UNAME), AIX)
+    SONAME_FLAGS =
+  else
+    SONAME_FLAGS = -Wl,-soname=libzstd.$(SHARED_EXT).$(LIBVER_MAJOR)
+  endif
   SHARED_EXT = so
   SHARED_EXT_MAJOR = $(SHARED_EXT).$(LIBVER_MAJOR)
   SHARED_EXT_VER = $(SHARED_EXT).$(LIBVER)
 endif
-
-SET_CACHE_DIRECTORY = \
-   +$(MAKE) --no-print-directory $@ \
-    BUILD_DIR=obj/$(HASH_DIR) \
-    CPPFLAGS="$(CPPFLAGS)" \
-    CFLAGS="$(CFLAGS)" \
-    LDFLAGS="$(LDFLAGS)"
 
 
 .PHONY: all
@@ -232,6 +178,13 @@ all: lib
 
 .PHONY: libzstd.a  # must be run every time
 libzstd.a: CPPFLAGS += $(CPPFLAGS_STATLIB)
+
+SET_CACHE_DIRECTORY = \
+   +$(MAKE) --no-print-directory $@ \
+    BUILD_DIR=obj/$(HASH_DIR) \
+    CPPFLAGS="$(CPPFLAGS)" \
+    CFLAGS="$(CFLAGS)" \
+    LDFLAGS="$(LDFLAGS)"
 
 ifndef BUILD_DIR
 # determine BUILD_DIR from compilation flags
@@ -343,6 +296,14 @@ $(ZSTD_STATLIB_DIR)/%.o : %.c $(ZSTD_STATLIB_DIR)/%.d | $(ZSTD_STATLIB_DIR)
 	@echo CC $@
 	$(COMPILE.c) $(DEPFLAGS) $(ZSTD_STATLIB_DIR)/$*.d $(OUTPUT_OPTION) $<
 
+$(ZSTD_DYNLIB_DIR)/%.o : %.S | $(ZSTD_DYNLIB_DIR)
+	@echo AS $@
+	$(COMPILE.c) $(OUTPUT_OPTION) $<
+
+$(ZSTD_STATLIB_DIR)/%.o : %.S | $(ZSTD_STATLIB_DIR)
+	@echo AS $@
+	$(COMPILE.c) $(OUTPUT_OPTION) $<
+
 MKDIR ?= mkdir
 $(BUILD_DIR) $(ZSTD_DYNLIB_DIR) $(ZSTD_STATLIB_DIR):
 	$(MKDIR) -p $@
@@ -374,7 +335,7 @@ clean:
 #-----------------------------------------------------------------------------
 # make install is validated only for below listed environments
 #-----------------------------------------------------------------------------
-ifneq (,$(filter $(UNAME),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku))
+ifneq (,$(filter $(UNAME),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku AIX))
 
 all: libzstd.pc
 

@@ -148,7 +148,7 @@ clean:
 #------------------------------------------------------------------------------
 # make install is validated only for Linux, macOS, Hurd and some BSD targets
 #------------------------------------------------------------------------------
-ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD DragonFly NetBSD MSYS_NT Haiku))
+ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD DragonFly NetBSD MSYS_NT Haiku AIX))
 
 HOST_OS = POSIX
 
@@ -217,7 +217,7 @@ armbuild: clean
 	CC=arm-linux-gnueabi-gcc CFLAGS="-Werror" $(MAKE) allzstd
 
 aarch64build: clean
-	CC=aarch64-linux-gnu-gcc CFLAGS="-Werror" $(MAKE) allzstd
+	CC=aarch64-linux-gnu-gcc CFLAGS="-Werror -O0" $(MAKE) allzstd
 
 ppcbuild: clean
 	CC=powerpc-linux-gnu-gcc CFLAGS="-m32 -Wno-attributes -Werror" $(MAKE) -j allzstd
@@ -381,23 +381,23 @@ cmakebuild:
 
 c89build: clean
 	$(CC) -v
-	CFLAGS="-std=c89 -Werror" $(MAKE) allmost  # will fail, due to missing support for `long long`
+	CFLAGS="-std=c89 -Werror -O0" $(MAKE) allmost  # will fail, due to missing support for `long long`
 
 gnu90build: clean
 	$(CC) -v
-	CFLAGS="-std=gnu90 -Werror" $(MAKE) allmost
+	CFLAGS="-std=gnu90 -Werror -O0" $(MAKE) allmost
 
 c99build: clean
 	$(CC) -v
-	CFLAGS="-std=c99 -Werror" $(MAKE) allmost
+	CFLAGS="-std=c99 -Werror -O0" $(MAKE) allmost
 
 gnu99build: clean
 	$(CC) -v
-	CFLAGS="-std=gnu99 -Werror" $(MAKE) allmost
+	CFLAGS="-std=gnu99 -Werror -O0" $(MAKE) allmost
 
 c11build: clean
 	$(CC) -v
-	CFLAGS="-std=c11 -Werror" $(MAKE) allmost
+	CFLAGS="-std=c11 -Werror -O0" $(MAKE) allmost
 
 bmix64build: clean
 	$(CC) -v
@@ -416,5 +416,5 @@ bmi32build: clean
 staticAnalyze: SCANBUILD ?= scan-build
 staticAnalyze:
 	$(CC) -v
-	CC=$(CC) CPPFLAGS=-g $(SCANBUILD) --status-bugs -v $(MAKE) allzstd examples contrib
+	CC=$(CC) CPPFLAGS=-g $(SCANBUILD) --status-bugs -v $(MAKE) zstd
 endif

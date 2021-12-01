@@ -31,8 +31,8 @@
     `parameters` is optional and can be provided with values set to 0, meaning "default".
     @return : 0 == ok. Any other : error.
 */
-int DiB_trainFromFiles(const char* dictFileName, unsigned maxDictSize,
-                       const char** fileNamesTable, unsigned nbFiles, size_t chunkSize,
+int DiB_trainFromFiles(const char* dictFileName, size_t maxDictSize,
+                       const char** fileNamesTable, int nbFiles, size_t chunkSize,
                        ZDICT_legacy_params_t* params, ZDICT_cover_params_t* coverParams,
                        ZDICT_fastCover_params_t* fastCoverParams, int optimize);
 

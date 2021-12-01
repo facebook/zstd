@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-only
+// SPDX-License-Identifier: GPL-2.0+ OR BSD-3-Clause
 /*
  * Copyright (c) Facebook, Inc.
  * All rights reserved.
@@ -16,6 +16,43 @@
 
 #include "common/zstd_deps.h"
 #include "common/zstd_internal.h"
+
+#define ZSTD_FORWARD_IF_ERR(ret)            \
+	do {                                \
+		size_t const __ret = (ret); \
+		if (ZSTD_isError(__ret))    \
+			return __ret;       \
+	} while (0)
+
+static size_t zstd_cctx_init(zstd_cctx *cctx, const zstd_parameters *parameters,
+	unsigned long long pledged_src_size)
+{
+	ZSTD_FORWARD_IF_ERR(ZSTD_CCtx_reset(
+		cctx, ZSTD_reset_session_and_parameters));
+	ZSTD_FORWARD_IF_ERR(ZSTD_CCtx_setPledgedSrcSize(
+		cctx, pledged_src_size));
+	ZSTD_FORWARD_IF_ERR(ZSTD_CCtx_setParameter(
+		cctx, ZSTD_c_windowLog, parameters->cParams.windowLog));
+	ZSTD_FORWARD_IF_ERR(ZSTD_CCtx_setParameter(
+		cctx, ZSTD_c_hashLog, parameters->cParams.hashLog));
+	ZSTD_FORWARD_IF_ERR(ZSTD_CCtx_setParameter(
+		cctx, ZSTD_c_chainLog, parameters->cParams.chainLog));
+	ZSTD_FORWARD_IF_ERR(ZSTD_CCtx_setParameter(
+		cctx, ZSTD_c_searchLog, parameters->cParams.searchLog));
+	ZSTD_FORWARD_IF_ERR(ZSTD_CCtx_setParameter(
+		cctx, ZSTD_c_minMatch, parameters->cParams.minMatch));
+	ZSTD_FORWARD_IF_ERR(ZSTD_CCtx_setParameter(
+		cctx, ZSTD_c_targetLength, parameters->cParams.targetLength));
+	ZSTD_FORWARD_IF_ERR(ZSTD_CCtx_setParameter(
+		cctx, ZSTD_c_strategy, parameters->cParams.strategy));
+	ZSTD_FORWARD_IF_ERR(ZSTD_CCtx_setParameter(
+		cctx, ZSTD_c_contentSizeFlag, parameters->fParams.contentSizeFlag));
+	ZSTD_FORWARD_IF_ERR(ZSTD_CCtx_setParameter(
+		cctx, ZSTD_c_checksumFlag, parameters->fParams.checksumFlag));
+	ZSTD_FORWARD_IF_ERR(ZSTD_CCtx_setParameter(
+		cctx, ZSTD_c_dictIDFlag, !parameters->fParams.noDictIDFlag));
+	return 0;
+}
 
 int zstd_min_clevel(void)
 {
@@ -59,7 +96,8 @@ EXPORT_SYMBOL(zstd_init_cctx);
 size_t zstd_compress_cctx(zstd_cctx *cctx, void *dst, size_t dst_capacity,
 	const void *src, size_t src_size, const zstd_parameters *parameters)
 {
-	return ZSTD_compress_advanced(cctx, dst, dst_capacity, src, src_size, NULL, 0, *parameters);
+	ZSTD_FORWARD_IF_ERR(zstd_cctx_init(cctx, parameters, src_size));
+	return ZSTD_compress2(cctx, dst, dst_capacity, src, src_size);
 }
 EXPORT_SYMBOL(zstd_compress_cctx);
 
@@ -73,7 +111,6 @@ zstd_cstream *zstd_init_cstream(const zstd_parameters *parameters,
 	unsigned long long pledged_src_size, void *workspace, size_t workspace_size)
 {
 	zstd_cstream *cstream;
-	size_t ret;
 
 	if (workspace == NULL)
 		return NULL;
@@ -86,8 +123,7 @@ zstd_cstream *zstd_init_cstream(const zstd_parameters *parameters,
 	if (pledged_src_size == 0)
 		pledged_src_size = ZSTD_CONTENTSIZE_UNKNOWN;
 
-	ret = ZSTD_initCStream_advanced(cstream, NULL, 0, *parameters, pledged_src_size);
-	if (ZSTD_isError(ret))
+	if (ZSTD_isError(zstd_cctx_init(cstream, parameters, pledged_src_size)))
 		return NULL;
 
 	return cstream;

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0-only
+# SPDX-License-Identifier: GPL-2.0+ OR BSD-3-Clause
 # ################################################################
 # Copyright (c) Facebook, Inc.
 # All rights reserved.
@@ -11,7 +11,7 @@
 obj-$(CONFIG_ZSTD_COMPRESS) += zstd_compress.o
 obj-$(CONFIG_ZSTD_DECOMPRESS) += zstd_decompress.o
 
-ccflags-y += -O3
+ccflags-y += -Wno-error=deprecated-declarations
 
 zstd_compress-y := \
 		zstd_compress_module.o \
@@ -41,6 +41,7 @@ zstd_decompress-y := \
 		common/fse_decompress.o \
 		common/zstd_common.o \
 		decompress/huf_decompress.o \
+		decompress/huf_decompress_amd64.o \
 		decompress/zstd_ddict.o \
 		decompress/zstd_decompress.o \
 		decompress/zstd_decompress_block.o \

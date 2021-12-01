@@ -156,7 +156,7 @@ Arguments :
 
 Advanced arguments :
  -V     : display Version number and exit
- -c     : force write to standard output, even if it is the console
+ -c     : write to standard output (even if it is the console)
  -v     : verbose mode; specify multiple times to increase verbosity
  -q     : suppress warnings; specify twice to suppress errors too
 --no-progress : do not display the progress counter
@@ -172,6 +172,7 @@ Advanced compression arguments :
 --long[=#]: enable long distance matching with given window log (default: 27)
 --fast[=#]: switch to very fast compression levels (default: 1)
 --adapt : dynamically adapt compression level to I/O conditions
+--patch-from=FILE : specify the file to be used as a reference point for zstd's diff engine
  -T#    : spawns # compression threads (default: 1, 0==# cores)
  -B#    : select size of each job (default: 0==automatic)
 --single-thread : use a single thread for both I/O and compression (result slightly different than -T1)

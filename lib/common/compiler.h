@@ -292,24 +292,24 @@
  * which remains valid for both user & kernel spaces.
  */
 
-#ifndef MEM_ALIGN_COND
+#ifndef ZSTD_ALIGNOF
 # if defined(__GNUC__) || defined(_MSC_VER)
 /* covers gcc, clang & MSVC */
 /* note : this section must come first, before C11,
  * due to a limitation in the kernel source generator */
-#  define MEM_ALIGN_COND(T) __alignof(T)
+#  define ZSTD_ALIGNOF(T) __alignof(T)
 
 # elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
 /* C11 support */
 #  include <stdalign.h>
-#  define MEM_ALIGN_COND(T) alignof(T)
+#  define ZSTD_ALIGNOF(T) alignof(T)
 
 # else
 /* No known support for alignof() - imperfect backup */
-#  define MEM_ALIGN_COND(T) (sizeof(void*) < sizeof(T) ? sizeof(void*) : sizeof(T))
+#  define ZSTD_ALIGNOF(T) (sizeof(void*) < sizeof(T) ? sizeof(void*) : sizeof(T))
 
 # endif
-#endif /* MEM_ALIGN_COND */
+#endif /* ZSTD_ALIGNOF */
 
 /*-**************************************************************
 *  Sanitizer

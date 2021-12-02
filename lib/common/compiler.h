@@ -306,7 +306,7 @@
 
 # else
 /* No known support for alignof() - imperfect backup */
-#  define MEM_ALIGN_COND(T) sizeof(T)
+#  define MEM_ALIGN_COND(T) (sizeof(void*) < sizeof(T) ? sizeof(void*) : sizeof(T))
 
 # endif
 #endif /* MEM_ALIGN_COND */

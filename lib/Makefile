@@ -8,92 +8,6 @@
 # You may select, at your option, one of the above-listed licenses.
 # ################################################################
 
-# Note: by default, the static library is built single-threaded and dynamic library is built
-# multi-threaded. It is possible to force multi or single threaded builds by appending
-# -mt or -nomt to the build target (like lib-mt for multi-threaded, lib-nomt for single-threaded).
-.PHONY: default
-default: lib-release
-
-# define silent mode as default (verbose mode with V=1 or VERBOSE=1)
-$(V)$(VERBOSE).SILENT:
-
-# When cross-compiling from linux to windows,
-# one might need to specify TARGET_SYSTEM as "Windows."
-# Building from Fedora fails without it.
-# (but Ubuntu and Debian don't need to set anything)
-TARGET_SYSTEM ?= $(OS)
-
-# Version numbers
-LIBVER_MAJOR_SCRIPT:=`sed -n '/define ZSTD_VERSION_MAJOR/s/.*[[:blank:]]\([0-9][0-9]*\).*/\1/p' < ./zstd.h`
-LIBVER_MINOR_SCRIPT:=`sed -n '/define ZSTD_VERSION_MINOR/s/.*[[:blank:]]\([0-9][0-9]*\).*/\1/p' < ./zstd.h`
-LIBVER_PATCH_SCRIPT:=`sed -n '/define ZSTD_VERSION_RELEASE/s/.*[[:blank:]]\([0-9][0-9]*\).*/\1/p' < ./zstd.h`
-LIBVER_SCRIPT:= $(LIBVER_MAJOR_SCRIPT).$(LIBVER_MINOR_SCRIPT).$(LIBVER_PATCH_SCRIPT)
-LIBVER_MAJOR := $(shell echo $(LIBVER_MAJOR_SCRIPT))
-LIBVER_MINOR := $(shell echo $(LIBVER_MINOR_SCRIPT))
-LIBVER_PATCH := $(shell echo $(LIBVER_PATCH_SCRIPT))
-LIBVER := $(shell echo $(LIBVER_SCRIPT))
-VERSION?= $(LIBVER)
-CCVER := $(shell $(CC) --version)
-
-# ZSTD_LIB_MINIFY is a helper variable that
-# configures a bunch of other variables to space-optimized defaults.
-ZSTD_LIB_MINIFY ?= 0
-ifneq ($(ZSTD_LIB_MINIFY), 0)
-  HAVE_CC_OZ ?= $(shell echo "" | $(CC) -Oz -x c -c - -o /dev/null 2> /dev/null && echo 1 || echo 0)
-  ZSTD_LEGACY_SUPPORT ?= 0
-  ZSTD_LIB_DEPRECATED ?= 0
-  HUF_FORCE_DECOMPRESS_X1 ?= 1
-  ZSTD_FORCE_DECOMPRESS_SHORT ?= 1
-  ZSTD_NO_INLINE ?= 1
-  ZSTD_STRIP_ERROR_STRINGS ?= 1
-ifneq ($(HAVE_CC_OZ), 0)
-    # Some compilers (clang) support an even more space-optimized setting.
-    CFLAGS += -Oz
-else
-    CFLAGS += -Os
-endif
-  CFLAGS += -fno-stack-protector -fomit-frame-pointer -fno-ident \
-            -DDYNAMIC_BMI2=0 -DNDEBUG
-else
-  CFLAGS += -O3
-endif
-
-DEBUGLEVEL ?= 0
-CPPFLAGS += -DXXH_NAMESPACE=ZSTD_ -DDEBUGLEVEL=$(DEBUGLEVEL)
-ifeq ($(TARGET_SYSTEM),Windows_NT)   # MinGW assumed
-  CPPFLAGS += -D__USE_MINGW_ANSI_STDIO   # compatibility with %zu formatting
-endif
-DEBUGFLAGS= -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
-            -Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
-            -Wstrict-prototypes -Wundef -Wpointer-arith \
-            -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings \
-            -Wredundant-decls -Wmissing-prototypes -Wc++-compat
-CFLAGS   += $(DEBUGFLAGS) $(MOREFLAGS)
-FLAGS     = $(CPPFLAGS) $(CFLAGS)
-
-CPPFLAGS_DYNLIB  += -DZSTD_MULTITHREAD # dynamic library build defaults to multi-threaded
-LDFLAGS_DYNLIB   += -pthread
-CPPFLAGS_STATLIB +=                    # static library build defaults to single-threaded
-
-HAVE_COLORNEVER = $(shell echo a | grep --color=never a > /dev/null 2> /dev/null && echo 1 || echo 0)
-GREP_OPTIONS ?=
-ifeq ($HAVE_COLORNEVER, 1)
-  GREP_OPTIONS += --color=never
-endif
-GREP = grep $(GREP_OPTIONS)
-SED_ERE_OPT ?= -E
-
-ZSTDCOMMON_FILES := $(sort $(wildcard common/*.c))
-ZSTDCOMP_FILES := $(sort $(wildcard compress/*.c))
-ZSTDDECOMP_FILES := $(sort $(wildcard decompress/*.c))
-ZDICT_FILES := $(sort $(wildcard dictBuilder/*.c))
-ZDEPR_FILES := $(sort $(wildcard deprecated/*.c))
-ZSTD_FILES := $(ZSTDCOMMON_FILES)
-
-ifeq ($(findstring GCC,$(CCVER)),GCC)
-decompress/zstd_decompress_block.o : CFLAGS+=-fno-tree-vectorize
-endif
-
 # Modules
 ZSTD_LIB_COMPRESSION ?= 1
 ZSTD_LIB_DECOMPRESSION ?= 1
@@ -143,9 +57,9 @@ VERSION := $(ZSTD_VERSION)
 .PHONY: default
 default: lib-release
 
-CPPFLAGS_DYNLIB  = -DZSTD_MULTITHREAD # dynamic library build defaults to multi-threaded
-LDFLAGS_DYNLIB   = -pthread
-CPPFLAGS_STATLIB =                    # static library build defaults to single-threaded
+CPPFLAGS_DYNLIB  += -DZSTD_MULTITHREAD # dynamic library build defaults to multi-threaded
+LDFLAGS_DYNLIB   += -pthread
+CPPFLAGS_STATLIB +=                    # static library build defaults to single-threaded
 
 
 ifeq ($(findstring GCC,$(CCVER)),GCC)

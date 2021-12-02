@@ -81,26 +81,6 @@ extern "C" {
 
 
 /*-**************************************************************
-*  Alignment check
-*****************************************************************/
-
-/* C11 support */
-#if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
-
-#include <stdalign.h>
-# define MEM_ALIGN_COND(T) alignof(T)
-
-#elif defined(__GNUC__) || defined(_MSC_VER)
-
-# define MEM_ALIGN_COND(T) __alignof(T)
-
-#else
-
-# define MEM_ALIGN_COND(T) 1  /* most likely incorrect, just to pass tests */
-
-#endif
-
-/*-**************************************************************
 *  Memory I/O API
 *****************************************************************/
 /*=== Static platform detection ===*/

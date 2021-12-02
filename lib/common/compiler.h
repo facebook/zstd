@@ -282,6 +282,39 @@
 # endif
 #endif
 
+/*-**************************************************************
+*  Alignment check
+*****************************************************************/
+
+/* this test was initially positioned in mem.h,
+ * but this file is removed (or replaced) for linux kernel
+ * so it's now hosted in compiler.h,
+ * which remains valid for both user & kernel spaces.
+ */
+
+#ifndef MEM_ALIGN_COND
+# if defined(__GNUC__) || defined(_MSC_VER)
+/* covers gcc, clang & MSVC */
+/* note : this section must come first, before C11,
+ * due to a limitation in the kernel source generator */
+#  define MEM_ALIGN_COND(T) __alignof(T)
+
+# elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
+/* C11 support */
+#  include <stdalign.h>
+#  define MEM_ALIGN_COND(T) alignof(T)
+
+# else
+/* No known support for alignof() - imperfect backup */
+#  define MEM_ALIGN_COND(T) sizeof(T)
+
+# endif
+#endif /* MEM_ALIGN_COND */
+
+/*-**************************************************************
+*  Sanitizer
+*****************************************************************/
+
 #if ZSTD_MEMORY_SANITIZER
 /* Not all platforms that support msan provide sanitizers/msan_interface.h.
  * We therefore declare the functions we need ourselves, rather than trying to

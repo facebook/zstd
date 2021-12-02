@@ -45,7 +45,7 @@ ZSTDDECOMP_FILES := $(sort $(ZSTD_DECOMPRESS_FILES))
 ZSTD_FILES  := $(ZSTDDECOMP_FILES) $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES)
 ZDICT_FILES := $(sort $(ZSTD_DICTBUILDER_FILES))
 
-ZSTD_F1 := $(wildcard $(ZSTD_FILES))
+ZSTD_F1 := $(sort $(wildcard $(ZSTD_FILES)))
 ZSTD_OBJ1 := $(subst $(ZSTDDIR)/common/,zstdm_,$(ZSTD_F1))
 ZSTD_OBJ2 := $(subst $(ZSTDDIR)/compress/,zstdc_,$(ZSTD_OBJ1))
 ZSTD_OBJ3 := $(subst $(ZSTDDIR)/decompress/,zstdd_,$(ZSTD_OBJ2))
@@ -206,7 +206,7 @@ bigdict: $(ZSTDMT_OBJECTS) $(PRGDIR)/datagen.c bigdict.c
 invalidDictionaries : $(ZSTD_OBJECTS) invalidDictionaries.c
 
 legacy : CPPFLAGS += -I$(ZSTDDIR)/legacy -UZSTD_LEGACY_SUPPORT -DZSTD_LEGACY_SUPPORT=4
-legacy : $(ZSTD_FILES) $(wildcard $(ZSTDDIR)/legacy/*.c) legacy.c
+legacy : $(ZSTD_FILES) $(sort $(wildcard $(ZSTDDIR)/legacy/*.c)) legacy.c
 
 decodecorpus : LDLIBS += -lm
 decodecorpus : $(filter-out zstdc_zstd_compress.o, $(ZSTD_OBJECTS)) $(ZDICT_FILES) $(PRGDIR)/util.c $(PRGDIR)/timefn.c decodecorpus.c

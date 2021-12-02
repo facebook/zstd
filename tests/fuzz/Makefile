@@ -68,7 +68,7 @@ FUZZ_SRC       := \
 	$(ZSTDCOMP_SRC) \
 	$(ZSTDDICT_SRC) \
 	$(ZSTDLEGACY_SRC)
-FUZZ_SRC := $(wildcard $(FUZZ_SRC))
+FUZZ_SRC := $(sort $(wildcard $(FUZZ_SRC)))
 
 FUZZ_D_OBJ1 := $(subst $(ZSTDDIR)/common/,d_lib_common_,$(FUZZ_SRC))
 FUZZ_D_OBJ2 := $(subst $(ZSTDDIR)/compress/,d_lib_compress_,$(FUZZ_D_OBJ1))

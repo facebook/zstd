@@ -294,7 +294,6 @@ jobs:
         LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
     - name: M68K
       if: ${{ matrix.name == 'M68K' }}
-      continue-on-error: true   # disable reporting errors (alignment issues)
       run: |
         LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
 

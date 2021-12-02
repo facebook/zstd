@@ -422,8 +422,8 @@ MEM_STATIC void* ZSTD_cwksp_reserve_object(ZSTD_cwksp* ws, size_t bytes) {
     DEBUGLOG(5,
         "cwksp: reserving %p object %zd bytes (rounded to %zd), %zd bytes remaining",
         alloc, bytes, roundedBytes, ZSTD_cwksp_available_space(ws) - roundedBytes);
-    assert(((size_t)alloc & (sizeof(void*)-1)) == 0);
-    assert((bytes & (sizeof(void*)-1)) == 0);
+    assert((size_t)alloc % ZSTD_ALIGNOF(void*) == 0);
+    assert(bytes % ZSTD_ALIGNOF(void*) == 0);
     ZSTD_cwksp_assert_internal_consistency(ws);
     /* we must be in the first phase, no advance is possible */
     if (ws->phase != ZSTD_cwksp_alloc_objects || end > ws->workspaceEnd) {

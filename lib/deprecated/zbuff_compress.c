@@ -15,7 +15,7 @@
 ***************************************/
 #define ZBUFF_STATIC_LINKING_ONLY
 #include "zbuff.h"
-#include "error_private.h"
+#include "../common/error_private.h"
 
 
 /*-***********************************************************

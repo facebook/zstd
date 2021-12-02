@@ -62,15 +62,6 @@
 #define vard2  r10d
 #define vard3  r11d
 
-/* Helper macro: args if idx != 4. */
-#define IF_NOT_4_0(...) __VA_ARGS__
-#define IF_NOT_4_1(...) __VA_ARGS__
-#define IF_NOT_4_2(...) __VA_ARGS__
-#define IF_NOT_4_3(...) __VA_ARGS__
-#define IF_NOT_4_4(...)
-#define IF_NOT_4_(idx, ...) IF_NOT_4_##idx(__VA_ARGS__)
-#define IF_NOT_4(idx, ...) IF_NOT_4_(idx, __VA_ARGS__)
-
 /* Calls X(N) for each stream 0, 1, 2, 3. */
 #define FOR_EACH_STREAM(X) \
     X(0);                  \
@@ -211,11 +202,11 @@ HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop:
     movb %ah, idx(%op##n)
 
 /* Assumes GET_NEXT_DELT has been called.
- * Calls DECODE_FROM_DELT then GET_NEXT_DELT if n < 4
+ * Calls DECODE_FROM_DELT then GET_NEXT_DELT
  */
-#define DECODE(n, idx)              \
+#define DECODE_AND_GET_NEXT(n, idx) \
     DECODE_FROM_DELT(n, idx);       \
-    IF_NOT_4(idx, GET_NEXT_DELT(n))
+    GET_NEXT_DELT(n)                \
 
 /* // ctz & nbBytes is stored in bits[n]
  * // nbBits is stored in %rax
@@ -254,11 +245,11 @@ HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop:
     /* Decode 5 symbols in each of the 4 streams (20 total)
      * Must have called GET_NEXT_DELT for each stream
      */
-    FOR_EACH_STREAM_WITH_INDEX(DECODE, 0)
-    FOR_EACH_STREAM_WITH_INDEX(DECODE, 1)
-    FOR_EACH_STREAM_WITH_INDEX(DECODE, 2)
-    FOR_EACH_STREAM_WITH_INDEX(DECODE, 3)
-    FOR_EACH_STREAM_WITH_INDEX(DECODE, 4)
+    FOR_EACH_STREAM_WITH_INDEX(DECODE_AND_GET_NEXT, 0)
+    FOR_EACH_STREAM_WITH_INDEX(DECODE_AND_GET_NEXT, 1)
+    FOR_EACH_STREAM_WITH_INDEX(DECODE_AND_GET_NEXT, 2)
+    FOR_EACH_STREAM_WITH_INDEX(DECODE_AND_GET_NEXT, 3)
+    FOR_EACH_STREAM_WITH_INDEX(DECODE_FROM_DELT, 4)
 
     /* Load ip[1,2,3] from stack (var[] aliases them)
      * ip[] is needed for RELOAD_BITS

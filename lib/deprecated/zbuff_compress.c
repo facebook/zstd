@@ -72,14 +72,36 @@ size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc,
                                    const void* dict, size_t dictSize,
                                    ZSTD_parameters params, unsigned long long pledgedSrcSize)
 {
+    size_t ret;
     if (pledgedSrcSize==0) pledgedSrcSize = ZSTD_CONTENTSIZE_UNKNOWN;  /* preserve "0 == unknown" behavior */
-    return ZSTD_initCStream_advanced(zbc, dict, dictSize, params, pledgedSrcSize);
+    ret = ZSTD_CCtx_reset(zbc, ZSTD_reset_session_only);
+    ret = ZSTD_isError(ret) ? ret : ZSTD_CCtx_setPledgedSrcSize(zbc, pledgedSrcSize);
+
+    ret = ZSTD_isError(ret) ? ret : ZSTD_checkCParams(params.cParams);
+    ret = ZSTD_isError(ret) ? ret : ZSTD_CCtx_setParameter(zbc, ZSTD_c_windowLog, params.cParams.windowLog);
+    ret = ZSTD_isError(ret) ? ret : ZSTD_CCtx_setParameter(zbc, ZSTD_c_hashLog, params.cParams.hashLog);
+    ret = ZSTD_isError(ret) ? ret : ZSTD_CCtx_setParameter(zbc, ZSTD_c_chainLog, params.cParams.chainLog);
+    ret = ZSTD_isError(ret) ? ret : ZSTD_CCtx_setParameter(zbc, ZSTD_c_searchLog, params.cParams.searchLog);
+    ret = ZSTD_isError(ret) ? ret : ZSTD_CCtx_setParameter(zbc, ZSTD_c_minMatch, params.cParams.minMatch);
+    ret = ZSTD_isError(ret) ? ret : ZSTD_CCtx_setParameter(zbc, ZSTD_c_targetLength, params.cParams.targetLength);
+    ret = ZSTD_isError(ret) ? ret : ZSTD_CCtx_setParameter(zbc, ZSTD_c_strategy, params.cParams.strategy);
+
+    ret = ZSTD_isError(ret) ? ret : ZSTD_CCtx_setParameter(zbc, ZSTD_c_contentSizeFlag, params.fParams.contentSizeFlag);
+    ret = ZSTD_isError(ret) ? ret : ZSTD_CCtx_setParameter(zbc, ZSTD_c_checksumFlag, params.fParams.checksumFlag);
+    ret = ZSTD_isError(ret) ? ret : ZSTD_CCtx_setParameter(zbc, ZSTD_c_dictIDFlag, params.fParams.noDictIDFlag);
+
+    ret = ZSTD_isError(ret) ? ret : ZSTD_CCtx_loadDictionary(zbc, dict, dictSize);
+    return ZSTD_isError(ret) ? ret : 0;
 }
 
 
 size_t ZBUFF_compressInitDictionary(ZBUFF_CCtx* zbc, const void* dict, size_t dictSize, int compressionLevel)
 {
-    return ZSTD_initCStream_usingDict(zbc, dict, dictSize, compressionLevel);
+    size_t ret;
+    ret = ZSTD_CCtx_reset(zbc, ZSTD_reset_session_only);
+    ret = ZSTD_isError(ret) ? ret : ZSTD_CCtx_setParameter(zbc, ZSTD_c_compressionLevel, compressionLevel);
+    ret = ZSTD_isError(ret) ? ret : ZSTD_CCtx_loadDictionary(zbc, dict, dictSize);
+    return ZSTD_isError(ret) ? ret : 0;
 }
 
 size_t ZBUFF_compressInit(ZBUFF_CCtx* zbc, int compressionLevel)

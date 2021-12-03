@@ -1,4 +1,6 @@
-#if !defined(HUF_DISABLE_ASM) && defined(__x86_64__)
+#include "../common/portability_macros.h"
+
+#if ZSTD_ENABLE_ASM_X86_64_BMI2
 
 /* Stack marking
  * ref: https://wiki.gentoo.org/wiki/Hardened/GNU_stack_quickstart

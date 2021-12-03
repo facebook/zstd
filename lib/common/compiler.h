@@ -11,6 +11,8 @@
 #ifndef ZSTD_COMPILER_H
 #define ZSTD_COMPILER_H
 
+#include "portability_macros.h"
+
 /*-*******************************************************
 *  Compiler specifics
 *********************************************************/
@@ -92,9 +94,6 @@
 
 
 /* target attribute */
-#ifndef __has_attribute
-  #define __has_attribute(x) 0  /* Compatibility with non-clang compilers. */
-#endif
 #if defined(__GNUC__) || defined(__ICCARM__)
 #  define TARGET_ATTRIBUTE(target) __attribute__((__target__(target)))
 #else
@@ -106,22 +105,6 @@
  * We test for bmi1 & bmi2. lzcnt is included in bmi1.
  */
 #define BMI2_TARGET_ATTRIBUTE TARGET_ATTRIBUTE("lzcnt,bmi,bmi2")
-
-
-/* Enable runtime BMI2 dispatch based on the CPU.
- * Enabled for clang & gcc >=4.8 on x86 when BMI2 isn't enabled by default.
- */
-#ifndef DYNAMIC_BMI2
-  #if ((defined(__clang__) && __has_attribute(__target__)) \
-      || (defined(__GNUC__) \
-          && (__GNUC__ >= 5 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)))) \
-      && (defined(__x86_64__) || defined(_M_X64)) \
-      && !defined(__BMI2__)
-  #  define DYNAMIC_BMI2 1
-  #else
-  #  define DYNAMIC_BMI2 0
-  #endif
-#endif
 
 /* prefetch
  * can be disabled, by declaring NO_PREFETCH build macro */
@@ -221,16 +204,6 @@
 #  endif
 #endif
 
-/* compat. with non-clang compilers */
-#ifndef __has_builtin
-#  define __has_builtin(x) 0
-#endif
-
-/* compat. with non-clang compilers */
-#ifndef __has_feature
-#  define __has_feature(x) 0
-#endif
-
 /* C-language Attributes are added in C23. */
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ > 201710L) && defined(__has_c_attribute)
 # define ZSTD_HAS_C_ATTRIBUTE(x) __has_c_attribute(x)
@@ -264,24 +237,6 @@
 #  define ZSTD_FALLTHROUGH ; __attribute__((__fallthrough__))
 # else
 #  define ZSTD_FALLTHROUGH
-# endif
-#endif
-
-/* detects whether we are being compiled under msan */
-#ifndef ZSTD_MEMORY_SANITIZER
-#  if __has_feature(memory_sanitizer)
-#    define ZSTD_MEMORY_SANITIZER 1
-#  else
-#    define ZSTD_MEMORY_SANITIZER 0
-#  endif
-#endif
-
-/* detects whether we are being compiled undef dfsan */
-#ifndef ZSTD_DATAFLOW_SANITIZER
-# if __has_feature(dataflow_sanitizer)
-#  define ZSTD_DATAFLOW_SANITIZER 1
-# else
-#  define ZSTD_DATAFLOW_SANITIZER 0
 # endif
 #endif
 
@@ -337,17 +292,6 @@ void __msan_poison(const volatile void *a, size_t size);
 /* Returns the offset of the first (at least partially) poisoned byte in the
    memory range, or -1 if the whole range is good. */
 intptr_t __msan_test_shadow(const volatile void *x, size_t size);
-#endif
-
-/* detects whether we are being compiled under asan */
-#ifndef ZSTD_ADDRESS_SANITIZER
-#  if __has_feature(address_sanitizer)
-#    define ZSTD_ADDRESS_SANITIZER 1
-#  elif defined(__SANITIZE_ADDRESS__)
-#    define ZSTD_ADDRESS_SANITIZER 1
-#  else
-#    define ZSTD_ADDRESS_SANITIZER 0
-#  endif
 #endif
 
 #if ZSTD_ADDRESS_SANITIZER

@@ -164,6 +164,28 @@ jobs:
           make clean
           CC=clang MOREFLAGS="-Werror -Wimplicit-fallthrough -O0" make -C lib -j libzstd.a ZSTD_LEGACY_SUPPORT=0
 
+  cmake-visual-2019:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        include:
+          - generator: "Visual Studio 16 2019"
+            flags: "-A x64"
+          - generator: "Visual Studio 16 2019"
+            flags: "-A Win32"
+          - generator: "MinGW Makefiles"
+    steps:
+    - uses: actions/checkout@v2
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v1.0.2
+    - name: Build
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: |
+        cd build\cmake
+        mkdir build
+        cd build
+        cmake.exe -G "${{matrix.generator}}" ${{matrix.flags}} ..
+        cmake.exe --build .
 
   visual-2019:
     runs-on: windows-latest

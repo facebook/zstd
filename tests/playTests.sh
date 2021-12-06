@@ -257,7 +257,7 @@ zstd -d -f tmp.zst --memlimit=2K -c > $INTOVOID && die "decompression needs more
 zstd -d -f tmp.zst --memory=2K -c > $INTOVOID && die "decompression needs more memory than allowed"  # long command
 zstd -d -f tmp.zst --memlimit-decompress=2K -c > $INTOVOID && die "decompression needs more memory than allowed"  # long command
 println "test : overwrite protection"
-echo "no" | zstd -q tmp && die "overwrite check failed!"
+zstd -q tmp && die "overwrite check failed!"
 println "test : force overwrite"
 zstd -q -f tmp
 zstd -q --force tmp
@@ -266,7 +266,7 @@ rm -f tmpro tmpro.zst
 println foo > tmpro.zst
 println foo > tmpro
 chmod 400 tmpro.zst
-echo "no" | zstd -q tmpro && die "should have refused to overwrite read-only file"
+zstd -q tmpro && die "should have refused to overwrite read-only file"
 zstd -q -f tmpro
 println "test: --no-progress flag"
 zstd tmpro -c --no-progress | zstd -d -f -o "$INTOVOID" --no-progress
@@ -351,8 +351,8 @@ zstd < tmpPrompt -o tmpPrompt.zst -f    # should successfully overwrite with -f
 zstd -q -d -f tmpPrompt.zst -o tmpPromptRegenerated
 $DIFF tmpPromptRegenerated tmpPrompt    # the first 'y' character should not be swallowed
 
-echo 'yes' | zstd tmpPrompt -o tmpPrompt.zst  # accept piped "y" input to force overwrite when using files
-echo 'yes' | zstd < tmpPrompt -o tmpPrompt.zst && die "should have aborted immediately and failed to overwrite"
+echo 'yes' | zstd tmpPrompt -v -o tmpPrompt.zst  # accept piped "y" input to force overwrite when using files
+echo 'yes' | zstd < tmpPrompt -v -o tmpPrompt.zst && die "should have aborted immediately and failed to overwrite"
 zstd tmpPrompt - < tmpPrompt -o tmpPromp.zst --rm && die "should have aborted immediately and failed to remove"
 
 println "Test completed"
@@ -416,15 +416,15 @@ zstd tmp1.zst tmp2.zst -o "$INTOVOID" -f
 zstd -d tmp1.zst tmp2.zst -o tmp
 touch tmpexists
 zstd tmp1 tmp2 -f -o tmpexists
-echo "no" | zstd tmp1 tmp2 -q -o tmpexists && die "should have refused to overwrite"
+zstd tmp1 tmp2 -q -o tmpexists && die "should have refused to overwrite"
 println gooder > tmp_rm1
 println boi > tmp_rm2
 println worldly > tmp_rm3
-echo 'y' | zstd tmp_rm1 tmp_rm2 -o tmp_rm3.zst --rm     # tests the warning prompt for --rm with multiple inputs into once source
+echo 'y' | zstd tmp_rm1 tmp_rm2 -v -o tmp_rm3.zst --rm     # tests the warning prompt for --rm with multiple inputs into once source
 test ! -f tmp_rm1
 test ! -f tmp_rm2
 cp tmp_rm3.zst tmp_rm4.zst
-echo 'Y' | zstd -d tmp_rm3.zst tmp_rm4.zst -o tmp_rm_out --rm
+echo 'Y' | zstd -d tmp_rm3.zst tmp_rm4.zst -v -o tmp_rm_out --rm
 test ! -f tmp_rm3.zst
 test ! -f tmp_rm4.zst
 echo 'yes' | zstd tmp_rm_out tmp_rm3 -c --rm && die "compressing multiple files to stdout with --rm should fail unless -f is specified"

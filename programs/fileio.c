@@ -742,6 +742,8 @@ static size_t FIO_createDictBuffer(void** bufferPtr, const char* fileName, FIO_p
     if (fileHandle==NULL) EXM_THROW(31, "%s: %s", fileName, strerror(errno));
 
     fileSize = UTIL_getFileSize(fileName);
+    if (fileSize == UTIL_FILESIZE_UNKNOWN) 
+    	EXM_THROW(32, "This file format is not supported : Dictionary file %s\n", fileName);
     {
         size_t const dictSizeMax = prefs->patchFromMode ? prefs->memLimit : DICTSIZE_MAX;
         if (fileSize >  dictSizeMax) {

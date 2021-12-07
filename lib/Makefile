@@ -175,7 +175,7 @@ endif  # if windows
 libzstd : $(LIBZSTD)
 
 .PHONY: lib
-lib : libzstd.a libzstd
+lib : libzstd.a libzstd libzstd.pc
 
 
 # note : do not define lib-mt or lib-release as .PHONY
@@ -246,6 +246,18 @@ clean:
 	$(RM) -r obj/*
 	@echo Cleaning library completed
 
+libzstd.pc:
+libzstd.pc: libzstd.pc.in
+	@echo creating pkgconfig
+	@sed $(SED_ERE_OPT) \
+		-e 's|@PREFIX@|$(PREFIX)|' \
+		-e 's|@EXEC_PREFIX@|$(PCEXEC_PREFIX)|' \
+		-e 's|@INCLUDEDIR@|$(PCINCPREFIX)$(PCINCDIR)|' \
+		-e 's|@LIBDIR@|$(PCLIBPREFIX)$(PCLIBDIR)|' \
+		-e 's|@VERSION@|$(VERSION)|' \
+		-e 's|@LIBS_PRIVATE@|$(LDFLAGS_DYNLIB)|' \
+		$< >$@
+
 #-----------------------------------------------------------------------------
 # make install is validated only for below listed environments
 #-----------------------------------------------------------------------------
@@ -295,17 +307,6 @@ endif
 INSTALL_PROGRAM ?= $(INSTALL)
 INSTALL_DATA    ?= $(INSTALL) -m 644
 
-
-libzstd.pc:
-libzstd.pc: libzstd.pc.in
-	@echo creating pkgconfig
-	@sed $(SED_ERE_OPT) \
-	        -e 's|@PREFIX@|$(PREFIX)|' \
-	        -e 's|@EXEC_PREFIX@|$(PCEXEC_PREFIX)|' \
-          -e 's|@INCLUDEDIR@|$(PCINCPREFIX)$(PCINCDIR)|' \
-          -e 's|@LIBDIR@|$(PCLIBPREFIX)$(PCLIBDIR)|' \
-          -e 's|@VERSION@|$(VERSION)|' \
-          $< >$@
 
 .PHONY: install
 install: install-pc install-static install-shared install-includes

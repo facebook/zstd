@@ -1550,12 +1550,17 @@ static range_t ZSTDMT_getInputDataInUse(ZSTDMT_CCtx* mtctx)
 static int ZSTDMT_isOverlapped(buffer_t buffer, range_t range)
 {
     BYTE const* const bufferStart = (BYTE const*)buffer.start;
+
+    if (bufferStart == NULL)
+        return 0;
+
     BYTE const* const bufferEnd = bufferStart + buffer.capacity;
     BYTE const* const rangeStart = (BYTE const*)range.start;
+    if (rangeStart == NULL)
+	return 0;
+
     BYTE const* const rangeEnd = range.size != 0 ? rangeStart + range.size : rangeStart;
 
-    if (rangeStart == NULL || bufferStart == NULL)
-        return 0;
     /* Empty ranges cannot overlap */
     if (bufferStart == bufferEnd || rangeStart == rangeEnd)
         return 0;

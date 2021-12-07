@@ -547,10 +547,7 @@ static size_t ZDICT_trainBuffer_legacy(dictItem* dictList, U32 dictListSize,
                             unsigned minRatio, U32 notificationLevel)
 {
     int* const suffix0 = (int*)malloc((bufferSize+2)*sizeof(*suffix0));
-    if (!suffix0) {
-        result = ERROR(memory_allocation);
-	goto _cleanup;
-    } 
+    if (!suffix0) return 0;
     int* const suffix = suffix0+1;
     U32* reverseSuffix = (U32*)malloc((bufferSize)*sizeof(*reverseSuffix));
     BYTE* doneMarks = (BYTE*)malloc((bufferSize+16)*sizeof(*doneMarks));   /* +16 for overflow security */

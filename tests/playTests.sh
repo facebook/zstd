@@ -351,8 +351,8 @@ zstd < tmpPrompt -o tmpPrompt.zst -f    # should successfully overwrite with -f
 zstd -q -d -f tmpPrompt.zst -o tmpPromptRegenerated
 $DIFF tmpPromptRegenerated tmpPrompt    # the first 'y' character should not be swallowed
 
-echo 'yes' | zstd tmpPrompt -o tmpPrompt.zst  # accept piped "y" input to force overwrite when using files
-echo 'yes' | zstd < tmpPrompt -o tmpPrompt.zst && die "should have aborted immediately and failed to overwrite"
+echo 'yes' | zstd tmpPrompt -v -o tmpPrompt.zst  # accept piped "y" input to force overwrite when using files
+echo 'yes' | zstd < tmpPrompt -v -o tmpPrompt.zst && die "should have aborted immediately and failed to overwrite"
 zstd tmpPrompt - < tmpPrompt -o tmpPromp.zst --rm && die "should have aborted immediately and failed to remove"
 
 println "Test completed"
@@ -371,9 +371,9 @@ test ! -f tmp.zst   # tmp.zst should no longer be present
 println "test : should quietly not remove non-regular file"
 println hello > tmp
 zstd tmp -f -o "$DEVDEVICE" 2>tmplog > "$INTOVOID"
-grep -v "Refusing to remove non-regular file" tmplog
+grep "Refusing to remove non-regular file" tmplog && die
 rm -f tmplog
-zstd tmp -f -o "$INTOVOID" 2>&1 | grep -v "Refusing to remove non-regular file"
+zstd tmp -f -o "$INTOVOID" 2>&1 | grep "Refusing to remove non-regular file" && die
 println "test : --rm on stdin"
 println a | zstd --rm > $INTOVOID   # --rm should remain silent
 rm -f tmp
@@ -420,11 +420,11 @@ zstd tmp1 tmp2 -q -o tmpexists && die "should have refused to overwrite"
 println gooder > tmp_rm1
 println boi > tmp_rm2
 println worldly > tmp_rm3
-echo 'y' | zstd tmp_rm1 tmp_rm2 -o tmp_rm3.zst --rm     # tests the warning prompt for --rm with multiple inputs into once source
+echo 'y' | zstd tmp_rm1 tmp_rm2 -v -o tmp_rm3.zst --rm     # tests the warning prompt for --rm with multiple inputs into once source
 test ! -f tmp_rm1
 test ! -f tmp_rm2
 cp tmp_rm3.zst tmp_rm4.zst
-echo 'Y' | zstd -d tmp_rm3.zst tmp_rm4.zst -o tmp_rm_out --rm
+echo 'Y' | zstd -d tmp_rm3.zst tmp_rm4.zst -v -o tmp_rm_out --rm
 test ! -f tmp_rm3.zst
 test ! -f tmp_rm4.zst
 echo 'yes' | zstd tmp_rm_out tmp_rm3 -c --rm && die "compressing multiple files to stdout with --rm should fail unless -f is specified"

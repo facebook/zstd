@@ -1402,7 +1402,7 @@ int main(int argCount, const char* argv[])
     /* No status message in pipe mode (stdin - stdout) */
     hasStdout = outFileName && !strcmp(outFileName,stdoutmark);
 
-    if (hasStdout && (g_displayLevel==2)) g_displayLevel=1;
+    if ((hasStdout || !IS_CONSOLE(stderr)) && (g_displayLevel==2)) g_displayLevel=1;
 
     /* IO Stream/File */
     FIO_setHasStdoutOutput(fCtx, hasStdout);

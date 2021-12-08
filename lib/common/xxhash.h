@@ -38,6 +38,7 @@
  * Modifications are :
  *   - Removal of XXH3 / XXH128 algorithms, unused within zstd
  *   - prefix names of all symbols, to reduce risks of collisions
+ *   - Replace malloc / free / memcpy by Zstandard's variants
  * This could be achieved at build stage, with CPPFLAGS typically,
  * but doing it directly within source file
  * make it possible for 3rd party to simply grab the directory
@@ -749,6 +750,7 @@ typedef struct { unsigned char digest[sizeof(XXH64_hash_t)]; } XXH64_canonical_t
 XXH_PUBLIC_API void XXH64_canonicalFromHash(XXH64_canonical_t* dst, XXH64_hash_t hash);
 XXH_PUBLIC_API XXH64_hash_t XXH64_hashFromCanonical(const XXH64_canonical_t* src);
 
+#ifndef XXH_NO_XXH3
 /*!
  * @}
  * ************************************************************************
@@ -956,6 +958,7 @@ XXH_PUBLIC_API void XXH128_canonicalFromHash(XXH128_canonical_t* dst, XXH128_has
 XXH_PUBLIC_API XXH128_hash_t XXH128_hashFromCanonical(const XXH128_canonical_t* src);
 
 
+#endif  /* !XXH_NO_XXH3 */
 #endif  /* XXH_NO_LONG_LONG */
 
 /*!
@@ -1025,6 +1028,9 @@ struct XXH64_state_s {
    XXH32_hash_t reserved32;   /*!< Reserved field, needed for padding anyways*/
    XXH64_hash_t reserved64;   /*!< Reserved field. Do not read or write to it. */
 };   /* typedef'd to XXH64_state_t */
+
+
+#ifndef XXH_NO_XXH3
 
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) /* >= C11 */
 #  include <stdalign.h>
@@ -1237,6 +1243,7 @@ XXH3_128bits_reset_withSecretandSeed(XXH3_state_t* statePtr,
                                      XXH64_hash_t seed64);
 
 
+#endif  /* XXH_NO_XXH3 */
 #endif  /* XXH_NO_LONG_LONG */
 #if defined(XXH_INLINE_ALL) || defined(XXH_PRIVATE_API)
 #  define XXH_IMPLEMENTATION

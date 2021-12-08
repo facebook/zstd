@@ -1474,36 +1474,13 @@ XXH3_128bits_reset_withSecretandSeed(XXH3_state_t* statePtr,
 /* *************************************
 *  Includes & Memory related functions
 ***************************************/
-/*
- * Modify the local functions below should you wish to use
- * different memory routines for malloc() and free()
- */
-#include <stdlib.h>
-
-/*!
- * @internal
- * @brief Modify this function to use a different routine than malloc().
- */
-static void* XXH_malloc(size_t s) { return malloc(s); }
-
-/*!
- * @internal
- * @brief Modify this function to use a different routine than free().
- */
-static void XXH_free(void* p) { free(p); }
-
-#include <string.h>
-
-/*!
- * @internal
- * @brief Modify this function to use a different routine than memcpy().
- */
-static void* XXH_memcpy(void* dest, const void* src, size_t size)
-{
-    return memcpy(dest,src,size);
-}
-
-#include <limits.h>   /* ULLONG_MAX */
+/* Modify the local functions below should you wish to use some other memory routines */
+/* for ZSTD_malloc(), ZSTD_free() */
+#define ZSTD_DEPS_NEED_MALLOC
+#include "zstd_deps.h"  /* size_t, ZSTD_malloc, ZSTD_free, ZSTD_memcpy */
+static void* XXH_malloc(size_t s) { return ZSTD_malloc(s); }
+static void  XXH_free  (void* p)  { ZSTD_free(p); }
+static void* XXH_memcpy(void* dest, const void* src, size_t size) { return ZSTD_memcpy(dest,src,size); }
 
 
 /* *************************************

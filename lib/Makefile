@@ -251,7 +251,7 @@ clean:
 #-----------------------------------------------------------------------------
 ifneq (,$(filter $(UNAME),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku AIX))
 
-all: libzstd.pc
+lib: libzstd.pc
 
 HAS_EXPLICIT_EXEC_PREFIX := $(if $(or $(EXEC_PREFIX),$(exec_prefix)),1,)
 
@@ -296,16 +296,16 @@ INSTALL_PROGRAM ?= $(INSTALL)
 INSTALL_DATA    ?= $(INSTALL) -m 644
 
 
-libzstd.pc:
 libzstd.pc: libzstd.pc.in
 	@echo creating pkgconfig
 	@sed $(SED_ERE_OPT) \
 	        -e 's|@PREFIX@|$(PREFIX)|' \
 	        -e 's|@EXEC_PREFIX@|$(PCEXEC_PREFIX)|' \
-          -e 's|@INCLUDEDIR@|$(PCINCPREFIX)$(PCINCDIR)|' \
-          -e 's|@LIBDIR@|$(PCLIBPREFIX)$(PCLIBDIR)|' \
-          -e 's|@VERSION@|$(VERSION)|' \
-          $< >$@
+	        -e 's|@INCLUDEDIR@|$(PCINCPREFIX)$(PCINCDIR)|' \
+	        -e 's|@LIBDIR@|$(PCLIBPREFIX)$(PCLIBDIR)|' \
+	        -e 's|@VERSION@|$(VERSION)|' \
+	        -e 's|@LIBS_PRIVATE@|$(LDFLAGS_DYNLIB)|' \
+	        $< >$@
 
 .PHONY: install
 install: install-pc install-static install-shared install-includes

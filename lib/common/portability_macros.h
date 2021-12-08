@@ -96,6 +96,8 @@
 #  if defined(__linux__) || defined(__linux) || defined(__APPLE__)
 #    if ZSTD_MEMORY_SANITIZER
 #      define ZSTD_ASM_SUPPORTED 0
+#    elif ZSTD_DATAFLOW_SANITIZER
+#      define ZSTD_ASM_SUPPORTED 0
 #    else
 #      define ZSTD_ASM_SUPPORTED 1
 #    endif

@@ -767,7 +767,7 @@ int main(int argCount, const char* argv[])
 #endif
         showDefaultCParams = 0,
         ultra=0,
-        contentSize=1;
+        contentSize=1,
         useTparam=0;
     double compressibility = 0.5;
     unsigned bench_nbSeconds = 3;   /* would be better if this value was synchronized from bench */

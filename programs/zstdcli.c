@@ -1352,6 +1352,13 @@ int main(int argCount, const char* argv[])
         }
     }
 
+    if (nbWorkers) {
+        if (operation == zom_decompress) {
+            DISPLAY("error : can't use -T in decomrpession mode \n");
+            CLEAN_RETURN(1);
+        }
+    }
+
     if (dictFileName != NULL && patchFromDictFileName != NULL) {
         DISPLAY("error : can't use -D and --patch-from=# at the same time \n");
         CLEAN_RETURN(1);

@@ -1984,7 +1984,9 @@ static int basicUnitTests(U32 const seed, double compressibility)
             DISPLAYLEVEL(3, "test%3i : flat-dictionary efficiency test : \n", testNb++);
             assert(maxLevel == (MEM_32bits() ? 21 : 22));
             RDG_genBuffer(CNBuffer, flatdictSize + contentSize, compressibility, 0., seed);
-            DISPLAYLEVEL(4, "content hash : %016llx;  dict hash : %016llx \n", XXH64(contentStart, contentSize, 0), XXH64(dict, flatdictSize, 0));
+            DISPLAYLEVEL(4, "content hash : %016llx;  dict hash : %016llx \n",
+                        (unsigned long long)XXH64(contentStart, contentSize, 0),
+                        (unsigned long long)XXH64(dict, flatdictSize, 0));
 
             for ( ; l <= maxLevel; l++) {
                 size_t const nodict_cSize = ZSTD_compress(compressedBuffer, compressedBufferSize,
@@ -3366,7 +3368,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         unsigned const maxSymbolValue = 10;
         BYTE* outBuf = (BYTE*)malloc(outBufSize*sizeof(BYTE));
 
-        /* Ensure that this write doesn't write out of bounds, and that 
+        /* Ensure that this write doesn't write out of bounds, and that
          * FSE_writeNCount_generic() is *not* called with writeIsSafe == 1.
          */
         FSE_writeNCount(outBuf, outBufSize, count, maxSymbolValue, tableLog);

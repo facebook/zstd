@@ -13,6 +13,7 @@ build: support for m68k (Motorola 68000's), by @cyan4973
 build: improved AIX support, by @Helflym
 build: improved meson unofficial build, by @eli-schwartz
 cli : report advanced parameters information when compressing in very verbose mode (``-vv`), by @Svetlitski-FB
+cli : limit --ultra levels to 21 in 32-bit mode, to reduce risks of OOM scenarios (#2885, @yoniko)
 
 
 v1.5.0  (May 11, 2021)

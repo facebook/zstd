@@ -768,6 +768,7 @@ int main(int argCount, const char* argv[])
         showDefaultCParams = 0,
         ultra=0,
         contentSize=1;
+        useTparam=0;
     double compressibility = 0.5;
     unsigned bench_nbSeconds = 3;   /* would be better if this value was synchronized from bench */
     size_t blockSize = 0;
@@ -1128,6 +1129,7 @@ int main(int argCount, const char* argv[])
                 case 'T':
                     argument++;
                     nbWorkers = (int)readU32FromChar(&argument);
+		    useTparam = 1;
                     break;
 
                     /* Dictionary Selection level */
@@ -1352,8 +1354,7 @@ int main(int argCount, const char* argv[])
         }
     }
 
-    if (nbWorkers) {
-            DISPLAY("error : can't use -T in decomrpession mode %d\n",nbWorkers);
+    if (useTparam) {
         if (operation == zom_decompress) {
             DISPLAY("error : can't use -T in decomrpession mode \n");
             CLEAN_RETURN(1);

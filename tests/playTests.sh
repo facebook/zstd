@@ -974,6 +974,11 @@ println "- Dictionary compression with btlazy2 strategy"
 zstd -f tmp -D tmpDict --zstd=strategy=6
 zstd -d tmp.zst -D tmpDict -fo result
 $DIFF "$TESTFILE" result
+if [ -e /proc/self/fd/0 ]; then
+    println "- Test rejecting irregular dictionary file"
+    cat tmpDict | zstd -f tmp -D /proc/self/fd/0 && die "Piped dictionary should fail!"
+    cat tmpDict | zstd -d tmp.zst -D /proc/self/fd/0 -f && die "Piped dictionary should fail!"
+fi
 if [ -n "$hasMT" ]
 then
     println "- Test dictionary compression with multithreading "

@@ -732,31 +732,43 @@ static size_t FIO_createDictBuffer(void** bufferPtr, const char* fileName, FIO_p
 {
     FILE* fileHandle;
     U64 fileSize;
+    stat_t statbuf;
 
     assert(bufferPtr != NULL);
     *bufferPtr = NULL;
     if (fileName == NULL) return 0;
 
     DISPLAYLEVEL(4,"Loading %s as dictionary \n", fileName);
-    fileHandle = fopen(fileName, "rb");
-    if (fileHandle==NULL) EXM_THROW(31, "%s: %s", fileName, strerror(errno));
 
-    fileSize = UTIL_getFileSize(fileName);
-    if (fileSize == UTIL_FILESIZE_UNKNOWN) 
-    	EXM_THROW(32, "This file format is not supported : Dictionary file %s\n", fileName);
+    if (!UTIL_stat(fileName, &statbuf)) {
+        EXM_THROW(31, "Stat failed on dictionary file %s: %s", fileName, strerror(errno));
+    }
+
+    if (!UTIL_isRegularFileStat(&statbuf)) {
+        EXM_THROW(32, "Dictionary %s must be a regular file.", fileName);
+    }
+
+    fileHandle = fopen(fileName, "rb");
+
+    if (fileHandle == NULL) {
+        EXM_THROW(33, "Couldn't open dictionary %s: %s", fileName, strerror(errno));
+    }
+
+    fileSize = UTIL_getFileSizeStat(&statbuf);
     {
         size_t const dictSizeMax = prefs->patchFromMode ? prefs->memLimit : DICTSIZE_MAX;
         if (fileSize >  dictSizeMax) {
-            EXM_THROW(32, "Dictionary file %s is too large (> %u bytes)",
+            EXM_THROW(34, "Dictionary file %s is too large (> %u bytes)",
                             fileName,  (unsigned)dictSizeMax);   /* avoid extreme cases */
         }
     }
     *bufferPtr = malloc((size_t)fileSize);
     if (*bufferPtr==NULL) EXM_THROW(34, "%s", strerror(errno));
     {   size_t const readSize = fread(*bufferPtr, 1, (size_t)fileSize, fileHandle);
-        if (readSize != fileSize)
+        if (readSize != fileSize) {
             EXM_THROW(35, "Error reading dictionary file %s : %s",
                     fileName, strerror(errno));
+        }
     }
     fclose(fileHandle);
     return (size_t)fileSize;

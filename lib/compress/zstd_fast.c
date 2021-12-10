@@ -99,7 +99,7 @@ ZSTD_compressBlock_fast_noDict_generic(
     U32* const hashTable = ms->hashTable;
     U32 const hlog = cParams->hashLog;
     /* support stepSize of 0 */
-    size_t const stepSize = cParams->targetLength + !(cParams->targetLength) - 1;
+    size_t const stepSize = cParams->targetLength + !(cParams->targetLength);
     const BYTE* const base = ms->window.base;
     const BYTE* const istart = (const BYTE*)src;
     const U32   endIndex = (U32)((size_t)(istart - base) + srcSize);
@@ -128,7 +128,8 @@ ZSTD_compressBlock_fast_noDict_generic(
     const BYTE* match0;
     size_t mLength;
 
-    size_t step;
+    size_t step0;
+    size_t step1;
     const BYTE* nextStep;
     const size_t kStepIncr = (1 << (kSearchStrength - 1));
 
@@ -144,13 +145,14 @@ ZSTD_compressBlock_fast_noDict_generic(
     /* start each op */
 _start: /* Requires: ip0 */
 
-    step = 1;
+    step0 = 1;
+    step1 = stepSize;
     nextStep = ip0 + kStepIncr;
 
     /* calculate positions, ip0 - anchor == 0, so we skip step calc */
-    ip1 = ip0 + step;
-    ip2 = ip1 + step + stepSize;
-    ip3 = ip2 + step;
+    ip1 = ip0 + step0;
+    ip2 = ip1 + step1;
+    ip3 = ip2 + step0;
 
     if (ip3 >= ilimit) {
         goto _cleanup;
@@ -234,15 +236,16 @@ _start: /* Requires: ip0 */
         if (ip2 >= nextStep) {
             PREFETCH_L1(ip1 + 64);
             PREFETCH_L1(ip1 + 128);
-            step++;
+            step0++;
+            step1++;
             nextStep += kStepIncr;
         }
 
         /* advance to next positions */
         ip0 = ip1;
         ip1 = ip2;
-        ip2 = ip2 + step + stepSize;
-        ip3 = ip2 + step;
+        ip2 = ip2 + step1;
+        ip3 = ip2 + step0;
     } while (ip3 < ilimit);
 
 _cleanup:

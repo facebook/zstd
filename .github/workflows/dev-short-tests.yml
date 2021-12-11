@@ -37,6 +37,18 @@ jobs:
         APT_PACKAGES="gcc-multilib" make apt-install
         CFLAGS="-m32 -O1 -fstack-protector" make check V=1
 
+  check-x32:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: make check on x32 ABI # https://en.wikipedia.org/wiki/X32_ABI
+      env:
+        CHECK_CONSTRAINED_MEM: true
+      run: |
+        sudo apt update
+        APT_PACKAGES="gcc-multilib" make apt-install
+        CFLAGS="-mx32 -O1 -fstack-protector" make check V=1
+
   gcc-7-libzstd:
     runs-on: ubuntu-latest
     steps:

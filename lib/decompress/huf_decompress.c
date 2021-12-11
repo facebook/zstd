@@ -172,8 +172,9 @@ static size_t HUF_DecompressAsmArgs_init(HUF_DecompressAsmArgs* args, void* dst,
 
     BYTE* const oend = (BYTE*)dst + dstSize;
 
-    /* We're assuming x86-64 BMI2 - assure that this is the case. */
-    assert(MEM_isLittleEndian() && !MEM_32bits());
+    /* The following condition is false on x32 platform,
+     * but HUF_asm is not compatible with this ABI */
+    if (!(MEM_isLittleEndian() && !MEM_32bits())) return 1;
 
     /* strict minimum : jump table + 1 byte per stream */
     if (srcSize < 10)

@@ -234,19 +234,19 @@ _start: /* Requires: ip0 */
         hash0 = hash1;
         hash1 = ZSTD_hashPtr(ip2, hlog, mls);
 
-        /* calculate step */
-        if (ip2 >= nextStep) {
-            PREFETCH_L1(ip1 + 64);
-            PREFETCH_L1(ip1 + 128);
-            step += 2;
-            nextStep += kStepIncr;
-        }
-
         /* advance to next positions */
         ip0 = ip1;
         ip1 = ip2;
         ip2 = ip0 + step;
         ip3 = ip1 + step;
+
+        /* calculate step */
+        if (ip2 >= nextStep) {
+            step++;
+            PREFETCH_L1(ip1 + 64);
+            PREFETCH_L1(ip1 + 128);
+            nextStep += kStepIncr;
+        }
     } while (ip3 < ilimit);
 
 _cleanup:

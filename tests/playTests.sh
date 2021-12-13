@@ -184,7 +184,7 @@ fi
 
 
 println "\n===>  simple tests "
-datagen
+
 datagen > tmp
 zstd -h
 zstd -H
@@ -793,6 +793,8 @@ cat hello.tmp world.tmp > helloworld.tmp
 zstd -c hello.tmp > hello.zst
 zstd -c world.tmp > world.zst
 zstd -c hello.tmp world.tmp > helloworld.zst
+zstd -dc helloworld.zst > result.tmp
+$DIFF helloworld.tmp result.tmp
 cat hello.zst world.zst > helloworld.zst
 zstd -dc helloworld.zst > result.tmp
 cat result.tmp
@@ -1565,11 +1567,11 @@ if [ -n "$hasMT" ]
 then
     println "\n===>   adaptive mode "
     roundTripTest -g270000000 " --adapt"
-    roundTripTest -g270000000 " --adapt=" && die "invalid compression parameter"
     roundTripTest -g27000000 " --adapt=min=1,max=4"
     roundTripTest -g27000000 " --adapt=min=-2,max=-1"
     println "===>   test: --adapt must fail on incoherent bounds "
     datagen > tmp
+    zstd --adapt= tmp && die "invalid compression parameter"
     zstd -f -vv --adapt=min=10,max=9 tmp && die "--adapt must fail on incoherent bounds"
 
     println "\n===>   rsyncable mode "

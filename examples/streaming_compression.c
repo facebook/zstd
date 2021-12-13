@@ -135,6 +135,6 @@ int main(int argc, const char** argv)
     compressFile_orDie(inFilename, outFilename, cLevel, nbThreads);
 
     free(outFilename);   /* not strictly required, since program execution stops there,
-                          * but some static analyzer main complain otherwise */
+                          * but some static analyzer may complain otherwise */
     return 0;
 }

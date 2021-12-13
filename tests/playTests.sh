@@ -186,8 +186,14 @@ fi
 println "\n===>  simple tests "
 
 datagen > tmp
+zstd -h
+zstd -H
+zstd -V
 println "test : basic compression "
 zstd -f tmp                      # trivial compression case, creates tmp.zst
+zstd -f -z tmp
+zstd -f -k tmp
+zstd -f -C tmp
 println "test : basic decompression"
 zstd -df tmp.zst                 # trivial decompression case (overwrites tmp)
 println "test : too large compression level => auto-fix"
@@ -747,6 +753,7 @@ rm -rf tmp*
 println "test : show-default-cparams regular"
 datagen > tmp
 zstd --show-default-cparams -f tmp
+zstd --show-default-cparams -d tmp.zst && die "error: can't use --show-default-cparams in decompression mode"
 rm -rf tmp*
 
 println "test : show-default-cparams recursive"
@@ -792,6 +799,9 @@ println "world!" > world.tmp
 cat hello.tmp world.tmp > helloworld.tmp
 zstd -c hello.tmp > hello.zst
 zstd -c world.tmp > world.zst
+zstd -c hello.tmp world.tmp > helloworld.zst
+zstd -dc helloworld.zst > result.tmp
+$DIFF helloworld.tmp result.tmp
 cat hello.zst world.zst > helloworld.zst
 zstd -dc helloworld.zst > result.tmp
 cat result.tmp
@@ -944,6 +954,13 @@ cat tmp | zstd -14 -f --size-hint=11050 | zstd -t  # slightly too high
 cat tmp | zstd -14 -f --size-hint=10950 | zstd -t  # slightly too low
 cat tmp | zstd -14 -f --size-hint=22000 | zstd -t  # considerably too high
 cat tmp | zstd -14 -f --size-hint=5500  | zstd -t  # considerably too low
+println "test : allows and interprets K,KB,KiB,M,MB and MiB suffix"
+cat tmp | zstd -14 -f --size-hint=11K | zstd -t
+cat tmp | zstd -14 -f --size-hint=11KB | zstd -t
+cat tmp | zstd -14 -f --size-hint=11KiB | zstd -t
+cat tmp | zstd -14 -f --size-hint=1M  | zstd -t
+cat tmp | zstd -14 -f --size-hint=1MB  | zstd -t
+cat tmp | zstd -14 -f --size-hint=1MiB  | zstd -t
 
 
 println "\n===>  dictionary tests "
@@ -1055,6 +1072,7 @@ println "- Create dictionaries with shrink-dict flag enabled"
 zstd --train-fastcover=steps=1,shrink "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpShrinkDict
 zstd --train-fastcover=steps=1,shrink=1 "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpShrinkDict1
 zstd --train-fastcover=steps=1,shrink=5 "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpShrinkDict2
+zstd --train-fastcover=shrink=5,steps=1 "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpShrinkDict3
 println "- Create dictionary with size limit"
 zstd --train-fastcover=steps=1 "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpDict2 --maxdict=4K
 println "- Create dictionary using all samples for both training and testing"
@@ -1566,6 +1584,7 @@ then
     roundTripTest -g27000000 " --adapt=min=-2,max=-1"
     println "===>   test: --adapt must fail on incoherent bounds "
     datagen > tmp
+    zstd --adapt= tmp && die "invalid compression parameter"
     zstd -f -vv --adapt=min=10,max=9 tmp && die "--adapt must fail on incoherent bounds"
 
     println "\n===>   rsyncable mode "
@@ -1684,6 +1703,7 @@ println "- Create first dictionary"
 zstd --train-cover=k=46,d=8,split=80 "$TESTDIR"/*.c "$PRGDIR"/*.c -o tmpDict
 cp "$TESTFILE" tmp
 zstd -f tmp -D tmpDict
+zstd -f tmp -D tmpDict --patch-from=tmpDict && die "error: can't use -D and --patch-from=#at the same time"
 zstd -d tmp.zst -D tmpDict -fo result
 $DIFF "$TESTFILE" result
 zstd --train-cover=k=56,d=8 && die "Create dictionary without input file (should error)"
@@ -1694,6 +1714,7 @@ println "- Create dictionary using shrink-dict flag"
 zstd --train-cover=steps=256,shrink "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpShrinkDict
 zstd --train-cover=steps=256,shrink=1 "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpShrinkDict1
 zstd --train-cover=steps=256,shrink=5 "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpShrinkDict2
+zstd --train-cover=shrink=5,steps=256 "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpShrinkDict3
 println "- Create dictionary with short dictID"
 zstd --train-cover=k=46,d=8,split=80 "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"

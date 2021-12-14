@@ -363,6 +363,56 @@ zstd tmpPrompt - < tmpPrompt -o tmpPromp.zst --rm && die "should have aborted im
 
 println "Test completed"
 
+println "\n===>  multiple_thread test "
+
+println "-T : the thread value between 0 and 4294967295"
+println "-T : The value of the number of multi-threads is related to the number of machine bits"
+datagen > tmp
+zstd --fast -T0 tmp -o tmptest1
+println "test : main-thread "
+zstd --fast -T1 tmp -o tmptest2
+println "test : single-thread "
+zstd --fast -T16 tmp -o tmptest3
+println "test : 16-thread "
+zstd --fast -T32 tmp -o tmptest4
+println "test : 32-thread "
+zstd --fast -T64 tmp -o tmptest5
+println "test : 64-thread "
+zstd --fast -T127 tmp -o tmptest6
+println "test : 127-thread "
+zstd --fast -T128 tmp -o tmptest7
+println "test : 128-thread "
+zstd --fast -4294967295 tmp -o tmptest8
+println "test : max effective thread value is 4294967295 "
+zstd --fast -4294967296 tmp -o tmptest9
+println "test : numeric value overflows 32-bit unsigned int "
+rm tmp
+datagen > tmp
+println "test : basic compression "
+zstd -f tmp                      # trivial compression case, creates tmp.zst
+println "test : basic decompression"
+zstd -d -f -T1 tmp.zst
+println "test : Decompression does not support -T mode, but execution support"
+rm -rf tmptest1 tmptest2 tmptest3 tmptest4 tmptest5 tmptest6 tmptest7 tmptest8
+
+println "\n===>  --fast_argument test "
+datagen > tmp
+println "test : basic compression "
+zstd -f tmp                      # trivial compression case, creates tmp.zst
+println "test : basic decompression"
+zstd --fast=-1 -f tmp
+println "test: Invalid value -- negative number"
+zstd --fast=0 -f tmp
+println "test: Invalid value -- zero"
+zstd --fast=1 -f tmp
+println "test: --fast=1"
+zstd --fast=99 -f tmp
+println "test: --fast=99"
+zstd --fast=4294967295 -f tmp
+println "test: max effective argument of  fast is 4294967295"
+zstd --fast=4294967296 -f tmp
+println "test: umeric value overflows 32-bit unsigned int "
+rm tmp
 
 println "\n===>  recursive mode test "
 # combination of -r with empty list of input file

@@ -93,13 +93,13 @@ FORCE_INLINE_TEMPLATE size_t
 ZSTD_compressBlock_fast_noDict_generic(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize,
-        U32 const mls)
+        U32 const mls, U32 const hasStep)
 {
     const ZSTD_compressionParameters* const cParams = &ms->cParams;
     U32* const hashTable = ms->hashTable;
     U32 const hlog = cParams->hashLog;
     /* support stepSize of 0 */
-    size_t const stepSize = cParams->targetLength + !(cParams->targetLength);
+    size_t const stepSize = hasStep ? (cParams->targetLength + !(cParams->targetLength) + 1) : 2;
     const BYTE* const base = ms->window.base;
     const BYTE* const istart = (const BYTE*)src;
     const U32   endIndex = (U32)((size_t)(istart - base) + srcSize);
@@ -128,6 +128,10 @@ ZSTD_compressBlock_fast_noDict_generic(
     const BYTE* match0;
     size_t mLength;
 
+    /* ip0 and ip1 are always adjacent. The targetLength skipping and
+     * uncompressibility acceleration is applied to every other position,
+     * matching the behavior of #1562. step therefore represents the gap
+     * between pairs of positions, from ip0 to ip2 or ip1 to ip3. */
     size_t step;
     const BYTE* nextStep;
     const size_t kStepIncr = (1 << (kSearchStrength - 1));
@@ -148,9 +152,9 @@ _start: /* Requires: ip0 */
     nextStep = ip0 + kStepIncr;
 
     /* calculate positions, ip0 - anchor == 0, so we skip step calc */
-    ip1 = ip0 + stepSize;
-    ip2 = ip1 + stepSize;
-    ip3 = ip2 + stepSize;
+    ip1 = ip0 + 1;
+    ip2 = ip0 + step;
+    ip3 = ip2 + 1;
 
     if (ip3 >= ilimit) {
         goto _cleanup;
@@ -230,19 +234,19 @@ _start: /* Requires: ip0 */
         hash0 = hash1;
         hash1 = ZSTD_hashPtr(ip2, hlog, mls);
 
-        /* calculate step */
-        if (ip2 >= nextStep) {
-            PREFETCH_L1(ip1 + 64);
-            PREFETCH_L1(ip1 + 128);
-            step++;
-            nextStep += kStepIncr;
-        }
-
         /* advance to next positions */
         ip0 = ip1;
         ip1 = ip2;
-        ip2 = ip2 + step;
-        ip3 = ip2 + step;
+        ip2 = ip0 + step;
+        ip3 = ip1 + step;
+
+        /* calculate step */
+        if (ip2 >= nextStep) {
+            step++;
+            PREFETCH_L1(ip1 + 64);
+            PREFETCH_L1(ip1 + 128);
+            nextStep += kStepIncr;
+        }
     } while (ip3 < ilimit);
 
 _cleanup:
@@ -310,18 +314,23 @@ _match: /* Requires: ip0, match0, offcode */
     goto _start;
 }
 
-#define ZSTD_GEN_FAST_FN(dictMode, mls)                                                            \
-    static size_t ZSTD_compressBlock_fast_##dictMode##_##mls(                                      \
+#define ZSTD_GEN_FAST_FN(dictMode, mls, step)                                                            \
+    static size_t ZSTD_compressBlock_fast_##dictMode##_##mls##_##step(                                      \
             ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],                    \
             void const* src, size_t srcSize)                                                       \
     {                                                                                              \
-        return ZSTD_compressBlock_fast_##dictMode##_generic(ms, seqStore, rep, src, srcSize, mls); \
+        return ZSTD_compressBlock_fast_##dictMode##_generic(ms, seqStore, rep, src, srcSize, mls, step); \
     }
 
-ZSTD_GEN_FAST_FN(noDict, 4)
-ZSTD_GEN_FAST_FN(noDict, 5)
-ZSTD_GEN_FAST_FN(noDict, 6)
-ZSTD_GEN_FAST_FN(noDict, 7)
+ZSTD_GEN_FAST_FN(noDict, 4, 1)
+ZSTD_GEN_FAST_FN(noDict, 5, 1)
+ZSTD_GEN_FAST_FN(noDict, 6, 1)
+ZSTD_GEN_FAST_FN(noDict, 7, 1)
+
+ZSTD_GEN_FAST_FN(noDict, 4, 0)
+ZSTD_GEN_FAST_FN(noDict, 5, 0)
+ZSTD_GEN_FAST_FN(noDict, 6, 0)
+ZSTD_GEN_FAST_FN(noDict, 7, 0)
 
 size_t ZSTD_compressBlock_fast(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
@@ -329,24 +338,40 @@ size_t ZSTD_compressBlock_fast(
 {
     U32 const mls = ms->cParams.minMatch;
     assert(ms->dictMatchState == NULL);
-    switch(mls)
-    {
-    default: /* includes case 3 */
-    case 4 :
-        return ZSTD_compressBlock_fast_noDict_4(ms, seqStore, rep, src, srcSize);
-    case 5 :
-        return ZSTD_compressBlock_fast_noDict_5(ms, seqStore, rep, src, srcSize);
-    case 6 :
-        return ZSTD_compressBlock_fast_noDict_6(ms, seqStore, rep, src, srcSize);
-    case 7 :
-        return ZSTD_compressBlock_fast_noDict_7(ms, seqStore, rep, src, srcSize);
+    if (ms->cParams.targetLength > 1) {
+        switch(mls)
+        {
+        default: /* includes case 3 */
+        case 4 :
+            return ZSTD_compressBlock_fast_noDict_4_1(ms, seqStore, rep, src, srcSize);
+        case 5 :
+            return ZSTD_compressBlock_fast_noDict_5_1(ms, seqStore, rep, src, srcSize);
+        case 6 :
+            return ZSTD_compressBlock_fast_noDict_6_1(ms, seqStore, rep, src, srcSize);
+        case 7 :
+            return ZSTD_compressBlock_fast_noDict_7_1(ms, seqStore, rep, src, srcSize);
+        }
+    } else {
+        switch(mls)
+        {
+        default: /* includes case 3 */
+        case 4 :
+            return ZSTD_compressBlock_fast_noDict_4_0(ms, seqStore, rep, src, srcSize);
+        case 5 :
+            return ZSTD_compressBlock_fast_noDict_5_0(ms, seqStore, rep, src, srcSize);
+        case 6 :
+            return ZSTD_compressBlock_fast_noDict_6_0(ms, seqStore, rep, src, srcSize);
+        case 7 :
+            return ZSTD_compressBlock_fast_noDict_7_0(ms, seqStore, rep, src, srcSize);
+        }
+
     }
 }
 
 FORCE_INLINE_TEMPLATE
 size_t ZSTD_compressBlock_fast_dictMatchState_generic(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
-        void const* src, size_t srcSize, U32 const mls)
+        void const* src, size_t srcSize, U32 const mls, U32 const hasStep)
 {
     const ZSTD_compressionParameters* const cParams = &ms->cParams;
     U32* const hashTable = ms->hashTable;
@@ -381,6 +406,8 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
     const U32 endIndex = (U32)((size_t)(ip - base) + srcSize);
     assert(endIndex - prefixStartIndex <= maxDistance);
     (void)maxDistance; (void)endIndex;   /* these variables are not used when assert() is disabled */
+
+    (void)hasStep; /* not currently specialized on whether it's accelerated */
 
     /* ensure there will be no underflow
      * when translating a dict index into a local index */
@@ -492,10 +519,10 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
 }
 
 
-ZSTD_GEN_FAST_FN(dictMatchState, 4)
-ZSTD_GEN_FAST_FN(dictMatchState, 5)
-ZSTD_GEN_FAST_FN(dictMatchState, 6)
-ZSTD_GEN_FAST_FN(dictMatchState, 7)
+ZSTD_GEN_FAST_FN(dictMatchState, 4, 0)
+ZSTD_GEN_FAST_FN(dictMatchState, 5, 0)
+ZSTD_GEN_FAST_FN(dictMatchState, 6, 0)
+ZSTD_GEN_FAST_FN(dictMatchState, 7, 0)
 
 size_t ZSTD_compressBlock_fast_dictMatchState(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
@@ -507,20 +534,20 @@ size_t ZSTD_compressBlock_fast_dictMatchState(
     {
     default: /* includes case 3 */
     case 4 :
-        return ZSTD_compressBlock_fast_dictMatchState_4(ms, seqStore, rep, src, srcSize);
+        return ZSTD_compressBlock_fast_dictMatchState_4_0(ms, seqStore, rep, src, srcSize);
     case 5 :
-        return ZSTD_compressBlock_fast_dictMatchState_5(ms, seqStore, rep, src, srcSize);
+        return ZSTD_compressBlock_fast_dictMatchState_5_0(ms, seqStore, rep, src, srcSize);
     case 6 :
-        return ZSTD_compressBlock_fast_dictMatchState_6(ms, seqStore, rep, src, srcSize);
+        return ZSTD_compressBlock_fast_dictMatchState_6_0(ms, seqStore, rep, src, srcSize);
     case 7 :
-        return ZSTD_compressBlock_fast_dictMatchState_7(ms, seqStore, rep, src, srcSize);
+        return ZSTD_compressBlock_fast_dictMatchState_7_0(ms, seqStore, rep, src, srcSize);
     }
 }
 
 
 static size_t ZSTD_compressBlock_fast_extDict_generic(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
-        void const* src, size_t srcSize, U32 const mls)
+        void const* src, size_t srcSize, U32 const mls, U32 const hasStep)
 {
     const ZSTD_compressionParameters* const cParams = &ms->cParams;
     U32* const hashTable = ms->hashTable;
@@ -543,6 +570,8 @@ static size_t ZSTD_compressBlock_fast_extDict_generic(
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - 8;
     U32 offset_1=rep[0], offset_2=rep[1];
+
+    (void)hasStep; /* not currently specialized on whether it's accelerated */
 
     DEBUGLOG(5, "ZSTD_compressBlock_fast_extDict_generic (offset_1=%u)", offset_1);
 
@@ -621,10 +650,10 @@ static size_t ZSTD_compressBlock_fast_extDict_generic(
     return (size_t)(iend - anchor);
 }
 
-ZSTD_GEN_FAST_FN(extDict, 4)
-ZSTD_GEN_FAST_FN(extDict, 5)
-ZSTD_GEN_FAST_FN(extDict, 6)
-ZSTD_GEN_FAST_FN(extDict, 7)
+ZSTD_GEN_FAST_FN(extDict, 4, 0)
+ZSTD_GEN_FAST_FN(extDict, 5, 0)
+ZSTD_GEN_FAST_FN(extDict, 6, 0)
+ZSTD_GEN_FAST_FN(extDict, 7, 0)
 
 size_t ZSTD_compressBlock_fast_extDict(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
@@ -635,12 +664,12 @@ size_t ZSTD_compressBlock_fast_extDict(
     {
     default: /* includes case 3 */
     case 4 :
-        return ZSTD_compressBlock_fast_extDict_4(ms, seqStore, rep, src, srcSize);
+        return ZSTD_compressBlock_fast_extDict_4_0(ms, seqStore, rep, src, srcSize);
     case 5 :
-        return ZSTD_compressBlock_fast_extDict_5(ms, seqStore, rep, src, srcSize);
+        return ZSTD_compressBlock_fast_extDict_5_0(ms, seqStore, rep, src, srcSize);
     case 6 :
-        return ZSTD_compressBlock_fast_extDict_6(ms, seqStore, rep, src, srcSize);
+        return ZSTD_compressBlock_fast_extDict_6_0(ms, seqStore, rep, src, srcSize);
     case 7 :
-        return ZSTD_compressBlock_fast_extDict_7(ms, seqStore, rep, src, srcSize);
+        return ZSTD_compressBlock_fast_extDict_7_0(ms, seqStore, rep, src, srcSize);
     }
 }

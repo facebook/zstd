@@ -412,7 +412,7 @@ zstd --fast=4294967295 -f tmp
 println "test: max effective argument of  fast is 4294967295"
 zstd --fast=4294967296 -f tmp && die "max effective argument of  fast is 4294967295"
 println "test: umeric value overflows 32-bit unsigned int "
-rm tmp
+
 
 println "\n===>  recursive mode test "
 # combination of -r with empty list of input file

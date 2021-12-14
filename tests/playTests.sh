@@ -382,9 +382,9 @@ zstd --fast -T127 tmp -o tmptest6
 println "test : 127-thread "
 zstd --fast -T128 tmp -o tmptest7
 println "test : 128-thread "
-zstd --fast -4294967295 tmp -o tmptest8
+zstd --fast -4294967295 tmp -o tmptest8 
 println "test : max effective thread value is 4294967295 "
-zstd --fast -4294967296 tmp -o tmptest9
+zstd --fast -4294967296 tmp -o tmptest9 && die "max effective thread value is 4294967295"
 println "test : numeric value overflows 32-bit unsigned int "
 rm tmp
 datagen > tmp
@@ -410,7 +410,7 @@ zstd --fast=99 -f tmp
 println "test: --fast=99"
 zstd --fast=4294967295 -f tmp
 println "test: max effective argument of  fast is 4294967295"
-zstd --fast=4294967296 -f tmp
+zstd --fast=4294967296 -f tmp && die "max effective argument of  fast is 4294967295"
 println "test: umeric value overflows 32-bit unsigned int "
 rm tmp
 

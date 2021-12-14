@@ -854,7 +854,7 @@ size_t ZSTD_execSequenceEndInner(BYTE* op,
                             BYTE* const oend, const BYTE* const oend_w, seq_t sequence,
                             const BYTE** litPtr, const BYTE* const litLimit,
                             const BYTE* const prefixStart, const BYTE* const virtualStart, const BYTE* const dictEnd,
-                            const int isSplitLitBuffer)
+                            const unsigned isSplitLitBuffer)
 {
     BYTE* const oLitEnd = op + sequence.litLength;
     size_t const sequenceLength = sequence.litLength + sequence.matchLength;
@@ -927,17 +927,13 @@ size_t ZSTD_execSequenceEndSplitLitBuffer(BYTE* op,
                               virtualStart, dictEnd, 1);
 }
 
-typedef size_t (*ExeSequenceEndPtr) (BYTE* op,
-                                     BYTE* const oend, const BYTE* const oend_w, seq_t sequence,
-                                     const BYTE** litPtr, const BYTE* const litLimit,
-                                     const BYTE* const prefixStart, const BYTE* const virtualStart, const BYTE* const dictEnd);
 
 FORCE_INLINE_TEMPLATE
-size_t execSequence(BYTE* op,
+size_t ZSTD_execSequenceInner(BYTE* op,
                      BYTE* const oend, const BYTE* const oend_w, seq_t sequence,
                      const BYTE** litPtr, const BYTE* const litLimit,
                      const BYTE* const prefixStart, const BYTE* const virtualStart, const BYTE* const dictEnd,
-                      ExeSequenceEndPtr exeSequenceEndPtr)
+                     const unsigned isSplitLitBuffer)
 {
     BYTE* const oLitEnd = op + sequence.litLength;
     size_t const sequenceLength = sequence.litLength + sequence.matchLength;
@@ -955,9 +951,14 @@ size_t execSequence(BYTE* op,
     if (UNLIKELY(
             iLitEnd > litLimit ||
             oMatchEnd > oend_w ||
-            (MEM_32bits() && (size_t)(oend - op) < sequenceLength + WILDCOPY_OVERLENGTH)))
-        return exeSequenceEndPtr(op, oend, oend_w, sequence, litPtr, litLimit, prefixStart,
-                                 virtualStart, dictEnd);
+            (MEM_32bits() && (size_t)(oend - op) < sequenceLength + WILDCOPY_OVERLENGTH))) {
+        if(isSplitLitBuffer)
+            return ZSTD_execSequenceEndSplitLitBuffer(op, oend, oend_w, sequence, litPtr, litLimit, prefixStart,
+                                                      virtualStart, dictEnd);
+        else
+            return ZSTD_execSequenceEnd(op, oend, oend_w, sequence, litPtr, litLimit, prefixStart,
+                                     virtualStart, dictEnd);
+    }
 
     /* Assumptions (everything else goes into ZSTD_execSequenceEnd()) */
     assert(op <= oLitEnd /* No overflow */);
@@ -1033,8 +1034,8 @@ size_t ZSTD_execSequence(BYTE* op,
     const BYTE* const prefixStart, const BYTE* const virtualStart, const BYTE* const dictEnd)
 {
     BYTE* const oend_w = oend - WILDCOPY_OVERLENGTH;   /* risk : address space underflow on oend=NULL */
-    return execSequence(op, oend, oend_w, sequence, litPtr, litLimit, prefixStart, virtualStart,
-                        dictEnd, ZSTD_execSequenceEnd);
+    return ZSTD_execSequenceInner(op, oend, oend_w, sequence, litPtr, litLimit, prefixStart, virtualStart,
+                        dictEnd, 0);
 }
 
 HINT_INLINE
@@ -1043,8 +1044,8 @@ size_t ZSTD_execSequenceSplitLitBuffer(BYTE* op,
     const BYTE** litPtr, const BYTE* const litLimit,
     const BYTE* const prefixStart, const BYTE* const virtualStart, const BYTE* const dictEnd)
 {
-    return execSequence(op, oend, oend_w, sequence, litPtr, litLimit, prefixStart, virtualStart,
-                        dictEnd, ZSTD_execSequenceEndSplitLitBuffer);
+    return ZSTD_execSequenceInner(op, oend, oend_w, sequence, litPtr, litLimit, prefixStart, virtualStart,
+                        dictEnd, 1);
 }
 
 

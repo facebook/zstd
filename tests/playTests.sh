@@ -402,7 +402,7 @@ zstd -f tmp                      # trivial compression case, creates tmp.zst
 println "test : basic decompression"
 zstd --fast=-1 -f tmp && die "error: Invalid value -- negative number"
 println "test: Invalid value -- negative number"
-zstd --fast=0 -f tmp
+zstd --fast=0 -f tmp && die "error: Invalid value -- negative number"
 println "test: Invalid value -- zero"
 zstd --fast=1 -f tmp
 println "test: --fast=1"

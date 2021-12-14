@@ -188,8 +188,13 @@ static void ZSTD_copy16(void* dst, const void* src) {
     vst1q_u8((uint8_t*)dst, vld1q_u8((const uint8_t*)src));
 #elif defined(ZSTD_ARCH_X86_SSE2)
     _mm_storeu_si128((__m128i*)dst, _mm_loadu_si128((const __m128i*)src));
-#else
+#elif defined(__clang__)
     ZSTD_memmove(dst, src, 16);
+#else
+    /* ZSTD_memmove is not inlined properly by gcc */
+    BYTE copy16_buf[16];
+    ZSTD_memcpy(copy16_buf, src, 16);
+    ZSTD_memcpy(dst, copy16_buf, 16);
 #endif
 }
 #define COPY16(d,s) { ZSTD_copy16(d,s); d+=16; s+=16; }

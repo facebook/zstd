@@ -51,6 +51,8 @@ extern "C" {
 #    include <stdint.h> /* intptr_t */
 #  endif
   typedef   uint8_t BYTE;
+  typedef   uint8_t U8;
+  typedef    int8_t S8;
   typedef  uint16_t U16;
   typedef   int16_t S16;
   typedef  uint32_t U32;
@@ -63,6 +65,8 @@ extern "C" {
 #  error "this implementation requires char to be exactly 8-bit type"
 #endif
   typedef unsigned char      BYTE;
+  typedef unsigned char      U8;
+  typedef   signed char      S8;
 #if USHRT_MAX != 65535
 #  error "this implementation requires short to be exactly 16-bit type"
 #endif

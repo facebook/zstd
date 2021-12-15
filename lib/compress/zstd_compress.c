@@ -3263,7 +3263,7 @@ static size_t ZSTD_estimateBlockSize_literal(const BYTE* literals, size_t litSiz
 static size_t ZSTD_estimateBlockSize_symbolType(symbolEncodingType_e type,
                         const BYTE* codeTable, size_t nbSeq, unsigned maxCode,
                         const FSE_CTable* fseCTable,
-                        const U32* additionalBits,
+                        const U8* additionalBits,
                         short const* defaultNorm, U32 defaultNormLog, U32 defaultMax,
                         void* workspace, size_t wkspSize)
 {

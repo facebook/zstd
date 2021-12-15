@@ -190,6 +190,10 @@ the last one takes effect.
 
     This is also used during compression when using with --patch-from=. In this case,
     this parameter overrides that maximum size allowed for a dictionary. (128 MB).
+
+    Additionally, this can be used to limit memory for dictionary training. This parameter
+    overrides the default limit of 2 GB. zstd will load training samples up to the memory limit
+    and ignore the rest.
 * `--stream-size=#` :
     Sets the pledged source size of input coming from a stream. This value must be exact, as it
     will be included in the produced frame header. Incorrect stream sizes will cause an error.
@@ -329,6 +333,8 @@ Compression of small files similar to the sample set will be greatly improved.
     resulting in a _small_ compression ratio improvement for this level.
 * `-B#`:
     Split input files into blocks of size # (default: no split)
+* `-M#`, `--memory=#`:
+    Limit the amount of sample data loaded for training (default: 2 GB). See above for details.
 * `--dictID=#`:
     A dictionary ID is a locally unique ID
     that a decoder can use to verify it is using the right dictionary.

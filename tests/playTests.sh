@@ -1051,6 +1051,13 @@ then
 fi
 rm -f tmp* dictionary
 
+println "- Test --memory for dictionary compression"
+datagen -g12M -P90 > tmpCorpusHighCompress
+zstd --train -B2K tmpCorpusHighCompress -o tmpDictHighCompress --memory=10K && die "Dictionary training should fail : --memory too low (10K)"
+zstd --train -B2K tmpCorpusHighCompress -o tmpDictHighCompress --memory=5MB 2> zstTrainWithMemLimitStdErr
+cat zstTrainWithMemLimitStdErr | grep "setting manual memory limit for dictionary training data at 5 MB"
+cat zstTrainWithMemLimitStdErr | grep "Training samples set too large (12 MB); training on 5 MB only..."
+rm zstTrainWithMemLimitStdErr
 
 println "\n===>  fastCover dictionary builder : advanced options "
 TESTFILE="$PRGDIR"/zstdcli.c

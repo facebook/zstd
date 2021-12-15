@@ -1440,8 +1440,15 @@ ZSTD_FOR_EACH_DICT_MODE(ZSTD_FOR_EACH_MLS, GEN_ZSTD_HC_VTABLE)
 *********************************/
 typedef enum { search_hashChain=0, search_binaryTree=1, search_rowHash=2 } searchMethod_e;
 
+/**
+ * This table is indexed first by the four ZSTD_dictMode_e values, and then
+ * by the two searchMethod_e values. NULLs are placed for configurations
+ * that should never occur (extDict modes go to the other implementation
+ * below and there is no DDSS for binary tree search yet).
+ */
 
-static ZSTD_LazyVTable const* ZSTD_selectLazyVTable(ZSTD_matchState_t const* ms, searchMethod_e searchMethod, ZSTD_dictMode_e dictMode)
+static ZSTD_LazyVTable const*
+ZSTD_selectLazyVTable(ZSTD_matchState_t const* ms, searchMethod_e searchMethod, ZSTD_dictMode_e dictMode)
 {
     /* Fill the Hc/Bt VTable arrays with the right functions for the (dictMode, mls) combination. */
     ZSTD_LazyVTable const* const hcVTables[4][3] = GEN_ZSTD_VTABLE_ARRAY(GEN_ZSTD_HC_VTABLE_ARRAY);
@@ -1475,19 +1482,10 @@ ZSTD_compressBlock_lazy_generic(
     const BYTE* ip = istart;
     const BYTE* anchor = istart;
     const BYTE* const iend = istart + srcSize;
-    const BYTE* const ilimit = searchMethod == search_rowHash ? iend - 8 - ZSTD_ROW_HASH_CACHE_SIZE : iend - 8;
+    const BYTE* const ilimit = (searchMethod == search_rowHash) ? iend - 8 - ZSTD_ROW_HASH_CACHE_SIZE : iend - 8;
     const BYTE* const base = ms->window.base;
     const U32 prefixLowestIndex = ms->window.dictLimit;
     const BYTE* const prefixLowest = base + prefixLowestIndex;
-    const U32 rowLog = ms->cParams.searchLog < 5 ? 4 : 5;
-
-
-    /**
-     * This table is indexed first by the four ZSTD_dictMode_e values, and then
-     * by the two searchMethod_e values. NULLs are placed for configurations
-     * that should never occur (extDict modes go to the other implementation
-     * below and there is no DDSS for binary tree search yet).
-     */
 
     searchMax_f const searchMax = ZSTD_selectLazyVTable(ms, searchMethod, dictMode)->searchMax;
     U32 offset_1 = rep[0], offset_2 = rep[1], savedOffset=0;
@@ -1524,6 +1522,7 @@ ZSTD_compressBlock_lazy_generic(
     }
 
     if (searchMethod == search_rowHash) {
+        const U32 rowLog = MAX(4, MIN(6, ms->cParams.searchLog));
         ZSTD_row_fillHashCache(ms, base, rowLog,
                             MIN(ms->cParams.minMatch, 6 /* mls caps out at 6 */),
                             ms->nextToUpdate, ilimit);

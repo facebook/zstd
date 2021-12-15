@@ -6,7 +6,7 @@ perf: improved binary size and faster compilation times, by @terrelln
 perf: new row64 mode, used notably in levels 11 & 12, by @senhuang42
 perf: minor compression ratio improvements for small data at high levels, by @cyan4973
 perf: reduced stack usage (mostly useful for Linux Kernel), by @terrelln
-perf: faster detection and skipping of incompressible blocks, by @bindhvo
+perf: faster compression speed on incompressible data, by @bindhvo
 perf: on-demand reduced ZSTD_DCtx state size, using build macro ZSTD_DECODER_INTERNAL_BUFFER, at a small cost of performance, by @bindhvo
 build: allows hiding static symbols in the dynamic library, using build macro, by @skitt
 build: support for m68k (Motorola 68000's), by @cyan4973

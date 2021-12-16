@@ -47,10 +47,10 @@ on the [Silesia compression corpus].
 | **zstd 1.5.1 -1**       | 2.887 |   530 MB/s |  1700 MB/s |
 | [zlib] 1.2.11 -1        | 2.743 |    95 MB/s |   400 MB/s |
 | brotli 1.0.9 -0         | 2.702 |   395 MB/s |   450 MB/s |
-| **zstd 1.4.5 --fast=1** | 2.437 |   600 MB/s |  2150 MB/s |
-| **zstd 1.4.5 --fast=3** | 2.239 |   670 MB/s |  2250 MB/s |
+| **zstd 1.5.1 --fast=1** | 2.437 |   600 MB/s |  2150 MB/s |
+| **zstd 1.5.1 --fast=3** | 2.239 |   670 MB/s |  2250 MB/s |
 | quicklz 1.5.0 -1        | 2.238 |   540 MB/s |   760 MB/s |
-| **zstd 1.4.5 --fast=4** | 2.148 |   710 MB/s |  2300 MB/s |
+| **zstd 1.5.1 --fast=4** | 2.148 |   710 MB/s |  2300 MB/s |
 | lzo1x 2.10 -1           | 2.106 |   660 MB/s |   845 MB/s |
 | [lz4] 1.9.3             | 2.101 |   740 MB/s |  4500 MB/s |
 | lzf 3.6 -1              | 2.077 |   410 MB/s |   830 MB/s |

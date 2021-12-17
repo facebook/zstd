@@ -868,8 +868,11 @@ size_t ZSTD_execSequenceEndInner(BYTE* op,
     assert(oLitEnd < op + sequenceLength);
 
     /* copy literals */
-    if(isSplitLitBuffer)
+    if(isSplitLitBuffer) {
+        RETURN_ERROR_IF(op > *litPtr && op < *litPtr + sequence.litLength, dstSize_tooSmall,
+                        "output should not catch up to and overwrite literal buffer");
         ZSTD_safecopyDstBeforeSrc(op, *litPtr, sequence.litLength);
+    }
     else
         ZSTD_safecopy(op, oend_w, *litPtr, sequence.litLength, ZSTD_no_overlap);
     op = oLitEnd;

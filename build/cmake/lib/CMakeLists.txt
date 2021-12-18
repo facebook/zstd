@@ -6,8 +6,11 @@
 # LICENSE file in the root directory of this source tree) and the GPLv2 (found
 # in the COPYING file in the root directory of this source tree).
 # ################################################################
-
+if (WIN32)
+project(libzstd C ASM_MASM)
+else()
 project(libzstd C ASM)
+endif()
 
 set(CMAKE_INCLUDE_CURRENT_DIR TRUE)
 option(ZSTD_BUILD_STATIC "BUILD STATIC LIBRARIES" ON)

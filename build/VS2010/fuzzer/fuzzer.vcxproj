@@ -182,7 +182,7 @@
     <ClCompile Include="..\..\..\lib\decompress\zstd_ddict.c" />
     <ClCompile Include="..\..\..\lib\dictBuilder\cover.c" />
     <ClCompile Include="..\..\..\lib\dictBuilder\fastcover.c" />
-    <ClCompile Include="..\..\..\lib\dictBuilder\divsufsort.c" />
+    <ClCompile Include="..\..\..\lib\dictBuilder\libsais.c" />
     <ClCompile Include="..\..\..\lib\dictBuilder\zdict.c" />
     <ClCompile Include="..\..\..\programs\util.c" />
     <ClCompile Include="..\..\..\programs\timefn.c" />
@@ -210,7 +210,7 @@
     <ClInclude Include="..\..\..\lib\compress\zstd_ldm.h" />
     <ClInclude Include="..\..\..\lib\compress\zstdmt_compress.h" />
     <ClInclude Include="..\..\..\lib\decompress\zstd_ddict.h" />
-    <ClInclude Include="..\..\..\lib\dictBuilder\divsufsort.h" />
+    <ClInclude Include="..\..\..\lib\dictBuilder\libsais.h" />
     <ClInclude Include="..\..\..\lib\zdict.h" />
     <ClInclude Include="..\..\..\lib\dictBuilder\cover.h" />
     <ClInclude Include="..\..\..\lib\legacy\zstd_legacy.h" />

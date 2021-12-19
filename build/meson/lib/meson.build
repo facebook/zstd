@@ -43,7 +43,7 @@ libzstd_sources = [join_paths(zstd_rootdir, 'lib/common/entropy_common.c'),
   join_paths(zstd_rootdir, 'lib/decompress/zstd_ddict.c'),
   join_paths(zstd_rootdir, 'lib/dictBuilder/cover.c'),
   join_paths(zstd_rootdir, 'lib/dictBuilder/fastcover.c'),
-  join_paths(zstd_rootdir, 'lib/dictBuilder/divsufsort.c'),
+  join_paths(zstd_rootdir, 'lib/dictBuilder/libsais.c'),
   join_paths(zstd_rootdir, 'lib/dictBuilder/zdict.c')]
 
 # Explicit define legacy support

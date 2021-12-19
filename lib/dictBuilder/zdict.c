@@ -53,8 +53,7 @@
 #include "../common/xxhash.h"        /* XXH64 */
 #include "../compress/zstd_compress_internal.h" /* ZSTD_loadCEntropy() */
 #include "../zdict.h"
-#include "divsufsort.h"
-
+#include "libsais.h"
 
 /*-*************************************
 *  Constants
@@ -570,14 +569,13 @@ static size_t ZDICT_trainBuffer_legacy(dictItem* dictList, U32 dictListSize,
     if (minRatio < MINRATIO) minRatio = MINRATIO;
     memset(doneMarks, 0, bufferSize+16);
 
-    /* limit sample set size (divsufsort limitation)*/
     if (bufferSize > ZDICT_MAX_SAMPLES_SIZE) DISPLAYLEVEL(3, "sample set too large : reduced to %u MB ...\n", (unsigned)(ZDICT_MAX_SAMPLES_SIZE>>20));
     while (bufferSize > ZDICT_MAX_SAMPLES_SIZE) bufferSize -= fileSizes[--nbFiles];
 
     /* sort */
     DISPLAYLEVEL(2, "sorting %u files of total size %u MB ...\n", nbFiles, (unsigned)(bufferSize>>20));
-    {   int const divSuftSortResult = divsufsort((const unsigned char*)buffer, suffix, (int)bufferSize, 0);
-        if (divSuftSortResult != 0) { result = ERROR(GENERIC); goto _cleanup; }
+    {   int const libSaisResult = libsais((const unsigned char*)buffer, suffix, (int)bufferSize, 0, NULL);
+        if (libSaisResult != 0) { result = ERROR(GENERIC); goto _cleanup; }
     }
     suffix[bufferSize] = (int)bufferSize;   /* leads into noise */
     suffix0[0] = (int)bufferSize;           /* leads into noise */

@@ -120,6 +120,10 @@ ifeq ($(BACKTRACE), 1)
 endif
 endif
 
+ifeq ($(USE_OPENMP), 1)
+  CFLAGS += -fopenmp
+endif
+
 SET_CACHE_DIRECTORY = \
    +$(MAKE) --no-print-directory $@ \
     BUILD_DIR=obj/$(HASH_DIR) \

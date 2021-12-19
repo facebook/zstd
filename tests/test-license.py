@@ -60,15 +60,15 @@ COPYRIGHT_EXCEPTIONS = {
     # From zstdmt
     "threading.c",
     "threading.h",
-    # From divsufsort
-    "divsufsort.c",
-    "divsufsort.h",
+    # From libsais
+    "libsais.c",
+    "libsais.h",
 }
 
 LICENSE_EXCEPTIONS = {
-    # From divsufsort
-    "divsufsort.c",
-    "divsufsort.h",
+    # From libsais
+    "libsais.c",
+    "libsais.h",
     # License is slightly different because it references GitHub
     "linux_zstd.h",
 }

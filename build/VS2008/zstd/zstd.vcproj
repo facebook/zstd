@@ -365,7 +365,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\dictBuilder\divsufsort.c"
+				RelativePath="..\..\..\lib\dictBuilder\libsais.c"
 				>
 			</File>
 			<File
@@ -519,7 +519,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\lib\dictBuilder\divsufsort.h"
+				RelativePath="..\..\..\lib\dictBuilder\libsais.h"
 				>
 			</File>
 			<File

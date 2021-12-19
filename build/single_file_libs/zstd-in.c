@@ -81,6 +81,6 @@
 #include "decompress/zstd_decompress_block.c"
 
 #include "dictBuilder/cover.c"
-#include "dictBuilder/divsufsort.c"
+#include "dictBuilder/libsais.c"
 #include "dictBuilder/fastcover.c"
 #include "dictBuilder/zdict.c"

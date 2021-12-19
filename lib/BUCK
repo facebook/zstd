@@ -67,7 +67,7 @@ cxx_library(
     visibility=['PUBLIC'],
     exported_headers=['zdict.h'],
     headers=subdir_glob([
-        ('dictBuilder', 'divsufsort.h'),
+        ('dictBuilder', 'libsais.h'),
         ('dictBuilder', 'cover.h'),
     ]),
     srcs=glob(['dictBuilder/*.c']),

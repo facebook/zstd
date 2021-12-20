@@ -1568,11 +1568,6 @@ elif [ "$longCSize19wlog23" -gt "$optCSize19wlog23" ]; then
     exit 1
 fi
 
-if [ -n "$CHECK_CONSTRAINED_MEM" ]; then
-    println "\n===>  zsdt constrained memory tests "
-    # shellcheck disable=SC2039
-    (ulimit -Sv 500000 ; datagen -g2M | zstd -22 --single-thread --ultra > /dev/null)
-fi
 
 if [ "$1" != "--test-large-data" ]; then
     println "Skipping large data tests"

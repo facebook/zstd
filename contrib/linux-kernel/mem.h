@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0-only */
+/* SPDX-License-Identifier: GPL-2.0+ OR BSD-3-Clause */
 /*
  * Copyright (c) Yann Collet, Facebook, Inc.
  * All rights reserved.
@@ -30,6 +30,8 @@
 *  Basic Types
 *****************************************************************/
 typedef uint8_t  BYTE;
+typedef uint8_t  U8;
+typedef int8_t   S8;
 typedef uint16_t U16;
 typedef int16_t  S16;
 typedef uint32_t U32;

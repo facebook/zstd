@@ -27,7 +27,6 @@ SKIPPED_FILES = [
     "common/pool.h",
     "common/threading.c",
     "common/threading.h",
-    "common/zstd_trace.c",
     "common/zstd_trace.h",
     "compress/zstdmt_compress.h",
     "compress/zstdmt_compress.c",
@@ -461,7 +460,8 @@ class Freestanding(object):
         print(*args, **kwargs)
 
     def _copy_file(self, lib_path):
-        if not (lib_path.endswith(".c") or lib_path.endswith(".h")):
+        suffixes = [".c", ".h", ".S"]
+        if not any((lib_path.endswith(suffix) for suffix in suffixes)):
             return
         if lib_path in SKIPPED_FILES:
             self._log(f"\tSkipping file: {lib_path}")

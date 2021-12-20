@@ -63,7 +63,7 @@ typedef struct {
 } ZSTD_localDict;
 
 typedef struct {
-    HUF_CElt CTable[HUF_CTABLE_SIZE_U32(255)];
+    HUF_CElt CTable[HUF_CTABLE_SIZE_ST(255)];
     HUF_repeat repeatMode;
 } ZSTD_hufCTables_t;
 
@@ -179,7 +179,7 @@ typedef struct {
     U32  offCodeSumBasePrice;    /* to compare to log2(offreq)  */
     ZSTD_OptPrice_e priceType;   /* prices can be determined dynamically, or follow a pre-defined cost structure */
     const ZSTD_entropyCTables_t* symbolCosts;  /* pre-calculated dictionary statistics */
-    ZSTD_literalCompressionMode_e literalCompressionMode;
+    ZSTD_paramSwitch_e literalCompressionMode;
 } optState_t;
 
 typedef struct {
@@ -198,6 +198,8 @@ typedef struct {
                                 * and for ZSTD_WINDOW_OVERFLOW_CORRECT_FREQUENTLY.
                                 */
 } ZSTD_window_t;
+
+#define ZSTD_WINDOW_START_INDEX 2
 
 typedef struct ZSTD_matchState_t ZSTD_matchState_t;
 
@@ -264,7 +266,7 @@ typedef struct {
 } ldmState_t;
 
 typedef struct {
-    U32 enableLdm;          /* 1 if enable long distance matching */
+    ZSTD_paramSwitch_e enableLdm; /* ZSTD_ps_enable to enable LDM. ZSTD_ps_auto by default */
     U32 hashLog;            /* Log size of hashTable */
     U32 bucketSizeLog;      /* Log bucket size for collision resolution, at most 8 */
     U32 minMatchLength;     /* Minimum match length */
@@ -295,7 +297,7 @@ struct ZSTD_CCtx_params_s {
                                 * There is no guarantee that hint is close to actual source size */
 
     ZSTD_dictAttachPref_e attachDictPref;
-    ZSTD_literalCompressionMode_e literalCompressionMode;
+    ZSTD_paramSwitch_e literalCompressionMode;
 
     /* Multithreading: used to pass parameters to mtctx */
     int nbWorkers;
@@ -318,10 +320,10 @@ struct ZSTD_CCtx_params_s {
     int validateSequences;
 
     /* Block splitting */
-    int splitBlocks;
+    ZSTD_paramSwitch_e useBlockSplitter;
 
     /* Param for deciding whether to use row-based matchfinder */
-    ZSTD_useRowMatchFinderMode_e useRowMatchFinder;
+    ZSTD_paramSwitch_e useRowMatchFinder;
 
     /* Always load a dictionary in ext-dict mode (not prefix mode)? */
     int deterministicRefPrefix;
@@ -342,6 +344,22 @@ typedef enum {
     ZSTDb_not_buffered,
     ZSTDb_buffered
 } ZSTD_buffered_policy_e;
+
+/**
+ * Struct that contains all elements of block splitter that should be allocated
+ * in a wksp.
+ */
+#define ZSTD_MAX_NB_BLOCK_SPLITS 196
+typedef struct {
+    seqStore_t fullSeqStoreChunk;
+    seqStore_t firstHalfSeqStore;
+    seqStore_t secondHalfSeqStore;
+    seqStore_t currSeqStore;
+    seqStore_t nextSeqStore;
+
+    U32 partitions[ZSTD_MAX_NB_BLOCK_SPLITS];
+    ZSTD_entropyCTablesMetadata_t entropyMetadata;
+} ZSTD_blockSplitCtx;
 
 struct ZSTD_CCtx_s {
     ZSTD_compressionStage_e stage;
@@ -374,7 +392,7 @@ struct ZSTD_CCtx_s {
     ZSTD_blockState_t blockState;
     U32* entropyWorkspace;  /* entropy workspace of ENTROPY_WORKSPACE_SIZE bytes */
 
-    /* Wether we are streaming or not */
+    /* Whether we are streaming or not */
     ZSTD_buffered_policy_e bufferedPolicy;
 
     /* streaming */
@@ -408,6 +426,9 @@ struct ZSTD_CCtx_s {
 #if ZSTD_TRACE
     ZSTD_TraceCtx traceCtx;
 #endif
+
+    /* Workspace for block splitter */
+    ZSTD_blockSplitCtx blockSplitCtx;
 };
 
 typedef enum { ZSTD_dtlm_fast, ZSTD_dtlm_full } ZSTD_dictTableLoadMethod_e;
@@ -442,7 +463,7 @@ typedef enum {
 typedef size_t (*ZSTD_blockCompressor) (
         ZSTD_matchState_t* bs, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize);
-ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_useRowMatchFinderMode_e rowMatchfinderMode, ZSTD_dictMode_e dictMode);
+ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_paramSwitch_e rowMatchfinderMode, ZSTD_dictMode_e dictMode);
 
 
 MEM_STATIC U32 ZSTD_LLcode(U32 litLength)
@@ -549,17 +570,17 @@ MEM_STATIC size_t ZSTD_minGain(size_t srcSize, ZSTD_strategy strat)
     return (srcSize >> minlog) + 2;
 }
 
-MEM_STATIC int ZSTD_disableLiteralsCompression(const ZSTD_CCtx_params* cctxParams)
+MEM_STATIC int ZSTD_literalsCompressionIsDisabled(const ZSTD_CCtx_params* cctxParams)
 {
     switch (cctxParams->literalCompressionMode) {
-    case ZSTD_lcm_huffman:
+    case ZSTD_ps_enable:
         return 0;
-    case ZSTD_lcm_uncompressed:
+    case ZSTD_ps_disable:
         return 1;
     default:
         assert(0 /* impossible: pre-validated */);
-        /* fall-through */
-    case ZSTD_lcm_auto:
+        ZSTD_FALLTHROUGH;
+    case ZSTD_ps_auto:
         return (cctxParams->cParams.strategy == ZSTD_fast) && (cctxParams->cParams.targetLength > 0);
     }
 }
@@ -651,8 +672,14 @@ static unsigned ZSTD_NbCommonBytes (size_t val)
 #           if STATIC_BMI2
                 return _tzcnt_u64(val) >> 3;
 #           else
-                unsigned long r = 0;
-                return _BitScanForward64( &r, (U64)val ) ? (unsigned)(r >> 3) : 0;
+                if (val != 0) {
+                    unsigned long r;
+                    _BitScanForward64(&r, (U64)val);
+                    return (unsigned)(r >> 3);
+                } else {
+                    /* Should not reach this code path */
+                    __assume(0);
+                }
 #           endif
 #       elif defined(__GNUC__) && (__GNUC__ >= 4)
             return (__builtin_ctzll((U64)val) >> 3);
@@ -669,8 +696,14 @@ static unsigned ZSTD_NbCommonBytes (size_t val)
 #       endif
         } else { /* 32 bits */
 #       if defined(_MSC_VER)
-            unsigned long r=0;
-            return _BitScanForward( &r, (U32)val ) ? (unsigned)(r >> 3) : 0;
+            if (val != 0) {
+                unsigned long r;
+                _BitScanForward(&r, (U32)val);
+                return (unsigned)(r >> 3);
+            } else {
+                /* Should not reach this code path */
+                __assume(0);
+            }
 #       elif defined(__GNUC__) && (__GNUC__ >= 3)
             return (__builtin_ctz((U32)val) >> 3);
 #       else
@@ -687,8 +720,14 @@ static unsigned ZSTD_NbCommonBytes (size_t val)
 #           if STATIC_BMI2
 			    return _lzcnt_u64(val) >> 3;
 #           else
-			    unsigned long r = 0;
-			    return _BitScanReverse64(&r, (U64)val) ? (unsigned)(r >> 3) : 0;
+                if (val != 0) {
+                    unsigned long r;
+                    _BitScanReverse64(&r, (U64)val);
+                    return (unsigned)(r >> 3);
+                } else {
+                    /* Should not reach this code path */
+                    __assume(0);
+                }
 #           endif
 #       elif defined(__GNUC__) && (__GNUC__ >= 4)
             return (__builtin_clzll(val) >> 3);
@@ -702,8 +741,14 @@ static unsigned ZSTD_NbCommonBytes (size_t val)
 #       endif
         } else { /* 32 bits */
 #       if defined(_MSC_VER)
-            unsigned long r = 0;
-            return _BitScanReverse( &r, (unsigned long)val ) ? (unsigned)(r >> 3) : 0;
+            if (val != 0) {
+                unsigned long r;
+                _BitScanReverse(&r, (unsigned long)val);
+                return (unsigned)(r >> 3);
+            } else {
+                /* Should not reach this code path */
+                __assume(0);
+            }
 #       elif defined(__GNUC__) && (__GNUC__ >= 3)
             return (__builtin_clz((U32)val) >> 3);
 #       else
@@ -884,9 +929,9 @@ MEM_STATIC void ZSTD_window_clear(ZSTD_window_t* window)
 
 MEM_STATIC U32 ZSTD_window_isEmpty(ZSTD_window_t const window)
 {
-    return window.dictLimit == 1 &&
-           window.lowLimit == 1 &&
-           (window.nextSrc - window.base) == 1;
+    return window.dictLimit == ZSTD_WINDOW_START_INDEX &&
+           window.lowLimit == ZSTD_WINDOW_START_INDEX &&
+           (window.nextSrc - window.base) == ZSTD_WINDOW_START_INDEX;
 }
 
 /**
@@ -937,7 +982,9 @@ MEM_STATIC U32 ZSTD_window_canOverflowCorrect(ZSTD_window_t const window,
 {
     U32 const cycleSize = 1u << cycleLog;
     U32 const curr = (U32)((BYTE const*)src - window.base);
-    U32 const minIndexToOverflowCorrect = cycleSize + MAX(maxDist, cycleSize);
+    U32 const minIndexToOverflowCorrect = cycleSize
+                                        + MAX(maxDist, cycleSize)
+                                        + ZSTD_WINDOW_START_INDEX;
 
     /* Adjust the min index to backoff the overflow correction frequency,
      * so we don't waste too much CPU in overflow correction. If this
@@ -1012,10 +1059,14 @@ MEM_STATIC U32 ZSTD_window_correctOverflow(ZSTD_window_t* window, U32 cycleLog,
     U32 const cycleSize = 1u << cycleLog;
     U32 const cycleMask = cycleSize - 1;
     U32 const curr = (U32)((BYTE const*)src - window->base);
-    U32 const currentCycle0 = curr & cycleMask;
-    /* Exclude zero so that newCurrent - maxDist >= 1. */
-    U32 const currentCycle1 = currentCycle0 == 0 ? cycleSize : currentCycle0;
-    U32 const newCurrent = currentCycle1 + MAX(maxDist, cycleSize);
+    U32 const currentCycle = curr & cycleMask;
+    /* Ensure newCurrent - maxDist >= ZSTD_WINDOW_START_INDEX. */
+    U32 const currentCycleCorrection = currentCycle < ZSTD_WINDOW_START_INDEX
+                                     ? MAX(cycleSize, ZSTD_WINDOW_START_INDEX)
+                                     : 0;
+    U32 const newCurrent = currentCycle
+                         + currentCycleCorrection
+                         + MAX(maxDist, cycleSize);
     U32 const correction = curr - newCurrent;
     /* maxDist must be a power of two so that:
      *   (newCurrent & cycleMask) == (curr & cycleMask)
@@ -1031,14 +1082,20 @@ MEM_STATIC U32 ZSTD_window_correctOverflow(ZSTD_window_t* window, U32 cycleLog,
 
     window->base += correction;
     window->dictBase += correction;
-    if (window->lowLimit <= correction) window->lowLimit = 1;
-    else window->lowLimit -= correction;
-    if (window->dictLimit <= correction) window->dictLimit = 1;
-    else window->dictLimit -= correction;
+    if (window->lowLimit < correction + ZSTD_WINDOW_START_INDEX) {
+        window->lowLimit = ZSTD_WINDOW_START_INDEX;
+    } else {
+        window->lowLimit -= correction;
+    }
+    if (window->dictLimit < correction + ZSTD_WINDOW_START_INDEX) {
+        window->dictLimit = ZSTD_WINDOW_START_INDEX;
+    } else {
+        window->dictLimit -= correction;
+    }
 
     /* Ensure we can still reference the full window. */
     assert(newCurrent >= maxDist);
-    assert(newCurrent - maxDist >= 1);
+    assert(newCurrent - maxDist >= ZSTD_WINDOW_START_INDEX);
     /* Ensure that lowLimit and dictLimit didn't underflow. */
     assert(window->lowLimit <= newCurrent);
     assert(window->dictLimit <= newCurrent);
@@ -1149,11 +1206,12 @@ ZSTD_checkDictValidity(const ZSTD_window_t* window,
 
 MEM_STATIC void ZSTD_window_init(ZSTD_window_t* window) {
     ZSTD_memset(window, 0, sizeof(*window));
-    window->base = (BYTE const*)"";
-    window->dictBase = (BYTE const*)"";
-    window->dictLimit = 1;    /* start from 1, so that 1st position is valid */
-    window->lowLimit = 1;     /* it ensures first and later CCtx usages compress the same */
-    window->nextSrc = window->base + 1;   /* see issue #1241 */
+    window->base = (BYTE const*)" ";
+    window->dictBase = (BYTE const*)" ";
+    ZSTD_STATIC_ASSERT(ZSTD_DUBT_UNSORTED_MARK < ZSTD_WINDOW_START_INDEX); /* Start above ZSTD_DUBT_UNSORTED_MARK */
+    window->dictLimit = ZSTD_WINDOW_START_INDEX;    /* start from >0, so that 1st position is valid */
+    window->lowLimit = ZSTD_WINDOW_START_INDEX;     /* it ensures first and later CCtx usages compress the same */
+    window->nextSrc = window->base + ZSTD_WINDOW_START_INDEX;   /* see issue #1241 */
     window->nbOverflowCorrections = 0;
 }
 
@@ -1206,15 +1264,15 @@ MEM_STATIC U32 ZSTD_window_update(ZSTD_window_t* window,
  */
 MEM_STATIC U32 ZSTD_getLowestMatchIndex(const ZSTD_matchState_t* ms, U32 curr, unsigned windowLog)
 {
-    U32    const maxDistance = 1U << windowLog;
-    U32    const lowestValid = ms->window.lowLimit;
-    U32    const withinWindow = (curr - lowestValid > maxDistance) ? curr - maxDistance : lowestValid;
-    U32    const isDictionary = (ms->loadedDictEnd != 0);
+    U32 const maxDistance = 1U << windowLog;
+    U32 const lowestValid = ms->window.lowLimit;
+    U32 const withinWindow = (curr - lowestValid > maxDistance) ? curr - maxDistance : lowestValid;
+    U32 const isDictionary = (ms->loadedDictEnd != 0);
     /* When using a dictionary the entire dictionary is valid if a single byte of the dictionary
      * is within the window. We invalidate the dictionary (and set loadedDictEnd to 0) when it isn't
      * valid for the entire block. So this check is sufficient to find the lowest valid match index.
      */
-    U32    const matchLowest = isDictionary ? lowestValid : withinWindow;
+    U32 const matchLowest = isDictionary ? lowestValid : withinWindow;
     return matchLowest;
 }
 

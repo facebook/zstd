@@ -28,8 +28,10 @@ typedef struct compress_args
 
 static void *compressFile_orDie(void *data)
 {
+    const int nbThreads = 16;
+
     compress_args_t *args = (compress_args_t *)data;
-    fprintf (stderr, "Starting compression of %s with level %d\n", args->fname, args->cLevel);
+    fprintf (stderr, "Starting compression of %s with level %d, using %d threads\n", args->fname, args->cLevel, nbThreads);
     /* Open the input and output files. */
     FILE* const fin  = fopen_orDie(args->fname, "rb");
     FILE* const fout = fopen_orDie(args->outName, "wb");
@@ -56,7 +58,7 @@ static void *compressFile_orDie(void *data)
      */
     CHECK_ZSTD( ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, args->cLevel) );
     CHECK_ZSTD( ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1) );
-    ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 16);
+    ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, nbThreads);
 
     /* This loop read from the input file, compresses that entire chunk,
      * and writes all output produced to the output file.

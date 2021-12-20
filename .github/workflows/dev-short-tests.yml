@@ -1,0 +1,427 @@
+name: dev-short-tests
+# Faster tests: mostly build tests, along with some other
+# misc tests
+
+concurrency:
+  group: fast-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    branches: [ dev, release, actionsTest ]
+
+jobs:
+  linux-kernel:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: linux kernel, library + build + test
+      run: make -C contrib/linux-kernel test CFLAGS="-Werror -Wunused-const-variable -Wunused-but-set-variable"
+
+  benchmarking:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: make benchmarking
+      run: make benchmarking
+
+  check-32bit: # designed to catch https://github.com/facebook/zstd/issues/2428
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: make check on 32-bit
+      run: |
+        sudo apt update
+        APT_PACKAGES="gcc-multilib" make apt-install
+        CFLAGS="-m32 -O1 -fstack-protector" make check V=1
+
+  check-x32:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: make check on x32 ABI # https://en.wikipedia.org/wiki/X32_ABI
+      env:
+        CHECK_CONSTRAINED_MEM: true
+      run: |
+        sudo apt update
+        APT_PACKAGES="gcc-multilib" make apt-install
+        CFLAGS="-mx32 -O1 -fstack-protector" make check V=1
+
+  gcc-7-libzstd:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: gcc-7 + libzstdmt compilation
+      run: |
+        sudo apt-get -qqq update
+        make gcc7install
+        CC=gcc-7 CFLAGS=-Werror make -j all
+        make clean
+        LDFLAGS=-Wl,--no-undefined make -C lib libzstd-mt
+
+    # candidate test (to check) : underlink test
+    # LDFLAGS=-Wl,--no-undefined : will make the linker fail if dll is underlinked
+
+  cmake-build-and-test-check:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: cmake build and test check
+      run: |
+        FUZZERTEST=-T1mn ZSTREAM_TESTTIME=-T1mn make cmakebuild
+        cp -r ./ "../zstd source"
+        cd "../zstd source"
+        FUZZERTEST=-T1mn ZSTREAM_TESTTIME=-T1mn make cmakebuild
+
+  cpp-gnu90-c99-compatibility:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: C++, gnu90 and c99 compatibility
+      run: |
+        make cxxtest
+        make clean
+        make gnu90build
+        make clean
+        make c99build
+        make clean
+        make travis-install   # just ensures `make install` works
+
+  mingw-cross-compilation:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: mingw cross-compilation
+      run: |
+        # sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix; (doesn't work)
+        sudo apt-get -qqq update
+        sudo apt-get install gcc-mingw-w64
+        CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ CFLAGS="-Werror -O1" make zstd
+
+  armbuild:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: ARM Build Test
+      run: |
+        sudo apt-get -qqq update
+        make arminstall
+        make armbuild
+
+  bourne-shell:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Bourne shell compatibility (shellcheck)
+      run: |
+        wget https://github.com/koalaman/shellcheck/releases/download/v0.7.1/shellcheck-v0.7.1.linux.x86_64.tar.xz
+        tar -xf shellcheck-v0.7.1.linux.x86_64.tar.xz
+        shellcheck-v0.7.1/shellcheck --shell=sh --severity=warning --exclude=SC2010 tests/playTests.sh
+
+  zlib-wrapper:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: zlib wrapper test
+      run: |
+        sudo apt-get -qqq update
+        make valgrindinstall
+        make -C zlibWrapper test
+        make -C zlibWrapper valgrindTest
+
+  lz4-threadpool-libs:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: LZ4, thread pool, and libs build testslib wrapper test
+      run: |
+        make lz4install
+        make -C tests test-lz4
+        make check < /dev/null | tee   # mess with lz4 console detection
+        make clean
+        make -C tests test-pool
+        make clean
+        bash tests/libzstd_builds.sh
+
+  gcc-make-tests-32bit:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Make all, 32bit mode
+      run: |
+        sudo apt-get -qqq update
+        make libc6install
+        CFLAGS="-Werror -m32" make -j all32
+
+  gcc-8-make:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: gcc-8 build
+        run: |
+          sudo apt-get -qqq update
+          make gcc8install
+          CC=gcc-8 CFLAGS="-Werror" make -j all
+
+  implicit-fall-through:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: -Wimplicit-fallthrough build
+        run: |
+          make clean
+          CC=gcc MOREFLAGS="-Werror -Wimplicit-fallthrough=2 -O0" make -C lib -j libzstd.a ZSTD_LEGACY_SUPPORT=0
+          make clean
+          CC=clang MOREFLAGS="-Werror -Wimplicit-fallthrough -O0" make -C lib -j libzstd.a ZSTD_LEGACY_SUPPORT=0
+
+  cmake-visual-2019:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        include:
+          - generator: "Visual Studio 16 2019"
+            flags: "-A x64"
+          - generator: "Visual Studio 16 2019"
+            flags: "-A Win32"
+          - generator: "MinGW Makefiles"
+    steps:
+    - uses: actions/checkout@v2
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v1.0.2
+    - name: Build
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: |
+        cd build\cmake
+        mkdir build
+        cd build
+        cmake.exe -G "${{matrix.generator}}" ${{matrix.flags}} ..
+        cmake.exe --build .
+
+  visual-2019:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        platform: [x64, Win32]
+        configuration: [Debug, Release]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v1.0.2
+    - name: Build
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
+      run: >
+        msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v142
+        /t:Clean,Build /p:Platform=${{matrix.platform}} /p:Configuration=${{matrix.configuration}}
+
+  visual-2015:
+    # only GH actions windows-2016 contains VS 2015
+    runs-on: windows-2016
+    strategy:
+      matrix:
+        platform: [x64, Win32]
+        configuration: [Debug, Release]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v1.0.2
+    - name: Build
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: >
+        msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v140
+        /t:Clean,Build /p:Platform=${{matrix.platform}} /p:Configuration=${{matrix.configuration}}
+
+  minimal-decompressor-macros:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: minimal decompressor macros
+      run: |
+        make clean && make -j all ZSTD_LIB_MINIFY=1 MOREFLAGS="-Werror"
+        make clean && make check ZSTD_LIB_MINIFY=1 MOREFLAGS="-Werror"
+        make clean && make -j all MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X1 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT"
+        make clean && make check MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X1 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT"
+        make clean && make -j all MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X2 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG"
+        make clean && make check MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X2 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG"
+        make clean && make -j all MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
+        make clean && make check MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
+
+  dynamic-bmi2:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: dynamic bmi2 tests
+      run: |
+        make clean && make -j check MOREFLAGS="-O0 -Werror -mbmi2"
+        make clean && make -j check MOREFLAGS="-O0 -Werror -DDYNAMIC_BMI2=1"
+        make clean && make -j check MOREFLAGS="-O0 -Werror -DDYNAMIC_BMI2=1 -mbmi2"
+        make clean && make -j check MOREFLAGS="-O0 -Werror -DDYNAMIC_BMI2=0"
+        make clean && make -j check MOREFLAGS="-O0 -Werror -DDYNAMIC_BMI2=0 -mbmi2"
+
+  test-variants:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: make all variants & validate
+      run: |
+        make -j -C programs allVariants MOREFLAGS=-O0
+        ./tests/test-variants.sh
+
+
+  qemu-consistency:
+    name: QEMU ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false  # 'false' means Don't stop matrix workflows even if some matrix failed.
+      matrix:
+        include: [
+          { name: ARM,      xcc_pkg: gcc-arm-linux-gnueabi,     xcc: arm-linux-gnueabi-gcc,     xemu_pkg: qemu-system-arm,    xemu: qemu-arm-static     },
+          { name: ARM64,    xcc_pkg: gcc-aarch64-linux-gnu,     xcc: aarch64-linux-gnu-gcc,     xemu_pkg: qemu-system-arm,    xemu: qemu-aarch64-static },
+          { name: PPC,      xcc_pkg: gcc-powerpc-linux-gnu,     xcc: powerpc-linux-gnu-gcc,     xemu_pkg: qemu-system-ppc,    xemu: qemu-ppc-static     },
+          { name: PPC64LE,  xcc_pkg: gcc-powerpc64le-linux-gnu, xcc: powerpc64le-linux-gnu-gcc, xemu_pkg: qemu-system-ppc,    xemu: qemu-ppc64le-static },
+          { name: S390X,    xcc_pkg: gcc-s390x-linux-gnu,       xcc: s390x-linux-gnu-gcc,       xemu_pkg: qemu-system-s390x,  xemu: qemu-s390x-static   },
+          { name: MIPS,     xcc_pkg: gcc-mips-linux-gnu,        xcc: mips-linux-gnu-gcc,        xemu_pkg: qemu-system-mips,   xemu: qemu-mips-static    },
+          { name: M68K,     xcc_pkg: gcc-m68k-linux-gnu,        xcc: m68k-linux-gnu-gcc,        xemu_pkg: qemu-system-m68k,   xemu: qemu-m68k-static    },
+        ]
+    env:                        # Set environment variables
+      XCC: ${{ matrix.xcc }}
+      XEMU: ${{ matrix.xemu }}
+    steps:
+    - uses: actions/checkout@v2 # https://github.com/actions/checkout
+    - name: apt update & install
+      run: |
+        sudo apt-get update
+        sudo apt-get install gcc-multilib g++-multilib qemu-utils qemu-user-static
+        sudo apt-get install ${{ matrix.xcc_pkg }} ${{ matrix.xemu_pkg }}
+    - name: Environment info
+      run: |
+        echo && which $XCC
+        echo && $XCC --version
+        echo && $XCC -v  # Show built-in specs
+        echo && which $XEMU
+        echo && $XEMU --version
+    - name: ARM
+      if: ${{ matrix.name == 'ARM' }}
+      run: |
+        LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
+    - name: ARM64
+      if: ${{ matrix.name == 'ARM64' }}
+      run: |
+        LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
+    - name: PPC
+      if: ${{ matrix.name == 'PPC' }}
+      run: |
+        LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
+    - name: PPC64LE
+      if: ${{ matrix.name == 'PPC64LE' }}
+      run: |
+        LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
+    - name: S390X
+      if: ${{ matrix.name == 'S390X' }}
+      run: |
+        LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
+    - name: MIPS
+      if: ${{ matrix.name == 'MIPS' }}
+      run: |
+        LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
+    - name: M68K
+      if: ${{ matrix.name == 'M68K' }}
+      run: |
+        LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
+
+  mingw-short-test:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: [
+          { compiler: gcc, platform: x64, script: "CFLAGS=-Werror make -j allzstd DEBUGLEVEL=2"},
+          { compiler: gcc, platform: x86, script: "CFLAGS=-Werror make -j allzstd"},
+          { compiler: clang, platform: x64, script: "CFLAGS='--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion' make -j allzstd V=1"},
+        ]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Mingw short test
+      run: |
+        ECHO "Building ${{matrix.compiler}} ${{matrix.platform}}"
+        $env:PATH_ORIGINAL = $env:PATH
+        $env:PATH_MINGW32 = "C:\msys64\mingw32\bin"
+        $env:PATH_MINGW64 = "C:\msys64\mingw64\bin"
+        COPY C:\msys64\usr\bin\make.exe C:\msys64\mingw32\bin\make.exe
+        COPY C:\msys64\usr\bin\make.exe C:\msys64\mingw64\bin\make.exe
+        IF ("${{matrix.platform}}" -eq "x64")
+        {
+            $env:PATH = $env:PATH_MINGW64 + ";" + $env:PATH_ORIGINAL
+        }
+        ELSEIF ("${{matrix.platform}}" -eq "x86")
+        {
+            $env:PATH = $env:PATH_MINGW32 + ";" + $env:PATH_ORIGINAL
+        }
+        make -v
+        sh -c "${{matrix.compiler}} -v"
+        $env:CC = "${{matrix.compiler}}"
+        sh -c "${{matrix.script}}"
+        ECHO "Testing ${{matrix.compiler}} ${{matrix.platform}}"
+        make clean
+        make check
+
+
+  visual-runtime-tests:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        platform: [x64, Win32]
+        configuration: [Release]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v1.0.2
+    - name: Build and run tests
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      env:
+        ZSTD_BIN: ./zstd.exe
+        DATAGEN_BIN: ./datagen.exe
+      # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
+      run: |
+        msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v142 /t:Clean,Build /p:Platform=${{matrix.platform}} /p:Configuration=${{matrix.configuration}}
+        COPY build\VS2010\bin\${{matrix.platform}}_${{matrix.configuration}}\*.exe tests\
+        CD tests
+        sh -e playTests.sh
+        DIR
+        .\fuzzer.exe -T2m
+
+# This test currently fails on Github Actions specifically.
+# Possible reason : TTY emulation.
+# Note that the same test works fine locally and on travisCI.
+# This will have to be fixed before transferring the test to GA.
+#  versions-compatibility:
+#    runs-on: ubuntu-latest
+#    steps:
+#    - uses: actions/checkout@v2
+#    - name: Versions Compatibility Test
+#      run: |
+#        make -C tests versionsTest
+
+
+# For reference : icc tests
+# icc tests are currently failing on Github Actions, likely to issues during installation stage
+# To be fixed later
+#
+#  icc:
+#    name: icc-check
+#    runs-on: ubuntu-latest
+#    steps:
+#    - name: install icc
+#      run: |
+#        export DEBIAN_FRONTEND=noninteractive
+#        sudo apt-get -qqq update
+#        sudo apt-get install -y wget build-essential pkg-config cmake ca-certificates gnupg
+#        sudo wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
+#        sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB
+#        sudo add-apt-repository "deb https://apt.repos.intel.com/oneapi all main"
+#        sudo apt-get update
+#        sudo apt-get install -y intel-basekit intel-hpckit
+#    - uses: actions/checkout@v2
+#    - name: make check
+#      run: |
+#        make CC=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/icc check

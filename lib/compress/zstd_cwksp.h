@@ -219,7 +219,7 @@ MEM_STATIC size_t ZSTD_cwksp_aligned_alloc_size(size_t size) {
 MEM_STATIC size_t ZSTD_cwksp_slack_space_required(void) {
     /* For alignment, the wksp will always allocate an additional n_1=[1, 64] bytes
      * to align the beginning of tables section, as well as another n_2=[0, 63] bytes
-     * to align the beginning of the aligned secion.
+     * to align the beginning of the aligned section.
      *
      * n_1 + n_2 == 64 bytes if the cwksp is freshly allocated, due to tables and
      * aligneds being sized in multiples of 64 bytes.
@@ -422,8 +422,8 @@ MEM_STATIC void* ZSTD_cwksp_reserve_object(ZSTD_cwksp* ws, size_t bytes) {
     DEBUGLOG(5,
         "cwksp: reserving %p object %zd bytes (rounded to %zd), %zd bytes remaining",
         alloc, bytes, roundedBytes, ZSTD_cwksp_available_space(ws) - roundedBytes);
-    assert(((size_t)alloc & (sizeof(void*)-1)) == 0);
-    assert((bytes & (sizeof(void*)-1)) == 0);
+    assert((size_t)alloc % ZSTD_ALIGNOF(void*) == 0);
+    assert(bytes % ZSTD_ALIGNOF(void*) == 0);
     ZSTD_cwksp_assert_internal_consistency(ws);
     /* we must be in the first phase, no advance is possible */
     if (ws->phase != ZSTD_cwksp_alloc_objects || end > ws->workspaceEnd) {

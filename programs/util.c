@@ -159,6 +159,29 @@ int UTIL_chmod(char const* filename, const stat_t* statbuf, mode_t permissions)
     return chmod(filename, permissions);
 }
 
+/* set access and modification times */
+int UTIL_utime(const char* filename, const stat_t *statbuf)
+{
+    int ret;
+    /* We check that st_mtime is a macro here in order to give us confidence
+     * that struct stat has a struct timespec st_mtim member. We need this
+     * check because there are some platforms that claim to be POSIX 2008
+     * compliant but which do not have st_mtim... */
+#if (PLATFORM_POSIX_VERSION >= 200809L) && defined(st_mtime)
+    /* (atime, mtime) */
+    struct timespec timebuf[2] = { {0, UTIME_NOW} };
+    timebuf[1] = statbuf->st_mtim;
+    ret = utimensat(AT_FDCWD, filename, timebuf, 0);
+#else
+    struct utimbuf timebuf;
+    timebuf.actime = time(NULL);
+    timebuf.modtime = statbuf->st_mtime;
+    ret = utime(filename, &timebuf);
+#endif
+    errno = 0;
+    return ret;
+}
+
 int UTIL_setFileStat(const char *filename, const stat_t *statbuf)
 {
     int res = 0;
@@ -168,25 +191,7 @@ int UTIL_setFileStat(const char *filename, const stat_t *statbuf)
         return -1;
 
     /* set access and modification times */
-    /* We check that st_mtime is a macro here in order to give us confidence
-     * that struct stat has a struct timespec st_mtim member. We need this
-     * check because there are some platforms that claim to be POSIX 2008
-     * compliant but which do not have st_mtim... */
-#if (PLATFORM_POSIX_VERSION >= 200809L) && defined(st_mtime)
-    {
-        /* (atime, mtime) */
-        struct timespec timebuf[2] = { {0, UTIME_NOW} };
-        timebuf[1] = statbuf->st_mtim;
-        res += utimensat(AT_FDCWD, filename, timebuf, 0);
-    }
-#else
-    {
-        struct utimbuf timebuf;
-        timebuf.actime = time(NULL);
-        timebuf.modtime = statbuf->st_mtime;
-        res += utime(filename, &timebuf);
-    }
-#endif
+    res += UTIL_utime(filename, statbuf);
 
 #if !defined(_WIN32)
     res += chown(filename, statbuf->st_uid, statbuf->st_gid);  /* Copy ownership */
@@ -303,6 +308,62 @@ U64 UTIL_getFileSizeStat(const stat_t* statbuf)
     return (U64)statbuf->st_size;
 }
 
+UTIL_HumanReadableSize_t UTIL_makeHumanReadableSize(U64 size)
+{
+    UTIL_HumanReadableSize_t hrs;
+
+    if (g_utilDisplayLevel > 3) {
+        /* In verbose mode, do not scale sizes down, except in the case of
+         * values that exceed the integral precision of a double. */
+        if (size >= (1ull << 53)) {
+            hrs.value = (double)size / (1ull << 20);
+            hrs.suffix = " MiB";
+            /* At worst, a double representation of a maximal size will be
+             * accurate to better than tens of kilobytes. */
+            hrs.precision = 2;
+        } else {
+            hrs.value = (double)size;
+            hrs.suffix = " B";
+            hrs.precision = 0;
+        }
+    } else {
+        /* In regular mode, scale sizes down and use suffixes. */
+        if (size >= (1ull << 60)) {
+            hrs.value = (double)size / (1ull << 60);
+            hrs.suffix = " EiB";
+        } else if (size >= (1ull << 50)) {
+            hrs.value = (double)size / (1ull << 50);
+            hrs.suffix = " PiB";
+        } else if (size >= (1ull << 40)) {
+            hrs.value = (double)size / (1ull << 40);
+            hrs.suffix = " TiB";
+        } else if (size >= (1ull << 30)) {
+            hrs.value = (double)size / (1ull << 30);
+            hrs.suffix = " GiB";
+        } else if (size >= (1ull << 20)) {
+            hrs.value = (double)size / (1ull << 20);
+            hrs.suffix = " MiB";
+        } else if (size >= (1ull << 10)) {
+            hrs.value = (double)size / (1ull << 10);
+            hrs.suffix = " KiB";
+        } else {
+            hrs.value = (double)size;
+            hrs.suffix = " B";
+        }
+
+        if (hrs.value >= 100 || (U64)hrs.value == size) {
+            hrs.precision = 0;
+        } else if (hrs.value >= 10) {
+            hrs.precision = 1;
+        } else if (hrs.value > 1) {
+            hrs.precision = 2;
+        } else {
+            hrs.precision = 3;
+        }
+    }
+
+    return hrs;
+}
 
 U64 UTIL_getTotalFileSize(const char* const * fileNamesTable, unsigned nbFiles)
 {
@@ -931,7 +992,7 @@ makeUniqueMirroredDestDirs(char** srcDirNames, unsigned nbFile, const char* outD
         char* prevDirName = srcDirNames[i - 1];
         char* currDirName = srcDirNames[i];
 
-        /* note: we alwasy compare trimmed path, i.e.:
+        /* note: we always compare trimmed path, i.e.:
          * src dir of "./foo" and "/foo" will be both saved into:
          * "outDirName/foo/" */
         if (!firstIsParentOrSameDirOfSecond(trimPath(prevDirName),
@@ -939,7 +1000,7 @@ makeUniqueMirroredDestDirs(char** srcDirNames, unsigned nbFile, const char* outD
             uniqueDirNr++;
 
         /* we need maintain original src dir name instead of trimmed
-         * dir, so we can retrive the original src dir's mode_t */
+         * dir, so we can retrieve the original src dir's mode_t */
         uniqueDirNames[uniqueDirNr - 1] = currDirName;
     }
 
@@ -1048,7 +1109,7 @@ FileNamesTable* UTIL_createFNT_fromROTable(const char** filenames, size_t nbFile
 
 
 /*-****************************************
-*  count the number of physical cores
+*  count the number of cores
 ******************************************/
 
 #if defined(_WIN32) || defined(WIN32)
@@ -1057,10 +1118,26 @@ FileNamesTable* UTIL_createFNT_fromROTable(const char** filenames, size_t nbFile
 
 typedef BOOL(WINAPI* LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
 
-int UTIL_countPhysicalCores(void)
+DWORD CountSetBits(ULONG_PTR bitMask)
 {
-    static int numPhysicalCores = 0;
-    if (numPhysicalCores != 0) return numPhysicalCores;
+    DWORD LSHIFT = sizeof(ULONG_PTR)*8 - 1;
+    DWORD bitSetCount = 0;
+    ULONG_PTR bitTest = (ULONG_PTR)1 << LSHIFT;
+    DWORD i;
+
+    for (i = 0; i <= LSHIFT; ++i)
+    {
+        bitSetCount += ((bitMask & bitTest)?1:0);
+        bitTest/=2;
+    }
+
+    return bitSetCount;
+}
+
+int UTIL_countCores(int logical)
+{
+    static int numCores = 0;
+    if (numCores != 0) return numCores;
 
     {   LPFN_GLPI glpi;
         BOOL done = FALSE;
@@ -1106,7 +1183,10 @@ int UTIL_countPhysicalCores(void)
         while (byteOffset + sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION) <= returnLength) {
 
             if (ptr->Relationship == RelationProcessorCore) {
-                numPhysicalCores++;
+                if (logical)
+                    numCores += CountSetBits(ptr->ProcessorMask);
+                else
+                    numCores++;
             }
 
             ptr++;
@@ -1115,17 +1195,17 @@ int UTIL_countPhysicalCores(void)
 
         free(buffer);
 
-        return numPhysicalCores;
+        return numCores;
     }
 
 failed:
     /* try to fall back on GetSystemInfo */
     {   SYSTEM_INFO sysinfo;
         GetSystemInfo(&sysinfo);
-        numPhysicalCores = sysinfo.dwNumberOfProcessors;
-        if (numPhysicalCores == 0) numPhysicalCores = 1; /* just in case */
+        numCores = sysinfo.dwNumberOfProcessors;
+        if (numCores == 0) numCores = 1; /* just in case */
     }
-    return numPhysicalCores;
+    return numCores;
 }
 
 #elif defined(__APPLE__)
@@ -1134,24 +1214,24 @@ failed:
 
 /* Use apple-provided syscall
  * see: man 3 sysctl */
-int UTIL_countPhysicalCores(void)
+int UTIL_countCores(int logical)
 {
-    static S32 numPhysicalCores = 0; /* apple specifies int32_t */
-    if (numPhysicalCores != 0) return numPhysicalCores;
+    static S32 numCores = 0; /* apple specifies int32_t */
+    if (numCores != 0) return numCores;
 
     {   size_t size = sizeof(S32);
-        int const ret = sysctlbyname("hw.physicalcpu", &numPhysicalCores, &size, NULL, 0);
+        int const ret = sysctlbyname(logical ? "hw.logicalcpu" : "hw.physicalcpu", &numCores, &size, NULL, 0);
         if (ret != 0) {
             if (errno == ENOENT) {
                 /* entry not present, fall back on 1 */
-                numPhysicalCores = 1;
+                numCores = 1;
             } else {
-                perror("zstd: can't get number of physical cpus");
+                perror("zstd: can't get number of cpus");
                 exit(1);
             }
         }
 
-        return numPhysicalCores;
+        return numCores;
     }
 }
 
@@ -1160,16 +1240,16 @@ int UTIL_countPhysicalCores(void)
 /* parse /proc/cpuinfo
  * siblings / cpu cores should give hyperthreading ratio
  * otherwise fall back on sysconf */
-int UTIL_countPhysicalCores(void)
+int UTIL_countCores(int logical)
 {
-    static int numPhysicalCores = 0;
+    static int numCores = 0;
 
-    if (numPhysicalCores != 0) return numPhysicalCores;
+    if (numCores != 0) return numCores;
 
-    numPhysicalCores = (int)sysconf(_SC_NPROCESSORS_ONLN);
-    if (numPhysicalCores == -1) {
+    numCores = (int)sysconf(_SC_NPROCESSORS_ONLN);
+    if (numCores == -1) {
         /* value not queryable, fall back on 1 */
-        return numPhysicalCores = 1;
+        return numCores = 1;
     }
 
     /* try to determine if there's hyperthreading */
@@ -1183,7 +1263,7 @@ int UTIL_countPhysicalCores(void)
 
         if (cpuinfo == NULL) {
             /* fall back on the sysconf value */
-            return numPhysicalCores;
+            return numCores;
         }
 
         /* assume the cpu cores/siblings values will be constant across all
@@ -1216,13 +1296,13 @@ int UTIL_countPhysicalCores(void)
             ratio = siblings / cpu_cores;
         }
 
-        if (ratio && numPhysicalCores > ratio) {
-            numPhysicalCores = numPhysicalCores / ratio;
+        if (ratio && numCores > ratio && !logical) {
+            numCores = numCores / ratio;
         }
 
 failed:
         fclose(cpuinfo);
-        return numPhysicalCores;
+        return numCores;
     }
 }
 
@@ -1233,58 +1313,86 @@ failed:
 
 /* Use physical core sysctl when available
  * see: man 4 smp, man 3 sysctl */
-int UTIL_countPhysicalCores(void)
+int UTIL_countCores(int logical)
 {
-    static int numPhysicalCores = 0; /* freebsd sysctl is native int sized */
-    if (numPhysicalCores != 0) return numPhysicalCores;
+    static int numCores = 0; /* freebsd sysctl is native int sized */
+#if __FreeBSD_version >= 1300008
+    static int perCore = 1;
+#endif
+    if (numCores != 0) return numCores;
 
 #if __FreeBSD_version >= 1300008
-    {   size_t size = sizeof(numPhysicalCores);
-        int ret = sysctlbyname("kern.smp.cores", &numPhysicalCores, &size, NULL, 0);
-        if (ret == 0) return numPhysicalCores;
+    {   size_t size = sizeof(numCores);
+        int ret = sysctlbyname("kern.smp.cores", &numCores, &size, NULL, 0);
+        if (ret == 0) {
+            if (logical) {
+                ret = sysctlbyname("kern.smp.threads_per_core", &perCore, &size, NULL, 0);
+                /* default to physical cores if logical cannot be read */
+                if (ret == 0)
+                    numCores *= perCore;
+            }
+
+            return numCores;
+        }
         if (errno != ENOENT) {
-            perror("zstd: can't get number of physical cpus");
+            perror("zstd: can't get number of cpus");
             exit(1);
         }
         /* sysctl not present, fall through to older sysconf method */
     }
+#else
+    /* suppress unused parameter warning */
+    (void) logical;
 #endif
 
-    numPhysicalCores = (int)sysconf(_SC_NPROCESSORS_ONLN);
-    if (numPhysicalCores == -1) {
+    numCores = (int)sysconf(_SC_NPROCESSORS_ONLN);
+    if (numCores == -1) {
         /* value not queryable, fall back on 1 */
-        numPhysicalCores = 1;
+        numCores = 1;
     }
-    return numPhysicalCores;
+    return numCores;
 }
 
 #elif defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || defined(__CYGWIN__)
 
 /* Use POSIX sysconf
  * see: man 3 sysconf */
-int UTIL_countPhysicalCores(void)
+int UTIL_countCores(int logical)
 {
-    static int numPhysicalCores = 0;
+    static int numCores = 0;
 
-    if (numPhysicalCores != 0) return numPhysicalCores;
+    /* suppress unused parameter warning */
+    (void)logical;
 
-    numPhysicalCores = (int)sysconf(_SC_NPROCESSORS_ONLN);
-    if (numPhysicalCores == -1) {
+    if (numCores != 0) return numCores;
+
+    numCores = (int)sysconf(_SC_NPROCESSORS_ONLN);
+    if (numCores == -1) {
         /* value not queryable, fall back on 1 */
-        return numPhysicalCores = 1;
+        return numCores = 1;
     }
-    return numPhysicalCores;
+    return numCores;
 }
 
 #else
 
-int UTIL_countPhysicalCores(void)
+int UTIL_countCores(int logical)
 {
     /* assume 1 */
     return 1;
 }
 
 #endif
+
+int UTIL_countPhysicalCores(void)
+{
+    return UTIL_countCores(0);
+}
+
+int UTIL_countLogicalCores(void)
+{
+    return UTIL_countCores(1);
+}
 
 #if defined (__cplusplus)
 }

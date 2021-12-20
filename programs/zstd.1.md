@@ -125,6 +125,9 @@ the last one takes effect.
     This mode is the only one available when multithread support is disabled.
     Single-thread mode features lower memory usage.
     Final compressed result is slightly different from `-T1`.
+* `--auto-threads={physical,logical} (default: physical)`:
+    When using a default amount of threads via `-T0`, choose the default based on the number
+    of detected physical or logical cores.
 * `--adapt[=min=#,max=#]` :
     `zstd` will dynamically adapt compression level to perceived I/O conditions.
     Compression level adaptation can be observed live by using command `-v`.
@@ -168,7 +171,7 @@ the last one takes effect.
     compression speed hit.
     This feature does not work with `--single-thread`. You probably don't want
     to use it with long range mode, since it will decrease the effectiveness of
-    the synchronization points, but your milage may vary.
+    the synchronization points, but your mileage may vary.
 * `-C`, `--[no-]check`:
     add integrity check computed from uncompressed data (default: enabled)
 * `--[no-]content-size`:
@@ -187,6 +190,10 @@ the last one takes effect.
 
     This is also used during compression when using with --patch-from=. In this case,
     this parameter overrides that maximum size allowed for a dictionary. (128 MB).
+
+    Additionally, this can be used to limit memory for dictionary training. This parameter
+    overrides the default limit of 2 GB. zstd will load training samples up to the memory limit
+    and ignore the rest.
 * `--stream-size=#` :
     Sets the pledged source size of input coming from a stream. This value must be exact, as it
     will be included in the produced frame header. Incorrect stream sizes will cause an error.
@@ -205,7 +212,7 @@ the last one takes effect.
     disable input and output checks. Allows overwriting existing files, input
     from console, output to stdout, operating on links, block devices, etc.
 * `-c`, `--stdout`:
-    force write to standard output, even if it is the console
+    write to standard output (even if it is the console)
 * `--[no-]sparse`:
     enable / disable sparse FS support,
     to make files with many zeroes smaller on disk.
@@ -221,7 +228,11 @@ the last one takes effect.
     keep source file(s) after successful compression or decompression.
     This is the default behavior.
 * `-r`:
-    operate recursively on directories
+    operate recursively on directories.
+    It selects all files in the named directory and all its subdirectories.
+    This can be useful both to reduce command line typing,
+    and to circumvent shell expansion limitations,
+    when there are a lot of files and naming breaks the maximum size of a command line.
 * `--filelist FILE`
     read a list of files to process as content from `FILE`.
     Format is compatible with `ls` output, with one file per line.
@@ -304,12 +315,14 @@ Compression of small files similar to the sample set will be greatly improved.
     The training set should contain a lot of small files (> 100),
     and weight typically 100x the target dictionary size
     (for example, 10 MB for a 100 KB dictionary).
+    `--train` can be combined with `-r` to indicate a directory rather than listing all the files,
+    which can be useful to circumvent shell expansion limits.
 
-    Supports multithreading if `zstd` is compiled with threading support.
+    `--train` supports multithreading if `zstd` is compiled with threading support (default).
     Additional parameters can be specified with `--train-fastcover`.
     The legacy dictionary builder can be accessed with `--train-legacy`.
-    The cover dictionary builder can be accessed with `--train-cover`.
-    Equivalent to `--train-fastcover=d=8,steps=4`.
+    The slower cover dictionary builder can be accessed with `--train-cover`.
+    Default is equivalent to `--train-fastcover=d=8,steps=4`.
 * `-o file`:
     Dictionary saved into `file` (default name: dictionary).
 * `--maxdict=#`:
@@ -319,10 +332,12 @@ Compression of small files similar to the sample set will be greatly improved.
     Will generate statistics more tuned for selected compression level,
     resulting in a _small_ compression ratio improvement for this level.
 * `-B#`:
-    Split input files in blocks of size # (default: no split)
+    Split input files into blocks of size # (default: no split)
+* `-M#`, `--memory=#`:
+    Limit the amount of sample data loaded for training (default: 2 GB). See above for details.
 * `--dictID=#`:
-    A dictionary ID is a locally unique ID that a decoder can use to verify it is
-    using the right dictionary.
+    A dictionary ID is a locally unique ID
+    that a decoder can use to verify it is using the right dictionary.
     By default, zstd will create a 4-bytes random number ID.
     It's possible to give a precise number instead.
     Short numbers have an advantage : an ID < 256 will only need 1 byte in the

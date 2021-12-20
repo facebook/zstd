@@ -1,0 +1,240 @@
+name: dev-long-tests
+# Tests longer than 10mn
+
+concurrency:
+  group: long-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    branches: [ dev, release, actionsTest ]
+
+jobs:
+  make-all:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: make all
+      run: make all
+
+  # lasts ~24mn
+  make-test:
+    runs-on: ubuntu-latest
+    env:
+      DEVNULLRIGHTS: 1
+      READFROMBLOCKDEVICE: 1
+    steps:
+    - uses: actions/checkout@v2
+    - name: make test
+      run: make test
+
+  # lasts ~26mn
+  make-test-osx:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: OS-X test
+      run: make test # make -c lib all doesn't work because of the fact that it's not a tty
+
+  no-intrinsics-fuzztest:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: no intrinsics fuzztest
+      run: MOREFLAGS="-DZSTD_NO_INTRINSICS" make -C tests fuzztest
+
+  tsan-zstreamtest:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: thread sanitizer zstreamtest
+      run: CC=clang ZSTREAM_TESTTIME=-T3mn make tsan-test-zstream
+
+  # lasts ~15mn
+  tsan-fuzztest:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: thread sanitizer fuzztest
+      run: CC=clang make tsan-fuzztest
+
+  # lasts ~23mn
+  gcc-8-asan-ubsan-testzstd:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: gcc-8 + ASan + UBSan + Test Zstd
+      run: |
+        sudo apt-get -qqq update
+        make gcc8install
+        CC=gcc-8 make -j uasan-test-zstd </dev/null V=1
+
+  gcc-asan-ubsan-testzstd-32bit:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: ASan + UBSan + Test Zstd, 32bit mode
+      run: |
+        make libc6install
+        make -j uasan-test-zstd32 V=1
+
+    # Note : external libraries must be turned off when using MSAN tests,
+    # because they are not msan-instrumented,
+    # so any data coming from these libraries is always considered "uninitialized"
+
+  gcc-8-asan-ubsan-fuzz:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: gcc-8 + ASan + UBSan + Fuzz Test
+      run: |
+        make gcc8install
+        CC=gcc-8 FUZZER_FLAGS="--long-tests" make clean uasan-fuzztest
+
+  gcc-asan-ubsan-fuzz32:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: ASan + UBSan + Fuzz Test 32bit
+      run: |
+        make libc6install
+        CFLAGS="-O3 -m32" FUZZER_FLAGS="--long-tests" make uasan-fuzztest
+
+  asan-ubsan-regression:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: ASan + UBSan + Regression Test
+      run: make -j uasanregressiontest
+
+  msan-regression:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: MSan + Regression Test
+      run: make -j msanregressiontest
+
+  clang-msan-fuzz:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: clang + MSan + Fuzz Test
+      run: |
+        sudo apt-get -qqq update
+        sudo apt-get install clang
+        CC=clang FUZZER_FLAGS="--long-tests" make clean msan-fuzztest
+
+  # lasts ~24mn
+  clang-msan-testzstd:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: clang + MSan + Test Zstd
+      run: |
+        sudo apt-get update
+        sudo apt-get install clang
+        CC=clang make msan-test-zstd HAVE_ZLIB=0 HAVE_LZ4=0 HAVE_LZMA=0 V=1
+
+  armfuzz:
+      runs-on: ubuntu-latest
+      steps:
+      - uses: actions/checkout@v2
+      - name: Qemu ARM emulation + Fuzz Test
+        run: |
+          sudo apt-get -qqq update
+          make arminstall
+          make armfuzz
+
+  valgrind-fuzz-test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: valgrind + fuzz test stack mode    # ~ 7mn
+      shell: 'script -q -e -c "bash {0}"'
+      run: |
+        make valgrindinstall
+        make -C tests valgrindTest
+        make clean
+        make -C tests test-fuzzer-stackmode
+
+  mingw-long-test:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: [
+          { compiler: clang, platform: x64, action: build, script: "MOREFLAGS='--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion -Wno-unused-command-line-argument -Wno-implicit-int-float-conversion' make -j allzstd V=1"},
+          { compiler: gcc, platform: x64, action: test, script: ""},
+        ]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Mingw long test
+      run: |
+        $env:PATH_ORIGINAL = $env:PATH
+        $env:PATH_MINGW32 = "C:\msys64\mingw32\bin"
+        $env:PATH_MINGW64 = "C:\msys64\mingw64\bin"
+        COPY C:\msys64\usr\bin\make.exe C:\msys64\mingw32\bin\make.exe
+        COPY C:\msys64\usr\bin\make.exe C:\msys64\mingw64\bin\make.exe
+        IF ("${{matrix.platform}}" -eq "x64")
+        {
+            $env:PATH = $env:PATH_MINGW64 + ";" + $env:PATH_ORIGINAL
+        }
+        ELSEIF ("${{matrix.platform}}" -eq "x86")
+        {
+            $env:PATH = $env:PATH_MINGW32 + ";" + $env:PATH_ORIGINAL
+        }
+        IF ("${{matrix.action}}" -eq "build")
+        {
+          make -v
+          sh -c "${{matrix.compiler}} -v"
+          ECHO "Building zlib to static link"
+          $env:CC = "${{matrix.compiler}}"
+          sh -c "cd .. && git clone --depth 1 --branch v1.2.11 https://github.com/madler/zlib"
+          sh -c "cd ../zlib && make -f win32/Makefile.gcc libz.a"
+          ECHO "Building zstd"
+          $env:CPPFLAGS = "-I../../zlib"
+          $env:LDFLAGS = "../../zlib/libz.a"
+          sh -c "${{matrix.script}}"
+        }
+        ELSEIF ("${{matrix.action}}" -eq "test")
+        {
+            ECHO "Testing ${{matrix.compiler}} ${{matrix.platform}}"
+            $env:CC = "gcc"
+            $env:CXX = "g++"
+            MKDIR build\cmake\build
+            CD build\cmake\build
+            $env:FUZZERTEST = "-T2mn"
+            $env:ZSTREAM_TESTTIME = "-T2mn"
+            cmake -G "Visual Studio 14 2015 Win64" ..
+            cd ..\..\..
+            make clean
+        }
+
+  # lasts ~20mn
+  oss-fuzz:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitizer: [address, undefined, memory]
+    steps:
+    - name: Build Fuzzers (${{ matrix.sanitizer }})
+      id: build
+      uses: google/oss-fuzz/infra/cifuzz/actions/build_fuzzers@master
+      with:
+        oss-fuzz-project-name: 'zstd'
+        dry-run: false
+        sanitizer: ${{ matrix.sanitizer }}
+    - name: Run Fuzzers (${{ matrix.sanitizer }})
+      uses: google/oss-fuzz/infra/cifuzz/actions/run_fuzzers@master
+      with:
+        oss-fuzz-project-name: 'zstd'
+        fuzz-seconds: 600
+        dry-run: false
+        sanitizer: ${{ matrix.sanitizer }}
+    - name: Upload Crash
+      uses: actions/upload-artifact@v1
+      if: failure() && steps.build.outcome == 'success'
+      with:
+        name: ${{ matrix.sanitizer }}-artifacts
+        path: ./out/artifacts

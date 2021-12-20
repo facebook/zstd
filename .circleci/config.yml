@@ -7,19 +7,21 @@ jobs:
     #       preinstalled to reduce installation time.
     docker:
       - image: fbopensource/zstd-circleci-primary:0.0.1
+    # TODO: Re-enable aarch64 build:
+    #       make aarch64build     && make clean
     steps:
       - checkout
       - run:
           name: Test
           command: |
             ./tests/test-license.py
-            cc -v; CFLAGS="-O0 -Werror -pedantic" make all && make clean
-            make c99build         ; make clean
-            make c11build         ; make clean
-            make aarch64build     ; make clean
+            cc -v
+            CFLAGS="-O0 -Werror -pedantic" make allmost; make clean
+            make c99build; make clean
+            make c11build; make clean
             make -j regressiontest; make clean
-            make shortest         ; make clean
-            make cxxtest          ; make clean
+            make shortest; make clean
+            make cxxtest; make clean
   # the second half of the jobs are in this test
   short-tests-1:
     docker:
@@ -84,31 +86,10 @@ workflows:
   commit:
     jobs:
       # Run the tests in parallel
-      - short-tests-0:
-          filters:
-            tags:
-              only: /.*/
-      - short-tests-1:
-          filters:
-            tags:
-              only: /.*/
-      # Create a branch called regression and set it to dev to force a
-      # regression test run
-      - regression-test:
-          filters:
-            branches:
-              only:
-                - regression
-      # Only run on release tags.
-      - publish-github-release:
-          requires:
-            - short-tests-0
-            - short-tests-1
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: /^v\d+\.\d+\.\d+$/
+      - short-tests-0
+      - short-tests-1
+      - regression-test
+
   nightly:
     triggers:
       - schedule:
@@ -120,7 +101,7 @@ workflows:
                 - dev
                 - master
     jobs:
-      # Run daily long regression tests
+      # Run daily regression tests
       - regression-test
 
 

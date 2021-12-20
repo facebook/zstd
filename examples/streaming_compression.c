@@ -15,9 +15,12 @@
 #include <zstd.h>      // presumes zstd library is installed
 #include "common.h"    // Helper functions, CHECK(), and CHECK_ZSTD()
 
-
-static void compressFile_orDie(const char* fname, const char* outName, int cLevel)
+static void compressFile_orDie(const char* fname, const char* outName, int cLevel,
+                               int nbThreads)
 {
+    fprintf (stderr, "Starting compression of %s with level %d, using %d threads\n",
+             fname, cLevel, nbThreads);
+
     /* Open the input and output files. */
     FILE* const fin  = fopen_orDie(fname, "rb");
     FILE* const fout = fopen_orDie(outName, "wb");
@@ -39,7 +42,7 @@ static void compressFile_orDie(const char* fname, const char* outName, int cLeve
      */
     CHECK_ZSTD( ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, cLevel) );
     CHECK_ZSTD( ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1) );
-    ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 4);
+    ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, nbThreads);
 
     /* This loop read from the input file, compresses that entire chunk,
      * and writes all output produced to the output file.
@@ -106,19 +109,32 @@ int main(int argc, const char** argv)
 {
     const char* const exeName = argv[0];
 
-    if (argc!=2) {
+    if (argc < 2) {
         printf("wrong arguments\n");
         printf("usage:\n");
-        printf("%s FILE\n", exeName);
+        printf("%s FILE [LEVEL] [THREADS]\n", exeName);
         return 1;
+    }
+
+    int cLevel = 1;
+    int nbThreads = 4;
+
+    if (argc >= 3) {
+      cLevel = atoi (argv[2]);
+      CHECK(cLevel != 0, "can't parse LEVEL!");
+    }
+
+    if (argc >= 4) {
+      nbThreads = atoi (argv[3]);
+      CHECK(nbThreads != 0, "can't parse THREADS!");
     }
 
     const char* const inFilename = argv[1];
 
     char* const outFilename = createOutFilename_orDie(inFilename);
-    compressFile_orDie(inFilename, outFilename, 1);
+    compressFile_orDie(inFilename, outFilename, cLevel, nbThreads);
 
     free(outFilename);   /* not strictly required, since program execution stops there,
-                          * but some static analyzer main complain otherwise */
+                          * but some static analyzer may complain otherwise */
     return 0;
 }

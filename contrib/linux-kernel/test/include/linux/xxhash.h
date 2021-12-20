@@ -124,11 +124,10 @@ XXH_API uint64_t xxh64(const void *input, size_t length, uint64_t seed);
 static inline unsigned long xxhash(const void *input, size_t length,
 				   uint64_t seed)
 {
-#if BITS_PER_LONG == 64
-       return xxh64(input, length, seed);
-#else
-       return xxh32(input, length, seed);
-#endif
+	if (sizeof(size_t) == 8)
+		return xxh64(input, length, seed);
+	else
+		return xxh32(input, length, seed);
 }
 
 /*-****************************

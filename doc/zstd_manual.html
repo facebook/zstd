@@ -1,10 +1,10 @@
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-<title>zstd 1.5.0 Manual</title>
+<title>zstd 1.5.1 Manual</title>
 </head>
 <body>
-<h1>zstd 1.5.0 Manual</h1>
+<h1>zstd 1.5.1 Manual</h1>
 <hr>
 <a name="Contents"></a><h2>Contents</h2>
 <ol>
@@ -357,7 +357,7 @@ size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);  </b>/* accept NULL pointer */<b>
      * ZSTD_c_stableOutBuffer
      * ZSTD_c_blockDelimiters
      * ZSTD_c_validateSequences
-     * ZSTD_c_splitBlocks
+     * ZSTD_c_useBlockSplitter
      * ZSTD_c_useRowMatchFinder
      * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
      * note : never ever use experimentalParam? names directly;
@@ -803,7 +803,7 @@ size_t ZSTD_freeDStream(ZSTD_DStream* zds);  </b>/* accept NULL pointer */<b>
 
 <a name="Chapter13"></a><h2>Advanced dictionary and prefix API (Requires v1.4.0+)</h2><pre>
  This API allows dictionaries to be used with ZSTD_compress2(),
- ZSTD_compressStream2(), and ZSTD_decompress(). Dictionaries are sticky, and
+ ZSTD_compressStream2(), and ZSTD_decompressDCtx(). Dictionaries are sticky, and
  only reset with the context is reset with ZSTD_reset_parameters or
  ZSTD_reset_session_and_parameters. Prefixes are single-use.
 <BR></pre>
@@ -1072,10 +1072,14 @@ size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 } ZSTD_literalCompressionMode_e;
 </b></pre><BR>
 <pre><b>typedef enum {
-  ZSTD_urm_auto = 0,                   </b>/* Automatically determine whether or not we use row matchfinder */<b>
-  ZSTD_urm_disableRowMatchFinder = 1,  </b>/* Never use row matchfinder */<b>
-  ZSTD_urm_enableRowMatchFinder = 2    </b>/* Always use row matchfinder when applicable */<b>
-} ZSTD_useRowMatchFinderMode_e;
+  </b>/* Note: This enum controls features which are conditionally beneficial. Zstd typically will make a final<b>
+   * decision on whether or not to enable the feature (ZSTD_ps_auto), but setting the switch to ZSTD_ps_enable
+   * or ZSTD_ps_disable allow for a force enable/disable the feature.
+   */
+  ZSTD_ps_auto = 0,         </b>/* Let the library automatically determine whether the feature shall be enabled */<b>
+  ZSTD_ps_enable = 1,       </b>/* Force-enable the feature */<b>
+  ZSTD_ps_disable = 2       </b>/* Do not use the feature */<b>
+} ZSTD_paramSwitch_e;
 </b></pre><BR>
 <a name="Chapter15"></a><h2>Frame size functions</h2><pre></pre>
 
@@ -1205,6 +1209,25 @@ size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
  
 </p></pre><BR>
 
+<pre><b>size_t ZSTD_readSkippableFrame(void* dst, size_t dstCapacity, unsigned* magicVariant,
+                                const void* src, size_t srcSize);
+</b><p> Retrieves a zstd skippable frame containing data given by src, and writes it to dst buffer.
+
+ The parameter magicVariant will receive the magicVariant that was supplied when the frame was written,
+ i.e. magicNumber - ZSTD_MAGIC_SKIPPABLE_START.  This can be NULL if the caller is not interested
+ in the magicVariant.
+
+ Returns an error if destination buffer is not large enough, or if the frame is not skippable.
+
+ @return : number of bytes written or a ZSTD error.
+ 
+</p></pre><BR>
+
+<pre><b>unsigned ZSTD_isSkippableFrame(const void* buffer, size_t size);
+</b><p>  Tells if the content of `buffer` starts with a valid Frame Identifier for a skippable frame.
+ 
+</p></pre><BR>
+
 <a name="Chapter16"></a><h2>Memory management</h2><pre></pre>
 
 <pre><b>size_t ZSTD_estimateCCtxSize(int compressionLevel);
@@ -1300,6 +1323,21 @@ ZSTD_customMem const ZSTD_defaultCMem = { NULL, NULL, NULL };  </b>/**< this con
 </b><p>  These prototypes make it possible to pass your own allocation/free functions.
   ZSTD_customMem is provided at creation time, using ZSTD_create*_advanced() variants listed below.
   All allocation/free operations will be completed using these custom variants instead of regular <stdlib.h> ones.
+ 
+</p></pre><BR>
+
+<pre><b>typedef struct POOL_ctx_s ZSTD_threadPool;
+ZSTD_threadPool* ZSTD_createThreadPool(size_t numThreads);
+void ZSTD_freeThreadPool (ZSTD_threadPool* pool);  </b>/* accept NULL pointer */<b>
+size_t ZSTD_CCtx_refThreadPool(ZSTD_CCtx* cctx, ZSTD_threadPool* pool);
+</b><p>  These prototypes make it possible to share a thread pool among multiple compression contexts.
+  This can limit resources for applications with multiple threads where each one uses
+  a threaded compression mode (via ZSTD_c_nbWorkers parameter).
+  ZSTD_createThreadPool creates a new thread pool with a given number of threads.
+  Note that the lifetime of such pool must exist while being used.
+  ZSTD_CCtx_refThreadPool assigns a thread pool to a context (use NULL argument value
+  to use an internal thread pool).
+  ZSTD_freeThreadPool frees a thread pool, accepts NULL pointer.
  
 </p></pre><BR>
 
@@ -1594,7 +1632,7 @@ size_t ZSTD_initCStream_usingCDict(ZSTD_CStream* zcs, const ZSTD_CDict* cdict);
 </b><p> This function is DEPRECATED, and equivalent to:
      ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
      ZSTD_CCtx_refCDict(zcs, cdict);
- 
+
  note : cdict will just be referenced, and must outlive compression session
  This prototype will generate compilation warnings.
  

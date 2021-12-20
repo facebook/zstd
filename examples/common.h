@@ -57,7 +57,7 @@ typedef enum {
  * Check the zstd error code and die if an error occurred after printing a
  * message.
  */
-#define CHECK_ZSTD(fn, ...)                                      \
+#define CHECK_ZSTD(fn)                                           \
     do {                                                         \
         size_t const err = (fn);                                 \
         CHECK(!ZSTD_isError(err), "%s", ZSTD_getErrorName(err)); \

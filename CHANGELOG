@@ -15,8 +15,6 @@ build: improved AIX support, by @Helflym
 build: improved meson unofficial build, by @eli-schwartz
 cli : custom memory limit when training dictionary (#2925), by @embg
 cli : report advanced parameters information when compressing in very verbose mode (``-vv`), by @Svetlitski-FB
-cli : limit --ultra levels to 21 in 32-bit mode, to reduce risks of OOM scenarios (#2885, @yoniko)
-
 
 v1.5.0  (May 11, 2021)
 api: Various functions promoted from experimental to stable API: (#2579-2581, @senhuang42)

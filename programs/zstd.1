@@ -1,4 +1,4 @@
-.TH "ZSTD" "1" "September 2021" "zstd 1.5.1" "User Commands"
+.TH "ZSTD" "1" "December 2021" "zstd 1.5.1" "User Commands"
 .SH "NAME"
 \fBzstd\fR \- zstd, zstdmt, unzstd, zstdcat \- Compress or decompress \.zst files
 .SH "SYNOPSIS"
@@ -102,6 +102,8 @@ Note: cannot use both this and \-D together Note: \fB\-\-long\fR mode will be au
 \fB\-M#\fR, \fB\-\-memory=#\fR: Set a memory usage limit\. By default, Zstandard uses 128 MB for decompression as the maximum amount of memory the decompressor is allowed to use, but you can override this manually if need be in either direction (ie\. you can increase or decrease it)\.
 .IP
 This is also used during compression when using with \-\-patch\-from=\. In this case, this parameter overrides that maximum size allowed for a dictionary\. (128 MB)\.
+.IP
+Additionally, this can be used to limit memory for dictionary training\. This parameter overrides the default limit of 2 GB\. zstd will load training samples up to the memory limit and ignore the rest\.
 .IP "\[ci]" 4
 \fB\-\-stream\-size=#\fR : Sets the pledged source size of input coming from a stream\. This value must be exact, as it will be included in the produced frame header\. Incorrect stream sizes will cause an error\. This information will be used to better optimize compression parameters, resulting in better and potentially faster compression, especially for smaller source sizes\.
 .IP "\[ci]" 4
@@ -172,6 +174,9 @@ Use \fB#\fR compression level during training (optional)\. Will generate statist
 .TP
 \fB\-B#\fR
 Split input files into blocks of size # (default: no split)
+.TP
+\fB\-M#\fR, \fB\-\-memory=#\fR
+Limit the amount of sample data loaded for training (default: 2 GB)\. See above for details\.
 .TP
 \fB\-\-dictID=#\fR
 A dictionary ID is a locally unique ID that a decoder can use to verify it is using the right dictionary\. By default, zstd will create a 4\-bytes random number ID\. It\'s possible to give a precise number instead\. Short numbers have an advantage : an ID < 256 will only need 1 byte in the compressed frame header, and an ID < 65536 will only need 2 bytes\. This compares favorably to 4 bytes default\. However, it\'s up to the dictionary manager to not assign twice the same ID to 2 different dictionaries\.

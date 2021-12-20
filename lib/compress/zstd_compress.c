@@ -6165,7 +6165,7 @@ size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
 /*-=====  Pre-defined compression levels  =====-*/
 #include "clevels.h"
 
-int ZSTD_maxCLevel(void) { return MEM_32bits() ? ZSTD_MAX_32BIT_CLEVEL : ZSTD_MAX_CLEVEL; }
+int ZSTD_maxCLevel(void) { return ZSTD_MAX_CLEVEL; }
 int ZSTD_minCLevel(void) { return (int)-ZSTD_TARGETLENGTH_MAX; }
 int ZSTD_defaultCLevel(void) { return ZSTD_CLEVEL_DEFAULT; }
 
@@ -6261,7 +6261,7 @@ static ZSTD_compressionParameters ZSTD_getCParams_internal(int compressionLevel,
     /* row */
     if (compressionLevel == 0) row = ZSTD_CLEVEL_DEFAULT;   /* 0 == default */
     else if (compressionLevel < 0) row = 0;   /* entry 0 is baseline for fast mode */
-    else if (compressionLevel > ZSTD_maxCLevel()) row = ZSTD_maxCLevel();
+    else if (compressionLevel > ZSTD_MAX_CLEVEL) row = ZSTD_MAX_CLEVEL;
     else row = compressionLevel;
 
     {   ZSTD_compressionParameters cp = ZSTD_defaultCParameters[tableID][row];

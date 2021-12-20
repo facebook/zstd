@@ -16,8 +16,7 @@
 
 /*-=====  Pre-defined compression levels  =====-*/
 
-#define ZSTD_MAX_CLEVEL           22
-#define ZSTD_MAX_32BIT_CLEVEL     21
+#define ZSTD_MAX_CLEVEL     22
 
 #ifdef __GNUC__
 __attribute__((__unused__))

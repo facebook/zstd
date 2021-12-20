@@ -30,8 +30,6 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: make check on 32-bit
-      env:
-        CHECK_CONSTRAINED_MEM: true
       run: |
         sudo apt update
         APT_PACKAGES="gcc-multilib" make apt-install

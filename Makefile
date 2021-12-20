@@ -298,7 +298,7 @@ update_regressionResults:
         --output $(REGRESS_RESULTS_DIR)/results.csv \
         --zstd   programs/zstd
 	echo "Showing results differences"
-	diff tests/regression/results.csv $(REGRESS_RESULTS_DIR)/results.csv
+	! diff tests/regression/results.csv $(REGRESS_RESULTS_DIR)/results.csv
 	echo "Updating results.csv"
 	$(CP) $(REGRESS_RESULTS_DIR)/results.csv tests/regression/results.csv
 

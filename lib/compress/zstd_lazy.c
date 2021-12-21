@@ -1002,6 +1002,27 @@ ZSTD_row_getSSEMask(int nbChunks, const BYTE* const src, const BYTE tag, const U
 }
 #endif
 
+#if defined(ZSTD_ARCH_X86_AVX2)
+FORCE_INLINE_TEMPLATE ZSTD_VecMask
+ZSTD_row_getAVXMask(int nbChunks, const BYTE* const src, const BYTE tag, const U32 head)
+{
+    if (nbChunks==1) return ZSTD_row_getSSEMask(1, src, tag, head);
+    {   const __m256i comparisonMask = _mm256_set1_epi8((char)tag);
+        int matches[2] = {0};
+        int i;
+        assert(nbChunks == 2 || nbChunks == 4);
+        for (i=0; i<(nbChunks/2); i++) {
+            const __m256i chunk = _mm256_loadu_si256((const __m256i*)(const void*)(src + 32*i));
+            const __m256i equalMask = _mm256_cmpeq_epi8(chunk, comparisonMask);
+            matches[i] = _mm256_movemask_epi8(equalMask);
+        }
+        if (nbChunks == 2) return ZSTD_rotateRight_U32((U32)matches[0], head);
+        assert(nbChunks == 4);
+        return ZSTD_rotateRight_U64((U64)matches[1] << 32 | (U64)matches[0], head);
+    }
+}
+#endif
+
 /* Returns a ZSTD_VecMask (U32) that has the nth bit set to 1 if the newly-computed "tag" matches
  * the hash at the nth position in a row of the tagTable.
  * Each row is a circular buffer beginning at the value of "head". So we must rotate the "matches" bitfield
@@ -1013,7 +1034,11 @@ ZSTD_row_getMatchMask(const BYTE* const tagRow, const BYTE tag, const U32 head, 
     assert((rowEntries == 16) || (rowEntries == 32) || rowEntries == 64);
     assert(rowEntries <= ZSTD_ROW_HASH_MAX_ENTRIES);
 
-#if defined(ZSTD_ARCH_X86_SSE2)
+#if defined(ZSTD_ARCH_X86_AVX2)
+
+    return ZSTD_row_getAVXMask(rowEntries / 16, src, tag, head);
+
+#elif defined(ZSTD_ARCH_X86_SSE2)
 
     return ZSTD_row_getSSEMask(rowEntries / 16, src, tag, head);
 

@@ -657,7 +657,7 @@ void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const BYTE* litera
             seqStorePtr->longLengthType = ZSTD_llt_matchLength;
             seqStorePtr->longLengthPos = (U32)(seqStorePtr->sequences - seqStorePtr->sequencesStart);
         }
-        seqStorePtr->sequences[0].matchLength = (U16)mlBase;
+        seqStorePtr->sequences[0].mlBase = (U16)mlBase;
     }
 
     seqStorePtr->sequences++;

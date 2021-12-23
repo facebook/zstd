@@ -710,7 +710,7 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
             /* Store the sequence */
             ZSTD_storeSeq(seqStore, newLitLength, ip - newLitLength, iend,
                           sequence.offset + ZSTD_REP_MOVE,
-                          sequence.matchLength - MINMATCH);
+                          sequence.matchLength);
             ip += sequence.matchLength;
         }
     }

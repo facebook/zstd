@@ -280,15 +280,17 @@ static U32 ZSTD_litLengthPrice(U32 const litLength, const optState_t* const optP
 /* ZSTD_getMatchPrice() :
  * Provides the cost of the match part (offset + matchLength) of a sequence
  * Must be combined with ZSTD_fullLiteralsCost() to get the full cost of a sequence.
- * optLevel: when <2, favors small offset for decompression speed (improved cache efficiency) */
+ * @offcode : expects a scale where 0,1,2 are repcodes 1-3, and 3+ are real_offsets+2
+ * @optLevel: when <2, favors small offset for decompression speed (improved cache efficiency)
+ */
 FORCE_INLINE_TEMPLATE U32
-ZSTD_getMatchPrice(U32 const offset,
+ZSTD_getMatchPrice(U32 const offcode,
                    U32 const matchLength,
              const optState_t* const optPtr,
                    int const optLevel)
 {
     U32 price;
-    U32 const offCode = ZSTD_highbit32(offset+1);
+    U32 const offCode = ZSTD_highbit32(offcode+1);
     U32 const mlBase = matchLength - MINMATCH;
     assert(matchLength >= MINMATCH);
 
@@ -631,7 +633,7 @@ U32 ZSTD_insertBtAndGetAllMatches (
                 DEBUGLOG(8, "found repCode %u (ll0:%u, offset:%u) of length %u",
                             repCode, ll0, repOffset, repLen);
                 bestLength = repLen;
-                matches[mnum].off = repCode - ll0;
+                matches[mnum].off = STORE_REPCODE(repCode - ll0 + 1);  /* expect value between 1 and 3 */
                 matches[mnum].len = (U32)repLen;
                 mnum++;
                 if ( (repLen > sufficient_len)
@@ -660,7 +662,7 @@ U32 ZSTD_insertBtAndGetAllMatches (
                 bestLength = mlen;
                 assert(curr > matchIndex3);
                 assert(mnum==0);  /* no prior solution */
-                matches[0].off = (curr - matchIndex3) + ZSTD_REP_MOVE;
+                matches[0].off = STORE_OFFSET(curr - matchIndex3);
                 matches[0].len = (U32)mlen;
                 mnum = 1;
                 if ( (mlen > sufficient_len) |
@@ -694,12 +696,12 @@ U32 ZSTD_insertBtAndGetAllMatches (
 
         if (matchLength > bestLength) {
             DEBUGLOG(8, "found match of length %u at distance %u (offCode=%u)",
-                    (U32)matchLength, curr - matchIndex, curr - matchIndex + ZSTD_REP_MOVE);
+                    (U32)matchLength, curr - matchIndex, STORE_OFFSET(curr - matchIndex));
             assert(matchEndIdx > matchIndex);
             if (matchLength > matchEndIdx - matchIndex)
                 matchEndIdx = matchIndex + (U32)matchLength;
             bestLength = matchLength;
-            matches[mnum].off = (curr - matchIndex) + ZSTD_REP_MOVE;
+            matches[mnum].off = STORE_OFFSET(curr - matchIndex);
             matches[mnum].len = (U32)matchLength;
             mnum++;
             if ( (matchLength > ZSTD_OPT_NUM)
@@ -742,11 +744,11 @@ U32 ZSTD_insertBtAndGetAllMatches (
             if (matchLength > bestLength) {
                 matchIndex = dictMatchIndex + dmsIndexDelta;
                 DEBUGLOG(8, "found dms match of length %u at distance %u (offCode=%u)",
-                        (U32)matchLength, curr - matchIndex, curr - matchIndex + ZSTD_REP_MOVE);
+                        (U32)matchLength, curr - matchIndex, STORE_OFFSET(curr - matchIndex));
                 if (matchLength > matchEndIdx - matchIndex)
                     matchEndIdx = matchIndex + (U32)matchLength;
                 bestLength = matchLength;
-                matches[mnum].off = (curr - matchIndex) + ZSTD_REP_MOVE;
+                matches[mnum].off = STORE_OFFSET(curr - matchIndex);
                 matches[mnum].len = (U32)matchLength;
                 mnum++;
                 if ( (matchLength > ZSTD_OPT_NUM)
@@ -938,11 +940,12 @@ static void ZSTD_opt_getNextMatchAndUpdateSeqStore(ZSTD_optLdm_t* optLdm, U32 cu
  * and 'matchEndPosInBlock', into 'matches'. Maintains the correct ordering of 'matches'
  */
 static void ZSTD_optLdm_maybeAddMatch(ZSTD_match_t* matches, U32* nbMatches,
-                                      ZSTD_optLdm_t* optLdm, U32 currPosInBlock) {
-    U32 posDiff = currPosInBlock - optLdm->startPosInBlock;
+                                      ZSTD_optLdm_t* optLdm, U32 currPosInBlock)
+{
+    U32 const posDiff = currPosInBlock - optLdm->startPosInBlock;
     /* Note: ZSTD_match_t actually contains offCode and matchLength (before subtracting MINMATCH) */
-    U32 candidateMatchLength = optLdm->endPosInBlock - optLdm->startPosInBlock - posDiff;
-    U32 candidateOffCode = optLdm->offset + ZSTD_REP_MOVE;
+    U32 const candidateMatchLength = optLdm->endPosInBlock - optLdm->startPosInBlock - posDiff;
+    U32 const candidateOffCode = STORE_OFFSET(optLdm->offset);
 
     /* Ensure that current block position is not outside of the match */
     if (currPosInBlock < optLdm->startPosInBlock
@@ -1075,14 +1078,14 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
 
             /* large match -> immediate encoding */
             {   U32 const maxML = matches[nbMatches-1].len;
-                U32 const maxOffset = matches[nbMatches-1].off;
+                U32 const maxOffcode = matches[nbMatches-1].off;
                 DEBUGLOG(6, "found %u matches of maxLength=%u and maxOffCode=%u at cPos=%u => start new series",
-                            nbMatches, maxML, maxOffset, (U32)(ip-prefixStart));
+                            nbMatches, maxML, maxOffcode, (U32)(ip-prefixStart));
 
                 if (maxML > sufficient_len) {
                     lastSequence.litlen = litlen;
                     lastSequence.mlen = maxML;
-                    lastSequence.off = maxOffset;
+                    lastSequence.off = maxOffcode;
                     DEBUGLOG(6, "large match (%u>%u), immediate encoding",
                                 maxML, sufficient_len);
                     cur = 0;
@@ -1099,15 +1102,15 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                     opt[pos].price = ZSTD_MAX_PRICE;   /* mlen, litlen and price will be fixed during forward scanning */
                 }
                 for (matchNb = 0; matchNb < nbMatches; matchNb++) {
-                    U32 const offset = matches[matchNb].off;
+                    U32 const offcode = matches[matchNb].off;
                     U32 const end = matches[matchNb].len;
                     for ( ; pos <= end ; pos++ ) {
-                        U32 const matchPrice = ZSTD_getMatchPrice(offset, pos, optStatePtr, optLevel);
+                        U32 const matchPrice = ZSTD_getMatchPrice(offcode, pos, optStatePtr, optLevel);
                         U32 const sequencePrice = literalsPrice + matchPrice;
                         DEBUGLOG(7, "rPos:%u => set initial price : %.2f",
                                     pos, ZSTD_fCost(sequencePrice));
                         opt[pos].mlen = pos;
-                        opt[pos].off = offset;
+                        opt[pos].off = offcode;
                         opt[pos].litlen = litlen;
                         opt[pos].price = (int)sequencePrice;
                 }   }

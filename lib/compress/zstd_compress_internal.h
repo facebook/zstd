@@ -501,15 +501,20 @@ typedef struct repcodes_s {
     U32 rep[3];
 } repcodes_t;
 
-MEM_STATIC repcodes_t ZSTD_updateRep(U32 const rep[3], U32 const offset, U32 const ll0)
+
+/* ZSTD_updateRep() :
+ * @offcode : expects a scale where 0,1,2 represent repcodes 1-3, and 2+ represents real_offset+2
+ */
+MEM_STATIC repcodes_t
+ZSTD_updateRep(U32 const rep[3], U32 const offcode, U32 const ll0)
 {
     repcodes_t newReps;
-    if (offset >= ZSTD_REP_NUM) {  /* full offset */
+    if (offcode >= ZSTD_REP_NUM) {  /* full offset */
         newReps.rep[2] = rep[1];
         newReps.rep[1] = rep[0];
-        newReps.rep[0] = offset - ZSTD_REP_MOVE;
+        newReps.rep[0] = offcode - ZSTD_REP_MOVE;
     } else {   /* repcode */
-        U32 const repCode = offset + ll0;
+        U32 const repCode = offcode + ll0;
         if (repCode > 0) {  /* note : if repCode==0, no change */
             U32 const currentOffset = (repCode==ZSTD_REP_NUM) ? (rep[0] - 1) : rep[repCode];
             newReps.rep[2] = (repCode >= 2) ? rep[1] : rep[2];
@@ -600,14 +605,22 @@ static void ZSTD_safecopyLiterals(BYTE* op, BYTE const* ip, BYTE const* const ie
     while (ip < iend) *op++ = *ip++;
 }
 
+#define STORE_REPCODE_1 STORE_REPCODE(1)
+#define STORE_REPCODE_2 STORE_REPCODE(2)
+#define STORE_REPCODE_3 STORE_REPCODE(3)
+#define STORE_REPCODE(r) (assert((r)>=1), assert((r)<=3), (r)-1)
+#define STORE_OFFSET(o) (assert((o)>0), o + ZSTD_REP_MOVE)
+
 /*! ZSTD_storeSeq() :
  *  Store a sequence (litlen, litPtr, offCode and matchLength) into seqStore_t.
- *  `offCode` : distance to match + ZSTD_REP_MOVE (values <= ZSTD_REP_MOVE are repCodes).
+ *  @offBase_minus1 : distance to match + ZSTD_REP_MOVE (values <= ZSTD_REP_MOVE are repCodes).
+ *                    Users should not specify the encoded value directly,
+ *                    instead use macros STORE_REPCODE_X and STORE_OFFSET().
  *  @matchLength : must be >= MINMATCH
  *  Allowed to overread literals up to litLimit.
 */
 HINT_INLINE UNUSED_ATTR
-void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const BYTE* literals, const BYTE* litLimit, U32 offCode, size_t matchLength)
+void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const BYTE* literals, const BYTE* litLimit, U32 offBase_minus1, size_t matchLength)
 {
     BYTE const* const litLimit_w = litLimit - WILDCOPY_OVERLENGTH;
     BYTE const* const litEnd = literals + litLength;
@@ -647,7 +660,7 @@ void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const BYTE* litera
     seqStorePtr->sequences[0].litLength = (U16)litLength;
 
     /* match offset */
-    seqStorePtr->sequences[0].offBase = offCode + 1;
+    seqStorePtr->sequences[0].offBase = offBase_minus1 + 1;
 
     /* match Length */
     assert(matchLength >= MINMATCH);

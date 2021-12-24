@@ -3449,11 +3449,16 @@ static U32 ZSTD_resolveRepcodeToRawOffset(const U32 rep[ZSTD_REP_NUM], const U32
 
 /**
  * ZSTD_seqStore_resolveOffCodes() reconciles any possible divergences in offset history that may arise
- * due to emission of RLE/raw blocks that disturb the offset history, and replaces any repcodes within
- * the seqStore that may be invalid.
+ * due to emission of RLE/raw blocks that disturb the offset history,
+ * and replaces any repcodes within the seqStore that may be invalid.
  *
- * dRepcodes are updated as would be on the decompression side. cRepcodes are updated exactly in
- * accordance with the seqStore.
+ * dRepcodes are updated as would be on the decompression side.
+ * cRepcodes are updated exactly in accordance with the seqStore.
+ *
+ * Note : this function assumes seq->offBase respects the following numbering scheme :
+ *        0 : invalid
+ *        1-3 : repcode 1-3
+ *        4+ : real_offset+3
  */
 static void ZSTD_seqStore_resolveOffCodes(repcodes_t* const dRepcodes, repcodes_t* const cRepcodes,
                                           seqStore_t* const seqStore, U32 const nbSeq) {
@@ -3461,9 +3466,9 @@ static void ZSTD_seqStore_resolveOffCodes(repcodes_t* const dRepcodes, repcodes_
     for (; idx < nbSeq; ++idx) {
         seqDef* const seq = seqStore->sequencesStart + idx;
         U32 const ll0 = (seq->litLength == 0);
-        U32 offCode = seq->offBase - 1;
+        U32 const offCode = seq->offBase - 1;
         assert(seq->offBase > 0);
-        if (offCode <= ZSTD_REP_MOVE) {
+        if (offCode < ZSTD_REP_NUM) {
             U32 const dRawOffset = ZSTD_resolveRepcodeToRawOffset(dRepcodes->rep, offCode, ll0);
             U32 const cRawOffset = ZSTD_resolveRepcodeToRawOffset(cRepcodes->rep, offCode, ll0);
             /* Adjust simulated decompression repcode history if we come across a mismatch. Replace
@@ -5738,39 +5743,39 @@ typedef struct {
     size_t posInSrc;        /* Number of bytes given by sequences provided so far */
 } ZSTD_sequencePosition;
 
-/* Returns a ZSTD error code if sequence is not valid */
-static size_t ZSTD_validateSequence(U32 offCode, U32 matchLength,
-                                    size_t posInSrc, U32 windowLog, size_t dictSize, U32 minMatch) {
-    size_t offsetBound;
-    U32 windowSize = 1 << windowLog;
+/* ZSTD_validateSequence() :
+ * @offCode : is presumed to follow format required by ZSTD_storeSeq()
+ * @returns a ZSTD error code if sequence is not valid
+ */
+static size_t
+ZSTD_validateSequence(U32 offCode, U32 matchLength,
+                      size_t posInSrc, U32 windowLog, size_t dictSize)
+{
+    U32 const windowSize = 1 << windowLog;
     /* posInSrc represents the amount of data the the decoder would decode up to this point.
      * As long as the amount of data decoded is less than or equal to window size, offsets may be
      * larger than the total length of output decoded in order to reference the dict, even larger than
      * window size. After output surpasses windowSize, we're limited to windowSize offsets again.
      */
-    offsetBound = posInSrc > windowSize ? (size_t)windowSize : posInSrc + (size_t)dictSize;
-    RETURN_ERROR_IF(offCode > offsetBound + ZSTD_REP_MOVE, corruption_detected, "Offset too large!");
-    RETURN_ERROR_IF(matchLength < minMatch, corruption_detected, "Matchlength too small");
+    size_t const offsetBound = posInSrc > windowSize ? (size_t)windowSize : posInSrc + (size_t)dictSize;
+    RETURN_ERROR_IF(offCode > STORE_OFFSET(offsetBound), corruption_detected, "Offset too large!");
+    RETURN_ERROR_IF(matchLength < MINMATCH, corruption_detected, "Matchlength too small");
     return 0;
 }
 
 /* Returns an offset code, given a sequence's raw offset, the ongoing repcode array, and whether litLength == 0 */
-static U32 ZSTD_finalizeOffCode(U32 rawOffset, const U32 rep[ZSTD_REP_NUM], U32 ll0) {
-    U32 offCode = rawOffset + ZSTD_REP_MOVE;
-    U32 repCode = 0;
+static U32 ZSTD_finalizeOffCode(U32 rawOffset, const U32 rep[ZSTD_REP_NUM], U32 ll0)
+{
+    U32 offCode = STORE_OFFSET(rawOffset);
 
     if (!ll0 && rawOffset == rep[0]) {
-        repCode = 1;
+        offCode = STORE_REPCODE_1;
     } else if (rawOffset == rep[1]) {
-        repCode = 2 - ll0;
+        offCode = STORE_REPCODE(2 - ll0);
     } else if (rawOffset == rep[2]) {
-        repCode = 3 - ll0;
+        offCode = STORE_REPCODE(3 - ll0);
     } else if (ll0 && rawOffset == rep[0] - 1) {
-        repCode = 3;
-    }
-    if (repCode) {
-        /* ZSTD_storeSeq expects a number in the range [0, 2] to represent a repcode */
-        offCode = repCode - 1;
+        offCode = STORE_REPCODE_3;
     }
     return offCode;
 }
@@ -5778,18 +5783,17 @@ static U32 ZSTD_finalizeOffCode(U32 rawOffset, const U32 rep[ZSTD_REP_NUM], U32 
 /* Returns 0 on success, and a ZSTD_error otherwise. This function scans through an array of
  * ZSTD_Sequence, storing the sequences it finds, until it reaches a block delimiter.
  */
-static size_t ZSTD_copySequencesToSeqStoreExplicitBlockDelim(ZSTD_CCtx* cctx, ZSTD_sequencePosition* seqPos,
-                                                             const ZSTD_Sequence* const inSeqs, size_t inSeqsSize,
-                                                             const void* src, size_t blockSize) {
+static size_t
+ZSTD_copySequencesToSeqStoreExplicitBlockDelim(ZSTD_CCtx* cctx,
+                                              ZSTD_sequencePosition* seqPos,
+                                        const ZSTD_Sequence* const inSeqs, size_t inSeqsSize,
+                                        const void* src, size_t blockSize)
+{
     U32 idx = seqPos->idx;
     BYTE const* ip = (BYTE const*)(src);
     const BYTE* const iend = ip + blockSize;
     repcodes_t updatedRepcodes;
     U32 dictSize;
-    U32 litLength;
-    U32 matchLength;
-    U32 ll0;
-    U32 offCode;
 
     if (cctx->cdict) {
         dictSize = (U32)cctx->cdict->dictContentSize;
@@ -5800,18 +5804,17 @@ static size_t ZSTD_copySequencesToSeqStoreExplicitBlockDelim(ZSTD_CCtx* cctx, ZS
     }
     ZSTD_memcpy(updatedRepcodes.rep, cctx->blockState.prevCBlock->rep, sizeof(repcodes_t));
     for (; (inSeqs[idx].matchLength != 0 || inSeqs[idx].offset != 0) && idx < inSeqsSize; ++idx) {
-        litLength = inSeqs[idx].litLength;
-        matchLength = inSeqs[idx].matchLength;
-        ll0 = litLength == 0;
-        offCode = ZSTD_finalizeOffCode(inSeqs[idx].offset, updatedRepcodes.rep, ll0);
+        U32 const litLength = inSeqs[idx].litLength;
+        U32 const ll0 = (litLength == 0);
+        U32 const matchLength = inSeqs[idx].matchLength;
+        U32 const offCode = ZSTD_finalizeOffCode(inSeqs[idx].offset, updatedRepcodes.rep, ll0);
         updatedRepcodes = ZSTD_updateRep(updatedRepcodes.rep, offCode, ll0);
 
         DEBUGLOG(6, "Storing sequence: (of: %u, ml: %u, ll: %u)", offCode, matchLength, litLength);
         if (cctx->appliedParams.validateSequences) {
             seqPos->posInSrc += litLength + matchLength;
             FORWARD_IF_ERROR(ZSTD_validateSequence(offCode, matchLength, seqPos->posInSrc,
-                                                cctx->appliedParams.cParams.windowLog, dictSize,
-                                                cctx->appliedParams.cParams.minMatch),
+                                                cctx->appliedParams.cParams.windowLog, dictSize),
                                                 "Sequence validation failed");
         }
         RETURN_ERROR_IF(idx - seqPos->idx > cctx->seqStore.maxNbSeq, memory_allocation,
@@ -5843,9 +5846,11 @@ static size_t ZSTD_copySequencesToSeqStoreExplicitBlockDelim(ZSTD_CCtx* cctx, ZS
  * avoid splitting a match, or to avoid splitting a match such that it would produce a match
  * smaller than MINMATCH. In this case, we return the number of bytes that we didn't read from this block.
  */
-static size_t ZSTD_copySequencesToSeqStoreNoBlockDelim(ZSTD_CCtx* cctx, ZSTD_sequencePosition* seqPos,
-                                                       const ZSTD_Sequence* const inSeqs, size_t inSeqsSize,
-                                                       const void* src, size_t blockSize) {
+static size_t
+ZSTD_copySequencesToSeqStoreNoBlockDelim(ZSTD_CCtx* cctx, ZSTD_sequencePosition* seqPos,
+                                   const ZSTD_Sequence* const inSeqs, size_t inSeqsSize,
+                                   const void* src, size_t blockSize)
+{
     U32 idx = seqPos->idx;
     U32 startPosInSequence = seqPos->posInSequence;
     U32 endPosInSequence = seqPos->posInSequence + (U32)blockSize;
@@ -5855,10 +5860,6 @@ static size_t ZSTD_copySequencesToSeqStoreNoBlockDelim(ZSTD_CCtx* cctx, ZSTD_seq
     repcodes_t updatedRepcodes;
     U32 bytesAdjustment = 0;
     U32 finalMatchSplit = 0;
-    U32 litLength;
-    U32 matchLength;
-    U32 rawOffset;
-    U32 offCode;
 
     if (cctx->cdict) {
         dictSize = cctx->cdict->dictContentSize;
@@ -5872,9 +5873,10 @@ static size_t ZSTD_copySequencesToSeqStoreNoBlockDelim(ZSTD_CCtx* cctx, ZSTD_seq
     ZSTD_memcpy(updatedRepcodes.rep, cctx->blockState.prevCBlock->rep, sizeof(repcodes_t));
     while (endPosInSequence && idx < inSeqsSize && !finalMatchSplit) {
         const ZSTD_Sequence currSeq = inSeqs[idx];
-        litLength = currSeq.litLength;
-        matchLength = currSeq.matchLength;
-        rawOffset = currSeq.offset;
+        U32 litLength = currSeq.litLength;
+        U32 matchLength = currSeq.matchLength;
+        U32 const rawOffset = currSeq.offset;
+        U32 offCode;
 
         /* Modify the sequence depending on where endPosInSequence lies */
         if (endPosInSequence >= currSeq.litLength + currSeq.matchLength) {
@@ -5927,7 +5929,7 @@ static size_t ZSTD_copySequencesToSeqStoreNoBlockDelim(ZSTD_CCtx* cctx, ZSTD_seq
             }
         }
         /* Check if this offset can be represented with a repcode */
-        {   U32 ll0 = (litLength == 0);
+        {   U32 const ll0 = (litLength == 0);
             offCode = ZSTD_finalizeOffCode(rawOffset, updatedRepcodes.rep, ll0);
             updatedRepcodes = ZSTD_updateRep(updatedRepcodes.rep, offCode, ll0);
         }
@@ -5935,8 +5937,7 @@ static size_t ZSTD_copySequencesToSeqStoreNoBlockDelim(ZSTD_CCtx* cctx, ZSTD_seq
         if (cctx->appliedParams.validateSequences) {
             seqPos->posInSrc += litLength + matchLength;
             FORWARD_IF_ERROR(ZSTD_validateSequence(offCode, matchLength, seqPos->posInSrc,
-                                                   cctx->appliedParams.cParams.windowLog, dictSize,
-                                                   cctx->appliedParams.cParams.minMatch),
+                                                   cctx->appliedParams.cParams.windowLog, dictSize),
                                                    "Sequence validation failed");
         }
         DEBUGLOG(6, "Storing sequence: (of: %u, ml: %u, ll: %u)", offCode, matchLength, litLength);
@@ -5967,7 +5968,8 @@ static size_t ZSTD_copySequencesToSeqStoreNoBlockDelim(ZSTD_CCtx* cctx, ZSTD_seq
 typedef size_t (*ZSTD_sequenceCopier) (ZSTD_CCtx* cctx, ZSTD_sequencePosition* seqPos,
                                        const ZSTD_Sequence* const inSeqs, size_t inSeqsSize,
                                        const void* src, size_t blockSize);
-static ZSTD_sequenceCopier ZSTD_selectSequenceCopier(ZSTD_sequenceFormat_e mode) {
+static ZSTD_sequenceCopier ZSTD_selectSequenceCopier(ZSTD_sequenceFormat_e mode)
+{
     ZSTD_sequenceCopier sequenceCopier = NULL;
     assert(ZSTD_cParam_withinBounds(ZSTD_c_blockDelimiters, mode));
     if (mode == ZSTD_sf_explicitBlockDelimiters) {
@@ -5981,12 +5983,15 @@ static ZSTD_sequenceCopier ZSTD_selectSequenceCopier(ZSTD_sequenceFormat_e mode)
 
 /* Compress, block-by-block, all of the sequences given.
  *
- * Returns the cumulative size of all compressed blocks (including their headers), otherwise a ZSTD error.
+ * Returns the cumulative size of all compressed blocks (including their headers),
+ * otherwise a ZSTD error.
  */
-static size_t ZSTD_compressSequences_internal(ZSTD_CCtx* cctx,
-                                              void* dst, size_t dstCapacity,
-                                              const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
-                                              const void* src, size_t srcSize) {
+static size_t
+ZSTD_compressSequences_internal(ZSTD_CCtx* cctx,
+                                void* dst, size_t dstCapacity,
+                          const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
+                          const void* src, size_t srcSize)
+{
     size_t cSize = 0;
     U32 lastBlock;
     size_t blockSize;
@@ -5996,7 +6001,7 @@ static size_t ZSTD_compressSequences_internal(ZSTD_CCtx* cctx,
 
     BYTE const* ip = (BYTE const*)src;
     BYTE* op = (BYTE*)dst;
-    ZSTD_sequenceCopier sequenceCopier = ZSTD_selectSequenceCopier(cctx->appliedParams.blockDelimiters);
+    ZSTD_sequenceCopier const sequenceCopier = ZSTD_selectSequenceCopier(cctx->appliedParams.blockDelimiters);
 
     DEBUGLOG(4, "ZSTD_compressSequences_internal srcSize: %zu, inSeqsSize: %zu", srcSize, inSeqsSize);
     /* Special case: empty frame */
@@ -6096,7 +6101,8 @@ static size_t ZSTD_compressSequences_internal(ZSTD_CCtx* cctx,
 
 size_t ZSTD_compressSequences(ZSTD_CCtx* const cctx, void* dst, size_t dstCapacity,
                               const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
-                              const void* src, size_t srcSize) {
+                              const void* src, size_t srcSize)
+{
     BYTE* op = (BYTE*)dst;
     size_t cSize = 0;
     size_t compressedBlocksSize = 0;

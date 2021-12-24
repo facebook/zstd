@@ -197,8 +197,8 @@ ZSTD_DUBT_findBetterDictMatch (
             U32 matchIndex = dictMatchIndex + dictIndexDelta;
             if ( (4*(int)(matchLength-bestLength)) > (int)(ZSTD_highbit32(curr-matchIndex+1) - ZSTD_highbit32((U32)offsetPtr[0]+1)) ) {
                 DEBUGLOG(9, "ZSTD_DUBT_findBetterDictMatch(%u) : found better match length %u -> %u and offsetCode %u -> %u (dictMatchIndex %u, matchIndex %u)",
-                    curr, (U32)bestLength, (U32)matchLength, (U32)*offsetPtr, ZSTD_REP_MOVE + curr - matchIndex, dictMatchIndex, matchIndex);
-                bestLength = matchLength, *offsetPtr = ZSTD_REP_MOVE + curr - matchIndex;
+                    curr, (U32)bestLength, (U32)matchLength, (U32)*offsetPtr, STORE_OFFSET(curr - matchIndex), dictMatchIndex, matchIndex);
+                bestLength = matchLength, *offsetPtr = STORE_OFFSET(curr - matchIndex);
             }
             if (ip+matchLength == iend) {   /* reached end of input : ip[matchLength] is not valid, no way to know if it's larger or smaller than match */
                 break;   /* drop, to guarantee consistency (miss a little bit of compression) */
@@ -328,7 +328,7 @@ ZSTD_DUBT_findBestMatch(ZSTD_matchState_t* ms,
                 if (matchLength > matchEndIdx - matchIndex)
                     matchEndIdx = matchIndex + (U32)matchLength;
                 if ( (4*(int)(matchLength-bestLength)) > (int)(ZSTD_highbit32(curr-matchIndex+1) - ZSTD_highbit32((U32)offsetPtr[0]+1)) )
-                    bestLength = matchLength, *offsetPtr = ZSTD_REP_MOVE + curr - matchIndex;
+                    bestLength = matchLength, *offsetPtr = STORE_OFFSET(curr - matchIndex);
                 if (ip+matchLength == iend) {   /* equal : no way to know if inf or sup */
                     if (dictMode == ZSTD_dictMatchState) {
                         nbCompares = 0; /* in addition to avoiding checking any
@@ -561,7 +561,7 @@ size_t ZSTD_dedicatedDictSearch_lazy_search(size_t* offsetPtr, size_t ml, U32 nb
         /* save best solution */
         if (currentMl > ml) {
             ml = currentMl;
-            *offsetPtr = curr - (matchIndex + ddsIndexDelta) + ZSTD_REP_MOVE;
+            *offsetPtr = STORE_OFFSET(curr - (matchIndex + ddsIndexDelta));
             if (ip+currentMl == iLimit) {
                 /* best possible, avoids read overflow on next attempt */
                 return ml;
@@ -598,7 +598,7 @@ size_t ZSTD_dedicatedDictSearch_lazy_search(size_t* offsetPtr, size_t ml, U32 nb
             /* save best solution */
             if (currentMl > ml) {
                 ml = currentMl;
-                *offsetPtr = curr - (matchIndex + ddsIndexDelta) + ZSTD_REP_MOVE;
+                *offsetPtr = STORE_OFFSET(curr - (matchIndex + ddsIndexDelta));
                 if (ip+currentMl == iLimit) break; /* best possible, avoids read overflow on next attempt */
             }
         }
@@ -703,7 +703,7 @@ size_t ZSTD_HcFindBestMatch(
         /* save best solution */
         if (currentMl > ml) {
             ml = currentMl;
-            *offsetPtr = curr - matchIndex + ZSTD_REP_MOVE;
+            *offsetPtr = STORE_OFFSET(curr - matchIndex);
             if (ip+currentMl == iLimit) break; /* best possible, avoids read overflow on next attempt */
         }
 
@@ -738,7 +738,8 @@ size_t ZSTD_HcFindBestMatch(
             /* save best solution */
             if (currentMl > ml) {
                 ml = currentMl;
-                *offsetPtr = curr - (matchIndex + dmsIndexDelta) + ZSTD_REP_MOVE;
+                assert(curr > matchIndex + dmsIndexDelta);
+                *offsetPtr = STORE_OFFSET(curr - (matchIndex + dmsIndexDelta));
                 if (ip+currentMl == iLimit) break; /* best possible, avoids read overflow on next attempt */
             }
 
@@ -1244,7 +1245,7 @@ size_t ZSTD_RowFindBestMatch(
             /* Save best solution */
             if (currentMl > ml) {
                 ml = currentMl;
-                *offsetPtr = curr - matchIndex + ZSTD_REP_MOVE;
+                *offsetPtr = STORE_OFFSET(curr - matchIndex);
                 if (ip+currentMl == iLimit) break; /* best possible, avoids read overflow on next attempt */
             }
         }
@@ -1292,7 +1293,8 @@ size_t ZSTD_RowFindBestMatch(
 
                 if (currentMl > ml) {
                     ml = currentMl;
-                    *offsetPtr = curr - (matchIndex + dmsIndexDelta) + ZSTD_REP_MOVE;
+                    assert(curr > matchIndex + dmsIndexDelta);
+                    *offsetPtr = STORE_OFFSET(curr - (matchIndex + dmsIndexDelta));
                     if (ip+currentMl == iLimit) break;
                 }
             }
@@ -1685,7 +1687,7 @@ _storeSequence:
                     const BYTE* const repEnd2 = repIndex < prefixLowestIndex ? dictEnd : iend;
                     matchLength = ZSTD_count_2segments(ip+4, repMatch+4, iend, repEnd2, prefixLowest) + 4;
                     offset = offset_2; offset_2 = offset_1; offset_1 = (U32)offset;   /* swap offset_2 <=> offset_1 */
-                    ZSTD_storeSeq(seqStore, 0, anchor, iend, 0, matchLength);
+                    ZSTD_storeSeq(seqStore, 0, anchor, iend, STORE_REPCODE_1, matchLength);
                     ip += matchLength;
                     anchor = ip;
                     continue;
@@ -1700,7 +1702,7 @@ _storeSequence:
                 /* store sequence */
                 matchLength = ZSTD_count(ip+4, ip+4-offset_2, iend) + 4;
                 offset = offset_2; offset_2 = offset_1; offset_1 = (U32)offset; /* swap repcodes */
-                ZSTD_storeSeq(seqStore, 0, anchor, iend, 0, matchLength);
+                ZSTD_storeSeq(seqStore, 0, anchor, iend, STORE_REPCODE_1, matchLength);
                 ip += matchLength;
                 anchor = ip;
                 continue;   /* faster when present ... (?) */
@@ -2028,7 +2030,7 @@ _storeSequence:
                 const BYTE* const repEnd = repIndex < dictLimit ? dictEnd : iend;
                 matchLength = ZSTD_count_2segments(ip+4, repMatch+4, iend, repEnd, prefixStart) + 4;
                 offset = offset_2; offset_2 = offset_1; offset_1 = (U32)offset;   /* swap offset history */
-                ZSTD_storeSeq(seqStore, 0, anchor, iend, 0, matchLength);
+                ZSTD_storeSeq(seqStore, 0, anchor, iend, STORE_REPCODE_1, matchLength);
                 ip += matchLength;
                 anchor = ip;
                 continue;   /* faster when present ... (?) */

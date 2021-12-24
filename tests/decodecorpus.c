@@ -633,16 +633,15 @@ static inline void initSeqStore(seqStore_t *seqStore) {
 }
 
 /* Randomly generate sequence commands */
-static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
-                                size_t contentSize, size_t literalsSize, dictInfo info)
+static U32
+generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
+                  size_t contentSize, size_t literalsSize, dictInfo info)
 {
     /* The total length of all the matches */
     size_t const remainingMatch = contentSize - literalsSize;
     size_t excessMatch = 0;
     U32 numSequences = 0;
-
     U32 i;
-
 
     const BYTE* literals = LITERAL_BUFFER;
     BYTE* srcPtr = frame->src;
@@ -703,32 +702,31 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
                             lenPastStart = MIN(lenPastStart+MIN_SEQ_LEN, (U32)info.dictContentSize);
                             offset = (U32)((BYTE*)srcPtr - (BYTE*)frame->srcStart) + lenPastStart;
                         }
-                        {
-                            U32 const matchLenBound = MIN(frame->header.windowSize, lenPastStart);
+                        {   U32 const matchLenBound = MIN(frame->header.windowSize, lenPastStart);
                             matchLen = MIN(matchLen, matchLenBound);
                         }
                     }
                 }
-                offsetCode = offset + ZSTD_REP_MOVE;
+                offsetCode = STORE_OFFSET(offset);
                 repIndex = 2;
             } else {
                 /* do a repeat offset */
-                offsetCode = RAND(seed) % 3;
+                U32 const randomRepIndex = RAND(seed) % 3;
+                offsetCode = STORE_REPCODE(randomRepIndex + 1);  /* expects values between 1 & 3 */
                 if (literalLen > 0) {
-                    offset = frame->stats.rep[offsetCode];
-                    repIndex = offsetCode;
+                    offset = frame->stats.rep[randomRepIndex];
+                    repIndex = randomRepIndex;
                 } else {
-                    /* special case */
-                    offset = offsetCode == 2 ? frame->stats.rep[0] - 1
-                                           : frame->stats.rep[offsetCode + 1];
-                    repIndex = MIN(2, offsetCode + 1);
+                    /* special case : literalLen == 0 */
+                    offset = randomRepIndex == 2 ? frame->stats.rep[0] - 1
+                                           : frame->stats.rep[randomRepIndex + 1];
+                    repIndex = MIN(2, randomRepIndex + 1);
                 }
             }
         } while (((!info.useDict) && (offset > (size_t)((BYTE*)srcPtr - (BYTE*)frame->srcStart))) || offset == 0);
 
-        {
+        {   BYTE* const dictEnd = info.dictContent + info.dictContentSize;
             size_t j;
-            BYTE* const dictEnd = info.dictContent + info.dictContentSize;
             for (j = 0; j < matchLen; j++) {
                 if ((U32)((BYTE*)srcPtr - (BYTE*)frame->srcStart) < offset) {
                     /* copy from dictionary instead of literals */
@@ -739,8 +737,7 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
                     *srcPtr = *(srcPtr-offset);
                 }
                 srcPtr++;
-            }
-        }
+        }   }
 
         {   int r;
             for (r = repIndex; r > 0; r--) {
@@ -754,7 +751,7 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
         DISPLAYLEVEL(7, " srcPos: %8u seqNb: %3u",
                      (unsigned)((BYTE*)srcPtr - (BYTE*)frame->srcStart), (unsigned)i);
         DISPLAYLEVEL(6, "\n");
-        if (offsetCode < 3) {
+        if (offsetCode < ZSTD_REP_NUM) {  /* expects @offsetCode to use 0-2 to represents repCodes */
             DISPLAYLEVEL(7, "        repeat offset: %d\n", (int)repIndex);
         }
         /* use libzstd sequence handling */

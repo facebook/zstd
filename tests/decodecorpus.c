@@ -951,7 +951,7 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
         if (MEM_32bits()) BIT_flushBits(&blockStream);
         BIT_addBits(&blockStream, sequences[nbSeq-1].mlBase, ML_bits[mlCodeTable[nbSeq-1]]);
         if (MEM_32bits()) BIT_flushBits(&blockStream);
-        BIT_addBits(&blockStream, sequences[nbSeq-1].offset, ofCodeTable[nbSeq-1]);
+        BIT_addBits(&blockStream, sequences[nbSeq-1].offBase, ofCodeTable[nbSeq-1]);
         BIT_flushBits(&blockStream);
 
         {   size_t n;
@@ -973,7 +973,7 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
                 if (MEM_32bits() && ((llBits+mlBits)>24)) BIT_flushBits(&blockStream);
                 BIT_addBits(&blockStream, sequences[n].mlBase, mlBits);
                 if (MEM_32bits()) BIT_flushBits(&blockStream);                  /* (7)*/
-                BIT_addBits(&blockStream, sequences[n].offset, ofBits);         /* 31 */
+                BIT_addBits(&blockStream, sequences[n].offBase, ofBits);         /* 31 */
                 BIT_flushBits(&blockStream);                                    /* (7)*/
         }   }
 

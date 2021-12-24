@@ -285,7 +285,7 @@ typedef enum {
 *  Private declarations
 *********************************************/
 typedef struct seqDef_s {
-    U32 offset;    /* offset == rawOffset + ZSTD_REP_NUM, or equivalently, offCode + 1 */
+    U32 offBase;   /* offBase == Offset + ZSTD_REP_NUM, or repcode 1,2,3 */
     U16 litLength;
     U16 mlBase;    /* mlBase == matchLength - MINMATCH */
 } seqDef;

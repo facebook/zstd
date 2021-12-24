@@ -2398,7 +2398,7 @@ void ZSTD_seqToCodes(const seqStore_t* seqStorePtr)
         U32 const llv = sequences[u].litLength;
         U32 const mlv = sequences[u].mlBase;
         llCodeTable[u] = (BYTE)ZSTD_LLcode(llv);
-        ofCodeTable[u] = (BYTE)ZSTD_highbit32(sequences[u].offset);
+        ofCodeTable[u] = (BYTE)ZSTD_highbit32(sequences[u].offBase);
         mlCodeTable[u] = (BYTE)ZSTD_MLcode(mlv);
     }
     if (seqStorePtr->longLengthType==ZSTD_llt_literalLength)
@@ -2910,7 +2910,7 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
     assert(zc->seqCollector.maxSequences >= seqStoreSeqSize + 1);
     ZSTD_memcpy(updatedRepcodes.rep, zc->blockState.prevCBlock->rep, sizeof(repcodes_t));
     for (i = 0; i < seqStoreSeqSize; ++i) {
-        U32 rawOffset = seqStoreSeqs[i].offset - ZSTD_REP_NUM;
+        U32 rawOffset = seqStoreSeqs[i].offBase - ZSTD_REP_NUM;
         outSeqs[i].litLength = seqStoreSeqs[i].litLength;
         outSeqs[i].matchLength = seqStoreSeqs[i].mlBase + MINMATCH;
         outSeqs[i].rep = 0;
@@ -2923,9 +2923,9 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
             }
         }
 
-        if (seqStoreSeqs[i].offset <= ZSTD_REP_NUM) {
+        if (seqStoreSeqs[i].offBase <= ZSTD_REP_NUM) {
             /* Derive the correct offset corresponding to a repcode */
-            outSeqs[i].rep = seqStoreSeqs[i].offset;
+            outSeqs[i].rep = seqStoreSeqs[i].offBase;
             if (outSeqs[i].litLength != 0) {
                 rawOffset = updatedRepcodes.rep[outSeqs[i].rep - 1];
             } else {
@@ -2940,7 +2940,7 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
         /* seqStoreSeqs[i].offset == offCode+1, and ZSTD_updateRep() expects offCode
            so we provide seqStoreSeqs[i].offset - 1 */
         updatedRepcodes = ZSTD_updateRep(updatedRepcodes.rep,
-                                         seqStoreSeqs[i].offset - 1,
+                                         seqStoreSeqs[i].offBase - 1,
                                          seqStoreSeqs[i].litLength == 0);
         literalsRead += outSeqs[i].litLength;
     }
@@ -3461,8 +3461,8 @@ static void ZSTD_seqStore_resolveOffCodes(repcodes_t* const dRepcodes, repcodes_
     for (; idx < nbSeq; ++idx) {
         seqDef* const seq = seqStore->sequencesStart + idx;
         U32 const ll0 = (seq->litLength == 0);
-        U32 offCode = seq->offset - 1;
-        assert(seq->offset > 0);
+        U32 offCode = seq->offBase - 1;
+        assert(seq->offBase > 0);
         if (offCode <= ZSTD_REP_MOVE) {
             U32 const dRawOffset = ZSTD_resolveRepcodeToRawOffset(dRepcodes->rep, offCode, ll0);
             U32 const cRawOffset = ZSTD_resolveRepcodeToRawOffset(cRepcodes->rep, offCode, ll0);
@@ -3471,13 +3471,13 @@ static void ZSTD_seqStore_resolveOffCodes(repcodes_t* const dRepcodes, repcodes_
              * repcode history.
              */
             if (dRawOffset != cRawOffset) {
-                seq->offset = cRawOffset + ZSTD_REP_NUM;
+                seq->offBase = cRawOffset + ZSTD_REP_NUM;
             }
         }
         /* Compression repcode history is always updated with values directly from the unmodified seqStore.
          * Decompression repcode history may use modified seq->offset value taken from compression repcode history.
          */
-        *dRepcodes = ZSTD_updateRep(dRepcodes->rep, seq->offset - 1, ll0);
+        *dRepcodes = ZSTD_updateRep(dRepcodes->rep, seq->offBase - 1, ll0);
         *cRepcodes = ZSTD_updateRep(cRepcodes->rep, offCode, ll0);
     }
 }

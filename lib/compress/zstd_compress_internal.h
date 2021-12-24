@@ -647,7 +647,7 @@ void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const BYTE* litera
     seqStorePtr->sequences[0].litLength = (U16)litLength;
 
     /* match offset */
-    seqStorePtr->sequences[0].offset = offCode + 1;
+    seqStorePtr->sequences[0].offBase = offCode + 1;
 
     /* match Length */
     assert(matchLength >= MINMATCH);

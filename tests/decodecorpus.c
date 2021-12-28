@@ -751,7 +751,7 @@ generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
         DISPLAYLEVEL(7, " srcPos: %8u seqNb: %3u",
                      (unsigned)((BYTE*)srcPtr - (BYTE*)frame->srcStart), (unsigned)i);
         DISPLAYLEVEL(6, "\n");
-        if (offsetCode < ZSTD_REP_NUM) {  /* expects @offsetCode to use 0-2 to represents repCodes */
+        if (STORED_IS_REPCODE(offsetCode)) {  /* expects sumtype numeric representation of ZSTD_storeSeq() */
             DISPLAYLEVEL(7, "        repeat offset: %d\n", (int)repIndex);
         }
         /* use libzstd sequence handling */

@@ -497,36 +497,6 @@ MEM_STATIC U32 ZSTD_MLcode(U32 mlBase)
     return (mlBase > 127) ? ZSTD_highbit32(mlBase) + ML_deltaCode : ML_Code[mlBase];
 }
 
-typedef struct repcodes_s {
-    U32 rep[3];
-} repcodes_t;
-
-
-/* ZSTD_updateRep() :
- * @offcode : expects a scale where 0,1,2 represent repcodes 1-3, and 2+ represents real_offset+2
- */
-MEM_STATIC repcodes_t
-ZSTD_updateRep(U32 const rep[3], U32 const offcode, U32 const ll0)
-{
-    repcodes_t newReps;
-    if (offcode >= ZSTD_REP_NUM) {  /* full offset */
-        newReps.rep[2] = rep[1];
-        newReps.rep[1] = rep[0];
-        newReps.rep[0] = offcode - ZSTD_REP_MOVE;
-    } else {   /* repcode */
-        U32 const repCode = offcode + ll0;
-        if (repCode > 0) {  /* note : if repCode==0, no change */
-            U32 const currentOffset = (repCode==ZSTD_REP_NUM) ? (rep[0] - 1) : rep[repCode];
-            newReps.rep[2] = (repCode >= 2) ? rep[1] : rep[2];
-            newReps.rep[1] = rep[0];
-            newReps.rep[0] = currentOffset;
-        } else {   /* repCode == 0 */
-            ZSTD_memcpy(&newReps, rep, sizeof(newReps));
-        }
-    }
-    return newReps;
-}
-
 /* ZSTD_cParam_withinBounds:
  * @return 1 if value is within cParam bounds,
  * 0 otherwise */
@@ -609,7 +579,11 @@ static void ZSTD_safecopyLiterals(BYTE* op, BYTE const* ip, BYTE const* const ie
 #define STORE_REPCODE_2 STORE_REPCODE(2)
 #define STORE_REPCODE_3 STORE_REPCODE(3)
 #define STORE_REPCODE(r) (assert((r)>=1), assert((r)<=3), (r)-1)
-#define STORE_OFFSET(o) (assert((o)>0), o + ZSTD_REP_MOVE)
+#define STORE_OFFSET(o)  (assert((o)>0), o + ZSTD_REP_MOVE)
+#define STORED_IS_OFFSET(o)  ((o) > ZSTD_REP_MOVE)
+#define STORED_IS_REPCODE(o) ((o) < ZSTD_REP_NUM)
+#define STORED_OFFSET(o)  (assert(STORED_IS_OFFSET(o)), (o)-ZSTD_REP_MOVE)
+#define STORED_REPCODE(o) (assert(STORED_IS_REPCODE(o)), (o)+1)  /* returns ID 1,2,3 */
 
 /*! ZSTD_storeSeq() :
  *  Store a sequence (litlen, litPtr, offCode and matchLength) into seqStore_t.
@@ -619,8 +593,11 @@ static void ZSTD_safecopyLiterals(BYTE* op, BYTE const* ip, BYTE const* const ie
  *  @matchLength : must be >= MINMATCH
  *  Allowed to overread literals up to litLimit.
 */
-HINT_INLINE UNUSED_ATTR
-void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const BYTE* literals, const BYTE* litLimit, U32 offBase_minus1, size_t matchLength)
+HINT_INLINE UNUSED_ATTR void
+ZSTD_storeSeq(seqStore_t* seqStorePtr,
+              size_t litLength, const BYTE* literals, const BYTE* litLimit,
+              U32 offBase_minus1,
+              size_t matchLength)
 {
     BYTE const* const litLimit_w = litLimit - WILDCOPY_OVERLENGTH;
     BYTE const* const litEnd = literals + litLength;
@@ -674,6 +651,35 @@ void ZSTD_storeSeq(seqStore_t* seqStorePtr, size_t litLength, const BYTE* litera
     }
 
     seqStorePtr->sequences++;
+}
+
+typedef struct repcodes_s {
+    U32 rep[3];
+} repcodes_t;
+
+/* ZSTD_updateRep() :
+ * @offcode : sum-type, with same numeric representation as ZSTD_storeSeq()
+ */
+MEM_STATIC repcodes_t
+ZSTD_updateRep(U32 const rep[3], U32 const offBase_minus1, U32 const ll0)
+{
+    repcodes_t newReps;
+    if (STORED_IS_OFFSET(offBase_minus1)) {  /* full offset */
+        newReps.rep[2] = rep[1];
+        newReps.rep[1] = rep[0];
+        newReps.rep[0] = STORED_OFFSET(offBase_minus1);
+    } else {   /* repcode */
+        U32 const repCode = STORED_REPCODE(offBase_minus1) - 1 + ll0;
+        if (repCode > 0) {  /* note : if repCode==0, no change */
+            U32 const currentOffset = (repCode==ZSTD_REP_NUM) ? (rep[0] - 1) : rep[repCode];
+            newReps.rep[2] = (repCode >= 2) ? rep[1] : rep[2];
+            newReps.rep[1] = rep[0];
+            newReps.rep[0] = currentOffset;
+        } else {   /* repCode == 0 */
+            ZSTD_memcpy(&newReps, rep, sizeof(newReps));
+        }
+    }
+    return newReps;
 }
 
 

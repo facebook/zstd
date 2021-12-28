@@ -2939,9 +2939,9 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
         outSeqs[i].offset = rawOffset;
         /* seqStoreSeqs[i].offset == offCode+1, and ZSTD_updateRep() expects offCode
            so we provide seqStoreSeqs[i].offset - 1 */
-        updatedRepcodes = ZSTD_updateRep(updatedRepcodes.rep,
-                                         seqStoreSeqs[i].offBase - 1,
-                                         seqStoreSeqs[i].litLength == 0);
+        ZSTD_updateRep(updatedRepcodes.rep,
+                       seqStoreSeqs[i].offBase - 1,
+                       seqStoreSeqs[i].litLength == 0);
         literalsRead += outSeqs[i].litLength;
     }
     /* Insert last literals (if any exist) in the block as a sequence with ml == off == 0.
@@ -3482,8 +3482,8 @@ static void ZSTD_seqStore_resolveOffCodes(repcodes_t* const dRepcodes, repcodes_
         /* Compression repcode history is always updated with values directly from the unmodified seqStore.
          * Decompression repcode history may use modified seq->offset value taken from compression repcode history.
          */
-        *dRepcodes = ZSTD_updateRep(dRepcodes->rep, seq->offBase - 1, ll0);
-        *cRepcodes = ZSTD_updateRep(cRepcodes->rep, offCode, ll0);
+        ZSTD_updateRep(dRepcodes->rep, seq->offBase - 1, ll0);
+        ZSTD_updateRep(cRepcodes->rep, offCode, ll0);
     }
 }
 
@@ -5808,7 +5808,7 @@ ZSTD_copySequencesToSeqStoreExplicitBlockDelim(ZSTD_CCtx* cctx,
         U32 const ll0 = (litLength == 0);
         U32 const matchLength = inSeqs[idx].matchLength;
         U32 const offCode = ZSTD_finalizeOffCode(inSeqs[idx].offset, updatedRepcodes.rep, ll0);
-        updatedRepcodes = ZSTD_updateRep(updatedRepcodes.rep, offCode, ll0);
+        ZSTD_updateRep(updatedRepcodes.rep, offCode, ll0);
 
         DEBUGLOG(6, "Storing sequence: (of: %u, ml: %u, ll: %u)", offCode, matchLength, litLength);
         if (cctx->appliedParams.validateSequences) {
@@ -5931,7 +5931,7 @@ ZSTD_copySequencesToSeqStoreNoBlockDelim(ZSTD_CCtx* cctx, ZSTD_sequencePosition*
         /* Check if this offset can be represented with a repcode */
         {   U32 const ll0 = (litLength == 0);
             offCode = ZSTD_finalizeOffCode(rawOffset, updatedRepcodes.rep, ll0);
-            updatedRepcodes = ZSTD_updateRep(updatedRepcodes.rep, offCode, ll0);
+            ZSTD_updateRep(updatedRepcodes.rep, offCode, ll0);
         }
 
         if (cctx->appliedParams.validateSequences) {

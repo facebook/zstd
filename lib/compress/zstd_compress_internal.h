@@ -655,32 +655,40 @@ ZSTD_storeSeq(seqStore_t* seqStorePtr,
     seqStorePtr->sequences++;
 }
 
-typedef struct repcodes_s {
-    U32 rep[3];
-} repcodes_t;
-
 /* ZSTD_updateRep() :
- * @offcode : sum-type, with same numeric representation as ZSTD_storeSeq()
+ * updates in-place @rep (array of repeat offsets)
+ * @offBase_minus1 : sum-type, with same numeric representation as ZSTD_storeSeq()
  */
-MEM_STATIC repcodes_t
-ZSTD_updateRep(U32 const rep[3], U32 const offBase_minus1, U32 const ll0)
+MEM_STATIC void
+ZSTD_updateRep(U32 rep[ZSTD_REP_NUM], U32 const offBase_minus1, U32 const ll0)
 {
-    repcodes_t newReps;
     if (STORED_IS_OFFSET(offBase_minus1)) {  /* full offset */
-        newReps.rep[2] = rep[1];
-        newReps.rep[1] = rep[0];
-        newReps.rep[0] = STORED_OFFSET(offBase_minus1);
+        rep[2] = rep[1];
+        rep[1] = rep[0];
+        rep[0] = STORED_OFFSET(offBase_minus1);
     } else {   /* repcode */
         U32 const repCode = STORED_REPCODE(offBase_minus1) - 1 + ll0;
         if (repCode > 0) {  /* note : if repCode==0, no change */
             U32 const currentOffset = (repCode==ZSTD_REP_NUM) ? (rep[0] - 1) : rep[repCode];
-            newReps.rep[2] = (repCode >= 2) ? rep[1] : rep[2];
-            newReps.rep[1] = rep[0];
-            newReps.rep[0] = currentOffset;
+            rep[2] = (repCode >= 2) ? rep[1] : rep[2];
+            rep[1] = rep[0];
+            rep[0] = currentOffset;
         } else {   /* repCode == 0 */
-            ZSTD_memcpy(&newReps, rep, sizeof(newReps));
+            /* nothing to do */
         }
     }
+}
+
+typedef struct repcodes_s {
+    U32 rep[3];
+} repcodes_t;
+
+MEM_STATIC repcodes_t
+ZSTD_newRep(U32 const rep[ZSTD_REP_NUM], U32 const offBase_minus1, U32 const ll0)
+{
+    repcodes_t newReps;
+    memcpy(&newReps, rep, sizeof(newReps));
+    ZSTD_updateRep(newReps.rep, offBase_minus1, ll0);
     return newReps;
 }
 

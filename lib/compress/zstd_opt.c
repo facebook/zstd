@@ -1164,7 +1164,7 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
             assert(cur >= opt[cur].mlen);
             if (opt[cur].mlen != 0) {
                 U32 const prev = cur - opt[cur].mlen;
-                repcodes_t newReps = ZSTD_updateRep(opt[prev].rep, opt[cur].off, opt[cur].litlen==0);
+                repcodes_t const newReps = ZSTD_newRep(opt[prev].rep, opt[cur].off, opt[cur].litlen==0);
                 ZSTD_memcpy(opt[cur].rep, &newReps, sizeof(repcodes_t));
             } else {
                 ZSTD_memcpy(opt[cur].rep, opt[cur - 1].rep, sizeof(repcodes_t));
@@ -1254,7 +1254,7 @@ _shortestPath:   /* cur, last_pos, best_mlen, best_off have to be set */
          * update them while traversing the sequences.
          */
         if (lastSequence.mlen != 0) {
-            repcodes_t reps = ZSTD_updateRep(opt[cur].rep, lastSequence.off, lastSequence.litlen==0);
+            repcodes_t const reps = ZSTD_newRep(opt[cur].rep, lastSequence.off, lastSequence.litlen==0);
             ZSTD_memcpy(rep, &reps, sizeof(reps));
         } else {
             ZSTD_memcpy(rep, opt[cur].rep, sizeof(repcodes_t));

@@ -837,7 +837,8 @@ GEN_ZSTD_BT_GET_ALL_MATCHES(dictMatchState)
         ZSTD_BT_GET_ALL_MATCHES_FN(dictMode, 6)  \
     }
 
-static ZSTD_getAllMatchesFn ZSTD_selectBtGetAllMatches(ZSTD_matchState_t const* ms, ZSTD_dictMode_e const dictMode)
+static ZSTD_getAllMatchesFn
+ZSTD_selectBtGetAllMatches(ZSTD_matchState_t const* ms, ZSTD_dictMode_e const dictMode)
 {
     ZSTD_getAllMatchesFn const getAllMatchesFns[3][4] = {
         ZSTD_BT_GET_ALL_MATCHES_ARRAY(noDict),
@@ -856,16 +857,18 @@ static ZSTD_getAllMatchesFn ZSTD_selectBtGetAllMatches(ZSTD_matchState_t const* 
 
 /* Struct containing info needed to make decision about ldm inclusion */
 typedef struct {
-    rawSeqStore_t seqStore;         /* External match candidates store for this block */
-    U32 startPosInBlock;            /* Start position of the current match candidate */
-    U32 endPosInBlock;              /* End position of the current match candidate */
-    U32 offset;                     /* Offset of the match candidate */
+    rawSeqStore_t seqStore;   /* External match candidates store for this block */
+    U32 startPosInBlock;      /* Start position of the current match candidate */
+    U32 endPosInBlock;        /* End position of the current match candidate */
+    U32 offset;               /* Offset of the match candidate */
 } ZSTD_optLdm_t;
 
 /* ZSTD_optLdm_skipRawSeqStoreBytes():
- * Moves forward in rawSeqStore by nbBytes, which will update the fields 'pos' and 'posInSequence'.
+ * Moves forward in @rawSeqStore by @nbBytes,
+ * which will update the fields 'pos' and 'posInSequence'.
  */
-static void ZSTD_optLdm_skipRawSeqStoreBytes(rawSeqStore_t* rawSeqStore, size_t nbBytes) {
+static void ZSTD_optLdm_skipRawSeqStoreBytes(rawSeqStore_t* rawSeqStore, size_t nbBytes)
+{
     U32 currPos = (U32)(rawSeqStore->posInSequence + nbBytes);
     while (currPos && rawSeqStore->pos < rawSeqStore->size) {
         rawSeq currSeq = rawSeqStore->seq[rawSeqStore->pos];
@@ -886,8 +889,10 @@ static void ZSTD_optLdm_skipRawSeqStoreBytes(rawSeqStore_t* rawSeqStore, size_t 
  * Calculates the beginning and end of the next match in the current block.
  * Updates 'pos' and 'posInSequence' of the ldmSeqStore.
  */
-static void ZSTD_opt_getNextMatchAndUpdateSeqStore(ZSTD_optLdm_t* optLdm, U32 currPosInBlock,
-                                                   U32 blockBytesRemaining) {
+static void
+ZSTD_opt_getNextMatchAndUpdateSeqStore(ZSTD_optLdm_t* optLdm, U32 currPosInBlock,
+                                       U32 blockBytesRemaining)
+{
     rawSeq currSeq;
     U32 currBlockEndPos;
     U32 literalsBytesRemaining;
@@ -899,8 +904,8 @@ static void ZSTD_opt_getNextMatchAndUpdateSeqStore(ZSTD_optLdm_t* optLdm, U32 cu
         optLdm->endPosInBlock = UINT_MAX;
         return;
     }
-    /* Calculate appropriate bytes left in matchLength and litLength after adjusting
-       based on ldmSeqStore->posInSequence */
+    /* Calculate appropriate bytes left in matchLength and litLength
+     * after adjusting based on ldmSeqStore->posInSequence */
     currSeq = optLdm->seqStore.seq[optLdm->seqStore.pos];
     assert(optLdm->seqStore.posInSequence <= currSeq.litLength + currSeq.matchLength);
     currBlockEndPos = currPosInBlock + blockBytesRemaining;
@@ -936,11 +941,12 @@ static void ZSTD_opt_getNextMatchAndUpdateSeqStore(ZSTD_optLdm_t* optLdm, U32 cu
 }
 
 /* ZSTD_optLdm_maybeAddMatch():
- * Adds a match if it's long enough, based on it's 'matchStartPosInBlock'
- * and 'matchEndPosInBlock', into 'matches'. Maintains the correct ordering of 'matches'
+ * Adds a match if it's long enough,
+ * based on it's 'matchStartPosInBlock' and 'matchEndPosInBlock',
+ * into 'matches'. Maintains the correct ordering of 'matches'.
  */
 static void ZSTD_optLdm_maybeAddMatch(ZSTD_match_t* matches, U32* nbMatches,
-                                      ZSTD_optLdm_t* optLdm, U32 currPosInBlock)
+                                      const ZSTD_optLdm_t* optLdm, U32 currPosInBlock)
 {
     U32 const posDiff = currPosInBlock - optLdm->startPosInBlock;
     /* Note: ZSTD_match_t actually contains offCode and matchLength (before subtracting MINMATCH) */
@@ -966,8 +972,11 @@ static void ZSTD_optLdm_maybeAddMatch(ZSTD_match_t* matches, U32* nbMatches,
 /* ZSTD_optLdm_processMatchCandidate():
  * Wrapper function to update ldm seq store and call ldm functions as necessary.
  */
-static void ZSTD_optLdm_processMatchCandidate(ZSTD_optLdm_t* optLdm, ZSTD_match_t* matches, U32* nbMatches,
-                                              U32 currPosInBlock, U32 remainingBytes) {
+static void
+ZSTD_optLdm_processMatchCandidate(ZSTD_optLdm_t* optLdm,
+                                  ZSTD_match_t* matches, U32* nbMatches,
+                                  U32 currPosInBlock, U32 remainingBytes)
+{
     if (optLdm->seqStore.size == 0 || optLdm->seqStore.pos >= optLdm->seqStore.size) {
         return;
     }
@@ -978,7 +987,7 @@ static void ZSTD_optLdm_processMatchCandidate(ZSTD_optLdm_t* optLdm, ZSTD_match_
              * at the end of a match from the ldm seq store, and will often be some bytes
              * over beyond matchEndPosInBlock. As such, we need to correct for these "overshoots"
              */
-            U32 posOvershoot = currPosInBlock - optLdm->endPosInBlock;
+            U32 const posOvershoot = currPosInBlock - optLdm->endPosInBlock;
             ZSTD_optLdm_skipRawSeqStoreBytes(&optLdm->seqStore, posOvershoot);
         }
         ZSTD_opt_getNextMatchAndUpdateSeqStore(optLdm, currPosInBlock, remainingBytes);

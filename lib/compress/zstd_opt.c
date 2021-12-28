@@ -951,7 +951,6 @@ static void ZSTD_optLdm_maybeAddMatch(ZSTD_match_t* matches, U32* nbMatches,
     U32 const posDiff = currPosInBlock - optLdm->startPosInBlock;
     /* Note: ZSTD_match_t actually contains offCode and matchLength (before subtracting MINMATCH) */
     U32 const candidateMatchLength = optLdm->endPosInBlock - optLdm->startPosInBlock - posDiff;
-    U32 const candidateOffCode = STORE_OFFSET(optLdm->offset);
 
     /* Ensure that current block position is not outside of the match */
     if (currPosInBlock < optLdm->startPosInBlock
@@ -961,6 +960,7 @@ static void ZSTD_optLdm_maybeAddMatch(ZSTD_match_t* matches, U32* nbMatches,
     }
 
     if (*nbMatches == 0 || ((candidateMatchLength > matches[*nbMatches-1].len) && *nbMatches < ZSTD_OPT_NUM)) {
+        U32 const candidateOffCode = STORE_OFFSET(optLdm->offset);
         DEBUGLOG(6, "ZSTD_optLdm_maybeAddMatch(): Adding ldm candidate match (offCode: %u matchLength %u) at block position=%u",
                  candidateOffCode, candidateMatchLength, currPosInBlock);
         matches[*nbMatches].len = candidateMatchLength;

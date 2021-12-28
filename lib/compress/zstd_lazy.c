@@ -218,7 +218,7 @@ ZSTD_DUBT_findBetterDictMatch (
     }
 
     if (bestLength >= MINMATCH) {
-        U32 const mIndex = curr - ((U32)*offsetPtr - ZSTD_REP_MOVE); (void)mIndex;
+        U32 const mIndex = curr - STORED_OFFSET(*offsetPtr); (void)mIndex;
         DEBUGLOG(8, "ZSTD_DUBT_findBetterDictMatch(%u) : found match of length %u and offsetCode %u (pos %u)",
                     curr, (U32)bestLength, (U32)*offsetPtr, mIndex);
     }
@@ -368,7 +368,7 @@ ZSTD_DUBT_findBestMatch(ZSTD_matchState_t* ms,
         assert(matchEndIdx > curr+8); /* ensure nextToUpdate is increased */
         ms->nextToUpdate = matchEndIdx - 8;   /* skip repetitive patterns */
         if (bestLength >= MINMATCH) {
-            U32 const mIndex = curr - ((U32)*offsetPtr - ZSTD_REP_MOVE); (void)mIndex;
+            U32 const mIndex = curr - STORED_OFFSET(*offsetPtr); (void)mIndex;
             DEBUGLOG(8, "ZSTD_DUBT_findBestMatch(%u) : found match of length %u and offsetCode %u (pos %u)",
                         curr, (U32)bestLength, (U32)*offsetPtr, mIndex);
         }
@@ -1655,17 +1655,17 @@ ZSTD_compressBlock_lazy_generic(
         /* catch up */
         if (offset) {
             if (dictMode == ZSTD_noDict) {
-                while ( ((start > anchor) & (start - (offset-ZSTD_REP_MOVE) > prefixLowest))
-                     && (start[-1] == (start-(offset-ZSTD_REP_MOVE))[-1]) )  /* only search for offset within prefix */
+                while ( ((start > anchor) & (start - STORED_OFFSET(offset) > prefixLowest))
+                     && (start[-1] == (start-STORED_OFFSET(offset))[-1]) )  /* only search for offset within prefix */
                     { start--; matchLength++; }
             }
             if (isDxS) {
-                U32 const matchIndex = (U32)((size_t)(start-base) - (offset - ZSTD_REP_MOVE));
+                U32 const matchIndex = (U32)((size_t)(start-base) - STORED_OFFSET(offset));
                 const BYTE* match = (matchIndex < prefixLowestIndex) ? dictBase + matchIndex - dictIndexDelta : base + matchIndex;
                 const BYTE* const mStart = (matchIndex < prefixLowestIndex) ? dictLowest : prefixLowest;
                 while ((start>anchor) && (match>mStart) && (start[-1] == match[-1])) { start--; match--; matchLength++; }  /* catch up */
             }
-            offset_2 = offset_1; offset_1 = (U32)(offset - ZSTD_REP_MOVE);
+            offset_2 = offset_1; offset_1 = (U32)STORED_OFFSET(offset);
         }
         /* store sequence */
 _storeSequence:
@@ -2002,11 +2002,11 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
 
         /* catch up */
         if (offset) {
-            U32 const matchIndex = (U32)((size_t)(start-base) - (offset - ZSTD_REP_MOVE));
+            U32 const matchIndex = (U32)((size_t)(start-base) - STORED_OFFSET(offset));
             const BYTE* match = (matchIndex < dictLimit) ? dictBase + matchIndex : base + matchIndex;
             const BYTE* const mStart = (matchIndex < dictLimit) ? dictStart : prefixStart;
             while ((start>anchor) && (match>mStart) && (start[-1] == match[-1])) { start--; match--; matchLength++; }  /* catch up */
-            offset_2 = offset_1; offset_1 = (U32)(offset - ZSTD_REP_MOVE);
+            offset_2 = offset_1; offset_1 = (U32)STORED_OFFSET(offset);
         }
 
         /* store sequence */

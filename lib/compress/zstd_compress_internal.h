@@ -129,7 +129,7 @@ size_t ZSTD_buildBlockEntropyStats(seqStore_t* seqStorePtr,
 *********************************/
 
 typedef struct {
-    U32 off;            /* Offset code (offset + ZSTD_REP_MOVE) for the match */
+    U32 off;            /* Offset sumtype code for the match, using ZSTD_storeSeq() format */
     U32 len;            /* Raw length of match */
 } ZSTD_match_t;
 
@@ -577,22 +577,21 @@ ZSTD_safecopyLiterals(BYTE* op, BYTE const* ip, BYTE const* const iend, BYTE con
     while (ip < iend) *op++ = *ip++;
 }
 
+#define ZSTD_REP_MOVE     (ZSTD_REP_NUM-1)
 #define STORE_REPCODE_1 STORE_REPCODE(1)
 #define STORE_REPCODE_2 STORE_REPCODE(2)
 #define STORE_REPCODE_3 STORE_REPCODE(3)
 #define STORE_REPCODE(r) (assert((r)>=1), assert((r)<=3), (r)-1)
 #define STORE_OFFSET(o)  (assert((o)>0), o + ZSTD_REP_MOVE)
 #define STORED_IS_OFFSET(o)  ((o) > ZSTD_REP_MOVE)
-#define STORED_IS_REPCODE(o) ((o) < ZSTD_REP_NUM)
+#define STORED_IS_REPCODE(o) ((o) <= ZSTD_REP_MOVE)
 #define STORED_OFFSET(o)  (assert(STORED_IS_OFFSET(o)), (o)-ZSTD_REP_MOVE)
 #define STORED_REPCODE(o) (assert(STORED_IS_REPCODE(o)), (o)+1)  /* returns ID 1,2,3 */
 #define STORED_TO_OFFBASE(o) ((o)+1)
 
 /*! ZSTD_storeSeq() :
  *  Store a sequence (litlen, litPtr, offCode and matchLength) into seqStore_t.
- *  @offBase_minus1 : distance to match + ZSTD_REP_MOVE (values <= ZSTD_REP_MOVE are repCodes).
- *                    Users should not specify the encoded value directly,
- *                    instead use macros STORE_REPCODE_X and STORE_OFFSET().
+ *  @offBase_minus1 : Users should use employ macros STORE_REPCODE_X and STORE_OFFSET().
  *  @matchLength : must be >= MINMATCH
  *  Allowed to overread literals up to litLimit.
 */

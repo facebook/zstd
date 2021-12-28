@@ -1648,9 +1648,8 @@ ZSTD_compressBlock_lazy_generic(
         }
 
         /* NOTE:
-         * start[-offset+ZSTD_REP_MOVE-1] is undefined behavior.
-         * (-offset+ZSTD_REP_MOVE-1) is unsigned, and is added to start, which
-         * overflows the pointer, which is undefined behavior.
+         * Pay attention that `start[-value]` can lead to strange undefined behavior 
+         * notably if `value` is unsigned, resulting in a large positive `-value`.
          */
         /* catch up */
         if (offcode) {

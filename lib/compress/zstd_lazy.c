@@ -218,7 +218,7 @@ ZSTD_DUBT_findBetterDictMatch (
     }
 
     if (bestLength >= MINMATCH) {
-        U32 const mIndex = curr - STORED_OFFSET(*offsetPtr); (void)mIndex;
+        U32 const mIndex = curr - (U32)STORED_OFFSET(*offsetPtr); (void)mIndex;
         DEBUGLOG(8, "ZSTD_DUBT_findBetterDictMatch(%u) : found match of length %u and offsetCode %u (pos %u)",
                     curr, (U32)bestLength, (U32)*offsetPtr, mIndex);
     }
@@ -368,7 +368,7 @@ ZSTD_DUBT_findBestMatch(ZSTD_matchState_t* ms,
         assert(matchEndIdx > curr+8); /* ensure nextToUpdate is increased */
         ms->nextToUpdate = matchEndIdx - 8;   /* skip repetitive patterns */
         if (bestLength >= MINMATCH) {
-            U32 const mIndex = curr - STORED_OFFSET(*offsetPtr); (void)mIndex;
+            U32 const mIndex = curr - (U32)STORED_OFFSET(*offsetPtr); (void)mIndex;
             DEBUGLOG(8, "ZSTD_DUBT_findBestMatch(%u) : found match of length %u and offsetCode %u (pos %u)",
                         curr, (U32)bestLength, (U32)*offsetPtr, mIndex);
         }

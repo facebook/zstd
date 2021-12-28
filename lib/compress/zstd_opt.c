@@ -204,7 +204,8 @@ ZSTD_rescaleFreqs(optState_t* const optPtr,
                     1, 1, 1, 1, 1, 1, 1, 1,
                     1, 1, 1, 1
                 };
-                ZSTD_memcpy(optPtr->litLengthFreq, baseLLfreqs, sizeof(baseLLfreqs)); optPtr->litLengthSum = sum_u32(baseLLfreqs, MaxLL+1);
+                ZSTD_memcpy(optPtr->litLengthFreq, baseLLfreqs, sizeof(baseLLfreqs));
+                optPtr->litLengthSum = sum_u32(baseLLfreqs, MaxLL+1);
             }
 
             {   unsigned ml;
@@ -219,7 +220,8 @@ ZSTD_rescaleFreqs(optState_t* const optPtr,
                     1, 1, 1, 1, 1, 1, 1, 1,
                     1, 1, 1, 1, 1, 1, 1, 1
                 };
-                ZSTD_memcpy(optPtr->offCodeFreq, baseOFCfreqs, sizeof(baseOFCfreqs)); optPtr->offCodeSum = sum_u32(baseOFCfreqs, MaxOff+1);
+                ZSTD_memcpy(optPtr->offCodeFreq, baseOFCfreqs, sizeof(baseOFCfreqs));
+                optPtr->offCodeSum = sum_u32(baseOFCfreqs, MaxOff+1);
             }
 
 
@@ -290,7 +292,7 @@ ZSTD_getMatchPrice(U32 const offcode,
                    int const optLevel)
 {
     U32 price;
-    U32 const offCode = ZSTD_highbit32(offcode+1);
+    U32 const offCode = ZSTD_highbit32(STORED_TO_OFFBASE(offcode));
     U32 const mlBase = matchLength - MINMATCH;
     assert(matchLength >= MINMATCH);
 
@@ -333,8 +335,8 @@ static void ZSTD_updateStats(optState_t* const optPtr,
         optPtr->litLengthSum++;
     }
 
-    /* match offset code (0-2=>repCode; 3+=>offset+2) */
-    {   U32 const offCode = ZSTD_highbit32(offsetCode+1);
+    /* offset code : expected to follow storeSeq() numeric representation */
+    {   U32 const offCode = ZSTD_highbit32(STORED_TO_OFFBASE(offsetCode));
         assert(offCode <= MaxOff);
         optPtr->offCodeFreq[offCode]++;
         optPtr->offCodeSum++;

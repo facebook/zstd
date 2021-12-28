@@ -2396,7 +2396,7 @@ void ZSTD_seqToCodes(const seqStore_t* seqStorePtr)
     assert(nbSeq <= seqStorePtr->maxNbSeq);
     for (u=0; u<nbSeq; u++) {
         U32 const llv = sequences[u].litLength;
-        U32 const mlv = sequences[u].matchLength;
+        U32 const mlv = sequences[u].mlBase;
         llCodeTable[u] = (BYTE)ZSTD_LLcode(llv);
         ofCodeTable[u] = (BYTE)ZSTD_highbit32(sequences[u].offset);
         mlCodeTable[u] = (BYTE)ZSTD_MLcode(mlv);
@@ -2912,7 +2912,7 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
     for (i = 0; i < seqStoreSeqSize; ++i) {
         U32 rawOffset = seqStoreSeqs[i].offset - ZSTD_REP_NUM;
         outSeqs[i].litLength = seqStoreSeqs[i].litLength;
-        outSeqs[i].matchLength = seqStoreSeqs[i].matchLength + MINMATCH;
+        outSeqs[i].matchLength = seqStoreSeqs[i].mlBase + MINMATCH;
         outSeqs[i].rep = 0;
 
         if (i == seqStore->longLengthPos) {
@@ -3385,7 +3385,7 @@ static size_t ZSTD_countSeqStoreMatchBytes(const seqStore_t* const seqStore) {
     size_t i;
     for (i = 0; i < nbSeqs; ++i) {
         seqDef seq = seqStore->sequencesStart[i];
-        matchBytes += seq.matchLength + MINMATCH;
+        matchBytes += seq.mlBase + MINMATCH;
         if (i == seqStore->longLengthPos && seqStore->longLengthType == ZSTD_llt_matchLength) {
             matchBytes += 0x10000;
         }
@@ -5816,7 +5816,7 @@ static size_t ZSTD_copySequencesToSeqStoreExplicitBlockDelim(ZSTD_CCtx* cctx, ZS
         }
         RETURN_ERROR_IF(idx - seqPos->idx > cctx->seqStore.maxNbSeq, memory_allocation,
                         "Not enough memory allocated. Try adjusting ZSTD_c_minMatch.");
-        ZSTD_storeSeq(&cctx->seqStore, litLength, ip, iend, offCode, matchLength - MINMATCH);
+        ZSTD_storeSeq(&cctx->seqStore, litLength, ip, iend, offCode, matchLength);
         ip += matchLength + litLength;
     }
     ZSTD_memcpy(cctx->blockState.nextCBlock->rep, updatedRepcodes.rep, sizeof(repcodes_t));
@@ -5942,7 +5942,7 @@ static size_t ZSTD_copySequencesToSeqStoreNoBlockDelim(ZSTD_CCtx* cctx, ZSTD_seq
         DEBUGLOG(6, "Storing sequence: (of: %u, ml: %u, ll: %u)", offCode, matchLength, litLength);
         RETURN_ERROR_IF(idx - seqPos->idx > cctx->seqStore.maxNbSeq, memory_allocation,
                         "Not enough memory allocated. Try adjusting ZSTD_c_minMatch.");
-        ZSTD_storeSeq(&cctx->seqStore, litLength, ip, iend, offCode, matchLength - MINMATCH);
+        ZSTD_storeSeq(&cctx->seqStore, litLength, ip, iend, offCode, matchLength);
         ip += matchLength + litLength;
     }
     DEBUGLOG(5, "Ending seq: idx: %u (of: %u ml: %u ll: %u)", idx, inSeqs[idx].offset, inSeqs[idx].matchLength, inSeqs[idx].litLength);

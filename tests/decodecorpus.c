@@ -759,7 +759,7 @@ static U32 generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
         }
         /* use libzstd sequence handling */
         ZSTD_storeSeq(seqStore, literalLen, literals, literals + literalLen,
-                      offsetCode, matchLen - MINMATCH);
+                      offsetCode, matchLen);
 
         literalsSize -= literalLen;
         excessMatch -= (matchLen - MIN_SEQ_LEN);
@@ -949,7 +949,7 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
         FSE_initCState2(&stateLitLength,   CTable_LitLength,   llCodeTable[nbSeq-1]);
         BIT_addBits(&blockStream, sequences[nbSeq-1].litLength, LL_bits[llCodeTable[nbSeq-1]]);
         if (MEM_32bits()) BIT_flushBits(&blockStream);
-        BIT_addBits(&blockStream, sequences[nbSeq-1].matchLength, ML_bits[mlCodeTable[nbSeq-1]]);
+        BIT_addBits(&blockStream, sequences[nbSeq-1].mlBase, ML_bits[mlCodeTable[nbSeq-1]]);
         if (MEM_32bits()) BIT_flushBits(&blockStream);
         BIT_addBits(&blockStream, sequences[nbSeq-1].offset, ofCodeTable[nbSeq-1]);
         BIT_flushBits(&blockStream);
@@ -971,7 +971,7 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
                     BIT_flushBits(&blockStream);                                /* (7)*/
                 BIT_addBits(&blockStream, sequences[n].litLength, llBits);
                 if (MEM_32bits() && ((llBits+mlBits)>24)) BIT_flushBits(&blockStream);
-                BIT_addBits(&blockStream, sequences[n].matchLength, mlBits);
+                BIT_addBits(&blockStream, sequences[n].mlBase, mlBits);
                 if (MEM_32bits()) BIT_flushBits(&blockStream);                  /* (7)*/
                 BIT_addBits(&blockStream, sequences[n].offset, ofBits);         /* 31 */
                 BIT_flushBits(&blockStream);                                    /* (7)*/

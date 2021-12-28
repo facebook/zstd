@@ -1951,7 +1951,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
                     const BYTE* const repEnd = repIndex < dictLimit ? dictEnd : iend;
                     size_t const repLength = ZSTD_count_2segments(ip+4, repMatch+4, iend, repEnd, prefixStart) + 4;
                     int const gain2 = (int)(repLength * 3);
-                    int const gain1 = (int)(matchLength*3 - ZSTD_highbit32(STORED_TO_OFFBASE(offcode)) + 1);
+                    int const gain1 = (int)(matchLength*3 - ZSTD_highbit32((U32)STORED_TO_OFFBASE(offcode)) + 1);
                     if ((repLength >= 4) && (gain2 > gain1))
                         matchLength = repLength, offcode = 0, start = ip;
             }   }
@@ -1959,8 +1959,8 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
             /* search match, depth 1 */
             {   size_t offset2=999999999;
                 size_t const ml2 = searchMax(ms, ip, iend, &offset2);
-                int const gain2 = (int)(ml2*4 - ZSTD_highbit32(STORED_TO_OFFBASE(offset2)));   /* raw approx */
-                int const gain1 = (int)(matchLength*4 - ZSTD_highbit32(STORED_TO_OFFBASE(offcode)) + 4);
+                int const gain2 = (int)(ml2*4 - ZSTD_highbit32((U32)STORED_TO_OFFBASE(offset2)));   /* raw approx */
+                int const gain1 = (int)(matchLength*4 - ZSTD_highbit32((U32)STORED_TO_OFFBASE(offcode)) + 4);
                 if ((ml2 >= 4) && (gain2 > gain1)) {
                     matchLength = ml2, offcode = offset2, start = ip;
                     continue;   /* search a better one */

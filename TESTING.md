@@ -13,6 +13,7 @@ They consist of the following tests:
 - `tests/playTests.sh` on x86_64, without the tests on long data (CLI tests)
 - Small tests (`tests/legacy.c`, `tests/longmatch.c`) on x64_64
 
+
 Medium Tests
 ------------
 Medium tests run on every commit and pull request to `dev` branch, on TravisCI.

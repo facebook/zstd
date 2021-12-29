@@ -577,18 +577,17 @@ ZSTD_safecopyLiterals(BYTE* op, BYTE const* ip, BYTE const* const iend, BYTE con
     while (ip < iend) *op++ = *ip++;
 }
 
-#define ZSTD_REP_MOVE     (ZSTD_REP_NUM-1)
 #define STORE_REPCODE_1 STORE_REPCODE(1)
 #define STORE_REPCODE_2 STORE_REPCODE(2)
 #define STORE_REPCODE_3 STORE_REPCODE(3)
-#define STORE_REPCODE(r) (assert((r)>=1), assert((r)<=3), (r)-1)
-#define STORE_OFFSET(o)  (assert((o)>0), o + ZSTD_REP_MOVE)
-#define STORED_IS_OFFSET(o)  ((o) > ZSTD_REP_MOVE)
-#define STORED_IS_REPCODE(o) ((o) <= ZSTD_REP_MOVE)
-#define STORED_OFFSET(o)  (assert(STORED_IS_OFFSET(o)), (o)-ZSTD_REP_MOVE)
-#define STORED_REPCODE(o) (assert(STORED_IS_REPCODE(o)), (o)+1)  /* returns ID 1,2,3 */
-#define STORED_TO_OFFBASE(o) ((o)+1)
-#define OFFBASE_TO_STORED(o) ((o)-1)
+#define STORE_REPCODE(r) (assert((r)>=1), assert((r)<=ZSTD_REP_NUM), (r)) /* accepts IDs 1,2,3 */
+#define STORE_OFFSET(o)  (assert((o)>0), o + ZSTD_REP_NUM)
+#define STORED_IS_OFFSET(o)  ((o) > ZSTD_REP_NUM)
+#define STORED_IS_REPCODE(o) ( 1 <= (o) && (o) <= ZSTD_REP_NUM)
+#define STORED_OFFSET(o)  (assert(STORED_IS_OFFSET(o)), (o) - ZSTD_REP_NUM)
+#define STORED_REPCODE(o) (assert(STORED_IS_REPCODE(o)), (o))  /* returns ID 1,2,3 */
+#define STORED_TO_OFFBASE(o) (o)
+#define OFFBASE_TO_STORED(o) (o)
 
 /*! ZSTD_storeSeq() :
  *  Store a sequence (litlen, litPtr, offCode and matchLength) into seqStore_t.

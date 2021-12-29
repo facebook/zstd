@@ -688,7 +688,7 @@ MEM_STATIC repcodes_t
 ZSTD_newRep(U32 const rep[ZSTD_REP_NUM], U32 const offBase_minus1, U32 const ll0)
 {
     repcodes_t newReps;
-    memcpy(&newReps, rep, sizeof(newReps));
+    ZSTD_memcpy(&newReps, rep, sizeof(newReps));
     ZSTD_updateRep(newReps.rep, offBase_minus1, ll0);
     return newReps;
 }

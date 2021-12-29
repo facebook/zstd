@@ -1539,8 +1539,9 @@ ZSTD_compressBlock_lazy_generic(
 #endif
     while (ip < ilimit) {
         size_t matchLength=0;
-        size_t offcode=0;
+        size_t offcode=STORE_REPCODE_1;
         const BYTE* start=ip+1;
+        DEBUGLOG(7, "search baseline (depth 0)");
 
         /* check repCode */
         if (isDxS) {
@@ -1577,6 +1578,7 @@ ZSTD_compressBlock_lazy_generic(
         /* let's try to find a better solution */
         if (depth>=1)
         while (ip<ilimit) {
+            DEBUGLOG(7, "search depth 1");
             ip ++;
             if ( (dictMode == ZSTD_noDict)
               && (offcode) && ((offset_1>0) & (MEM_read32(ip) == MEM_read32(ip - offset_1)))) {
@@ -1584,7 +1586,7 @@ ZSTD_compressBlock_lazy_generic(
                 int const gain2 = (int)(mlRep * 3);
                 int const gain1 = (int)(matchLength*3 - ZSTD_highbit32((U32)STORED_TO_OFFBASE(offcode)) + 1);
                 if ((mlRep >= 4) && (gain2 > gain1))
-                    matchLength = mlRep, offcode = 0, start = ip;
+                    matchLength = mlRep, offcode = STORE_REPCODE_1, start = ip;
             }
             if (isDxS) {
                 const U32 repIndex = (U32)(ip - base) - offset_1;
@@ -1598,12 +1600,12 @@ ZSTD_compressBlock_lazy_generic(
                     int const gain2 = (int)(mlRep * 3);
                     int const gain1 = (int)(matchLength*3 - ZSTD_highbit32((U32)STORED_TO_OFFBASE(offcode)) + 1);
                     if ((mlRep >= 4) && (gain2 > gain1))
-                        matchLength = mlRep, offcode = 0, start = ip;
+                        matchLength = mlRep, offcode = STORE_REPCODE_1, start = ip;
                 }
             }
             {   size_t offset2=999999999;
                 size_t const ml2 = searchMax(ms, ip, iend, &offset2);
-                int const gain2 = (int)(ml2*4 - ZSTD_highbit32((U32)offset2+1));   /* raw approx */
+                int const gain2 = (int)(ml2*4 - ZSTD_highbit32((U32)STORED_TO_OFFBASE(offset2)));   /* raw approx */
                 int const gain1 = (int)(matchLength*4 - ZSTD_highbit32((U32)STORED_TO_OFFBASE(offcode)) + 4);
                 if ((ml2 >= 4) && (gain2 > gain1)) {
                     matchLength = ml2, offcode = offset2, start = ip;
@@ -1612,6 +1614,7 @@ ZSTD_compressBlock_lazy_generic(
 
             /* let's find an even better one */
             if ((depth==2) && (ip<ilimit)) {
+                DEBUGLOG(7, "search depth 2");
                 ip ++;
                 if ( (dictMode == ZSTD_noDict)
                   && (offcode) && ((offset_1>0) & (MEM_read32(ip) == MEM_read32(ip - offset_1)))) {
@@ -1619,7 +1622,7 @@ ZSTD_compressBlock_lazy_generic(
                     int const gain2 = (int)(mlRep * 4);
                     int const gain1 = (int)(matchLength*4 - ZSTD_highbit32((U32)STORED_TO_OFFBASE(offcode)) + 1);
                     if ((mlRep >= 4) && (gain2 > gain1))
-                        matchLength = mlRep, offcode = 0, start = ip;
+                        matchLength = mlRep, offcode = STORE_REPCODE_1, start = ip;
                 }
                 if (isDxS) {
                     const U32 repIndex = (U32)(ip - base) - offset_1;
@@ -1633,7 +1636,7 @@ ZSTD_compressBlock_lazy_generic(
                         int const gain2 = (int)(mlRep * 4);
                         int const gain1 = (int)(matchLength*4 - ZSTD_highbit32((U32)STORED_TO_OFFBASE(offcode)) + 1);
                         if ((mlRep >= 4) && (gain2 > gain1))
-                            matchLength = mlRep, offcode = 0, start = ip;
+                            matchLength = mlRep, offcode = STORE_REPCODE_1, start = ip;
                     }
                 }
                 {   size_t offset2=999999999;
@@ -1648,11 +1651,11 @@ ZSTD_compressBlock_lazy_generic(
         }
 
         /* NOTE:
-         * Pay attention that `start[-value]` can lead to strange undefined behavior 
+         * Pay attention that `start[-value]` can lead to strange undefined behavior
          * notably if `value` is unsigned, resulting in a large positive `-value`.
          */
         /* catch up */
-        if (offcode) {
+        if (STORED_IS_OFFSET(offcode)) {
             if (dictMode == ZSTD_noDict) {
                 while ( ((start > anchor) & (start - STORED_OFFSET(offcode) > prefixLowest))
                      && (start[-1] == (start-STORED_OFFSET(offcode))[-1]) )  /* only search for offset within prefix */
@@ -1902,7 +1905,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
 #endif
     while (ip < ilimit) {
         size_t matchLength=0;
-        size_t offcode=0;
+        size_t offcode=STORE_REPCODE_1;
         const BYTE* start=ip+1;
         U32 curr = (U32)(ip-base);
 
@@ -1952,7 +1955,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
                     int const gain2 = (int)(repLength * 3);
                     int const gain1 = (int)(matchLength*3 - ZSTD_highbit32((U32)STORED_TO_OFFBASE(offcode)) + 1);
                     if ((repLength >= 4) && (gain2 > gain1))
-                        matchLength = repLength, offcode = 0, start = ip;
+                        matchLength = repLength, offcode = STORE_REPCODE_1, start = ip;
             }   }
 
             /* search match, depth 1 */
@@ -1984,7 +1987,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
                         int const gain2 = (int)(repLength * 4);
                         int const gain1 = (int)(matchLength*4 - ZSTD_highbit32((U32)STORED_TO_OFFBASE(offcode)) + 1);
                         if ((repLength >= 4) && (gain2 > gain1))
-                            matchLength = repLength, offcode = 0, start = ip;
+                            matchLength = repLength, offcode = STORE_REPCODE_1, start = ip;
                 }   }
 
                 /* search match, depth 2 */
@@ -2000,7 +2003,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
         }
 
         /* catch up */
-        if (offcode) {
+        if (STORED_IS_OFFSET(offcode)) {
             U32 const matchIndex = (U32)((size_t)(start-base) - STORED_OFFSET(offcode));
             const BYTE* match = (matchIndex < dictLimit) ? dictBase + matchIndex : base + matchIndex;
             const BYTE* const mStart = (matchIndex < dictLimit) ? dictStart : prefixStart;

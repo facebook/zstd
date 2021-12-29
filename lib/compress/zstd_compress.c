@@ -3434,11 +3434,13 @@ static void ZSTD_deriveSeqStoreChunk(seqStore_t* resultSeqStore,
 
 /**
  * Returns the raw offset represented by the combination of offCode, ll0, and repcode history.
- * offCode must be an offCode representing a repcode, therefore in the range of [0, 2].
+ * offCode must represent a repcode in the numeric representation of ZSTD_storeSeq().
  */
-static U32 ZSTD_resolveRepcodeToRawOffset(const U32 rep[ZSTD_REP_NUM], const U32 offCode, const U32 ll0) {
-    U32 const adjustedOffCode = offCode + ll0;
-    assert(offCode < ZSTD_REP_NUM);
+static U32
+ZSTD_resolveRepcodeToRawOffset(const U32 rep[ZSTD_REP_NUM], const U32 offCode, const U32 ll0)
+{
+    U32 const adjustedOffCode = STORED_REPCODE(offCode) - 1 + ll0;  /* [ 0 - 3 ] */
+    assert(STORED_IS_REPCODE(offCode));
     if (adjustedOffCode == ZSTD_REP_NUM) {
         /* litlength == 0 and offCode == 2 implies selection of first repcode - 1 */
         assert(rep[0] > 0);
@@ -3466,9 +3468,9 @@ static void ZSTD_seqStore_resolveOffCodes(repcodes_t* const dRepcodes, repcodes_
     for (; idx < nbSeq; ++idx) {
         seqDef* const seq = seqStore->sequencesStart + idx;
         U32 const ll0 = (seq->litLength == 0);
-        U32 const offCode = seq->offBase - 1;
+        U32 const offCode = OFFBASE_TO_STORED(seq->offBase);
         assert(seq->offBase > 0);
-        if (offCode < ZSTD_REP_NUM) {
+        if (STORED_IS_REPCODE(offCode)) {
             U32 const dRawOffset = ZSTD_resolveRepcodeToRawOffset(dRepcodes->rep, offCode, ll0);
             U32 const cRawOffset = ZSTD_resolveRepcodeToRawOffset(cRepcodes->rep, offCode, ll0);
             /* Adjust simulated decompression repcode history if we come across a mismatch. Replace
@@ -3482,7 +3484,7 @@ static void ZSTD_seqStore_resolveOffCodes(repcodes_t* const dRepcodes, repcodes_
         /* Compression repcode history is always updated with values directly from the unmodified seqStore.
          * Decompression repcode history may use modified seq->offset value taken from compression repcode history.
          */
-        ZSTD_updateRep(dRepcodes->rep, seq->offBase - 1, ll0);
+        ZSTD_updateRep(dRepcodes->rep, OFFBASE_TO_STORED(seq->offBase), ll0);
         ZSTD_updateRep(cRepcodes->rep, offCode, ll0);
     }
 }
@@ -3492,11 +3494,13 @@ static void ZSTD_seqStore_resolveOffCodes(repcodes_t* const dRepcodes, repcodes_
  *
  * Returns the total size of that block (including header) or a ZSTD error code.
  */
-static size_t ZSTD_compressSeqStore_singleBlock(ZSTD_CCtx* zc, seqStore_t* const seqStore,
-                                                repcodes_t* const dRep, repcodes_t* const cRep,
-                                                void* dst, size_t dstCapacity,
-                                                const void* src, size_t srcSize,
-                                                U32 lastBlock, U32 isPartition) {
+static size_t
+ZSTD_compressSeqStore_singleBlock(ZSTD_CCtx* zc, seqStore_t* const seqStore,
+                                  repcodes_t* const dRep, repcodes_t* const cRep,
+                                  void* dst, size_t dstCapacity,
+                                  const void* src, size_t srcSize,
+                                  U32 lastBlock, U32 isPartition)
+{
     const U32 rleMaxLength = 25;
     BYTE* op = (BYTE*)dst;
     const BYTE* ip = (const BYTE*)src;
@@ -3505,6 +3509,7 @@ static size_t ZSTD_compressSeqStore_singleBlock(ZSTD_CCtx* zc, seqStore_t* const
 
     /* In case of an RLE or raw block, the simulated decompression repcode history must be reset */
     repcodes_t const dRepOriginal = *dRep;
+    DEBUGLOG(5, "ZSTD_compressSeqStore_singleBlock");
     if (isPartition)
         ZSTD_seqStore_resolveOffCodes(dRep, cRep, seqStore, (U32)(seqStore->sequences - seqStore->sequencesStart));
 
@@ -3577,8 +3582,10 @@ typedef struct {
  * Furthermore, the number of splits is capped by ZSTD_MAX_NB_BLOCK_SPLITS. At ZSTD_MAX_NB_BLOCK_SPLITS == 196 with the current existing blockSize
  * maximum of 128 KB, this value is actually impossible to reach.
  */
-static void ZSTD_deriveBlockSplitsHelper(seqStoreSplits* splits, size_t startIdx, size_t endIdx,
-                                         ZSTD_CCtx* zc, const seqStore_t* origSeqStore) {
+static void
+ZSTD_deriveBlockSplitsHelper(seqStoreSplits* splits, size_t startIdx, size_t endIdx,
+                             ZSTD_CCtx* zc, const seqStore_t* origSeqStore)
+{
     seqStore_t* fullSeqStoreChunk = &zc->blockSplitCtx.fullSeqStoreChunk;
     seqStore_t* firstHalfSeqStore = &zc->blockSplitCtx.firstHalfSeqStore;
     seqStore_t* secondHalfSeqStore = &zc->blockSplitCtx.secondHalfSeqStore;
@@ -3633,8 +3640,10 @@ static size_t ZSTD_deriveBlockSplits(ZSTD_CCtx* zc, U32 partitions[], U32 nbSeq)
  *
  * Returns combined size of all blocks (which includes headers), or a ZSTD error code.
  */
-static size_t ZSTD_compressBlock_splitBlock_internal(ZSTD_CCtx* zc, void* dst, size_t dstCapacity,
-                                                     const void* src, size_t blockSize, U32 lastBlock, U32 nbSeq) {
+static size_t
+ZSTD_compressBlock_splitBlock_internal(ZSTD_CCtx* zc, void* dst, size_t dstCapacity,
+                                       const void* src, size_t blockSize, U32 lastBlock, U32 nbSeq)
+{
     size_t cSize = 0;
     const BYTE* ip = (const BYTE*)src;
     BYTE* op = (BYTE*)dst;
@@ -3720,9 +3729,11 @@ static size_t ZSTD_compressBlock_splitBlock_internal(ZSTD_CCtx* zc, void* dst, s
     return cSize;
 }
 
-static size_t ZSTD_compressBlock_splitBlock(ZSTD_CCtx* zc,
-                                        void* dst, size_t dstCapacity,
-                                        const void* src, size_t srcSize, U32 lastBlock) {
+static size_t
+ZSTD_compressBlock_splitBlock(ZSTD_CCtx* zc,
+                              void* dst, size_t dstCapacity,
+                              const void* src, size_t srcSize, U32 lastBlock)
+{
     const BYTE* ip = (const BYTE*)src;
     BYTE* op = (BYTE*)dst;
     U32 nbSeq;
@@ -3748,9 +3759,10 @@ static size_t ZSTD_compressBlock_splitBlock(ZSTD_CCtx* zc,
     return cSize;
 }
 
-static size_t ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
-                                        void* dst, size_t dstCapacity,
-                                        const void* src, size_t srcSize, U32 frame)
+static size_t
+ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
+                            void* dst, size_t dstCapacity,
+                            const void* src, size_t srcSize, U32 frame)
 {
     /* This the upper bound for the length of an rle block.
      * This isn't the actual upper bound. Finding the real threshold

@@ -194,7 +194,7 @@ void ZSTD_freeThreadPool (ZSTD_threadPool* pool) {
   POOL_free (pool);
 }
 
-size_t POOL_sizeof(const POOL_ctx *ctx) {
+size_t POOL_sizeof(const POOL_ctx* ctx) {
     if (ctx==NULL) return 0;  /* supports sizeof NULL */
     return sizeof(*ctx)
         + ctx->queueSize * sizeof(POOL_job)
@@ -346,7 +346,7 @@ int POOL_tryAdd(POOL_ctx* ctx, POOL_function function, void* opaque) {
     return 1;
 }
 
-size_t POOL_sizeof(POOL_ctx* ctx) {
+size_t POOL_sizeof(const POOL_ctx* ctx) {
     if (ctx==NULL) return 0;  /* supports sizeof NULL */
     assert(ctx == &g_poolCtx);
     return sizeof(*ctx);

@@ -230,7 +230,7 @@ ZSTD_DUBT_findBetterDictMatch (
 static size_t
 ZSTD_DUBT_findBestMatch(ZSTD_matchState_t* ms,
                         const BYTE* const ip, const BYTE* const iend,
-                        size_t* offsetPtr,
+                        size_t* offBasePtr,
                         U32 const mls,
                         const ZSTD_dictMode_e dictMode)
 {
@@ -327,8 +327,8 @@ ZSTD_DUBT_findBestMatch(ZSTD_matchState_t* ms,
             if (matchLength > bestLength) {
                 if (matchLength > matchEndIdx - matchIndex)
                     matchEndIdx = matchIndex + (U32)matchLength;
-                if ( (4*(int)(matchLength-bestLength)) > (int)(ZSTD_highbit32(curr-matchIndex+1) - ZSTD_highbit32((U32)offsetPtr[0]+1)) )
-                    bestLength = matchLength, *offsetPtr = OFFSET_TO_OFFBASE(curr - matchIndex);
+                if ( (4*(int)(matchLength-bestLength)) > (int)(ZSTD_highbit32(curr - matchIndex + 1) - ZSTD_highbit32((U32)*offBasePtr)) )
+                    bestLength = matchLength, *offBasePtr = OFFSET_TO_OFFBASE(curr - matchIndex);
                 if (ip+matchLength == iend) {   /* equal : no way to know if inf or sup */
                     if (dictMode == ZSTD_dictMatchState) {
                         nbCompares = 0; /* in addition to avoiding checking any
@@ -361,16 +361,16 @@ ZSTD_DUBT_findBestMatch(ZSTD_matchState_t* ms,
         if (dictMode == ZSTD_dictMatchState && nbCompares) {
             bestLength = ZSTD_DUBT_findBetterDictMatch(
                     ms, ip, iend,
-                    offsetPtr, bestLength, nbCompares,
+                    offBasePtr, bestLength, nbCompares,
                     mls, dictMode);
         }
 
         assert(matchEndIdx > curr+8); /* ensure nextToUpdate is increased */
         ms->nextToUpdate = matchEndIdx - 8;   /* skip repetitive patterns */
         if (bestLength >= MINMATCH) {
-            U32 const mIndex = curr - (U32)OFFBASE_TO_OFFSET(*offsetPtr); (void)mIndex;
+            U32 const mIndex = curr - (U32)OFFBASE_TO_OFFSET(*offBasePtr); (void)mIndex;
             DEBUGLOG(8, "ZSTD_DUBT_findBestMatch(%u) : found match of length %u and offsetCode %u (pos %u)",
-                        curr, (U32)bestLength, (U32)*offsetPtr, mIndex);
+                        curr, (U32)bestLength, (U32)*offBasePtr, mIndex);
         }
         return bestLength;
     }
@@ -381,14 +381,14 @@ ZSTD_DUBT_findBestMatch(ZSTD_matchState_t* ms,
 FORCE_INLINE_TEMPLATE size_t
 ZSTD_BtFindBestMatch( ZSTD_matchState_t* ms,
                 const BYTE* const ip, const BYTE* const iLimit,
-                      size_t* offsetPtr,
+                      size_t* offBasePtr,
                 const U32 mls /* template */,
                 const ZSTD_dictMode_e dictMode)
 {
     DEBUGLOG(7, "ZSTD_BtFindBestMatch");
     if (ip < ms->window.base + ms->nextToUpdate) return 0;   /* skipped area */
     ZSTD_updateDUBT(ms, ip, iLimit, mls);
-    return ZSTD_DUBT_findBestMatch(ms, ip, iLimit, offsetPtr, mls, dictMode);
+    return ZSTD_DUBT_findBestMatch(ms, ip, iLimit, offBasePtr, mls, dictMode);
 }
 
 /***********************************
@@ -1337,10 +1337,10 @@ typedef struct {
     static size_t ZSTD_BtFindBestMatch_##dictMode##_##mls(                            \
             ZSTD_matchState_t* ms,                                                    \
             const BYTE* ip, const BYTE* const iLimit,                                 \
-            size_t* offsetPtr)                                                        \
+            size_t* offBasePtr)                                                       \
     {                                                                                 \
         assert(MAX(4, MIN(6, ms->cParams.minMatch)) == mls);                          \
-        return ZSTD_BtFindBestMatch(ms, ip, iLimit, offsetPtr, mls, ZSTD_##dictMode); \
+        return ZSTD_BtFindBestMatch(ms, ip, iLimit, offBasePtr, mls, ZSTD_##dictMode);\
     }                                                                                 \
     static const ZSTD_LazyVTable ZSTD_BtVTable_##dictMode##_##mls = {                 \
         ZSTD_BtFindBestMatch_##dictMode##_##mls                                       \
@@ -1959,7 +1959,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
             }   }
 
             /* search match, depth 1 */
-            {   size_t ofbCandidate=999999999;
+            {   size_t ofbCandidate = 999999999;
                 size_t const ml2 = searchMax(ms, ip, iend, &ofbCandidate);
                 int const gain2 = (int)(ml2*4 - ZSTD_highbit32((U32)ofbCandidate));   /* raw approx */
                 int const gain1 = (int)(matchLength*4 - ZSTD_highbit32((U32)offBase) + 4);
@@ -1991,7 +1991,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
                 }   }
 
                 /* search match, depth 2 */
-                {   size_t ofbCandidate=999999999;
+                {   size_t ofbCandidate = 999999999;
                     size_t const ml2 = searchMax(ms, ip, iend, &ofbCandidate);
                     int const gain2 = (int)(ml2*4 - ZSTD_highbit32((U32)ofbCandidate));   /* raw approx */
                     int const gain1 = (int)(matchLength*4 - ZSTD_highbit32((U32)offBase) + 7);

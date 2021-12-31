@@ -328,7 +328,8 @@ size_t ZSTD_CCtxParams_reset(ZSTD_CCtx_params* params)
     return ZSTD_CCtxParams_init(params, ZSTD_CLEVEL_DEFAULT);
 }
 
-size_t ZSTD_CCtxParams_init(ZSTD_CCtx_params* cctxParams, int compressionLevel) {
+size_t ZSTD_CCtxParams_init(ZSTD_CCtx_params* cctxParams, int compressionLevel)
+{
     RETURN_ERROR_IF(!cctxParams, GENERIC, "NULL pointer!");
     ZSTD_memset(cctxParams, 0, sizeof(*cctxParams));
     cctxParams->compressionLevel = compressionLevel;
@@ -1779,7 +1780,6 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
         {   /* Row match finder needs an additional table of hashes ("tags") */
             size_t const tagTableSize = hSize*sizeof(U16);
             ms->tagTable = (U16*)ZSTD_cwksp_reserve_aligned(ws, tagTableSize);
-            if (ms->tagTable) ZSTD_memset(ms->tagTable, 0, tagTableSize);
         }
         {   /* Switch to 32-entry rows if searchLog is 5 (or more) */
             U32 const rowLog = BOUNDED(4, cParams->searchLog, 6);
@@ -6307,7 +6307,9 @@ ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, unsigned long l
  *  same idea as ZSTD_getCParams()
  * @return a `ZSTD_parameters` structure (instead of `ZSTD_compressionParameters`).
  *  Fields of `ZSTD_frameParameters` are set to default values */
-static ZSTD_parameters ZSTD_getParams_internal(int compressionLevel, unsigned long long srcSizeHint, size_t dictSize, ZSTD_cParamMode_e mode) {
+static ZSTD_parameters
+ZSTD_getParams_internal(int compressionLevel, unsigned long long srcSizeHint, size_t dictSize, ZSTD_cParamMode_e mode)
+{
     ZSTD_parameters params;
     ZSTD_compressionParameters const cParams = ZSTD_getCParams_internal(compressionLevel, srcSizeHint, dictSize, mode);
     DEBUGLOG(5, "ZSTD_getParams (cLevel=%i)", compressionLevel);

@@ -1575,6 +1575,22 @@ elif [ "$longCSize19wlog23" -gt "$optCSize19wlog23" ]; then
     exit 1
 fi
 
+println "\n===>  zstd asyncio decompression tests "
+roundTripTest -g8M "3 --asyncio"
+roundTripTest -g8M "3 --no-asyncio"
+if [ $GZIPMODE -eq 1 ]; then
+  roundTripTest -g8M "3 --format=gzip --asyncio"
+  roundTripTest -g8M "3 --format=gzip --no-asyncio"
+fi
+if [ $LZMAMODE -eq 1 ]; then
+  roundTripTest -g8M "3 --format=lzma --asyncio"
+  roundTripTest -g8M "3 --format=lzma --no-asyncio"
+fi
+if [ $LZ4MODE -eq 1 ]; then
+  roundTripTest -g8M "3 --format=lz4 --asyncio"
+  roundTripTest -g8M "3 --format=lz4 --no-asyncio"
+fi
+
 
 if [ "$1" != "--test-large-data" ]; then
     println "Skipping large data tests"

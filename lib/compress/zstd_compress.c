@@ -5323,19 +5323,18 @@ static size_t ZSTD_nextInputSizeHint(const ZSTD_CCtx* cctx)
 
 /** ZSTD_compressStream_generic():
  *  internal function for all *compressStream*() variants
- *  non-static, because can be called from zstdmt_compress.c
- * @return : hint size for next input */
+ * @return : hint size for next input to complete ongoing block */
 static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
                                           ZSTD_outBuffer* output,
                                           ZSTD_inBuffer* input,
                                           ZSTD_EndDirective const flushMode)
 {
     const char* const istart = (const char*)input->src;
-    const char* const iend = input->size != 0 ? istart + input->size : istart;
-    const char* ip = input->pos != 0 ? istart + input->pos : istart;
+    const char* const iend = (istart != NULL) ? istart + input->size : istart;
+    const char* ip = (istart != NULL) ? istart + input->pos : istart;
     char* const ostart = (char*)output->dst;
-    char* const oend = output->size != 0 ? ostart + output->size : ostart;
-    char* op = output->pos != 0 ? ostart + output->pos : ostart;
+    char* const oend = (ostart != NULL) ? ostart + output->size : ostart;
+    char* op = (ostart != NULL) ? ostart + output->pos : ostart;
     U32 someMoreWork = 1;
 
     /* check expectations */
@@ -5513,7 +5512,8 @@ size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output, ZSTD_inBuf
 /* After a compression call set the expected input/output buffer.
  * This is validated at the start of the next compression call.
  */
-static void ZSTD_setBufferExpectations(ZSTD_CCtx* cctx, ZSTD_outBuffer const* output, ZSTD_inBuffer const* input)
+static void
+ZSTD_setBufferExpectations(ZSTD_CCtx* cctx, const ZSTD_outBuffer* output, const ZSTD_inBuffer* input)
 {
     if (cctx->appliedParams.inBufferMode == ZSTD_bm_stable) {
         cctx->expectedInBuffer = *input;
@@ -5548,7 +5548,8 @@ static size_t ZSTD_checkBufferStability(ZSTD_CCtx const* cctx,
 
 static size_t ZSTD_CCtx_init_compressStream2(ZSTD_CCtx* cctx,
                                              ZSTD_EndDirective endOp,
-                                             size_t inSize) {
+                                             size_t inSize)
+{
     ZSTD_CCtx_params params = cctx->requestedParams;
     ZSTD_prefixDict const prefixDict = cctx->prefixDict;
     FORWARD_IF_ERROR( ZSTD_initLocalDict(cctx) , ""); /* Init the local dict if present. */
@@ -5562,9 +5563,9 @@ static size_t ZSTD_CCtx_init_compressStream2(ZSTD_CCtx* cctx,
         params.compressionLevel = cctx->cdict->compressionLevel;
     }
     DEBUGLOG(4, "ZSTD_compressStream2 : transparent init stage");
-    if (endOp == ZSTD_e_end) cctx->pledgedSrcSizePlusOne = inSize + 1;  /* auto-fix pledgedSrcSize */
-    {
-        size_t const dictSize = prefixDict.dict
+    if (endOp == ZSTD_e_end) cctx->pledgedSrcSizePlusOne = inSize + 1;  /* auto-determine pledgedSrcSize */
+
+    {   size_t const dictSize = prefixDict.dict
                 ? prefixDict.dictSize
                 : (cctx->cdict ? cctx->cdict->dictContentSize : 0);
         ZSTD_cParamMode_e const mode = ZSTD_getCParamMode(cctx->cdict, &params, cctx->pledgedSrcSizePlusOne - 1);
@@ -5605,7 +5606,7 @@ static size_t ZSTD_CCtx_init_compressStream2(ZSTD_CCtx* cctx,
         cctx->streamStage = zcss_load;
         cctx->appliedParams = params;
     } else
-#endif
+#endif  /* ZSTD_MULTITHREAD */
     {   U64 const pledgedSrcSize = cctx->pledgedSrcSizePlusOne - 1;
         assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
         FORWARD_IF_ERROR( ZSTD_compressBegin_internal(cctx,
@@ -5697,7 +5698,7 @@ size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
         ZSTD_setBufferExpectations(cctx, output, input);
         return flushMin;
     }
-#endif
+#endif /* ZSTD_MULTITHREAD */
     FORWARD_IF_ERROR( ZSTD_compressStream_generic(cctx, output, input, endOp) , "");
     DEBUGLOG(5, "completed ZSTD_compressStream2");
     ZSTD_setBufferExpectations(cctx, output, input);

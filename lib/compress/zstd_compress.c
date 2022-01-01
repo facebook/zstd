@@ -177,12 +177,9 @@ size_t ZSTD_freeCCtx(ZSTD_CCtx* cctx)
     if (cctx==NULL) return 0;   /* support free on NULL */
     RETURN_ERROR_IF(cctx->staticSize, memory_allocation,
                     "not compatible with static CCtx");
-    {
-        int cctxInWorkspace = ZSTD_cwksp_owns_buffer(&cctx->workspace, cctx);
+    {   int cctxInWorkspace = ZSTD_cwksp_owns_buffer(&cctx->workspace, cctx);
         ZSTD_freeCCtxContent(cctx);
-        if (!cctxInWorkspace) {
-            ZSTD_customFree(cctx, cctx->customMem);
-        }
+        if (!cctxInWorkspace) ZSTD_customFree(cctx, cctx->customMem);
     }
     return 0;
 }
@@ -4487,6 +4484,7 @@ ZSTD_compress_insertDictionary(ZSTD_compressedBlockState_t* bs,
 #define ZSTD_USE_CDICT_PARAMS_DICTSIZE_MULTIPLIER (6ULL)
 
 /*! ZSTD_compressBegin_internal() :
+ * Assumption : either @dict OR @cdict (or none) is non-NULL, never both
  * @return : 0, or an error code */
 static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
                                     const void* dict, size_t dictSize,
@@ -4567,11 +4565,11 @@ size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* cctx,
                                             &cctxParams, pledgedSrcSize);
 }
 
-size_t ZSTD_compressBegin_usingDict(ZSTD_CCtx* cctx, const void* dict, size_t dictSize, int compressionLevel)
+size_t
+ZSTD_compressBegin_usingDict(ZSTD_CCtx* cctx, const void* dict, size_t dictSize, int compressionLevel)
 {
     ZSTD_CCtx_params cctxParams;
-    {
-        ZSTD_parameters const params = ZSTD_getParams_internal(compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize, ZSTD_cpm_noAttachDict);
+    {   ZSTD_parameters const params = ZSTD_getParams_internal(compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize, ZSTD_cpm_noAttachDict);
         ZSTD_CCtxParams_init_internal(&cctxParams, &params, (compressionLevel == 0) ? ZSTD_CLEVEL_DEFAULT : compressionLevel);
     }
     DEBUGLOG(4, "ZSTD_compressBegin_usingDict (dictSize=%u)", (unsigned)dictSize);
@@ -5648,6 +5646,12 @@ size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
 
     /* transparent initialization stage */
     if (cctx->streamStage == zcss_init) {
+        if ( (cctx->requestedParams.inBufferMode == ZSTD_bm_stable) /* input is presumed stable, across invocations */
+          && (endOp == ZSTD_e_continue)                             /* more to come */
+          && (input->pos < ZSTD_BLOCKSIZE_MAX) ) {                  /* not even reached one block yet */
+            cctx->expectedInBuffer = *input;
+            return (ZSTD_BLOCKSIZE_MAX - input->pos);               /* don't do anything : allows lazy compression parameters adaptation */
+        }
         FORWARD_IF_ERROR(ZSTD_CCtx_init_compressStream2(cctx, endOp, input->size), "CompressStream2 initialization failed");
         ZSTD_setBufferExpectations(cctx, output, input);    /* Set initial buffer expectations now that we've initialized */
     }
@@ -6159,6 +6163,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* const cctx, void* dst, size_t dstCapaci
 /*======   Finalize   ======*/
 
 /*! ZSTD_flushStream() :
+*   Note : not compatible with ZSTD_c_stableInBuffer
  * @return : amount of data remaining to flush */
 size_t ZSTD_flushStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
 {
@@ -6169,7 +6174,9 @@ size_t ZSTD_flushStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
 
 size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
 {
-    ZSTD_inBuffer input = { NULL, 0, 0 };
+    ZSTD_inBuffer const nullInput = { NULL, 0, 0 };
+    int const stableInput = (zcs->appliedParams.inBufferMode == ZSTD_bm_stable);
+    ZSTD_inBuffer input = stableInput ? zcs->expectedInBuffer : nullInput;
     size_t const remainingToFlush = ZSTD_compressStream2(zcs, output, &input, ZSTD_e_end);
     FORWARD_IF_ERROR( remainingToFlush , "ZSTD_compressStream2 failed");
     if (zcs->appliedParams.nbWorkers > 0) return remainingToFlush;   /* minimal estimation */

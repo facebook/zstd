@@ -1843,14 +1843,14 @@ ZSTDLIB_STATIC_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const vo
  * large enough to fit a block (see ZSTD_c_stableOutBuffer). This will also
  * avoid the memcpy() from the input buffer to the input window buffer.
  *
- * NOTE: ZSTD_compressStream2() will error if ZSTD_e_end is not used.
- * That means this flag cannot be used with ZSTD_compressStream().
+ * NOTE: ZSTD_compressStream2() will error if ZSTD_e_flush is used.
+ * That means this flag cannot be used with ZSTD_flushStream().
  *
  * NOTE: So long as the ZSTD_inBuffer always points to valid memory, using
  * this flag is ALWAYS memory safe, and will never access out-of-bounds
  * memory. However, compression WILL fail if you violate the preconditions.
  *
- * WARNING: The data in the ZSTD_inBuffer in the range [dst, dst + pos) MUST
+ * WARNING: The data in the ZSTD_inBuffer in the range [src, src + pos) MUST
  * not be modified during compression or you will get data corruption. This
  * is because zstd needs to reference data in the ZSTD_inBuffer to find
  * matches. Normally zstd maintains its own window buffer for this purpose,

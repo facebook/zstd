@@ -230,14 +230,15 @@ local_ZSTD_compressStream_freshCCtx(const void* src, size_t srcSize,
                           void* dst, size_t dstCapacity,
                           void* payload)
 {
-    ZSTD_CCtx* const cctx = ZSTD_createCCtx();
-    size_t r;
-    assert(cctx != NULL);
+    if (g_cstream != NULL) ZSTD_freeCCtx(g_cstream);
+    g_cstream = ZSTD_createCCtx();
+    assert(g_cstream != NULL);
 
-    r = local_ZSTD_compressStream(src, srcSize, dst, dstCapacity, payload);
-
-    ZSTD_freeCCtx(cctx);
-    return r;
+    {   size_t const r = local_ZSTD_compressStream(src, srcSize, dst, dstCapacity, payload);
+        ZSTD_freeCCtx(g_cstream);
+        g_cstream = NULL;
+        return r;
+    }
 }
 
 static size_t

@@ -412,6 +412,10 @@ struct ZSTD_CCtx_s {
     ZSTD_inBuffer expectedInBuffer;
     size_t expectedOutBufferSize;
 
+    /* storage before initialization */
+    char* preBuff; /* when != NULL => size == ZSTD_BLOCKSIZE_MAX */
+    size_t preFilled; /* must be < ZSTD_BLOCKSIZE_MAX */
+
     /* Dictionary */
     ZSTD_localDict localDict;
     const ZSTD_CDict* cdict;

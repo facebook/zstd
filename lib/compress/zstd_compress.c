@@ -169,6 +169,8 @@ static void ZSTD_freeCCtxContent(ZSTD_CCtx* cctx)
 #ifdef ZSTD_MULTITHREAD
     ZSTDMT_freeCCtx(cctx->mtctx); cctx->mtctx = NULL;
 #endif
+    ZSTD_customFree(cctx->preBuff, cctx->customMem);
+    cctx->preBuff = NULL; cctx->preFilled = 0;
     ZSTD_cwksp_free(&cctx->workspace, cctx->customMem);
 }
 
@@ -5318,8 +5320,12 @@ size_t ZSTD_initCStream(ZSTD_CStream* zcs, int compressionLevel)
 
 static size_t ZSTD_nextInputSizeHint(const ZSTD_CCtx* cctx)
 {
-    size_t hintInSize = cctx->inBuffTarget - cctx->inBuffPos;
-    if (hintInSize==0) hintInSize = cctx->blockSize;
+    size_t const hintInSize = cctx->inBuffTarget - cctx->inBuffPos;
+    if (hintInSize==0) return cctx->blockSize;
+    if (cctx->streamStage == zcss_init) {
+        assert(cctx->preFilled < ZSTD_BLOCKSIZE_MAX);
+        return ZSTD_BLOCKSIZE_MAX - cctx->preFilled;
+    }
     return hintInSize;
 }
 
@@ -5503,7 +5509,6 @@ static size_t ZSTD_nextInputSizeHint_MTorST(const ZSTD_CCtx* cctx)
     }
 #endif
     return ZSTD_nextInputSizeHint(cctx);
-
 }
 
 size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output, ZSTD_inBuffer* input)
@@ -5511,6 +5516,29 @@ size_t ZSTD_compressStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output, ZSTD_inBuf
     FORWARD_IF_ERROR( ZSTD_compressStream2(zcs, output, input, ZSTD_e_continue) , "");
     return ZSTD_nextInputSizeHint_MTorST(zcs);
 }
+
+
+/* Flush early input into a buffer before initialization, for late parameter adaptation
+ * @return provides a minimum amount of data remaining to be flushed
+ */
+static size_t ZSTD_preBuff(ZSTD_CCtx* cctx, ZSTD_inBuffer* input)
+{
+    assert(cctx != NULL);
+    assert(input != NULL);
+    if (cctx->preBuff == NULL)
+        cctx->preBuff = (char*)ZSTD_customMalloc(ZSTD_BLOCKSIZE_MAX, cctx->customMem);
+    RETURN_ERROR_IF(cctx->preBuff == NULL, memory_allocation, "");
+    assert(input->size >= input->pos);
+    {   size_t const toFill = input->size - input->pos;
+        DEBUGLOG(5, "ZSTD_preBuff :%4zu bytes (%5zu already buffered)", toFill, cctx->preFilled);
+        assert(cctx->preFilled + toFill < ZSTD_BLOCKSIZE_MAX);
+        ZSTD_memcpy(cctx->preBuff + cctx->preFilled, (const char*)input->src + input->pos, toFill);
+        cctx->preFilled += toFill;
+        input->pos = input->size;
+    }
+    return ZSTD_FRAMEHEADERSIZE_MIN(ZSTD_f_zstd1); /* frame not even started */
+}
+
 
 /* After a compression call set the expected input/output buffer.
  * This is validated at the start of the next compression call.
@@ -5550,7 +5578,8 @@ static size_t ZSTD_checkBufferStability(ZSTD_CCtx const* cctx,
 
 static size_t ZSTD_CCtx_init_compressStream2(ZSTD_CCtx* cctx,
                                              ZSTD_EndDirective endOp,
-                                             size_t inSize) {
+                                             size_t inSize)
+{
     ZSTD_CCtx_params params = cctx->requestedParams;
     ZSTD_prefixDict const prefixDict = cctx->prefixDict;
     FORWARD_IF_ERROR( ZSTD_initLocalDict(cctx) , ""); /* Init the local dict if present. */
@@ -5565,6 +5594,7 @@ static size_t ZSTD_CCtx_init_compressStream2(ZSTD_CCtx* cctx,
     }
     DEBUGLOG(4, "ZSTD_compressStream2 : transparent init stage");
     if (endOp == ZSTD_e_end) cctx->pledgedSrcSizePlusOne = inSize + 1;  /* auto-fix pledgedSrcSize */
+    if (endOp == ZSTD_e_end) DEBUGLOG(4, "pledgedSrcSize automatically set to %zu", inSize);
     {
         size_t const dictSize = prefixDict.dict
                 ? prefixDict.dictSize
@@ -5618,14 +5648,16 @@ static size_t ZSTD_CCtx_init_compressStream2(ZSTD_CCtx* cctx,
         assert(cctx->appliedParams.nbWorkers == 0);
         cctx->inToCompress = 0;
         cctx->inBuffPos = 0;
+        DEBUGLOG(5, "cctx->blockSize = %zu", cctx->blockSize);
         if (cctx->appliedParams.inBufferMode == ZSTD_bm_buffered) {
             /* for small input: avoid automatic flush on reaching end of block, since
-            * it would require to add a 3-bytes null block to end frame
-            */
+             * it would require to add a 3-bytes null block to end frame
+             */
             cctx->inBuffTarget = cctx->blockSize + (cctx->blockSize == pledgedSrcSize);
         } else {
             cctx->inBuffTarget = 0;
         }
+        DEBUGLOG(5, "cctx->inBuffTarget = %zu", cctx->inBuffTarget);
         cctx->outBuffContentSize = cctx->outBuffFlushedSize = 0;
         cctx->streamStage = zcss_load;
         cctx->frameEnded = 0;
@@ -5638,7 +5670,7 @@ size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
                              ZSTD_inBuffer* input,
                              ZSTD_EndDirective endOp)
 {
-    DEBUGLOG(5, "ZSTD_compressStream2, endOp=%u ", (unsigned)endOp);
+    DEBUGLOG(5, "ZSTD_compressStream2, endOp=%u", (unsigned)endOp);
     /* check conditions */
     RETURN_ERROR_IF(output->pos > output->size, dstSize_tooSmall, "invalid output buffer");
     RETURN_ERROR_IF(input->pos  > input->size, srcSize_wrong, "invalid input buffer");
@@ -5647,8 +5679,28 @@ size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
 
     /* transparent initialization stage */
     if (cctx->streamStage == zcss_init) {
-        FORWARD_IF_ERROR(ZSTD_CCtx_init_compressStream2(cctx, endOp, input->size), "CompressStream2 initialization failed");
-        ZSTD_setBufferExpectations(cctx, output, input);    /* Set initial buffer expectations now that we've initialized */
+        if ( (endOp == ZSTD_e_continue) /* no immediate flush requested -> opportunity for buffering */
+          && (cctx->staticSize == 0)  /* not compatible with initStatic */
+          && (cctx->requestedParams.inBufferMode == ZSTD_bm_buffered) /* only for buffered mode */
+          && (cctx->pledgedSrcSizePlusOne == 0)  /* no need if srcSize is known */
+          && (cctx->requestedParams.cParams.windowLog >= 17) /* not compatible with small window sizes (yet) */
+          && (cctx->preFilled + (input->size - input->pos) < ZSTD_BLOCKSIZE_MAX)
+           ) {
+            return ZSTD_preBuff(cctx, input);  /* pre-buffer input, initialization will happen later, a chance for better parameter adaptation */
+        }
+        {   size_t const totalInput = cctx->preFilled + input->size - input->pos;  /* only matters if ZSTD_e_end */
+            FORWARD_IF_ERROR(ZSTD_CCtx_init_compressStream2(cctx, endOp, totalInput), "CompressStream2 initialization failed");
+        }
+        if (cctx->preFilled) {  /* transfer pre-buffered input into inBuff */
+            ZSTD_inBuffer in;
+            in.src = cctx->preBuff;
+            in.pos = 0;
+            in.size = cctx->preFilled;
+            cctx->preFilled = 0;
+            ZSTD_compressStream2(cctx, output, &in, ZSTD_e_continue);
+            assert(in.pos == in.size);  /* there should be enough space to ingest the entire preBuffed input */
+        }
+        ZSTD_setBufferExpectations(cctx, output, input);  /* Set initial buffer expectations now that we've initialized (ZSTD_bm_stable only) */
     }
     /* end of transparent initialization stage */
 

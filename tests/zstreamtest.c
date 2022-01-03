@@ -873,20 +873,21 @@ static int basicUnitTests(U32 seed, double compressibility)
         DISPLAYLEVEL(3, "test%3i : ZSTD_c_stableInBuffer compatibility with compressStream, flushStream and endStream : ", testNb++);
         CHECK_Z( ZSTD_initCStream(cctx, 1) );
         CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_stableInBuffer, 1) );
-        in.src = CNBuffer;
-        in.size = 100;
-        in.pos = 0;
-        {   ZSTD_outBuffer outBuf;
+        {   ZSTD_inBuffer inBuf;
+            ZSTD_outBuffer outBuf;
+            inBuf.src = CNBuffer;
+            inBuf.size = 100;
+            inBuf.pos = 0;
             outBuf.dst = (char*)(compressedBuffer)+cSize;
             outBuf.size = ZSTD_compressBound(500);
             outBuf.pos = 0;
-            CHECK_Z( ZSTD_compressStream(cctx, &outBuf, &in) );
-            in.size = 200;
-            CHECK_Z( ZSTD_compressStream(cctx, &outBuf, &in) );
+            CHECK_Z( ZSTD_compressStream(cctx, &outBuf, &inBuf) );
+            inBuf.size = 200;
+            CHECK_Z( ZSTD_compressStream(cctx, &outBuf, &inBuf) );
             CHECK_Z( ZSTD_flushStream(cctx, &outBuf) );
-            in.size = 300;
-            CHECK_Z( ZSTD_compressStream(cctx, &outBuf, &in) );
-            if (ZSTD_endStream(cctx, &outBuf) != 0) goto _output_error;  /* error, or some data not flushed */
+            inBuf.size = 300;
+            CHECK_Z( ZSTD_compressStream(cctx, &outBuf, &inBuf) );
+            CHECK(ZSTD_endStream(cctx, &outBuf) != 0, "compression should be successful and fully flushed");
         }
         DISPLAYLEVEL(3, "OK \n");
 
@@ -902,6 +903,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         CHECK_Z(ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters));
         CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1));
         CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_stableOutBuffer, 1));
+        in.src = CNBuffer;
         in.pos = out.pos = 0;
         in.size = MIN(CNBufferSize, 10);
         out.size = compressedBufferSize;

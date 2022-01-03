@@ -1851,7 +1851,7 @@ ZSTDLIB_STATIC_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const vo
  * memory. However, compression WILL fail if conditions are not respected.
  *
  * WARNING: The data in the ZSTD_inBuffer in the range [src, src + pos) MUST
- * not be modified during compression or it sill result in data corruption.
+ * not be modified during compression or it will result in data corruption.
  * This is because zstd needs to reference data in the ZSTD_inBuffer to find
  * matches. Normally zstd maintains its own window buffer for this purpose,
  * but passing this flag tells zstd to rely on user provided buffer instead.

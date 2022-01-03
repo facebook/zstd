@@ -1364,8 +1364,8 @@ github,                             level 16,                           old stre
 github,                             level 16 with dict,                 old streaming advanced,             40789
 github,                             level 19,                           old streaming advanced,             134064
 github,                             level 19 with dict,                 old streaming advanced,             37576
-github,                             no source size,                     old streaming advanced,             140599
-github,                             no source size with dict,           old streaming advanced,             40608
+github,                             no source size,                     old streaming advanced,             104512
+github,                             no source size with dict,           old streaming advanced,             36283
 github,                             long distance mode,                 old streaming advanced,             141104
 github,                             multithreaded,                      old streaming advanced,             141104
 github,                             multithreaded long distance mode,   old streaming advanced,             141104

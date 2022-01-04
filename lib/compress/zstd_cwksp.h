@@ -306,10 +306,10 @@ ZSTD_cwksp_internal_advance_phase(ZSTD_cwksp* ws, ZSTD_cwksp_alloc_phase_e phase
                 RETURN_ERROR_IF(objectEnd > ws->workspaceEnd, memory_allocation,
                                 "table phase - alignment initial allocation failed!");
                 ws->objectEnd = objectEnd;
-                ws->tableEnd = objectEnd;
-                if (ws->tableEnd > ws->tableValidEnd) ws->tableValidEnd = objectEnd;
-            }
-        }
+                ws->tableEnd = objectEnd;  /* table area starts being empty */
+                if (ws->tableValidEnd < ws->tableEnd) {
+                    ws->tableValidEnd = ws->tableEnd;
+        }   }   }
         ws->phase = phase;
         ZSTD_cwksp_assert_internal_consistency(ws);
     }

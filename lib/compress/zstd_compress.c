@@ -6165,7 +6165,6 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* const cctx, void* dst, size_t dstCapaci
 /*======   Finalize   ======*/
 
 /*! ZSTD_flushStream() :
-*   Note : not compatible with ZSTD_c_stableInBuffer
  * @return : amount of data remaining to flush */
 size_t ZSTD_flushStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
 {

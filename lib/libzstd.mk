@@ -34,6 +34,8 @@ ZSTD_NO_ASM ?= 0
 # libzstd helpers
 ##################################################################
 
+VOID ?= /dev/null
+
 # Make 4.3 doesn't support '\#' anymore (https://lwn.net/Articles/810071/)
 NUM_SYMBOL := \#
 
@@ -95,6 +97,19 @@ DEBUGFLAGS= -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
 CFLAGS   += $(DEBUGFLAGS) $(MOREFLAGS)
 LDFLAGS  += $(MOREFLAGS)
 FLAGS     = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
+
+ifndef ALREADY_APPENDED_NOEXECSTACK
+export ALREADY_APPENDED_NOEXECSTACK := 1
+ifeq ($(shell echo "int main(int argc, char* argv[]) { (void)argc; (void)argv; return 0; }" | $(CC) $(FLAGS) -z noexecstack -x c -Werror - -o $(VOID) 2>$(VOID) && echo 1 || echo 0),1)
+LDFLAGS += -z noexecstack
+endif
+ifeq ($(shell echo | $(CC) $(FLAGS) -Wa,--noexecstack -x assembler -Werror -c - -o $(VOID) 2>$(VOID) && echo 1 || echo 0),1)
+CFLAGS += -Wa,--noexecstack
+else ifeq ($(shell echo | $(CC) $(FLAGS) -Qunused-arguments -Wa,--noexecstack -x assembler -Werror -c - -o $(VOID) 2>$(VOID) && echo 1 || echo 0),1)
+# See e.g.: https://github.com/android/ndk/issues/171
+CFLAGS += -Qunused-arguments -Wa,--noexecstack
+endif
+endif
 
 HAVE_COLORNEVER = $(shell echo a | grep --color=never a > /dev/null 2> /dev/null && echo 1 || echo 0)
 GREP_OPTIONS ?=

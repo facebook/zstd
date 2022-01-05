@@ -47,8 +47,11 @@ libzstd_sources = [join_paths(zstd_rootdir, 'lib/common/entropy_common.c'),
 
 # really we need anything that defines __GNUC__ as that is what ZSTD_ASM_SUPPORTED is gated on
 # but these are the two compilers that are supported in tree and actually handle this correctly
+# Otherwise, explicitly disable assmebly.
 if [compiler_gcc, compiler_clang].contains(cc_id)
   libzstd_sources += join_paths(zstd_rootdir, 'lib/decompress/huf_decompress_amd64.S')
+else
+  add_project_arguments('-DZSTD_DISABLE_ASM', language: 'c')
 endif
 
 # Explicit define legacy support

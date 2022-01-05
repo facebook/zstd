@@ -101,26 +101,13 @@ FLAGS     = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
 ifndef ALREADY_APPENDED_NOEXECSTACK
 export ALREADY_APPENDED_NOEXECSTACK := 1
 ifeq ($(shell echo "int main(int argc, char* argv[]) { (void)argc; (void)argv; return 0; }" | $(CC) $(FLAGS) -z noexecstack -x c -Werror - -o $(VOID) 2>$(VOID) && echo 1 || echo 0),1)
-$(info Supports noexecstack linker flag!)
-$(info $(LDFLAGS))
 LDFLAGS += -z noexecstack
-$(info $(LDFLAGS))
-else
-$(info Doesn't support noexecstack linker flag!)
 endif
 ifeq ($(shell echo | $(CC) $(FLAGS) -Wa,--noexecstack -x assembler -Werror -c - -o $(VOID) 2>$(VOID) && echo 1 || echo 0),1)
-$(info Supports noexecstack assembler flag!)
-$(info $(CFLAGS))
 CFLAGS += -Wa,--noexecstack
-$(info $(CFLAGS))
 else ifeq ($(shell echo | $(CC) $(FLAGS) -Qunused-arguments -Wa,--noexecstack -x assembler -Werror -c - -o $(VOID) 2>$(VOID) && echo 1 || echo 0),1)
 # See e.g.: https://github.com/android/ndk/issues/171
-$(info Supports noexecstack assembler flag with unused arg suppression!)
-$(info $(CFLAGS))
 CFLAGS += -Qunused-arguments -Wa,--noexecstack
-$(info $(CFLAGS))
-else
-$(info Doesn't support noexecstack assembler flag!)
 endif
 endif
 

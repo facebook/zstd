@@ -306,9 +306,7 @@ zstd -d -f tmp.zst --no-check
 
 if [ "$isWindows" = false ]; then
   if [ -n "$(which readelf)" ]; then
-    println "test: check if binary has executable stack"
-    file "$ZSTD_BIN"
-    readelf -lW "$ZSTD_BIN"
+    println "test: check if binary has executable stack (#2963)"
     readelf -lW "$ZSTD_BIN" | grep 'GNU_STACK .* RW ' || die "zstd binary has executable stack!"
   fi
 fi

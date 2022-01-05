@@ -34,6 +34,8 @@ ZSTD_NO_ASM ?= 0
 # libzstd helpers
 ##################################################################
 
+VOID ?= /dev/null
+
 # Make 4.3 doesn't support '\#' anymore (https://lwn.net/Articles/810071/)
 NUM_SYMBOL := \#
 
@@ -95,6 +97,32 @@ DEBUGFLAGS= -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
 CFLAGS   += $(DEBUGFLAGS) $(MOREFLAGS)
 LDFLAGS  += $(MOREFLAGS)
 FLAGS     = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
+
+ifndef ALREADY_APPENDED_NOEXECSTACK
+export ALREADY_APPENDED_NOEXECSTACK := 1
+ifeq ($(shell echo "int main(int argc, char* argv[]) { (void)argc; (void)argv; return 0; }" | $(CC) $(FLAGS) -z noexecstack -x c -Werror - -o $(VOID) 2>$(VOID) && echo 1 || echo 0),1)
+$(info Supports noexecstack linker flag!)
+$(info $(LDFLAGS))
+LDFLAGS += -z noexecstack
+$(info $(LDFLAGS))
+else
+$(info Doesn't support noexecstack linker flag!)
+endif
+ifeq ($(shell echo | $(CC) $(FLAGS) -Wa,--noexecstack -x assembler -Werror -c - -o $(VOID) 2>$(VOID) && echo 1 || echo 0),1)
+$(info Supports noexecstack assembler flag!)
+$(info $(CFLAGS))
+CFLAGS += -Wa,--noexecstack
+$(info $(CFLAGS))
+else ifeq ($(shell echo | $(CC) $(FLAGS) -Qunused-arguments -Wa,--noexecstack -x assembler -Werror -c - -o $(VOID) 2>$(VOID) && echo 1 || echo 0),1)
+# See e.g.: https://github.com/android/ndk/issues/171
+$(info Supports noexecstack assembler flag with unused arg suppression!)
+$(info $(CFLAGS))
+CFLAGS += -Qunused-arguments -Wa,--noexecstack
+$(info $(CFLAGS))
+else
+$(info Doesn't support noexecstack assembler flag!)
+endif
+endif
 
 HAVE_COLORNEVER = $(shell echo a | grep --color=never a > /dev/null 2> /dev/null && echo 1 || echo 0)
 GREP_OPTIONS ?=

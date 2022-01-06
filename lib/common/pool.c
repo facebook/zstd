@@ -342,7 +342,7 @@ void POOL_free(POOL_ctx* ctx) {
 void POOL_joinJobs(POOL_ctx* ctx){
     assert(!ctx || ctx == &g_poolCtx);
     (void)ctx;
-};
+}
 
 int POOL_resize(POOL_ctx* ctx, size_t numThreads) {
     (void)ctx; (void)numThreads;

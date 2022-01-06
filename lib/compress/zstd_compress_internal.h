@@ -411,6 +411,7 @@ struct ZSTD_CCtx_s {
     /* Stable in/out buffer verification */
     ZSTD_inBuffer expectedInBuffer;
     size_t expectedOutBufferSize;
+    size_t savedInPosPlusOne;  /* 0 == no savedInPos */
 
     /* Dictionary */
     ZSTD_localDict localDict;

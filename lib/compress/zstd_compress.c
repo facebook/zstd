@@ -5647,15 +5647,28 @@ size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
     /* transparent initialization stage */
     if (cctx->streamStage == zcss_init) {
         size_t const inputSize = input->size - input->pos;  /* no obligation to start from pos==0 */
+        size_t const totalInputSize = (cctx->savedInPosPlusOne == 0) ? inputSize : input->size - (cctx->savedInPosPlusOne - 1);
         if ( (cctx->requestedParams.inBufferMode == ZSTD_bm_stable) /* input is presumed stable, across invocations */
           && (endOp == ZSTD_e_continue)                             /* no flush requested, more input to come */
-          && (inputSize < ZSTD_BLOCKSIZE_MAX) ) {                   /* not even reached one block yet */
-            /* just wait, allows lazy adaptation of compression parameters */
+          && (totalInputSize < ZSTD_BLOCKSIZE_MAX) ) {              /* not even reached one block yet */
+            if (cctx->savedInPosPlusOne) {  /* not the first time */
+                /* check stable source guarantees */
+                assert(input->src == cctx->expectedInBuffer.src);
+                assert(input->pos == cctx->expectedInBuffer.size);
+            }
+            /* keep track of first position */
+            if (cctx->savedInPosPlusOne == 0) cctx->savedInPosPlusOne = input->pos + 1;
             cctx->expectedInBuffer = *input;
+            /* pretend input was consumed, to give a sense forward progress */
+            input[0].pos = input[0].size;
+            /* but actually input wasn't consumed, so keep track of position from where compression shall resume */
+            cctx->expectedInBuffer.pos = cctx->savedInPosPlusOne - 1;
+            /* don't initialize yet, wait for the first block of flush() order, for better parameters adaptation */
             return ZSTD_FRAMEHEADERSIZE_MIN(cctx->requestedParams.format);  /* at least some header to produce */
         }
-        FORWARD_IF_ERROR(ZSTD_CCtx_init_compressStream2(cctx, endOp, inputSize), "CompressStream2 initialization failed");
-        ZSTD_setBufferExpectations(cctx, output, input);    /* Set initial buffer expectations now that we've initialized */
+        FORWARD_IF_ERROR(ZSTD_CCtx_init_compressStream2(cctx, endOp, totalInputSize), "compressStream2 initialization failed");
+        cctx->savedInPosPlusOne = 0;
+        ZSTD_setBufferExpectations(cctx, output, input);   /* Set initial buffer expectations now that we've initialized */
     }
     /* end of transparent initialization stage */
 

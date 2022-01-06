@@ -1576,21 +1576,43 @@ elif [ "$longCSize19wlog23" -gt "$optCSize19wlog23" ]; then
 fi
 
 println "\n===>  zstd asyncio decompression tests "
-roundTripTest -g8M "3 --asyncio"
-roundTripTest -g8M "3 --no-asyncio"
+
+addFrame() {
+    datagen -g2M -s$2 >> tmp_uncompressed
+    datagen -g2M -s$2 | zstd --format=$1 >> tmp_compressed.zst
+}
+
+addTwoFrames() {
+  addFrame $1 1
+  addFrame $1 2
+}
+
+testAsyncIO() {
+  roundTripTest -g2M "3 --asyncio --format=$1"
+  roundTripTest -g2M "3 --no-asyncio --format=$1"
+}
+
+rm -f tmp_compressed tmp_uncompressed
+testAsyncIO zstd
+addTwoFrames zstd
 if [ $GZIPMODE -eq 1 ]; then
-  roundTripTest -g8M "3 --format=gzip --asyncio"
-  roundTripTest -g8M "3 --format=gzip --no-asyncio"
+  testAsyncIO gzip
+  addTwoFrames gzip
 fi
 if [ $LZMAMODE -eq 1 ]; then
-  roundTripTest -g8M "3 --format=lzma --asyncio"
-  roundTripTest -g8M "3 --format=lzma --no-asyncio"
+  testAsyncIO lzma
+  addTwoFrames lzma
 fi
 if [ $LZ4MODE -eq 1 ]; then
-  roundTripTest -g8M "3 --format=lz4 --asyncio"
-  roundTripTest -g8M "3 --format=lz4 --no-asyncio"
+  testAsyncIO lz4
+  addTwoFrames lz4
 fi
-
+cat tmp_uncompressed | $MD5SUM > tmp2
+zstd -d tmp_compressed.zst --asyncio -c | $MD5SUM > tmp1
+$DIFF -q tmp1 tmp2
+rm tmp1
+zstd -d tmp_compressed.zst --no-asyncio -c | $MD5SUM > tmp1
+$DIFF -q tmp1 tmp2
 
 if [ "$1" != "--test-large-data" ]; then
     println "Skipping large data tests"

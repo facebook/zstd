@@ -2165,6 +2165,13 @@ static void FIO_freeDResources(dRess_t ress)
     WritePool_free(ress.writePoolCtx);
 }
 
+/* FIO_consumeDSrcBuffer:
+ * Consumes len bytes from srcBuffer's start and moves the remaining data and srcBufferLoaded accordingly. */
+static void FIO_consumeDSrcBuffer(dRess_t *ress, size_t len) {
+    assert(ress->srcBufferLoaded >= len);
+    ress->srcBufferLoaded -= len;
+    memmove(ress->srcBuffer, (char *)ress->srcBuffer + len, ress->srcBufferLoaded);
+}
 
 /** FIO_fwriteSparse() :
 *  @return : storedSkips,
@@ -2490,10 +2497,7 @@ FIO_decompressZstdFrame(FIO_ctx_t* const fCtx, dRess_t* ress, FILE* finput,
                             srcFileName, hrs.precision, hrs.value, hrs.suffix);
         }
 
-        if (inBuff.pos > 0) {
-            memmove(ress->srcBuffer, (char*)ress->srcBuffer + inBuff.pos, inBuff.size - inBuff.pos);
-            ress->srcBufferLoaded -= inBuff.pos;
-        }
+        FIO_consumeDSrcBuffer(ress, inBuff.pos);
 
         if (readSizeHint == 0) break;   /* end of frame */
 
@@ -2572,9 +2576,8 @@ FIO_decompressGzFrame(dRess_t* ress, FILE* srcFile, const char* srcFileName)
         if (ret == Z_STREAM_END) break;
     }
 
-    if (strm.avail_in > 0)
-        memmove(ress->srcBuffer, strm.next_in, strm.avail_in);
-    ress->srcBufferLoaded = strm.avail_in;
+    FIO_consumeDSrcBuffer(ress, ress->srcBufferLoaded - strm.avail_in);
+
     if ( (inflateEnd(&strm) != Z_OK)  /* release resources ; error detected */
       && (decodingError==0) ) {
         DISPLAYLEVEL(1, "zstd: %s: inflateEnd error \n", srcFileName);
@@ -2649,9 +2652,7 @@ FIO_decompressLzmaFrame(dRess_t* ress, FILE* srcFile,
         if (ret == LZMA_STREAM_END) break;
     }
 
-    if (strm.avail_in > 0)
-        memmove(ress->srcBuffer, strm.next_in, strm.avail_in);
-    ress->srcBufferLoaded = strm.avail_in;
+    FIO_consumeDSrcBuffer(ress, ress->srcBufferLoaded - strm.avail_in);
     lzma_end(&strm);
     WritePool_releaseWriteJob(writeJob);
     WritePool_sparseWriteEnd(ress->writePoolCtx);
@@ -2665,7 +2666,7 @@ FIO_decompressLz4Frame(dRess_t* ress, FILE* srcFile,
                        const char* srcFileName)
 {
     unsigned long long filesize = 0;
-    LZ4F_errorCode_t nextToLoad;
+    LZ4F_errorCode_t nextToLoad = 4;
     LZ4F_decompressionContext_t dCtx;
     LZ4F_errorCode_t const errorCode = LZ4F_createDecompressionContext(&dCtx, LZ4F_VERSION);
     int decodingError = 0;
@@ -2676,19 +2677,6 @@ FIO_decompressLz4Frame(dRess_t* ress, FILE* srcFile,
         return FIO_ERROR_FRAME_DECODING;
     }
 
-    /* Init feed with magic number (already consumed from FILE* sFile) */
-    {   size_t inSize = 4;
-        size_t outSize= 0;
-        MEM_writeLE32(ress->srcBuffer, LZ4_MAGICNUMBER);
-        nextToLoad = LZ4F_decompress(dCtx, NULL, &outSize, ress->srcBuffer, &inSize, NULL);
-        assert(outSize == 0); /* We don't expect to output anything here */
-        if (LZ4F_isError(nextToLoad)) {
-            DISPLAYLEVEL(1, "zstd: %s: lz4 header error : %s \n",
-                            srcFileName, LZ4F_getErrorName(nextToLoad));
-            LZ4F_freeDecompressionContext(dCtx);
-            return FIO_ERROR_FRAME_DECODING;
-    }   }
-
     /* Main Loop */
     for (;nextToLoad;) {
         size_t readSize;
@@ -2697,13 +2685,19 @@ FIO_decompressLz4Frame(dRess_t* ress, FILE* srcFile,
         int fullBufferDecoded = 0;
 
         /* Read input */
-        if (nextToLoad > ress->srcBufferSize) nextToLoad = ress->srcBufferSize;
-        readSize = fread(ress->srcBuffer, 1, nextToLoad, srcFile);
-        if (!readSize) break;   /* reached end of file or stream */
+        nextToLoad = MIN(nextToLoad, ress->srcBufferSize-ress->srcBufferLoaded);
+        readSize = fread((char *)ress->srcBuffer + ress->srcBufferLoaded, 1, nextToLoad, srcFile);
+        if(!readSize && ferror(srcFile)) {
+            DISPLAYLEVEL(1, "zstd: %s: read error \n", srcFileName);
+            decodingError=1;
+            break;
+        }
+        if(!readSize && !ress->srcBufferLoaded) break; /* reached end of file */
+        ress->srcBufferLoaded += readSize;
 
-        while ((pos < readSize) || fullBufferDecoded) {  /* still to read, or still to flush */
+        while ((pos < ress->srcBufferLoaded) || fullBufferDecoded) {  /* still to read, or still to flush */
             /* Decode Input (at least partially) */
-            size_t remaining = readSize - pos;
+            size_t remaining = ress->srcBufferLoaded - pos;
             decodedBytes = writeJob->bufferSize;
             nextToLoad = LZ4F_decompress(dCtx, writeJob->buffer, &decodedBytes, (char*)(ress->srcBuffer)+pos, &remaining, NULL);
             if (LZ4F_isError(nextToLoad)) {
@@ -2712,6 +2706,7 @@ FIO_decompressLz4Frame(dRess_t* ress, FILE* srcFile,
                 decodingError = 1; nextToLoad = 0; break;
             }
             pos += remaining;
+            assert(pos <= ress->srcBufferLoaded);
             fullBufferDecoded = decodedBytes == writeJob->bufferSize;
 
             /* Write Block */
@@ -2726,20 +2721,14 @@ FIO_decompressLz4Frame(dRess_t* ress, FILE* srcFile,
 
             if (!nextToLoad) break;
         }
+        FIO_consumeDSrcBuffer(ress, pos);
     }
-    /* can be out because readSize == 0, which could be an fread() error */
-    if (ferror(srcFile)) {
-        DISPLAYLEVEL(1, "zstd: %s: read error \n", srcFileName);
-        decodingError=1;
-    }
-
     if (nextToLoad!=0) {
         DISPLAYLEVEL(1, "zstd: %s: unfinished lz4 stream \n", srcFileName);
         decodingError=1;
     }
 
     LZ4F_freeDecompressionContext(dCtx);
-    ress->srcBufferLoaded = 0; /* LZ4F will reach exact frame boundary */
     WritePool_releaseWriteJob(writeJob);
     WritePool_sparseWriteEnd(ress->writePoolCtx);
 

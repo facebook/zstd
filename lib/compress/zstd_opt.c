@@ -255,13 +255,14 @@ static U32 ZSTD_rawLiteralsCost(const BYTE* const literals, U32 const litLength,
         return (litLength*6) * BITCOST_MULTIPLIER;  /* 6 bit per literal - no statistic used */
 
     /* dynamic statistics */
-    {   U32 price = 0;
+    {   U32 price = optPtr->litSumBasePrice * litLength;
+        U32 const litPriceMax = optPtr->litSumBasePrice - BITCOST_MULTIPLIER;
         U32 u;
+        assert(optPtr->litSumBasePrice >= BITCOST_MULTIPLIER);
         for (u=0; u < litLength; u++) {
-            U32 litPrice = optPtr->litSumBasePrice - WEIGHT(optPtr->litFreq[literals[u]], optLevel);
-            assert(WEIGHT(optPtr->litFreq[literals[u]], optLevel) <= optPtr->litSumBasePrice);   /* literal cost should never be negative */
-            if (litPrice < BITCOST_MULTIPLIER) litPrice = BITCOST_MULTIPLIER;
-            price += litPrice;
+            U32 litPrice = WEIGHT(optPtr->litFreq[literals[u]], optLevel);
+            if (UNLIKELY(litPrice > litPriceMax)) litPrice = litPriceMax;
+            price -= litPrice;
         }
         return price;
     }

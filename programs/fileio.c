@@ -249,6 +249,18 @@ struct FIO_ctx_s {
     size_t totalBytesOutput;
 };
 
+static int FIO_shouldDisplayFileSummary(FIO_ctx_t const* fCtx)
+{
+    return fCtx->nbFilesTotal <= 1 || g_display_prefs.displayLevel >= 3;
+}
+
+static int FIO_shouldDisplayMultipleFileSummary(FIO_ctx_t const* fCtx)
+{
+    int const shouldDisplay = (fCtx->nbFilesProcessed >= 1 && fCtx->nbFilesTotal > 1);
+    assert(shouldDisplay || FIO_shouldDisplayFileSummary(fCtx) || fCtx->nbFilesProcessed == 0);
+    return shouldDisplay;
+}
+
 
 /*-*************************************
 *  Parameters: Initialization
@@ -1044,14 +1056,16 @@ FIO_compressGzFrame(const cRess_t* ress,  /* buffers & handlers are used, but no
                 strm.avail_out = (uInt)writeJob->bufferSize;
             }   }
         if (srcFileSize == UTIL_FILESIZE_UNKNOWN) {
-            DISPLAYUPDATE(2, "\rRead : %u MB ==> %.2f%% ",
-                          (unsigned)(inFileSize>>20),
-                          (double)outFileSize/inFileSize*100)
+            DISPLAYUPDATE_PROGRESS(
+                    "\rRead : %u MB ==> %.2f%% ",
+                    (unsigned)(inFileSize>>20),
+                    (double)outFileSize/inFileSize*100)
         } else {
-            DISPLAYUPDATE(2, "\rRead : %u / %u MB ==> %.2f%% ",
-                          (unsigned)(inFileSize>>20), (unsigned)(srcFileSize>>20),
-                          (double)outFileSize/inFileSize*100);
-        }   }
+            DISPLAYUPDATE_PROGRESS(
+                    "\rRead : %u / %u MB ==> %.2f%% ",
+                    (unsigned)(inFileSize>>20), (unsigned)(srcFileSize>>20),
+                    (double)outFileSize/inFileSize*100);
+    }   }
 
     while (1) {
         int const ret = deflate(&strm, Z_FINISH);
@@ -1141,11 +1155,11 @@ FIO_compressLzmaFrame(cRess_t* ress,
                 strm.avail_out = writeJob->bufferSize;
         }   }
         if (srcFileSize == UTIL_FILESIZE_UNKNOWN)
-            DISPLAYUPDATE(2, "\rRead : %u MB ==> %.2f%%",
+            DISPLAYUPDATE_PROGRESS("\rRead : %u MB ==> %.2f%%",
                             (unsigned)(inFileSize>>20),
                             (double)outFileSize/inFileSize*100)
         else
-            DISPLAYUPDATE(2, "\rRead : %u / %u MB ==> %.2f%%",
+            DISPLAYUPDATE_PROGRESS("\rRead : %u / %u MB ==> %.2f%%",
                             (unsigned)(inFileSize>>20), (unsigned)(srcFileSize>>20),
                             (double)outFileSize/inFileSize*100);
         if (ret == LZMA_STREAM_END) break;
@@ -1225,11 +1239,11 @@ FIO_compressLz4Frame(cRess_t* ress,
                             srcFileName, LZ4F_getErrorName(outSize));
             outFileSize += outSize;
             if (srcFileSize == UTIL_FILESIZE_UNKNOWN) {
-                DISPLAYUPDATE(2, "\rRead : %u MB ==> %.2f%%",
+                DISPLAYUPDATE_PROGRESS("\rRead : %u MB ==> %.2f%%",
                                 (unsigned)(inFileSize>>20),
                                 (double)outFileSize/inFileSize*100)
             } else {
-                DISPLAYUPDATE(2, "\rRead : %u / %u MB ==> %.2f%%",
+                DISPLAYUPDATE_PROGRESS("\rRead : %u / %u MB ==> %.2f%%",
                                 (unsigned)(inFileSize>>20), (unsigned)(srcFileSize>>20),
                                 (double)outFileSize/inFileSize*100);
             }
@@ -1364,32 +1378,34 @@ FIO_compressZstdFrame(FIO_ctx_t* const fCtx,
                 UTIL_HumanReadableSize_t const produced_hrs = UTIL_makeHumanReadableSize(zfp.produced);
 
                 /* display progress notifications */
+                DISPLAY_PROGRESS("\r%79s\r", "");    /* Clear out the current displayed line */
                 if (g_display_prefs.displayLevel >= 3) {
-                    DISPLAYUPDATE(3, "\r(L%i) Buffered:%5.*f%s - Consumed:%5.*f%s - Compressed:%5.*f%s => %.2f%% ",
-                                compressionLevel,
-                                buffered_hrs.precision, buffered_hrs.value, buffered_hrs.suffix,
-                                consumed_hrs.precision, consumed_hrs.value, consumed_hrs.suffix,
-                                produced_hrs.precision, produced_hrs.value, produced_hrs.suffix,
-                                cShare );
-                } else if (g_display_prefs.displayLevel >= 2 || g_display_prefs.progressSetting == FIO_ps_always) {
+                    /* Verbose progress update */
+                    DISPLAY_PROGRESS(
+                            "(L%i) Buffered:%5.*f%s - Consumed:%5.*f%s - Compressed:%5.*f%s => %.2f%% ",
+                            compressionLevel,
+                            buffered_hrs.precision, buffered_hrs.value, buffered_hrs.suffix,
+                            consumed_hrs.precision, consumed_hrs.value, consumed_hrs.suffix,
+                            produced_hrs.precision, produced_hrs.value, produced_hrs.suffix,
+                            cShare );
+                } else {
                     /* Require level 2 or forcibly displayed progress counter for summarized updates */
-                    DISPLAYLEVEL(1, "\r%79s\r", "");    /* Clear out the current displayed line */
                     if (fCtx->nbFilesTotal > 1) {
                         size_t srcFileNameSize = strlen(srcFileName);
                         /* Ensure that the string we print is roughly the same size each time */
                         if (srcFileNameSize > 18) {
                             const char* truncatedSrcFileName = srcFileName + srcFileNameSize - 15;
-                            DISPLAYLEVEL(1, "Compress: %u/%u files. Current: ...%s ",
+                            DISPLAY_PROGRESS("Compress: %u/%u files. Current: ...%s ",
                                         fCtx->currFileIdx+1, fCtx->nbFilesTotal, truncatedSrcFileName);
                         } else {
-                            DISPLAYLEVEL(1, "Compress: %u/%u files. Current: %*s ",
+                            DISPLAY_PROGRESS("Compress: %u/%u files. Current: %*s ",
                                         fCtx->currFileIdx+1, fCtx->nbFilesTotal, (int)(18-srcFileNameSize), srcFileName);
                         }
                     }
-                    DISPLAYLEVEL(1, "Read:%6.*f%4s ", consumed_hrs.precision, consumed_hrs.value, consumed_hrs.suffix);
+                    DISPLAY_PROGRESS("Read:%6.*f%4s ", consumed_hrs.precision, consumed_hrs.value, consumed_hrs.suffix);
                     if (fileSize != UTIL_FILESIZE_UNKNOWN)
-                        DISPLAYLEVEL(2, "/%6.*f%4s", file_hrs.precision, file_hrs.value, file_hrs.suffix);
-                    DISPLAYLEVEL(1, " ==> %2.f%%", cShare);
+                        DISPLAY_PROGRESS("/%6.*f%4s", file_hrs.precision, file_hrs.value, file_hrs.suffix);
+                    DISPLAY_PROGRESS(" ==> %2.f%%", cShare);
                     DELAY_NEXT_UPDATE();
                 }
 
@@ -1555,20 +1571,18 @@ FIO_compressFilename_internal(FIO_ctx_t* const fCtx,
     /* Status */
     fCtx->totalBytesInput += (size_t)readsize;
     fCtx->totalBytesOutput += (size_t)compressedfilesize;
-    DISPLAYLEVEL(2, "\r%79s\r", "");
-    if (g_display_prefs.displayLevel >= 2 &&
-        !fCtx->hasStdoutOutput &&
-        (g_display_prefs.displayLevel >= 3 || fCtx->nbFilesTotal <= 1)) {
+    DISPLAY_PROGRESS("\r%79s\r", "");
+    if (FIO_shouldDisplayFileSummary(fCtx)) {
         UTIL_HumanReadableSize_t hr_isize = UTIL_makeHumanReadableSize((U64) readsize);
         UTIL_HumanReadableSize_t hr_osize = UTIL_makeHumanReadableSize((U64) compressedfilesize);
         if (readsize == 0) {
-            DISPLAYLEVEL(2,"%-20s :  (%6.*f%s => %6.*f%s, %s) \n",
+            DISPLAY_SUMMARY("%-20s :  (%6.*f%s => %6.*f%s, %s) \n",
                 srcFileName,
                 hr_isize.precision, hr_isize.value, hr_isize.suffix,
                 hr_osize.precision, hr_osize.value, hr_osize.suffix,
                 dstFileName);
         } else {
-            DISPLAYLEVEL(2,"%-20s :%6.2f%%   (%6.*f%s => %6.*f%s, %s) \n",
+            DISPLAY_SUMMARY("%-20s :%6.2f%%   (%6.*f%s => %6.*f%s, %s) \n",
                 srcFileName,
                 (double)compressedfilesize / (double)readsize * 100,
                 hr_isize.precision, hr_isize.value, hr_isize.suffix,
@@ -1917,16 +1931,23 @@ int FIO_compressMultipleFilenames(FIO_ctx_t* const fCtx,
             FIO_checkFilenameCollisions(inFileNamesTable , (unsigned)fCtx->nbFilesTotal);
     }
 
-    if (fCtx->nbFilesProcessed >= 1 && fCtx->nbFilesTotal > 1 && fCtx->totalBytesInput != 0) {
+    if (FIO_shouldDisplayMultipleFileSummary(fCtx)) {
         UTIL_HumanReadableSize_t hr_isize = UTIL_makeHumanReadableSize((U64) fCtx->totalBytesInput);
         UTIL_HumanReadableSize_t hr_osize = UTIL_makeHumanReadableSize((U64) fCtx->totalBytesOutput);
 
-        DISPLAYLEVEL(2, "\r%79s\r", "");
-        DISPLAYLEVEL(2, "%3d files compressed :%.2f%%   (%6.*f%4s => %6.*f%4s)\n",
-                        fCtx->nbFilesProcessed,
-                        (double)fCtx->totalBytesOutput/((double)fCtx->totalBytesInput)*100,
-                        hr_isize.precision, hr_isize.value, hr_isize.suffix,
-                        hr_osize.precision, hr_osize.value, hr_osize.suffix);
+        DISPLAY_PROGRESS("\r%79s\r", "");
+        if (fCtx->totalBytesInput == 0) {
+            DISPLAY_SUMMARY("%3d files compressed : (%6.*f%4s => %6.*f%4s)\n",
+                            fCtx->nbFilesProcessed,
+                            hr_isize.precision, hr_isize.value, hr_isize.suffix,
+                            hr_osize.precision, hr_osize.value, hr_osize.suffix);
+        } else {
+            DISPLAY_SUMMARY("%3d files compressed : %.2f%% (%6.*f%4s => %6.*f%4s)\n",
+                            fCtx->nbFilesProcessed,
+                            (double)fCtx->totalBytesOutput/((double)fCtx->totalBytesInput)*100,
+                            hr_isize.precision, hr_isize.value, hr_isize.suffix,
+                            hr_osize.precision, hr_osize.value, hr_osize.suffix);
+        }
     }
 
     FIO_freeCResources(&ress);
@@ -2067,7 +2088,6 @@ FIO_decompressZstdFrame(FIO_ctx_t* const fCtx, dRess_t* ress,
         ZSTD_inBuffer  inBuff = { ress->readCtx->srcBuffer, ress->readCtx->srcBufferLoaded, 0 };
         ZSTD_outBuffer outBuff= { writeJob->buffer, writeJob->bufferSize, 0 };
         size_t const readSizeHint = ZSTD_decompressStream(ress->dctx, &outBuff, &inBuff);
-        const int displayLevel = (g_display_prefs.progressSetting == FIO_ps_always) ? 1 : 2;
         UTIL_HumanReadableSize_t const hrs = UTIL_makeHumanReadableSize(alreadyDecoded+frameSize);
         if (ZSTD_isError(readSizeHint)) {
             DISPLAYLEVEL(1, "%s : Decoding error (36) : %s \n",
@@ -2085,14 +2105,15 @@ FIO_decompressZstdFrame(FIO_ctx_t* const fCtx, dRess_t* ress,
             size_t srcFileNameSize = strlen(srcFileName);
             if (srcFileNameSize > 18) {
                 const char* truncatedSrcFileName = srcFileName + srcFileNameSize - 15;
-                DISPLAYUPDATE(displayLevel, "\rDecompress: %2u/%2u files. Current: ...%s : %.*f%s...    ",
-                              fCtx->currFileIdx+1, fCtx->nbFilesTotal, truncatedSrcFileName, hrs.precision, hrs.value, hrs.suffix);
+                DISPLAYUPDATE_PROGRESS(
+                        "\rDecompress: %2u/%2u files. Current: ...%s : %.*f%s...    ",
+                        fCtx->currFileIdx+1, fCtx->nbFilesTotal, truncatedSrcFileName, hrs.precision, hrs.value, hrs.suffix);
             } else {
-                DISPLAYUPDATE(displayLevel, "\rDecompress: %2u/%2u files. Current: %s : %.*f%s...    ",
+                DISPLAYUPDATE_PROGRESS("\rDecompress: %2u/%2u files. Current: %s : %.*f%s...    ",
                             fCtx->currFileIdx+1, fCtx->nbFilesTotal, srcFileName, hrs.precision, hrs.value, hrs.suffix);
             }
         } else {
-            DISPLAYUPDATE(displayLevel, "\r%-20.20s : %.*f%s...     ",
+            DISPLAYUPDATE_PROGRESS("\r%-20.20s : %.*f%s...     ",
                             srcFileName, hrs.precision, hrs.value, hrs.suffix);
         }
 
@@ -2307,7 +2328,7 @@ FIO_decompressLz4Frame(dRess_t* ress, const char* srcFileName)
                 AIO_WritePool_enqueueAndReacquireWriteJob(&writeJob);
                 filesize += decodedBytes;
                 hrs = UTIL_makeHumanReadableSize(filesize);
-                DISPLAYUPDATE(2, "\rDecompressed : %.*f%s  ", hrs.precision, hrs.value, hrs.suffix);
+                DISPLAYUPDATE_PROGRESS("\rDecompressed : %.*f%s  ", hrs.precision, hrs.value, hrs.suffix);
             }
 
             if (!nextToLoad) break;
@@ -2415,13 +2436,9 @@ static int FIO_decompressFrames(FIO_ctx_t* const fCtx,
 
     /* Final Status */
     fCtx->totalBytesOutput += (size_t)filesize;
-    DISPLAYLEVEL(2, "\r%79s\r", "");
-    /* No status message in pipe mode (stdin - stdout) or multi-files mode */
-    if ((g_display_prefs.displayLevel >= 2 && fCtx->nbFilesTotal <= 1) ||
-        g_display_prefs.displayLevel >= 3 ||
-        g_display_prefs.progressSetting == FIO_ps_always) {
-        DISPLAYLEVEL(1, "\r%-20s: %llu bytes \n", srcFileName, filesize);
-    }
+    DISPLAY_PROGRESS("\r%79s\r", "");
+    if (FIO_shouldDisplayFileSummary(fCtx))
+        DISPLAY_SUMMARY("%-20s: %llu bytes \n", srcFileName, filesize);
 
     return 0;
 }
@@ -2730,8 +2747,10 @@ FIO_decompressMultipleFilenames(FIO_ctx_t* const fCtx,
             FIO_checkFilenameCollisions(srcNamesTable , (unsigned)fCtx->nbFilesTotal);
     }
 
-    if (fCtx->nbFilesProcessed >= 1  && fCtx->nbFilesTotal > 1 && fCtx->totalBytesOutput != 0)
-        DISPLAYLEVEL(2, "%d files decompressed : %6zu bytes total \n", fCtx->nbFilesProcessed, fCtx->totalBytesOutput);
+    if (FIO_shouldDisplayMultipleFileSummary(fCtx)) {
+        DISPLAY_PROGRESS("\r%79s\r", "");
+        DISPLAY_SUMMARY("%d files decompressed : %6zu bytes total \n", fCtx->nbFilesProcessed, fCtx->totalBytesOutput);
+    }
 
     FIO_freeDResources(ress);
     return error;

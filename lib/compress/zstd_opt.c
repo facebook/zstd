@@ -269,7 +269,16 @@ static U32 ZSTD_rawLiteralsCost(const BYTE* const literals, U32 const litLength,
  * cost of literalLength symbol */
 static U32 ZSTD_litLengthPrice(U32 const litLength, const optState_t* const optPtr, int optLevel)
 {
-    if (optPtr->priceType == zop_predef) return WEIGHT(litLength, optLevel);
+    assert(litLength <= ZSTD_BLOCKSIZE_MAX);
+    if (optPtr->priceType == zop_predef)
+        return WEIGHT(litLength, optLevel);
+    /* We can't compute the litLength price for sizes >= ZSTD_BLOCKSIZE_MAX
+     * because it isn't representable in the zstd format. So instead just
+     * call it 1 bit more than ZSTD_BLOCKSIZE_MAX - 1. In this case the block
+     * would be all literals.
+     */
+    if (litLength == ZSTD_BLOCKSIZE_MAX)
+        return BITCOST_MULTIPLIER + ZSTD_litLengthPrice(ZSTD_BLOCKSIZE_MAX - 1, optPtr, optLevel);
 
     /* dynamic statistics */
     {   U32 const llCode = ZSTD_LLcode(litLength);

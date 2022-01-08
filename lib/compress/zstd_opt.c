@@ -324,19 +324,28 @@ ZSTD_getMatchPrice(U32 const offcode,
     return price;
 }
 
-/* ZSTD_updateStats() :
- * assumption : literals + litLengtn <= iend */
-static void ZSTD_updateStats(optState_t* const optPtr,
-                             U32 litLength, const BYTE* literals,
-                             U32 offsetCode, U32 matchLength)
+
+static void
+ZSTD_updateLiterals(optState_t* const optPtr, const BYTE* literals, U32 litLength)
 {
-    /* literals */
     if (ZSTD_compressedLiterals(optPtr)) {
         U32 u;
         for (u=0; u < litLength; u++)
             optPtr->litFreq[literals[u]] += ZSTD_LITFREQ_ADD;
         optPtr->litSum += litLength*ZSTD_LITFREQ_ADD;
     }
+}
+
+/* ZSTD_updateStats() :
+ * assumption : literals + litLengtn <= iend */
+static void ZSTD_updateStats(optState_t* const optPtr,
+                             U32 litLength, const BYTE* literals,
+                             U32 offsetCode, U32 matchLength)
+{
+    DEBUGLOG(6, "ZSTD_updateStats (ll=%u, ml=%u)", litLength, matchLength);
+
+    /* literals */
+    ZSTD_updateLiterals(optPtr, literals, litLength);
 
     /* literal Length */
     {   U32 const llCode = ZSTD_LLcode(litLength);
@@ -1061,6 +1070,7 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
     ZSTD_match_t* const matches = optStatePtr->matchTable;
     ZSTD_optimal_t lastSequence;
     ZSTD_optLdm_t optLdm;
+    size_t literalsAlreadyCounted = 0;
 
     optLdm.seqStore = ms->ldmSeqStore ? *ms->ldmSeqStore : kNullRawSeqStore;
     optLdm.endPosInBlock = optLdm.startPosInBlock = optLdm.offset = 0;
@@ -1084,6 +1094,14 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
             ZSTD_optLdm_processMatchCandidate(&optLdm, matches, &nbMatches,
                                               (U32)(ip-istart), (U32)(iend - ip));
             if (!nbMatches) { ip++; continue; }
+
+            if (ip-anchor > 0) {
+                /* if (literalsAlreadyCounted > 0) : avoid double counting */
+                size_t const newlits = (size_t)(ip-anchor) - literalsAlreadyCounted;
+                assert(literalsAlreadyCounted <= (size_t)(ip-anchor));
+                ZSTD_updateLiterals(optStatePtr, anchor + literalsAlreadyCounted, newlits);
+                literalsAlreadyCounted += newlits;
+            }
 
             /* initialize opt[0] */
             { U32 i ; for (i=0; i<ZSTD_REP_NUM; i++) opt[0].rep[i] = rep[i]; }
@@ -1301,14 +1319,16 @@ _shortestPath:   /* cur, last_pos, best_mlen, best_off have to be set */
                     DEBUGLOG(6, "considering seq starting at %zi, llen=%u, mlen=%u",
                                 anchor - istart, (unsigned)llen, (unsigned)mlen);
 
-                    if (mlen==0) {  /* only literals => must be last "sequence", actually starting a new stream of sequences */
+                    if (mlen==0) {  /* only literals */
                         assert(storePos == storeEnd);   /* must be last sequence */
                         ip = anchor + llen;     /* last "sequence" is a bunch of literals => don't progress anchor */
-                        continue;   /* will finish */
+                        continue;
                     }
 
                     assert(anchor + llen <= iend);
-                    ZSTD_updateStats(optStatePtr, llen, anchor, offCode, mlen);
+                    assert(llen >= literalsAlreadyCounted);
+                    ZSTD_updateStats(optStatePtr, llen - literalsAlreadyCounted, anchor + literalsAlreadyCounted, offCode, mlen);
+                    literalsAlreadyCounted = 0;
                     ZSTD_storeSeq(seqStore, llen, anchor, iend, offCode, mlen);
                     anchor += advance;
                     ip = anchor;
@@ -1317,6 +1337,9 @@ _shortestPath:   /* cur, last_pos, best_mlen, best_off have to be set */
         }
     }   /* while (ip < ilimit) */
 
+    /* update literals statistics, for next block */
+    assert((size_t)(iend - anchor) >= literalsAlreadyCounted);
+    ZSTD_updateLiterals(optStatePtr, anchor + literalsAlreadyCounted, (size_t)(iend - anchor) - literalsAlreadyCounted);
     /* Return the last literals size */
     return (size_t)(iend - anchor);
 }

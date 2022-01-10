@@ -362,6 +362,7 @@ static ZSTDMT_CCtxPool* ZSTDMT_createCCtxPool(int nbWorkers,
     ZSTDMT_CCtxPool* const cctxPool = (ZSTDMT_CCtxPool*) ZSTD_customCalloc(
         sizeof(ZSTDMT_CCtxPool) + (nbWorkers-1)*sizeof(ZSTD_CCtx*), cMem);
     assert(nbWorkers > 0);
+    assert(nbWorkers == 1); // for this experiment
     if (!cctxPool) return NULL;
     if (ZSTD_pthread_mutex_init(&cctxPool->poolMutex, NULL)) {
         ZSTD_customFree(cctxPool, cMem);
@@ -1340,7 +1341,7 @@ static void ZSTDMT_writeLastEmptyBlock(ZSTDMT_jobDescription* job)
     assert(job->consumed == 0);
 }
 
-static size_t ZSTDMT_createCompressionJob(ZSTDMT_CCtx* mtctx, size_t srcSize, ZSTD_EndDirective endOp)
+static size_t ZSTDMT_createCompressionJob(ZSTDMT_CCtx* mtctx, ZSTD_outBuffer* output, size_t srcSize, ZSTD_EndDirective endOp)
 {
     unsigned const jobID = mtctx->nextJobID & mtctx->jobIDMask;
     int const endFrame = (endOp == ZSTD_e_end);
@@ -1364,7 +1365,8 @@ static size_t ZSTDMT_createCompressionJob(ZSTDMT_CCtx* mtctx, size_t srcSize, ZS
         mtctx->jobs[jobID].params = mtctx->params;
         mtctx->jobs[jobID].cdict = mtctx->nextJobID==0 ? mtctx->cdict : NULL;
         mtctx->jobs[jobID].fullFrameSize = mtctx->frameContentSize;
-        mtctx->jobs[jobID].dstBuff = g_nullBuffer;
+        buffer_t dstBuff = {(char*)output->dst + output->pos, mtctx->bufPool->bufferSize};
+        mtctx->jobs[jobID].dstBuff = dstBuff;
         mtctx->jobs[jobID].cctxPool = mtctx->cctxPool;
         mtctx->jobs[jobID].bufPool = mtctx->bufPool;
         mtctx->jobs[jobID].seqPool = mtctx->seqPool;
@@ -1479,9 +1481,9 @@ static size_t ZSTDMT_flushProduced(ZSTDMT_CCtx* mtctx, ZSTD_outBuffer* output, u
             assert(cSize >= mtctx->jobs[wJobID].dstFlushed);
             assert(mtctx->jobs[wJobID].dstBuff.start != NULL);
             if (toFlush > 0) {
-                ZSTD_memcpy((char*)output->dst + output->pos,
+                /* ZSTD_memcpy((char*)output->dst + output->pos,
                     (const char*)mtctx->jobs[wJobID].dstBuff.start + mtctx->jobs[wJobID].dstFlushed,
-                    toFlush);
+                    toFlush); */
             }
             output->pos += toFlush;
             mtctx->jobs[wJobID].dstFlushed += toFlush;  /* can write : this value is only used by mtctx */
@@ -1839,7 +1841,7 @@ size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
       || ((endOp == ZSTD_e_end) && (!mtctx->frameEnded)) ) {   /* must finish the frame with a zero-size block */
         size_t const jobSize = mtctx->inBuff.filled;
         assert(mtctx->inBuff.filled <= mtctx->targetSectionSize);
-        FORWARD_IF_ERROR( ZSTDMT_createCompressionJob(mtctx, jobSize, endOp) , "");
+        FORWARD_IF_ERROR( ZSTDMT_createCompressionJob(mtctx, output, jobSize, endOp) , "");
     }
 
     /* check for potential compressed data ready to be flushed */

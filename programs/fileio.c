@@ -2245,7 +2245,7 @@ FIO_decompressZstdFrame(FIO_ctx_t* const fCtx, dRess_t* ress, FILE* finput,
         ZSTD_inBuffer  inBuff = { ress->srcBuffer, ress->srcBufferLoaded, 0 };
         ZSTD_outBuffer outBuff= { ress->dstBuffer, ress->dstBufferSize, 0 };
         size_t const readSizeHint = ZSTD_decompressStream(ress->dctx, &outBuff, &inBuff);
-        const int displayLevel = (!fCtx->hasStdoutOutput || g_display_prefs.progressSetting == FIO_ps_always) ? 1 : 2;
+        const int displayLevel = (g_display_prefs.progressSetting == FIO_ps_always) ? 1 : 2;
         UTIL_HumanReadableSize_t const hrs = UTIL_makeHumanReadableSize(alreadyDecoded+frameSize);
         if (ZSTD_isError(readSizeHint)) {
             DISPLAYLEVEL(1, "%s : Decoding error (36) : %s \n",

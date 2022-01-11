@@ -30,6 +30,10 @@
  * TODO: Support Windows calling convention.
  */
 
+ZSTD_HIDE_ASM_FUNCTION(HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop)
+ZSTD_HIDE_ASM_FUNCTION(HUF_decompress4X2_usingDTable_internal_bmi2_asm_loop)
+ZSTD_HIDE_ASM_FUNCTION(_HUF_decompress4X2_usingDTable_internal_bmi2_asm_loop)
+ZSTD_HIDE_ASM_FUNCTION(_HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop)
 .global HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop
 .global HUF_decompress4X2_usingDTable_internal_bmi2_asm_loop
 .global _HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop

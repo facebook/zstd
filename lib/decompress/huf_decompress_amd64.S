@@ -91,6 +91,8 @@
 /* Define both _HUF_* & HUF_* symbols because MacOS
  * C symbols are prefixed with '_' & Linux symbols aren't.
  */
+ZSTD_HIDE_ASM_FUNCTION(_HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop)
+ZSTD_HIDE_ASM_FUNCTION(HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop)
 _HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop:
 HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop:
     /* Save all registers - even if they are callee saved for simplicity. */
@@ -346,6 +348,8 @@ HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop:
     pop %rax
     ret
 
+ZSTD_HIDE_ASM_FUNCTION(_HUF_decompress4X2_usingDTable_internal_bmi2_asm_loop)
+ZSTD_HIDE_ASM_FUNCTION(HUF_decompress4X2_usingDTable_internal_bmi2_asm_loop)
 _HUF_decompress4X2_usingDTable_internal_bmi2_asm_loop:
 HUF_decompress4X2_usingDTable_internal_bmi2_asm_loop:
     /* Save all registers - even if they are callee saved for simplicity. */

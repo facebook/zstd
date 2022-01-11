@@ -114,6 +114,10 @@ CFLAGS  += -Qunused-arguments -Wa,--noexecstack
 endif
 endif
 
+ifeq ($(shell echo "int main(int argc, char* argv[]) { (void)argc; (void)argv; return 0; }" | $(CC) $(FLAGS) -z cet-report=error -x c -Werror - -o $(VOID) 2>$(VOID) && echo 1 || echo 0),1)
+LDFLAGS += -z cet-report=error
+endif
+
 HAVE_COLORNEVER = $(shell echo a | grep --color=never a > /dev/null 2> /dev/null && echo 1 || echo 0)
 GREP_OPTIONS ?=
 ifeq ($HAVE_COLORNEVER, 1)

@@ -127,6 +127,10 @@ extern "C" {
 
 /*-*********************************************
 *  Detect if isatty() and fileno() are available
+*
+*  Note: Use UTIL_isConsole() for the zstd CLI
+*  instead, as it allows faking is console for
+*  testing.
 ************************************************/
 #if (defined(__linux__) && (PLATFORM_POSIX_VERSION > 1)) \
  || (PLATFORM_POSIX_VERSION >= 200112L) \

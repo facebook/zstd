@@ -3010,7 +3010,7 @@ int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int dis
     }   }
 
     if (numFiles == 0) {
-        if (!IS_CONSOLE(stdin)) {
+        if (!UTIL_isConsole(stdin)) {
             DISPLAYLEVEL(1, "zstd: --list does not support reading from standard input \n");
         }
         DISPLAYLEVEL(1, "No files given \n");

@@ -27,8 +27,8 @@
 /*-************************************
 *  Dependencies
 **************************************/
-#include "platform.h" /* IS_CONSOLE, PLATFORM_POSIX_VERSION */
-#include "util.h"     /* UTIL_HAS_CREATEFILELIST, UTIL_createFileList */
+#include "platform.h" /* PLATFORM_POSIX_VERSION */
+#include "util.h"     /* UTIL_HAS_CREATEFILELIST, UTIL_createFileList, UTIL_isConsole */
 #include <stdlib.h>   /* getenv */
 #include <string.h>   /* strcmp, strlen */
 #include <stdio.h>    /* fprintf(), stdin, stdout, stderr */
@@ -987,6 +987,9 @@ int main(int argCount, const char* argv[])
                 if (!strcmp(argument, "--no-progress")) { FIO_setProgressSetting(FIO_ps_never); continue; }
                 if (!strcmp(argument, "--progress")) { FIO_setProgressSetting(FIO_ps_always); continue; }
                 if (!strcmp(argument, "--exclude-compressed")) { FIO_setExcludeCompressedFile(prefs, 1); continue; }
+                if (!strcmp(argument, "--fake-stdin-is-console")) { UTIL_fakeStdinIsConsole(); continue; }
+                if (!strcmp(argument, "--fake-stdout-is-console")) { UTIL_fakeStdoutIsConsole(); continue; }
+                if (!strcmp(argument, "--fake-stderr-is-console")) { UTIL_fakeStderrIsConsole(); continue; }
 
                 /* long commands with arguments */
 #ifndef ZSTD_NODICT
@@ -1437,12 +1440,12 @@ int main(int argCount, const char* argv[])
     /* Check if input/output defined as console; trigger an error in this case */
     if (!forceStdin
      && (UTIL_searchFileNamesTable(filenames, stdinmark) != -1)
-     && IS_CONSOLE(stdin) ) {
+     && UTIL_isConsole(stdin) ) {
         DISPLAYLEVEL(1, "stdin is a console, aborting\n");
         CLEAN_RETURN(1);
     }
     if ( (!outFileName || !strcmp(outFileName, stdoutmark))
-      && IS_CONSOLE(stdout)
+      && UTIL_isConsole(stdout)
       && (UTIL_searchFileNamesTable(filenames, stdinmark) != -1)
       && !forceStdout
       && operation!=zom_decompress ) {
@@ -1479,7 +1482,7 @@ int main(int argCount, const char* argv[])
     /* No status message in pipe mode (stdin - stdout) */
     hasStdout = outFileName && !strcmp(outFileName,stdoutmark);
 
-    if ((hasStdout || !IS_CONSOLE(stderr)) && (g_displayLevel==2)) g_displayLevel=1;
+    if ((hasStdout || !UTIL_isConsole(stderr)) && (g_displayLevel==2)) g_displayLevel=1;
 
     /* IO Stream/File */
     FIO_setHasStdoutOutput(fCtx, hasStdout);

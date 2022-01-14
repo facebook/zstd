@@ -175,6 +175,20 @@ int UTIL_isCompressedFile(const char* infilename, const char *extensionList[]);
 int UTIL_isLink(const char* infilename);
 int UTIL_isFIFO(const char* infilename);
 
+/**
+ * Returns with the given file descriptor is a console.
+ * Allows faking whether stdin/stdout/stderr is a console
+ * using UTIL_fake*IsConsole().
+ */
+int UTIL_isConsole(FILE* file);
+
+/**
+ * Pretends that stdin/stdout/stderr is a console for testing.
+ */
+void UTIL_fakeStdinIsConsole(void);
+void UTIL_fakeStdoutIsConsole(void);
+void UTIL_fakeStderrIsConsole(void);
+
 #define UTIL_FILESIZE_UNKNOWN  ((U64)(-1))
 U64 UTIL_getFileSize(const char* infilename);
 U64 UTIL_getTotalFileSize(const char* const * fileNamesTable, unsigned nbFiles);

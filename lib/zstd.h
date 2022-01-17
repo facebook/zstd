@@ -549,7 +549,7 @@ typedef enum {
      * within the experimental section of the API.
      * At the time of this writing, they include :
      * ZSTD_d_format
-     * ZSTD_d_stableOutBuffer
+     * ZSTD_d_outBufferMode
      * ZSTD_d_forceIgnoreChecksum
      * ZSTD_d_refMultipleDDicts
      * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
@@ -1321,6 +1321,52 @@ typedef enum {
   ZSTD_ps_disable = 2       /* Do not use the feature */
 } ZSTD_paramSwitch_e;
 
+typedef enum {
+    /* Default. Let the (de)compressor allocate internal input/output buffers as needed. */
+    ZSTD_bufmode_buffered = 0,
+
+    /* Tells the (de)compressor that the ZSTD_outBuffer will ALWAYS be the same
+    * between calls, except for the modifications that zstd makes to pos (the
+    * caller must not modify pos). This is checked by the decompressor, and
+    * decompression will fail if it ever changes. Therefore the ZSTD_outBuffer
+    * MUST be large enough to fit the entire decompressed frame. This will be
+    * checked when the frame content size is known.The data in the ZSTD_outBuffer
+    * in the range[dst, dst + pos) MUST not be modified during decompression
+    * or you will get data corruption.
+    *
+    * When this flags is enabled zstd won't allocate an output buffer, because
+    * it can write directly to the ZSTD_outBuffer, but it will still allocate
+    * an input buffer large enough to fit any compressed block.This will also
+    * avoid the memcpy() from the internal output buffer to the ZSTD_outBuffer.
+    * If you need to avoid the input buffer allocation use the buffer-less
+    * streaming API.
+    *
+    * NOTE: So long as the ZSTD_outBuffer always points to valid memory, using
+    * this flag is ALWAYS memory safe, and will never access out -of-bounds
+    * memory. However, decompression WILL fail if you violate the preconditions.
+    *
+    * WARNING: The data in the ZSTD_outBuffer in the range[dst, dst + pos) MUST
+    * not be modified during decompression or you will get data corruption. This
+    * is because zstd needs to reference data in the ZSTD_outBuffer to regenerate
+    * matches. Normally zstd maintains its own buffer for this purpose, but passing
+    * this flag tells zstd to use the user provided buffer. */
+    ZSTD_bufmode_stable = 1,
+
+    /* Tells the decompressor to not copy its internal buffer.
+    * Instead, once output data are available, the ZSTD_outBuffer's size and dst
+    * fields are updated so that dst[0..size) is a view into the internal
+    * decompressor window; no copy operation takes place.
+    * The caller must zero the ZSTD_outBuffer size and dst fields to acknowledge
+    * that the data were processed before continuing decompression.
+    * Not doing so will assert.
+    * The data stay valid until the next call into the decompressor.
+    * The window data must NOT be modified or you will get data corruption.
+    * NOTE: The ZSTD_outBuffer's pos field is not used and should be 0.
+    * This mode is not compatible with legacy streams and is currently
+    * only supported for decompression. */
+    ZSTD_bufmode_expose = 2,
+} ZSTD_bufmode_e;
+
 /***************************************
 *  Frame size functions
 ***************************************/
@@ -1862,7 +1908,7 @@ ZSTDLIB_STATIC_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const vo
  * Experimental parameter.
  * Default is 0 == disabled. Set to 1 to enable.
  *
- * Tells he compressor that the ZSTD_outBuffer will not be resized between
+ * Tells the compressor that the ZSTD_outBuffer will not be resized between
  * calls. Specifically: (out.size - out.pos) will never grow. This gives the
  * compressor the freedom to say: If the compressed data doesn't fit in the
  * output buffer then return ZSTD_error_dstSizeTooSmall. This allows us to
@@ -2092,37 +2138,13 @@ ZSTDLIB_STATIC_API size_t ZSTD_DCtx_getParameter(ZSTD_DCtx* dctx, ZSTD_dParamete
  * allowing selection between ZSTD_format_e input compression formats
  */
 #define ZSTD_d_format ZSTD_d_experimentalParam1
-/* ZSTD_d_stableOutBuffer
+
+/* ZSTD_d_outBufferMode
  * Experimental parameter.
- * Default is 0 == disabled. Set to 1 to enable.
- *
- * Tells the decompressor that the ZSTD_outBuffer will ALWAYS be the same
- * between calls, except for the modifications that zstd makes to pos (the
- * caller must not modify pos). This is checked by the decompressor, and
- * decompression will fail if it ever changes. Therefore the ZSTD_outBuffer
- * MUST be large enough to fit the entire decompressed frame. This will be
- * checked when the frame content size is known. The data in the ZSTD_outBuffer
- * in the range [dst, dst + pos) MUST not be modified during decompression
- * or you will get data corruption.
- *
- * When this flags is enabled zstd won't allocate an output buffer, because
- * it can write directly to the ZSTD_outBuffer, but it will still allocate
- * an input buffer large enough to fit any compressed block. This will also
- * avoid the memcpy() from the internal output buffer to the ZSTD_outBuffer.
- * If you need to avoid the input buffer allocation use the buffer-less
- * streaming API.
- *
- * NOTE: So long as the ZSTD_outBuffer always points to valid memory, using
- * this flag is ALWAYS memory safe, and will never access out-of-bounds
- * memory. However, decompression WILL fail if you violate the preconditions.
- *
- * WARNING: The data in the ZSTD_outBuffer in the range [dst, dst + pos) MUST
- * not be modified during decompression or you will get data corruption. This
- * is because zstd needs to reference data in the ZSTD_outBuffer to regenerate
- * matches. Normally zstd maintains its own buffer for this purpose, but passing
- * this flag tells zstd to use the user provided buffer.
+ * Default is ZSTD_bufmode_buffered.
+ * Param has values of type ZSTD_bufmode_e
  */
-#define ZSTD_d_stableOutBuffer ZSTD_d_experimentalParam2
+#define ZSTD_d_outBufferMode ZSTD_d_experimentalParam2
 
 /* ZSTD_d_forceIgnoreChecksum
  * Experimental parameter.

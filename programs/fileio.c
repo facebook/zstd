@@ -1679,6 +1679,7 @@ static int FIO_compressFilename_dstFile(FIO_ctx_t* const fCtx,
     if (ress.dstFile == NULL) {
         int dstFilePermissions = DEFAULT_FILE_PERMISSIONS;
         if ( strcmp (srcFileName, stdinmark)
+          && strcmp (dstFileName, stdoutmark)
           && UTIL_stat(srcFileName, &statbuf)
           && UTIL_isRegularFileStat(&statbuf) ) {
             dstFilePermissions = statbuf.st_mode;
@@ -2634,6 +2635,7 @@ static int FIO_decompressDstFile(FIO_ctx_t* const fCtx,
     if ((ress.dstFile == NULL) && (prefs->testMode==0)) {
         int dstFilePermissions = DEFAULT_FILE_PERMISSIONS;
         if ( strcmp(srcFileName, stdinmark)   /* special case : don't transfer permissions from stdin */
+          && strcmp(dstFileName, stdoutmark)
           && UTIL_stat(srcFileName, &statbuf)
           && UTIL_isRegularFileStat(&statbuf) ) {
             dstFilePermissions = statbuf.st_mode;

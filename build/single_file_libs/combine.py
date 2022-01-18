@@ -4,25 +4,30 @@
 # 
 # Author: Carl Woffenden, Numfum GmbH (this script is released under a CC0 license/Public Domain)
 
-import argparse, io, os, re, sys
+import argparse, re, sys
 
 from pathlib import Path
+from typing import Any, List, Optional, Pattern, Set, TextIO
 
 # Set of file roots when searching (equivalent to -I paths for the compiler).
-roots = set()
+roots: Set[Path] = set()
 
 # Set of (canonical) file Path objects to exclude from inlining (and not only
 # exclude but to add a compiler error directive when they're encountered).
-excludes = set()
+excludes: Set[Path] = set()
 
 # Set of (canonical) file Path objects to keep as include directives.
-keeps = set()
+keeps: Set[Path] = set()
 
-# Set of file Path objects previously inlined.
-found = set()
+# Whether to keep the #pragma once directives (unlikely, since this will result
+# in a warning, but the option is there).
+keep_pragma: bool = False
 
-# Destination file TextIOBase object (or stdout if no output file was supplied).
-destn = None
+# Destination file object (or stdout if no output file was supplied).
+destn:TextIO = sys.stdout
+
+# Set of file Path objects previously inlined (and to ignore if reencountering).
+found: Set[Path] = set()
 
 # Compiled regex Patern to handle the following type of file includes:
 # 
@@ -44,7 +49,7 @@ destn = None
 # file (whether it's a valid comment or not, since anything after the quoted
 # string is ignored)
 # 
-include_regex = re.compile(r'^\s*#\s*include\s*"(.+?)"')
+include_regex: Pattern = re.compile(r'^\s*#\s*include\s*"(.+?)"')
 
 # Simple tests to prove include_regex's cases.
 # 
@@ -73,7 +78,7 @@ def test_match_include() -> bool:
 # 
 # Ignoring commented versions, same as include_regex.
 # 
-pragma_regex = re.compile(r'^\s*#\s*pragma\s*once\s*')
+pragma_regex: Pattern = re.compile(r'^\s*#\s*pragma\s*once\s*')
 
 # Simple tests to prove pragma_regex's cases.
 # 
@@ -93,8 +98,11 @@ def text_match_pragma() -> bool:
 # for a match, followed by the list of 'root' paths, returning a valid Path in
 # canonical form. If no match is found None is returned.
 # 
-def resolve_include(parent: Path, file: str) -> Path:
-	found = parent.joinpath(file).resolve();
+def resolve_include(file: str, parent: Optional[Path] = None) -> Optional[Path]:
+	if (parent):
+		found = parent.joinpath(file).resolve();
+	else:
+		found = Path(file)
 	if (found.is_file()):
 		return found
 	for root in roots:
@@ -103,41 +111,75 @@ def resolve_include(parent: Path, file: str) -> Path:
 			return found
 	return None
 
-# Writes 'line' to the open file 'destn' (or stdout).
+# Helper to resolve lists of files. 'file_list' is passed in from the arguments
+# and each entry resolved to its canonical path (like any include entry, either
+# from the list of root paths or the owning file's 'parent', which in this case
+# is case is the input file). The results are stored in 'resolved'.
+# 
+def resolve_files(file_list: Optional[List[str]], resolved: Set[Path], parent: Optional[Path] = None) -> None:
+	if (file_list):
+		for filename in file_list:
+			found = resolve_include(filename, parent)
+			if (found):
+				resolved.add(found)
+			else:
+				error_line(f'Warning: excluded file not found: {filename}')
+
+# Writes 'line' to the open 'destn' (or stdout).
 # 
 def write_line(line: str) -> None:
 	print(line, file=destn)
 
-# Logs 'line' to stderr.
+# Logs 'line' to stderr. This is also used for general notifications that we
+# don't want to go to stdout (so the source can be piped).
 # 
-def log_line(line: str) -> None:
+def error_line(line: Any) -> None:
 	print(line, file=sys.stderr)
 
-# Adds the contents of 'file' with any of its includes inlined.
+# Inline the contents of 'file' (with any of its includes also inlined, etc.).
 # 
 def add_file(file: Path) -> None:
-	if (isinstance(file, Path) and file.is_file()):
-		log_line(f'Processing: {file}')
+	if (file.is_file()):
+		error_line(f'Processing: {file}')
 		with file.open('r') as opened:
 			for line in opened:
 				line = line.rstrip('\n')
 				match_include = include_regex.match(line);
 				if (match_include):
+					# We have a quoted include directive so grab the file
 					inc_name = match_include.group(1)
-					resolved = resolve_include(file.parent, inc_name)
-					if (resolved not in found):
-						# The file was not previously encountered
-						found.add(resolved)
-						write_line(f'/**** start inlining {inc_name} ****/')
-						add_file(resolved)
-						write_line(f'/**** ended inlining {inc_name} ****/')
+					resolved = resolve_include(inc_name, file.parent)
+					if (resolved):
+						if (resolved in excludes):
+							# The file was excluded so error if the source attempts to use it
+							write_line(f'#error Using excluded file: {inc_name}')
+							error_line(f'Excluding: {inc_name}')
+						else:
+							if (resolved not in found):
+								# The file was not previously encountered
+								found.add(resolved)
+								if (resolved in keeps):
+									# But the include was flagged to keep as included
+									write_line(f'/**** *NOT* inlining {inc_name} ****/')
+									write_line(line)
+									error_line('Not Inlining: {inc_name}')
+								else:
+									 # The file was neither excluded nor seen before so inline it
+									write_line(f'/**** start inlining {inc_name} ****/')
+									add_file(resolved)
+									write_line(f'/**** ended inlining {inc_name} ****/')
+							else:
+								write_line(f'/**** skipping file: {inc_name} ****/')
 					else:
-						write_line(f'/**** skipping file: {inc_name} ****/')
+						# The include file didn't resolve to a file
+						write_line(f'#error Unable to find: {inc_name}')
+						error_line(f'Error: Unable to find: {inc_name}')
 				else:
-					if (not pragma_regex.match(line)):
+					# Skip any 'pragma once' directives, otherwise write the source line
+					if (keep_pragma or not pragma_regex.match(line)):
 						write_line(line)
 	else:
-		log_line(f'Error: Unable to find: {file}')
+		error_line(f'Error: Invalid file: {file}')
 
 # Start here
 parser = argparse.ArgumentParser(description='Amalgamate Tool', epilog=f'example: {sys.argv[0]} -r ../my/path -r ../other/path -o out.c in.c')
@@ -158,29 +200,14 @@ if (args.root):
 	for path in args.root:
 		roots.add(path.resolve(strict=True))
 
-# Resolve the excluded files
-if (args.exclude):
-	for filename in args.exclude:
-		resolved = resolve_include(args.input.parent, filename)
-		if (resolved):
-			excludes.add(resolved)
-		else:
-			log_line(f'Warning: excluded file not found: {filename}')
-
-# And the files to keep
-if (args.keep):
-	for filename in args.keep:
-		resolved = resolve_include(args.input.parent, filename)
-		if (resolved):
-			keeps.add(resolved)
-		else:
-			log_line(f'Warning: kept #include not found: {filename}')
+# The remaining params: so resolve the excluded files and #pragma once directive
+resolve_files(args.exclude, excludes, args.input.parent)
+resolve_files(args.keep,    keeps,    args.input.parent)
+keep_pragma = args.pragma;
 
 # Then recursively process the input file
 try:
-	if (not args.output):
-		destn = sys.stdout
-	else:
+	if (args.output):
 		destn = args.output
 	add_file(args.input)
 finally:

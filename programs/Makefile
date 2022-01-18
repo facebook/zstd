@@ -320,7 +320,7 @@ $(BUILD_DIR)/%.o : %.c $(BUILD_DIR)/%.d | $(BUILD_DIR)
 
 $(BUILD_DIR)/%.o : %.S | $(BUILD_DIR)
 	@echo AS $@
-	$(COMPILE.c) $(OUTPUT_OPTION) $<
+	$(COMPILE.S) $(OUTPUT_OPTION) $<
 
 MKDIR ?= mkdir
 $(BUILD_DIR): ; $(MKDIR) -p $@

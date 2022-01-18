@@ -95,8 +95,9 @@ DEBUGFLAGS= -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
             -Wvla -Wformat=2 -Winit-self -Wfloat-equal -Wwrite-strings \
             -Wredundant-decls -Wmissing-prototypes -Wc++-compat
 CFLAGS   += $(DEBUGFLAGS) $(MOREFLAGS)
+ASFLAGS  += $(DEBUGFLAGS) $(MOREFLAGS) $(CFLAGS)
 LDFLAGS  += $(MOREFLAGS)
-FLAGS     = $(CPPFLAGS) $(CFLAGS) $(LDFLAGS)
+FLAGS     = $(CPPFLAGS) $(CFLAGS) $(ASFLAGS) $(LDFLAGS)
 
 ifndef ALREADY_APPENDED_NOEXECSTACK
 export ALREADY_APPENDED_NOEXECSTACK := 1
@@ -104,10 +105,12 @@ ifeq ($(shell echo "int main(int argc, char* argv[]) { (void)argc; (void)argv; r
 LDFLAGS += -z noexecstack
 endif
 ifeq ($(shell echo | $(CC) $(FLAGS) -Wa,--noexecstack -x assembler -Werror -c - -o $(VOID) 2>$(VOID) && echo 1 || echo 0),1)
-CFLAGS += -Wa,--noexecstack
+CFLAGS  += -Wa,--noexecstack
+# CFLAGS are also added to ASFLAGS
 else ifeq ($(shell echo | $(CC) $(FLAGS) -Qunused-arguments -Wa,--noexecstack -x assembler -Werror -c - -o $(VOID) 2>$(VOID) && echo 1 || echo 0),1)
 # See e.g.: https://github.com/android/ndk/issues/171
-CFLAGS += -Qunused-arguments -Wa,--noexecstack
+CFLAGS  += -Qunused-arguments -Wa,--noexecstack
+# CFLAGS are also added to ASFLAGS
 endif
 endif
 

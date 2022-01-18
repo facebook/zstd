@@ -1,0 +1,7 @@
+#!/bin/sh
+
+if [ -z "$EXEC_PREFIX" ]; then
+    "$ZSTD_BIN" $@
+else
+    $EXEC_PREFIX "$ZSTD_BIN" $@
+fi

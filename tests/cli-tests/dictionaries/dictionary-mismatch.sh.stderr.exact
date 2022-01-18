@@ -1,0 +1,8 @@
++ zstd files/0 -D dicts/0
++ zstd -t files/0.zst -D dicts/0
++ zstd -t files/0.zst -D dicts/1
+files/0.zst : Decoding error (36) : Dictionary mismatch 
++ :
++ zstd -t files/0.zst
+files/0.zst : Decoding error (36) : Dictionary mismatch 
++ :

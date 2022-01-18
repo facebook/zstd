@@ -1,0 +1,4 @@
+scratch/
+!bin/
+!datagen
+!zstdcat

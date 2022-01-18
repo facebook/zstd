@@ -1,0 +1,2 @@
+#!/bin/env sh
+printf '%b\n' "${*}"

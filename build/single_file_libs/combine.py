@@ -106,21 +106,21 @@ def text_match_pragma() -> bool:
                     return True
     return False
 
-# Finds 'file'. First the currently processing file's 'parent' path is looked at
-# for a match, followed by the list of 'root' paths, returning a valid Path in
+# Finds 'file'. First the list of 'root' paths are searched, followed by the
+# the currently processing file's 'parent' path, returning a valid Path in
 # canonical form. If no match is found None is returned.
 # 
 def resolve_include(file: str, parent: Optional[Path] = None) -> Optional[Path]:
+    for root in roots:
+        found = root.joinpath(file).resolve()
+        if (found.is_file()):
+            return found
     if (parent):
         found = parent.joinpath(file).resolve();
     else:
         found = Path(file)
     if (found.is_file()):
         return found
-    for root in roots:
-        found = root.joinpath(file).resolve()
-        if (found.is_file()):
-            return found
     return None
 
 # Helper to resolve lists of files. 'file_list' is passed in from the arguments
@@ -150,12 +150,17 @@ def error_line(line: Any) -> None:
 
 # Inline the contents of 'file' (with any of its includes also inlined, etc.).
 # 
+# Note: text encoding errors are ignored and replaced with ? when reading the
+# input files. This isn't ideal, but it's more than likely in the comments than
+# code and a) the text editor has probably also failed to read the same content,
+# and b) the compiler probably did too.
+# 
 def add_file(file: Path, file_name: str = None) -> None:
     if (file.is_file()):
         if (not file_name):
             file_name = file.name
         error_line(f'Processing: {file_name}')
-        with file.open('r') as opened:
+        with file.open('r', errors='replace') as opened:
             for line in opened:
                 line = line.rstrip('\n')
                 match_include = include_regex.match(line);

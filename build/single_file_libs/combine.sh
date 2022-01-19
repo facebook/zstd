@@ -200,6 +200,7 @@ if [ -n "$1" ]; then
       printf "" > "$DESTN"
     fi
     test_deps
+    log_line "Processing using the slower shell script; this might take a while"
     add_file "$1"
   else
     echo "Input file not found: \"$1\""

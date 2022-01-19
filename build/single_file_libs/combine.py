@@ -36,7 +36,7 @@ keeps: Set[Path] = set()
 keep_pragma: bool = False
 
 # Destination file object (or stdout if no output file was supplied).
-destn:TextIO = sys.stdout
+destn: TextIO = sys.stdout
 
 # Set of file Path objects previously inlined (and to ignore if reencountering).
 found: Set[Path] = set()

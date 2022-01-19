@@ -94,7 +94,7 @@ def test_match_include() -> bool:
 
 # Simple tests to prove pragma_regex's cases.
 # 
-def text_match_pragma() -> bool:
+def test_match_pragma() -> bool:
     if (pragma_regex.match('#pragma once')   and
         pragma_regex.match('  #pragma once') and
         pragma_regex.match('#  pragma once') and
@@ -230,5 +230,5 @@ try:
         destn = args.output
     add_file(args.input)
 finally:
-    if (not destn):
+    if (destn):
         destn.close()

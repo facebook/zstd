@@ -41,6 +41,18 @@ destn: TextIO = sys.stdout
 # Set of file Path objects previously inlined (and to ignore if reencountering).
 found: Set[Path] = set()
 
+# Compiled regex Patern to handle "#pragma once" in various formats:
+# 
+#   #pragma once
+#     #pragma once
+#   #  pragma once
+#   #pragma   once
+#   #pragma once // comment
+# 
+# Ignoring commented versions, same as include_regex.
+# 
+pragma_regex: Pattern = re.compile(r'^\s*#\s*pragma\s*once\s*')
+
 # Compiled regex Patern to handle the following type of file includes:
 # 
 #   #include "file"
@@ -79,18 +91,6 @@ def test_match_include() -> bool:
                         print('#include match valid')
                         return True
     return False
-
-# Compiled regex Patern to handle "#pragma once" in various formats:
-# 
-#   #pragma once
-#     #pragma once
-#   #  pragma once
-#   #pragma   once
-#   #pragma once // comment
-# 
-# Ignoring commented versions, same as include_regex.
-# 
-pragma_regex: Pattern = re.compile(r'^\s*#\s*pragma\s*once\s*')
 
 # Simple tests to prove pragma_regex's cases.
 # 

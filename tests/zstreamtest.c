@@ -772,16 +772,17 @@ static int basicUnitTests(U32 seed, double compressibility)
 
     /* Decompression with ZSTD_d_outBufferMode == ZSTD_bufmode_expose */
     {   ZSTD_DCtx* dctx = ZSTD_createDCtx();
-        CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_outBufferMode, ZSTD_bufmode_expose));
-
+        int mustfail = 0;
+        size_t total = 0;
+        size_t dec = 0;
         DISPLAYLEVEL(3, "test%3i : ZSTD_decompressStream() exposed window all input: ", testNb++);
+        CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_outBufferMode, ZSTD_bufmode_expose));
         inBuff.src = compressedBuffer;
         inBuff.pos = 0;
         inBuff.size = cSize;
         outBuff.dst = NULL; /* Set by decomp */
         outBuff.size = 0;   /* Set by decomp */
         outBuff.pos = 0;    /* Not used */
-        size_t total = 0;
         while (inBuff.pos < cSize) {
             CHECK_Z(ZSTD_decompressStream(dctx, &outBuff, &inBuff));
             CHECK(!outBuff.dst != !outBuff.size, "Should have both dst & size set or neither");
@@ -828,10 +829,9 @@ static int basicUnitTests(U32 seed, double compressibility)
         outBuff.dst = NULL; /* Set by decomp */
         outBuff.size = 0;   /* Set by decomp */
         outBuff.pos = 0;    /* Not used */
-        int mustfail = 0;
         while (inBuff.pos < cSize) {
             inBuff.size += MIN(cSize - inBuff.pos, 1 + (FUZ_rand(&coreSeed) & 15));
-            size_t dec = ZSTD_decompressStream(dctx, &outBuff, &inBuff);
+            dec = ZSTD_decompressStream(dctx, &outBuff, &inBuff);
             if (mustfail) {
                 CHECK(ZSTD_getErrorCode(dec) != ZSTD_error_dstBuffer_wrong, "should fail when output is not cleared");
                 break; /* failed as it should -> done here */

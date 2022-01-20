@@ -1877,10 +1877,18 @@ static int ZSTD_DCtx_isOversizedTooLong(ZSTD_DStream* zds)
 static size_t ZSTD_checkOutBuffer(ZSTD_DStream const* zds, ZSTD_outBuffer const* output)
 {
     ZSTD_outBuffer const expect = zds->expectedOutBuffer;
-    /* No requirement when ZSTD_bm_stable is not enabled. */
-    if (zds->outBufferMode != ZSTD_bm_stable)
+    /* No requirement when ZSTD_bm_buffered is enabled (default). */
+    if (zds->outBufferMode == ZSTD_bm_buffered)
         return 0;
-    /* Any buffer is allowed in zdss_init, this must be the same for every other call until
+    /* With ZSTD_bm_expose, output must be cleared because it will be set only on buffer flush.
+       Clearing output is not strictly necessary but adds extrra safety against user error. */
+    if (zds->outBufferMode == ZSTD_bm_expose) {
+        if(output->dst || output->size)
+            RETURN_ERROR(dstBuffer_wrong, "must acknowledge output by clearing dst and size");
+        return 0;
+    }
+    /* ZSTD_bm_stable:
+     * Any buffer is allowed in zdss_init, this must be the same for every other call until
      * the context is reset.
      */
     if (zds->streamStage == zdss_init)
@@ -2166,11 +2174,6 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                 zds->outStart += flushedSize;
                 if (flushedSize == toFlushSize) {  /* flush completed */
         case zdss_flushdone:
-                    if (zds->outBufferMode == ZSTD_bm_expose) /* Caller should have consumed & acknowledged the output */
-                    {
-                        assert(output->dst == NULL);
-                        assert(output->size == 0);
-                    }
                     zds->streamStage = zdss_read;
                     if ( (zds->outBuffSize < zds->fParams.frameContentSize)
                       && (zds->outStart + zds->fParams.blockSizeMax > zds->outBuffSize) ) {

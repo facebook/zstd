@@ -2160,6 +2160,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             }
         case zdss_flush:
             {   size_t const toFlushSize = zds->outEnd - zds->outStart;
+                size_t flushedSize;
                 if (zds->outBufferMode == ZSTD_bm_expose)
                 {
                     output->dst = op = zds->outBuff + zds->outStart;
@@ -2169,7 +2170,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                     someMoreWork = 0;
                     break;
                 }
-                size_t const flushedSize = ZSTD_limitCopy(op, (size_t)(oend-op), zds->outBuff + zds->outStart, toFlushSize);
+                flushedSize = ZSTD_limitCopy(op, (size_t)(oend-op), zds->outBuff + zds->outStart, toFlushSize);
                 op += flushedSize;
                 zds->outStart += flushedSize;
                 if (flushedSize != toFlushSize) {

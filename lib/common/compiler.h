@@ -11,6 +11,8 @@
 #ifndef ZSTD_COMPILER_H
 #define ZSTD_COMPILER_H
 
+#include "portability_macros.h"
+
 /*-*******************************************************
 *  Compiler specifics
 *********************************************************/
@@ -40,7 +42,7 @@
 
 /**
   On MSVC qsort requires that functions passed into it use the __cdecl calling conversion(CC).
-  This explictly marks such functions as __cdecl so that the code will still compile
+  This explicitly marks such functions as __cdecl so that the code will still compile
   if a CC other than __cdecl has been made the default.
 */
 #if  defined(_MSC_VER)
@@ -92,29 +94,17 @@
 
 
 /* target attribute */
-#ifndef __has_attribute
-  #define __has_attribute(x) 0  /* Compatibility with non-clang compilers. */
-#endif
 #if defined(__GNUC__) || defined(__ICCARM__)
 #  define TARGET_ATTRIBUTE(target) __attribute__((__target__(target)))
 #else
 #  define TARGET_ATTRIBUTE(target)
 #endif
 
-/* Enable runtime BMI2 dispatch based on the CPU.
- * Enabled for clang & gcc >=4.8 on x86 when BMI2 isn't enabled by default.
+/* Target attribute for BMI2 dynamic dispatch.
+ * Enable lzcnt, bmi, and bmi2.
+ * We test for bmi1 & bmi2. lzcnt is included in bmi1.
  */
-#ifndef DYNAMIC_BMI2
-  #if ((defined(__clang__) && __has_attribute(__target__)) \
-      || (defined(__GNUC__) \
-          && (__GNUC__ >= 5 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)))) \
-      && (defined(__x86_64__) || defined(_M_X64)) \
-      && !defined(__BMI2__)
-  #  define DYNAMIC_BMI2 1
-  #else
-  #  define DYNAMIC_BMI2 0
-  #endif
-#endif
+#define BMI2_TARGET_ATTRIBUTE TARGET_ATTRIBUTE("lzcnt,bmi,bmi2")
 
 /* prefetch
  * can be disabled, by declaring NO_PREFETCH build macro */
@@ -214,16 +204,6 @@
 #  endif
 #endif
 
-/* compat. with non-clang compilers */
-#ifndef __has_builtin
-#  define __has_builtin(x) 0
-#endif
-
-/* compat. with non-clang compilers */
-#ifndef __has_feature
-#  define __has_feature(x) 0
-#endif
-
 /* C-language Attributes are added in C23. */
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ > 201710L) && defined(__has_c_attribute)
 # define ZSTD_HAS_C_ATTRIBUTE(x) __has_c_attribute(x)
@@ -251,29 +231,47 @@
 # elif ZSTD_HAS_CPP_ATTRIBUTE(fallthrough)
 #  define ZSTD_FALLTHROUGH [[fallthrough]]
 # elif __has_attribute(__fallthrough__)
-#  define ZSTD_FALLTHROUGH __attribute__((__fallthrough__))
+/* Leading semicolon is to satisfy gcc-11 with -pedantic. Without the semicolon
+ * gcc complains about: a label can only be part of a statement and a declaration is not a statement.
+ */
+#  define ZSTD_FALLTHROUGH ; __attribute__((__fallthrough__))
 # else
 #  define ZSTD_FALLTHROUGH
 # endif
 #endif
 
-/* detects whether we are being compiled under msan */
-#ifndef ZSTD_MEMORY_SANITIZER
-#  if __has_feature(memory_sanitizer)
-#    define ZSTD_MEMORY_SANITIZER 1
-#  else
-#    define ZSTD_MEMORY_SANITIZER 0
-#  endif
-#endif
+/*-**************************************************************
+*  Alignment check
+*****************************************************************/
 
-/* detects whether we are being compiled undef dfsan */
-#ifndef ZSTD_DATAFLOW_SANITIZER
-# if __has_feature(dataflow_sanitizer)
-#  define ZSTD_DATAFLOW_SANITIZER 1
+/* this test was initially positioned in mem.h,
+ * but this file is removed (or replaced) for linux kernel
+ * so it's now hosted in compiler.h,
+ * which remains valid for both user & kernel spaces.
+ */
+
+#ifndef ZSTD_ALIGNOF
+# if defined(__GNUC__) || defined(_MSC_VER)
+/* covers gcc, clang & MSVC */
+/* note : this section must come first, before C11,
+ * due to a limitation in the kernel source generator */
+#  define ZSTD_ALIGNOF(T) __alignof(T)
+
+# elif defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
+/* C11 support */
+#  include <stdalign.h>
+#  define ZSTD_ALIGNOF(T) alignof(T)
+
 # else
-#  define ZSTD_DATAFLOW_SANITIZER 0
+/* No known support for alignof() - imperfect backup */
+#  define ZSTD_ALIGNOF(T) (sizeof(void*) < sizeof(T) ? sizeof(void*) : sizeof(T))
+
 # endif
-#endif
+#endif /* ZSTD_ALIGNOF */
+
+/*-**************************************************************
+*  Sanitizer
+*****************************************************************/
 
 #if ZSTD_MEMORY_SANITIZER
 /* Not all platforms that support msan provide sanitizers/msan_interface.h.
@@ -294,17 +292,6 @@ void __msan_poison(const volatile void *a, size_t size);
 /* Returns the offset of the first (at least partially) poisoned byte in the
    memory range, or -1 if the whole range is good. */
 intptr_t __msan_test_shadow(const volatile void *x, size_t size);
-#endif
-
-/* detects whether we are being compiled under asan */
-#ifndef ZSTD_ADDRESS_SANITIZER
-#  if __has_feature(address_sanitizer)
-#    define ZSTD_ADDRESS_SANITIZER 1
-#  elif defined(__SANITIZE_ADDRESS__)
-#    define ZSTD_ADDRESS_SANITIZER 1
-#  else
-#    define ZSTD_ADDRESS_SANITIZER 0
-#  endif
 #endif
 
 #if ZSTD_ADDRESS_SANITIZER

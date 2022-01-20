@@ -296,7 +296,7 @@ if __name__ == "__main__":
     parser.add_argument("--emails", help="email addresses of people who will be alerted upon regression. Only for continuous mode", default=None)
     parser.add_argument("--frequency", help="specifies the number of seconds to wait before each successive check for new PRs in continuous mode", default=DEFAULT_MAX_API_CALL_FREQUENCY_SEC)
     parser.add_argument("--mode", help="'fastmode', 'onetime', 'current', or 'continuous' (see README.md for details)", default="current")
-    parser.add_argument("--dict", help="filename of dictionary to use (when set, this dictioanry will be used to compress the files provided inside --directory)", default=None)
+    parser.add_argument("--dict", help="filename of dictionary to use (when set, this dictionary will be used to compress the files provided inside --directory)", default=None)
 
     args = parser.parse_args()
     filenames = args.directory

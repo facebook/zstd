@@ -35,6 +35,18 @@ jobs:
         APT_PACKAGES="gcc-multilib" make apt-install
         CFLAGS="-m32 -O1 -fstack-protector" make check V=1
 
+  check-x32:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: make check on x32 ABI # https://en.wikipedia.org/wiki/X32_ABI
+      env:
+        CHECK_CONSTRAINED_MEM: true
+      run: |
+        sudo apt update
+        APT_PACKAGES="gcc-multilib" make apt-install
+        CFLAGS="-mx32 -O1 -fstack-protector" make check V=1
+
   gcc-7-libzstd:
     runs-on: ubuntu-latest
     steps:
@@ -117,11 +129,11 @@ jobs:
         make -C zlibWrapper test
         make -C zlibWrapper valgrindTest
 
-  lz4-threadpool-partial-libs:
+  lz4-threadpool-libs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: LZ4, thread pool, and partial libs testslib wrapper test
+    - name: LZ4, thread pool, and libs build testslib wrapper test
       run: |
         make lz4install
         make -C tests test-lz4
@@ -129,7 +141,7 @@ jobs:
         make clean
         make -C tests test-pool
         make clean
-        bash tests/libzstd_partial_builds.sh
+        bash tests/libzstd_builds.sh
 
   gcc-make-tests-32bit:
     runs-on: ubuntu-latest
@@ -162,6 +174,28 @@ jobs:
           make clean
           CC=clang MOREFLAGS="-Werror -Wimplicit-fallthrough -O0" make -C lib -j libzstd.a ZSTD_LEGACY_SUPPORT=0
 
+  cmake-visual-2019:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        include:
+          - generator: "Visual Studio 16 2019"
+            flags: "-A x64"
+          - generator: "Visual Studio 16 2019"
+            flags: "-A Win32"
+          - generator: "MinGW Makefiles"
+    steps:
+    - uses: actions/checkout@v2
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v1.0.2
+    - name: Build
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      run: |
+        cd build\cmake
+        mkdir build
+        cd build
+        cmake.exe -G "${{matrix.generator}}" ${{matrix.flags}} ..
+        cmake.exe --build .
 
   visual-2019:
     runs-on: windows-latest
@@ -292,7 +326,6 @@ jobs:
         LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
     - name: M68K
       if: ${{ matrix.name == 'M68K' }}
-      continue-on-error: true   # disable reporting errors (alignment issues)
       run: |
         LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
 
@@ -332,10 +365,35 @@ jobs:
         make clean
         make check
 
+
+  visual-runtime-tests:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        platform: [x64, Win32]
+        configuration: [Release]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v1.0.2
+    - name: Build and run tests
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      env:
+        ZSTD_BIN: ./zstd.exe
+        DATAGEN_BIN: ./datagen.exe
+      # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
+      run: |
+        msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v142 /t:Clean,Build /p:Platform=${{matrix.platform}} /p:Configuration=${{matrix.configuration}}
+        COPY build\VS2010\bin\${{matrix.platform}}_${{matrix.configuration}}\*.exe tests\
+        CD tests
+        sh -e playTests.sh
+        DIR
+        .\fuzzer.exe -T2m
+
 # This test currently fails on Github Actions specifically.
 # Possible reason : TTY emulation.
 # Note that the same test works fine locally and on travisCI.
-# This will have to be fixed before transfering the test to GA.
+# This will have to be fixed before transferring the test to GA.
 #  versions-compatibility:
 #    runs-on: ubuntu-latest
 #    steps:

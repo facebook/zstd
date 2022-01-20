@@ -43,32 +43,8 @@
 #error "Cannot force the use of the X1 and X2 decoders at the same time!"
 #endif
 
-/* Only use assembly on Linux / MacOS.
- * Disable when MSAN is enabled.
- */
-#if defined(__linux__) || defined(__linux) || defined(__APPLE__)
-# if ZSTD_MEMORY_SANITIZER
-#  define HUF_ASM_SUPPORTED 0
-# elif ZSTD_DATAFLOW_SANITIZER
-#  define HUF_ASM_SUPPORTED 0
-# else
-#  define HUF_ASM_SUPPORTED 1
-# endif
-#else
-# define HUF_ASM_SUPPORTED 0
-#endif
-
-/* HUF_DISABLE_ASM: Disables all ASM implementations.  */
-#if !defined(HUF_DISABLE_ASM) &&                                  \
-    HUF_ASM_SUPPORTED &&                                          \
-    defined(__x86_64__) && (DYNAMIC_BMI2 || defined(__BMI2__))
-# define HUF_ENABLE_ASM_X86_64_BMI2 1
-#else
-# define HUF_ENABLE_ASM_X86_64_BMI2 0
-#endif
-
-#if HUF_ENABLE_ASM_X86_64_BMI2 && DYNAMIC_BMI2
-# define HUF_ASM_X86_64_BMI2_ATTRS TARGET_ATTRIBUTE("bmi2")
+#if ZSTD_ENABLE_ASM_X86_64_BMI2 && DYNAMIC_BMI2
+# define HUF_ASM_X86_64_BMI2_ATTRS BMI2_TARGET_ATTRIBUTE
 #else
 # define HUF_ASM_X86_64_BMI2_ATTRS
 #endif
@@ -80,13 +56,13 @@
 #endif
 #define HUF_ASM_DECL HUF_EXTERN_C
 
-#if DYNAMIC_BMI2 || (HUF_ENABLE_ASM_X86_64_BMI2 && defined(__BMI2__))
+#if DYNAMIC_BMI2 || (ZSTD_ENABLE_ASM_X86_64_BMI2 && defined(__BMI2__))
 # define HUF_NEED_BMI2_FUNCTION 1
 #else
 # define HUF_NEED_BMI2_FUNCTION 0
 #endif
 
-#if !(HUF_ENABLE_ASM_X86_64_BMI2 && defined(__BMI2__))
+#if !(ZSTD_ENABLE_ASM_X86_64_BMI2 && defined(__BMI2__))
 # define HUF_NEED_DEFAULT_FUNCTION 1
 #else
 # define HUF_NEED_DEFAULT_FUNCTION 0
@@ -120,7 +96,7 @@
         return fn##_body(dst, dstSize, cSrc, cSrcSize, DTable);             \
     }                                                                       \
                                                                             \
-    static TARGET_ATTRIBUTE("bmi2") size_t fn##_bmi2(                       \
+    static BMI2_TARGET_ATTRIBUTE size_t fn##_bmi2(                          \
                   void* dst,  size_t dstSize,                               \
             const void* cSrc, size_t cSrcSize,                              \
             const HUF_DTable* DTable)                                       \
@@ -162,7 +138,7 @@ static DTableDesc HUF_getDTableDesc(const HUF_DTable* table)
     return dtd;
 }
 
-#if HUF_ENABLE_ASM_X86_64_BMI2
+#if ZSTD_ENABLE_ASM_X86_64_BMI2
 
 static size_t HUF_initDStream(BYTE const* ip) {
     BYTE const lastByte = ip[7];
@@ -196,8 +172,9 @@ static size_t HUF_DecompressAsmArgs_init(HUF_DecompressAsmArgs* args, void* dst,
 
     BYTE* const oend = (BYTE*)dst + dstSize;
 
-    /* We're assuming x86-64 BMI2 - assure that this is the case. */
-    assert(MEM_isLittleEndian() && !MEM_32bits());
+    /* The following condition is false on x32 platform,
+     * but HUF_asm is not compatible with this ABI */
+    if (!(MEM_isLittleEndian() && !MEM_32bits())) return 1;
 
     /* strict minimum : jump table + 1 byte per stream */
     if (srcSize < 10)
@@ -429,7 +406,7 @@ size_t HUF_readDTableX1_wksp_bmi2(HUF_DTable* DTable, const void* src, size_t sr
 
     /* fill DTable
      * We fill all entries of each weight in order.
-     * That way length is a constant for each iteration of the outter loop.
+     * That way length is a constant for each iteration of the outer loop.
      * We can switch based on the length to a different inner loop which is
      * optimized for that particular case.
      */
@@ -670,7 +647,7 @@ HUF_decompress4X1_usingDTable_internal_body(
 }
 
 #if HUF_NEED_BMI2_FUNCTION
-static TARGET_ATTRIBUTE("bmi2")
+static BMI2_TARGET_ATTRIBUTE
 size_t HUF_decompress4X1_usingDTable_internal_bmi2(void* dst, size_t dstSize, void const* cSrc,
                     size_t cSrcSize, HUF_DTable const* DTable) {
     return HUF_decompress4X1_usingDTable_internal_body(dst, dstSize, cSrc, cSrcSize, DTable);
@@ -685,9 +662,9 @@ size_t HUF_decompress4X1_usingDTable_internal_default(void* dst, size_t dstSize,
 }
 #endif
 
-#if HUF_ENABLE_ASM_X86_64_BMI2
+#if ZSTD_ENABLE_ASM_X86_64_BMI2
 
-HUF_ASM_DECL void HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop(HUF_DecompressAsmArgs* args);
+HUF_ASM_DECL void HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop(HUF_DecompressAsmArgs* args) ZSTDLIB_HIDDEN;
 
 static HUF_ASM_X86_64_BMI2_ATTRS
 size_t
@@ -741,7 +718,7 @@ HUF_decompress4X1_usingDTable_internal_bmi2_asm(
     /* decoded size */
     return dstSize;
 }
-#endif /* HUF_ENABLE_ASM_X86_64_BMI2 */
+#endif /* ZSTD_ENABLE_ASM_X86_64_BMI2 */
 
 typedef size_t (*HUF_decompress_usingDTable_t)(void *dst, size_t dstSize,
                                                const void *cSrc,
@@ -755,7 +732,7 @@ static size_t HUF_decompress4X1_usingDTable_internal(void* dst, size_t dstSize, 
 {
 #if DYNAMIC_BMI2
     if (bmi2) {
-# if HUF_ENABLE_ASM_X86_64_BMI2
+# if ZSTD_ENABLE_ASM_X86_64_BMI2
         return HUF_decompress4X1_usingDTable_internal_bmi2_asm(dst, dstSize, cSrc, cSrcSize, DTable);
 # else
         return HUF_decompress4X1_usingDTable_internal_bmi2(dst, dstSize, cSrc, cSrcSize, DTable);
@@ -765,7 +742,7 @@ static size_t HUF_decompress4X1_usingDTable_internal(void* dst, size_t dstSize, 
     (void)bmi2;
 #endif
 
-#if HUF_ENABLE_ASM_X86_64_BMI2 && defined(__BMI2__)
+#if ZSTD_ENABLE_ASM_X86_64_BMI2 && defined(__BMI2__)
     return HUF_decompress4X1_usingDTable_internal_bmi2_asm(dst, dstSize, cSrc, cSrcSize, DTable);
 #else
     return HUF_decompress4X1_usingDTable_internal_default(dst, dstSize, cSrc, cSrcSize, DTable);
@@ -1386,7 +1363,7 @@ HUF_decompress4X2_usingDTable_internal_body(
 }
 
 #if HUF_NEED_BMI2_FUNCTION
-static TARGET_ATTRIBUTE("bmi2")
+static BMI2_TARGET_ATTRIBUTE
 size_t HUF_decompress4X2_usingDTable_internal_bmi2(void* dst, size_t dstSize, void const* cSrc,
                     size_t cSrcSize, HUF_DTable const* DTable) {
     return HUF_decompress4X2_usingDTable_internal_body(dst, dstSize, cSrc, cSrcSize, DTable);
@@ -1401,9 +1378,9 @@ size_t HUF_decompress4X2_usingDTable_internal_default(void* dst, size_t dstSize,
 }
 #endif
 
-#if HUF_ENABLE_ASM_X86_64_BMI2
+#if ZSTD_ENABLE_ASM_X86_64_BMI2
 
-HUF_ASM_DECL void HUF_decompress4X2_usingDTable_internal_bmi2_asm_loop(HUF_DecompressAsmArgs* args);
+HUF_ASM_DECL void HUF_decompress4X2_usingDTable_internal_bmi2_asm_loop(HUF_DecompressAsmArgs* args) ZSTDLIB_HIDDEN;
 
 static HUF_ASM_X86_64_BMI2_ATTRS size_t
 HUF_decompress4X2_usingDTable_internal_bmi2_asm(
@@ -1453,14 +1430,14 @@ HUF_decompress4X2_usingDTable_internal_bmi2_asm(
     /* decoded size */
     return dstSize;
 }
-#endif /* HUF_ENABLE_ASM_X86_64_BMI2 */
+#endif /* ZSTD_ENABLE_ASM_X86_64_BMI2 */
 
 static size_t HUF_decompress4X2_usingDTable_internal(void* dst, size_t dstSize, void const* cSrc,
                     size_t cSrcSize, HUF_DTable const* DTable, int bmi2)
 {
 #if DYNAMIC_BMI2
     if (bmi2) {
-# if HUF_ENABLE_ASM_X86_64_BMI2
+# if ZSTD_ENABLE_ASM_X86_64_BMI2
         return HUF_decompress4X2_usingDTable_internal_bmi2_asm(dst, dstSize, cSrc, cSrcSize, DTable);
 # else
         return HUF_decompress4X2_usingDTable_internal_bmi2(dst, dstSize, cSrc, cSrcSize, DTable);
@@ -1470,7 +1447,7 @@ static size_t HUF_decompress4X2_usingDTable_internal(void* dst, size_t dstSize, 
     (void)bmi2;
 #endif
 
-#if HUF_ENABLE_ASM_X86_64_BMI2 && defined(__BMI2__)
+#if ZSTD_ENABLE_ASM_X86_64_BMI2 && defined(__BMI2__)
     return HUF_decompress4X2_usingDTable_internal_bmi2_asm(dst, dstSize, cSrc, cSrcSize, DTable);
 #else
     return HUF_decompress4X2_usingDTable_internal_default(dst, dstSize, cSrc, cSrcSize, DTable);

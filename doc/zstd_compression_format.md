@@ -1124,7 +1124,7 @@ These symbols define a full state reset, reading `Accuracy_Log` bits.
 Then, all remaining symbols, sorted in natural order, are allocated cells.
 Starting from symbol `0` (if it exists), and table position `0`,
 each symbol gets allocated as many cells as its probability.
-Cell allocation is spreaded, not linear :
+Cell allocation is spread, not linear :
 each successor position follows this rule :
 
 ```

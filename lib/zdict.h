@@ -46,7 +46,7 @@ extern "C" {
  *
  * Zstd can use dictionaries to improve compression ratio of small data.
  * Traditionally small files don't compress well because there is very little
- * repetion in a single sample, since it is small. But, if you are compressing
+ * repetition in a single sample, since it is small. But, if you are compressing
  * many similar files, like a bunch of JSON records that share the same
  * structure, you can train a dictionary on ahead of time on some samples of
  * these files. Then, zstd can use the dictionary to find repetitions that are
@@ -132,7 +132,7 @@ extern "C" {
  *
  *   # Benchmark levels 1-3 without a dictionary
  *   zstd -b1e3 -r /path/to/my/files
- *   # Benchmark levels 1-3 with a dictioanry
+ *   # Benchmark levels 1-3 with a dictionary
  *   zstd -b1e3 -r /path/to/my/files -D /path/to/my/dictionary
  *
  * When should I retrain a dictionary?
@@ -237,7 +237,6 @@ typedef struct {
  * is presumed that the most profitable content is at the end of the dictionary,
  * since that is the cheapest to reference.
  *
- * `dictContentSize` must be >= ZDICT_CONTENTSIZE_MIN bytes.
  * `maxDictSize` must be >= max(dictContentSize, ZSTD_DICTSIZE_MIN).
  *
  * @return: size of dictionary stored into `dstDictBuffer` (<= `maxDictSize`),
@@ -272,8 +271,9 @@ ZDICTLIB_API const char* ZDICT_getErrorName(size_t errorCode);
  * Use them only in association with static linking.
  * ==================================================================================== */
 
-#define ZDICT_CONTENTSIZE_MIN 128
 #define ZDICT_DICTSIZE_MIN    256
+/* Deprecated: Remove in v1.6.0 */
+#define ZDICT_CONTENTSIZE_MIN 128
 
 /*! ZDICT_cover_params_t:
  *  k and d are the only required parameters.

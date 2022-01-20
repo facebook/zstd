@@ -29,6 +29,7 @@ VOID = /dev/null
 # fail on other tested distros (ubuntu, debian) even
 # without manually specifying the TARGET_SYSTEM.
 TARGET_SYSTEM ?= $(OS)
+CP ?= cp
 
 ifneq (,$(filter Windows%,$(TARGET_SYSTEM)))
   EXT =.exe
@@ -69,7 +70,7 @@ zstd zstd-release:
 .PHONY: zstdmt
 zstdmt:
 	$(Q)$(MAKE) -C $(PRGDIR) $@
-	$(Q)cp $(PRGDIR)/zstd$(EXT) ./zstdmt$(EXT)
+	$(Q)$(CP) $(PRGDIR)/zstd$(EXT) ./zstdmt$(EXT)
 
 .PHONY: zlibwrapper
 zlibwrapper: lib
@@ -151,6 +152,8 @@ clean:
 ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD DragonFly NetBSD MSYS_NT Haiku AIX))
 
 HOST_OS = POSIX
+
+MKDIR ?= mkdir -p
 
 HAVE_COLORNEVER = $(shell echo a | egrep --color=never a > /dev/null 2> /dev/null && echo 1 || echo 0)
 EGREP_OPTIONS ?=
@@ -284,6 +287,22 @@ uasanregressiontest:
 msanregressiontest:
 	$(MAKE) -C $(FUZZDIR) regressiontest CC=clang CXX=clang++ CFLAGS="-O3 -fsanitize=memory" CXXFLAGS="-O3 -fsanitize=memory"
 
+update_regressionResults : REGRESS_RESULTS_DIR := /tmp/regress_results_dir/
+update_regressionResults:
+	$(MAKE) -C programs zstd
+	$(MAKE) -C tests/regression test
+	$(RM) -rf $(REGRESS_RESULTS_DIR)
+	$(MKDIR) $(REGRESS_RESULTS_DIR)
+	./tests/regression/test                         \
+        --cache  tests/regression/cache             \
+        --output $(REGRESS_RESULTS_DIR)/results.csv \
+        --zstd   programs/zstd
+	echo "Showing results differences"
+	! diff tests/regression/results.csv $(REGRESS_RESULTS_DIR)/results.csv
+	echo "Updating results.csv"
+	$(CP) $(REGRESS_RESULTS_DIR)/results.csv tests/regression/results.csv
+
+
 # run UBsan with -fsanitize-recover=pointer-overflow
 # this only works with recent compilers such as gcc 8+
 usan: clean
@@ -372,7 +391,7 @@ ifneq (,$(filter $(HOST_OS),MSYS POSIX))
 cmakebuild:
 	cmake --version
 	$(RM) -r $(BUILDIR)/cmake/build
-	mkdir $(BUILDIR)/cmake/build
+	$(MKDIR) $(BUILDIR)/cmake/build
 	cd $(BUILDIR)/cmake/build; cmake -DCMAKE_INSTALL_PREFIX:PATH=~/install_test_dir $(CMAKE_PARAMS) ..
 	$(MAKE) -C $(BUILDIR)/cmake/build -j4;
 	$(MAKE) -C $(BUILDIR)/cmake/build install;

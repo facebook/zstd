@@ -2145,7 +2145,7 @@ static void FSE_init_dtable(FSE_dtable *const dtable,
 
     // "All remaining symbols are sorted in their natural order. Starting from
     // symbol 0 and table position 0, each symbol gets attributed as many cells
-    // as its probability. Cell allocation is spreaded, not linear."
+    // as its probability. Cell allocation is spread, not linear."
     // Place the rest in the table
     const u16 step = (size >> 1) + (size >> 3) + 3;
     const u16 mask = size - 1;

@@ -60,7 +60,7 @@ size_t ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
  */
 void ZSTD_buildFSETable(ZSTD_seqSymbol* dt,
              const short* normalizedCounter, unsigned maxSymbolValue,
-             const U32* baseValue, const U32* nbAdditionalBits,
+             const U32* baseValue, const U8* nbAdditionalBits,
                    unsigned tableLog, void* wksp, size_t wkspSize,
                    int bmi2);
 

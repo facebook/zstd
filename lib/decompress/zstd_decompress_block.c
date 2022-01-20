@@ -419,7 +419,7 @@ static const ZSTD_seqSymbol ML_defaultDTable[(1<<ML_DEFAULTNORMLOG)+1] = {
 };   /* ML_defaultDTable */
 
 
-static void ZSTD_buildSeqTable_rle(ZSTD_seqSymbol* dt, U32 baseValue, U32 nbAddBits)
+static void ZSTD_buildSeqTable_rle(ZSTD_seqSymbol* dt, U32 baseValue, U8 nbAddBits)
 {
     void* ptr = dt;
     ZSTD_seqSymbol_header* const DTableH = (ZSTD_seqSymbol_header*)ptr;
@@ -431,7 +431,7 @@ static void ZSTD_buildSeqTable_rle(ZSTD_seqSymbol* dt, U32 baseValue, U32 nbAddB
     cell->nbBits = 0;
     cell->nextState = 0;
     assert(nbAddBits < 255);
-    cell->nbAdditionalBits = (BYTE)nbAddBits;
+    cell->nbAdditionalBits = nbAddBits;
     cell->baseValue = baseValue;
 }
 
@@ -443,7 +443,7 @@ static void ZSTD_buildSeqTable_rle(ZSTD_seqSymbol* dt, U32 baseValue, U32 nbAddB
 FORCE_INLINE_TEMPLATE
 void ZSTD_buildFSETable_body(ZSTD_seqSymbol* dt,
             const short* normalizedCounter, unsigned maxSymbolValue,
-            const U32* baseValue, const U32* nbAdditionalBits,
+            const U32* baseValue, const U8* nbAdditionalBits,
             unsigned tableLog, void* wksp, size_t wkspSize)
 {
     ZSTD_seqSymbol* const tableDecode = dt+1;
@@ -554,7 +554,7 @@ void ZSTD_buildFSETable_body(ZSTD_seqSymbol* dt,
             tableDecode[u].nbBits = (BYTE) (tableLog - BIT_highbit32(nextState) );
             tableDecode[u].nextState = (U16) ( (nextState << tableDecode[u].nbBits) - tableSize);
             assert(nbAdditionalBits[symbol] < 255);
-            tableDecode[u].nbAdditionalBits = (BYTE)nbAdditionalBits[symbol];
+            tableDecode[u].nbAdditionalBits = nbAdditionalBits[symbol];
             tableDecode[u].baseValue = baseValue[symbol];
         }
     }
@@ -563,7 +563,7 @@ void ZSTD_buildFSETable_body(ZSTD_seqSymbol* dt,
 /* Avoids the FORCE_INLINE of the _body() function. */
 static void ZSTD_buildFSETable_body_default(ZSTD_seqSymbol* dt,
             const short* normalizedCounter, unsigned maxSymbolValue,
-            const U32* baseValue, const U32* nbAdditionalBits,
+            const U32* baseValue, const U8* nbAdditionalBits,
             unsigned tableLog, void* wksp, size_t wkspSize)
 {
     ZSTD_buildFSETable_body(dt, normalizedCounter, maxSymbolValue,
@@ -571,9 +571,9 @@ static void ZSTD_buildFSETable_body_default(ZSTD_seqSymbol* dt,
 }
 
 #if DYNAMIC_BMI2
-TARGET_ATTRIBUTE("bmi2") static void ZSTD_buildFSETable_body_bmi2(ZSTD_seqSymbol* dt,
+BMI2_TARGET_ATTRIBUTE static void ZSTD_buildFSETable_body_bmi2(ZSTD_seqSymbol* dt,
             const short* normalizedCounter, unsigned maxSymbolValue,
-            const U32* baseValue, const U32* nbAdditionalBits,
+            const U32* baseValue, const U8* nbAdditionalBits,
             unsigned tableLog, void* wksp, size_t wkspSize)
 {
     ZSTD_buildFSETable_body(dt, normalizedCounter, maxSymbolValue,
@@ -583,7 +583,7 @@ TARGET_ATTRIBUTE("bmi2") static void ZSTD_buildFSETable_body_bmi2(ZSTD_seqSymbol
 
 void ZSTD_buildFSETable(ZSTD_seqSymbol* dt,
             const short* normalizedCounter, unsigned maxSymbolValue,
-            const U32* baseValue, const U32* nbAdditionalBits,
+            const U32* baseValue, const U8* nbAdditionalBits,
             unsigned tableLog, void* wksp, size_t wkspSize, int bmi2)
 {
 #if DYNAMIC_BMI2
@@ -605,7 +605,7 @@ void ZSTD_buildFSETable(ZSTD_seqSymbol* dt,
 static size_t ZSTD_buildSeqTable(ZSTD_seqSymbol* DTableSpace, const ZSTD_seqSymbol** DTablePtr,
                                  symbolEncodingType_e type, unsigned max, U32 maxLog,
                                  const void* src, size_t srcSize,
-                                 const U32* baseValue, const U32* nbAdditionalBits,
+                                 const U32* baseValue, const U8* nbAdditionalBits,
                                  const ZSTD_seqSymbol* defaultTable, U32 flagRepeatTable,
                                  int ddictIsCold, int nbSeq, U32* wksp, size_t wkspSize,
                                  int bmi2)
@@ -617,7 +617,7 @@ static size_t ZSTD_buildSeqTable(ZSTD_seqSymbol* DTableSpace, const ZSTD_seqSymb
         RETURN_ERROR_IF((*(const BYTE*)src) > max, corruption_detected, "");
         {   U32 const symbol = *(const BYTE*)src;
             U32 const baseline = baseValue[symbol];
-            U32 const nbBits = nbAdditionalBits[symbol];
+            U8 const nbBits = nbAdditionalBits[symbol];
             ZSTD_buildSeqTable_rle(DTableSpace, baseline, nbBits);
         }
         *DTablePtr = DTableSpace;
@@ -1846,7 +1846,7 @@ ZSTD_decompressSequencesLong_default(ZSTD_DCtx* dctx,
 #if DYNAMIC_BMI2
 
 #ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG
-static TARGET_ATTRIBUTE("bmi2") size_t
+static BMI2_TARGET_ATTRIBUTE size_t
 DONT_VECTORIZE
 ZSTD_decompressSequences_bmi2(ZSTD_DCtx* dctx,
                                  void* dst, size_t maxDstSize,
@@ -1856,7 +1856,7 @@ ZSTD_decompressSequences_bmi2(ZSTD_DCtx* dctx,
 {
     return ZSTD_decompressSequences_body(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset, frame);
 }
-static TARGET_ATTRIBUTE("bmi2") size_t
+static BMI2_TARGET_ATTRIBUTE size_t
 DONT_VECTORIZE
 ZSTD_decompressSequencesSplitLitBuffer_bmi2(ZSTD_DCtx* dctx,
                                  void* dst, size_t maxDstSize,
@@ -1869,7 +1869,7 @@ ZSTD_decompressSequencesSplitLitBuffer_bmi2(ZSTD_DCtx* dctx,
 #endif /* ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG */
 
 #ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT
-static TARGET_ATTRIBUTE("bmi2") size_t
+static BMI2_TARGET_ATTRIBUTE size_t
 ZSTD_decompressSequencesLong_bmi2(ZSTD_DCtx* dctx,
                                  void* dst, size_t maxDstSize,
                            const void* seqStart, size_t seqSize, int nbSeq,

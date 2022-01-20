@@ -31,7 +31,6 @@
 
 #include "timefn.h"         /* UTIL_time_t, UTIL_clockSpanMicro, UTIL_getTime */
 #include "../lib/common/mem.h"  /* read */
-#include "../lib/common/error_private.h"
 #include "dibio.h"
 
 
@@ -270,7 +269,7 @@ static fileStats DiB_fileStats(const char** fileNamesTable, int nbFiles, size_t 
     int n;
     memset(&fs, 0, sizeof(fs));
 
-    // We assume that if chunking is requsted, the chunk size is < SAMPLESIZE_MAX
+    // We assume that if chunking is requested, the chunk size is < SAMPLESIZE_MAX
     assert( chunkSize <= SAMPLESIZE_MAX );
 
     for (n=0; n<nbFiles; n++) {
@@ -309,7 +308,7 @@ static fileStats DiB_fileStats(const char** fileNamesTable, int nbFiles, size_t 
 int DiB_trainFromFiles(const char* dictFileName, size_t maxDictSize,
                        const char** fileNamesTable, int nbFiles, size_t chunkSize,
                        ZDICT_legacy_params_t* params, ZDICT_cover_params_t* coverParams,
-                       ZDICT_fastCover_params_t* fastCoverParams, int optimize)
+                       ZDICT_fastCover_params_t* fastCoverParams, int optimize, unsigned memLimit)
 {
     fileStats fs;
     size_t* sampleSizes; /* vector of sample sizes. Each sample can be up to SAMPLESIZE_MAX */
@@ -339,8 +338,13 @@ int DiB_trainFromFiles(const char* dictFileName, size_t maxDictSize,
         size_t const maxMem =  DiB_findMaxMem(fs.totalSizeToLoad * memMult) / memMult;
         /* Limit the size of the training data to the free memory */
         /* Limit the size of the training data to 2GB */
-        /* TODO: there is oportunity to stop DiB_fileStats() early when the data limit is reached */
+        /* TODO: there is opportunity to stop DiB_fileStats() early when the data limit is reached */
         loadedSize = (size_t)MIN( MIN((S64)maxMem, fs.totalSizeToLoad), MAX_SAMPLES_SIZE );
+        if (memLimit != 0) {
+            DISPLAYLEVEL(2, "!  Warning : setting manual memory limit for dictionary training data at %u MB \n",
+                (unsigned)(memLimit / (1 MB)));
+            loadedSize = (size_t)MIN(loadedSize, memLimit);
+        }
         srcBuffer = malloc(loadedSize+NOISELENGTH);
         sampleSizes = (size_t*)malloc(fs.nbSamples * sizeof(size_t));
     }

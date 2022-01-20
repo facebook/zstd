@@ -108,6 +108,7 @@ void FIO_setExcludeCompressedFile(FIO_prefs_t* const prefs, int excludeCompresse
 void FIO_setAllowBlockDevices(FIO_prefs_t* const prefs, int allowBlockDevices);
 void FIO_setPatchFromMode(FIO_prefs_t* const prefs, int value);
 void FIO_setContentSize(FIO_prefs_t* const prefs, int value);
+void FIO_displayCompressionParameters(const FIO_prefs_t* prefs);
 
 /* FIO_ctx_t functions */
 void FIO_setNbFilesTotal(FIO_ctx_t* const fCtx, int value);

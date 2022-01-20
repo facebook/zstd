@@ -15,12 +15,13 @@ jobs:
           name: Test
           command: |
             ./tests/test-license.py
-            cc -v; CFLAGS="-O0 -Werror -pedantic" make all && make clean
-            make c99build         && make clean
-            make c11build         && make clean
-            make -j regressiontest&& make clean
-            make shortest         && make clean
-            make cxxtest          && make clean
+            cc -v
+            CFLAGS="-O0 -Werror -pedantic" make allmost; make clean
+            make c99build; make clean
+            make c11build; make clean
+            make -j regressiontest; make clean
+            make shortest; make clean
+            make cxxtest; make clean
   # the second half of the jobs are in this test
   short-tests-1:
     docker:

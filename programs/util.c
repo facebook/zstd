@@ -992,7 +992,7 @@ makeUniqueMirroredDestDirs(char** srcDirNames, unsigned nbFile, const char* outD
         char* prevDirName = srcDirNames[i - 1];
         char* currDirName = srcDirNames[i];
 
-        /* note: we alwasy compare trimmed path, i.e.:
+        /* note: we always compare trimmed path, i.e.:
          * src dir of "./foo" and "/foo" will be both saved into:
          * "outDirName/foo/" */
         if (!firstIsParentOrSameDirOfSecond(trimPath(prevDirName),
@@ -1000,7 +1000,7 @@ makeUniqueMirroredDestDirs(char** srcDirNames, unsigned nbFile, const char* outD
             uniqueDirNr++;
 
         /* we need maintain original src dir name instead of trimmed
-         * dir, so we can retrive the original src dir's mode_t */
+         * dir, so we can retrieve the original src dir's mode_t */
         uniqueDirNames[uniqueDirNr - 1] = currDirName;
     }
 
@@ -1359,10 +1359,10 @@ int UTIL_countCores(int logical)
  * see: man 3 sysconf */
 int UTIL_countCores(int logical)
 {
-    /* suppress unused parameter warning */
-    (void) logical;
-
     static int numCores = 0;
+
+    /* suppress unused parameter warning */
+    (void)logical;
 
     if (numCores != 0) return numCores;
 

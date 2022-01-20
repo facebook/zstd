@@ -97,7 +97,7 @@ static size_t HUF_compressWeights(void* dst, size_t dstSize, const void* weightT
 
     unsigned maxSymbolValue = HUF_TABLELOG_MAX;
     U32 tableLog = MAX_FSE_TABLELOG_FOR_HUFF_HEADER;
-    HUF_CompressWeightsWksp* wksp = (HUF_CompressWeightsWksp*)HUF_alignUpWorkspace(workspace, &workspaceSize, sizeof(U32));
+    HUF_CompressWeightsWksp* wksp = (HUF_CompressWeightsWksp*)HUF_alignUpWorkspace(workspace, &workspaceSize, ZSTD_ALIGNOF(U32));
 
     if (workspaceSize < sizeof(HUF_CompressWeightsWksp)) return ERROR(GENERIC);
 
@@ -176,7 +176,7 @@ size_t HUF_writeCTable_wksp(void* dst, size_t maxDstSize,
     HUF_CElt const* const ct = CTable + 1;
     BYTE* op = (BYTE*)dst;
     U32 n;
-    HUF_WriteCTableWksp* wksp = (HUF_WriteCTableWksp*)HUF_alignUpWorkspace(workspace, &workspaceSize, sizeof(U32));
+    HUF_WriteCTableWksp* wksp = (HUF_WriteCTableWksp*)HUF_alignUpWorkspace(workspace, &workspaceSize, ZSTD_ALIGNOF(U32));
 
     /* check conditions */
     if (workspaceSize < sizeof(HUF_WriteCTableWksp)) return ERROR(GENERIC);
@@ -679,7 +679,7 @@ static void HUF_buildCTableFromTree(HUF_CElt* CTable, nodeElt const* huffNode, i
 
 size_t HUF_buildCTable_wksp (HUF_CElt* CTable, const unsigned* count, U32 maxSymbolValue, U32 maxNbBits, void* workSpace, size_t wkspSize)
 {
-    HUF_buildCTable_wksp_tables* const wksp_tables = (HUF_buildCTable_wksp_tables*)HUF_alignUpWorkspace(workSpace, &wkspSize, sizeof(U32));
+    HUF_buildCTable_wksp_tables* const wksp_tables = (HUF_buildCTable_wksp_tables*)HUF_alignUpWorkspace(workSpace, &wkspSize, ZSTD_ALIGNOF(U32));
     nodeElt* const huffNode0 = wksp_tables->huffNodeTbl;
     nodeElt* const huffNode = huffNode0+1;
     int nonNullRank;
@@ -760,7 +760,7 @@ typedef struct {
 } HUF_CStream_t;
 
 /**! HUF_initCStream():
- * Initializes the bistream.
+ * Initializes the bitstream.
  * @returns 0 or an error code.
  */
 static size_t HUF_initCStream(HUF_CStream_t* bitC,
@@ -779,7 +779,7 @@ static size_t HUF_initCStream(HUF_CStream_t* bitC,
  *
  * @param elt   The element we're adding. This is a (nbBits, value) pair.
  *              See the HUF_CStream_t docs for the format.
- * @param idx   Insert into the bistream at this idx.
+ * @param idx   Insert into the bitstream at this idx.
  * @param kFast This is a template parameter. If the bitstream is guaranteed
  *              to have at least 4 unused bits after this call it may be 1,
  *              otherwise it must be 0. HUF_addBits() is faster when fast is set.
@@ -1029,7 +1029,7 @@ HUF_compress1X_usingCTable_internal_body(void* dst, size_t dstSize,
 
 #if DYNAMIC_BMI2
 
-static TARGET_ATTRIBUTE("bmi2") size_t
+static BMI2_TARGET_ATTRIBUTE size_t
 HUF_compress1X_usingCTable_internal_bmi2(void* dst, size_t dstSize,
                                    const void* src, size_t srcSize,
                                    const HUF_CElt* CTable)
@@ -1183,7 +1183,7 @@ HUF_compress_internal (void* dst, size_t dstSize,
                        HUF_CElt* oldHufTable, HUF_repeat* repeat, int preferRepeat,
                  const int bmi2, unsigned suspectUncompressible)
 {
-    HUF_compress_tables_t* const table = (HUF_compress_tables_t*)HUF_alignUpWorkspace(workSpace, &wkspSize, sizeof(size_t));
+    HUF_compress_tables_t* const table = (HUF_compress_tables_t*)HUF_alignUpWorkspace(workSpace, &wkspSize, ZSTD_ALIGNOF(size_t));
     BYTE* const ostart = (BYTE*)dst;
     BYTE* const oend = ostart + dstSize;
     BYTE* op = ostart;

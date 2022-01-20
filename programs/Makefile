@@ -41,7 +41,7 @@ ZSTDLIB_LOCAL_SRC = $(notdir $(ZSTDLIB_FULL_SRC))
 ZSTDLIB_LOCAL_OBJ0 := $(ZSTDLIB_LOCAL_SRC:.c=.o)
 ZSTDLIB_LOCAL_OBJ := $(ZSTDLIB_LOCAL_OBJ0:.S=.o)
 
-ZSTD_CLI_SRC := $(wildcard *.c)
+ZSTD_CLI_SRC := $(sort $(wildcard *.c))
 ZSTD_CLI_OBJ := $(ZSTD_CLI_SRC:.c=.o)
 
 ZSTD_ALL_SRC = $(ZSTDLIB_LOCAL_SRC) $(ZSTD_CLI_SRC)
@@ -61,8 +61,6 @@ endif
 else
   EXT =
 endif
-
-VOID = /dev/null
 
 # thread detection
 NO_THREAD_MSG := ==> no threads, building without multithreading support
@@ -164,8 +162,8 @@ $(BUILD_DIR)/zstd : $(ZSTD_OBJ)
 	$(CC) $(FLAGS) $^ $(LDLIBS) -o $@$(EXT)
 
 ifeq ($(HAVE_HASH),1)
-SRCBIN_HASH = $(shell cat $(BUILD_DIR)/zstd 2> $(VOID) | $(HASH) | cut -f 1 -d " ")
-DSTBIN_HASH = $(shell cat zstd 2> $(VOID) | $(HASH) | cut -f 1 -d " ")
+SRCBIN_HASH = $(shell cat $(BUILD_DIR)/zstd$(EXT) 2> $(VOID) | $(HASH) | cut -f 1 -d " ")
+DSTBIN_HASH = $(shell cat zstd$(EXT) 2> $(VOID) | $(HASH) | cut -f 1 -d " ")
 BIN_ISDIFFERENT = $(if $(filter $(SRCBIN_HASH),$(DSTBIN_HASH)),0,1)
 else
 BIN_ISDIFFERENT = 1
@@ -173,7 +171,7 @@ endif
 
 zstd : $(BUILD_DIR)/zstd
 	if [ $(BIN_ISDIFFERENT) -eq 1 ]; then \
-		cp -f $< $@; \
+		cp -f $<$(EXT) $@$(EXT); \
 		echo zstd build completed; \
 	else \
 		echo zstd already built; \
@@ -322,7 +320,7 @@ $(BUILD_DIR)/%.o : %.c $(BUILD_DIR)/%.d | $(BUILD_DIR)
 
 $(BUILD_DIR)/%.o : %.S | $(BUILD_DIR)
 	@echo AS $@
-	$(COMPILE.c) $(OUTPUT_OPTION) $<
+	$(COMPILE.S) $(OUTPUT_OPTION) $<
 
 MKDIR ?= mkdir
 $(BUILD_DIR): ; $(MKDIR) -p $@

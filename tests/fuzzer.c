@@ -1970,7 +1970,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
                                                  3742, 3675, 3674, 3665, 3664,
                                                  3663, 3662, 3661, 3660, 3660,
                                                  3660, 3660, 3660 };
-            size_t const target_wdict_cSize[22+1] =  { 2830, 2896, 2890, 2820, 2940,
+            size_t const target_wdict_cSize[22+1] =  { 2830, 2896, 2893, 2820, 2940,
                                                        2950, 2950, 2925, 2900, 2891,
                                                        2910, 2910, 2910, 2780, 2775,
                                                        2765, 2760, 2755, 2754, 2753,
@@ -1984,7 +1984,9 @@ static int basicUnitTests(U32 const seed, double compressibility)
             DISPLAYLEVEL(3, "test%3i : flat-dictionary efficiency test : \n", testNb++);
             assert(maxLevel == 22);
             RDG_genBuffer(CNBuffer, flatdictSize + contentSize, compressibility, 0., seed);
-            DISPLAYLEVEL(4, "content hash : %016llx;  dict hash : %016llx \n", XXH64(contentStart, contentSize, 0), XXH64(dict, flatdictSize, 0));
+            DISPLAYLEVEL(4, "content hash : %016llx;  dict hash : %016llx \n",
+                        (unsigned long long)XXH64(contentStart, contentSize, 0),
+                        (unsigned long long)XXH64(dict, flatdictSize, 0));
 
             for ( ; l <= maxLevel; l++) {
                 size_t const nodict_cSize = ZSTD_compress(compressedBuffer, compressedBufferSize,
@@ -2538,7 +2540,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
             ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters);
             CHECK_Z( ZSTD_DCtx_loadDictionary(dctx, dictBuffer, dictSize) );
             CHECK_Z( ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize) );
-            /* The dictionary should presist across calls. */
+            /* The dictionary should persist across calls. */
             CHECK_Z( ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize) );
             /* When we reset the context the dictionary is cleared. */
             ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters);
@@ -2557,7 +2559,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
             ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters);
             CHECK_Z( ZSTD_DCtx_refDDict(dctx, ddict) );
             CHECK_Z( ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize) );
-            /* The ddict should presist across calls. */
+            /* The ddict should persist across calls. */
             CHECK_Z( ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize) );
             /* When we reset the context the ddict is cleared. */
             ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters);
@@ -3366,7 +3368,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         unsigned const maxSymbolValue = 10;
         BYTE* outBuf = (BYTE*)malloc(outBufSize*sizeof(BYTE));
 
-        /* Ensure that this write doesn't write out of bounds, and that 
+        /* Ensure that this write doesn't write out of bounds, and that
          * FSE_writeNCount_generic() is *not* called with writeIsSafe == 1.
          */
         FSE_writeNCount(outBuf, outBufSize, count, maxSymbolValue, tableLog);

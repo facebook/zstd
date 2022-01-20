@@ -732,29 +732,43 @@ static size_t FIO_createDictBuffer(void** bufferPtr, const char* fileName, FIO_p
 {
     FILE* fileHandle;
     U64 fileSize;
+    stat_t statbuf;
 
     assert(bufferPtr != NULL);
     *bufferPtr = NULL;
     if (fileName == NULL) return 0;
 
     DISPLAYLEVEL(4,"Loading %s as dictionary \n", fileName);
-    fileHandle = fopen(fileName, "rb");
-    if (fileHandle==NULL) EXM_THROW(31, "%s: %s", fileName, strerror(errno));
 
-    fileSize = UTIL_getFileSize(fileName);
+    if (!UTIL_stat(fileName, &statbuf)) {
+        EXM_THROW(31, "Stat failed on dictionary file %s: %s", fileName, strerror(errno));
+    }
+
+    if (!UTIL_isRegularFileStat(&statbuf)) {
+        EXM_THROW(32, "Dictionary %s must be a regular file.", fileName);
+    }
+
+    fileHandle = fopen(fileName, "rb");
+
+    if (fileHandle == NULL) {
+        EXM_THROW(33, "Couldn't open dictionary %s: %s", fileName, strerror(errno));
+    }
+
+    fileSize = UTIL_getFileSizeStat(&statbuf);
     {
         size_t const dictSizeMax = prefs->patchFromMode ? prefs->memLimit : DICTSIZE_MAX;
         if (fileSize >  dictSizeMax) {
-            EXM_THROW(32, "Dictionary file %s is too large (> %u bytes)",
+            EXM_THROW(34, "Dictionary file %s is too large (> %u bytes)",
                             fileName,  (unsigned)dictSizeMax);   /* avoid extreme cases */
         }
     }
     *bufferPtr = malloc((size_t)fileSize);
     if (*bufferPtr==NULL) EXM_THROW(34, "%s", strerror(errno));
     {   size_t const readSize = fread(*bufferPtr, 1, (size_t)fileSize, fileHandle);
-        if (readSize != fileSize)
+        if (readSize != fileSize) {
             EXM_THROW(35, "Error reading dictionary file %s : %s",
                     fileName, strerror(errno));
+        }
     }
     fclose(fileHandle);
     return (size_t)fileSize;
@@ -889,26 +903,25 @@ static int FIO_removeMultiFilesWarning(FIO_ctx_t* const fCtx, const FIO_prefs_t*
     if (fCtx->nbFilesTotal > 1 && !prefs->overwrite) {
         if (g_display_prefs.displayLevel <= displayLevelCutoff) {
             if (prefs->removeSrcFile) {
-                DISPLAYLEVEL(1, "zstd: Aborting... not deleting files and processing into dst: %s", outFileName);
+                DISPLAYLEVEL(1, "zstd: Aborting... not deleting files and processing into dst: %s\n", outFileName);
                 error =  1;
             }
         } else {
             if (!strcmp(outFileName, stdoutmark)) {
-                DISPLAYLEVEL(2, "zstd: WARNING: all input files will be processed and concatenated into stdout. ");
+                DISPLAYLEVEL(2, "zstd: WARNING: all input files will be processed and concatenated into stdout. \n");
             } else {
-                DISPLAYLEVEL(2, "zstd: WARNING: all input files will be processed and concatenated into a single output file: %s ", outFileName);
+                DISPLAYLEVEL(2, "zstd: WARNING: all input files will be processed and concatenated into a single output file: %s \n", outFileName);
             }
-            DISPLAYLEVEL(2, "\nThe concatenated output CANNOT regenerate the original directory tree. ")
+            DISPLAYLEVEL(2, "The concatenated output CANNOT regenerate the original directory tree. \n")
             if (prefs->removeSrcFile) {
                 if (fCtx->hasStdoutOutput) {
-                    DISPLAYLEVEL(1, "\nAborting. Use -f if you really want to delete the files and output to stdout");
+                    DISPLAYLEVEL(1, "Aborting. Use -f if you really want to delete the files and output to stdout\n");
                     error = 1;
                 } else {
                     error = g_display_prefs.displayLevel > displayLevelCutoff && UTIL_requireUserConfirmation("This is a destructive operation. Proceed? (y/n): ", "Aborting...", "yY", fCtx->hasStdinInput);
                 }
             }
         }
-        DISPLAY("\n");
     }
     return error;
 }
@@ -1666,6 +1679,7 @@ static int FIO_compressFilename_dstFile(FIO_ctx_t* const fCtx,
     if (ress.dstFile == NULL) {
         int dstFilePermissions = DEFAULT_FILE_PERMISSIONS;
         if ( strcmp (srcFileName, stdinmark)
+          && strcmp (dstFileName, stdoutmark)
           && UTIL_stat(srcFileName, &statbuf)
           && UTIL_isRegularFileStat(&statbuf) ) {
             dstFilePermissions = statbuf.st_mode;
@@ -1781,6 +1795,50 @@ FIO_compressFilename_srcFile(FIO_ctx_t* const fCtx,
     }
     return result;
 }
+
+static const char* checked_index(const char* options[], size_t length, size_t index) {
+    assert(index < length);
+    // Necessary to avoid warnings since -O3 will omit the above `assert`
+    (void) length;
+    return options[index];
+}
+
+#define INDEX(options, index) checked_index((options), sizeof(options)  / sizeof(char*), (index))
+
+void FIO_displayCompressionParameters(const FIO_prefs_t* prefs) {
+    static const char* formatOptions[5] = {ZSTD_EXTENSION, GZ_EXTENSION, XZ_EXTENSION,
+                                           LZMA_EXTENSION, LZ4_EXTENSION};
+    static const char* sparseOptions[3] = {" --no-sparse", "", " --sparse"};
+    static const char* checkSumOptions[3] = {" --no-check", "", " --check"};
+    static const char* rowMatchFinderOptions[3] = {"", " --no-row-match-finder", " --row-match-finder"};
+    static const char* compressLiteralsOptions[3] = {"", " --compress-literals", " --no-compress-literals"};
+
+    assert(g_display_prefs.displayLevel >= 4);
+
+    DISPLAY("--format=%s", formatOptions[prefs->compressionType]);
+    DISPLAY("%s", INDEX(sparseOptions, prefs->sparseFileSupport));
+    DISPLAY("%s", prefs->dictIDFlag ? "" : " --no-dictID");
+    DISPLAY("%s", INDEX(checkSumOptions, prefs->checksumFlag));
+    DISPLAY(" --block-size=%d", prefs->blockSize);
+    if (prefs->adaptiveMode)
+        DISPLAY(" --adapt=min=%d,max=%d", prefs->minAdaptLevel, prefs->maxAdaptLevel);
+    DISPLAY("%s", INDEX(rowMatchFinderOptions, prefs->useRowMatchFinder));
+    DISPLAY("%s", prefs->rsyncable ? " --rsyncable" : "");
+    if (prefs->streamSrcSize)
+        DISPLAY(" --stream-size=%u", (unsigned) prefs->streamSrcSize);
+    if (prefs->srcSizeHint)
+        DISPLAY(" --size-hint=%d", prefs->srcSizeHint);
+    if (prefs->targetCBlockSize)
+        DISPLAY(" --target-compressed-block-size=%u", (unsigned) prefs->targetCBlockSize);
+    DISPLAY("%s", INDEX(compressLiteralsOptions, prefs->literalCompressionMode));
+    DISPLAY(" --memory=%u", prefs->memLimit ? prefs->memLimit : 128 MB);
+    DISPLAY(" --threads=%d", prefs->nbWorkers);
+    DISPLAY("%s", prefs->excludeCompressedFiles ? " --exclude-compressed" : "");
+    DISPLAY(" --%scontent-size", prefs->contentSize ? "" : "no-");
+    DISPLAY("\n");
+}
+
+#undef INDEX
 
 int FIO_compressFilename(FIO_ctx_t* const fCtx, FIO_prefs_t* const prefs, const char* dstFileName,
                          const char* srcFileName, const char* dictFileName,
@@ -2188,7 +2246,7 @@ FIO_decompressZstdFrame(FIO_ctx_t* const fCtx, dRess_t* ress, FILE* finput,
         ZSTD_inBuffer  inBuff = { ress->srcBuffer, ress->srcBufferLoaded, 0 };
         ZSTD_outBuffer outBuff= { ress->dstBuffer, ress->dstBufferSize, 0 };
         size_t const readSizeHint = ZSTD_decompressStream(ress->dctx, &outBuff, &inBuff);
-        const int displayLevel = (!fCtx->hasStdoutOutput || g_display_prefs.progressSetting == FIO_ps_always) ? 1 : 2;
+        const int displayLevel = (g_display_prefs.progressSetting == FIO_ps_always) ? 1 : 2;
         UTIL_HumanReadableSize_t const hrs = UTIL_makeHumanReadableSize(alreadyDecoded+frameSize);
         if (ZSTD_isError(readSizeHint)) {
             DISPLAYLEVEL(1, "%s : Decoding error (36) : %s \n",
@@ -2577,6 +2635,7 @@ static int FIO_decompressDstFile(FIO_ctx_t* const fCtx,
     if ((ress.dstFile == NULL) && (prefs->testMode==0)) {
         int dstFilePermissions = DEFAULT_FILE_PERMISSIONS;
         if ( strcmp(srcFileName, stdinmark)   /* special case : don't transfer permissions from stdin */
+          && strcmp(dstFileName, stdoutmark)
           && UTIL_stat(srcFileName, &statbuf)
           && UTIL_isRegularFileStat(&statbuf) ) {
             dstFilePermissions = statbuf.st_mode;

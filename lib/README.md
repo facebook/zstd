@@ -125,7 +125,7 @@ The file structure is designed to make this selection manually achievable for an
   `ZSTD_getErrorName` (implied by `ZSTD_LIB_MINIFY`).
 
   Finally, when integrating into your application, make sure you're doing link-
-  time optimation and unused symbol garbage collection (via some combination of,
+  time optimization and unused symbol garbage collection (via some combination of,
   e.g., `-flto`, `-ffat-lto-objects`, `-fuse-linker-plugin`,
   `-ffunction-sections`, `-fdata-sections`, `-fmerge-all-constants`,
   `-Wl,--gc-sections`, `-Wl,-z,norelro`, and an archiver that understands

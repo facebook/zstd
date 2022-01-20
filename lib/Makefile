@@ -57,9 +57,9 @@ VERSION := $(ZSTD_VERSION)
 .PHONY: default
 default: lib-release
 
-CPPFLAGS_DYNLIB  = -DZSTD_MULTITHREAD # dynamic library build defaults to multi-threaded
-LDFLAGS_DYNLIB   = -pthread
-CPPFLAGS_STATLIB =                    # static library build defaults to single-threaded
+CPPFLAGS_DYNLIB  += -DZSTD_MULTITHREAD # dynamic library build defaults to multi-threaded
+LDFLAGS_DYNLIB   += -pthread
+CPPFLAGS_STATLIB +=                    # static library build defaults to single-threaded
 
 
 ifeq ($(findstring GCC,$(CCVER)),GCC)
@@ -212,11 +212,11 @@ $(ZSTD_STATLIB_DIR)/%.o : %.c $(ZSTD_STATLIB_DIR)/%.d | $(ZSTD_STATLIB_DIR)
 
 $(ZSTD_DYNLIB_DIR)/%.o : %.S | $(ZSTD_DYNLIB_DIR)
 	@echo AS $@
-	$(COMPILE.c) $(OUTPUT_OPTION) $<
+	$(COMPILE.S) $(OUTPUT_OPTION) $<
 
 $(ZSTD_STATLIB_DIR)/%.o : %.S | $(ZSTD_STATLIB_DIR)
 	@echo AS $@
-	$(COMPILE.c) $(OUTPUT_OPTION) $<
+	$(COMPILE.S) $(OUTPUT_OPTION) $<
 
 MKDIR ?= mkdir
 $(BUILD_DIR) $(ZSTD_DYNLIB_DIR) $(ZSTD_STATLIB_DIR):
@@ -251,7 +251,7 @@ clean:
 #-----------------------------------------------------------------------------
 ifneq (,$(filter $(UNAME),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku AIX))
 
-all: libzstd.pc
+lib: libzstd.pc
 
 HAS_EXPLICIT_EXEC_PREFIX := $(if $(or $(EXEC_PREFIX),$(exec_prefix)),1,)
 
@@ -296,16 +296,16 @@ INSTALL_PROGRAM ?= $(INSTALL)
 INSTALL_DATA    ?= $(INSTALL) -m 644
 
 
-libzstd.pc:
 libzstd.pc: libzstd.pc.in
 	@echo creating pkgconfig
 	@sed $(SED_ERE_OPT) \
 	        -e 's|@PREFIX@|$(PREFIX)|' \
 	        -e 's|@EXEC_PREFIX@|$(PCEXEC_PREFIX)|' \
-          -e 's|@INCLUDEDIR@|$(PCINCPREFIX)$(PCINCDIR)|' \
-          -e 's|@LIBDIR@|$(PCLIBPREFIX)$(PCLIBDIR)|' \
-          -e 's|@VERSION@|$(VERSION)|' \
-          $< >$@
+	        -e 's|@INCLUDEDIR@|$(PCINCPREFIX)$(PCINCDIR)|' \
+	        -e 's|@LIBDIR@|$(PCLIBPREFIX)$(PCLIBDIR)|' \
+	        -e 's|@VERSION@|$(VERSION)|' \
+	        -e 's|@LIBS_PRIVATE@|$(LDFLAGS_DYNLIB)|' \
+	        $< >$@
 
 .PHONY: install
 install: install-pc install-static install-shared install-includes

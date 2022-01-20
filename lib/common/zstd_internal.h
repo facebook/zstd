@@ -20,6 +20,7 @@
 *  Dependencies
 ***************************************/
 #include "compiler.h"
+#include "cpu.h"
 #include "mem.h"
 #include "debug.h"                 /* assert, DEBUGLOG, RAWLOG, g_debuglevel */
 #include "error_private.h"
@@ -66,7 +67,6 @@ extern "C" {
 #define ZSTD_OPT_NUM    (1<<12)
 
 #define ZSTD_REP_NUM      3                 /* number of repcodes */
-#define ZSTD_REP_MOVE     (ZSTD_REP_NUM-1)
 static UNUSED_ATTR const U32 repStartValue[ZSTD_REP_NUM] = { 1, 4, 8 };
 
 #define KB *(1 <<10)
@@ -118,7 +118,7 @@ typedef enum { set_basic, set_rle, set_compressed, set_repeat } symbolEncodingTy
 /* Each table cannot take more than #symbols * FSELog bits */
 #define ZSTD_MAX_FSE_HEADERS_SIZE (((MaxML + 1) * MLFSELog + (MaxLL + 1) * LLFSELog + (MaxOff + 1) * OffFSELog + 7) / 8)
 
-static UNUSED_ATTR const U32 LL_bits[MaxLL+1] = {
+static UNUSED_ATTR const U8 LL_bits[MaxLL+1] = {
      0, 0, 0, 0, 0, 0, 0, 0,
      0, 0, 0, 0, 0, 0, 0, 0,
      1, 1, 1, 1, 2, 2, 3, 3,
@@ -135,7 +135,7 @@ static UNUSED_ATTR const S16 LL_defaultNorm[MaxLL+1] = {
 #define LL_DEFAULTNORMLOG 6  /* for static allocation */
 static UNUSED_ATTR const U32 LL_defaultNormLog = LL_DEFAULTNORMLOG;
 
-static UNUSED_ATTR const U32 ML_bits[MaxML+1] = {
+static UNUSED_ATTR const U8 ML_bits[MaxML+1] = {
      0, 0, 0, 0, 0, 0, 0, 0,
      0, 0, 0, 0, 0, 0, 0, 0,
      0, 0, 0, 0, 0, 0, 0, 0,
@@ -176,13 +176,24 @@ static void ZSTD_copy8(void* dst, const void* src) {
     ZSTD_memcpy(dst, src, 8);
 #endif
 }
-
 #define COPY8(d,s) { ZSTD_copy8(d,s); d+=8; s+=8; }
+
+/* Need to use memmove here since the literal buffer can now be located within
+   the dst buffer. In circumstances where the op "catches up" to where the
+   literal buffer is, there can be partial overlaps in this call on the final
+   copy if the literal is being shifted by less than 16 bytes. */
 static void ZSTD_copy16(void* dst, const void* src) {
 #if defined(ZSTD_ARCH_ARM_NEON)
     vst1q_u8((uint8_t*)dst, vld1q_u8((const uint8_t*)src));
-#else
+#elif defined(ZSTD_ARCH_X86_SSE2)
+    _mm_storeu_si128((__m128i*)dst, _mm_loadu_si128((const __m128i*)src));
+#elif defined(__clang__)
     ZSTD_memmove(dst, src, 16);
+#else
+    /* ZSTD_memmove is not inlined properly by gcc */
+    BYTE copy16_buf[16];
+    ZSTD_memcpy(copy16_buf, src, 16);
+    ZSTD_memcpy(dst, copy16_buf, 16);
 #endif
 }
 #define COPY16(d,s) { ZSTD_copy16(d,s); d+=16; s+=16; }
@@ -273,9 +284,9 @@ typedef enum {
 *  Private declarations
 *********************************************/
 typedef struct seqDef_s {
-    U32 offset;         /* offset == rawOffset + ZSTD_REP_NUM, or equivalently, offCode + 1 */
+    U32 offBase;   /* offBase == Offset + ZSTD_REP_NUM, or repcode 1,2,3 */
     U16 litLength;
-    U16 matchLength;
+    U16 mlBase;    /* mlBase == matchLength - MINMATCH */
 } seqDef;
 
 /* Controls whether seqStore has a single "long" litLength or matchLength. See seqStore_t. */
@@ -317,7 +328,7 @@ MEM_STATIC ZSTD_sequenceLength ZSTD_getSequenceLength(seqStore_t const* seqStore
 {
     ZSTD_sequenceLength seqLen;
     seqLen.litLength = seq->litLength;
-    seqLen.matchLength = seq->matchLength + MINMATCH;
+    seqLen.matchLength = seq->mlBase + MINMATCH;
     if (seqStore->longLengthPos == (U32)(seq - seqStore->sequencesStart)) {
         if (seqStore->longLengthType == ZSTD_llt_literalLength) {
             seqLen.litLength += 0xFFFF;
@@ -466,6 +477,14 @@ size_t ZSTD_getcBlockSize(const void* src, size_t srcSize,
 size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
                        const void* src, size_t srcSize);
 
+/**
+ * @returns true iff the CPU supports dynamic BMI2 dispatch.
+ */
+MEM_STATIC int ZSTD_cpuSupportsBmi2(void)
+{
+    ZSTD_cpuid_t cpuid = ZSTD_cpuid();
+    return ZSTD_cpuid_bmi1(cpuid) && ZSTD_cpuid_bmi2(cpuid);
+}
 
 #if defined (__cplusplus)
 }

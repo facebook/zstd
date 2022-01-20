@@ -130,7 +130,7 @@ add_file() {
         local res_inc="$(resolve_include "$srcdir" "$inc")"
         if list_has_item "$XINCS" "$inc"; then
           # The file was excluded so error if the source attempts to use it
-          write_line "#error Using excluded file: $inc"
+          write_line "#error Using excluded file: $inc (re-amalgamate source to fix)"
           log_line "Excluding: $inc"
         else
           if ! list_has_item "$FOUND" "$res_inc"; then

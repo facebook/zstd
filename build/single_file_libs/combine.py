@@ -171,7 +171,7 @@ def add_file(file: Path, file_name: str = None) -> None:
                     if (resolved):
                         if (resolved in excludes):
                             # The file was excluded so error if the compiler uses it
-                            write_line(f'#error Using excluded file: {inc_name}')
+                            write_line(f'#error Using excluded file: {inc_name} (re-amalgamate source to fix)')
                             error_line(f'Excluding: {inc_name}')
                         else:
                             if (resolved not in found):

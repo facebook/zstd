@@ -390,6 +390,27 @@ jobs:
         DIR
         .\fuzzer.exe -T2m
 
+  intel-cet-compatibility:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build Zstd
+      run: |
+        make -j zstd V=1
+        readelf -n zstd
+    - name: Get Intel SDE
+      run: |
+        curl -LO https://downloadmirror.intel.com/684899/sde-external-9.0.0-2021-11-07-lin.tar.xz
+        tar xJvf sde-external-9.0.0-2021-11-07-lin.tar.xz
+    - name: Configure Permissions
+      run: |
+        echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
+    - name: Run Under SDE
+      run: |
+        sde-external-9.0.0-2021-11-07-lin/sde -cet -cet-raise 0 -cet-endbr-exe -cet-stderr -cet-abort -- ./zstd -b3
+
+
+
 # This test currently fails on Github Actions specifically.
 # Possible reason : TTY emulation.
 # Note that the same test works fine locally and on travisCI.

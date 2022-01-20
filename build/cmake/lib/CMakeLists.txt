@@ -22,7 +22,12 @@ include_directories(${LIBRARY_DIR} ${LIBRARY_DIR}/common)
 
 file(GLOB CommonSources ${LIBRARY_DIR}/common/*.c)
 file(GLOB CompressSources ${LIBRARY_DIR}/compress/*.c)
-file(GLOB DecompressSources ${LIBRARY_DIR}/decompress/*.c ${LIBRARY_DIR}/decompress/*.S)
+if (MSVC)
+    file(GLOB DecompressSources ${LIBRARY_DIR}/decompress/*.c)
+    add_compile_options(-DZSTD_DISABLE_ASM)
+else ()
+    file(GLOB DecompressSources ${LIBRARY_DIR}/decompress/*.c ${LIBRARY_DIR}/decompress/*.S)
+endif ()
 file(GLOB DictBuilderSources ${LIBRARY_DIR}/dictBuilder/*.c)
 
 set(Sources
@@ -106,7 +111,7 @@ if (MSVC)
 endif ()
 
 # With MSVC static library needs to be renamed to avoid conflict with import library
-if (MSVC OR (WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
+if (MSVC OR (WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND NOT MINGW))
     set(STATIC_LIBRARY_BASE_NAME zstd_static)
 else ()
     set(STATIC_LIBRARY_BASE_NAME zstd)

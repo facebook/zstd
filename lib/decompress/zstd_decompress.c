@@ -2172,21 +2172,23 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                 size_t const flushedSize = ZSTD_limitCopy(op, (size_t)(oend-op), zds->outBuff + zds->outStart, toFlushSize);
                 op += flushedSize;
                 zds->outStart += flushedSize;
-                if (flushedSize == toFlushSize) {  /* flush completed */
-        case zdss_flushdone:
-                    zds->streamStage = zdss_read;
-                    if ( (zds->outBuffSize < zds->fParams.frameContentSize)
-                      && (zds->outStart + zds->fParams.blockSizeMax > zds->outBuffSize) ) {
-                        DEBUGLOG(5, "restart filling outBuff from beginning (left:%i, needed:%u)",
-                                (int)(zds->outBuffSize - zds->outStart),
-                                (U32)zds->fParams.blockSizeMax);
-                        zds->outStart = zds->outEnd = 0;
-                    }
+                if (flushedSize != toFlushSize) {
+                    /* cannot complete flush */
+                    someMoreWork = 0;
                     break;
-            }   }
-            /* cannot complete flush */
-            someMoreWork = 0;
-            break;
+                }
+            }
+            ZSTD_FALLTHROUGH;
+        case zdss_flushdone: /* flush completed */
+                zds->streamStage = zdss_read;
+                if ( (zds->outBuffSize < zds->fParams.frameContentSize)
+                    && (zds->outStart + zds->fParams.blockSizeMax > zds->outBuffSize) ) {
+                    DEBUGLOG(5, "restart filling outBuff from beginning (left:%i, needed:%u)",
+                            (int)(zds->outBuffSize - zds->outStart),
+                            (U32)zds->fParams.blockSizeMax);
+                    zds->outStart = zds->outEnd = 0;
+                }
+                break;
 
         default:
             assert(0);    /* impossible */

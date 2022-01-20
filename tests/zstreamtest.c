@@ -819,6 +819,30 @@ static int basicUnitTests(U32 seed, double compressibility)
         CHECK(total != CNBufferSize, "Wrong size!");
         DISPLAYLEVEL(3, "OK \n");
 
+        DISPLAYLEVEL(3, "test%3i : ZSTD_decompressStream() exposed window output error check : ", testNb++);
+        ZSTD_DCtx_reset(dctx, ZSTD_reset_session_only);
+        CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_outBufferMode, ZSTD_bufmode_expose));
+        inBuff.src = compressedBuffer;
+        inBuff.pos = 0;
+        inBuff.size = 0;
+        outBuff.dst = NULL; /* Set by decomp */
+        outBuff.size = 0;   /* Set by decomp */
+        outBuff.pos = 0;    /* Not used */
+        int mustfail = 0;
+        while (inBuff.pos < cSize) {
+            inBuff.size += MIN(cSize - inBuff.pos, 1 + (FUZ_rand(&coreSeed) & 15));
+            size_t dec = ZSTD_decompressStream(dctx, &outBuff, &inBuff);
+            if (mustfail) {
+                CHECK(ZSTD_getErrorCode(dec) != ZSTD_error_dstBuffer_wrong, "should fail when output is not cleared");
+                break; /* failed as it should -> done here */
+            }
+            else
+                CHECK_Z(dec);
+            CHECK(!outBuff.dst != !outBuff.size, "Should have both dst & size set or neither");
+            if (outBuff.size)
+                mustfail = 1;
+        }
+
         ZSTD_freeDCtx(dctx);
     }
 

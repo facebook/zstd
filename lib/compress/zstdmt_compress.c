@@ -266,11 +266,11 @@ static void ZSTDMT_releaseBuffer(ZSTDMT_bufferPool* bufPool, buffer_t buf)
  *   1 buffer for input loading
  *   1 buffer for "next input" when submitting current one
  *   1 buffer stuck in queue */
-#define BUF_POOL_MAX_NB_BUFFERS(nbWorkers) 2*nbWorkers + 3
+#define BUF_POOL_MAX_NB_BUFFERS(nbWorkers) (2*(nbWorkers) + 3)
 
 /* After a worker releases its rawSeqStore, it is immediately ready for reuse.
  * So we only need one seq buffer per worker. */
-#define SEQ_POOL_MAX_NB_BUFFERS(nbWorkers) nbWorkers
+#define SEQ_POOL_MAX_NB_BUFFERS(nbWorkers) (nbWorkers)
 
 /* =====   Seq Pool Wrapper   ====== */
 

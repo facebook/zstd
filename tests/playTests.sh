@@ -89,6 +89,7 @@ PRGDIR="$SCRIPT_DIR/../programs"
 TESTDIR="$SCRIPT_DIR/../tests"
 UNAME=$(uname)
 ZSTDGREP="$PRGDIR/zstdgrep"
+ZSTDLESS="$PRGDIR/zstdless"
 
 detectedTerminal=false
 if [ -t 0 ] && [ -t 1 ]
@@ -321,6 +322,15 @@ test 2 -eq $lines
 ZCAT=./zstdcat "$ZSTDGREP" 2>&1 "1234" tmp_grep_bad.zst && die "Should have failed"
 ZCAT=./zstdcat "$ZSTDGREP" 2>&1 "1234" tmp_grep_bad.zst | grep "No such file or directory" || true
 rm -f tmp_grep*
+
+println "\n===> zstdless tests"
+rm -f tmp_less
+echo "1234" > tmp_less
+zstd -f tmp_less
+lines=$("$ZSTDLESS" 2>&1 tmp_less.zst | wc -l)
+test 1 -eq $lines
+"$ZSTDLESS" 2>&1 tmp_less_bad.zst | grep "No such file or directory" || true
+rm -f tmp_less*
 
 println "\n===>  --exclude-compressed flag"
 rm -rf precompressedFilterTestDir

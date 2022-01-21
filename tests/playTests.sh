@@ -324,12 +324,16 @@ ZCAT=./zstdcat "$ZSTDGREP" 2>&1 "1234" tmp_grep_bad.zst | grep "No such file or 
 rm -f tmp_grep*
 
 println "\n===> zstdless tests"
-rm -f tmp_less
+ln -sf "$ZSTD_BIN" zstd
+rm -f tmp_less*
 echo "1234" > tmp_less
 zstd -f tmp_less
-lines=$("$ZSTDLESS" 2>&1 tmp_less.zst | wc -l)
+lines=$(ZSTD=./zstd "$ZSTDLESS" 2>&1 tmp_less.zst | wc -l)
 test 1 -eq $lines
-"$ZSTDLESS" 2>&1 tmp_less_bad.zst | grep "No such file or directory" || true
+ZSTD=./zstd "$ZSTDLESS" -f tmp_less.zst > tmp_less_regenerated
+cat tmp_less_regenerated
+$DIFF tmp_less tmp_less_regenerated
+ZSTD=./zstd "$ZSTDLESS" 2>&1 tmp_less_bad.zst | grep "No such file or directory" || true
 rm -f tmp_less*
 
 println "\n===>  --exclude-compressed flag"

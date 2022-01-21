@@ -96,9 +96,7 @@ static void* POOL_thread(void* opaque) {
             /* If the intended queue size was 0, signal after finishing job */
             ZSTD_pthread_mutex_lock(&ctx->queueMutex);
             ctx->numThreadsBusy--;
-            if (ctx->queueSize == 1) {
-                ZSTD_pthread_cond_signal(&ctx->queuePushCond);
-            }
+            ZSTD_pthread_cond_signal(&ctx->queuePushCond);
             ZSTD_pthread_mutex_unlock(&ctx->queueMutex);
         }
     }  /* for (;;) */
@@ -188,6 +186,17 @@ void POOL_free(POOL_ctx *ctx) {
     ZSTD_customFree(ctx->queue, ctx->customMem);
     ZSTD_customFree(ctx->threads, ctx->customMem);
     ZSTD_customFree(ctx, ctx->customMem);
+}
+
+/*! POOL_joinJobs() :
+ *  Waits for all queued jobs to finish executing.
+ */
+void POOL_joinJobs(POOL_ctx* ctx) {
+    ZSTD_pthread_mutex_lock(&ctx->queueMutex);
+    while(!ctx->queueEmpty || ctx->numThreadsBusy > 0) {
+        ZSTD_pthread_cond_wait(&ctx->queuePushCond, &ctx->queueMutex);
+    }
+    ZSTD_pthread_mutex_unlock(&ctx->queueMutex);
 }
 
 void ZSTD_freeThreadPool (ZSTD_threadPool* pool) {
@@ -326,6 +335,11 @@ POOL_create_advanced(size_t numThreads, size_t queueSize, ZSTD_customMem customM
 }
 
 void POOL_free(POOL_ctx* ctx) {
+    assert(!ctx || ctx == &g_poolCtx);
+    (void)ctx;
+}
+
+void POOL_joinJobs(POOL_ctx* ctx){
     assert(!ctx || ctx == &g_poolCtx);
     (void)ctx;
 }

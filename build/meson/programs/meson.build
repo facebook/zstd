@@ -20,14 +20,24 @@ zstd_programs_sources = [join_paths(zstd_rootdir, 'programs/zstdcli.c'),
   join_paths(zstd_rootdir, 'programs/dibio.c'),
   join_paths(zstd_rootdir, 'programs/zstdcli_trace.c'),
   # needed due to use of private symbol + -fvisibility=hidden
-  join_paths(zstd_rootdir, 'lib/common/xxhash.c')]
-
-zstd_c_args = libzstd_debug_cflags
-if use_multi_thread
-  zstd_c_args += [ '-DZSTD_MULTITHREAD' ]
-endif
+  join_paths(zstd_rootdir, 'lib/common/xxhash.c'),
+  join_paths(zstd_rootdir, 'lib/common/pool.c'),
+  join_paths(zstd_rootdir, 'lib/common/zstd_common.c'),
+  join_paths(zstd_rootdir, 'lib/common/error_private.c')]
 
 zstd_deps = [ libzstd_dep ]
+zstd_c_args = libzstd_debug_cflags
+
+zstd_frugal_deps = [ libzstd_dep ]
+zstd_frugal_c_args = [ '-DZSTD_NOBENCH', '-DZSTD_NODICT', '-DZSTD_NOTRACE' ]
+
+if use_multi_thread
+  zstd_deps += [ thread_dep ]
+  zstd_c_args += [ '-DZSTD_MULTITHREAD' ]
+  zstd_frugal_deps += [ thread_dep ]
+  zstd_frugal_c_args += [ '-DZSTD_MULTITHREAD' ]
+endif
+
 if use_zlib
   zstd_deps += [ zlib_dep ]
   zstd_c_args += [ '-DZSTD_GZCOMPRESS', '-DZSTD_GZDECOMPRESS' ]
@@ -69,14 +79,17 @@ zstd = executable('zstd',
 zstd_frugal_sources = [join_paths(zstd_rootdir, 'programs/zstdcli.c'),
   join_paths(zstd_rootdir, 'programs/timefn.c'),
   join_paths(zstd_rootdir, 'programs/util.c'),
-  join_paths(zstd_rootdir, 'programs/fileio.c')]
+  join_paths(zstd_rootdir, 'programs/fileio.c'),
+  join_paths(zstd_rootdir, 'lib/common/pool.c'),
+  join_paths(zstd_rootdir, 'lib/common/zstd_common.c'),
+  join_paths(zstd_rootdir, 'lib/common/error_private.c')]
 
 # Minimal target, with only zstd compression and decompression.
 # No bench. No legacy.
 executable('zstd-frugal',
   zstd_frugal_sources,
-  dependencies: libzstd_dep,
-  c_args: [ '-DZSTD_NOBENCH', '-DZSTD_NODICT', '-DZSTD_NOTRACE' ],
+  dependencies: zstd_frugal_deps,
+  c_args: zstd_frugal_c_args,
   install: true)
 
 install_data(join_paths(zstd_rootdir, 'programs/zstdgrep'),

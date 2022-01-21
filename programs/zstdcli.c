@@ -239,9 +239,12 @@ static void usage_advanced(const char* programName)
 #ifndef ZSTD_NODECOMPRESS
     DISPLAYOUT( "\n");
     DISPLAYOUT( "Advanced decompression arguments : \n");
-    DISPLAYOUT( " -l     : print information about zstd compressed files \n");
-    DISPLAYOUT( "--test  : test compressed file integrity \n");
-    DISPLAYOUT( " -M#    : Set a memory usage limit for decompression \n");
+    DISPLAYOUT( " -l        : print information about zstd compressed files \n");
+    DISPLAYOUT( "--test     : test compressed file integrity \n");
+    DISPLAYOUT( " -M#       : Set a memory usage limit for decompression \n");
+#ifdef ZSTD_MULTITHREAD
+    DISPLAYOUT( "--[no-]asyncio  : use threaded asynchronous IO for output (default: disabled) \n");
+#endif
 # if ZSTD_SPARSE_DEFAULT
     DISPLAYOUT( "--[no-]sparse : sparse mode (default: enabled on file, disabled on stdout) \n");
 # else
@@ -912,6 +915,8 @@ int main(int argCount, const char* argv[])
                 if (!strcmp(argument, "--sparse")) { FIO_setSparseWrite(prefs, 2); continue; }
                 if (!strcmp(argument, "--no-sparse")) { FIO_setSparseWrite(prefs, 0); continue; }
                 if (!strcmp(argument, "--test")) { operation=zom_test; continue; }
+                if (!strcmp(argument, "--asyncio")) { FIO_setAsyncIOFlag(prefs, 1); continue;}
+                if (!strcmp(argument, "--no-asyncio")) { FIO_setAsyncIOFlag(prefs, 0); continue;}
                 if (!strcmp(argument, "--train")) { operation=zom_train; if (outFileName==NULL) outFileName=g_defaultDictName; continue; }
                 if (!strcmp(argument, "--no-dictID")) { FIO_setDictIDFlag(prefs, 0); continue; }
                 if (!strcmp(argument, "--keep")) { FIO_setRemoveSrcFile(prefs, 0); continue; }

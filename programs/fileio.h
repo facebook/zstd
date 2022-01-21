@@ -13,6 +13,7 @@
 #define FILEIO_H_23981798732
 
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_compressionParameters */
+#include "fileio_types.h"
 #include "../lib/zstd.h"           /* ZSTD_* */
 
 #if defined (__cplusplus)
@@ -53,10 +54,6 @@ extern "C" {
 /*-*************************************
 *  Types
 ***************************************/
-typedef enum { FIO_zstdCompression, FIO_gzipCompression, FIO_xzCompression, FIO_lzmaCompression, FIO_lz4Compression } FIO_compressionType_t;
-
-typedef struct FIO_prefs_s FIO_prefs_t;
-
 FIO_prefs_t* FIO_createPreferences(void);
 void FIO_freePreferences(FIO_prefs_t* const prefs);
 
@@ -66,9 +63,6 @@ typedef struct FIO_ctx_s FIO_ctx_t;
 FIO_ctx_t* FIO_createContext(void);
 void FIO_freeContext(FIO_ctx_t* const fCtx);
 
-typedef struct FIO_display_prefs_s FIO_display_prefs_t;
-
-typedef enum { FIO_ps_auto, FIO_ps_never, FIO_ps_always } FIO_progressSetting_e;
 
 /*-*************************************
 *  Parameters

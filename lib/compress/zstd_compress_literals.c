@@ -72,7 +72,7 @@ static size_t showHexa(const void* src, size_t srcSize)
     const BYTE* const ip = (const BYTE*)src;
     size_t u;
     for (u=0; u<srcSize; u++) {
-        RAWLOG(6, " %02X", ip[u]);
+        RAWLOG(6, " %02X", ip[u]); (void)ip;
     }
     RAWLOG(6, " \n");
     return srcSize;

@@ -598,21 +598,21 @@ static void HUF_sort(nodeElt huffNode[], const unsigned count[], U32 const maxSy
 }
 
 
-size_t showHNodeSymbols(const nodeElt* hnode, size_t size)
+static size_t showHNodeSymbols(const nodeElt* hnode, size_t size)
 {
     size_t u;
     for (u=0; u<size; u++) {
-        RAWLOG(6, " %u", hnode[u].byte);
+        RAWLOG(6, " %u", hnode[u].byte); (void)hnode;
     }
     RAWLOG(6, " \n");
     return size;
 }
 
-size_t showHNodeBits(const nodeElt* hnode, size_t size)
+static size_t showHNodeBits(const nodeElt* hnode, size_t size)
 {
     size_t u;
     for (u=0; u<size; u++) {
-        RAWLOG(6, " %u", hnode[u].nbBits);
+        RAWLOG(6, " %u", hnode[u].nbBits); (void)hnode;
     }
     RAWLOG(6, " \n");
     return size;
@@ -749,9 +749,9 @@ HUF_buildCTable_wksp(HUF_CElt* CTable, const unsigned* count, U32 maxSymbolValue
      * A harsh rebalancing can be bad for compression ratio
      * while a mild one tends to be better */
     while (maxNbBits < HUF_TABLELOG_MAX) {
-        size_t const nbNodes = HUF_nbSymbolsTooLarge(huffNode, maxSymbolValue, maxNbBits);
-        #define HUF_NB_NODES_TO_FIX_MAX 8
-        if (nbNodes < HUF_NB_NODES_TO_FIX_MAX) /* heuristic */
+        size_t const nbSTL = HUF_nbSymbolsTooLarge(huffNode, maxSymbolValue, maxNbBits);
+        #define HUF_NB_NODES_TO_FIX_MAX 32
+        if (nbSTL < HUF_NB_NODES_TO_FIX_MAX) /* heuristic */
             break;
         maxNbBits++;
     }
@@ -1218,7 +1218,7 @@ static size_t showU32(const U32* arr, size_t size)
 {
     size_t u;
     for (u=0; u<size; u++) {
-        RAWLOG(6, " %u", arr[u]);
+        RAWLOG(6, " %u", arr[u]); (void)arr;
     }
     RAWLOG(6, " \n");
     return size;
@@ -1228,7 +1228,7 @@ static size_t showCTableBits(const HUF_CElt* ctable, size_t size)
 {
     size_t u;
     for (u=0; u<size; u++) {
-        RAWLOG(6, " %zu", HUF_getNbBits(ctable[u]));
+        RAWLOG(6, " %zu", HUF_getNbBits(ctable[u])); (void)ctable;
     }
     RAWLOG(6, " \n");
     return size;

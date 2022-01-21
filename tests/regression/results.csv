@@ -51,7 +51,7 @@ silesia,                            long distance mode,                 compress
 silesia,                            multithreaded,                      compress cctx,                      4842075
 silesia,                            multithreaded long distance mode,   compress cctx,                      4842075
 silesia,                            small window log,                   compress cctx,                      7082951
-silesia,                            small hash log,                     compress cctx,                      6526141
+silesia,                            small hash log,                     compress cctx,                      6525895
 silesia,                            small chain log,                    compress cctx,                      4912197
 silesia,                            explicit params,                    compress cctx,                      4794052
 silesia,                            uncompressed literals,              compress cctx,                      4842075
@@ -115,7 +115,7 @@ silesia,                            long distance mode,                 zstdcli,
 silesia,                            multithreaded,                      zstdcli,                            4842123
 silesia,                            multithreaded long distance mode,   zstdcli,                            4833785
 silesia,                            small window log,                   zstdcli,                            7095048
-silesia,                            small hash log,                     zstdcli,                            6526189
+silesia,                            small hash log,                     zstdcli,                            6525943
 silesia,                            small chain log,                    zstdcli,                            4912245
 silesia,                            explicit params,                    zstdcli,                            4795432
 silesia,                            uncompressed literals,              zstdcli,                            5120614
@@ -141,7 +141,7 @@ silesia.tar,                        long distance mode,                 zstdcli,
 silesia.tar,                        multithreaded,                      zstdcli,                            4854164
 silesia.tar,                        multithreaded long distance mode,   zstdcli,                            4845745
 silesia.tar,                        small window log,                   zstdcli,                            7100701
-silesia.tar,                        small hash log,                     zstdcli,                            6529289
+silesia.tar,                        small hash log,                     zstdcli,                            6529041
 silesia.tar,                        small chain log,                    zstdcli,                            4917022
 silesia.tar,                        explicit params,                    zstdcli,                            4820713
 silesia.tar,                        uncompressed literals,              zstdcli,                            5122571
@@ -255,7 +255,7 @@ silesia,                            long distance mode,                 advanced
 silesia,                            multithreaded,                      advanced one pass,                  4842075
 silesia,                            multithreaded long distance mode,   advanced one pass,                  4833737
 silesia,                            small window log,                   advanced one pass,                  7095000
-silesia,                            small hash log,                     advanced one pass,                  6526141
+silesia,                            small hash log,                     advanced one pass,                  6525895
 silesia,                            small chain log,                    advanced one pass,                  4912197
 silesia,                            explicit params,                    advanced one pass,                  4795432
 silesia,                            uncompressed literals,              advanced one pass,                  5120566
@@ -289,7 +289,7 @@ silesia.tar,                        long distance mode,                 advanced
 silesia.tar,                        multithreaded,                      advanced one pass,                  4854160
 silesia.tar,                        multithreaded long distance mode,   advanced one pass,                  4845741
 silesia.tar,                        small window log,                   advanced one pass,                  7100655
-silesia.tar,                        small hash log,                     advanced one pass,                  6529231
+silesia.tar,                        small hash log,                     advanced one pass,                  6528983
 silesia.tar,                        small chain log,                    advanced one pass,                  4917041
 silesia.tar,                        explicit params,                    advanced one pass,                  4806855
 silesia.tar,                        uncompressed literals,              advanced one pass,                  5122473
@@ -573,7 +573,7 @@ silesia,                            long distance mode,                 advanced
 silesia,                            multithreaded,                      advanced one pass small out,        4842075
 silesia,                            multithreaded long distance mode,   advanced one pass small out,        4833737
 silesia,                            small window log,                   advanced one pass small out,        7095000
-silesia,                            small hash log,                     advanced one pass small out,        6526141
+silesia,                            small hash log,                     advanced one pass small out,        6525895
 silesia,                            small chain log,                    advanced one pass small out,        4912197
 silesia,                            explicit params,                    advanced one pass small out,        4795432
 silesia,                            uncompressed literals,              advanced one pass small out,        5120566
@@ -607,7 +607,7 @@ silesia.tar,                        long distance mode,                 advanced
 silesia.tar,                        multithreaded,                      advanced one pass small out,        4854160
 silesia.tar,                        multithreaded long distance mode,   advanced one pass small out,        4845741
 silesia.tar,                        small window log,                   advanced one pass small out,        7100655
-silesia.tar,                        small hash log,                     advanced one pass small out,        6529231
+silesia.tar,                        small hash log,                     advanced one pass small out,        6528983
 silesia.tar,                        small chain log,                    advanced one pass small out,        4917041
 silesia.tar,                        explicit params,                    advanced one pass small out,        4806855
 silesia.tar,                        uncompressed literals,              advanced one pass small out,        5122473
@@ -891,7 +891,7 @@ silesia,                            long distance mode,                 advanced
 silesia,                            multithreaded,                      advanced streaming,                 4842075
 silesia,                            multithreaded long distance mode,   advanced streaming,                 4833737
 silesia,                            small window log,                   advanced streaming,                 7111103
-silesia,                            small hash log,                     advanced streaming,                 6526141
+silesia,                            small hash log,                     advanced streaming,                 6525895
 silesia,                            small chain log,                    advanced streaming,                 4912197
 silesia,                            explicit params,                    advanced streaming,                 4795452
 silesia,                            uncompressed literals,              advanced streaming,                 5120566
@@ -925,7 +925,7 @@ silesia.tar,                        long distance mode,                 advanced
 silesia.tar,                        multithreaded,                      advanced streaming,                 4854160
 silesia.tar,                        multithreaded long distance mode,   advanced streaming,                 4845741
 silesia.tar,                        small window log,                   advanced streaming,                 7117559
-silesia.tar,                        small hash log,                     advanced streaming,                 6529234
+silesia.tar,                        small hash log,                     advanced streaming,                 6528986
 silesia.tar,                        small chain log,                    advanced streaming,                 4917021
 silesia.tar,                        explicit params,                    advanced streaming,                 4806873
 silesia.tar,                        uncompressed literals,              advanced streaming,                 5127423
@@ -1303,7 +1303,7 @@ silesia,                            long distance mode,                 old stre
 silesia,                            multithreaded,                      old streaming advanced,             4842075
 silesia,                            multithreaded long distance mode,   old streaming advanced,             4842075
 silesia,                            small window log,                   old streaming advanced,             7111103
-silesia,                            small hash log,                     old streaming advanced,             6526141
+silesia,                            small hash log,                     old streaming advanced,             6525895
 silesia,                            small chain log,                    old streaming advanced,             4912197
 silesia,                            explicit params,                    old streaming advanced,             4795452
 silesia,                            uncompressed literals,              old streaming advanced,             4842075
@@ -1329,7 +1329,7 @@ silesia.tar,                        long distance mode,                 old stre
 silesia.tar,                        multithreaded,                      old streaming advanced,             4859271
 silesia.tar,                        multithreaded long distance mode,   old streaming advanced,             4859271
 silesia.tar,                        small window log,                   old streaming advanced,             7117562
-silesia.tar,                        small hash log,                     old streaming advanced,             6529234
+silesia.tar,                        small hash log,                     old streaming advanced,             6528986
 silesia.tar,                        small chain log,                    old streaming advanced,             4917021
 silesia.tar,                        explicit params,                    old streaming advanced,             4806873
 silesia.tar,                        uncompressed literals,              old streaming advanced,             4859271

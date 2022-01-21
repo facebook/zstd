@@ -1409,7 +1409,9 @@ ZSTD_generateSequences( ZSTD_CCtx* zc,
 ZSTDLIB_STATIC_API size_t ZSTD_mergeBlockDelimiters(ZSTD_Sequence* sequences, size_t seqsSize);
 
 /*! ZSTD_compressSequences() :
- * Compress an array of ZSTD_Sequence, generated from the original source buffer, into dst.
+ * Compress an array of ZSTD_Sequence, associted with @src buffer, into dst.
+ * @src contains the entire input (not just the literals).
+ * If @srcSize > sum(sequence.length), the remaining bytes are considered all literals
  * If a dictionary is included, then the cctx should reference the dict. (see: ZSTD_CCtx_refCDict(), ZSTD_CCtx_loadDictionary(), etc.)
  * The entire source is compressed into a single frame.
  *

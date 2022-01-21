@@ -36,7 +36,7 @@ size_t ZSTD_noCompressLiterals (void* dst, size_t dstCapacity, const void* src, 
     }
 
     ZSTD_memcpy(ostart + flSize, src, srcSize);
-    DEBUGLOG(5, "Raw literals: %u -> %u", (U32)srcSize, (U32)(srcSize + flSize));
+    DEBUGLOG(5, "Raw (uncompressed) literals: %u -> %u", (U32)srcSize, (U32)(srcSize + flSize));
     return srcSize + flSize;
 }
 
@@ -67,6 +67,17 @@ size_t ZSTD_compressRleLiteralsBlock (void* dst, size_t dstCapacity, const void*
     return flSize+1;
 }
 
+static size_t showHexa(const void* src, size_t srcSize)
+{
+    const BYTE* const ip = (const BYTE*)src;
+    size_t u;
+    for (u=0; u<srcSize; u++) {
+        RAWLOG(6, " %02X", ip[u]);
+    }
+    RAWLOG(6, " \n");
+    return srcSize;
+}
+
 size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
                               ZSTD_hufCTables_t* nextHuf,
                               ZSTD_strategy strategy, int disableLiteralCompression,
@@ -86,6 +97,8 @@ size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
     DEBUGLOG(5,"ZSTD_compressLiterals (disableLiteralCompression=%i srcSize=%u)",
                 disableLiteralCompression, (U32)srcSize);
 
+    DEBUGLOG(6, "Completed literals listing (%zu bytes)", showHexa(src, srcSize)); (void)showHexa;
+
     /* Prepare nextEntropy assuming reusing the existing table */
     ZSTD_memcpy(nextHuf, prevHuf, sizeof(*prevHuf));
 
@@ -100,17 +113,18 @@ size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
 
     RETURN_ERROR_IF(dstCapacity < lhSize+1, dstSize_tooSmall, "not enough space for compression");
     {   HUF_repeat repeat = prevHuf->repeatMode;
-        int const preferRepeat = strategy < ZSTD_lazy ? srcSize <= 1024 : 0;
+        int const preferRepeat = (strategy < ZSTD_lazy) ? srcSize <= 1024 : 0;
+        typedef size_t (*huf_compress_f)(void*, size_t, const void*, size_t, unsigned, unsigned, void*, size_t, HUF_CElt*, HUF_repeat*, int, int, unsigned);
+        huf_compress_f huf_compress;
         if (repeat == HUF_repeat_valid && lhSize == 3) singleStream = 1;
-        cLitSize = singleStream ?
-            HUF_compress1X_repeat(
-                ostart+lhSize, dstCapacity-lhSize, src, srcSize,
-                HUF_SYMBOLVALUE_MAX, HUF_TABLELOG_DEFAULT, entropyWorkspace, entropyWorkspaceSize,
-                (HUF_CElt*)nextHuf->CTable, &repeat, preferRepeat, bmi2, suspectUncompressible) :
-            HUF_compress4X_repeat(
-                ostart+lhSize, dstCapacity-lhSize, src, srcSize,
-                HUF_SYMBOLVALUE_MAX, HUF_TABLELOG_DEFAULT, entropyWorkspace, entropyWorkspaceSize,
-                (HUF_CElt*)nextHuf->CTable, &repeat, preferRepeat, bmi2, suspectUncompressible);
+        huf_compress = singleStream ? HUF_compress1X_repeat : HUF_compress4X_repeat;
+        cLitSize = huf_compress(ostart+lhSize, dstCapacity-lhSize,
+                                src, srcSize,
+                                HUF_SYMBOLVALUE_MAX, HUF_TABLELOG_DEFAULT,
+                                entropyWorkspace, entropyWorkspaceSize,
+                                (HUF_CElt*)nextHuf->CTable,
+                                &repeat, preferRepeat,
+                                bmi2, suspectUncompressible);
         if (repeat != HUF_repeat_none) {
             /* reused the existing table */
             DEBUGLOG(5, "Reusing previous huffman table");

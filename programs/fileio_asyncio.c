@@ -9,7 +9,7 @@
 #  include <io.h>
 #endif
 
-#include "fileio_asycio.h"
+#include "fileio_asyncio.h"
 #include "fileio_common.h"
 
 /* **********************************************************************

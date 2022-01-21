@@ -41,7 +41,7 @@
 #endif
 
 #include "fileio.h"
-#include "fileio_asycio.h"
+#include "fileio_asyncio.h"
 #include "fileio_common.h"
 
 FIO_display_prefs_t g_display_prefs = {2, FIO_ps_auto};

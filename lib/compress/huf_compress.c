@@ -705,6 +705,18 @@ static void HUF_buildCTableFromTree(HUF_CElt* CTable, nodeElt const* huffNode, i
     CTable[0] = maxNbBits;
 }
 
+static size_t
+HUF_nbSymbolsTooLarge(const nodeElt* hnodes, U32 maxSymbolValue, U32 maxNbBits)
+{
+    size_t nbSTL = 0;
+    int s = (int)maxSymbolValue;
+    for ( ; s > 0; s-- ) {
+        if (hnodes[s].nbBits > maxNbBits) nbSTL++;
+        else break;
+    }
+    return nbSTL;
+}
+
 size_t
 HUF_buildCTable_wksp(HUF_CElt* CTable, const unsigned* count, U32 maxSymbolValue, U32 maxNbBits,
                      void* workSpace, size_t wkspSize)
@@ -733,6 +745,16 @@ HUF_buildCTable_wksp(HUF_CElt* CTable, const unsigned* count, U32 maxSymbolValue
     nonNullRank = HUF_buildTree(huffNode, maxSymbolValue);
 
     /* determine and enforce maxTableLog */
+    /* Loosen target when maxNbBits is within limits.
+     * A harsh rebalancing can be bad for compression ratio
+     * while a mild one tends to be better */
+    while (maxNbBits < HUF_TABLELOG_MAX) {
+        size_t const nbNodes = HUF_nbSymbolsTooLarge(huffNode, maxSymbolValue, maxNbBits);
+        #define HUF_NB_NODES_TO_FIX_MAX 8
+        if (nbNodes < HUF_NB_NODES_TO_FIX_MAX) /* heuristic */
+            break;
+        maxNbBits++;
+    }
     maxNbBits = HUF_setMaxHeight(huffNode, (U32)nonNullRank, maxNbBits);
     if (maxNbBits > HUF_TABLELOG_MAX) return ERROR(GENERIC);   /* check fit into table */
 

@@ -3,7 +3,7 @@ name: publish-release-artifacts
 on:
   release:
     types:
-      - created
+      - published
 
 jobs:
   publish-release-artifacts:

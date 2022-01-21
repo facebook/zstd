@@ -54,6 +54,7 @@
 #include "../compress/zstd_compress_internal.h" /* ZSTD_loadCEntropy() */
 #include "../zdict.h"
 #include "divsufsort.h"
+#include "../common/bits.h"          /* ZSTD_NbCommonBytes */
 
 
 /*-*************************************
@@ -130,85 +131,6 @@ size_t ZDICT_getDictHeaderSize(const void* dictBuffer, size_t dictSize)
 /*-********************************************************
 *  Dictionary training functions
 **********************************************************/
-static unsigned ZDICT_NbCommonBytes (size_t val)
-{
-    if (MEM_isLittleEndian()) {
-        if (MEM_64bits()) {
-#       if defined(_MSC_VER) && defined(_WIN64)
-            if (val != 0) {
-                unsigned long r;
-                _BitScanForward64(&r, (U64)val);
-                return (unsigned)(r >> 3);
-            } else {
-                /* Should not reach this code path */
-                __assume(0);
-            }
-#       elif defined(__GNUC__) && (__GNUC__ >= 3)
-            return (unsigned)(__builtin_ctzll((U64)val) >> 3);
-#       else
-            static const int DeBruijnBytePos[64] = { 0, 0, 0, 0, 0, 1, 1, 2, 0, 3, 1, 3, 1, 4, 2, 7, 0, 2, 3, 6, 1, 5, 3, 5, 1, 3, 4, 4, 2, 5, 6, 7, 7, 0, 1, 2, 3, 3, 4, 6, 2, 6, 5, 5, 3, 4, 5, 6, 7, 1, 2, 4, 6, 4, 4, 5, 7, 2, 6, 5, 7, 6, 7, 7 };
-            return DeBruijnBytePos[((U64)((val & -(long long)val) * 0x0218A392CDABBD3FULL)) >> 58];
-#       endif
-        } else { /* 32 bits */
-#       if defined(_MSC_VER)
-            if (val != 0) {
-                unsigned long r;
-                _BitScanForward(&r, (U32)val);
-                return (unsigned)(r >> 3);
-            } else {
-                /* Should not reach this code path */
-                __assume(0);
-            }
-#       elif defined(__GNUC__) && (__GNUC__ >= 3)
-            return (unsigned)(__builtin_ctz((U32)val) >> 3);
-#       else
-            static const int DeBruijnBytePos[32] = { 0, 0, 3, 0, 3, 1, 3, 0, 3, 2, 2, 1, 3, 2, 0, 1, 3, 3, 1, 2, 2, 2, 2, 0, 3, 1, 2, 0, 1, 0, 1, 1 };
-            return DeBruijnBytePos[((U32)((val & -(S32)val) * 0x077CB531U)) >> 27];
-#       endif
-        }
-    } else {  /* Big Endian CPU */
-        if (MEM_64bits()) {
-#       if defined(_MSC_VER) && defined(_WIN64)
-            if (val != 0) {
-                unsigned long r;
-                _BitScanReverse64(&r, val);
-                return (unsigned)(r >> 3);
-            } else {
-                /* Should not reach this code path */
-                __assume(0);
-            }
-#       elif defined(__GNUC__) && (__GNUC__ >= 3)
-            return (unsigned)(__builtin_clzll(val) >> 3);
-#       else
-            unsigned r;
-            const unsigned n32 = sizeof(size_t)*4;   /* calculate this way due to compiler complaining in 32-bits mode */
-            if (!(val>>n32)) { r=4; } else { r=0; val>>=n32; }
-            if (!(val>>16)) { r+=2; val>>=8; } else { val>>=24; }
-            r += (!val);
-            return r;
-#       endif
-        } else { /* 32 bits */
-#       if defined(_MSC_VER)
-            if (val != 0) {
-                unsigned long r;
-                _BitScanReverse(&r, (unsigned long)val);
-                return (unsigned)(r >> 3);
-            } else {
-                /* Should not reach this code path */
-                __assume(0);
-            }
-#       elif defined(__GNUC__) && (__GNUC__ >= 3)
-            return (unsigned)(__builtin_clz((U32)val) >> 3);
-#       else
-            unsigned r;
-            if (!(val>>16)) { r=2; val>>=8; } else { r=0; val>>=24; }
-            r += (!val);
-            return r;
-#       endif
-    }   }
-}
-
-
 /*! ZDICT_count() :
     Count the nb of common bytes between 2 pointers.
     Note : this function presumes end of buffer followed by noisy guard band.
@@ -223,7 +145,7 @@ static size_t ZDICT_count(const void* pIn, const void* pMatch)
             pMatch = (const char*)pMatch+sizeof(size_t);
             continue;
         }
-        pIn = (const char*)pIn+ZDICT_NbCommonBytes(diff);
+        pIn = (const char*)pIn+ZSTD_NbCommonBytes(diff);
         return (size_t)((const char*)pIn - pStart);
     }
 }

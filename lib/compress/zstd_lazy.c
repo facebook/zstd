@@ -10,6 +10,7 @@
 
 #include "zstd_compress_internal.h"
 #include "zstd_lazy.h"
+#include "../common/bits.h" /* ZSTD_countTrailingZeros64 */
 
 
 /*-*************************************
@@ -765,44 +766,6 @@ size_t ZSTD_HcFindBestMatch(
 
 typedef U64 ZSTD_VecMask;   /* Clarifies when we are interacting with a U64 representing a mask of matches */
 
-/* ZSTD_VecMask_next():
- * Starting from the LSB, returns the idx of the next non-zero bit.
- * Basically counting the nb of trailing zeroes.
- */
-static U32 ZSTD_VecMask_next(ZSTD_VecMask val) {
-    assert(val != 0);
-#   if defined(_MSC_VER) && defined(_WIN64)
-        if (val != 0) {
-            unsigned long r;
-            _BitScanForward64(&r, val);
-            return (U32)(r);
-        } else {
-            /* Should not reach this code path */
-            __assume(0);
-        }
-#   elif (defined(__GNUC__) && ((__GNUC__ > 3) || ((__GNUC__ == 3) && (__GNUC_MINOR__ >= 4))))
-    if (sizeof(size_t) == 4) {
-        U32 mostSignificantWord = (U32)(val >> 32);
-        U32 leastSignificantWord = (U32)val;
-        if (leastSignificantWord == 0) {
-            return 32 + (U32)__builtin_ctz(mostSignificantWord);
-        } else {
-            return (U32)__builtin_ctz(leastSignificantWord);
-        }
-    } else {
-        return (U32)__builtin_ctzll(val);
-    }
-#   else
-    /* Software ctz version: http://aggregate.org/MAGIC/#Trailing%20Zero%20Count
-     * and: https://stackoverflow.com/questions/2709430/count-number-of-bits-in-a-64-bit-long-big-integer
-     */
-    val = ~val & (val - 1ULL); /* Lowest set bit mask */
-    val = val - ((val >> 1) & 0x5555555555555555);
-    val = (val & 0x3333333333333333ULL) + ((val >> 2) & 0x3333333333333333ULL);
-    return (U32)((((val + (val >> 4)) & 0xF0F0F0F0F0F0F0FULL) * 0x101010101010101ULL) >> 56);
-#   endif
-}
-
 /* ZSTD_rotateRight_*():
  * Rotates a bitfield to the right by "count" bits.
  * https://en.wikipedia.org/w/index.php?title=Circular_shift&oldid=991635599#Implementing_circular_shifts
@@ -1202,7 +1165,7 @@ size_t ZSTD_RowFindBestMatch(
 
         /* Cycle through the matches and prefetch */
         for (; (matches > 0) && (nbAttempts > 0); --nbAttempts, matches &= (matches - 1)) {
-            U32 const matchPos = (head + ZSTD_VecMask_next(matches)) & rowMask;
+            U32 const matchPos = (head + ZSTD_countTrailingZeros64(matches)) & rowMask;
             U32 const matchIndex = row[matchPos];
             assert(numMatches < rowEntries);
             if (matchIndex < lowLimit)
@@ -1270,7 +1233,7 @@ size_t ZSTD_RowFindBestMatch(
             ZSTD_VecMask matches = ZSTD_row_getMatchMask(dmsTagRow, (BYTE)dmsTag, head, rowEntries);
 
             for (; (matches > 0) && (nbAttempts > 0); --nbAttempts, matches &= (matches - 1)) {
-                U32 const matchPos = (head + ZSTD_VecMask_next(matches)) & rowMask;
+                U32 const matchPos = (head + ZSTD_countTrailingZeros64(matches)) & rowMask;
                 U32 const matchIndex = dmsRow[matchPos];
                 if (matchIndex < dmsLowestIndex)
                     break;

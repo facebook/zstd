@@ -27,6 +27,7 @@
 #include "zstd_opt.h"
 #include "zstd_ldm.h"
 #include "zstd_compress_superblock.h"
+#include  "../common/bits.h"      /* ZSTD_highbit32 */
 
 /* ***************************************************************
 *  Tuning parameters

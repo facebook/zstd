@@ -23,6 +23,7 @@
 #ifdef ZSTD_MULTITHREAD
 #  include "zstdmt_compress.h"
 #endif
+#include "../common/bits.h" /* ZSTD_highbit32, ZSTD_NbCommonBytes */
 
 #if defined (__cplusplus)
 extern "C" {
@@ -699,103 +700,6 @@ ZSTD_newRep(U32 const rep[ZSTD_REP_NUM], U32 const offBase, U32 const ll0)
 /*-*************************************
 *  Match length counter
 ***************************************/
-static unsigned ZSTD_NbCommonBytes (size_t val)
-{
-    if (MEM_isLittleEndian()) {
-        if (MEM_64bits()) {
-#       if defined(_MSC_VER) && defined(_WIN64)
-#           if STATIC_BMI2
-                return _tzcnt_u64(val) >> 3;
-#           else
-                if (val != 0) {
-                    unsigned long r;
-                    _BitScanForward64(&r, (U64)val);
-                    return (unsigned)(r >> 3);
-                } else {
-                    /* Should not reach this code path */
-                    __assume(0);
-                }
-#           endif
-#       elif defined(__GNUC__) && (__GNUC__ >= 4)
-            return (unsigned)(__builtin_ctzll((U64)val) >> 3);
-#       else
-            static const int DeBruijnBytePos[64] = { 0, 0, 0, 0, 0, 1, 1, 2,
-                                                     0, 3, 1, 3, 1, 4, 2, 7,
-                                                     0, 2, 3, 6, 1, 5, 3, 5,
-                                                     1, 3, 4, 4, 2, 5, 6, 7,
-                                                     7, 0, 1, 2, 3, 3, 4, 6,
-                                                     2, 6, 5, 5, 3, 4, 5, 6,
-                                                     7, 1, 2, 4, 6, 4, 4, 5,
-                                                     7, 2, 6, 5, 7, 6, 7, 7 };
-            return DeBruijnBytePos[((U64)((val & -(long long)val) * 0x0218A392CDABBD3FULL)) >> 58];
-#       endif
-        } else { /* 32 bits */
-#       if defined(_MSC_VER)
-            if (val != 0) {
-                unsigned long r;
-                _BitScanForward(&r, (U32)val);
-                return (unsigned)(r >> 3);
-            } else {
-                /* Should not reach this code path */
-                __assume(0);
-            }
-#       elif defined(__GNUC__) && (__GNUC__ >= 3)
-            return (unsigned)(__builtin_ctz((U32)val) >> 3);
-#       else
-            static const int DeBruijnBytePos[32] = { 0, 0, 3, 0, 3, 1, 3, 0,
-                                                     3, 2, 2, 1, 3, 2, 0, 1,
-                                                     3, 3, 1, 2, 2, 2, 2, 0,
-                                                     3, 1, 2, 0, 1, 0, 1, 1 };
-            return DeBruijnBytePos[((U32)((val & -(S32)val) * 0x077CB531U)) >> 27];
-#       endif
-        }
-    } else {  /* Big Endian CPU */
-        if (MEM_64bits()) {
-#       if defined(_MSC_VER) && defined(_WIN64)
-#           if STATIC_BMI2
-			    return _lzcnt_u64(val) >> 3;
-#           else
-                if (val != 0) {
-                    unsigned long r;
-                    _BitScanReverse64(&r, (U64)val);
-                    return (unsigned)(r >> 3);
-                } else {
-                    /* Should not reach this code path */
-                    __assume(0);
-                }
-#           endif
-#       elif defined(__GNUC__) && (__GNUC__ >= 4)
-            return (unsigned)(__builtin_clzll(val) >> 3);
-#       else
-            unsigned r;
-            const unsigned n32 = sizeof(size_t)*4;   /* calculate this way due to compiler complaining in 32-bits mode */
-            if (!(val>>n32)) { r=4; } else { r=0; val>>=n32; }
-            if (!(val>>16)) { r+=2; val>>=8; } else { val>>=24; }
-            r += (!val);
-            return r;
-#       endif
-        } else { /* 32 bits */
-#       if defined(_MSC_VER)
-            if (val != 0) {
-                unsigned long r;
-                _BitScanReverse(&r, (unsigned long)val);
-                return (unsigned)(r >> 3);
-            } else {
-                /* Should not reach this code path */
-                __assume(0);
-            }
-#       elif defined(__GNUC__) && (__GNUC__ >= 3)
-            return (unsigned)(__builtin_clz((U32)val) >> 3);
-#       else
-            unsigned r;
-            if (!(val>>16)) { r=2; val>>=8; } else { r=0; val>>=24; }
-            r += (!val);
-            return r;
-#       endif
-    }   }
-}
-
-
 MEM_STATIC size_t ZSTD_count(const BYTE* pIn, const BYTE* pMatch, const BYTE* const pInLimit)
 {
     const BYTE* const pStart = pIn;

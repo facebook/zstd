@@ -30,6 +30,7 @@ extern "C" {
 #include "compiler.h"       /* UNLIKELY() */
 #include "debug.h"          /* assert(), DEBUGLOG(), RAWLOG() */
 #include "error_private.h"  /* error codes and messages */
+#include "bits.h"           /* ZSTD_highbit32 */
 
 
 /*=========================================
@@ -131,48 +132,6 @@ MEM_STATIC void BIT_flushBitsFast(BIT_CStream_t* bitC);
 
 MEM_STATIC size_t BIT_readBitsFast(BIT_DStream_t* bitD, unsigned nbBits);
 /* faster, but works only if nbBits >= 1 */
-
-
-
-/*-**************************************************************
-*  Internal functions
-****************************************************************/
-MEM_STATIC unsigned BIT_highbit32 (U32 val)
-{
-    assert(val != 0);
-    {
-#   if defined(_MSC_VER)   /* Visual */
-#       if STATIC_BMI2 == 1
-            return _lzcnt_u32(val) ^ 31;
-#       else
-            if (val != 0) {
-                unsigned long r;
-                _BitScanReverse(&r, val);
-                return (unsigned)r;
-            } else {
-                /* Should not reach this code path */
-                __assume(0);
-            }
-#       endif
-#   elif defined(__GNUC__) && (__GNUC__ >= 3)   /* Use GCC Intrinsic */
-        return __builtin_clz (val) ^ 31;
-#   elif defined(__ICCARM__)    /* IAR Intrinsic */
-        return 31 - __CLZ(val);
-#   else   /* Software version */
-        static const unsigned DeBruijnClz[32] = { 0,  9,  1, 10, 13, 21,  2, 29,
-                                                 11, 14, 16, 18, 22, 25,  3, 30,
-                                                  8, 12, 20, 28, 15, 17, 24,  7,
-                                                 19, 27, 23,  6, 26,  5,  4, 31 };
-        U32 v = val;
-        v |= v >> 1;
-        v |= v >> 2;
-        v |= v >> 4;
-        v |= v >> 8;
-        v |= v >> 16;
-        return DeBruijnClz[ (U32) (v * 0x07C4ACDDU) >> 27];
-#   endif
-    }
-}
 
 /*=====    Local Constants   =====*/
 static const unsigned BIT_mask[] = {
@@ -291,7 +250,7 @@ MEM_STATIC size_t BIT_initDStream(BIT_DStream_t* bitD, const void* srcBuffer, si
         bitD->ptr   = (const char*)srcBuffer + srcSize - sizeof(bitD->bitContainer);
         bitD->bitContainer = MEM_readLEST(bitD->ptr);
         { BYTE const lastByte = ((const BYTE*)srcBuffer)[srcSize-1];
-          bitD->bitsConsumed = lastByte ? 8 - BIT_highbit32(lastByte) : 0;  /* ensures bitsConsumed is always set */
+          bitD->bitsConsumed = lastByte ? 8 - ZSTD_highbit32(lastByte) : 0;  /* ensures bitsConsumed is always set */
           if (lastByte == 0) return ERROR(GENERIC); /* endMark not present */ }
     } else {
         bitD->ptr   = bitD->start;
@@ -319,7 +278,7 @@ MEM_STATIC size_t BIT_initDStream(BIT_DStream_t* bitD, const void* srcBuffer, si
         default: break;
         }
         {   BYTE const lastByte = ((const BYTE*)srcBuffer)[srcSize-1];
-            bitD->bitsConsumed = lastByte ? 8 - BIT_highbit32(lastByte) : 0;
+            bitD->bitsConsumed = lastByte ? 8 - ZSTD_highbit32(lastByte) : 0;
             if (lastByte == 0) return ERROR(corruption_detected);  /* endMark not present */
         }
         bitD->bitsConsumed += (U32)(sizeof(bitD->bitContainer) - srcSize)*8;

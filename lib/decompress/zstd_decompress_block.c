@@ -26,6 +26,7 @@
 #include "zstd_decompress_internal.h"   /* ZSTD_DCtx */
 #include "zstd_ddict.h"  /* ZSTD_DDictDictContent */
 #include "zstd_decompress_block.h"
+#include "../common/bits.h"  /* ZSTD_highbit32 */
 
 /*_*******************************************************
 *  Macros
@@ -551,7 +552,7 @@ void ZSTD_buildFSETable_body(ZSTD_seqSymbol* dt,
         for (u=0; u<tableSize; u++) {
             U32 const symbol = tableDecode[u].baseValue;
             U32 const nextState = symbolNext[symbol]++;
-            tableDecode[u].nbBits = (BYTE) (tableLog - BIT_highbit32(nextState) );
+            tableDecode[u].nbBits = (BYTE) (tableLog - ZSTD_highbit32(nextState) );
             tableDecode[u].nextState = (U16) ( (nextState << tableDecode[u].nbBits) - tableSize);
             assert(nbAdditionalBits[symbol] < 255);
             tableDecode[u].nbAdditionalBits = nbAdditionalBits[symbol];

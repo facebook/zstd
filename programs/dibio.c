@@ -27,9 +27,9 @@
 #include <string.h>         /* memset */
 #include <stdio.h>          /* fprintf, fopen, ftello64 */
 #include <errno.h>          /* errno */
-#include <assert.h>
 
 #include "timefn.h"         /* UTIL_time_t, UTIL_clockSpanMicro, UTIL_getTime */
+#include "../lib/common/debug.h" /* assert */
 #include "../lib/common/mem.h"  /* read */
 #include "dibio.h"
 
@@ -193,7 +193,8 @@ static U32 DiB_rand(U32* src)
 static void DiB_shuffle(const char** fileNamesTable, unsigned nbFiles) {
     U32 seed = 0xFD2FB528;
     unsigned i;
-    assert(nbFiles >= 1);
+    if (nbFiles == 0)
+        return;
     for (i = nbFiles - 1; i > 0; --i) {
         unsigned const j = DiB_rand(&seed) % (i + 1);
         const char* const tmp = fileNamesTable[j];

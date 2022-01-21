@@ -802,9 +802,7 @@ int main(int argCount, const char* argv[])
         separateFiles = 0,
         setRealTimePrio = 0,
         singleThread = 0,
-#ifdef ZSTD_MULTITHREAD
         defaultLogicalCores = 0,
-#endif
         showDefaultCParams = 0,
         ultra=0,
         contentSize=1;
@@ -996,7 +994,6 @@ int main(int argCount, const char* argv[])
                 if (longCommandWArg(&argument, "--target-compressed-block-size=")) { targetCBlockSize = readSizeTFromChar(&argument); continue; }
                 if (longCommandWArg(&argument, "--size-hint=")) { srcSizeHint = readSizeTFromChar(&argument); continue; }
                 if (longCommandWArg(&argument, "--output-dir-flat")) { NEXT_FIELD(outDirName); continue; }
-#ifdef ZSTD_MULTITHREAD
                 if (longCommandWArg(&argument, "--auto-threads")) {
                     const char* threadDefault = NULL;
                     NEXT_FIELD(threadDefault);
@@ -1004,7 +1001,6 @@ int main(int argCount, const char* argv[])
                         defaultLogicalCores = 1;
                     continue;
                 }
-#endif
 #ifdef UTIL_HAS_MIRRORFILELIST
                 if (longCommandWArg(&argument, "--output-dir-mirror")) { NEXT_FIELD(outMirroredDirName); continue; }
 #endif
@@ -1220,7 +1216,7 @@ int main(int argCount, const char* argv[])
         }
     }
 #else
-    (void)singleThread; (void)nbWorkers;
+    (void)singleThread; (void)nbWorkers; (void)defaultLogicalCores;
 #endif
 
     g_utilDisplayLevel = g_displayLevel;

@@ -745,10 +745,10 @@ HUF_buildCTable_wksp(HUF_CElt* CTable, const unsigned* count, U32 maxSymbolValue
     nonNullRank = HUF_buildTree(huffNode, maxSymbolValue);
 
     /* determine and enforce maxTableLog */
-    /* Loosen target when maxNbBits is within limits.
+    /* Loosen target when maxNbBits is already within limits.
      * A harsh rebalancing can be bad for compression ratio
      * while a mild one tends to be better */
-    while (maxNbBits < HUF_TABLELOG_MAX) {
+    while (maxNbBits < HUF_TABLELOG_DEFAULT) {
         size_t const nbSTL = HUF_nbSymbolsTooLarge(huffNode, maxSymbolValue, maxNbBits);
         #define HUF_NB_NODES_TO_FIX_MAX 32
         if (nbSTL < HUF_NB_NODES_TO_FIX_MAX) /* heuristic */

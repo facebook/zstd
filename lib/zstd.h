@@ -1375,23 +1375,25 @@ typedef enum {
 } ZSTD_sequenceFormat_e;
 
 /*! ZSTD_generateSequences() :
- * Generate sequences using ZSTD_compress2, given a source buffer.
+ * Generate sequences using ZSTD_compress2(), given a source buffer.
  *
  * Each block will end with a dummy sequence
  * with offset == 0, matchLength == 0, and litLength == length of last literals.
  * litLength may be == 0, and if so, then the sequence of (of: 0 ml: 0 ll: 0)
  * simply acts as a block delimiter.
  *
- * zc can be used to insert custom compression params.
- * This function invokes ZSTD_compress2
+ * @zc can be used to insert custom compression params.
+ * This function invokes ZSTD_compress2().
  *
  * The output of this function can be fed into ZSTD_compressSequences() with CCtx
  * setting of ZSTD_c_blockDelimiters as ZSTD_sf_explicitBlockDelimiters
  * @return : number of sequences generated
  */
 
-ZSTDLIB_STATIC_API size_t ZSTD_generateSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
-                                          size_t outSeqsSize, const void* src, size_t srcSize);
+ZSTDLIB_STATIC_API size_t
+ZSTD_generateSequences( ZSTD_CCtx* zc,
+                        ZSTD_Sequence* outSeqs, size_t outSeqsSize,
+                        const void* src, size_t srcSize);
 
 /*! ZSTD_mergeBlockDelimiters() :
  * Given an array of ZSTD_Sequence, remove all sequences that represent block delimiters/last literals
@@ -1432,11 +1434,12 @@ ZSTDLIB_STATIC_API size_t ZSTD_mergeBlockDelimiters(ZSTD_Sequence* sequences, si
  * Note: Repcodes are, as of now, always re-calculated within this function, so ZSTD_Sequence::rep is unused.
  * Note 2: Once we integrate ability to ingest repcodes, the explicit block delims mode must respect those repcodes exactly,
  *         and cannot emit an RLE block that disagrees with the repcode history
- * @return : final compressed size or a ZSTD error.
+ * @return : final compressed size, or a ZSTD error code.
  */
-ZSTDLIB_STATIC_API size_t ZSTD_compressSequences(ZSTD_CCtx* const cctx, void* dst, size_t dstSize,
-                                  const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
-                                  const void* src, size_t srcSize);
+ZSTDLIB_STATIC_API size_t
+ZSTD_compressSequences( ZSTD_CCtx* cctx, void* dst, size_t dstSize,
+                        const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
+                        const void* src, size_t srcSize);
 
 
 /*! ZSTD_writeSkippableFrame() :

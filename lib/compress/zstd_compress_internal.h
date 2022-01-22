@@ -713,7 +713,7 @@ static unsigned ZSTD_NbCommonBytes (size_t val)
                 }
 #           endif
 #       elif defined(__GNUC__) && (__GNUC__ >= 4)
-            return (__builtin_ctzll((U64)val) >> 3);
+            return (unsigned)(__builtin_ctzll((U64)val) >> 3);
 #       else
             static const int DeBruijnBytePos[64] = { 0, 0, 0, 0, 0, 1, 1, 2,
                                                      0, 3, 1, 3, 1, 4, 2, 7,
@@ -736,7 +736,7 @@ static unsigned ZSTD_NbCommonBytes (size_t val)
                 __assume(0);
             }
 #       elif defined(__GNUC__) && (__GNUC__ >= 3)
-            return (__builtin_ctz((U32)val) >> 3);
+            return (unsigned)(__builtin_ctz((U32)val) >> 3);
 #       else
             static const int DeBruijnBytePos[32] = { 0, 0, 3, 0, 3, 1, 3, 0,
                                                      3, 2, 2, 1, 3, 2, 0, 1,
@@ -761,7 +761,7 @@ static unsigned ZSTD_NbCommonBytes (size_t val)
                 }
 #           endif
 #       elif defined(__GNUC__) && (__GNUC__ >= 4)
-            return (__builtin_clzll(val) >> 3);
+            return (unsigned)(__builtin_clzll(val) >> 3);
 #       else
             unsigned r;
             const unsigned n32 = sizeof(size_t)*4;   /* calculate this way due to compiler complaining in 32-bits mode */
@@ -781,7 +781,7 @@ static unsigned ZSTD_NbCommonBytes (size_t val)
                 __assume(0);
             }
 #       elif defined(__GNUC__) && (__GNUC__ >= 3)
-            return (__builtin_clz((U32)val) >> 3);
+            return (unsigned)(__builtin_clz((U32)val) >> 3);
 #       else
             unsigned r;
             if (!(val>>16)) { r=2; val>>=8; } else { r=0; val>>=24; }

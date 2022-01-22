@@ -42,12 +42,66 @@
 
 
 /* **************************************************************
-*  Utils
+*  Required declarations
 ****************************************************************/
-unsigned HUF_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue)
+typedef struct nodeElt_s {
+    U32 count;
+    U16 parent;
+    BYTE byte;
+    BYTE nbBits;
+} nodeElt;
+
+
+/* **************************************************************
+*  Debug Traces
+****************************************************************/
+
+#if DEBUGLEVEL >= 2
+
+static size_t showU32(const U32* arr, size_t size)
 {
-    return FSE_optimalTableLog_internal(maxTableLog, srcSize, maxSymbolValue, 1);
+    size_t u;
+    for (u=0; u<size; u++) {
+        RAWLOG(6, " %u", arr[u]); (void)arr;
+    }
+    RAWLOG(6, " \n");
+    return size;
 }
+
+static size_t HUF_getNbBits(HUF_CElt elt);
+
+static size_t showCTableBits(const HUF_CElt* ctable, size_t size)
+{
+    size_t u;
+    for (u=0; u<size; u++) {
+        RAWLOG(6, " %zu", HUF_getNbBits(ctable[u])); (void)ctable;
+    }
+    RAWLOG(6, " \n");
+    return size;
+
+}
+
+static size_t showHNodeSymbols(const nodeElt* hnode, size_t size)
+{
+    size_t u;
+    for (u=0; u<size; u++) {
+        RAWLOG(6, " %u", hnode[u].byte); (void)hnode;
+    }
+    RAWLOG(6, " \n");
+    return size;
+}
+
+static size_t showHNodeBits(const nodeElt* hnode, size_t size)
+{
+    size_t u;
+    for (u=0; u<size; u++) {
+        RAWLOG(6, " %u", hnode[u].nbBits); (void)hnode;
+    }
+    RAWLOG(6, " \n");
+    return size;
+}
+
+#endif
 
 
 /* *******************************************************
@@ -140,7 +194,7 @@ static size_t HUF_getNbBitsFast(HUF_CElt elt)
 
 static size_t HUF_getValue(HUF_CElt elt)
 {
-    return elt & ~0xFF;
+    return elt & ~(size_t)0xFF;
 }
 
 static size_t HUF_getValueFast(HUF_CElt elt)
@@ -277,13 +331,6 @@ U32 HUF_getNbBitsFromCTable(HUF_CElt const* CTable, U32 symbolValue)
     return (U32)HUF_getNbBits(ct[symbolValue]);
 }
 
-
-typedef struct nodeElt_s {
-    U32 count;
-    U16 parent;
-    BYTE byte;
-    BYTE nbBits;
-} nodeElt;
 
 /**
  * HUF_setMaxHeight():
@@ -586,7 +633,7 @@ static void HUF_sort(nodeElt huffNode[], const unsigned count[], U32 const maxSy
 
     /* Sort each bucket. */
     for (n = RANK_POSITION_DISTINCT_COUNT_CUTOFF; n < RANK_POSITION_TABLE_SIZE - 1; ++n) {
-        U32 const bucketSize = rankPosition[n].curr-rankPosition[n].base;
+        int const bucketSize = rankPosition[n].curr - rankPosition[n].base;
         U32 const bucketStartIdx = rankPosition[n].base;
         if (bucketSize > 1) {
             assert(bucketStartIdx < maxSymbolValue1);
@@ -595,27 +642,6 @@ static void HUF_sort(nodeElt huffNode[], const unsigned count[], U32 const maxSy
     }
 
     assert(HUF_isSorted(huffNode, maxSymbolValue1));
-}
-
-
-static size_t showHNodeSymbols(const nodeElt* hnode, size_t size)
-{
-    size_t u;
-    for (u=0; u<size; u++) {
-        RAWLOG(6, " %u", hnode[u].byte); (void)hnode;
-    }
-    RAWLOG(6, " \n");
-    return size;
-}
-
-static size_t showHNodeBits(const nodeElt* hnode, size_t size)
-{
-    size_t u;
-    for (u=0; u<size; u++) {
-        RAWLOG(6, " %u", hnode[u].nbBits); (void)hnode;
-    }
-    RAWLOG(6, " \n");
-    return size;
 }
 
 
@@ -666,7 +692,7 @@ static int HUF_buildTree(nodeElt* huffNode, U32 maxSymbolValue)
     for (n=0; n<=nonNullRank; n++)
         huffNode[n].nbBits = huffNode[ huffNode[n].parent ].nbBits + 1;
 
-    DEBUGLOG(6, "Initial distribution of bits completed (%zu sorted symbols)", showHNodeBits(huffNode, maxSymbolValue+1)); (void)showHNodeBits;
+    DEBUGLOG(6, "Initial distribution of bits completed (%zu sorted symbols)", showHNodeBits(huffNode, maxSymbolValue+1));
 
     return nonNullRank;
 }
@@ -739,7 +765,7 @@ HUF_buildCTable_wksp(HUF_CElt* CTable, const unsigned* count, U32 maxSymbolValue
 
     /* sort, decreasing order */
     HUF_sort(huffNode, count, maxSymbolValue, wksp_tables->rankPosition);
-    DEBUGLOG(6, "sorted symbols completed (%zu symbols)", showHNodeSymbols(huffNode, maxSymbolValue+1)); (void)showHNodeSymbols;
+    DEBUGLOG(6, "sorted symbols completed (%zu symbols)", showHNodeSymbols(huffNode, maxSymbolValue+1));
 
     /* build tree */
     nonNullRank = HUF_buildTree(huffNode, maxSymbolValue);
@@ -943,7 +969,7 @@ static size_t HUF_closeCStream(HUF_CStream_t* bitC)
     {
         size_t const nbBits = bitC->bitPos[0] & 0xFF;
         if (bitC->ptr >= bitC->endPtr) return 0; /* overflow detected */
-        return (bitC->ptr - bitC->startPtr) + (nbBits > 0);
+        return (size_t)(bitC->ptr - bitC->startPtr) + (nbBits > 0);
     }
 }
 
@@ -1214,27 +1240,11 @@ static size_t HUF_compressCTable_internal(
     return (size_t)(op-ostart);
 }
 
-static size_t showU32(const U32* arr, size_t size)
+
+unsigned HUF_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue)
 {
-    size_t u;
-    for (u=0; u<size; u++) {
-        RAWLOG(6, " %u", arr[u]); (void)arr;
-    }
-    RAWLOG(6, " \n");
-    return size;
+    return FSE_optimalTableLog_internal(maxTableLog, srcSize, maxSymbolValue, 1);
 }
-
-static size_t showCTableBits(const HUF_CElt* ctable, size_t size)
-{
-    size_t u;
-    for (u=0; u<size; u++) {
-        RAWLOG(6, " %zu", HUF_getNbBits(ctable[u])); (void)ctable;
-    }
-    RAWLOG(6, " \n");
-    return size;
-
-}
-
 
 typedef struct {
     unsigned count[HUF_SYMBOLVALUE_MAX + 1];
@@ -1307,7 +1317,7 @@ HUF_compress_internal (void* dst, size_t dstSize,
         if (largest == srcSize) { *ostart = ((const BYTE*)src)[0]; return 1; }   /* single symbol, rle */
         if (largest <= (srcSize >> 7)+4) return 0;   /* heuristic : probably not compressible enough */
     }
-    DEBUGLOG(6, "histogram detail completed (%zu symbols)", showU32(table->count, maxSymbolValue+1)); (void)showU32;
+    DEBUGLOG(6, "histogram detail completed (%zu symbols)", showU32(table->count, maxSymbolValue+1));
 
     /* Check validity of previous table */
     if ( repeat
@@ -1329,7 +1339,7 @@ HUF_compress_internal (void* dst, size_t dstSize,
                                             &table->wksps.buildCTable_wksp, sizeof(table->wksps.buildCTable_wksp));
         CHECK_F(maxBits);
         huffLog = (U32)maxBits;
-        DEBUGLOG(6, "bit distribution completed (%zu symbols)", showCTableBits(table->CTable + 1, maxSymbolValue+1)); (void)showCTableBits;
+        DEBUGLOG(6, "bit distribution completed (%zu symbols)", showCTableBits(table->CTable + 1, maxSymbolValue+1));
     }
     /* Zero unused symbols in CTable, so we can check it for validity */
     {

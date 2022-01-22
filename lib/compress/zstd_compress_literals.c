@@ -13,6 +13,29 @@
  ***************************************/
 #include "zstd_compress_literals.h"
 
+
+/* **************************************************************
+*  Debug Traces
+****************************************************************/
+#if DEBUGLEVEL >= 2
+
+static size_t showHexa(const void* src, size_t srcSize)
+{
+    const BYTE* const ip = (const BYTE*)src;
+    size_t u;
+    for (u=0; u<srcSize; u++) {
+        RAWLOG(6, " %02X", ip[u]); (void)ip;
+    }
+    RAWLOG(6, " \n");
+    return srcSize;
+}
+
+#endif
+
+
+/* **************************************************************
+*  Literals compression - special cases
+****************************************************************/
 size_t ZSTD_noCompressLiterals (void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
     BYTE* const ostart = (BYTE*)dst;
@@ -67,17 +90,6 @@ size_t ZSTD_compressRleLiteralsBlock (void* dst, size_t dstCapacity, const void*
     return flSize+1;
 }
 
-static size_t showHexa(const void* src, size_t srcSize)
-{
-    const BYTE* const ip = (const BYTE*)src;
-    size_t u;
-    for (u=0; u<srcSize; u++) {
-        RAWLOG(6, " %02X", ip[u]); (void)ip;
-    }
-    RAWLOG(6, " \n");
-    return srcSize;
-}
-
 size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
                               ZSTD_hufCTables_t* nextHuf,
                               ZSTD_strategy strategy, int disableLiteralCompression,
@@ -97,7 +109,7 @@ size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
     DEBUGLOG(5,"ZSTD_compressLiterals (disableLiteralCompression=%i srcSize=%u)",
                 disableLiteralCompression, (U32)srcSize);
 
-    DEBUGLOG(6, "Completed literals listing (%zu bytes)", showHexa(src, srcSize)); (void)showHexa;
+    DEBUGLOG(6, "Completed literals listing (%zu bytes)", showHexa(src, srcSize));
 
     /* Prepare nextEntropy assuming reusing the existing table */
     ZSTD_memcpy(nextHuf, prevHuf, sizeof(*prevHuf));
@@ -150,7 +162,7 @@ size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
     switch(lhSize)
     {
     case 3: /* 2 - 2 - 10 - 10 */
-        {   U32 const lhc = hType + ((!singleStream) << 2) + ((U32)srcSize<<4) + ((U32)cLitSize<<14);
+        {   U32 const lhc = hType + ((U32)(!singleStream) << 2) + ((U32)srcSize<<4) + ((U32)cLitSize<<14);
             MEM_writeLE24(ostart, lhc);
             break;
         }

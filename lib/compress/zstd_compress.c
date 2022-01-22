@@ -840,7 +840,7 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
 
     case ZSTD_c_enableDedicatedDictSearch :
         CCtxParams->enableDedicatedDictSearch = (value!=0);
-        return CCtxParams->enableDedicatedDictSearch;
+        return (size_t)CCtxParams->enableDedicatedDictSearch;
 
     case ZSTD_c_enableLongDistanceMatching :
         CCtxParams->ldmParams.enableLdm = (ZSTD_paramSwitch_e)value;
@@ -849,38 +849,38 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
     case ZSTD_c_ldmHashLog :
         if (value!=0)   /* 0 ==> auto */
             BOUNDCHECK(ZSTD_c_ldmHashLog, value);
-        CCtxParams->ldmParams.hashLog = value;
+        CCtxParams->ldmParams.hashLog = (U32)value;
         return CCtxParams->ldmParams.hashLog;
 
     case ZSTD_c_ldmMinMatch :
         if (value!=0)   /* 0 ==> default */
             BOUNDCHECK(ZSTD_c_ldmMinMatch, value);
-        CCtxParams->ldmParams.minMatchLength = value;
+        CCtxParams->ldmParams.minMatchLength = (U32)value;
         return CCtxParams->ldmParams.minMatchLength;
 
     case ZSTD_c_ldmBucketSizeLog :
         if (value!=0)   /* 0 ==> default */
             BOUNDCHECK(ZSTD_c_ldmBucketSizeLog, value);
-        CCtxParams->ldmParams.bucketSizeLog = value;
+        CCtxParams->ldmParams.bucketSizeLog = (U32)value;
         return CCtxParams->ldmParams.bucketSizeLog;
 
     case ZSTD_c_ldmHashRateLog :
         if (value!=0)   /* 0 ==> default */
             BOUNDCHECK(ZSTD_c_ldmHashRateLog, value);
-        CCtxParams->ldmParams.hashRateLog = value;
+        CCtxParams->ldmParams.hashRateLog = (U32)value;
         return CCtxParams->ldmParams.hashRateLog;
 
     case ZSTD_c_targetCBlockSize :
         if (value!=0)   /* 0 ==> default */
             BOUNDCHECK(ZSTD_c_targetCBlockSize, value);
-        CCtxParams->targetCBlockSize = value;
+        CCtxParams->targetCBlockSize = (U32)value;
         return CCtxParams->targetCBlockSize;
 
     case ZSTD_c_srcSizeHint :
         if (value!=0)    /* 0 ==> default */
             BOUNDCHECK(ZSTD_c_srcSizeHint, value);
         CCtxParams->srcSizeHint = value;
-        return CCtxParams->srcSizeHint;
+        return (size_t)CCtxParams->srcSizeHint;
 
     case ZSTD_c_stableInBuffer:
         BOUNDCHECK(ZSTD_c_stableInBuffer, value);
@@ -3065,7 +3065,7 @@ static size_t ZSTD_buildBlockEntropyStats_literals(void* const src, size_t srcSi
     BYTE* const nodeWksp = countWkspStart + countWkspSize;
     const size_t nodeWkspSize = (size_t)(wkspEnd - nodeWksp);
     unsigned maxSymbolValue = HUF_SYMBOLVALUE_MAX;
-    unsigned huffLog = HUF_TABLELOG_DEFAULT;
+    unsigned huffLog = LitHufLog;
     HUF_repeat repeat = prevHuf->repeatMode;
     DEBUGLOG(5, "ZSTD_buildBlockEntropyStats_literals (srcSize=%zu)", srcSize);
 

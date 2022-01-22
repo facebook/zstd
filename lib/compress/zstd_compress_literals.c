@@ -132,7 +132,7 @@ size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
         huf_compress = singleStream ? HUF_compress1X_repeat : HUF_compress4X_repeat;
         cLitSize = huf_compress(ostart+lhSize, dstCapacity-lhSize,
                                 src, srcSize,
-                                HUF_SYMBOLVALUE_MAX, HUF_TABLELOG_DEFAULT,
+                                HUF_SYMBOLVALUE_MAX, LitHufLog,
                                 entropyWorkspace, entropyWorkspaceSize,
                                 (HUF_CElt*)nextHuf->CTable,
                                 &repeat, preferRepeat,

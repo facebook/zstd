@@ -1,7 +1,9 @@
-#!/bin/sh -e
+#!/bin/sh
 
-# Uncomment the set -x line for debugging
-# set -x
+set -e
+
+# Uncomment the set -v line for debugging
+# set -v
 
 # Test compression flags and check that they work
 zstd file                 ; zstd -t file.zst

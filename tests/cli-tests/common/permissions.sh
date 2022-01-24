@@ -1,4 +1,4 @@
-source "$COMMON/platform.sh"
+. "$COMMON/platform.sh"
 
 GET_PERMS="stat -c %a"
 case "$UNAME" in

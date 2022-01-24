@@ -1,2 +1,2 @@
-#!/bin/env sh
+#!/bin/sh
 printf '%b\n' "${*}"

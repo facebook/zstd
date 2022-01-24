@@ -1,4 +1,4 @@
-+ zstd --train
+zstd --train
 !  Warning : nb of samples too low for proper processing ! 
 !  Please provide _one file per sample_. 
 !  Alternatively, split files into fixed-size blocks representative of samples, with -B# 

@@ -1,3 +1,3 @@
 #!/bin/sh
-set -x
+set -v
 zstd --train

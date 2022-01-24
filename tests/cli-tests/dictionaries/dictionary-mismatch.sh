@@ -1,6 +1,6 @@
 #!/bin/sh
 
-source "$COMMON/platform.sh"
+. "$COMMON/platform.sh"
 
 set -e
 
@@ -22,7 +22,7 @@ if [ false ]; then
 	datagen -g1000 -s0 > file0
 fi
 
-set -x
+set -v
 zstd files/0 -D dicts/0
 zstd -t files/0.zst -D dicts/0
 zstd -t files/0.zst -D dicts/1 && die "Must fail" ||:

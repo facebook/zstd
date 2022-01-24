@@ -1,7 +1,5 @@
 #!/bin/sh
 
-# Small utility to
-
 set -e
 
 usage()

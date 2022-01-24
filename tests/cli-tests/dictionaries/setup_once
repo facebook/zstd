@@ -2,7 +2,7 @@
 
 set -e
 
-source "$COMMON/platform.sh"
+. "$COMMON/platform.sh"
 
 
 mkdir files/ dicts/

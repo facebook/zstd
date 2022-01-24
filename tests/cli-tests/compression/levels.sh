@@ -1,7 +1,7 @@
 #!/bin/sh
 
 set -e
-set -x
+set -v
 
 datagen > file
 
@@ -12,7 +12,7 @@ zstd -1 file -o file-1.zst
 zstd -19 file -o file-19.zst
 zstd -22 --ultra file -o file-22.zst
 
-zstd -t file-{f10,f1,1,19,22}.zst
+zstd -t file-f10.zst file-f1.zst file-1.zst file-19.zst file-22.zst
 
 cmp_size -ne file-19.zst file-22.zst
 cmp_size -lt file-19.zst file-1.zst
@@ -41,10 +41,10 @@ ZSTD_CLEVEL=1 zstd file -o file-1-env.zst
 ZSTD_CLEVEL=+19 zstd file -o file-19-env.zst
 ZSTD_CLEVEL=+99 zstd file -o file-99-env.zst
 
-cmp file-f10{,-env}.zst || die "Environment variable failed to set level"
-cmp file-1{,-env}.zst   || die "Environment variable failed to set level"
-cmp file-19{,-env}.zst  || die "Environment variable failed to set level"
-cmp file-99{,-env}.zst  || die "Environment variable failed to set level"
+cmp file-f10.zst file-f10-env.zst || die "Environment variable failed to set level"
+cmp file-1.zst file-1-env.zst || die "Environment variable failed to set level"
+cmp file-19.zst file-19-env.zst || die "Environment variable failed to set level"
+cmp file-99.zst file-99-env.zst || die "Environment variable failed to set level"
 
 # Test invalid environment clevel is the default level
 zstd -f file
@@ -60,5 +60,5 @@ ZSTD_CLEVEL=5000000000 zstd -f file -o file-env.zst; cmp file.zst file-env.zst
 ZSTD_CLEVEL=10 zstd -f file -1 -o file-1-env.zst
 ZSTD_CLEVEL=10 zstd -f file --fast=1 -o file-f1-env.zst
 
-cmp file-1{,-env}.zst  || die "Environment variable not overridden"
-cmp file-f1{,-env}.zst || die "Environment variable not overridden"
+cmp file-1.zst file-1-env.zst  || die "Environment variable not overridden"
+cmp file-f1.zst file-f1-env.zst || die "Environment variable not overridden"

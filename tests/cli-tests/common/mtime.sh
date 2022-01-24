@@ -1,4 +1,4 @@
-source "$COMMON/platform.sh"
+. "$COMMON/platform.sh"
 
 MTIME="stat -c %Y"
 case "$UNAME" in

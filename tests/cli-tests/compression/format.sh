@@ -1,6 +1,6 @@
 #!/bin/sh
 
-source "$COMMON/format.sh"
+. "$COMMON/format.sh"
 
 set -e
 

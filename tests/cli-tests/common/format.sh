@@ -1,6 +1,6 @@
 #!/bin/sh
 
-source "$COMMON/platform.sh"
+. "$COMMON/platform.sh"
 
 zstd_supports_format()
 {

@@ -1,4 +1,7 @@
-#!/bin/sh -e
+#!/bin/sh
+
+set -e
+
 println "+ zstd -h"
 zstd -h
 println "+ zstd -H"

@@ -42,6 +42,30 @@ typedef struct {
 } IOPoolCtx_t;
 
 typedef struct {
+    io_pool_ctx_t base;
+
+    /* State regarding the currently read file */
+    int reachedEof;
+    U64 nextReadOffset;
+    U64 waitingOnOffset;
+
+    /* Bases buffer, shouldn't be accessed from outside ot utility functions. */
+    U8 *srcBufferBase;
+    size_t srcBufferBaseSize;
+
+    /* Read buffer can be used by consumer code, take care when copying this pointer aside as it might
+     * change when consuming / refilling buffer. */
+    U8 *srcBuffer;
+    size_t srcBufferLoaded;
+
+    /* We need to know what tasks completed so we can use their buffers when their time comes.
+     * Should only be accessed after locking base.ioJobsMutex . */
+    void* completedJobs[MAX_IO_JOBS];
+    int completedJobsCount;
+    ZSTD_pthread_cond_t jobCompletedCond;
+} read_pool_ctx_t;
+
+typedef struct {
     IOPoolCtx_t base;
     unsigned storedSkips;
 } WritePoolCtx_t;
@@ -59,15 +83,6 @@ typedef struct {
     U64 offset;
 } IOJob_t;
 
-/** AIO_fwriteSparse() :
-*  @return : storedSkips,
-*            argument for next call to AIO_fwriteSparse() or AIO_fwriteSparseEnd() */
-unsigned AIO_fwriteSparse(FILE* file,
-                 const void* buffer, size_t bufferSize,
-                 const FIO_prefs_t* const prefs,
-                 unsigned storedSkips);
-
-void AIO_fwriteSparseEnd(const FIO_prefs_t* const prefs, FILE* file, unsigned storedSkips);
 
 /* AIO_WritePool_releaseIoJob:
  * Releases an acquired job back to the pool. Doesn't execute the job. */
@@ -112,6 +127,44 @@ WritePoolCtx_t* AIO_WritePool_create(FIO_prefs_t* const prefs, size_t bufferSize
 /* AIO_WritePool_free:
  * Frees and releases a writePool and its resources. Closes destination file. */
 void AIO_WritePool_free(WritePoolCtx_t* ctx);
+
+/* ReadPool_create:
+ * Allocates and sets and a new readPool including its included jobs.
+ * bufferSize should be set to the maximal buffer we want to read at a time, will also be used
+ * as our basic read size. */
+read_pool_ctx_t* ReadPool_create(FIO_prefs_t* const prefs, size_t bufferSize);
+
+/* ReadPool_free:
+ * Frees and releases a readPool and its resources. Closes source file. */
+void ReadPool_free(read_pool_ctx_t* ctx);
+
+/* ReadPool_consumeBytes:
+ * Consumes byes from srcBuffer's beginning and updates srcBufferLoaded accordingly. */
+void ReadPool_consumeBytes(read_pool_ctx_t *ctx, size_t n);
+
+/* ReadPool_fillBuffer:
+ * Makes sure buffer has at least n bytes loaded (as long as n is not bigger than the initalized bufferSize).
+ * Returns if srcBuffer has at least n bytes loaded or if we've reached the end of the file.
+ * Return value is the number of bytes added to the buffer.
+ * Note that srcBuffer might have up to 2 times bufferSize bytes. */
+size_t ReadPool_fillBuffer(read_pool_ctx_t *ctx, size_t n);
+
+/* ReadPool_consumeAndRefill:
+ * Consumes the current buffer and refills it with bufferSize bytes. */
+size_t ReadPool_consumeAndRefill(read_pool_ctx_t *ctx);
+
+/* ReadPool_setFile:
+ * Sets the source file for future read in the pool. Initiates reading immediately if file is not NULL.
+ * Waits for all current enqueued tasks to complete if a previous file was set. */
+void ReadPool_setFile(read_pool_ctx_t *ctx, FILE* file);
+
+/* ReadPool_getFile:
+ * Returns the current file set for the read pool. */
+FILE* ReadPool_getFile(read_pool_ctx_t *ctx);
+
+/* ReadPool_closeFile:
+ * Closes the current set file. Waits for all current enqueued tasks to complete and resets state. */
+int ReadPool_closeFile(read_pool_ctx_t *ctx);
 
 #if defined (__cplusplus)
 }

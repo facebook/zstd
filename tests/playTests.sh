@@ -185,7 +185,7 @@ fi
 
 println "\n===>  simple tests "
 
-datagen > tmp
+datagen -g500K > tmp
 zstd -h
 zstd -H
 zstd -V
@@ -1575,7 +1575,7 @@ elif [ "$longCSize19wlog23" -gt "$optCSize19wlog23" ]; then
     exit 1
 fi
 
-println "\n===>  zstd asyncio decompression tests "
+println "\n===>  zstd asyncio tests "
 
 addFrame() {
     datagen -g2M -s$2 >> tmp_uncompressed

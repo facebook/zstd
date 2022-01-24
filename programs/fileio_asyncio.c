@@ -373,13 +373,13 @@ void AIO_WritePool_free(WritePoolCtx_t* ctx) {
 static void ReadPool_releaseAllCompletedJobs(read_pool_ctx_t* ctx) {
     int i;
     for(i=0; i<ctx->completedJobsCount; i++) {
-        io_job_t* job = (io_job_t*) ctx->completedJobs[i];
-        IoPool_releaseIoJob(job);
+        IOJob_t* job = (IOJob_t*) ctx->completedJobs[i];
+        AIO_IOPool_releaseIoJob(job);
     }
     ctx->completedJobsCount = 0;
 }
 
-static void ReadPool_addJobToCompleted(io_job_t *job) {
+static void ReadPool_addJobToCompleted(IOJob_t *job) {
     read_pool_ctx_t *ctx = (read_pool_ctx_t *)job->ctx;
     if(ctx->base.threadPool)
         ZSTD_pthread_mutex_lock(&ctx->base.ioJobsMutex);
@@ -395,11 +395,11 @@ static void ReadPool_addJobToCompleted(io_job_t *job) {
  * Looks through the completed jobs for a job matching the waitingOnOffset and returns it,
  * if job wasn't found returns NULL.
  * IMPORTANT: assumes ioJobsMutex is locked. */
-static io_job_t* ReadPool_findNextWaitingOffsetCompletedJob(read_pool_ctx_t *ctx) {
-    io_job_t *job = NULL;
+static IOJob_t* ReadPool_findNextWaitingOffsetCompletedJob(read_pool_ctx_t *ctx) {
+    IOJob_t *job = NULL;
     int i;
     for (i=0; i<ctx->completedJobsCount; i++) {
-        job = (io_job_t *) ctx->completedJobs[i];
+        job = (IOJob_t *) ctx->completedJobs[i];
         if (job->offset == ctx->waitingOnOffset) {
             ctx->completedJobs[i] = ctx->completedJobs[--ctx->completedJobsCount];
             return job;
@@ -409,10 +409,10 @@ static io_job_t* ReadPool_findNextWaitingOffsetCompletedJob(read_pool_ctx_t *ctx
 }
 
 /* ReadPool_getNextCompletedJob:
- * Returns a completed io_job_t for the next read in line based on waitingOnOffset and advances waitingOnOffset.
+ * Returns a completed IOJob_t for the next read in line based on waitingOnOffset and advances waitingOnOffset.
  * Would block. */
-static io_job_t* ReadPool_getNextCompletedJob(read_pool_ctx_t *ctx) {
-    io_job_t *job = NULL;
+static IOJob_t* ReadPool_getNextCompletedJob(read_pool_ctx_t *ctx) {
+    IOJob_t *job = NULL;
     if(ctx->base.threadPool)
         ZSTD_pthread_mutex_lock(&ctx->base.ioJobsMutex);
 
@@ -439,7 +439,7 @@ static io_job_t* ReadPool_getNextCompletedJob(read_pool_ctx_t *ctx) {
 /* ReadPool_executeReadJob:
  * Executes a read job synchronously. Can be used as a function for a thread pool. */
 static void ReadPool_executeReadJob(void* opaque){
-    io_job_t* job = (io_job_t*) opaque;
+    IOJob_t* job = (IOJob_t*) opaque;
     read_pool_ctx_t* ctx = (read_pool_ctx_t *)job->ctx;
     if(ctx->reachedEof) {
         job->usedBufferSize = 0;
@@ -459,10 +459,10 @@ static void ReadPool_executeReadJob(void* opaque){
 }
 
 static void ReadPool_enqueueRead(read_pool_ctx_t *ctx) {
-    io_job_t *job = IoPool_acquireJob(&ctx->base);
+    IOJob_t *job = AIO_IOPool_acquireJob(&ctx->base);
     job->offset = ctx->nextReadOffset;
     ctx->nextReadOffset += job->bufferSize;
-    IoPool_enqueueJob(job);
+    AIO_IOPool_enqueueJob(job);
 }
 
 static void ReadPool_startReading(read_pool_ctx_t *ctx) {
@@ -477,9 +477,9 @@ static void ReadPool_startReading(read_pool_ctx_t *ctx) {
  * Waits for all current enqueued tasks to complete if a previous file was set. */
 void ReadPool_setFile(read_pool_ctx_t *ctx, FILE* file) {
     assert(ctx!=NULL);
-    IoPool_join(&ctx->base);
+    AIO_IOPool_join(&ctx->base);
     ReadPool_releaseAllCompletedJobs(ctx);
-    IoPool_setFile(&ctx->base, file);
+    AIO_IOPool_setFile(&ctx->base, file);
     ctx->nextReadOffset = 0;
     ctx->waitingOnOffset = 0;
     ctx->srcBuffer = ctx->srcBufferBase;
@@ -495,7 +495,7 @@ void ReadPool_setFile(read_pool_ctx_t *ctx, FILE* file) {
 read_pool_ctx_t* ReadPool_create(FIO_prefs_t* const prefs, size_t bufferSize) {
     read_pool_ctx_t* ctx = (read_pool_ctx_t*) malloc(sizeof(read_pool_ctx_t));
     if(!ctx) EXM_THROW(100, "Allocation error : not enough memory");
-    IoPool_init(&ctx->base, prefs, ReadPool_executeReadJob, bufferSize);
+    AIO_IOPool_init(&ctx->base, prefs, ReadPool_executeReadJob, bufferSize);
 
     ctx->srcBufferBaseSize = 2 * bufferSize;
     ctx->srcBufferBase = (U8*) malloc(ctx->srcBufferBaseSize);
@@ -517,7 +517,7 @@ void ReadPool_free(read_pool_ctx_t* ctx) {
         ReadPool_closeFile(ctx);
     if(ctx->base.threadPool)
         ZSTD_pthread_cond_destroy(&ctx->jobCompletedCond);
-    IoPool_destroy(&ctx->base);
+    AIO_IOPool_destroy(&ctx->base);
     free(ctx->srcBufferBase);
     free(ctx);
 }
@@ -537,7 +537,7 @@ void ReadPool_consumeBytes(read_pool_ctx_t *ctx, size_t n) {
  * Return value is the number of bytes added to the buffer.
  * Note that srcBuffer might have up to 2 times bufferSize bytes. */
 size_t ReadPool_fillBuffer(read_pool_ctx_t *ctx, size_t n) {
-    io_job_t *job;
+    IOJob_t *job;
     size_t srcBufferOffsetFromBase;
     size_t srcBufferRemainingSpace;
     size_t bytesRead = 0;
@@ -556,10 +556,10 @@ size_t ReadPool_fillBuffer(read_pool_ctx_t *ctx, size_t n) {
         bytesRead += job->usedBufferSize;
         ctx->srcBufferLoaded += job->usedBufferSize;
         if(job->usedBufferSize < job->bufferSize) {
-            IoPool_releaseIoJob(job);
+            AIO_IOPool_releaseIoJob(job);
             break;
         }
-        IoPool_releaseIoJob(job);
+        AIO_IOPool_releaseIoJob(job);
         ReadPool_enqueueRead(ctx);
     }
     return bytesRead;
@@ -575,7 +575,7 @@ size_t ReadPool_consumeAndRefill(read_pool_ctx_t *ctx) {
 /* ReadPool_getFile:
  * Returns the current file set for the read pool. */
 FILE* ReadPool_getFile(read_pool_ctx_t *ctx) {
-    return IoPool_getFile(&ctx->base);
+    return AIO_IOPool_getFile(&ctx->base);
 }
 
 /* ReadPool_closeFile:

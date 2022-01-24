@@ -42,7 +42,7 @@ typedef struct {
 } IOPoolCtx_t;
 
 typedef struct {
-    io_pool_ctx_t base;
+    IOPoolCtx_t base;
 
     /* State regarding the currently read file */
     int reachedEof;

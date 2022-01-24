@@ -819,7 +819,7 @@ typedef struct {
     const char* dictFileName;
     ZSTD_CStream* cctx;
     WritePoolCtx_t *writeCtx;
-    read_pool_ctx_t *readCtx;
+    ReadPoolCtx_t *readCtx;
 } cRess_t;
 
 /** ZSTD_cycleLog() :
@@ -878,7 +878,7 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
     ress.dictBufferSize = FIO_createDictBuffer(&ress.dictBuffer, dictFileName, prefs);   /* works with dictFileName==NULL */
 
     ress.writeCtx = AIO_WritePool_create(prefs, ZSTD_CStreamOutSize());
-    ress.readCtx = ReadPool_create(prefs, ZSTD_CStreamInSize());
+    ress.readCtx = AIO_ReadPool_create(prefs, ZSTD_CStreamInSize());
 
     /* Advanced parameters, including dictionary */
     if (dictFileName && (ress.dictBuffer==NULL))
@@ -943,7 +943,7 @@ static void FIO_freeCResources(const cRess_t* const ress)
 {
     free(ress->dictBuffer);
     AIO_WritePool_free(ress->writeCtx);
-    ReadPool_free(ress->readCtx);
+    AIO_ReadPool_free(ress->readCtx);
     ZSTD_freeCStream(ress->cctx);   /* never fails */
 }
 
@@ -981,7 +981,7 @@ FIO_compressGzFrame(const cRess_t* ress,  /* buffers & handlers are used, but no
     while (1) {
         int ret;
         if (strm.avail_in == 0) {
-            ReadPool_fillBuffer(ress->readCtx, ZSTD_CStreamInSize());
+            AIO_ReadPool_fillBuffer(ress->readCtx, ZSTD_CStreamInSize());
             if (ress->readCtx->srcBufferLoaded == 0) break;
             inFileSize += ress->readCtx->srcBufferLoaded;
             strm.next_in = (z_const unsigned char*)ress->readCtx->srcBuffer;
@@ -991,7 +991,7 @@ FIO_compressGzFrame(const cRess_t* ress,  /* buffers & handlers are used, but no
         {
             size_t const availBefore = strm.avail_in;
             ret = deflate(&strm, Z_NO_FLUSH);
-            ReadPool_consumeBytes(ress->readCtx, availBefore - strm.avail_in);
+            AIO_ReadPool_consumeBytes(ress->readCtx, availBefore - strm.avail_in);
         }
 
         if (ret != Z_OK)
@@ -1077,7 +1077,7 @@ FIO_compressLzmaFrame(cRess_t* ress,
 
     while (1) {
         if (strm.avail_in == 0) {
-            size_t const inSize = ReadPool_fillBuffer(ress->readCtx, ZSTD_CStreamInSize());
+            size_t const inSize = AIO_ReadPool_fillBuffer(ress->readCtx, ZSTD_CStreamInSize());
             if (ress->readCtx->srcBufferLoaded == 0) action = LZMA_FINISH;
             inFileSize += inSize;
             strm.next_in = (BYTE const*)ress->readCtx->srcBuffer;
@@ -1087,7 +1087,7 @@ FIO_compressLzmaFrame(cRess_t* ress,
         {
             size_t const availBefore = strm.avail_in;
             ret = lzma_code(&strm, action);
-            ReadPool_consumeBytes(ress->readCtx, availBefore - strm.avail_in);
+            AIO_ReadPool_consumeBytes(ress->readCtx, availBefore - strm.avail_in);
         }
 
 
@@ -1174,7 +1174,7 @@ FIO_compressLz4Frame(cRess_t* ress,
         outFileSize += headerSize;
 
         /* Read first block */
-        readSize  = ReadPool_fillBuffer(ress->readCtx, blockSize);
+        readSize  = AIO_ReadPool_fillBuffer(ress->readCtx, blockSize);
         inFileSize += readSize;
 
         /* Main Loop */
@@ -1200,8 +1200,8 @@ FIO_compressLz4Frame(cRess_t* ress,
             AIO_WritePool_enqueueAndReacquireWriteJob(&writeJob);
 
             /* Read next block */
-            ReadPool_consumeBytes(ress->readCtx, ress->readCtx->srcBufferLoaded);
-            readSize  = ReadPool_fillBuffer(ress->readCtx, blockSize);
+            AIO_ReadPool_consumeBytes(ress->readCtx, ress->readCtx->srcBufferLoaded);
+            readSize  = AIO_ReadPool_fillBuffer(ress->readCtx, blockSize);
             inFileSize += readSize;
         }
 
@@ -1234,7 +1234,7 @@ FIO_compressZstdFrame(FIO_ctx_t* const fCtx,
                       int compressionLevel, U64* readsize)
 {
     cRess_t const ress = *ressPtr;
-    IOJob_t *writeJob =AIO_WritePool_acquireJob(ressPtr->writeCtx);
+    IOJob_t *writeJob = AIO_WritePool_acquireJob(ressPtr->writeCtx);
 
     U64 compressedfilesize = 0;
     ZSTD_EndDirective directive = ZSTD_e_continue;
@@ -1280,7 +1280,7 @@ FIO_compressZstdFrame(FIO_ctx_t* const fCtx,
     do {
         size_t stillToFlush;
         /* Fill input Buffer */
-        size_t const inSize = ReadPool_fillBuffer(ress.readCtx, ZSTD_CStreamInSize());
+        size_t const inSize = AIO_ReadPool_fillBuffer(ress.readCtx, ZSTD_CStreamInSize());
         ZSTD_inBuffer inBuff = { ress.readCtx->srcBuffer, ress.readCtx->srcBufferLoaded, 0 };
         DISPLAYLEVEL(6, "fread %u bytes from source \n", (unsigned)inSize);
         *readsize += inSize;
@@ -1296,7 +1296,7 @@ FIO_compressZstdFrame(FIO_ctx_t* const fCtx,
             ZSTD_outBuffer outBuff= { writeJob->buffer, writeJob->bufferSize, 0 };
             size_t const toFlushNow = ZSTD_toFlushNow(ress.cctx);
             CHECK_V(stillToFlush, ZSTD_compressStream2(ress.cctx, &outBuff, &inBuff, directive));
-            ReadPool_consumeBytes(ress.readCtx, inBuff.pos - oldIPos);
+            AIO_ReadPool_consumeBytes(ress.readCtx, inBuff.pos - oldIPos);
 
             /* count stats */
             inputPresented++;
@@ -1568,7 +1568,7 @@ static int FIO_compressFilename_dstFile(FIO_ctx_t* const fCtx,
     stat_t statbuf;
     int transferMTime = 0;
     FILE *dstFile;
-    assert(ReadPool_getFile(ress.readCtx) != NULL);
+    assert(AIO_ReadPool_getFile(ress.readCtx) != NULL);
     if (AIO_WritePool_getFile(ress.writeCtx) == NULL) {
         int dstFilePermissions = DEFAULT_FILE_PERMISSIONS;
         if ( strcmp (srcFileName, stdinmark)
@@ -1670,9 +1670,9 @@ FIO_compressFilename_srcFile(FIO_ctx_t* const fCtx,
     srcFile = FIO_openSrcFile(prefs, srcFileName);
     if (srcFile == NULL) return 1;   /* srcFile could not be opened */
 
-    ReadPool_setFile(ress.readCtx, srcFile);
+    AIO_ReadPool_setFile(ress.readCtx, srcFile);
     result = FIO_compressFilename_dstFile(fCtx, prefs, ress, dstFileName, srcFileName, compressionLevel);
-    ReadPool_closeFile(ress.readCtx);
+    AIO_ReadPool_closeFile(ress.readCtx);
 
     if ( prefs->removeSrcFile   /* --rm */
       && result == 0       /* success */
@@ -1896,7 +1896,7 @@ int FIO_compressMultipleFilenames(FIO_ctx_t* const fCtx,
 typedef struct {
     ZSTD_DStream* dctx;
     WritePoolCtx_t *writeCtx;
-    read_pool_ctx_t *readCtx;
+    ReadPoolCtx_t *readCtx;
 } dRess_t;
 
 static dRess_t FIO_createDResources(FIO_prefs_t* const prefs, const char* dictFileName)
@@ -1922,7 +1922,7 @@ static dRess_t FIO_createDResources(FIO_prefs_t* const prefs, const char* dictFi
     }
 
     ress.writeCtx = AIO_WritePool_create(prefs, ZSTD_DStreamOutSize());
-    ress.readCtx = ReadPool_create(prefs, ZSTD_DStreamInSize());
+    ress.readCtx = AIO_ReadPool_create(prefs, ZSTD_DStreamInSize());
 
     return ress;
 }
@@ -1931,7 +1931,7 @@ static void FIO_freeDResources(dRess_t ress)
 {
     CHECK( ZSTD_freeDStream(ress.dctx) );
     AIO_WritePool_free(ress.writeCtx);
-    ReadPool_free(ress.readCtx);
+    AIO_ReadPool_free(ress.readCtx);
 }
 
 /** FIO_passThrough() : just copy input into output, for compatibility with gzip -df mode
@@ -1940,17 +1940,17 @@ static int FIO_passThrough(dRess_t *ress)
 {
     size_t const blockSize = MIN(MIN(64 KB, ZSTD_DStreamInSize()), ZSTD_DStreamOutSize());
     IOJob_t *writeJob = AIO_WritePool_acquireJob(ress->writeCtx);
-    ReadPool_fillBuffer(ress->readCtx, blockSize);
+    AIO_ReadPool_fillBuffer(ress->readCtx, blockSize);
 
     while(ress->readCtx->srcBufferLoaded) {
         size_t writeSize;
-        ReadPool_fillBuffer(ress->readCtx, blockSize);
+        AIO_ReadPool_fillBuffer(ress->readCtx, blockSize);
         writeSize = MIN(blockSize, ress->readCtx->srcBufferLoaded);
         assert(writeSize <= writeJob->bufferSize);
         memcpy(writeJob->buffer, ress->readCtx->srcBuffer, writeSize);
         writeJob->usedBufferSize = writeSize;
         AIO_WritePool_enqueueAndReacquireWriteJob(&writeJob);
-        ReadPool_consumeBytes(ress->readCtx, writeSize);
+        AIO_ReadPool_consumeBytes(ress->readCtx, writeSize);
     }
     assert(ress->readCtx->reachedEof);
     AIO_WritePool_releaseIoJob(writeJob);
@@ -2012,7 +2012,7 @@ FIO_decompressZstdFrame(FIO_ctx_t* const fCtx, dRess_t* ress,
 
     /* Header loading : ensures ZSTD_getFrameHeader() will succeed */
     if (ress->readCtx->srcBufferLoaded < ZSTD_FRAMEHEADERSIZE_MAX)
-        ReadPool_fillBuffer(ress->readCtx, ZSTD_FRAMEHEADERSIZE_MAX);
+        AIO_ReadPool_fillBuffer(ress->readCtx, ZSTD_FRAMEHEADERSIZE_MAX);
 
     /* Main decompression Loop */
     while (1) {
@@ -2048,14 +2048,14 @@ FIO_decompressZstdFrame(FIO_ctx_t* const fCtx, dRess_t* ress,
                             srcFileName, hrs.precision, hrs.value, hrs.suffix);
         }
 
-        ReadPool_consumeBytes(ress->readCtx, inBuff.pos);
+        AIO_ReadPool_consumeBytes(ress->readCtx, inBuff.pos);
 
         if (readSizeHint == 0) break;   /* end of frame */
 
         /* Fill input buffer */
         {   size_t const toDecode = MIN(readSizeHint, ZSTD_DStreamInSize());  /* support large skippable frames */
             if (ress->readCtx->srcBufferLoaded < toDecode) {
-                size_t const readSize = ReadPool_fillBuffer(ress->readCtx, toDecode);
+                size_t const readSize = AIO_ReadPool_fillBuffer(ress->readCtx, toDecode);
                 if (readSize==0) {
                     DISPLAYLEVEL(1, "%s : Read error (39) : premature end \n",
                                  srcFileName);
@@ -2099,7 +2099,7 @@ FIO_decompressGzFrame(dRess_t* ress, const char* srcFileName)
     for ( ; ; ) {
         int ret;
         if (strm.avail_in == 0) {
-            ReadPool_consumeAndRefill(ress->readCtx);
+            AIO_ReadPool_consumeAndRefill(ress->readCtx);
             if (ress->readCtx->srcBufferLoaded == 0) flush = Z_FINISH;
             strm.next_in = (z_const unsigned char*)ress->readCtx->srcBuffer;
             strm.avail_in = (uInt)ress->readCtx->srcBufferLoaded;
@@ -2125,7 +2125,7 @@ FIO_decompressGzFrame(dRess_t* ress, const char* srcFileName)
         if (ret == Z_STREAM_END) break;
     }
 
-    ReadPool_consumeBytes(ress->readCtx, ress->readCtx->srcBufferLoaded - strm.avail_in);
+    AIO_ReadPool_consumeBytes(ress->readCtx, ress->readCtx->srcBufferLoaded - strm.avail_in);
 
     if ( (inflateEnd(&strm) != Z_OK)  /* release resources ; error detected */
       && (decodingError==0) ) {
@@ -2174,7 +2174,7 @@ FIO_decompressLzmaFrame(dRess_t* ress,
     for ( ; ; ) {
         lzma_ret ret;
         if (strm.avail_in == 0) {
-            ReadPool_consumeAndRefill(ress->readCtx);
+            AIO_ReadPool_consumeAndRefill(ress->readCtx);
             if (ress->readCtx->srcBufferLoaded == 0) action = LZMA_FINISH;
             strm.next_in = (BYTE const*)ress->readCtx->srcBuffer;
             strm.avail_in = ress->readCtx->srcBufferLoaded;
@@ -2201,7 +2201,7 @@ FIO_decompressLzmaFrame(dRess_t* ress,
         if (ret == LZMA_STREAM_END) break;
     }
 
-    ReadPool_consumeBytes(ress->readCtx, ress->readCtx->srcBufferLoaded - strm.avail_in);
+    AIO_ReadPool_consumeBytes(ress->readCtx, ress->readCtx->srcBufferLoaded - strm.avail_in);
     lzma_end(&strm);
     AIO_WritePool_releaseIoJob(writeJob);
     AIO_WritePool_sparseWriteEnd(ress->writeCtx);
@@ -2234,7 +2234,7 @@ FIO_decompressLz4Frame(dRess_t* ress, const char* srcFileName)
         int fullBufferDecoded = 0;
 
         /* Read input */
-        ReadPool_fillBuffer(ress->readCtx, nextToLoad);
+        AIO_ReadPool_fillBuffer(ress->readCtx, nextToLoad);
         if(!ress->readCtx->srcBufferLoaded) break; /* reached end of file */
 
         while ((pos < ress->readCtx->srcBufferLoaded) || fullBufferDecoded) {  /* still to read, or still to flush */
@@ -2264,7 +2264,7 @@ FIO_decompressLz4Frame(dRess_t* ress, const char* srcFileName)
 
             if (!nextToLoad) break;
         }
-        ReadPool_consumeBytes(ress->readCtx, pos);
+        AIO_ReadPool_consumeBytes(ress->readCtx, pos);
     }
     if (nextToLoad!=0) {
         DISPLAYLEVEL(1, "zstd: %s: unfinished lz4 stream \n", srcFileName);
@@ -2299,7 +2299,7 @@ static int FIO_decompressFrames(FIO_ctx_t* const fCtx,
         /* check magic number -> version */
         size_t const toRead = 4;
         const BYTE* buf;
-        ReadPool_fillBuffer(ress.readCtx, toRead);
+        AIO_ReadPool_fillBuffer(ress.readCtx, toRead);
         buf = (const BYTE*)ress.readCtx->srcBuffer;
         if (ress.readCtx->srcBufferLoaded==0) {
             if (readSomething==0) {  /* srcFile is empty (which is invalid) */
@@ -2446,11 +2446,11 @@ static int FIO_decompressSrcFile(FIO_ctx_t* const fCtx, FIO_prefs_t* const prefs
 
     srcFile = FIO_openSrcFile(prefs, srcFileName);
     if (srcFile==NULL) return 1;
-    ReadPool_setFile(ress.readCtx, srcFile);
+    AIO_ReadPool_setFile(ress.readCtx, srcFile);
 
     result = FIO_decompressDstFile(fCtx, prefs, ress, dstFileName, srcFileName);
 
-    ReadPool_setFile(ress.readCtx, NULL);
+    AIO_ReadPool_setFile(ress.readCtx, NULL);
 
     /* Close file */
     if (fclose(srcFile)) {

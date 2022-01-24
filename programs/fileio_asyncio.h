@@ -63,7 +63,7 @@ typedef struct {
     void* completedJobs[MAX_IO_JOBS];
     int completedJobsCount;
     ZSTD_pthread_cond_t jobCompletedCond;
-} read_pool_ctx_t;
+} ReadPoolCtx_t;
 
 typedef struct {
     IOPoolCtx_t base;
@@ -128,43 +128,43 @@ WritePoolCtx_t* AIO_WritePool_create(FIO_prefs_t* const prefs, size_t bufferSize
  * Frees and releases a writePool and its resources. Closes destination file. */
 void AIO_WritePool_free(WritePoolCtx_t* ctx);
 
-/* ReadPool_create:
+/* AIO_ReadPool_create:
  * Allocates and sets and a new readPool including its included jobs.
  * bufferSize should be set to the maximal buffer we want to read at a time, will also be used
  * as our basic read size. */
-read_pool_ctx_t* ReadPool_create(FIO_prefs_t* const prefs, size_t bufferSize);
+ReadPoolCtx_t* AIO_ReadPool_create(FIO_prefs_t* const prefs, size_t bufferSize);
 
-/* ReadPool_free:
+/* AIO_ReadPool_free:
  * Frees and releases a readPool and its resources. Closes source file. */
-void ReadPool_free(read_pool_ctx_t* ctx);
+void AIO_ReadPool_free(ReadPoolCtx_t* ctx);
 
-/* ReadPool_consumeBytes:
+/* AIO_ReadPool_consumeBytes:
  * Consumes byes from srcBuffer's beginning and updates srcBufferLoaded accordingly. */
-void ReadPool_consumeBytes(read_pool_ctx_t *ctx, size_t n);
+void AIO_ReadPool_consumeBytes(ReadPoolCtx_t *ctx, size_t n);
 
-/* ReadPool_fillBuffer:
+/* AIO_ReadPool_fillBuffer:
  * Makes sure buffer has at least n bytes loaded (as long as n is not bigger than the initalized bufferSize).
  * Returns if srcBuffer has at least n bytes loaded or if we've reached the end of the file.
  * Return value is the number of bytes added to the buffer.
  * Note that srcBuffer might have up to 2 times bufferSize bytes. */
-size_t ReadPool_fillBuffer(read_pool_ctx_t *ctx, size_t n);
+size_t AIO_ReadPool_fillBuffer(ReadPoolCtx_t *ctx, size_t n);
 
-/* ReadPool_consumeAndRefill:
+/* AIO_ReadPool_consumeAndRefill:
  * Consumes the current buffer and refills it with bufferSize bytes. */
-size_t ReadPool_consumeAndRefill(read_pool_ctx_t *ctx);
+size_t AIO_ReadPool_consumeAndRefill(ReadPoolCtx_t *ctx);
 
-/* ReadPool_setFile:
+/* AIO_ReadPool_setFile:
  * Sets the source file for future read in the pool. Initiates reading immediately if file is not NULL.
  * Waits for all current enqueued tasks to complete if a previous file was set. */
-void ReadPool_setFile(read_pool_ctx_t *ctx, FILE* file);
+void AIO_ReadPool_setFile(ReadPoolCtx_t *ctx, FILE* file);
 
-/* ReadPool_getFile:
+/* AIO_ReadPool_getFile:
  * Returns the current file set for the read pool. */
-FILE* ReadPool_getFile(read_pool_ctx_t *ctx);
+FILE* AIO_ReadPool_getFile(ReadPoolCtx_t *ctx);
 
-/* ReadPool_closeFile:
+/* AIO_ReadPool_closeFile:
  * Closes the current set file. Waits for all current enqueued tasks to complete and resets state. */
-int ReadPool_closeFile(read_pool_ctx_t *ctx);
+int AIO_ReadPool_closeFile(ReadPoolCtx_t *ctx);
 
 #if defined (__cplusplus)
 }

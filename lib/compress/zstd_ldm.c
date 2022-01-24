@@ -711,7 +711,7 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
             rep[0] = sequence.offset;
             /* Store the sequence */
             ZSTD_storeSeq(seqStore, newLitLength, ip - newLitLength, iend,
-                          STORE_OFFSET(sequence.offset),
+                          OFFSET_TO_OFFBASE(sequence.offset),
                           sequence.matchLength);
             ip += sequence.matchLength;
         }

@@ -769,11 +769,12 @@ static int basicUnitTests(U32 seed, double compressibility)
     }
 
     /* Compression with ZSTD_c_stable{In,Out}Buffer */
-    {   ZSTD_CCtx* cctx = ZSTD_createCCtx();
+    {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         ZSTD_inBuffer in;
         ZSTD_outBuffer out;
         size_t cctxSize1;
         size_t cctxSize2;
+        assert(cctx != NULL);
         in.src = CNBuffer;
         in.size = CNBufferSize;
         out.dst = compressedBuffer;
@@ -784,6 +785,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         CHECK(!(cSize < ZSTD_compressBound(CNBufferSize)), "cSize too large for test");
         CHECK_Z(cSize = ZSTD_compress2(cctx, compressedBuffer, cSize + 4, CNBuffer, CNBufferSize));
         CHECK_Z(cctxSize1 = ZSTD_sizeof_CCtx(cctx));
+        /* @cctxSize2 : sizeof_CCtx when doing full streaming (no stable in/out) */
         {   ZSTD_CCtx* const cctx2 = ZSTD_createCCtx();
             assert(cctx2 != NULL);
             in.pos = out.pos = 0;
@@ -792,16 +794,17 @@ static int basicUnitTests(U32 seed, double compressibility)
             CHECK_Z(cctxSize2 = ZSTD_sizeof_CCtx(cctx2));
             ZSTD_freeCCtx(cctx2);
         }
-        {   ZSTD_CCtx* const cctx3 = ZSTD_createCCtx();
+        /* @cctxSize1 : sizeof_CCtx when doing single-shot compression (no streaming) */
+        {   ZSTD_CCtx* const cctx1 = ZSTD_createCCtx();
             ZSTD_parameters params = ZSTD_getParams(0, CNBufferSize, 0);
             size_t cSize3;
-            assert(cctx3 != NULL);
+            assert(cctx1 != NULL);
             params.fParams.checksumFlag = 1;
-            cSize3 = ZSTD_compress_advanced(cctx3, compressedBuffer, compressedBufferSize, CNBuffer, CNBufferSize, NULL, 0, params);
+            cSize3 = ZSTD_compress_advanced(cctx1, compressedBuffer, compressedBufferSize, CNBuffer, CNBufferSize, NULL, 0, params);
             CHECK_Z(cSize3);
             CHECK(!(cSize == cSize3), "Must be same compressed size");
-            CHECK(!(cctxSize1 == ZSTD_sizeof_CCtx(cctx3)), "Must be same CCtx size");
-            ZSTD_freeCCtx(cctx3);
+            CHECK(!(cctxSize1 == ZSTD_sizeof_CCtx(cctx1)), "Must be same CCtx size");
+            ZSTD_freeCCtx(cctx1);
         }
         CHECK(!(cctxSize1 < cctxSize2), "Stable buffers means less allocated size");
         CHECK_Z(ZSTD_decompress(decodedBuffer, CNBufferSize, compressedBuffer, cSize));
@@ -891,8 +894,9 @@ static int basicUnitTests(U32 seed, double compressibility)
         }
         DISPLAYLEVEL(3, "OK \n");
 
-        DISPLAYLEVEL(3, "test%3i : ZSTD_compressStream2() ZSTD_c_stableInBuffer allocated size : ", testNb++);
+        DISPLAYLEVEL(3, "test%3i : ZSTD_compressStream2() with ZSTD_c_stableInBuffer: context size : ", testNb++);
         {   size_t const cctxSize = ZSTD_sizeof_CCtx(cctx);
+            DISPLAYLEVEL(4, "cctxSize1=%zu; cctxSize=%zu; cctxSize2=%zu : ", cctxSize1, cctxSize, cctxSize2);
             CHECK(!(cctxSize1 < cctxSize), "Must be bigger than single-pass");
             CHECK(!(cctxSize < cctxSize2), "Must be smaller than streaming");
             cctxSize1 = cctxSize;
@@ -925,8 +929,9 @@ static int basicUnitTests(U32 seed, double compressibility)
         }
         DISPLAYLEVEL(3, "OK \n");
 
-        DISPLAYLEVEL(3, "test%3i : ZSTD_compressStream2() ZSTD_c_stableOutBuffer allocated size : ", testNb++);
+        DISPLAYLEVEL(3, "test%3i : ZSTD_compressStream2() with ZSTD_c_stableOutBuffer: context size : ", testNb++);
         {   size_t const cctxSize = ZSTD_sizeof_CCtx(cctx);
+            DISPLAYLEVEL(4, "cctxSize1=%zu; cctxSize=%zu; cctxSize2=%zu : ", cctxSize1, cctxSize, cctxSize2);
             CHECK(!(cctxSize1 < cctxSize), "Must be bigger than single-pass and stableInBuffer");
             CHECK(!(cctxSize < cctxSize2), "Must be smaller than streaming");
         }

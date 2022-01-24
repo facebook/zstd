@@ -5660,7 +5660,7 @@ size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
             if (cctx->savedInPosPlusOne == 0) cctx->savedInPosPlusOne = input->pos + 1;
             cctx->expectedInBuffer = *input;
             /* pretend input was consumed, to give a sense forward progress */
-            input[0].pos = input[0].size;
+            input->pos = input->size;
             /* but actually input wasn't consumed, so keep track of position from where compression shall resume */
             cctx->expectedInBuffer.pos = cctx->savedInPosPlusOne - 1;
             /* don't initialize yet, wait for the first block of flush() order, for better parameters adaptation */

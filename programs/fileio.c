@@ -1888,7 +1888,7 @@ typedef struct {
     size_t srcBufferSize;
     size_t srcBufferLoaded;
     ZSTD_DStream* dctx;
-    write_pool_ctx_t *writeCtx;
+    WritePoolCtx_t *writeCtx;
 } dRess_t;
 
 static dRess_t FIO_createDResources(FIO_prefs_t* const prefs, const char* dictFileName)
@@ -1918,7 +1918,7 @@ static dRess_t FIO_createDResources(FIO_prefs_t* const prefs, const char* dictFi
         free(dictBuffer);
     }
 
-    ress.writeCtx = WritePool_create(prefs, ZSTD_DStreamOutSize());
+    ress.writeCtx = AIO_WritePool_create(prefs, ZSTD_DStreamOutSize());
 
     return ress;
 }
@@ -1927,7 +1927,7 @@ static void FIO_freeDResources(dRess_t ress)
 {
     CHECK( ZSTD_freeDStream(ress.dctx) );
     free(ress.srcBuffer);
-    WritePool_free(ress.writeCtx);
+    AIO_WritePool_free(ress.writeCtx);
 }
 
 /* FIO_consumeDSrcBuffer:
@@ -1958,7 +1958,7 @@ static int FIO_passThrough(const FIO_prefs_t* const prefs,
 
     do {
         readFromInput = fread(buffer, 1, blockSize, finput);
-        storedSkips = FIO_fwriteSparse(foutput, buffer, readFromInput, prefs, storedSkips);
+        storedSkips = AIO_fwriteSparse(foutput, buffer, readFromInput, prefs, storedSkips);
     } while (readFromInput == blockSize);
     if (ferror(finput)) {
         DISPLAYLEVEL(1, "Pass-through read error : %s\n", strerror(errno));
@@ -1966,7 +1966,7 @@ static int FIO_passThrough(const FIO_prefs_t* const prefs,
     }
     assert(feof(finput));
 
-    FIO_fwriteSparseEnd(prefs, foutput, storedSkips);
+    AIO_fwriteSparseEnd(prefs, foutput, storedSkips);
     return 0;
 }
 
@@ -2013,7 +2013,7 @@ FIO_decompressZstdFrame(FIO_ctx_t* const fCtx, dRess_t* ress, FILE* finput,
                         U64 alreadyDecoded)  /* for multi-frames streams */
 {
     U64 frameSize = 0;
-    io_job_t *writeJob = WritePool_acquireJob(ress->writeCtx);
+    IOJob_t *writeJob = AIO_WritePool_acquireJob(ress->writeCtx);
 
     /* display last 20 characters only */
     {   size_t const srcFileLength = strlen(srcFileName);
@@ -2041,13 +2041,13 @@ FIO_decompressZstdFrame(FIO_ctx_t* const fCtx, dRess_t* ress, FILE* finput,
             DISPLAYLEVEL(1, "%s : Decoding error (36) : %s \n",
                             srcFileName, ZSTD_getErrorName(readSizeHint));
             FIO_zstdErrorHelp(prefs, ress, readSizeHint, srcFileName);
-            WritePool_releaseIoJob(writeJob);
+            AIO_WritePool_releaseIoJob(writeJob);
             return FIO_ERROR_FRAME_DECODING;
         }
 
         /* Write block */
         writeJob->usedBufferSize = outBuff.pos;
-        WritePool_enqueueAndReacquireWriteJob(&writeJob);
+        AIO_WritePool_enqueueAndReacquireWriteJob(&writeJob);
         frameSize += outBuff.pos;
         if (fCtx->nbFilesTotal > 1) {
             size_t srcFileNameSize = strlen(srcFileName);
@@ -2082,8 +2082,8 @@ FIO_decompressZstdFrame(FIO_ctx_t* const fCtx, dRess_t* ress, FILE* finput,
                 ress->srcBufferLoaded += readSize;
     }   }   }
 
-    WritePool_releaseIoJob(writeJob);
-    WritePool_sparseWriteEnd(ress->writeCtx);
+    AIO_WritePool_releaseIoJob(writeJob);
+    AIO_WritePool_sparseWriteEnd(ress->writeCtx);
 
     return frameSize;
 }
@@ -2097,7 +2097,7 @@ FIO_decompressGzFrame(dRess_t* ress, FILE* srcFile, const char* srcFileName)
     z_stream strm;
     int flush = Z_NO_FLUSH;
     int decodingError = 0;
-    io_job_t *writeJob = NULL;
+    IOJob_t *writeJob = NULL;
 
     strm.zalloc = Z_NULL;
     strm.zfree = Z_NULL;
@@ -2108,7 +2108,7 @@ FIO_decompressGzFrame(dRess_t* ress, FILE* srcFile, const char* srcFileName)
     if (inflateInit2(&strm, 15 /* maxWindowLogSize */ + 16 /* gzip only */) != Z_OK)
         return FIO_ERROR_FRAME_DECODING;
 
-    writeJob = WritePool_acquireJob(ress->writeCtx);
+    writeJob = AIO_WritePool_acquireJob(ress->writeCtx);
     strm.next_out = (Bytef*)writeJob->buffer;
     strm.avail_out = (uInt)writeJob->bufferSize;
     strm.avail_in = (uInt)ress->srcBufferLoaded;
@@ -2134,7 +2134,7 @@ FIO_decompressGzFrame(dRess_t* ress, FILE* srcFile, const char* srcFileName)
         {   size_t const decompBytes = writeJob->bufferSize - strm.avail_out;
             if (decompBytes) {
                 writeJob->usedBufferSize = decompBytes;
-                WritePool_enqueueAndReacquireWriteJob(&writeJob);
+                AIO_WritePool_enqueueAndReacquireWriteJob(&writeJob);
                 outFileSize += decompBytes;
                 strm.next_out = (Bytef*)writeJob->buffer;
                 strm.avail_out = (uInt)writeJob->bufferSize;
@@ -2150,8 +2150,8 @@ FIO_decompressGzFrame(dRess_t* ress, FILE* srcFile, const char* srcFileName)
         DISPLAYLEVEL(1, "zstd: %s: inflateEnd error \n", srcFileName);
         decodingError = 1;
     }
-    WritePool_releaseIoJob(writeJob);
-    WritePool_sparseWriteEnd(ress->writeCtx);
+    AIO_WritePool_releaseIoJob(writeJob);
+    AIO_WritePool_sparseWriteEnd(ress->writeCtx);
     return decodingError ? FIO_ERROR_FRAME_DECODING : outFileSize;
 }
 #endif
@@ -2166,7 +2166,7 @@ FIO_decompressLzmaFrame(dRess_t* ress, FILE* srcFile,
     lzma_action action = LZMA_RUN;
     lzma_ret initRet;
     int decodingError = 0;
-    io_job_t *writeJob = NULL;
+    IOJob_t *writeJob = NULL;
 
     strm.next_in = 0;
     strm.avail_in = 0;
@@ -2183,7 +2183,7 @@ FIO_decompressLzmaFrame(dRess_t* ress, FILE* srcFile,
         return FIO_ERROR_FRAME_DECODING;
     }
 
-    writeJob = WritePool_acquireJob(ress->writeCtx);
+    writeJob = AIO_WritePool_acquireJob(ress->writeCtx);
     strm.next_out = (Bytef*)writeJob->buffer;
     strm.avail_out = (uInt)writeJob->bufferSize;
     strm.next_in = (BYTE const*)ress->srcBuffer;
@@ -2211,7 +2211,7 @@ FIO_decompressLzmaFrame(dRess_t* ress, FILE* srcFile,
         {   size_t const decompBytes = writeJob->bufferSize - strm.avail_out;
             if (decompBytes) {
                 writeJob->usedBufferSize = decompBytes;
-                WritePool_enqueueAndReacquireWriteJob(&writeJob);
+                AIO_WritePool_enqueueAndReacquireWriteJob(&writeJob);
                 outFileSize += decompBytes;
                 strm.next_out = (Bytef*)writeJob->buffer;
                 strm.avail_out = writeJob->bufferSize;
@@ -2221,8 +2221,8 @@ FIO_decompressLzmaFrame(dRess_t* ress, FILE* srcFile,
 
     FIO_consumeDSrcBuffer(ress, ress->srcBufferLoaded - strm.avail_in);
     lzma_end(&strm);
-    WritePool_releaseIoJob(writeJob);
-    WritePool_sparseWriteEnd(ress->writeCtx);
+    AIO_WritePool_releaseIoJob(writeJob);
+    AIO_WritePool_sparseWriteEnd(ress->writeCtx);
     return decodingError ? FIO_ERROR_FRAME_DECODING : outFileSize;
 }
 #endif
@@ -2237,14 +2237,14 @@ FIO_decompressLz4Frame(dRess_t* ress, FILE* srcFile,
     LZ4F_decompressionContext_t dCtx;
     LZ4F_errorCode_t const errorCode = LZ4F_createDecompressionContext(&dCtx, LZ4F_VERSION);
     int decodingError = 0;
-    io_job_t *writeJob = NULL;
+    IOJob_t *writeJob = NULL;
 
     if (LZ4F_isError(errorCode)) {
         DISPLAYLEVEL(1, "zstd: failed to create lz4 decompression context \n");
         return FIO_ERROR_FRAME_DECODING;
     }
 
-    writeJob = WritePool_acquireJob(ress->writeCtx);
+    writeJob = AIO_WritePool_acquireJob(ress->writeCtx);
 
     /* Main Loop */
     for (;nextToLoad;) {
@@ -2282,7 +2282,7 @@ FIO_decompressLz4Frame(dRess_t* ress, FILE* srcFile,
             if (decodedBytes) {
                 UTIL_HumanReadableSize_t hrs;
                 writeJob->usedBufferSize = decodedBytes;
-                WritePool_enqueueAndReacquireWriteJob(&writeJob);
+                AIO_WritePool_enqueueAndReacquireWriteJob(&writeJob);
                 filesize += decodedBytes;
                 hrs = UTIL_makeHumanReadableSize(filesize);
                 DISPLAYUPDATE(2, "\rDecompressed : %.*f%s  ", hrs.precision, hrs.value, hrs.suffix);
@@ -2298,8 +2298,8 @@ FIO_decompressLz4Frame(dRess_t* ress, FILE* srcFile,
     }
 
     LZ4F_freeDecompressionContext(dCtx);
-    WritePool_releaseIoJob(writeJob);
-    WritePool_sparseWriteEnd(ress->writeCtx);
+    AIO_WritePool_releaseIoJob(writeJob);
+    AIO_WritePool_sparseWriteEnd(ress->writeCtx);
 
     return decodingError ? FIO_ERROR_FRAME_DECODING : filesize;
 }
@@ -2376,7 +2376,7 @@ static int FIO_decompressFrames(FIO_ctx_t* const fCtx,
 #endif
         } else if ((prefs->overwrite) && !strcmp (dstFileName, stdoutmark)) {  /* pass-through mode */
             return FIO_passThrough(prefs,
-                                   WritePool_getFile(ress.writeCtx), srcFile,
+                                   AIO_WritePool_getFile(ress.writeCtx), srcFile,
                                    ress.srcBuffer, ress.srcBufferSize,
                                    ress.srcBufferLoaded);
         } else {
@@ -2414,7 +2414,7 @@ static int FIO_decompressDstFile(FIO_ctx_t* const fCtx,
     int releaseDstFile = 0;
     int transferMTime = 0;
 
-    if ((WritePool_getFile(ress.writeCtx) == NULL) && (prefs->testMode == 0)) {
+    if ((AIO_WritePool_getFile(ress.writeCtx) == NULL) && (prefs->testMode == 0)) {
         FILE *dstFile;
         int dstFilePermissions = DEFAULT_FILE_PERMISSIONS;
         if ( strcmp(srcFileName, stdinmark)   /* special case : don't transfer permissions from stdin */
@@ -2429,7 +2429,7 @@ static int FIO_decompressDstFile(FIO_ctx_t* const fCtx,
 
         dstFile = FIO_openDstFile(fCtx, prefs, srcFileName, dstFileName, dstFilePermissions);
         if (dstFile==NULL) return 1;
-        WritePool_setFile(ress.writeCtx, dstFile);
+        AIO_WritePool_setFile(ress.writeCtx, dstFile);
 
         /* Must only be added after FIO_openDstFile() succeeds.
          * Otherwise we may delete the destination file if it already exists,
@@ -2442,7 +2442,7 @@ static int FIO_decompressDstFile(FIO_ctx_t* const fCtx,
 
     if (releaseDstFile) {
         clearHandler();
-        if (WritePool_closeFile(ress.writeCtx)) {
+        if (AIO_WritePool_closeFile(ress.writeCtx)) {
             DISPLAYLEVEL(1, "zstd: %s: %s \n", dstFileName, strerror(errno));
             result = 1;
         }
@@ -2658,14 +2658,14 @@ FIO_decompressMultipleFilenames(FIO_ctx_t* const fCtx,
         if (!prefs->testMode) {
             FILE* dstFile = FIO_openDstFile(fCtx, prefs, NULL, outFileName, DEFAULT_FILE_PERMISSIONS);
             if (dstFile == 0) EXM_THROW(19, "cannot open %s", outFileName);
-            WritePool_setFile(ress.writeCtx, dstFile);
+            AIO_WritePool_setFile(ress.writeCtx, dstFile);
         }
         for (; fCtx->currFileIdx < fCtx->nbFilesTotal; fCtx->currFileIdx++) {
             status = FIO_decompressSrcFile(fCtx, prefs, ress, outFileName, srcNamesTable[fCtx->currFileIdx]);
             if (!status) fCtx->nbFilesProcessed++;
             error |= status;
         }
-        if ((!prefs->testMode) && (WritePool_closeFile(ress.writeCtx)))
+        if ((!prefs->testMode) && (AIO_WritePool_closeFile(ress.writeCtx)))
             EXM_THROW(72, "Write error : %s : cannot properly close output file",
                         strerror(errno));
     } else {

@@ -39,12 +39,12 @@ typedef struct {
     ZSTD_pthread_mutex_t ioJobsMutex;
     void* availableJobs[MAX_IO_JOBS];
     int availableJobsCount;
-} io_pool_ctx_t;
+} IOPoolCtx_t;
 
 typedef struct {
-    io_pool_ctx_t base;
+    IOPoolCtx_t base;
     unsigned storedSkips;
-} write_pool_ctx_t;
+} WritePoolCtx_t;
 
 typedef struct {
     /* These fields are automatically set and shouldn't be changed by non WritePool code. */
@@ -57,61 +57,61 @@ typedef struct {
      * of bytes to write from the buffer. */
     size_t usedBufferSize;
     U64 offset;
-} io_job_t;
+} IOJob_t;
 
-/** FIO_fwriteSparse() :
+/** AIO_fwriteSparse() :
 *  @return : storedSkips,
-*            argument for next call to FIO_fwriteSparse() or FIO_fwriteSparseEnd() */
-unsigned FIO_fwriteSparse(FILE* file,
+*            argument for next call to AIO_fwriteSparse() or AIO_fwriteSparseEnd() */
+unsigned AIO_fwriteSparse(FILE* file,
                  const void* buffer, size_t bufferSize,
                  const FIO_prefs_t* const prefs,
                  unsigned storedSkips);
 
-void FIO_fwriteSparseEnd(const FIO_prefs_t* const prefs, FILE* file, unsigned storedSkips);
+void AIO_fwriteSparseEnd(const FIO_prefs_t* const prefs, FILE* file, unsigned storedSkips);
 
-/* WritePool_releaseIoJob:
+/* AIO_WritePool_releaseIoJob:
  * Releases an acquired job back to the pool. Doesn't execute the job. */
-void WritePool_releaseIoJob(io_job_t *job);
+void AIO_WritePool_releaseIoJob(IOJob_t *job);
 
-/* WritePool_acquireJob:
+/* AIO_WritePool_acquireJob:
  * Returns an available write job to be used for a future write. */
-io_job_t* WritePool_acquireJob(write_pool_ctx_t *ctx);
+IOJob_t* AIO_WritePool_acquireJob(WritePoolCtx_t *ctx);
 
-/* WritePool_enqueueAndReacquireWriteJob:
+/* AIO_WritePool_enqueueAndReacquireWriteJob:
  * Enqueues a write job for execution and acquires a new one.
  * After execution `job`'s pointed value would change to the newly acquired job.
  * Make sure to set `usedBufferSize` to the wanted length before call.
  * The queued job shouldn't be used directly after queueing it. */
-void WritePool_enqueueAndReacquireWriteJob(io_job_t **job);
+void AIO_WritePool_enqueueAndReacquireWriteJob(IOJob_t **job);
 
-/* WritePool_sparseWriteEnd:
+/* AIO_WritePool_sparseWriteEnd:
  * Ends sparse writes to the current file.
  * Blocks on completion of all current write jobs before executing. */
-void WritePool_sparseWriteEnd(write_pool_ctx_t *ctx);
+void AIO_WritePool_sparseWriteEnd(WritePoolCtx_t *ctx);
 
-/* WritePool_setFile:
+/* AIO_WritePool_setFile:
  * Sets the destination file for future writes in the pool.
  * Requires completion of all queues write jobs and release of all otherwise acquired jobs.
  * Also requires ending of sparse write if a previous file was used in sparse mode. */
-void WritePool_setFile(write_pool_ctx_t *ctx, FILE* file);
+void AIO_WritePool_setFile(WritePoolCtx_t *ctx, FILE* file);
 
-/* WritePool_getFile:
+/* AIO_WritePool_getFile:
  * Returns the file the writePool is currently set to write to. */
-FILE* WritePool_getFile(write_pool_ctx_t *ctx);
+FILE* AIO_WritePool_getFile(WritePoolCtx_t *ctx);
 
-/* WritePool_closeFile:
+/* AIO_WritePool_closeFile:
  * Ends sparse write and closes the writePool's current file and sets the file to NULL.
  * Requires completion of all queues write jobs and release of all otherwise acquired jobs.  */
-int WritePool_closeFile(write_pool_ctx_t *ctx);
+int AIO_WritePool_closeFile(WritePoolCtx_t *ctx);
 
-/* WritePool_create:
+/* AIO_WritePool_create:
  * Allocates and sets and a new write pool including its included jobs.
  * bufferSize should be set to the maximal buffer we want to write to at a time. */
-write_pool_ctx_t* WritePool_create(FIO_prefs_t* const prefs, size_t bufferSize);
+WritePoolCtx_t* AIO_WritePool_create(FIO_prefs_t* const prefs, size_t bufferSize);
 
-/* WritePool_free:
+/* AIO_WritePool_free:
  * Frees and releases a writePool and its resources. Closes destination file. */
-void WritePool_free(write_pool_ctx_t* ctx);
+void AIO_WritePool_free(WritePoolCtx_t* ctx);
 
 #if defined (__cplusplus)
 }

@@ -1206,7 +1206,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
     DISPLAYLEVEL(3, "test%3i : compress a NULL input with each level : ", testNb++);
     {   int level = -1;
-        ZSTD_CCtx* cctx = ZSTD_createCCtx();
+        ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         if (!cctx) goto _output_error;
         for (level = -1; level <= ZSTD_maxCLevel(); ++level) {
           CHECK_Z( ZSTD_compress(compressedBuffer, compressedBufferSize, NULL, 0, level) );

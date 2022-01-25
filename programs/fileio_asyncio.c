@@ -391,13 +391,17 @@ static void AIO_ReadPool_addJobToCompleted(IOJob_t *job) {
     }
 }
 
-/* AIO_ReadPool_findNextWaitingOffsetCompletedJob:
+/* AIO_ReadPool_findNextWaitingOffsetCompletedJob_locked:
  * Looks through the completed jobs for a job matching the waitingOnOffset and returns it,
  * if job wasn't found returns NULL.
  * IMPORTANT: assumes ioJobsMutex is locked. */
-static IOJob_t* AIO_ReadPool_findNextWaitingOffsetCompletedJob(ReadPoolCtx_t *ctx) {
+static IOJob_t* AIO_ReadPool_findNextWaitingOffsetCompletedJob_locked(ReadPoolCtx_t *ctx) {
     IOJob_t *job = NULL;
     int i;
+    /* This implementation goes through all completed jobs and looks for the one matching the next offset.
+     * While not strictly needed for a single threaded reader implementation (as in such a case we could expect
+     * reads to be completed in order) this implementation was chosen as it better fits other asyncio
+     * interfaces (such as io_uring) that do not provide promises regarding order of completion. */
     for (i=0; i<ctx->completedJobsCount; i++) {
         job = (IOJob_t *) ctx->completedJobs[i];
         if (job->offset == ctx->waitingOnOffset) {
@@ -416,13 +420,13 @@ static IOJob_t* AIO_ReadPool_getNextCompletedJob(ReadPoolCtx_t *ctx) {
     if(ctx->base.threadPool)
         ZSTD_pthread_mutex_lock(&ctx->base.ioJobsMutex);
 
-    job = AIO_ReadPool_findNextWaitingOffsetCompletedJob(ctx);
+    job = AIO_ReadPool_findNextWaitingOffsetCompletedJob_locked(ctx);
 
     /* As long as we didn't find the job matching the next read, and we have some reads in flight continue waiting */
     while (!job && (ctx->base.availableJobsCount + ctx->completedJobsCount < ctx->base.totalIoJobs)) {
         assert(ctx->base.threadPool != NULL); /* we shouldn't be here if we work in sync mode */
         ZSTD_pthread_cond_wait(&ctx->jobCompletedCond, &ctx->base.ioJobsMutex);
-        job = AIO_ReadPool_findNextWaitingOffsetCompletedJob(ctx);
+        job = AIO_ReadPool_findNextWaitingOffsetCompletedJob_locked(ctx);
     }
 
     if(job) {
@@ -452,8 +456,9 @@ static void AIO_ReadPool_executeReadJob(void* opaque){
             EXM_THROW(37, "Read error");
         } else if(feof(job->file)) {
             ctx->reachedEof = 1;
-        } else
-        EXM_THROW(37, "Unexpected short read");
+        } else {
+            EXM_THROW(37, "Unexpected short read");
+        }
     }
     AIO_ReadPool_addJobToCompleted(job);
 }

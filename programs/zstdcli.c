@@ -1445,6 +1445,7 @@ int main(int argCount, const char* argv[])
         FIO_setTargetCBlockSize(prefs, targetCBlockSize);
         FIO_setSrcSizeHint(prefs, srcSizeHint);
         FIO_setLiteralCompressionMode(prefs, literalCompressionMode);
+        FIO_setSparseWrite(prefs, 0);
         if (adaptMin > cLevel) cLevel = adaptMin;
         if (adaptMax < cLevel) cLevel = adaptMax;
 

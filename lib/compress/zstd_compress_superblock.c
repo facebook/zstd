@@ -38,11 +38,12 @@
  *  @return : compressed size of literals section of a sub-block
  *            Or 0 if it unable to compress.
  *            Or error code */
-static size_t ZSTD_compressSubBlock_literal(const HUF_CElt* hufTable,
-                                    const ZSTD_hufCTablesMetadata_t* hufMetadata,
-                                    const BYTE* literals, size_t litSize,
-                                    void* dst, size_t dstSize,
-                                    const int bmi2, int writeEntropy, int* entropyWritten)
+static size_t
+ZSTD_compressSubBlock_literal(const HUF_CElt* hufTable,
+                              const ZSTD_hufCTablesMetadata_t* hufMetadata,
+                              const BYTE* literals, size_t litSize,
+                              void* dst, size_t dstSize,
+                              const int bmi2, int writeEntropy, int* entropyWritten)
 {
     size_t const header = writeEntropy ? 200 : 0;
     size_t const lhSize = 3 + (litSize >= (1 KB - header)) + (litSize >= (16 KB - header));
@@ -126,7 +127,11 @@ static size_t ZSTD_compressSubBlock_literal(const HUF_CElt* hufTable,
     return op-ostart;
 }
 
-static size_t ZSTD_seqDecompressedSize(seqStore_t const* seqStore, const seqDef* sequences, size_t nbSeq, size_t litSize, int lastSequence) {
+static size_t
+ZSTD_seqDecompressedSize(seqStore_t const* seqStore,
+                   const seqDef* sequences, size_t nbSeq,
+                         size_t litSize, int lastSequence)
+{
     const seqDef* const sstart = sequences;
     const seqDef* const send = sequences + nbSeq;
     const seqDef* sp = sstart;
@@ -156,13 +161,14 @@ static size_t ZSTD_seqDecompressedSize(seqStore_t const* seqStore, const seqDef*
  *  @return : compressed size of sequences section of a sub-block
  *            Or 0 if it is unable to compress
  *            Or error code. */
-static size_t ZSTD_compressSubBlock_sequences(const ZSTD_fseCTables_t* fseTables,
-                                              const ZSTD_fseCTablesMetadata_t* fseMetadata,
-                                              const seqDef* sequences, size_t nbSeq,
-                                              const BYTE* llCode, const BYTE* mlCode, const BYTE* ofCode,
-                                              const ZSTD_CCtx_params* cctxParams,
-                                              void* dst, size_t dstCapacity,
-                                              const int bmi2, int writeEntropy, int* entropyWritten)
+static size_t
+ZSTD_compressSubBlock_sequences(const ZSTD_fseCTables_t* fseTables,
+                                const ZSTD_fseCTablesMetadata_t* fseMetadata,
+                                const seqDef* sequences, size_t nbSeq,
+                                const BYTE* llCode, const BYTE* mlCode, const BYTE* ofCode,
+                                const ZSTD_CCtx_params* cctxParams,
+                                void* dst, size_t dstCapacity,
+                                const int bmi2, int writeEntropy, int* entropyWritten)
 {
     const int longOffsets = cctxParams->cParams.windowLog > STREAM_ACCUMULATOR_MIN;
     BYTE* const ostart = (BYTE*)dst;
@@ -539,7 +545,7 @@ static size_t ZSTD_compressSubBlock_multi(const seqStore_t* seqStorePtr,
             repcodes_t rep;
             ZSTD_memcpy(&rep, prevCBlock->rep, sizeof(rep));
             for (seq = sstart; seq < sp; ++seq) {
-                ZSTD_updateRep(rep.rep, seq->offBase - 1, ZSTD_getSequenceLength(seqStorePtr, seq).litLength == 0);
+                ZSTD_updateRep(rep.rep, seq->offBase, ZSTD_getSequenceLength(seqStorePtr, seq).litLength == 0);
             }
             ZSTD_memcpy(nextCBlock->rep, &rep, sizeof(rep));
         }

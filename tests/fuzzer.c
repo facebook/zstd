@@ -3283,8 +3283,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         {   U32 u;
             for (u = 0; u < CNBuffSize; ++u) {
               ((BYTE*)CNBuffer)[u] = 255 - ((BYTE*)CNBuffer)[u];
-            }
-        }
+        }   }
         {   /* Compress the data */
             size_t const inputSize = 500;
             size_t const outputSize = ZSTD_compressBound(inputSize);

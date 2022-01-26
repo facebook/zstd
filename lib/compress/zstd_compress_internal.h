@@ -577,29 +577,27 @@ ZSTD_safecopyLiterals(BYTE* op, BYTE const* ip, BYTE const* const iend, BYTE con
     while (ip < iend) *op++ = *ip++;
 }
 
-#define ZSTD_REP_MOVE     (ZSTD_REP_NUM-1)
-#define STORE_REPCODE_1 STORE_REPCODE(1)
-#define STORE_REPCODE_2 STORE_REPCODE(2)
-#define STORE_REPCODE_3 STORE_REPCODE(3)
-#define STORE_REPCODE(r) (assert((r)>=1), assert((r)<=3), (r)-1)
-#define STORE_OFFSET(o)  (assert((o)>0), o + ZSTD_REP_MOVE)
-#define STORED_IS_OFFSET(o)  ((o) > ZSTD_REP_MOVE)
-#define STORED_IS_REPCODE(o) ((o) <= ZSTD_REP_MOVE)
-#define STORED_OFFSET(o)  (assert(STORED_IS_OFFSET(o)), (o)-ZSTD_REP_MOVE)
-#define STORED_REPCODE(o) (assert(STORED_IS_REPCODE(o)), (o)+1)  /* returns ID 1,2,3 */
-#define STORED_TO_OFFBASE(o) ((o)+1)
-#define OFFBASE_TO_STORED(o) ((o)-1)
+
+#define REPCODE1_TO_OFFBASE REPCODE_TO_OFFBASE(1)
+#define REPCODE2_TO_OFFBASE REPCODE_TO_OFFBASE(2)
+#define REPCODE3_TO_OFFBASE REPCODE_TO_OFFBASE(3)
+#define REPCODE_TO_OFFBASE(r) (assert((r)>=1), assert((r)<=ZSTD_REP_NUM), (r)) /* accepts IDs 1,2,3 */
+#define OFFSET_TO_OFFBASE(o)  (assert((o)>0), o + ZSTD_REP_NUM)
+#define OFFBASE_IS_OFFSET(o)  ((o) > ZSTD_REP_NUM)
+#define OFFBASE_IS_REPCODE(o) ( 1 <= (o) && (o) <= ZSTD_REP_NUM)
+#define OFFBASE_TO_OFFSET(o)  (assert(OFFBASE_IS_OFFSET(o)), (o) - ZSTD_REP_NUM)
+#define OFFBASE_TO_REPCODE(o) (assert(OFFBASE_IS_REPCODE(o)), (o))  /* returns ID 1,2,3 */
 
 /*! ZSTD_storeSeq() :
- *  Store a sequence (litlen, litPtr, offCode and matchLength) into seqStore_t.
- *  @offBase_minus1 : Users should use employ macros STORE_REPCODE_X and STORE_OFFSET().
+ *  Store a sequence (litlen, litPtr, offBase and matchLength) into seqStore_t.
+ *  @offBase : Users should employ macros REPCODE_TO_OFFBASE() and OFFSET_TO_OFFBASE().
  *  @matchLength : must be >= MINMATCH
- *  Allowed to overread literals up to litLimit.
+ *  Allowed to over-read literals up to litLimit.
 */
 HINT_INLINE UNUSED_ATTR void
 ZSTD_storeSeq(seqStore_t* seqStorePtr,
               size_t litLength, const BYTE* literals, const BYTE* litLimit,
-              U32 offBase_minus1,
+              U32 offBase,
               size_t matchLength)
 {
     BYTE const* const litLimit_w = litLimit - WILDCOPY_OVERLENGTH;
@@ -608,8 +606,8 @@ ZSTD_storeSeq(seqStore_t* seqStorePtr,
     static const BYTE* g_start = NULL;
     if (g_start==NULL) g_start = (const BYTE*)literals;  /* note : index only works for compression within a single segment */
     {   U32 const pos = (U32)((const BYTE*)literals - g_start);
-        DEBUGLOG(6, "Cpos%7u :%3u literals, match%4u bytes at offCode%7u",
-               pos, (U32)litLength, (U32)matchLength, (U32)offBase_minus1);
+        DEBUGLOG(6, "Cpos%7u :%3u literals, match%4u bytes at offBase%7u",
+               pos, (U32)litLength, (U32)matchLength, (U32)offBase);
     }
 #endif
     assert((size_t)(seqStorePtr->sequences - seqStorePtr->sequencesStart) < seqStorePtr->maxNbSeq);
@@ -619,9 +617,9 @@ ZSTD_storeSeq(seqStore_t* seqStorePtr,
     assert(literals + litLength <= litLimit);
     if (litEnd <= litLimit_w) {
         /* Common case we can use wildcopy.
-	 * First copy 16 bytes, because literals are likely short.
-	 */
-        assert(WILDCOPY_OVERLENGTH >= 16);
+         * First copy 16 bytes, because literals are likely short.
+         */
+        ZSTD_STATIC_ASSERT(WILDCOPY_OVERLENGTH >= 16);
         ZSTD_copy16(seqStorePtr->lit, literals);
         if (litLength > 16) {
             ZSTD_wildcopy(seqStorePtr->lit+16, literals+16, (ptrdiff_t)litLength-16, ZSTD_no_overlap);
@@ -640,7 +638,7 @@ ZSTD_storeSeq(seqStore_t* seqStorePtr,
     seqStorePtr->sequences[0].litLength = (U16)litLength;
 
     /* match offset */
-    seqStorePtr->sequences[0].offBase = STORED_TO_OFFBASE(offBase_minus1);
+    seqStorePtr->sequences[0].offBase = offBase;
 
     /* match Length */
     assert(matchLength >= MINMATCH);
@@ -658,17 +656,17 @@ ZSTD_storeSeq(seqStore_t* seqStorePtr,
 
 /* ZSTD_updateRep() :
  * updates in-place @rep (array of repeat offsets)
- * @offBase_minus1 : sum-type, with same numeric representation as ZSTD_storeSeq()
+ * @offBase : sum-type, using numeric representation of ZSTD_storeSeq()
  */
 MEM_STATIC void
-ZSTD_updateRep(U32 rep[ZSTD_REP_NUM], U32 const offBase_minus1, U32 const ll0)
+ZSTD_updateRep(U32 rep[ZSTD_REP_NUM], U32 const offBase, U32 const ll0)
 {
-    if (STORED_IS_OFFSET(offBase_minus1)) {  /* full offset */
+    if (OFFBASE_IS_OFFSET(offBase)) {  /* full offset */
         rep[2] = rep[1];
         rep[1] = rep[0];
-        rep[0] = STORED_OFFSET(offBase_minus1);
+        rep[0] = OFFBASE_TO_OFFSET(offBase);
     } else {   /* repcode */
-        U32 const repCode = STORED_REPCODE(offBase_minus1) - 1 + ll0;
+        U32 const repCode = OFFBASE_TO_REPCODE(offBase) - 1 + ll0;
         if (repCode > 0) {  /* note : if repCode==0, no change */
             U32 const currentOffset = (repCode==ZSTD_REP_NUM) ? (rep[0] - 1) : rep[repCode];
             rep[2] = (repCode >= 2) ? rep[1] : rep[2];
@@ -685,11 +683,11 @@ typedef struct repcodes_s {
 } repcodes_t;
 
 MEM_STATIC repcodes_t
-ZSTD_newRep(U32 const rep[ZSTD_REP_NUM], U32 const offBase_minus1, U32 const ll0)
+ZSTD_newRep(U32 const rep[ZSTD_REP_NUM], U32 const offBase, U32 const ll0)
 {
     repcodes_t newReps;
     ZSTD_memcpy(&newReps, rep, sizeof(newReps));
-    ZSTD_updateRep(newReps.rep, offBase_minus1, ll0);
+    ZSTD_updateRep(newReps.rep, offBase, ll0);
     return newReps;
 }
 

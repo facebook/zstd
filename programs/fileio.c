@@ -1151,7 +1151,7 @@ FIO_compressLz4Frame(cRess_t* ress,
 
     memset(&prefs, 0, sizeof(prefs));
 
-    assert(blockSize <= ress->readCtx->srcBufferBaseSize);
+    assert(blockSize <= ress->readCtx->base.jobBufferSize);
 
     prefs.autoFlush = 1;
     prefs.compressionLevel = compressionLevel;
@@ -2011,8 +2011,7 @@ FIO_decompressZstdFrame(FIO_ctx_t* const fCtx, dRess_t* ress,
     ZSTD_DCtx_reset(ress->dctx, ZSTD_reset_session_only);
 
     /* Header loading : ensures ZSTD_getFrameHeader() will succeed */
-    if (ress->readCtx->srcBufferLoaded < ZSTD_FRAMEHEADERSIZE_MAX)
-        AIO_ReadPool_fillBuffer(ress->readCtx, ZSTD_FRAMEHEADERSIZE_MAX);
+    AIO_ReadPool_fillBuffer(ress->readCtx, ZSTD_FRAMEHEADERSIZE_MAX);
 
     /* Main decompression Loop */
     while (1) {

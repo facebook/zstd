@@ -39,6 +39,7 @@ typedef struct {
     ZSTD_pthread_mutex_t ioJobsMutex;
     void* availableJobs[MAX_IO_JOBS];
     int availableJobsCount;
+    size_t jobBufferSize;
 } IOPoolCtx_t;
 
 typedef struct {
@@ -49,9 +50,12 @@ typedef struct {
     U64 nextReadOffset;
     U64 waitingOnOffset;
 
-    /* Bases buffer, shouldn't be accessed from outside ot utility functions. */
-    U8 *srcBufferBase;
-    size_t srcBufferBaseSize;
+    /* We may hold an IOJob object as needed if we actively expose its buffer. */
+    void *currentJobHeld;
+
+    /* Coalesce buffer is used to join two buffers in case where we need to read more bytes than left in
+     * the first of them. Shouldn't be accessed from outside ot utility functions. */
+    U8 *coalesceBuffer;
 
     /* Read buffer can be used by consumer code, take care when copying this pointer aside as it might
      * change when consuming / refilling buffer. */

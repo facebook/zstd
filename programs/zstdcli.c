@@ -46,6 +46,7 @@
 #  include "zstdcli_trace.h"
 #endif
 #include "../lib/zstd.h"  /* ZSTD_VERSION_STRING, ZSTD_minCLevel, ZSTD_maxCLevel */
+#include "fileio_asyncio.h"
 
 
 /*-************************************
@@ -179,7 +180,8 @@ static void usage_advanced(const char* programName)
 #ifdef UTIL_HAS_MIRRORFILELIST
     DISPLAYOUT( "--output-dir-mirror DIR : processed files are stored into DIR respecting original directory structure \n");
 #endif
-
+    if (AIO_supported())
+        DISPLAYOUT( "--[no-]asyncio : use asynchronous IO (default: enabled) \n");
 
 #ifndef ZSTD_NOCOMPRESS
     DISPLAYOUT( "--[no-]check : during compression, add XXH64 integrity checksum to frame (default: enabled)");
@@ -242,9 +244,6 @@ static void usage_advanced(const char* programName)
     DISPLAYOUT( " -l        : print information about zstd compressed files \n");
     DISPLAYOUT( "--test     : test compressed file integrity \n");
     DISPLAYOUT( " -M#       : Set a memory usage limit for decompression \n");
-#ifdef ZSTD_MULTITHREAD
-    DISPLAYOUT( "--[no-]asyncio  : use threaded asynchronous IO for output (default: disabled) \n");
-#endif
 # if ZSTD_SPARSE_DEFAULT
     DISPLAYOUT( "--[no-]sparse : sparse mode (default: enabled on file, disabled on stdout) \n");
 # else

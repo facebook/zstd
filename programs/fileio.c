@@ -255,7 +255,7 @@ FIO_prefs_t* FIO_createPreferences(void)
     ret->literalCompressionMode = ZSTD_ps_auto;
     ret->excludeCompressedFiles = 0;
     ret->allowBlockDevices = 0;
-    ret->asyncIO = 0;
+    ret->asyncIO = AIO_supported();
     return ret;
 }
 

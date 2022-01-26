@@ -87,6 +87,10 @@ typedef struct {
     U64 offset;
 } IOJob_t;
 
+/* AIO_supported:
+ * Returns 1 if AsyncIO is supported on the system, 0 otherwise. */
+int AIO_supported(void);
+
 
 /* AIO_WritePool_releaseIoJob:
  * Releases an acquired job back to the pool. Doesn't execute the job. */

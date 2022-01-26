@@ -129,6 +129,16 @@ AIO_fwriteSparseEnd(const FIO_prefs_t* const prefs, FILE* file, unsigned storedS
  *  AsyncIO functionality
  ************************************************************************/
 
+/* AIO_supported:
+ * Returns 1 if AsyncIO is supported on the system, 0 otherwise. */
+int AIO_supported(void) {
+#ifdef ZSTD_MULTITHREAD
+    return 1;
+#else
+    return 0;
+#endif
+}
+
 /* ***********************************
  *  General IoPool implementation
  *************************************/

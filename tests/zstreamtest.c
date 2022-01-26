@@ -902,6 +902,36 @@ static int basicUnitTests(U32 seed, double compressibility)
         }   }
         DISPLAYLEVEL(3, "OK \n");
 
+        /* stableSrc + streaming */
+        DISPLAYLEVEL(3, "test%3i : ZSTD_c_stableInBuffer compatibility with compressStream2, using different end directives : ", testNb++);
+        CHECK_Z( ZSTD_initCStream(cctx, 1) );
+        CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_stableInBuffer, 1) );
+        {   ZSTD_inBuffer inBuf;
+            ZSTD_outBuffer outBuf;
+            const size_t nonZeroStartPos = 18;
+            const size_t inputSize = 500;
+            inBuf.src = CNBuffer;
+            inBuf.size = 100;
+            inBuf.pos = nonZeroStartPos;
+            outBuf.dst = (char*)(compressedBuffer)+cSize;
+            outBuf.size = ZSTD_compressBound(inputSize);
+            outBuf.pos = 0;
+            CHECK_Z( ZSTD_compressStream2(cctx, &outBuf, &inBuf, ZSTD_e_continue) );
+            inBuf.size = 200;
+            CHECK_Z( ZSTD_compressStream2(cctx, &outBuf, &inBuf, ZSTD_e_continue) );
+            CHECK_Z( ZSTD_compressStream2(cctx, &outBuf, &inBuf, ZSTD_e_flush) );
+            inBuf.size = nonZeroStartPos + inputSize;
+            CHECK_Z( ZSTD_compressStream2(cctx, &outBuf, &inBuf, ZSTD_e_continue) );
+            CHECK( ZSTD_compressStream2(cctx, &outBuf, &inBuf, ZSTD_e_end) != 0, "compression should be successful and fully flushed");
+            {   const void* const realSrcStart = (const char*)inBuf.src + nonZeroStartPos;
+                void* const verifBuf = (char*)outBuf.dst + outBuf.pos;
+                const size_t decSize = ZSTD_decompress(verifBuf, inputSize, outBuf.dst, outBuf.pos);
+                CHECK_Z(decSize);
+                CHECK(decSize != inputSize, "regenerated %zu bytes, instead of %zu", decSize, inputSize);
+                CHECK(memcmp(realSrcStart, verifBuf, inputSize) != 0, "regenerated data different from original");
+        }   }
+        DISPLAYLEVEL(3, "OK \n");
+
         DISPLAYLEVEL(3, "test%3i : ZSTD_compressStream2() with ZSTD_c_stableInBuffer: context size : ", testNb++);
         {   size_t const cctxSize = ZSTD_sizeof_CCtx(cctx);
             DISPLAYLEVEL(4, "cctxSize1=%zu; cctxSize=%zu; cctxSize2=%zu : ", cctxSize1, cctxSize, cctxSize2);

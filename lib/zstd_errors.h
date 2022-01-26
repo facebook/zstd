@@ -66,6 +66,7 @@ typedef enum {
   ZSTD_error_tableLog_tooLarge       = 44,
   ZSTD_error_maxSymbolValue_tooLarge = 46,
   ZSTD_error_maxSymbolValue_tooSmall = 48,
+  ZSTD_error_stabilityCondition_notRespected = 50,
   ZSTD_error_stage_wrong       = 60,
   ZSTD_error_init_missing      = 62,
   ZSTD_error_memory_allocation = 64,

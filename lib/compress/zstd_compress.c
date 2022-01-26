@@ -5678,8 +5678,8 @@ size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
           && (totalInputSize < ZSTD_BLOCKSIZE_MAX) ) {              /* not even reached one block yet */
             if (cctx->stableIn_notConsumed) {  /* not the first time */
                 /* check stable source guarantees */
-                assert(input->src == cctx->expectedInBuffer.src);
-                assert(input->pos == cctx->expectedInBuffer.size);
+                RETURN_ERROR_IF(input->src != cctx->expectedInBuffer.src, stabilityCondition_notRespected, "stableInBuffer condition not respected: wrong src pointer");
+                RETURN_ERROR_IF(input->pos != cctx->expectedInBuffer.size, stabilityCondition_notRespected, "stableInBuffer condition not respected: externally modified pos");
             }
             /* pretend input was consumed, to give a sense forward progress */
             input->pos = input->size;

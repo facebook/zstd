@@ -878,10 +878,11 @@ static int basicUnitTests(U32 seed, double compressibility)
         CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_stableInBuffer, 1) );
         {   ZSTD_inBuffer inBuf;
             ZSTD_outBuffer outBuf;
+            const size_t nonZeroStartPos = 18;
             const size_t inputSize = 500;
             inBuf.src = CNBuffer;
             inBuf.size = 100;
-            inBuf.pos = 0;
+            inBuf.pos = nonZeroStartPos;
             outBuf.dst = (char*)(compressedBuffer)+cSize;
             outBuf.size = ZSTD_compressBound(inputSize);
             outBuf.pos = 0;
@@ -889,14 +890,15 @@ static int basicUnitTests(U32 seed, double compressibility)
             inBuf.size = 200;
             CHECK_Z( ZSTD_compressStream(cctx, &outBuf, &inBuf) );
             CHECK_Z( ZSTD_flushStream(cctx, &outBuf) );
-            inBuf.size = inputSize;
+            inBuf.size = nonZeroStartPos + inputSize;
             CHECK_Z( ZSTD_compressStream(cctx, &outBuf, &inBuf) );
             CHECK(ZSTD_endStream(cctx, &outBuf) != 0, "compression should be successful and fully flushed");
-            {   void* const verifBuf = (char*)outBuf.dst + outBuf.pos;
+            {   const void* const realSrcStart = (const char*)inBuf.src + nonZeroStartPos;
+                void* const verifBuf = (char*)outBuf.dst + outBuf.pos;
                 const size_t decSize = ZSTD_decompress(verifBuf, inputSize, outBuf.dst, outBuf.pos);
                 CHECK_Z(decSize);
                 CHECK(decSize != inputSize, "regenerated %zu bytes, instead of %zu", decSize, inputSize);
-                CHECK(memcmp(inBuf.src, verifBuf, inputSize) != 0, "regenerated data different from original");
+                CHECK(memcmp(realSrcStart, verifBuf, inputSize) != 0, "regenerated data different from original");
         }   }
         DISPLAYLEVEL(3, "OK \n");
 

@@ -46,7 +46,7 @@ AIO_fwriteSparse(FILE* file,
     if (!prefs->sparseFileSupport) {  /* normal write */
         size_t const sizeCheck = fwrite(buffer, 1, bufferSize, file);
         if (sizeCheck != bufferSize)
-            EXM_THROW(70, "Write error : cannot write decoded block : %s",
+            EXM_THROW(70, "Write error : cannot write block : %s",
                       strerror(errno));
         return 0;
     }
@@ -78,7 +78,7 @@ AIO_fwriteSparse(FILE* file,
             storedSkips = 0;
             /* write the rest */
             if (fwrite(ptrT + nb0T, sizeof(size_t), nbNon0ST, file) != nbNon0ST)
-                EXM_THROW(93, "Write error : cannot write decoded block : %s",
+                EXM_THROW(93, "Write error : cannot write block : %s",
                           strerror(errno));
         }
         ptrT += seg0SizeT;

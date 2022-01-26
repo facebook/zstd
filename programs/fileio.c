@@ -1322,7 +1322,7 @@ FIO_compressZstdFrame(FIO_ctx_t* const fCtx,
 
                 /* display progress notifications */
                 if (g_display_prefs.displayLevel >= 3) {
-                    DISPLAYUPDATE(3, "\r(L%i) Buffered :%6.*f%4s - Consumed :%6.*f%4s - Compressed :%6.*f%4s => %.2f%% ",
+                    DISPLAYUPDATE(3, "\r(L%i) Buffered:%5.*f%s - Consumed:%5.*f%s - Compressed:%5.*f%s => %.2f%% ",
                                 compressionLevel,
                                 buffered_hrs.precision, buffered_hrs.value, buffered_hrs.suffix,
                                 consumed_hrs.precision, consumed_hrs.value, consumed_hrs.suffix,

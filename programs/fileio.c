@@ -1143,7 +1143,7 @@ FIO_compressLz4Frame(cRess_t* ress,
     LZ4F_preferences_t prefs;
     LZ4F_compressionContext_t ctx;
 
-    IOJob_t *writeJob =AIO_WritePool_acquireJob(ress->writeCtx);
+    IOJob_t* writeJob = AIO_WritePool_acquireJob(ress->writeCtx);
 
     LZ4F_errorCode_t const errorCode = LZ4F_createCompressionContext(&ctx, LZ4F_VERSION);
     if (LZ4F_isError(errorCode))

@@ -186,7 +186,7 @@ fi
 
 println "\n===>  simple tests "
 
-datagen -g500K > tmp
+datagen > tmp
 zstd -h
 zstd -H
 zstd -V
@@ -259,10 +259,12 @@ zstd -dc - < tmp.zst > $INTOVOID
 zstd -d    < tmp.zst > $INTOVOID   # implicit stdout when stdin is used
 zstd -d  - < tmp.zst > $INTOVOID
 println "test : impose memory limitation (must fail)"
-zstd -d -f tmp.zst -M2K -c > $INTOVOID && die "decompression needs more memory than allowed"
-zstd -d -f tmp.zst --memlimit=2K -c > $INTOVOID && die "decompression needs more memory than allowed"  # long command
-zstd -d -f tmp.zst --memory=2K -c > $INTOVOID && die "decompression needs more memory than allowed"  # long command
-zstd -d -f tmp.zst --memlimit-decompress=2K -c > $INTOVOID && die "decompression needs more memory than allowed"  # long command
+datagen -g500K > tmplimit
+zstd -f tmplimit
+zstd -d -f tmplimit.zst -M2K -c > $INTOVOID && die "decompression needs more memory than allowed"
+zstd -d -f tmplimit.zst --memlimit=2K -c > $INTOVOID && die "decompression needs more memory than allowed"  # long command
+zstd -d -f tmplimit.zst --memory=2K -c > $INTOVOID && die "decompression needs more memory than allowed"  # long command
+zstd -d -f tmplimit.zst --memlimit-decompress=2K -c > $INTOVOID && die "decompression needs more memory than allowed"  # long command
 println "test : overwrite protection"
 zstd -q tmp && die "overwrite check failed!"
 println "test : force overwrite"

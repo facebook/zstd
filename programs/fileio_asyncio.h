@@ -28,7 +28,7 @@ typedef struct {
     /* These struct fields should be set only on creation and not changed afterwards */
     POOL_ctx* threadPool;
     int totalIoJobs;
-    FIO_prefs_t* prefs;
+    const FIO_prefs_t* prefs;
     POOL_function poolFunction;
 
     /* Controls the file we currently write to, make changes only by using provided utility functions */
@@ -116,7 +116,7 @@ void AIO_WritePool_setFile(WritePoolCtx_t *ctx, FILE* file);
 
 /* AIO_WritePool_getFile:
  * Returns the file the writePool is currently set to write to. */
-FILE* AIO_WritePool_getFile(WritePoolCtx_t *ctx);
+FILE* AIO_WritePool_getFile(const WritePoolCtx_t* ctx);
 
 /* AIO_WritePool_closeFile:
  * Ends sparse write and closes the writePool's current file and sets the file to NULL.
@@ -126,7 +126,7 @@ int AIO_WritePool_closeFile(WritePoolCtx_t *ctx);
 /* AIO_WritePool_create:
  * Allocates and sets and a new write pool including its included jobs.
  * bufferSize should be set to the maximal buffer we want to write to at a time. */
-WritePoolCtx_t* AIO_WritePool_create(FIO_prefs_t* const prefs, size_t bufferSize);
+WritePoolCtx_t* AIO_WritePool_create(const FIO_prefs_t* prefs, size_t bufferSize);
 
 /* AIO_WritePool_free:
  * Frees and releases a writePool and its resources. Closes destination file. */
@@ -136,7 +136,7 @@ void AIO_WritePool_free(WritePoolCtx_t* ctx);
  * Allocates and sets and a new readPool including its included jobs.
  * bufferSize should be set to the maximal buffer we want to read at a time, will also be used
  * as our basic read size. */
-ReadPoolCtx_t* AIO_ReadPool_create(FIO_prefs_t* const prefs, size_t bufferSize);
+ReadPoolCtx_t* AIO_ReadPool_create(const FIO_prefs_t* prefs, size_t bufferSize);
 
 /* AIO_ReadPool_free:
  * Frees and releases a readPool and its resources. Closes source file. */
@@ -164,7 +164,7 @@ void AIO_ReadPool_setFile(ReadPoolCtx_t *ctx, FILE* file);
 
 /* AIO_ReadPool_getFile:
  * Returns the current file set for the read pool. */
-FILE* AIO_ReadPool_getFile(ReadPoolCtx_t *ctx);
+FILE* AIO_ReadPool_getFile(const ReadPoolCtx_t *ctx);
 
 /* AIO_ReadPool_closeFile:
  * Closes the current set file. Waits for all current enqueued tasks to complete and resets state. */

@@ -6207,13 +6207,18 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* const cctx, void* dst, size_t dstCapaci
 
 /*======   Finalize   ======*/
 
+static ZSTD_inBuffer inBuffer_forEndFlush(const ZSTD_CStream* zcs)
+{
+    const ZSTD_inBuffer nullInput = { NULL, 0, 0 };
+    const int stableInput = (zcs->appliedParams.inBufferMode == ZSTD_bm_stable);
+    return stableInput ? zcs->expectedInBuffer : nullInput;
+}
+
 /*! ZSTD_flushStream() :
  * @return : amount of data remaining to flush */
 size_t ZSTD_flushStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
 {
-    ZSTD_inBuffer const nullInput = { NULL, 0, 0 };
-    int const stableInput = (zcs->appliedParams.inBufferMode == ZSTD_bm_stable);
-    ZSTD_inBuffer input = stableInput ? zcs->expectedInBuffer : nullInput;
+    ZSTD_inBuffer input = inBuffer_forEndFlush(zcs);
     input.size = input.pos; /* do not ingest more input during flush */
     return ZSTD_compressStream2(zcs, output, &input, ZSTD_e_flush);
 }
@@ -6221,11 +6226,9 @@ size_t ZSTD_flushStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
 
 size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
 {
-    ZSTD_inBuffer const nullInput = { NULL, 0, 0 };
-    int const stableInput = (zcs->appliedParams.inBufferMode == ZSTD_bm_stable);
-    ZSTD_inBuffer input = stableInput ? zcs->expectedInBuffer : nullInput;
+    ZSTD_inBuffer input = inBuffer_forEndFlush(zcs);
     size_t const remainingToFlush = ZSTD_compressStream2(zcs, output, &input, ZSTD_e_end);
-    FORWARD_IF_ERROR( remainingToFlush , "ZSTD_compressStream2 failed");
+    FORWARD_IF_ERROR(remainingToFlush , "ZSTD_compressStream2(,,ZSTD_e_end) failed");
     if (zcs->appliedParams.nbWorkers > 0) return remainingToFlush;   /* minimal estimation */
     /* single thread mode : attempt to calculate remaining to flush more precisely */
     {   size_t const lastBlockSize = zcs->frameEnded ? 0 : ZSTD_BLOCKHEADERSIZE;

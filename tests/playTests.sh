@@ -183,6 +183,7 @@ else
 fi
 
 
+zstd -vvV
 
 println "\n===>  simple tests "
 

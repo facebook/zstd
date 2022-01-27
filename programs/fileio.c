@@ -69,6 +69,40 @@ UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
 #  include <lz4.h>
 #endif
 
+char const* FIO_zlibVersion(void)
+{
+#if defined(ZSTD_GZCOMPRESS) || defined(ZSTD_GZDECOMPRESS)
+    return zlibVersion();
+#else
+    return "Unsupported";
+#endif
+}
+
+char const* FIO_lz4Version(void)
+{
+#if defined(ZSTD_LZ4COMPRESS) || defined(ZSTD_LZ4DECOMPRESS)
+    /* LZ4_versionString() added in v1.7.3 */
+#   if LZ4_VERSION_NUMBER >= 10703
+        return LZ4_versionString();
+#   else
+#       define ZSTD_LZ4_VERSION LZ4_VERSION_MAJOR.LZ4_VERSION_MINOR.LZ4_VERSION_RELEASE
+#       define ZSTD_LZ4_VERSION_STRING ZSTD_EXPAND_AND_QUOTE(ZSTD_LZ4_VERSION)
+        return ZSTD_LZ4_VERSION_STRING;
+#   endif
+#else
+    return "Unsupported";
+#endif
+}
+
+char const* FIO_lzmaVersion(void)
+{
+#if defined(ZSTD_LZMACOMPRESS) || defined(ZSTD_LZMADECOMPRESS)
+    return lzma_version_string();
+#else
+    return "Unsupported";
+#endif
+}
+
 
 /*-*************************************
 *  Constants

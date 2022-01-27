@@ -995,7 +995,7 @@ FIO_compressGzFrame(const cRess_t* ress,  /* buffers & handlers are used, but no
         }
 
         if (ret != Z_OK)
-        EXM_THROW(72, "zstd: %s: deflate error %d \n", srcFileName, ret);
+            EXM_THROW(72, "zstd: %s: deflate error %d \n", srcFileName, ret);
         {   size_t const cSize = writeJob->bufferSize - strm.avail_out;
             if (cSize) {
                 writeJob->usedBufferSize = cSize;
@@ -1164,7 +1164,6 @@ FIO_compressLz4Frame(cRess_t* ress,
     assert(LZ4F_compressBound(blockSize, &prefs) <= writeJob->bufferSize);
 
     {
-        size_t readSize;
         size_t headerSize = LZ4F_compressBegin(ctx, writeJob->buffer, writeJob->bufferSize, &prefs);
         if (LZ4F_isError(headerSize))
             EXM_THROW(33, "File header generation failed : %s",
@@ -1174,8 +1173,7 @@ FIO_compressLz4Frame(cRess_t* ress,
         outFileSize += headerSize;
 
         /* Read first block */
-        readSize  = AIO_ReadPool_fillBuffer(ress->readCtx, blockSize);
-        inFileSize += readSize;
+        inFileSize += AIO_ReadPool_fillBuffer(ress->readCtx, blockSize);
 
         /* Main Loop */
         while (ress->readCtx->srcBufferLoaded) {
@@ -1202,8 +1200,7 @@ FIO_compressLz4Frame(cRess_t* ress,
 
             /* Read next block */
             AIO_ReadPool_consumeBytes(ress->readCtx, inSize);
-            readSize = AIO_ReadPool_fillBuffer(ress->readCtx, blockSize);
-            inFileSize += readSize;
+            inFileSize += AIO_ReadPool_fillBuffer(ress->readCtx, blockSize);
         }
 
         /* End of Stream mark */
@@ -1945,13 +1942,13 @@ static int FIO_passThrough(dRess_t *ress)
 
     while(ress->readCtx->srcBufferLoaded) {
         size_t writeSize;
-        AIO_ReadPool_fillBuffer(ress->readCtx, blockSize);
         writeSize = MIN(blockSize, ress->readCtx->srcBufferLoaded);
         assert(writeSize <= writeJob->bufferSize);
         memcpy(writeJob->buffer, ress->readCtx->srcBuffer, writeSize);
         writeJob->usedBufferSize = writeSize;
         AIO_WritePool_enqueueAndReacquireWriteJob(&writeJob);
         AIO_ReadPool_consumeBytes(ress->readCtx, writeSize);
+        AIO_ReadPool_fillBuffer(ress->readCtx, blockSize);
     }
     assert(ress->readCtx->reachedEof);
     AIO_WritePool_releaseIoJob(writeJob);

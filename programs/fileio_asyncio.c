@@ -147,7 +147,7 @@ static IOJob_t *AIO_IOPool_createIoJob(IOPoolCtx_t *ctx, size_t bufferSize) {
     IOJob_t* const job  = (IOJob_t*) malloc(sizeof(IOJob_t));
     void* const buffer = malloc(bufferSize);
     if(!job || !buffer)
-    EXM_THROW(101, "Allocation error : not enough memory");
+        EXM_THROW(101, "Allocation error : not enough memory");
     job->buffer = buffer;
     job->bufferSize = bufferSize;
     job->usedBufferSize = 0;
@@ -575,7 +575,7 @@ size_t AIO_ReadPool_fillBuffer(ReadPoolCtx_t* ctx, size_t n) {
     if (ctx->srcBufferLoaded >= n)
         return 0;
 
-    /* We still have bytes loaded, but enough to satisfy caller. We need to get the next job
+    /* We still have bytes loaded, but not enough to satisfy caller. We need to get the next job
      * and coalesce the remaining bytes with the next job's buffer */
     if (ctx->srcBufferLoaded > 0) {
         useCoalesce = 1;

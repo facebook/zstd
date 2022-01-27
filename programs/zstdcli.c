@@ -1366,8 +1366,8 @@ int main(int argCount, const char* argv[])
        was a number of empty directories. In this case
        stdin and stdout should not be used */
        if (nbInputFileNames > 0 ){
-        DISPLAYLEVEL(2, "please provide correct input file(s) or non-empty directories -- ignored \n");
-        CLEAN_RETURN(2);
+        DISPLAYLEVEL(1, "please provide correct input file(s) or non-empty directories -- ignored \n");
+        CLEAN_RETURN(0);
        }
        UTIL_refFilename(filenames, stdinmark);
     }

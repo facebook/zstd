@@ -393,7 +393,7 @@ zstd -c -r < tmp > tmp.zst
 # combination of -r with empty folder
 mkdir -p tmpEmptyDir
 zstd -r tmpEmptyDir 2>tmplog2
-if [grep "aborting" tmplog2]; then
+if [ grep "aborting" tmplog2 ]; then
   println "Should not abort on empty directory"
   rm -rf tmplog2
   rm -rf tmpEmptyDir

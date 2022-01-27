@@ -3443,8 +3443,11 @@ ZSTD_resolveRepcodeToRawOffset(const U32 rep[ZSTD_REP_NUM], const U32 offBase, c
     if (adjustedRepCode == ZSTD_REP_NUM) {
         /* litlength == 0 and offCode == 2 implies selection of first repcode - 1
          * This is only valid if it results in a valid offset value, aka > 0.
+         * Note : it may happen that `rep[0]==1` in exceptional circumstances.
+         * In which case this function will return 0, which is an invalid offset.
+         * It's not an issue though, since this value will be
+         * compared and discarded within ZSTD_seqStore_resolveOffCodes().
          */
-        assert(rep[0] > 1);
         return rep[0] - 1;
     }
     return rep[adjustedRepCode];

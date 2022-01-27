@@ -153,7 +153,7 @@ static size_t generateRandomSequences(FUZZ_dataProducer_t* producer,
         matchLengthMax = MIN(matchLengthMax, blockSizeMax/2);
     }
 
-    while ( nbSeqGenerated < ZSTD_FUZZ_MAX_NBSEQ-1
+    while ( nbSeqGenerated < ZSTD_FUZZ_MAX_NBSEQ-2 /* extra room for explicit delimiters */
          && bytesGenerated < ZSTD_FUZZ_GENERATED_SRC_MAXSIZE
          && !FUZZ_dataProducer_empty(producer)) {
         uint32_t matchLength;
@@ -214,6 +214,7 @@ static size_t generateRandomSequences(FUZZ_dataProducer_t* producer,
     if (mode == ZSTD_sf_explicitBlockDelimiters) {
         /* always end sequences with a block delimiter */
         const ZSTD_Sequence endBlock = {0, 0, 0, 0};
+        assert(nbSeqGenerated < ZSTD_FUZZ_MAX_NBSEQ);
         generatedSequences[nbSeqGenerated++] = endBlock;
     }
 

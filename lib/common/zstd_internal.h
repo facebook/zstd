@@ -95,7 +95,6 @@ typedef enum { bt_raw, bt_rle, bt_compressed, bt_reserved } blockType_e;
 #define MIN_SEQUENCES_SIZE 1 /* nbSeq==0 */
 #define MIN_CBLOCK_SIZE (1 /*litCSize*/ + 1 /* RLE or RAW */ + MIN_SEQUENCES_SIZE /* nbSeq==0 */)   /* for a non-null block */
 
-#define HufLog 12
 typedef enum { set_basic, set_rle, set_compressed, set_repeat } symbolEncodingType_e;
 
 #define LONGNBSEQ 0x7F00
@@ -103,6 +102,7 @@ typedef enum { set_basic, set_rle, set_compressed, set_repeat } symbolEncodingTy
 #define MINMATCH 3
 
 #define Litbits  8
+#define LitHufLog 11
 #define MaxLit ((1<<Litbits) - 1)
 #define MaxML   52
 #define MaxLL   35
@@ -378,7 +378,7 @@ MEM_STATIC U32 ZSTD_highbit32(U32 val)   /* compress, dictBuilder, decodeCorpus 
             }
 #       endif
 #   elif defined(__GNUC__) && (__GNUC__ >= 3)   /* GCC Intrinsic */
-        return __builtin_clz (val) ^ 31;
+        return (U32)__builtin_clz (val) ^ 31;
 #   elif defined(__ICCARM__)    /* IAR Intrinsic */
         return 31 - __CLZ(val);
 #   else   /* Software version */
@@ -417,7 +417,7 @@ MEM_STATIC unsigned ZSTD_countTrailingZeros(size_t val)
                 }
 #           endif
 #       elif defined(__GNUC__) && (__GNUC__ >= 4)
-            return __builtin_ctzll((U64)val);
+            return (unsigned)__builtin_ctzll((U64)val);
 #       else
             static const int DeBruijnBytePos[64] = {  0,  1,  2,  7,  3, 13,  8, 19,
                                                       4, 25, 14, 28,  9, 34, 20, 56,
@@ -440,7 +440,7 @@ MEM_STATIC unsigned ZSTD_countTrailingZeros(size_t val)
                 __assume(0);
             }
 #       elif defined(__GNUC__) && (__GNUC__ >= 3)
-            return __builtin_ctz((U32)val);
+            return (unsigned)__builtin_ctz((U32)val);
 #       else
             static const int DeBruijnBytePos[32] = {  0,  1, 28,  2, 29, 14, 24,  3,
                                                      30, 22, 20, 15, 25, 17,  4,  8,

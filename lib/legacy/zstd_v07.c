@@ -2717,7 +2717,7 @@ typedef enum { bt_compressed, bt_raw, bt_rle, bt_end } blockType_t;
 #define MIN_SEQUENCES_SIZE 1 /* nbSeq==0 */
 #define MIN_CBLOCK_SIZE (1 /*litCSize*/ + 1 /* RLE or RAW */ + MIN_SEQUENCES_SIZE /* nbSeq==0 */)   /* for a non-null block */
 
-#define HufLog 12
+#define ZSTD_HUFFDTABLE_CAPACITY_LOG 12
 typedef enum { lbt_huffman, lbt_repeat, lbt_raw, lbt_rle } litBlockType_t;
 
 #define LONGNBSEQ 0x7F00
@@ -2931,7 +2931,7 @@ struct ZSTDv07_DCtx_s
     FSEv07_DTable LLTable[FSEv07_DTABLE_SIZE_U32(LLFSELog)];
     FSEv07_DTable OffTable[FSEv07_DTABLE_SIZE_U32(OffFSELog)];
     FSEv07_DTable MLTable[FSEv07_DTABLE_SIZE_U32(MLFSELog)];
-    HUFv07_DTable hufTable[HUFv07_DTABLE_SIZE(HufLog)];  /* can accommodate HUFv07_decompress4X */
+    HUFv07_DTable hufTable[HUFv07_DTABLE_SIZE(ZSTD_HUFFDTABLE_CAPACITY_LOG)];  /* can accommodate HUFv07_decompress4X */
     const void* previousDstEnd;
     const void* base;
     const void* vBase;
@@ -2967,7 +2967,7 @@ size_t ZSTDv07_decompressBegin(ZSTDv07_DCtx* dctx)
     dctx->base = NULL;
     dctx->vBase = NULL;
     dctx->dictEnd = NULL;
-    dctx->hufTable[0] = (HUFv07_DTable)((HufLog)*0x1000001);
+    dctx->hufTable[0] = (HUFv07_DTable)((ZSTD_HUFFDTABLE_CAPACITY_LOG)*0x1000001);
     dctx->litEntropy = dctx->fseEntropy = 0;
     dctx->dictID = 0;
     { int i; for (i=0; i<ZSTDv07_REP_NUM; i++) dctx->rep[i] = repStartValue[i]; }

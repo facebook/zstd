@@ -1993,7 +1993,7 @@ ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
 
     /* Decode literals section */
     {   size_t const litCSize = ZSTD_decodeLiteralsBlock(dctx, src, srcSize, dst, dstCapacity, streaming);
-        DEBUGLOG(5, "ZSTD_decodeLiteralsBlock : %u", (U32)litCSize);
+        DEBUGLOG(5, "ZSTD_decodeLiteralsBlock : cSize=%u, nbLiterals=%zu", (U32)litCSize, dctx->litSize);
         if (ZSTD_isError(litCSize)) return litCSize;
         ip += litCSize;
         srcSize -= litCSize;

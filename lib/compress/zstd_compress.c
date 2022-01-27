@@ -746,12 +746,12 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
     case ZSTD_c_minMatch :
         if (value!=0)   /* 0 => use default */
             BOUNDCHECK(ZSTD_c_minMatch, value);
-        CCtxParams->cParams.minMatch = value;
+        CCtxParams->cParams.minMatch = (U32)value;
         return CCtxParams->cParams.minMatch;
 
     case ZSTD_c_targetLength :
         BOUNDCHECK(ZSTD_c_targetLength, value);
-        CCtxParams->cParams.targetLength = value;
+        CCtxParams->cParams.targetLength = (U32)value;
         return CCtxParams->cParams.targetLength;
 
     case ZSTD_c_strategy :
@@ -764,12 +764,12 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
         /* Content size written in frame header _when known_ (default:1) */
         DEBUGLOG(4, "set content size flag = %u", (value!=0));
         CCtxParams->fParams.contentSizeFlag = value != 0;
-        return CCtxParams->fParams.contentSizeFlag;
+        return (size_t)CCtxParams->fParams.contentSizeFlag;
 
     case ZSTD_c_checksumFlag :
         /* A 32-bits content checksum will be calculated and written at end of frame (default:0) */
         CCtxParams->fParams.checksumFlag = value != 0;
-        return CCtxParams->fParams.checksumFlag;
+        return (size_t)CCtxParams->fParams.checksumFlag;
 
     case ZSTD_c_dictIDFlag : /* When applicable, dictionary's dictID is provided in frame header (default:1) */
         DEBUGLOG(4, "set dictIDFlag = %u", (value!=0));
@@ -778,7 +778,7 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
 
     case ZSTD_c_forceMaxWindow :
         CCtxParams->forceWindow = (value != 0);
-        return CCtxParams->forceWindow;
+        return (size_t)CCtxParams->forceWindow;
 
     case ZSTD_c_forceAttachDict : {
         const ZSTD_dictAttachPref_e pref = (ZSTD_dictAttachPref_e)value;
@@ -840,7 +840,7 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
 
     case ZSTD_c_enableDedicatedDictSearch :
         CCtxParams->enableDedicatedDictSearch = (value!=0);
-        return CCtxParams->enableDedicatedDictSearch;
+        return (size_t)CCtxParams->enableDedicatedDictSearch;
 
     case ZSTD_c_enableLongDistanceMatching :
         CCtxParams->ldmParams.enableLdm = (ZSTD_paramSwitch_e)value;
@@ -849,38 +849,38 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
     case ZSTD_c_ldmHashLog :
         if (value!=0)   /* 0 ==> auto */
             BOUNDCHECK(ZSTD_c_ldmHashLog, value);
-        CCtxParams->ldmParams.hashLog = value;
+        CCtxParams->ldmParams.hashLog = (U32)value;
         return CCtxParams->ldmParams.hashLog;
 
     case ZSTD_c_ldmMinMatch :
         if (value!=0)   /* 0 ==> default */
             BOUNDCHECK(ZSTD_c_ldmMinMatch, value);
-        CCtxParams->ldmParams.minMatchLength = value;
+        CCtxParams->ldmParams.minMatchLength = (U32)value;
         return CCtxParams->ldmParams.minMatchLength;
 
     case ZSTD_c_ldmBucketSizeLog :
         if (value!=0)   /* 0 ==> default */
             BOUNDCHECK(ZSTD_c_ldmBucketSizeLog, value);
-        CCtxParams->ldmParams.bucketSizeLog = value;
+        CCtxParams->ldmParams.bucketSizeLog = (U32)value;
         return CCtxParams->ldmParams.bucketSizeLog;
 
     case ZSTD_c_ldmHashRateLog :
         if (value!=0)   /* 0 ==> default */
             BOUNDCHECK(ZSTD_c_ldmHashRateLog, value);
-        CCtxParams->ldmParams.hashRateLog = value;
+        CCtxParams->ldmParams.hashRateLog = (U32)value;
         return CCtxParams->ldmParams.hashRateLog;
 
     case ZSTD_c_targetCBlockSize :
         if (value!=0)   /* 0 ==> default */
             BOUNDCHECK(ZSTD_c_targetCBlockSize, value);
-        CCtxParams->targetCBlockSize = value;
+        CCtxParams->targetCBlockSize = (U32)value;
         return CCtxParams->targetCBlockSize;
 
     case ZSTD_c_srcSizeHint :
         if (value!=0)    /* 0 ==> default */
             BOUNDCHECK(ZSTD_c_srcSizeHint, value);
         CCtxParams->srcSizeHint = value;
-        return CCtxParams->srcSizeHint;
+        return (size_t)CCtxParams->srcSizeHint;
 
     case ZSTD_c_stableInBuffer:
         BOUNDCHECK(ZSTD_c_stableInBuffer, value);
@@ -3063,9 +3063,9 @@ static size_t ZSTD_buildBlockEntropyStats_literals(void* const src, size_t srcSi
     unsigned* const countWksp = (unsigned*)workspace;
     const size_t countWkspSize = (HUF_SYMBOLVALUE_MAX + 1) * sizeof(unsigned);
     BYTE* const nodeWksp = countWkspStart + countWkspSize;
-    const size_t nodeWkspSize = wkspEnd-nodeWksp;
+    const size_t nodeWkspSize = (size_t)(wkspEnd - nodeWksp);
     unsigned maxSymbolValue = HUF_SYMBOLVALUE_MAX;
-    unsigned huffLog = HUF_TABLELOG_DEFAULT;
+    unsigned huffLog = LitHufLog;
     HUF_repeat repeat = prevHuf->repeatMode;
     DEBUGLOG(5, "ZSTD_buildBlockEntropyStats_literals (srcSize=%zu)", srcSize);
 
@@ -5850,12 +5850,13 @@ ZSTD_copySequencesToSeqStoreExplicitBlockDelim(ZSTD_CCtx* cctx,
     return 0;
 }
 
-/* Returns the number of bytes to move the current read position back by. Only non-zero
- * if we ended up splitting a sequence. Otherwise, it may return a ZSTD error if something
- * went wrong.
+/* Returns the number of bytes to move the current read position back by.
+ * Only non-zero if we ended up splitting a sequence.
+ * Otherwise, it may return a ZSTD error if something went wrong.
  *
- * This function will attempt to scan through blockSize bytes represented by the sequences
- * in inSeqs, storing any (partial) sequences.
+ * This function will attempt to scan through blockSize bytes
+ * represented by the sequences in @inSeqs,
+ * storing any (partial) sequences.
  *
  * Occasionally, we may want to change the actual number of bytes we consumed from inSeqs to
  * avoid splitting a match, or to avoid splitting a match such that it would produce a match
@@ -5883,7 +5884,7 @@ ZSTD_copySequencesToSeqStoreNoBlockDelim(ZSTD_CCtx* cctx, ZSTD_sequencePosition*
     } else {
         dictSize = 0;
     }
-    DEBUGLOG(5, "ZSTD_copySequencesToSeqStore: idx: %u PIS: %u blockSize: %zu", idx, startPosInSequence, blockSize);
+    DEBUGLOG(5, "ZSTD_copySequencesToSeqStoreNoBlockDelim: idx: %u PIS: %u blockSize: %zu", idx, startPosInSequence, blockSize);
     DEBUGLOG(5, "Start seq: idx: %u (of: %u ml: %u ll: %u)", idx, inSeqs[idx].offset, inSeqs[idx].matchLength, inSeqs[idx].litLength);
     ZSTD_memcpy(updatedRepcodes.rep, cctx->blockState.prevCBlock->rep, sizeof(repcodes_t));
     while (endPosInSequence && idx < inSeqsSize && !finalMatchSplit) {

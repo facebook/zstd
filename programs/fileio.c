@@ -1179,8 +1179,9 @@ FIO_compressLz4Frame(cRess_t* ress,
 
         /* Main Loop */
         while (ress->readCtx->srcBufferLoaded) {
+            size_t inSize = MIN(blockSize, ress->readCtx->srcBufferLoaded);
             size_t const outSize = LZ4F_compressUpdate(ctx, writeJob->buffer, writeJob->bufferSize,
-                                                       ress->readCtx->srcBuffer, ress->readCtx->srcBufferLoaded, NULL);
+                                                       ress->readCtx->srcBuffer, inSize, NULL);
             if (LZ4F_isError(outSize))
                 EXM_THROW(35, "zstd: %s: lz4 compression failed : %s",
                             srcFileName, LZ4F_getErrorName(outSize));
@@ -1200,8 +1201,8 @@ FIO_compressLz4Frame(cRess_t* ress,
             AIO_WritePool_enqueueAndReacquireWriteJob(&writeJob);
 
             /* Read next block */
-            AIO_ReadPool_consumeBytes(ress->readCtx, ress->readCtx->srcBufferLoaded);
-            readSize  = AIO_ReadPool_fillBuffer(ress->readCtx, blockSize);
+            AIO_ReadPool_consumeBytes(ress->readCtx, inSize);
+            readSize = AIO_ReadPool_fillBuffer(ress->readCtx, blockSize);
             inFileSize += readSize;
         }
 

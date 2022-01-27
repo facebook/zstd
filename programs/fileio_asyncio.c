@@ -165,13 +165,13 @@ static void AIO_IOPool_createThreadPool(IOPoolCtx_t* ctx, const FIO_prefs_t* pre
     ctx->threadPool = NULL;
     if(prefs->asyncIO) {
         if (ZSTD_pthread_mutex_init(&ctx->ioJobsMutex, NULL))
-        EXM_THROW(102,"Failed creating write availableJobs mutex");
+            EXM_THROW(102,"Failed creating write availableJobs mutex");
         /* We want MAX_IO_JOBS-2 queue items because we need to always have 1 free buffer to
          * decompress into and 1 buffer that's actively written to disk and owned by the writing thread. */
         assert(MAX_IO_JOBS >= 2);
         ctx->threadPool = POOL_create(1, MAX_IO_JOBS - 2);
         if (!ctx->threadPool)
-        EXM_THROW(104, "Failed creating writer thread pool");
+            EXM_THROW(104, "Failed creating writer thread pool");
     }
 }
 
@@ -587,11 +587,15 @@ size_t AIO_ReadPool_fillBuffer(ReadPoolCtx_t* ctx, size_t n) {
     job = AIO_ReadPool_releaseCurrentHeldAndGetNext(ctx);
     if(!job)
         return 0;
-    if(useCoalesce)
+    if(useCoalesce) {
+        assert(ctx->srcBufferLoaded + job->usedBufferSize <= 2*ctx->base.jobBufferSize);
         memcpy(ctx->coalesceBuffer + ctx->srcBufferLoaded, job->buffer, job->usedBufferSize);
-    else
-        ctx->srcBuffer = (U8*) job->buffer;
-    ctx->srcBufferLoaded += job->usedBufferSize;
+        ctx->srcBufferLoaded += job->usedBufferSize;
+    }
+    else {
+        ctx->srcBuffer = (U8 *) job->buffer;
+        ctx->srcBufferLoaded = job->usedBufferSize;
+    }
     return job->usedBufferSize;
 }
 

@@ -562,14 +562,15 @@ static IOJob_t* AIO_ReadPool_releaseCurrentHeldAndGetNext(ReadPoolCtx_t* ctx) {
 }
 
 /* AIO_ReadPool_fillBuffer:
- * Makes sure buffer has at least n bytes loaded (n can't be bigger than jobBufferSize).
- * Returns if srcBuffer has at least n bytes loaded or if we've reached the end of the file.
+ * Tries to fill the buffer with at least n or jobBufferSize bytes (whichever is smaller).
+ * Returns if srcBuffer has at least the expected number of bytes loaded or if we've reached the end of the file.
  * Return value is the number of bytes added to the buffer.
  * Note that srcBuffer might have up to 2 times jobBufferSize bytes. */
 size_t AIO_ReadPool_fillBuffer(ReadPoolCtx_t* ctx, size_t n) {
     IOJob_t *job;
     int useCoalesce = 0;
-    assert(n <= ctx->base.jobBufferSize);
+    if(n > ctx->base.jobBufferSize)
+        n = ctx->base.jobBufferSize;
 
     /* We are good, don't read anything */
     if (ctx->srcBufferLoaded >= n)

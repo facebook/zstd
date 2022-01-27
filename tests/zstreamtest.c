@@ -868,7 +868,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         in.pos = 0;
         {   size_t const ret = ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end);
             CHECK(!ZSTD_isError(ret), "Must error");
-            CHECK(!(ZSTD_getErrorCode(ret) == ZSTD_error_srcBuffer_wrong), "Must be this error");
+            CHECK(!(ZSTD_getErrorCode(ret) == ZSTD_error_stabilityCondition_notRespected), "Must be this error");
         }
         DISPLAYLEVEL(3, "OK \n");
 
@@ -963,7 +963,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         in.pos = out.pos = 0;
         {   size_t const ret = ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_continue);
             CHECK(!ZSTD_isError(ret), "Must have errored");
-            CHECK(!(ZSTD_getErrorCode(ret) == ZSTD_error_dstBuffer_wrong), "Must be this error");
+            CHECK(!(ZSTD_getErrorCode(ret) == ZSTD_error_stabilityCondition_notRespected), "Must be this error");
         }
         DISPLAYLEVEL(3, "OK \n");
 

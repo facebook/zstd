@@ -5558,13 +5558,13 @@ static size_t ZSTD_checkBufferStability(ZSTD_CCtx const* cctx,
     if (cctx->appliedParams.inBufferMode == ZSTD_bm_stable) {
         ZSTD_inBuffer const expect = cctx->expectedInBuffer;
         if (expect.src != input->src || expect.pos != input->pos)
-            RETURN_ERROR(srcBuffer_wrong, "ZSTD_c_stableInBuffer enabled but input differs!");
+            RETURN_ERROR(stabilityCondition_notRespected, "ZSTD_c_stableInBuffer enabled but input differs!");
     }
     (void)endOp;
     if (cctx->appliedParams.outBufferMode == ZSTD_bm_stable) {
         size_t const outBufferSize = output->size - output->pos;
         if (cctx->expectedOutBufferSize != outBufferSize)
-            RETURN_ERROR(dstBuffer_wrong, "ZSTD_c_stableOutBuffer enabled but output size differs!");
+            RETURN_ERROR(stabilityCondition_notRespected, "ZSTD_c_stableOutBuffer enabled but output size differs!");
     }
     return 0;
 }

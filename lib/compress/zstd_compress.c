@@ -3394,15 +3394,12 @@ static size_t ZSTD_countSeqStoreMatchBytes(const seqStore_t* const seqStore) {
  */
 static void ZSTD_deriveSeqStoreChunk(seqStore_t* resultSeqStore,
                                const seqStore_t* originalSeqStore,
-                                     size_t startIdx, size_t endIdx) {
-    BYTE* const litEnd = originalSeqStore->lit;
-    size_t literalsBytes;
-    size_t literalsBytesPreceding = 0;
-
+                                     size_t startIdx, size_t endIdx)
+{
     *resultSeqStore = *originalSeqStore;
     if (startIdx > 0) {
         resultSeqStore->sequences = originalSeqStore->sequencesStart + startIdx;
-        literalsBytesPreceding = ZSTD_countSeqStoreLiteralsBytes(resultSeqStore);
+        resultSeqStore->litStart += ZSTD_countSeqStoreLiteralsBytes(resultSeqStore);
     }
 
     /* Move longLengthPos into the correct position if necessary */
@@ -3415,13 +3412,12 @@ static void ZSTD_deriveSeqStoreChunk(seqStore_t* resultSeqStore,
     }
     resultSeqStore->sequencesStart = originalSeqStore->sequencesStart + startIdx;
     resultSeqStore->sequences = originalSeqStore->sequencesStart + endIdx;
-    literalsBytes = ZSTD_countSeqStoreLiteralsBytes(resultSeqStore);
-    resultSeqStore->litStart += literalsBytesPreceding;
     if (endIdx == (size_t)(originalSeqStore->sequences - originalSeqStore->sequencesStart)) {
         /* This accounts for possible last literals if the derived chunk reaches the end of the block */
-        resultSeqStore->lit = litEnd;
+        assert(resultSeqStore->lit == originalSeqStore->lit);
     } else {
-        resultSeqStore->lit = resultSeqStore->litStart+literalsBytes;
+        size_t const literalsBytes = ZSTD_countSeqStoreLiteralsBytes(resultSeqStore);
+        resultSeqStore->lit = resultSeqStore->litStart + literalsBytes;
     }
     resultSeqStore->llCode += startIdx;
     resultSeqStore->mlCode += startIdx;
@@ -3580,7 +3576,8 @@ typedef struct {
  * In theory, this means the absolute largest recursion depth is 10 == log2(maxNbSeqInBlock/MIN_SEQUENCES_BLOCK_SPLITTING).
  * In practice, recursion depth usually doesn't go beyond 4.
  *
- * Furthermore, the number of splits is capped by ZSTD_MAX_NB_BLOCK_SPLITS. At ZSTD_MAX_NB_BLOCK_SPLITS == 196 with the current existing blockSize
+ * Furthermore, the number of splits is capped by ZSTD_MAX_NB_BLOCK_SPLITS.
+ * At ZSTD_MAX_NB_BLOCK_SPLITS == 196 with the current existing blockSize
  * maximum of 128 KB, this value is actually impossible to reach.
  */
 static void
@@ -3599,19 +3596,20 @@ ZSTD_deriveBlockSplitsHelper(seqStoreSplits* splits, size_t startIdx, size_t end
         DEBUGLOG(6, "ZSTD_deriveBlockSplitsHelper: Too few sequences");
         return;
     }
-    DEBUGLOG(4, "ZSTD_deriveBlockSplitsHelper: startIdx=%zu endIdx=%zu", startIdx, endIdx);
+    DEBUGLOG(5, "ZSTD_deriveBlockSplitsHelper: startIdx=%zu endIdx=%zu", startIdx, endIdx);
     ZSTD_deriveSeqStoreChunk(fullSeqStoreChunk, origSeqStore, startIdx, endIdx);
     ZSTD_deriveSeqStoreChunk(firstHalfSeqStore, origSeqStore, startIdx, midIdx);
     ZSTD_deriveSeqStoreChunk(secondHalfSeqStore, origSeqStore, midIdx, endIdx);
     estimatedOriginalSize = ZSTD_buildEntropyStatisticsAndEstimateSubBlockSize(fullSeqStoreChunk, zc);
     estimatedFirstHalfSize = ZSTD_buildEntropyStatisticsAndEstimateSubBlockSize(firstHalfSeqStore, zc);
     estimatedSecondHalfSize = ZSTD_buildEntropyStatisticsAndEstimateSubBlockSize(secondHalfSeqStore, zc);
-    DEBUGLOG(4, "Estimated original block size: %zu -- First half split: %zu -- Second half split: %zu",
+    DEBUGLOG(5, "Estimated original block size: %zu -- First half split: %zu -- Second half split: %zu",
              estimatedOriginalSize, estimatedFirstHalfSize, estimatedSecondHalfSize);
     if (ZSTD_isError(estimatedOriginalSize) || ZSTD_isError(estimatedFirstHalfSize) || ZSTD_isError(estimatedSecondHalfSize)) {
         return;
     }
     if (estimatedFirstHalfSize + estimatedSecondHalfSize < estimatedOriginalSize) {
+        DEBUGLOG(5, "split decided at seqNb:%zu", midIdx);
         ZSTD_deriveBlockSplitsHelper(splits, startIdx, midIdx, zc, origSeqStore);
         splits->splitLocations[splits->idx] = (U32)midIdx;
         splits->idx++;
@@ -3623,10 +3621,11 @@ ZSTD_deriveBlockSplitsHelper(seqStoreSplits* splits, size_t startIdx, size_t end
  *
  * Returns the number of splits made (which equals the size of the partition table - 1).
  */
-static size_t ZSTD_deriveBlockSplits(ZSTD_CCtx* zc, U32 partitions[], U32 nbSeq) {
+static size_t ZSTD_deriveBlockSplits(ZSTD_CCtx* zc, U32 partitions[], U32 nbSeq)
+{
     seqStoreSplits splits = {partitions, 0};
     if (nbSeq <= 4) {
-        DEBUGLOG(4, "ZSTD_deriveBlockSplits: Too few sequences to split");
+        DEBUGLOG(5, "ZSTD_deriveBlockSplits: Too few sequences to split");
         /* Refuse to try and split anything with less than 4 sequences */
         return 0;
     }
@@ -3693,12 +3692,11 @@ ZSTD_compressBlock_splitBlock_internal(ZSTD_CCtx* zc, void* dst, size_t dstCapac
 
     ZSTD_deriveSeqStoreChunk(currSeqStore, &zc->seqStore, 0, partitions[0]);
     for (i = 0; i <= numSplits; ++i) {
-        size_t srcBytes;
         size_t cSizeChunk;
         U32 const lastPartition = (i == numSplits);
         U32 lastBlockEntireSrc = 0;
 
-        srcBytes = ZSTD_countSeqStoreLiteralsBytes(currSeqStore) + ZSTD_countSeqStoreMatchBytes(currSeqStore);
+        size_t srcBytes = ZSTD_countSeqStoreLiteralsBytes(currSeqStore) + ZSTD_countSeqStoreMatchBytes(currSeqStore);
         srcBytesTotal += srcBytes;
         if (lastPartition) {
             /* This is the final partition, need to account for possible last literals */
@@ -3765,9 +3763,9 @@ ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
                             void* dst, size_t dstCapacity,
                             const void* src, size_t srcSize, U32 frame)
 {
-    /* This the upper bound for the length of an rle block.
-     * This isn't the actual upper bound. Finding the real threshold
-     * needs further investigation.
+    /* This is an estimated upper bound for the length of an rle block.
+     * This isn't the actual upper bound.
+     * Finding the real threshold needs further investigation.
      */
     const U32 rleMaxLength = 25;
     size_t cSize;

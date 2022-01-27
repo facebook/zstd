@@ -299,11 +299,11 @@ typedef enum {
 typedef struct {
     seqDef* sequencesStart;
     seqDef* sequences;      /* ptr to end of sequences */
-    BYTE* litStart;
-    BYTE* lit;              /* ptr to end of literals */
-    BYTE* llCode;
-    BYTE* mlCode;
-    BYTE* ofCode;
+    BYTE*  litStart;
+    BYTE*  lit;             /* ptr to end of literals */
+    BYTE*  llCode;
+    BYTE*  mlCode;
+    BYTE*  ofCode;
     size_t maxNbSeq;
     size_t maxNbLit;
 

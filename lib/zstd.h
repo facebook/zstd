@@ -1834,13 +1834,16 @@ ZSTDLIB_STATIC_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const vo
  * Experimental parameter.
  * Default is 0 == disabled. Set to 1 to enable.
  *
- * Tells the compressor that the ZSTD_inBuffer will ALWAYS be the same
- * between calls, except for the modifications that zstd makes to pos (the
- * caller must not modify pos). This is checked by the compressor, and
- * compression will fail if it ever changes. This means the only flush
- * mode that makes sense is ZSTD_e_end, so zstd will error if ZSTD_e_end
- * is not used. The data in the ZSTD_inBuffer in the range [src, src + pos)
- * MUST not be modified during compression or you will get data corruption.
+ * Tells the compressor that input data presented with ZSTD_inBuffer
+ * will ALWAYS be the same between calls.
+ * Technically, the @src pointer must never be changed,
+ * and the @pos field can only be updated by zstd.
+ * However, it's possible to increase the @size field,
+ * allowing scenarios where more data can be appended after compressions starts.
+ * These conditions are checked by the compressor,
+ * and compression will fail if they are not respected.
+ * Also, data in the ZSTD_inBuffer within the range [src, src + pos)
+ * MUST not be modified during compression or it will result in data corruption.
  *
  * When this flag is enabled zstd won't allocate an input window buffer,
  * because the user guarantees it can reference the ZSTD_inBuffer until
@@ -1848,18 +1851,15 @@ ZSTDLIB_STATIC_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const vo
  * large enough to fit a block (see ZSTD_c_stableOutBuffer). This will also
  * avoid the memcpy() from the input buffer to the input window buffer.
  *
- * NOTE: ZSTD_compressStream2() will error if ZSTD_e_end is not used.
- * That means this flag cannot be used with ZSTD_compressStream().
- *
  * NOTE: So long as the ZSTD_inBuffer always points to valid memory, using
  * this flag is ALWAYS memory safe, and will never access out-of-bounds
- * memory. However, compression WILL fail if you violate the preconditions.
+ * memory. However, compression WILL fail if conditions are not respected.
  *
- * WARNING: The data in the ZSTD_inBuffer in the range [dst, dst + pos) MUST
- * not be modified during compression or you will get data corruption. This
- * is because zstd needs to reference data in the ZSTD_inBuffer to find
+ * WARNING: The data in the ZSTD_inBuffer in the range [src, src + pos) MUST
+ * not be modified during compression or it will result in data corruption.
+ * This is because zstd needs to reference data in the ZSTD_inBuffer to find
  * matches. Normally zstd maintains its own window buffer for this purpose,
- * but passing this flag tells zstd to use the user provided buffer.
+ * but passing this flag tells zstd to rely on user provided buffer instead.
  */
 #define ZSTD_c_stableInBuffer ZSTD_c_experimentalParam9
 

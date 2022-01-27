@@ -410,6 +410,7 @@ struct ZSTD_CCtx_s {
 
     /* Stable in/out buffer verification */
     ZSTD_inBuffer expectedInBuffer;
+    size_t stableIn_notConsumed; /* nb bytes within stable input buffer that are said to be consumed but are not */
     size_t expectedOutBufferSize;
 
     /* Dictionary */

@@ -288,7 +288,7 @@ list:
 
 .PHONY: shortest
 shortest: ZSTDRTTEST=  # remove long tests
-shortest: test-zstd
+shortest: test-zstd test-zstdtools
 
 .PHONY: check
 check: shortest
@@ -297,7 +297,7 @@ check: shortest
 fuzztest: test-fuzzer test-zstream test-decodecorpus
 
 .PHONY: test
-test: test-zstd test-fullbench test-fuzzer test-zstream test-invalidDictionaries test-legacy test-decodecorpus
+test: test-zstd test-zstdtools test-fullbench test-fuzzer test-zstream test-invalidDictionaries test-legacy test-decodecorpus
 ifeq ($(QEMU_SYS),)
 test: test-pool
 endif
@@ -308,7 +308,7 @@ test32: test-zstd32 test-fullbench32 test-fuzzer32 test-zstream32
 .PHONY: test-all
 test-all: test test32 valgrindTest test-decodecorpus-cli
 
-.PHONY: test-zstd test-zstd32 test-zstd-nolegacy test-zstdgrep
+.PHONY: test-zstd test-zstd32 test-zstdtools test-zstd-nolegacy test-zstdgrep
 test-zstd: ZSTD = $(PRGDIR)/zstd
 test-zstd: zstd
 
@@ -321,6 +321,12 @@ test-zstd-nolegacy: zstd-nolegacy
 test-zstd test-zstd32 test-zstd-nolegacy: datagen
 	file $(ZSTD)
 	EXE_PREFIX="$(QEMU_SYS)" ZSTD_BIN="$(ZSTD)" DATAGEN_BIN=./datagen ./playTests.sh $(ZSTDRTTEST)
+
+test-zstdtools: ZSTD=$(PRGDIR)/zstd
+
+test-zstdtools: zstd
+	file $(ZSTD)
+	ZSTD_BIN="$(ZSTD)" ./playToolTests.sh
 
 test-fullbench: fullbench datagen
 	$(QEMU_SYS) ./fullbench -i1

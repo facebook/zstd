@@ -1,58 +1,15 @@
 #!/bin/sh
 
-set -e
+# shellcheck source=./playTestSetup.sh 
+# shellcheck disable=SC2154
+. "$(dirname "$0")"/playTestSetup.sh
 
-die() {
-    println "$@" 1>&2
-    exit 1
-}
-
-zstd() {
-    if [ -z "$EXEC_PREFIX" ]; then
-        "$ZSTD_BIN" "$@"
-    else
-        "$EXEC_PREFIX" "$ZSTD_BIN" "$@"
-    fi
-}
-
-println() {
-    printf '%b\n' "${*}"
-}
-
-SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
-PRGDIR="$SCRIPT_DIR/../programs"
-UNAME=$(uname)
 ZSTDGREP="$PRGDIR/zstdgrep"
 ZSTDLESS="$PRGDIR/zstdless"
-
-INTOVOID="/dev/null"
-case "$UNAME" in
-  GNU) DEVDEVICE="/dev/random" ;;
-  *) DEVDEVICE="/dev/zero" ;;
-esac
-case "$OS" in
-  Windows*)
-    INTOVOID="NUL"
-    DEVDEVICE="NUL"
-    ;;
-esac
-
-DIFF="diff"
-case "$UNAME" in
-  SunOS) DIFF="gdiff" ;;
-esac
-
-# check if ZSTD_BIN is defined. if not, use the default value
-if [ -z "${ZSTD_BIN}" ]; then
-  println "\nZSTD_BIN is not set. Using the default value..."
-  ZSTD_BIN="$PRGDIR/zstd"
-fi
 
 # assertions
 [ -n "$ZSTD_BIN" ] || die "zstd not found at $ZSTD_BIN! \n Please define ZSTD_BIN pointing to the zstd binary. You might also consider rebuilding zstd following the instructions in README.md"
 println "\nStarting playToolTests.sh EXE_PREFIX='$EXE_PREFIX' ZSTD_BIN='$ZSTD_BIN' DATAGEN_BIN='$DATAGEN_BIN'"
-
-
 
 # tool tests
 

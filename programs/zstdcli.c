@@ -637,6 +637,11 @@ static void printVersion(void)
     #endif
         DISPLAYOUT("\n");
         if (g_displayLevel >= 4) {
+            /* library versions */
+            DISPLAYOUT("zlib version %s\n", FIO_zlibVersion());
+            DISPLAYOUT("lz4 version %s\n", FIO_lz4Version());
+            DISPLAYOUT("lzma version %s\n", FIO_lzmaVersion());
+
             /* posix support */
         #ifdef _POSIX_C_SOURCE
             DISPLAYOUT("_POSIX_C_SOURCE defined: %ldL\n", (long) _POSIX_C_SOURCE);

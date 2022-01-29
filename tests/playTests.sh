@@ -391,6 +391,11 @@ println "\n===>  recursive mode test "
 # combination of -r with empty list of input file
 zstd -c -r < tmp > tmp.zst
 
+# combination of -r with empty folder
+mkdir -p tmpEmptyDir
+zstd -r tmpEmptyDir
+rm -rf tmpEmptyDir
+
 
 println "\n===>  file removal"
 zstd -f --rm tmp

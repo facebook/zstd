@@ -210,6 +210,11 @@ zstd -c --fast=0 tmp > $INTOVOID && die "--fast must not accept value 0"
 println "test : too large numeric argument"
 zstd --fast=9999999999 -f tmp  && die "should have refused numeric value"
 println "test : set compression level with environment variable ZSTD_CLEVEL"
+
+if [ -n "${ZSTD_CLEVEL}" ]; then
+  # Save the original value because macos /bin/sh would actually override the envvar's value in the following tests
+  ORIGINAL_ZSTD_CLEVEL=$ZSTD_CLEVEL
+fi
 ZSTD_CLEVEL=12  zstd -f tmp # positive compression level
 ZSTD_CLEVEL=-12 zstd -f tmp # negative compression level
 ZSTD_CLEVEL=+12 zstd -f tmp # valid: verbose '+' sign
@@ -221,6 +226,14 @@ ZSTD_CLEVEL=3a7 zstd -f tmp # malformed env var, warn and revert to default sett
 ZSTD_CLEVEL=50000000000 zstd -f tmp # numeric value too large, warn and revert to default setting
 println "test : override ZSTD_CLEVEL with command line option"
 ZSTD_CLEVEL=12  zstd --fast=3 -f tmp # overridden by command line option
+# restore original value or unset
+if [ -n "${ORIGINAL_ZSTD_CLEVEL}" ]; then
+  ZSTD_CLEVEL=$ORIGINAL_ZSTD_CLEVEL
+else
+  unset ZSTD_CLEVEL
+fi
+
+
 println "test : compress to stdout"
 zstd tmp -c > tmpCompressed
 zstd tmp --stdout > tmpCompressed       # long command format
@@ -1456,6 +1469,11 @@ then
 
     println "\n===>  zstdmt environment variable tests "
     echo "multifoo" >> mt_tmp
+    if [ -n "${ZSTD_NBTHREADS}" ]; then
+      # Save the original value because macos /bin/sh would actually override the envvar's value in the following tests
+      ORIGINAL_ZSTD_NBTHREADS=$ZSTD_NBTHREADS
+    fi
+    ORIGINAL_ZSTD_NBTHREADS=$ZSTD_NBTHREADS
     ZSTD_NBTHREADS=-3 zstd -f mt_tmp # negative value, warn and revert to default setting
     ZSTD_NBTHREADS=''  zstd -f mt_tmp # empty env var, warn and revert to default setting
     ZSTD_NBTHREADS=-   zstd -f mt_tmp # malformed env var, warn and revert to default setting
@@ -1465,6 +1483,11 @@ then
     ZSTD_NBTHREADS=50000000000 zstd -f mt_tmp # numeric value too large, warn and revert to default setting=
     ZSTD_NBTHREADS=2  zstd -f mt_tmp # correct usage
     ZSTD_NBTHREADS=1  zstd -f mt_tmp # correct usage: single thread
+    if [ -n "${ORIGINAL_ZSTD_NBTHREADS}" ]; then
+      ZSTD_NBTHREADS=$ORIGINAL_ZSTD_NBTHREADS
+    else
+      unset ZSTD_NBTHREADS
+    fi
     rm -f mt_tmp*
 
     println "\n===>  ovLog tests "

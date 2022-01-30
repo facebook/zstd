@@ -311,8 +311,8 @@ typedef struct {
      * in the seqStore that has a value larger than U16 (if it exists). To do so, we increment
      * the existing value of the litLength or matchLength by 0x10000.
      */
-    ZSTD_longLengthType_e   longLengthType;
-    U32                     longLengthPos;  /* Index of the sequence to apply long length modification to */
+    ZSTD_longLengthType_e longLengthType;
+    U32                   longLengthPos;  /* Index of the sequence to apply long length modification to */
 } seqStore_t;
 
 typedef struct {

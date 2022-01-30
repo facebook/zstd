@@ -297,7 +297,11 @@ int LLVMFuzzerTestOneInput(const uint8_t* src, size_t size)
     }
     nbSequences = generateRandomSequences(producer, ZSTD_FUZZ_GENERATED_LITERALS_SIZE, dictSize, wLog, mode);
     generatedSrcSize = decodeSequences(generatedSrc, nbSequences, ZSTD_FUZZ_GENERATED_LITERALS_SIZE, dictBuffer, dictSize, mode);
-    cBufSize = ZSTD_compressBound(generatedSrcSize);
+    /* Note : in explicit block delimiters mode,
+     * the fuzzer might generate a lot of small incompressible blocks.
+     * In which case, the final compressed size might be > ZSTD_compressBound().
+     * Solution : provide a much more generous cBufSize to cover these scenarios */
+    cBufSize = (mode == ZSTD_sf_noBlockDelimiters) ? ZSTD_compressBound(generatedSrcSize) : 256 + (generatedSrcSize * 2);
     cBuf = FUZZ_malloc(cBufSize);
 
     rBufSize = generatedSrcSize;

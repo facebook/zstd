@@ -342,7 +342,8 @@ FORCE_INLINE_TEMPLATE size_t FSE_decompress_wksp_body(
     }
 
     if (FSE_DECOMPRESS_WKSP_SIZE(tableLog, maxSymbolValue) > wkspSize) return ERROR(tableLog_tooLarge);
-    workSpace = wksp->dtable + FSE_DTABLE_SIZE_U32(tableLog);
+    assert(sizeof(*wksp) + FSE_DTABLE_SIZE(tableLog) <= wkspSize);
+    workSpace = (BYTE*)workSpace + sizeof(*wksp) + FSE_DTABLE_SIZE(tableLog);
     wkspSize -= sizeof(*wksp) + FSE_DTABLE_SIZE(tableLog);
 
     CHECK_F( FSE_buildDTable_internal(wksp->dtable, wksp->ncount, maxSymbolValue, tableLog, workSpace, wkspSize) );

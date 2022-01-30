@@ -31,6 +31,7 @@
 #include "timefn.h"         /* UTIL_time_t, UTIL_clockSpanMicro, UTIL_getTime */
 #include "../lib/common/debug.h" /* assert */
 #include "../lib/common/mem.h"  /* read */
+#include "../lib/zstd_errors.h"
 #include "dibio.h"
 
 
@@ -380,7 +381,7 @@ int DiB_trainFromFiles(const char* dictFileName, size_t maxDictSize,
         srcBuffer, &loadedSize, sampleSizes, fs.nbSamples, fileNamesTable,
         nbFiles, chunkSize, displayLevel);
 
-    {   size_t dictSize;
+    {   size_t dictSize = ZSTD_error_GENERIC;
         if (params) {
             DiB_fillNoise((char*)srcBuffer + loadedSize, NOISELENGTH);   /* guard band, for end of buffer condition */
             dictSize = ZDICT_trainFromBuffer_legacy(dictBuffer, maxDictSize,
@@ -400,8 +401,7 @@ int DiB_trainFromFiles(const char* dictFileName, size_t maxDictSize,
               dictSize = ZDICT_trainFromBuffer_cover(dictBuffer, maxDictSize, srcBuffer,
                                                      sampleSizes, nbSamplesLoaded, *coverParams);
             }
-        } else {
-            assert(fastCoverParams != NULL);
+        } else if (fastCoverParams != NULL) {
             if (optimize) {
               dictSize = ZDICT_optimizeTrainFromBuffer_fastCover(dictBuffer, maxDictSize,
                                                               srcBuffer, sampleSizes, nbSamplesLoaded,
@@ -416,6 +416,8 @@ int DiB_trainFromFiles(const char* dictFileName, size_t maxDictSize,
               dictSize = ZDICT_trainFromBuffer_fastCover(dictBuffer, maxDictSize, srcBuffer,
                                                         sampleSizes, nbSamplesLoaded, *fastCoverParams);
             }
+        } else {
+            assert(0 /* Impossible */);
         }
         if (ZDICT_isError(dictSize)) {
             DISPLAYLEVEL(1, "dictionary training failed : %s \n", ZDICT_getErrorName(dictSize));   /* should not happen */

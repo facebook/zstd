@@ -1153,7 +1153,8 @@ FIO_compressLz4Frame(cRess_t* ress,
 
     assert(blockSize <= ress->readCtx->base.jobBufferSize);
 
-    prefs.autoFlush = 1;
+    /* autoflush off to mitigate a bug in lz4<=1.9.3 for compression level 12 */
+    prefs.autoFlush = 0;
     prefs.compressionLevel = compressionLevel;
     prefs.frameInfo.blockMode = LZ4F_blockLinked;
     prefs.frameInfo.blockSizeID = LZ4F_max64KB;

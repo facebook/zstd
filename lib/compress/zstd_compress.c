@@ -2595,7 +2595,7 @@ ZSTD_entropyCompressSeqStore_internal(seqStore_t* seqStorePtr,
     entropyWorkspace = count + (MaxSeq + 1);
     entropyWkspSize -= (MaxSeq + 1) * sizeof(*count);
 
-    DEBUGLOG(5, "ZSTD_entropyCompressSeqStore_internal (nbSeq=%zu)", nbSeq);
+    DEBUGLOG(5, "ZSTD_entropyCompressSeqStore_internal (nbSeq=%zu, dstCapacity=%zu)", nbSeq, dstCapacity);
     ZSTD_STATIC_ASSERT(HUF_WORKSPACE_SIZE >= (1<<MAX(MLFSELog,LLFSELog)));
     assert(entropyWkspSize >= HUF_WORKSPACE_SIZE);
 
@@ -2639,7 +2639,7 @@ ZSTD_entropyCompressSeqStore_internal(seqStore_t* seqStorePtr,
         ZSTD_memcpy(&nextEntropy->fse, &prevEntropy->fse, sizeof(prevEntropy->fse));
         return (size_t)(op - ostart);
     }
-    {   BYTE* seqHead = op++;
+    {   BYTE* const seqHead = op++;
         /* build stats for sequences */
         const ZSTD_symbolEncodingTypeStats_t stats =
                 ZSTD_buildSequencesStatistics(seqStorePtr, nbSeq,
@@ -2702,15 +2702,17 @@ ZSTD_entropyCompressSeqStore(seqStore_t* seqStorePtr,
     /* When srcSize <= dstCapacity, there is enough space to write a raw uncompressed block.
      * Since we ran out of space, block must be not compressible, so fall back to raw uncompressed block.
      */
-    if ((cSize == ERROR(dstSize_tooSmall)) & (srcSize <= dstCapacity))
+    if ((cSize == ERROR(dstSize_tooSmall)) & (srcSize <= dstCapacity)) {
+        DEBUGLOG(4, "not enough dstCapacity (%zu) for ZSTD_entropyCompressSeqStore_internal()=> do not compress block", dstCapacity);
         return 0;  /* block not compressed */
+    }
     FORWARD_IF_ERROR(cSize, "ZSTD_entropyCompressSeqStore_internal failed");
 
     /* Check compressibility */
     {   size_t const maxCSize = srcSize - ZSTD_minGain(srcSize, cctxParams->cParams.strategy);
         if (cSize >= maxCSize) return 0;  /* block not compressed */
     }
-    DEBUGLOG(4, "ZSTD_entropyCompressSeqStore() cSize: %zu", cSize);
+    DEBUGLOG(5, "ZSTD_entropyCompressSeqStore() cSize: %zu", cSize);
     return cSize;
 }
 
@@ -6159,6 +6161,7 @@ ZSTD_compressSequences_internal(ZSTD_CCtx* cctx,
             continue;
         }
 
+        RETURN_ERROR_IF(dstCapacity < ZSTD_blockHeaderSize, dstSize_tooSmall, "not enough dstCapacity to write a new compressed block");
         compressedSeqsSize = ZSTD_entropyCompressSeqStore(&cctx->seqStore,
                                 &cctx->blockState.prevCBlock->entropy, &cctx->blockState.nextCBlock->entropy,
                                 &cctx->appliedParams,
@@ -6182,11 +6185,11 @@ ZSTD_compressSequences_internal(ZSTD_CCtx* cctx,
         if (compressedSeqsSize == 0) {
             /* ZSTD_noCompressBlock writes the block header as well */
             cBlockSize = ZSTD_noCompressBlock(op, dstCapacity, ip, blockSize, lastBlock);
-            FORWARD_IF_ERROR(cBlockSize, "Nocompress block failed");
+            FORWARD_IF_ERROR(cBlockSize, "ZSTD_noCompressBlock failed");
             DEBUGLOG(5, "Writing out nocompress block, size: %zu", cBlockSize);
         } else if (compressedSeqsSize == 1) {
             cBlockSize = ZSTD_rleCompressBlock(op, dstCapacity, *ip, blockSize, lastBlock);
-            FORWARD_IF_ERROR(cBlockSize, "RLE compress block failed");
+            FORWARD_IF_ERROR(cBlockSize, "ZSTD_rleCompressBlock failed");
             DEBUGLOG(5, "Writing out RLE block, size: %zu", cBlockSize);
         } else {
             U32 cBlockHeader;
@@ -6203,7 +6206,6 @@ ZSTD_compressSequences_internal(ZSTD_CCtx* cctx,
         }
 
         cSize += cBlockSize;
-        DEBUGLOG(5, "cSize running total: %zu", cSize);
 
         if (lastBlock) {
             break;
@@ -6214,6 +6216,7 @@ ZSTD_compressSequences_internal(ZSTD_CCtx* cctx,
             dstCapacity -= cBlockSize;
             cctx->isFirstBlock = 0;
         }
+        DEBUGLOG(5, "cSize running total: %zu (remaining dstCapacity=%zu)", cSize, dstCapacity);
     }
 
     DEBUGLOG(4, "cSize final total: %zu", cSize);
@@ -6231,7 +6234,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* cctx,
     size_t frameHeaderSize = 0;
 
     /* Transparent initialization stage, same as compressStream2() */
-    DEBUGLOG(3, "ZSTD_compressSequences()");
+    DEBUGLOG(4, "ZSTD_compressSequences (dstCapacity=%zu)", dstCapacity);
     assert(cctx != NULL);
     FORWARD_IF_ERROR(ZSTD_CCtx_init_compressStream2(cctx, ZSTD_e_end, srcSize), "CCtx initialization failed");
     /* Begin writing output, starting with frame header */
@@ -6259,7 +6262,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* cctx,
         cSize += 4;
     }
 
-    DEBUGLOG(3, "Final compressed size: %zu", cSize);
+    DEBUGLOG(4, "Final compressed size: %zu", cSize);
     return cSize;
 }
 

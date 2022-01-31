@@ -126,7 +126,7 @@ size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
     RETURN_ERROR_IF(dstCapacity < lhSize+1, dstSize_tooSmall, "not enough space for compression");
     {   HUF_repeat repeat = prevHuf->repeatMode;
         int const preferRepeat = (strategy < ZSTD_lazy) ? srcSize <= 1024 : 0;
-        typedef size_t (*huf_compress_f)(void*, size_t, const void*, size_t, unsigned, unsigned, void*, size_t, HUF_CElt*, HUF_repeat*, int, int, unsigned);
+        typedef size_t (*huf_compress_f)(void*, size_t, const void*, size_t, unsigned, unsigned, void*, size_t, HUF_CElt*, HUF_repeat*, int, int, unsigned, HUF_depthStrategy);
         huf_compress_f huf_compress;
         if (repeat == HUF_repeat_valid && lhSize == 3) singleStream = 1;
         huf_compress = singleStream ? HUF_compress1X_repeat : HUF_compress4X_repeat;
@@ -136,7 +136,8 @@ size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
                                 entropyWorkspace, entropyWorkspaceSize,
                                 (HUF_CElt*)nextHuf->CTable,
                                 &repeat, preferRepeat,
-                                bmi2, suspectUncompressible);
+                                bmi2, suspectUncompressible,
+                                strategy >= HUF_DEPTH_STRATEGY_CUTOFF ? HUF_seek_neighbors : HUF_default);
         if (repeat != HUF_repeat_none) {
             /* reused the existing table */
             DEBUGLOG(5, "Reusing previous huffman table");

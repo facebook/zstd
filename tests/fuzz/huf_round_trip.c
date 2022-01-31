@@ -79,13 +79,13 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     void* rBuf = FUZZ_malloc(size);
     void* cBuf = FUZZ_malloc(cBufSize);
     HUF_CElt* ct = (HUF_CElt*)FUZZ_malloc(HUF_CTABLE_SIZE(maxSymbol));
-    HUF_DTable* dt = (HUF_DTable*)FUZZ_malloc(HUF_DTABLE_SIZE(tableLog) * sizeof(HUF_DTable));
-    dt[0] = tableLog * 0x01000001;
 
-    tableLog = HUF_optimalTableLog(tableLog, size, maxSymbol);
+    tableLog = HUF_optimalTableLog(tableLog, size, count, maxSymbol, HUF_seek_neighbors);
     FUZZ_ASSERT(tableLog <= 12);
     tableLog = HUF_buildCTable_wksp(ct, count, maxSymbol, tableLog, wksp, wkspSize);
     FUZZ_ZASSERT(tableLog);
+    HUF_DTable* dt = (HUF_DTable*)FUZZ_malloc(HUF_DTABLE_SIZE(tableLog) * sizeof(HUF_DTable));
+    dt[0] = tableLog * 0x01000001;
     size_t const tableSize = HUF_writeCTable_wksp(cBuf, cBufSize, ct, maxSymbol, tableLog, wksp, wkspSize);
     if (ERR_isError(tableSize)) {
         /* Errors on uncompressible data or cBufSize too small */

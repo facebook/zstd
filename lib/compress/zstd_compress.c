@@ -3052,7 +3052,7 @@ static size_t ZSTD_buildBlockEntropyStats_literals(void* const src, size_t srcSi
                                                   ZSTD_hufCTables_t* nextHuf,
                                                   ZSTD_hufCTablesMetadata_t* hufMetadata,
                                                   const int literalsCompressionIsDisabled,
-                                                  void* workspace, size_t wkspSize)
+                                                  ZSTD_strategy strategy, void* workspace, size_t wkspSize)
 {
     BYTE* const wkspStart = (BYTE*)workspace;
     BYTE* const wkspEnd = wkspStart + wkspSize;
@@ -3109,7 +3109,8 @@ static size_t ZSTD_buildBlockEntropyStats_literals(void* const src, size_t srcSi
 
     /* Build Huffman Tree */
     ZSTD_memset(nextHuf->CTable, 0, sizeof(nextHuf->CTable));
-    huffLog = HUF_optimalTableLog(huffLog, srcSize, maxSymbolValue);
+    huffLog = HUF_optimalTableLog(huffLog, srcSize, countWksp, maxSymbolValue,
+        strategy >= HUF_DEPTH_STRATEGY_CUTOFF ? HUF_seek_neighbors : HUF_default);
     {   size_t const maxBits = HUF_buildCTable_wksp((HUF_CElt*)nextHuf->CTable, countWksp,
                                                     maxSymbolValue, huffLog,
                                                     nodeWksp, nodeWkspSize);
@@ -3217,7 +3218,7 @@ size_t ZSTD_buildBlockEntropyStats(seqStore_t* seqStorePtr,
                                             &prevEntropy->huf, &nextEntropy->huf,
                                             &entropyMetadata->hufMetadata,
                                             ZSTD_literalsCompressionIsDisabled(cctxParams),
-                                            workspace, wkspSize);
+                                            cctxParams->cParams.strategy, workspace, wkspSize);
     FORWARD_IF_ERROR(entropyMetadata->hufMetadata.hufDesSize, "ZSTD_buildBlockEntropyStats_literals failed");
     entropyMetadata->fseMetadata.fseTablesSize =
         ZSTD_buildBlockEntropyStats_sequences(seqStorePtr,

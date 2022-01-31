@@ -161,6 +161,12 @@ FSE_PUBLIC_API size_t FSE_writeNCount (void* buffer, size_t bufferSize,
                                  const short* normalizedCounter,
                                  unsigned maxSymbolValue, unsigned tableLog);
 
+/*! FSE_estimateNCountSize():
+    Estimate space requirement to save 'normalizedCounter'.
+    @return : size of the compressed table,
+              or an errorCode, which can be tested using FSE_isError(). */
+FSE_PUBLIC_API size_t FSE_estimateNCountSize(const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog);
+
 /*! Constructor and Destructor of FSE_CTable.
     Note that FSE_CTable size depends on 'tableLog' and 'maxSymbolValue' */
 typedef unsigned FSE_CTable;   /* don't allocate that. It's only meant to be more restrictive than void* */
@@ -178,6 +184,11 @@ FSE_PUBLIC_API size_t FSE_buildCTable(FSE_CTable* ct, const short* normalizedCou
               or 0 if compressed data could not fit into `dst`,
               or an errorCode, which can be tested using FSE_isError() */
 FSE_PUBLIC_API size_t FSE_compress_usingCTable (void* dst, size_t dstCapacity, const void* src, size_t srcSize, const FSE_CTable* ct);
+
+/*! FSE_estimateCompressedSize():
+    Estimate compressed size of data based on sum of fractional bit counts, will be >= actual cost.
+    @return : estimated size of compressed data */
+FSE_PUBLIC_API size_t FSE_estimateCompressedSize(const FSE_CTable* ct, const unsigned* count, unsigned maxSymbolValue, unsigned tableLog);
 
 /*!
 Tutorial :
@@ -317,6 +328,7 @@ If there is an error, the function will return an error code, which can be teste
  *  FSE advanced API
  ***************************************** */
 
+unsigned FSE_minTableLog(size_t srcSize, unsigned maxSymbolValue);
 unsigned FSE_optimalTableLog_internal(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue, unsigned minus);
 /**< same as FSE_optimalTableLog(), which used `minus==2` */
 

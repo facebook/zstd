@@ -13,6 +13,7 @@
 
 #include "zstd_compress_internal.h" /* ZSTD_hufCTables_t, ZSTD_minGain() */
 
+#define HUF_DEPTH_STRATEGY_CUTOFF 0
 
 size_t ZSTD_noCompressLiterals (void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 

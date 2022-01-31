@@ -337,6 +337,48 @@ size_t FSE_writeNCount (void* buffer, size_t bufferSize,
     return FSE_writeNCount_generic(buffer, bufferSize, normalizedCounter, maxSymbolValue, tableLog, 1 /* write in buffer is safe */);
 }
 
+size_t FSE_estimateNCountSize(const short* normalizedCounter, unsigned maxSymbolValue, unsigned tableLog)
+{
+    int nbBits;
+    const int tableSize = 1 << tableLog;
+    int remaining;
+    int threshold;
+    int bitCount = 0;
+    unsigned symbol = 0;
+    unsigned const alphabetSize = maxSymbolValue + 1;
+    int previousIs0 = 0;
+
+    /* Table Size */
+    bitCount += 4;
+
+    /* Init */
+    remaining = tableSize + 1;   /* +1 for extra accuracy */
+    threshold = tableSize;
+    nbBits = tableLog + 1;
+
+    while ((symbol < alphabetSize) && (remaining > 1)) {  /* stops at 1 */
+        if (previousIs0) {
+            unsigned start = symbol;
+            while ((symbol < alphabetSize) && !normalizedCounter[symbol]) symbol++;
+            if (symbol == alphabetSize) break;   /* incorrect distribution */
+            bitCount += ((symbol - start) / 24) * 16;
+            bitCount += (((symbol - start) % 24 + 2) / 3) * 2;
+        }
+        {   int count = normalizedCounter[symbol++];
+        int const max = (2 * threshold - 1) - remaining;
+        remaining -= count < 0 ? -count : count;
+        count++;   /* +1 for extra accuracy */
+        if (count >= threshold)
+            count += max;   /* [0..max[ [max..threshold[ (...) [threshold+max 2*threshold[ */
+        bitCount += nbBits;
+        bitCount -= (count < max);
+        previousIs0 = (count == 1);
+        while (remaining < threshold) { nbBits--; threshold >>= 1; }
+        }
+    }
+
+    return (bitCount + 7) / 8;
+}
 
 /*-**************************************************************
 *  FSE Compression Code
@@ -353,7 +395,7 @@ FSE_CTable* FSE_createCTable (unsigned maxSymbolValue, unsigned tableLog)
 void FSE_freeCTable (FSE_CTable* ct) { ZSTD_free(ct); }
 
 /* provides the minimum logSize to safely represent a distribution */
-static unsigned FSE_minTableLog(size_t srcSize, unsigned maxSymbolValue)
+unsigned FSE_minTableLog(size_t srcSize, unsigned maxSymbolValue)
 {
     U32 minBitsSrc = BIT_highbit32((U32)(srcSize)) + 1;
     U32 minBitsSymbols = BIT_highbit32(maxSymbolValue) + 2;
@@ -589,6 +631,20 @@ size_t FSE_buildCTable_rle (FSE_CTable* ct, BYTE symbolValue)
     return 0;
 }
 
+size_t FSE_estimateCompressedSize(const FSE_CTable* ct, const unsigned* count, unsigned maxSymbolValue, unsigned tableLog)
+{
+    U32 const tableSize = 1 << tableLog;
+    const void* const ptr = ct;
+    const void* const FSCT = ((const U32*)ptr) + 1 /* header */ + (tableLog ? tableSize >> 1 : 1);
+    const FSE_symbolCompressionTransform* const symbolTT = (const FSE_symbolCompressionTransform*)(FSCT);
+
+    size_t nbBits = 0;
+    U32 s;
+    for (s = 0; s <= maxSymbolValue; ++s) {
+        nbBits += FSE_bitCost(symbolTT, tableLog, s, 8 /* accuracyLog */) * count[s];
+    }
+    return nbBits >> (8 + 3);  /* accuracyLog + bit->byte */
+}
 
 static size_t FSE_compress_usingCTable_generic (void* dst, size_t dstSize,
                            const void* src, size_t srcSize,

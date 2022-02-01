@@ -1301,8 +1301,13 @@ FIO_compressZstdFrame(FIO_ctx_t* const fCtx,
         UTIL_HumanReadableSize_t windowSize;
         CHECK(ZSTD_CCtx_getParameter(ress.cctx, ZSTD_c_windowLog, &windowLog));
         if (windowLog == 0) {
-            const ZSTD_compressionParameters cParams = ZSTD_getCParams(compressionLevel, fileSize, 0);
-            windowLog = cParams.windowLog;
+            if (prefs->ldmFlag) {
+                /* If long mode is set without a window size libzstd will set this size internally */
+                windowLog = ZSTD_WINDOWLOG_LIMIT_DEFAULT;
+            } else {
+                const ZSTD_compressionParameters cParams = ZSTD_getCParams(compressionLevel, fileSize, 0);
+                windowLog = cParams.windowLog;
+            }
         }
         windowSize = UTIL_makeHumanReadableSize(MAX(1ULL, MIN(1ULL << windowLog, pledgedSrcSize)));
         DISPLAYLEVEL(4, "Decompression will require %.*f%s of memory\n", windowSize.precision, windowSize.value, windowSize.suffix);

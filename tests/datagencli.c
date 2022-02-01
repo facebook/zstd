@@ -124,7 +124,7 @@ int main(int argc, const char** argv)
     DISPLAYLEVEL(3, "Seed = %u \n", (unsigned)seed);
 
     RDG_genStdout(size, (double)probaU32/100, litProba, seed);
-    DISPLAYLEVEL(1, "\n");
+    DISPLAYLEVEL(3, "\n");
 
     return 0;
 }

@@ -46,6 +46,7 @@
 #  include "zstdcli_trace.h"
 #endif
 #include "../lib/zstd.h"  /* ZSTD_VERSION_STRING, ZSTD_minCLevel, ZSTD_maxCLevel */
+#include "fileio_asyncio.h"
 
 
 /*-************************************
@@ -179,7 +180,8 @@ static void usage_advanced(const char* programName)
 #ifdef UTIL_HAS_MIRRORFILELIST
     DISPLAYOUT( "--output-dir-mirror DIR : processed files are stored into DIR respecting original directory structure \n");
 #endif
-
+    if (AIO_supported())
+        DISPLAYOUT( "--[no-]asyncio : use asynchronous IO (default: enabled) \n");
 
 #ifndef ZSTD_NOCOMPRESS
     DISPLAYOUT( "--[no-]check : during compression, add XXH64 integrity checksum to frame (default: enabled)");
@@ -242,9 +244,6 @@ static void usage_advanced(const char* programName)
     DISPLAYOUT( " -l        : print information about zstd compressed files \n");
     DISPLAYOUT( "--test     : test compressed file integrity \n");
     DISPLAYOUT( " -M#       : Set a memory usage limit for decompression \n");
-#ifdef ZSTD_MULTITHREAD
-    DISPLAYOUT( "--[no-]asyncio  : use threaded asynchronous IO for output (default: disabled) \n");
-#endif
 # if ZSTD_SPARSE_DEFAULT
     DISPLAYOUT( "--[no-]sparse : sparse mode (default: enabled on file, disabled on stdout) \n");
 # else
@@ -807,9 +806,7 @@ int main(int argCount, const char* argv[])
         separateFiles = 0,
         setRealTimePrio = 0,
         singleThread = 0,
-#ifdef ZSTD_MULTITHREAD
         defaultLogicalCores = 0,
-#endif
         showDefaultCParams = 0,
         ultra=0,
         contentSize=1;
@@ -1002,7 +999,6 @@ int main(int argCount, const char* argv[])
                 if (longCommandWArg(&argument, "--target-compressed-block-size=")) { targetCBlockSize = readSizeTFromChar(&argument); continue; }
                 if (longCommandWArg(&argument, "--size-hint=")) { srcSizeHint = readSizeTFromChar(&argument); continue; }
                 if (longCommandWArg(&argument, "--output-dir-flat")) { NEXT_FIELD(outDirName); continue; }
-#ifdef ZSTD_MULTITHREAD
                 if (longCommandWArg(&argument, "--auto-threads")) {
                     const char* threadDefault = NULL;
                     NEXT_FIELD(threadDefault);
@@ -1010,7 +1006,6 @@ int main(int argCount, const char* argv[])
                         defaultLogicalCores = 1;
                     continue;
                 }
-#endif
 #ifdef UTIL_HAS_MIRRORFILELIST
                 if (longCommandWArg(&argument, "--output-dir-mirror")) { NEXT_FIELD(outMirroredDirName); continue; }
 #endif
@@ -1226,7 +1221,7 @@ int main(int argCount, const char* argv[])
         }
     }
 #else
-    (void)singleThread; (void)nbWorkers;
+    (void)singleThread; (void)nbWorkers; (void)defaultLogicalCores;
 #endif
 
     g_utilDisplayLevel = g_displayLevel;
@@ -1463,6 +1458,7 @@ int main(int argCount, const char* argv[])
         FIO_setTargetCBlockSize(prefs, targetCBlockSize);
         FIO_setSrcSizeHint(prefs, srcSizeHint);
         FIO_setLiteralCompressionMode(prefs, literalCompressionMode);
+        FIO_setSparseWrite(prefs, 0);
         if (adaptMin > cLevel) cLevel = adaptMin;
         if (adaptMax < cLevel) cLevel = adaptMax;
 

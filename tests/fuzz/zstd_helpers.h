@@ -17,6 +17,7 @@
 #define ZSTD_STATIC_LINKING_ONLY
 
 #include "zstd.h"
+#include "zstd_errors.h"
 #include "fuzz_data_producer.h"
 #include <stdint.h>
 

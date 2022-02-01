@@ -221,11 +221,11 @@ static size_t generateRandomSequences(FUZZ_dataProducer_t* producer,
     return nbSeqGenerated;
 }
 
-static size_t roundTripTest(void *result, size_t resultCapacity,
-                            void *compressed, size_t compressedCapacity,
-                            size_t srcSize,
-                            const void *dict, size_t dictSize,
-                            size_t generatedSequencesSize,
+static size_t roundTripTest(void* result, size_t resultCapacity,
+                            void* compressed, size_t compressedCapacity,
+                            const void* src, size_t srcSize,
+                            const void* dict, size_t dictSize,
+                            const ZSTD_Sequence* seqs, size_t seqSize,
                             int wLog, int cLevel, unsigned hasDict,
                             ZSTD_sequenceFormat_e mode)
 {
@@ -245,12 +245,22 @@ static size_t roundTripTest(void *result, size_t resultCapacity,
     }
 
     cSize = ZSTD_compressSequences(cctx, compressed, compressedCapacity,
-                                   generatedSequences, generatedSequencesSize,
-                                   generatedSrc, srcSize);
+                                   seqs, seqSize,
+                                   src, srcSize);
+    if ( (ZSTD_getErrorCode(cSize) == ZSTD_error_dstSize_tooSmall)
+      && (mode == ZSTD_sf_explicitBlockDelimiters) ) {
+        /* Valid scenario : in explicit delimiter mode,
+         * it might be possible for the compressed size to outgrow dstCapacity.
+         * In which case, it's still a valid fuzzer scenario,
+         * but no roundtrip shall be possible */
+        return 0;
+    }
+    /* round-trip */
     FUZZ_ZASSERT(cSize);
     dSize = ZSTD_decompressDCtx(dctx, result, resultCapacity, compressed, cSize);
     FUZZ_ZASSERT(dSize);
-
+    FUZZ_ASSERT_MSG(dSize == srcSize, "Incorrect regenerated size");
+    FUZZ_ASSERT_MSG(!FUZZ_memcmp(src, result, srcSize), "Corruption!");
     return dSize;
 }
 
@@ -297,6 +307,11 @@ int LLVMFuzzerTestOneInput(const uint8_t* src, size_t size)
     }
     nbSequences = generateRandomSequences(producer, ZSTD_FUZZ_GENERATED_LITERALS_SIZE, dictSize, wLog, mode);
     generatedSrcSize = decodeSequences(generatedSrc, nbSequences, ZSTD_FUZZ_GENERATED_LITERALS_SIZE, dictBuffer, dictSize, mode);
+    /* Note : in explicit block delimiters mode,
+     * the fuzzer might generate a lot of small blocks.
+     * In which case, the final compressed size might be > ZSTD_compressBound().
+     * This is still a valid scenario fuzzer though, which makes it possible to check under-sized dstCapacity.
+     * The test just doesn't roundtrip. */
     cBufSize = ZSTD_compressBound(generatedSrcSize);
     cBuf = FUZZ_malloc(cBufSize);
 
@@ -314,14 +329,12 @@ int LLVMFuzzerTestOneInput(const uint8_t* src, size_t size)
 
     {   const size_t result = roundTripTest(rBuf, rBufSize,
                                         cBuf, cBufSize,
-                                        generatedSrcSize,
+                                        generatedSrc, generatedSrcSize,
                                         dictBuffer, dictSize,
-                                        nbSequences,
+                                        generatedSequences, nbSequences,
                                         (int)wLog, cLevel, hasDict, mode);
-        FUZZ_ZASSERT(result);
-        FUZZ_ASSERT_MSG(result == generatedSrcSize, "Incorrect regenerated size");
+        FUZZ_ASSERT(result <= generatedSrcSize);  /* can be 0 when no round-trip */
     }
-    FUZZ_ASSERT_MSG(!FUZZ_memcmp(generatedSrc, rBuf, generatedSrcSize), "Corruption!");
 
     free(rBuf);
     free(cBuf);

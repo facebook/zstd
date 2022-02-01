@@ -6140,7 +6140,7 @@ ZSTD_compressSequences_internal(ZSTD_CCtx* cctx,
         FORWARD_IF_ERROR(blockSize, "Error while trying to determine block size");
         assert(blockSize <= remaining);
         ZSTD_resetSeqStore(&cctx->seqStore);
-        DEBUGLOG(5, "Working on new block. Blocksize: %zu", blockSize);
+        DEBUGLOG(5, "Working on new block. Blocksize: %zu (total:%zu)", blockSize, (ip - (const BYTE*)src) + blockSize);
 
         additionalByteAdjustment = sequenceCopier(cctx, &seqPos, inSeqs, inSeqsSize, ip, blockSize);
         FORWARD_IF_ERROR(additionalByteAdjustment, "Bad sequence copy");

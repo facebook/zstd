@@ -41,6 +41,8 @@ size_t ZSTD_noCompressLiterals (void* dst, size_t dstCapacity, const void* src, 
     BYTE* const ostart = (BYTE*)dst;
     U32   const flSize = 1 + (srcSize>31) + (srcSize>4095);
 
+    DEBUGLOG(5, "ZSTD_noCompressLiterals: srcSize=%zu, dstCapacity=%zu", srcSize, dstCapacity);
+
     RETURN_ERROR_IF(srcSize + flSize > dstCapacity, dstSize_tooSmall, "");
 
     switch(flSize)
@@ -106,8 +108,8 @@ size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
     symbolEncodingType_e hType = set_compressed;
     size_t cLitSize;
 
-    DEBUGLOG(5,"ZSTD_compressLiterals (disableLiteralCompression=%i srcSize=%u)",
-                disableLiteralCompression, (U32)srcSize);
+    DEBUGLOG(5,"ZSTD_compressLiterals (disableLiteralCompression=%i, srcSize=%u, dstCapacity=%zu)",
+                disableLiteralCompression, (U32)srcSize, dstCapacity);
 
     DEBUGLOG(6, "Completed literals listing (%zu bytes)", showHexa(src, srcSize));
 

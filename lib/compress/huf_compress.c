@@ -1224,7 +1224,10 @@ static size_t HUF_compressCTable_internal(
 
 unsigned HUF_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue)
 {
-    return FSE_optimalTableLog_internal(maxTableLog, srcSize, maxSymbolValue, 1);
+    unsigned tableLog = FSE_optimalTableLog_internal(maxTableLog, srcSize, maxSymbolValue, 1);
+    assert(tableLog <= HUF_TABLELOG_MAX);
+
+    return tableLog;
 }
 
 typedef struct {

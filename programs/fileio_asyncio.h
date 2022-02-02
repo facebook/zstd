@@ -151,7 +151,7 @@ void AIO_ReadPool_free(ReadPoolCtx_t* ctx);
 void AIO_ReadPool_consumeBytes(ReadPoolCtx_t *ctx, size_t n);
 
 /* AIO_ReadPool_fillBuffer:
- * Makes sure buffer has at least n bytes loaded (as long as n is not bigger than the initalized bufferSize).
+ * Makes sure buffer has at least n bytes loaded (as long as n is not bigger than the initialized bufferSize).
  * Returns if srcBuffer has at least n bytes loaded or if we've reached the end of the file.
  * Return value is the number of bytes added to the buffer.
  * Note that srcBuffer might have up to 2 times bufferSize bytes. */

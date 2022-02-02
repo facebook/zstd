@@ -415,7 +415,7 @@ static IOJob_t* AIO_ReadPool_findNextWaitingOffsetCompletedJob_locked(ReadPoolCt
 }
 
 /* AIO_ReadPool_numReadsInFlight:
- * Returns the number of IO read jobs currrently in flight. */
+ * Returns the number of IO read jobs currently in flight. */
 static size_t AIO_ReadPool_numReadsInFlight(ReadPoolCtx_t* ctx) {
     const size_t jobsHeld = (ctx->currentJobHeld==NULL ? 0 : 1);
     return ctx->base.totalIoJobs - (ctx->base.availableJobsCount + ctx->completedJobsCount + jobsHeld);

@@ -67,9 +67,9 @@ They are generally used by the helper scripts in `bin/` to coordinate everything
 
 ### Basic test case
 
-When executing your `$TEST` executable, by default the exit code is expected to be `0`. However, you can provide an alterate expected exit code in a `$TEST.exit` file.
+When executing your `$TEST` executable, by default the exit code is expected to be `0`. However, you can provide an alternate expected exit code in a `$TEST.exit` file.
 
-When executing your `$TEST` exectuable, by default the expected stderr and stdout are empty. However, you can override the default by providing one of three files:
+When executing your `$TEST` executable, by default the expected stderr and stdout are empty. However, you can override the default by providing one of three files:
 
 * `$TEST.{stdout,stderr}.exact`
 * `$TEST.{stdout,stderr}.glob`

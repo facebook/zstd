@@ -2,6 +2,10 @@
 
 set -e
 
+unset ZSTD_CLEVEL
+unset ZSTD_NBTHREADS
+
+
 die() {
     println "$@" 1>&2
     exit 1
@@ -210,6 +214,7 @@ zstd -c --fast=0 tmp > $INTOVOID && die "--fast must not accept value 0"
 println "test : too large numeric argument"
 zstd --fast=9999999999 -f tmp  && die "should have refused numeric value"
 println "test : set compression level with environment variable ZSTD_CLEVEL"
+
 ZSTD_CLEVEL=12  zstd -f tmp # positive compression level
 ZSTD_CLEVEL=-12 zstd -f tmp # negative compression level
 ZSTD_CLEVEL=+12 zstd -f tmp # valid: verbose '+' sign
@@ -221,6 +226,11 @@ ZSTD_CLEVEL=3a7 zstd -f tmp # malformed env var, warn and revert to default sett
 ZSTD_CLEVEL=50000000000 zstd -f tmp # numeric value too large, warn and revert to default setting
 println "test : override ZSTD_CLEVEL with command line option"
 ZSTD_CLEVEL=12  zstd --fast=3 -f tmp # overridden by command line option
+
+# temporary envvar chnages in the above tests would actually persist in macos /bin/sh
+unset ZSTD_CLEVEL
+
+
 println "test : compress to stdout"
 zstd tmp -c > tmpCompressed
 zstd tmp --stdout > tmpCompressed       # long command format
@@ -1465,6 +1475,8 @@ then
     ZSTD_NBTHREADS=50000000000 zstd -f mt_tmp # numeric value too large, warn and revert to default setting=
     ZSTD_NBTHREADS=2  zstd -f mt_tmp # correct usage
     ZSTD_NBTHREADS=1  zstd -f mt_tmp # correct usage: single thread
+    # temporary envvar chnages in the above tests would actually persist in macos /bin/sh
+    unset ZSTD_NBTHREADS
     rm -f mt_tmp*
 
     println "\n===>  ovLog tests "

@@ -278,10 +278,12 @@ class TestCase:
         Returns the environment to be used for the
         test subprocess.
         """
-        env = copy.copy(os.environ)
+        # We want to omit ZSTD cli flags so tests will be consistent across environments
+        env = {k: v for k, v in os.environ.items() if not k.startswith("ZSTD")}
         for k, v in self._opts.env.items():
             self._vlog(f"${k}='{v}'")
             env[k] = v
+        return env
 
     def _launch_test(self) -> None:
         """Launch the test subprocess, but do not join it."""

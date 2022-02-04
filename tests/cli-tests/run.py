@@ -283,6 +283,7 @@ class TestCase:
         for k, v in self._opts.env.items():
             self._vlog(f"${k}='{v}'")
             env[k] = v
+        return env
 
     def _launch_test(self) -> None:
         """Launch the test subprocess, but do not join it."""

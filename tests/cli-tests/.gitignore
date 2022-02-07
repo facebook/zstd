@@ -1,4 +1,6 @@
-scratch/
 !bin/
 !datagen
 !zstdcat
+
+scratch/
+bin/symlinks

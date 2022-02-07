@@ -24,6 +24,10 @@ zstd -c file       | zstd -t
 zstd --stdout file | zstd -t
 println bob | zstd | zstd -t
 
+# Test keeping input file when compressing to stdout in gzip mode
+$ZSTD_SYMLINK_DIR/gzip -c file       | zstd -t ; test -f file
+$ZSTD_SYMLINK_DIR/gzip --stdout file | zstd -t ; test -f file
+
 # Test --rm
 cp file file-rm
 zstd --rm file-rm; zstd -t file-rm.zst

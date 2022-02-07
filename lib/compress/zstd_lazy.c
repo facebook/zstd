@@ -766,6 +766,14 @@ size_t ZSTD_HcFindBestMatch(
 
 typedef U64 ZSTD_VecMask;   /* Clarifies when we are interacting with a U64 representing a mask of matches */
 
+/* ZSTD_VecMask_next():
+ * Starting from the LSB, returns the idx of the next non-zero bit.
+ * Basically counting the nb of trailing zeroes.
+ */
+MEM_STATIC U32 ZSTD_VecMask_next(ZSTD_VecMask val) {
+    return ZSTD_countTrailingZeros64(val);
+}
+
 /* ZSTD_rotateRight_*():
  * Rotates a bitfield to the right by "count" bits.
  * https://en.wikipedia.org/w/index.php?title=Circular_shift&oldid=991635599#Implementing_circular_shifts
@@ -1165,7 +1173,7 @@ size_t ZSTD_RowFindBestMatch(
 
         /* Cycle through the matches and prefetch */
         for (; (matches > 0) && (nbAttempts > 0); --nbAttempts, matches &= (matches - 1)) {
-            U32 const matchPos = (head + ZSTD_countTrailingZeros64(matches)) & rowMask;
+            U32 const matchPos = (head + ZSTD_VecMask_next(matches)) & rowMask;
             U32 const matchIndex = row[matchPos];
             assert(numMatches < rowEntries);
             if (matchIndex < lowLimit)
@@ -1233,7 +1241,7 @@ size_t ZSTD_RowFindBestMatch(
             ZSTD_VecMask matches = ZSTD_row_getMatchMask(dmsTagRow, (BYTE)dmsTag, head, rowEntries);
 
             for (; (matches > 0) && (nbAttempts > 0); --nbAttempts, matches &= (matches - 1)) {
-                U32 const matchPos = (head + ZSTD_countTrailingZeros64(matches)) & rowMask;
+                U32 const matchPos = (head + ZSTD_VecMask_next(matches)) & rowMask;
                 U32 const matchIndex = dmsRow[matchPos];
                 if (matchIndex < dmsLowestIndex)
                     break;

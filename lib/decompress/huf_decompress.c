@@ -263,6 +263,7 @@ static size_t HUF_initRemainingDStream(BIT_DStream_t* bit, HUF_DecompressAsmArgs
         return ERROR(corruption_detected);
 
     /* Construct the BIT_DStream_t. */
+    assert(sizeof(size_t) == 8);
     bit->bitContainer = MEM_readLE64(args->ip[stream]);
     bit->bitsConsumed = ZSTD_countTrailingZeros64(args->bits[stream]);
     bit->start = (const char*)args->iend[0];

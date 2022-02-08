@@ -125,6 +125,15 @@ static void checkLibVersion(void)
 }
 
 
+/*! exeNameMatch() :
+    @return : a non-zero value if exeName matches test, excluding the extension
+   */
+static int exeNameMatch(const char* exeName, const char* test)
+{
+    return !strncmp(exeName, test, strlen(test)) &&
+        (exeName[strlen(test)] == '\0' || exeName[strlen(test)] == '.');
+}
+
 /*-************************************
 *  Command Line
 **************************************/
@@ -153,6 +162,11 @@ static void usage(FILE* f, const char* programName)
     DISPLAY_F(f, "          block devices, etc.\n");
     DISPLAY_F(f, "--rm    : remove source file(s) after successful de/compression \n");
     DISPLAY_F(f, " -k     : preserve source file(s) (default) \n");
+#ifdef ZSTD_GZCOMPRESS
+    if (exeNameMatch(programName, ZSTD_GZ)) {     /* behave like gzip */
+        DISPLAY_F(f, " -n     : do not store original filename when compressing \n");
+    }
+#endif
     DISPLAY_F(f, " -h/-H  : display help/long help and exit \n");
 }
 
@@ -208,6 +222,12 @@ static void usage_advanced(const char* programName)
     DISPLAYOUT( "--ultra : enable levels beyond %i, up to %i (requires more memory) \n", ZSTDCLI_CLEVEL_MAX, ZSTD_maxCLevel());
     DISPLAYOUT( "--long[=#]: enable long distance matching with given window log (default: %u) \n", g_defaultMaxWindowLog);
     DISPLAYOUT( "--fast[=#]: switch to very fast compression levels (default: %u) \n", 1);
+#ifdef ZSTD_GZCOMPRESS
+    if (exeNameMatch(programName, ZSTD_GZ)) {     /* behave like gzip */
+        DISPLAYOUT( "--best  : compatibility alias for -9 \n");
+        DISPLAYOUT( "--no-name : do not store original filename when compressing \n");
+    }
+#endif
     DISPLAYOUT( "--adapt : dynamically adapt compression level to I/O conditions \n");
     DISPLAYOUT( "--[no-]row-match-finder : force enable/disable usage of fast row-based matchfinder for greedy, lazy, and lazy2 strategies \n");
     DISPLAYOUT( "--patch-from=FILE : specify the file to be used as a reference point for zstd's diff engine. \n");
@@ -296,15 +316,6 @@ static const char* lastNameFromPath(const char* path)
     if (strrchr(name, '/')) name = strrchr(name, '/') + 1;
     if (strrchr(name, '\\')) name = strrchr(name, '\\') + 1; /* windows */
     return name;
-}
-
-/*! exeNameMatch() :
-    @return : a non-zero value if exeName matches test, excluding the extension
-   */
-static int exeNameMatch(const char* exeName, const char* test)
-{
-    return !strncmp(exeName, test, strlen(test)) &&
-        (exeName[strlen(test)] == '\0' || exeName[strlen(test)] == '.');
 }
 
 static void errorOut(const char* msg)
@@ -866,7 +877,10 @@ int main(int argCount, const char* argv[])
     if (exeNameMatch(programName, ZSTD_UNZSTD)) operation=zom_decompress;
     if (exeNameMatch(programName, ZSTD_CAT)) { operation=zom_decompress; FIO_overwriteMode(prefs); forceStdout=1; followLinks=1; outFileName=stdoutmark; g_displayLevel=1; }     /* supports multiple formats */
     if (exeNameMatch(programName, ZSTD_ZCAT)) { operation=zom_decompress; FIO_overwriteMode(prefs); forceStdout=1; followLinks=1; outFileName=stdoutmark; g_displayLevel=1; }    /* behave like zcat, also supports multiple formats */
-    if (exeNameMatch(programName, ZSTD_GZ)) { suffix = GZ_EXTENSION; FIO_setCompressionType(prefs, FIO_gzipCompression); FIO_setRemoveSrcFile(prefs, 1); }        /* behave like gzip */
+    if (exeNameMatch(programName, ZSTD_GZ)) {   /* behave like gzip */
+        suffix = GZ_EXTENSION; FIO_setCompressionType(prefs, FIO_gzipCompression); FIO_setRemoveSrcFile(prefs, 1);
+        dictCLevel = cLevel = 6;  /* gzip default is -6 */
+    }
     if (exeNameMatch(programName, ZSTD_GUNZIP)) { operation=zom_decompress; FIO_setRemoveSrcFile(prefs, 1); }                                                     /* behave like gunzip, also supports multiple formats */
     if (exeNameMatch(programName, ZSTD_GZCAT)) { operation=zom_decompress; FIO_overwriteMode(prefs); forceStdout=1; followLinks=1; outFileName=stdoutmark; g_displayLevel=1; }   /* behave like gzcat, also supports multiple formats */
     if (exeNameMatch(programName, ZSTD_LZMA)) { suffix = LZMA_EXTENSION; FIO_setCompressionType(prefs, FIO_lzmaCompression); FIO_setRemoveSrcFile(prefs, 1); }    /* behave like lzma */
@@ -936,6 +950,10 @@ int main(int argCount, const char* argv[])
                 if (!strcmp(argument, "--format=zstd")) { suffix = ZSTD_EXTENSION; FIO_setCompressionType(prefs, FIO_zstdCompression); continue; }
 #ifdef ZSTD_GZCOMPRESS
                 if (!strcmp(argument, "--format=gzip")) { suffix = GZ_EXTENSION; FIO_setCompressionType(prefs, FIO_gzipCompression); continue; }
+                if (exeNameMatch(programName, ZSTD_GZ)) {     /* behave like gzip */
+                    if (!strcmp(argument, "--best")) { dictCLevel = cLevel = 9; continue; }
+                    if (!strcmp(argument, "--no-name")) { /* ignore for now */; continue; }
+                }
 #endif
 #ifdef ZSTD_LZMACOMPRESS
                 if (!strcmp(argument, "--format=lzma")) { suffix = LZMA_EXTENSION; FIO_setCompressionType(prefs, FIO_lzmaCompression);  continue; }
@@ -1097,6 +1115,9 @@ int main(int argCount, const char* argv[])
 
                     /* Force stdout, even if stdout==console */
                 case 'c': forceStdout=1; outFileName=stdoutmark; argument++; break;
+
+                    /* do not store filename - gzip compatibility - nothing to do */
+                case 'n': argument++; break;
 
                     /* Use file content as dictionary */
                 case 'D': argument++; NEXT_FIELD(dictFileName); break;

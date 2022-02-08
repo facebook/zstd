@@ -280,6 +280,18 @@ the last one takes effect.
 * `--`:
     All arguments after `--` are treated as files
 
+
+### gzip Operation modifiers
+When invoked via a `gzip` symlink, `zstd` will support further
+options that intend to mimic the `gzip` behavior:
+
+* `-n`, `--no-name`:
+    do not store the original filename and timestamps when compressing
+    a file. This is the default behavior and hence a no-op.
+* `--best`:
+    alias to the option `-9`.
+
+
 ### Restricted usage of Environment Variables
 
 Using environment variables to set parameters has security implications.

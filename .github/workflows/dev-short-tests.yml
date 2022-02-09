@@ -175,7 +175,7 @@ jobs:
           CC=clang MOREFLAGS="-Werror -Wimplicit-fallthrough -O0" make -C lib -j libzstd.a ZSTD_LEGACY_SUPPORT=0
 
   cmake-visual-2019:
-    runs-on: windows-latest
+    runs-on: windows-2019
     strategy:
       matrix:
         include:
@@ -198,7 +198,7 @@ jobs:
         cmake.exe --build .
 
   visual-2019:
-    runs-on: windows-latest
+    runs-on: windows-2019
     strategy:
       matrix:
         platform: [x64, Win32]
@@ -330,7 +330,7 @@ jobs:
         LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
 
   mingw-short-test:
-    runs-on: windows-latest
+    runs-on: windows-2019
     strategy:
       fail-fast: false
       matrix:
@@ -367,7 +367,7 @@ jobs:
 
 
   visual-runtime-tests:
-    runs-on: windows-latest
+    runs-on: windows-2019
     strategy:
       matrix:
         platform: [x64, Win32]

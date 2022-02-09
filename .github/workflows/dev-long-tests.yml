@@ -158,7 +158,7 @@ jobs:
         make -C tests test-fuzzer-stackmode
 
   mingw-long-test:
-    runs-on: windows-latest
+    runs-on: windows-2019
     strategy:
       fail-fast: false
       matrix:

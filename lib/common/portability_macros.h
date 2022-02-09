@@ -12,7 +12,7 @@
 #define ZSTD_PORTABILITY_MACROS_H
 
 /**
- * This header file contains macro defintions to support portability.
+ * This header file contains macro definitions to support portability.
  * This header is shared between C and ASM code, so it MUST only
  * contain macro definitions. It MUST not contain any C code.
  *
@@ -88,7 +88,7 @@
 #endif
 
 /**
- * Only enable assembly for GNUC comptabile compilers,
+ * Only enable assembly for GNUC compatible compilers,
  * because other platforms may not support GAS assembly syntax.
  *
  * Only enable assembly for Linux / MacOS, other platforms may

@@ -92,8 +92,6 @@ SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 PRGDIR="$SCRIPT_DIR/../programs"
 TESTDIR="$SCRIPT_DIR/../tests"
 UNAME=$(uname)
-ZSTDGREP="$PRGDIR/zstdgrep"
-ZSTDLESS="$PRGDIR/zstdless"
 
 detectedTerminal=false
 if [ -t 0 ] && [ -t 1 ]
@@ -324,31 +322,6 @@ if [ "$isWindows" = false ]; then
     println "test: check if binary has executable stack (#2963)"
     readelf -lW "$ZSTD_BIN" | grep 'GNU_STACK .* RW ' || die "zstd binary has executable stack!"
   fi
-fi
-
-println "\n===> zstdgrep tests"
-ln -sf "$ZSTD_BIN" zstdcat
-rm -f tmp_grep
-echo "1234" > tmp_grep
-zstd -f tmp_grep
-lines=$(ZCAT=./zstdcat "$ZSTDGREP" 2>&1 "1234" tmp_grep tmp_grep.zst | wc -l)
-test 2 -eq $lines
-ZCAT=./zstdcat "$ZSTDGREP" 2>&1 "1234" tmp_grep_bad.zst && die "Should have failed"
-ZCAT=./zstdcat "$ZSTDGREP" 2>&1 "1234" tmp_grep_bad.zst | grep "No such file or directory" || true
-rm -f tmp_grep*
-
-println "\n===> zstdless tests"
-if [ -n "$(which less)" ]; then
-  ln -sf "$ZSTD_BIN" zstd
-  rm -f tmp_less*
-  echo "1234" > tmp_less
-  zstd -f tmp_less
-  lines=$(ZSTD=./zstd "$ZSTDLESS" 2>&1 tmp_less.zst | wc -l)
-  test 1 -eq $lines
-  ZSTD=./zstd "$ZSTDLESS" -f tmp_less.zst > tmp_less_regenerated
-  $DIFF tmp_less tmp_less_regenerated
-  ZSTD=./zstd "$ZSTDLESS" 2>&1 tmp_less_bad.zst | grep "No such file or directory" || die
-  rm -f tmp_less*
 fi
 
 println "\n===>  --exclude-compressed flag"

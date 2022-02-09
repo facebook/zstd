@@ -627,6 +627,7 @@ if __name__ == "__main__":
     TESTS_DIR = os.path.join(REPO_DIR, "tests")
     ZSTD_PATH = os.path.join(PROGRAMS_DIR, "zstd")
     ZSTDGREP_PATH = os.path.join(PROGRAMS_DIR, "zstdgrep")
+    ZSTDLESS_PATH = os.path.join(PROGRAMS_DIR, "zstdless")
     DATAGEN_PATH = os.path.join(TESTS_DIR, "datagen")
 
     parser = argparse.ArgumentParser(
@@ -657,6 +658,11 @@ if __name__ == "__main__":
         "--zstdgrep",
         default=ZSTDGREP_PATH,
         help="Sets the ZSTDGREP_BIN environment variable. Path of the zstdgrep CLI."
+    )
+    parser.add_argument(
+        "--zstdless",
+        default=ZSTDLESS_PATH,
+        help="Sets the ZSTDLESS_BIN environment variable. Path of the zstdless CLI."
     )
     parser.add_argument(
         "--datagen",
@@ -695,6 +701,7 @@ if __name__ == "__main__":
     env["ZSTD_SYMLINK_DIR"] = zstd_symlink_dir
     env["DATAGEN_BIN"] = os.path.abspath(args.datagen)
     env["ZSTDGREP_BIN"] = os.path.abspath(args.zstdgrep)
+    env["ZSTDLESS_BIN"] = os.path.abspath(args.zstdless)
     env["COMMON"] = os.path.abspath(os.path.join(args.test_dir, "common"))
     env["PATH"] = bin_dir + ":" + os.getenv("PATH", "")
 

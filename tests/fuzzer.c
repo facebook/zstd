@@ -3375,6 +3375,62 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : testing bitwise instrinsics PR#3045: ", testNb++);
+    {
+        U32 seed_32 = seed == 0 ? seed + 1 : seed; // these intrinsics are undefined on 0
+        U64 seed_64 = (U64)seed * 0x87654321; // decent 64-bit distribution
+        U32 lowbit_only_32 = 1;
+        U64 lowbit_only_64 = 1;
+        U32 highbit_only_32 = (U32)1 << 31;
+        U64 highbit_only_64 = (U64)1 << 63;
+
+        /* Test ZSTD_countTrailingZeros32 */
+        CHECK_EQ(ZSTD_countTrailingZeros32(lowbit_only_32), 0u);
+        CHECK_EQ(ZSTD_countTrailingZeros32(highbit_only_32), 31u);
+        CHECK_EQ(ZSTD_countTrailingZeros32(seed_32), ZSTD_countTrailingZeros32_fallback(seed_32));
+
+        /* Test ZSTD_countLeadingZeros32 */
+        CHECK_EQ(ZSTD_countLeadingZeros32(lowbit_only_32), 31u);
+        CHECK_EQ(ZSTD_countLeadingZeros32(highbit_only_32), 0u);
+        CHECK_EQ(ZSTD_countLeadingZeros32(seed_32), ZSTD_countLeadingZeros32_fallback(seed_32));
+
+        /* Test ZSTD_countTrailingZeros64 */
+        CHECK_EQ(ZSTD_countTrailingZeros64(lowbit_only_64), 0u);
+        CHECK_EQ(ZSTD_countTrailingZeros64(highbit_only_64), 63u);
+
+        /* Test ZSTD_countLeadingZeros64 */
+        CHECK_EQ(ZSTD_countLeadingZeros64(lowbit_only_64), 63u);
+        CHECK_EQ(ZSTD_countLeadingZeros64(highbit_only_64), 0u);
+
+        /* Test ZSTD_highbit32 */
+        CHECK_EQ(ZSTD_highbit32(lowbit_only_32), 0u);
+        CHECK_EQ(ZSTD_highbit32(highbit_only_32), 31u);
+
+        /* Test ZSTD_NbCommonBytes */
+        if (MEM_isLittleEndian()) {
+            if (MEM_64bits()) {
+                CHECK_EQ(ZSTD_NbCommonBytes(lowbit_only_32), 0u);
+                CHECK_EQ(ZSTD_NbCommonBytes(highbit_only_32), 3u);
+            } else {
+                CHECK_EQ(ZSTD_NbCommonBytes(lowbit_only_32), 0u);
+                CHECK_EQ(ZSTD_NbCommonBytes(highbit_only_32), 3u);
+            }
+        } else {
+            if (MEM_64bits()) {
+                CHECK_EQ(ZSTD_NbCommonBytes(lowbit_only_32), 7u);
+                CHECK_EQ(ZSTD_NbCommonBytes(highbit_only_32), 4u);
+            } else {
+                CHECK_EQ(ZSTD_NbCommonBytes(lowbit_only_32), 3u);
+                CHECK_EQ(ZSTD_NbCommonBytes(highbit_only_32), 0u);
+            }
+       }
+
+        /* Test MEM_ intrinsics */
+        CHECK_EQ(MEM_swap32(seed_32), MEM_swap32_fallback(seed_32));
+        CHECK_EQ(MEM_swap64(seed_64), MEM_swap64_fallback(seed_64));
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
 #ifdef ZSTD_MULTITHREAD
     DISPLAYLEVEL(3, "test%3i : passing wrong full dict should fail on compressStream2 refPrefix ", testNb++);
     {   ZSTD_CCtx* cctx = ZSTD_createCCtx();

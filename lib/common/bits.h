@@ -13,44 +13,6 @@
 
 #include "mem.h"
 
-MEM_STATIC unsigned ZSTD_highbit32_fallback(U32 val) {
-    assert(val != 0);
-    {
-        static const U32 DeBruijnClz[32] = {0, 9, 1, 10, 13, 21, 2, 29,
-                                            11, 14, 16, 18, 22, 25, 3, 30,
-                                            8, 12, 20, 28, 15, 17, 24, 7,
-                                            19, 27, 23, 6, 26, 5, 4, 31};
-        val |= val >> 1;
-        val |= val >> 2;
-        val |= val >> 4;
-        val |= val >> 8;
-        val |= val >> 16;
-        return DeBruijnClz[(val * 0x07C4ACDDU) >> 27];
-    }
-}
-
-MEM_STATIC unsigned ZSTD_highbit32(U32 val)   /* compress, dictBuilder, decodeCorpus */
-{
-    assert(val != 0);
-    {
-#   if defined(_MSC_VER)   /* Visual */
-#       if STATIC_BMI2 == 1
-            return _lzcnt_u32(val)^31;
-#       else
-            unsigned long r;
-            _BitScanReverse(&r, val);
-            return (unsigned)r;
-#       endif
-#   elif defined(__GNUC__) && (__GNUC__ >= 4)   /* GCC Intrinsic */
-        return (unsigned)__builtin_clz (val) ^ 31;
-#   elif defined(__ICCARM__)    /* IAR Intrinsic */
-        return 31 - __CLZ(val);
-#   else   /* Software version */
-        return ZSTD_highbit32_fallback(val);
-#   endif
-    }
-}
-
 MEM_STATIC unsigned ZSTD_countTrailingZeros32_fallback(U32 val)
 {
     assert(val != 0);
@@ -67,9 +29,13 @@ MEM_STATIC unsigned ZSTD_countTrailingZeros32(U32 val)
 {
     assert(val != 0);
 #   if defined(_MSC_VER)
-        unsigned long r;
-        _BitScanForward(&r, val);
-        return (unsigned)r;
+#       if STATIC_BMI2 == 1
+            return _tzcnt_u32(val);
+#       else
+            unsigned long r;
+            _BitScanForward(&r, val);
+            return (unsigned)r;
+#       endif
 #   elif defined(__GNUC__) && (__GNUC__ >= 4)
         return (unsigned)__builtin_ctz(val);
 #   else
@@ -93,9 +59,13 @@ MEM_STATIC unsigned ZSTD_countLeadingZeros32(U32 val)
 {
     assert(val != 0);
 #   if defined(_MSC_VER)
-        unsigned long r;
-        _BitScanReverse(&r, val);
-        return (unsigned)r;
+#       if STATIC_BMI2 == 1
+            return _lzcnt_u32(val);
+#       else
+            unsigned long r;
+            _BitScanReverse(&r, val);
+            return (unsigned)(r ^ 31);
+#       endif
 #   elif defined(__GNUC__) && (__GNUC__ >= 4)
         return (unsigned)__builtin_clz(val);
 #   else
@@ -107,7 +77,7 @@ MEM_STATIC unsigned ZSTD_countTrailingZeros64(U64 val)
 {
     assert(val != 0);
 #   if defined(_MSC_VER) && defined(_WIN64)
-#       if STATIC_BMI2
+#       if STATIC_BMI2 == 1
             return _tzcnt_u64(val);
 #       else
             unsigned long r;
@@ -133,12 +103,12 @@ MEM_STATIC unsigned ZSTD_countLeadingZeros64(U64 val)
 {
     assert(val != 0);
 #   if defined(_MSC_VER) && defined(_WIN64)
-#       if STATIC_BMI2
+#       if STATIC_BMI2 == 1
             return _lzcnt_u64(val);
 #       else
             unsigned long r;
             _BitScanReverse64(&r, val);
-            return (unsigned)r;
+            return (unsigned)(r ^ 63);
 #       endif
 #   elif defined(__GNUC__) && (__GNUC__ >= 4)
         return (unsigned)(__builtin_clzll(val));
@@ -170,6 +140,12 @@ MEM_STATIC unsigned ZSTD_NbCommonBytes(size_t val)
             return ZSTD_countLeadingZeros32((U32)val) >> 3;
         }
     }
+}
+
+MEM_STATIC unsigned ZSTD_highbit32(U32 val)   /* compress, dictBuilder, decodeCorpus */
+{
+    assert(val != 0);
+    return ZSTD_countLeadingZeros32(val) ^ 31;
 }
 
 #endif /* ZSTD_BITS_H */

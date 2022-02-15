@@ -32,9 +32,14 @@ MEM_STATIC unsigned ZSTD_countTrailingZeros32(U32 val)
 #       if STATIC_BMI2 == 1
             return _tzcnt_u32(val);
 #       else
-            unsigned long r;
-            _BitScanForward(&r, val);
-            return (unsigned)r;
+            if (val != 0) {
+                unsigned long r;
+                _BitScanForward(&r, val);
+                return (unsigned)r;
+            } else {
+                /* Should not reach this code path */
+                __assume(0);
+            }
 #       endif
 #   elif defined(__GNUC__) && (__GNUC__ >= 4)
         return (unsigned)__builtin_ctz(val);
@@ -62,9 +67,14 @@ MEM_STATIC unsigned ZSTD_countLeadingZeros32(U32 val)
 #       if STATIC_BMI2 == 1
             return _lzcnt_u32(val);
 #       else
-            unsigned long r;
-            _BitScanReverse(&r, val);
-            return (unsigned)(r ^ 31);
+            if (val != 0) {
+                unsigned long r;
+                _BitScanReverse(&r, val);
+                return (unsigned)(r ^ 31);
+            } else {
+                /* Should not reach this code path */
+                __assume(0);
+            }
 #       endif
 #   elif defined(__GNUC__) && (__GNUC__ >= 4)
         return (unsigned)__builtin_clz(val);
@@ -80,9 +90,14 @@ MEM_STATIC unsigned ZSTD_countTrailingZeros64(U64 val)
 #       if STATIC_BMI2 == 1
             return _tzcnt_u64(val);
 #       else
-            unsigned long r;
-            _BitScanForward64(&r, val);
-            return (unsigned)r;
+            if (val != 0) {
+                unsigned long r;
+                _BitScanForward64(&r, val);
+                return (unsigned)r;
+            } else {
+                /* Should not reach this code path */
+                __assume(0);
+            }
 #       endif
 #   elif defined(__GNUC__) && (__GNUC__ >= 4) && defined(__LP64__)
         return (unsigned)__builtin_ctzll(val);
@@ -106,9 +121,14 @@ MEM_STATIC unsigned ZSTD_countLeadingZeros64(U64 val)
 #       if STATIC_BMI2 == 1
             return _lzcnt_u64(val);
 #       else
-            unsigned long r;
-            _BitScanReverse64(&r, val);
-            return (unsigned)(r ^ 63);
+            if (val != 0) {
+                unsigned long r;
+                _BitScanReverse64(&r, val);
+                return (unsigned)(r ^ 63);
+            } else {
+                /* Should not reach this code path */
+                __assume(0);
+            }
 #       endif
 #   elif defined(__GNUC__) && (__GNUC__ >= 4)
         return (unsigned)(__builtin_clzll(val));

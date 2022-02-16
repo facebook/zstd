@@ -3377,22 +3377,26 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
     DISPLAYLEVEL(3, "test%3i : testing bitwise instrinsics PR#3045: ", testNb++);
     {
-        U32 seed_32 = seed == 0 ? seed + 1 : seed; // these intrinsics are undefined on 0
-        U64 seed_64 = (U64)seed * 0x87654321; // decent 64-bit distribution
+        U32 seed_copy = seed; // need non-const seed to avoid compiler warning for FUZ_rand(&seed)
+        U32 rand32 = FUZ_rand(&seed_copy);
+        U64 rand64 = ((U64)FUZ_rand(&seed_copy) << 32) | FUZ_rand(&seed_copy);
         U32 lowbit_only_32 = 1;
         U64 lowbit_only_64 = 1;
         U32 highbit_only_32 = (U32)1 << 31;
         U64 highbit_only_64 = (U64)1 << 63;
+        U32 i;
+        if (rand32 == 0) rand32 = 1; // CLZ and CTZ are undefined on 0
+        if (rand64 == 0) rand64 = 1; // CLZ and CTZ are undefined on 0
 
         /* Test ZSTD_countTrailingZeros32 */
         CHECK_EQ(ZSTD_countTrailingZeros32(lowbit_only_32), 0u);
         CHECK_EQ(ZSTD_countTrailingZeros32(highbit_only_32), 31u);
-        CHECK_EQ(ZSTD_countTrailingZeros32(seed_32), ZSTD_countTrailingZeros32_fallback(seed_32));
+        CHECK_EQ(ZSTD_countTrailingZeros32(rand32), ZSTD_countTrailingZeros32_fallback(rand32));
 
         /* Test ZSTD_countLeadingZeros32 */
         CHECK_EQ(ZSTD_countLeadingZeros32(lowbit_only_32), 31u);
         CHECK_EQ(ZSTD_countLeadingZeros32(highbit_only_32), 0u);
-        CHECK_EQ(ZSTD_countLeadingZeros32(seed_32), ZSTD_countLeadingZeros32_fallback(seed_32));
+        CHECK_EQ(ZSTD_countLeadingZeros32(rand32), ZSTD_countLeadingZeros32_fallback(rand32));
 
         /* Test ZSTD_countTrailingZeros64 */
         CHECK_EQ(ZSTD_countTrailingZeros64(lowbit_only_64), 0u);
@@ -3426,8 +3430,16 @@ static int basicUnitTests(U32 const seed, double compressibility)
        }
 
         /* Test MEM_ intrinsics */
-        CHECK_EQ(MEM_swap32(seed_32), MEM_swap32_fallback(seed_32));
-        CHECK_EQ(MEM_swap64(seed_64), MEM_swap64_fallback(seed_64));
+        CHECK_EQ(MEM_swap32(rand32), MEM_swap32_fallback(rand32));
+        CHECK_EQ(MEM_swap64(rand64), MEM_swap64_fallback(rand64));
+
+        /* Test fallbacks vs intrinsics on a range of small integers */
+        for (i=1; i <= 1000; i++) {
+            CHECK_EQ(MEM_swap32(i), MEM_swap32_fallback(i));
+            CHECK_EQ(MEM_swap64((U64)i), MEM_swap64_fallback((U64)i));
+            CHECK_EQ(ZSTD_countTrailingZeros32(i), ZSTD_countTrailingZeros32_fallback(i));
+            CHECK_EQ(ZSTD_countLeadingZeros32(i), ZSTD_countLeadingZeros32_fallback(i));
+        }
     }
     DISPLAYLEVEL(3, "OK \n");
 

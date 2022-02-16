@@ -51,12 +51,16 @@ MEM_STATIC unsigned ZSTD_countTrailingZeros32(U32 val)
 MEM_STATIC unsigned ZSTD_countLeadingZeros32_fallback(U32 val) {
     assert(val != 0);
     {
-        unsigned result = 0;
-        while ((val & 0x80000000) == 0) {
-            result++;
-            val <<= 1;
-        }
-        return result;
+        static const U32 DeBruijnClz[32] = {0, 9, 1, 10, 13, 21, 2, 29,
+                                            11, 14, 16, 18, 22, 25, 3, 30,
+                                            8, 12, 20, 28, 15, 17, 24, 7,
+                                            19, 27, 23, 6, 26, 5, 4, 31};
+        val |= val >> 1;
+        val |= val >> 2;
+        val |= val >> 4;
+        val |= val >> 8;
+        val |= val >> 16;
+        return DeBruijnClz[(val * 0x07C4ACDDU) >> 27] ^ 31;
     }
 }
 

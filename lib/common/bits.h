@@ -60,7 +60,7 @@ MEM_STATIC unsigned ZSTD_countLeadingZeros32_fallback(U32 val) {
         val |= val >> 4;
         val |= val >> 8;
         val |= val >> 16;
-        return DeBruijnClz[(val * 0x07C4ACDDU) >> 27] ^ 31;
+        return 31 - DeBruijnClz[(val * 0x07C4ACDDU) >> 27];
     }
 }
 
@@ -74,7 +74,7 @@ MEM_STATIC unsigned ZSTD_countLeadingZeros32(U32 val)
             if (val != 0) {
                 unsigned long r;
                 _BitScanReverse(&r, val);
-                return (unsigned)(r ^ 31);
+                return (unsigned)(31 - r);
             } else {
                 /* Should not reach this code path */
                 __assume(0);
@@ -128,7 +128,7 @@ MEM_STATIC unsigned ZSTD_countLeadingZeros64(U64 val)
             if (val != 0) {
                 unsigned long r;
                 _BitScanReverse64(&r, val);
-                return (unsigned)(r ^ 63);
+                return (unsigned)(63 - r);
             } else {
                 /* Should not reach this code path */
                 __assume(0);
@@ -169,7 +169,7 @@ MEM_STATIC unsigned ZSTD_NbCommonBytes(size_t val)
 MEM_STATIC unsigned ZSTD_highbit32(U32 val)   /* compress, dictBuilder, decodeCorpus */
 {
     assert(val != 0);
-    return ZSTD_countLeadingZeros32(val) ^ 31;
+    return 31 - ZSTD_countLeadingZeros32(val);
 }
 
 #endif /* ZSTD_BITS_H */

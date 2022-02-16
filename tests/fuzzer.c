@@ -3375,7 +3375,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
-    DISPLAYLEVEL(3, "test%3i : testing bitwise instrinsics PR#3045: ", testNb++);
+    DISPLAYLEVEL(3, "test%3i : testing bitwise intrinsics PR#3045: ", testNb++);
     {
         U32 seed_copy = seed; // need non-const seed to avoid compiler warning for FUZ_rand(&seed)
         U32 rand32 = FUZ_rand(&seed_copy);

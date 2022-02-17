@@ -23,6 +23,7 @@
 #include "../common/huf.h"
 #include "../common/error_private.h"
 #include "../common/zstd_internal.h"
+#include "../common/bits.h"       /* ZSTD_highbit32, ZSTD_countTrailingZeros64 */
 
 /* **************************************************************
 *  Constants
@@ -142,7 +143,7 @@ static DTableDesc HUF_getDTableDesc(const HUF_DTable* table)
 
 static size_t HUF_initDStream(BYTE const* ip) {
     BYTE const lastByte = ip[7];
-    size_t const bitsConsumed = lastByte ? 8 - BIT_highbit32(lastByte) : 0;
+    size_t const bitsConsumed = lastByte ? 8 - ZSTD_highbit32(lastByte) : 0;
     size_t const value = MEM_readLEST(ip) | 1;
     assert(bitsConsumed <= 8);
     return value << bitsConsumed;
@@ -262,8 +263,9 @@ static size_t HUF_initRemainingDStream(BIT_DStream_t* bit, HUF_DecompressAsmArgs
         return ERROR(corruption_detected);
 
     /* Construct the BIT_DStream_t. */
+    assert(sizeof(size_t) == 8);
     bit->bitContainer = MEM_readLE64(args->ip[stream]);
-    bit->bitsConsumed = ZSTD_countTrailingZeros((size_t)args->bits[stream]);
+    bit->bitsConsumed = ZSTD_countTrailingZeros64(args->bits[stream]);
     bit->start = (const char*)args->iend[0];
     bit->limitPtr = bit->start + sizeof(size_t);
     bit->ptr = (const char*)args->ip[stream];

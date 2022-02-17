@@ -24,6 +24,7 @@
 #include "error_private.h"
 #define ZSTD_DEPS_NEED_MALLOC
 #include "zstd_deps.h"
+#include "bits.h"       /* ZSTD_highbit32 */
 
 
 /* **************************************************************
@@ -166,7 +167,7 @@ static size_t FSE_buildDTable_internal(FSE_DTable* dt, const short* normalizedCo
         for (u=0; u<tableSize; u++) {
             FSE_FUNCTION_TYPE const symbol = (FSE_FUNCTION_TYPE)(tableDecode[u].symbol);
             U32 const nextState = symbolNext[symbol]++;
-            tableDecode[u].nbBits = (BYTE) (tableLog - BIT_highbit32(nextState) );
+            tableDecode[u].nbBits = (BYTE) (tableLog - ZSTD_highbit32(nextState) );
             tableDecode[u].newState = (U16) ( (nextState << tableDecode[u].nbBits) - tableSize);
     }   }
 

@@ -26,6 +26,7 @@
 #define ZSTD_DEPS_NEED_MALLOC
 #define ZSTD_DEPS_NEED_MATH64
 #include "../common/zstd_deps.h"  /* ZSTD_malloc, ZSTD_free, ZSTD_memcpy, ZSTD_memset */
+#include "../common/bits.h" /* ZSTD_highbit32 */
 
 
 /* **************************************************************
@@ -191,7 +192,7 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct,
                 break;
             default :
                 assert(normalizedCounter[s] > 1);
-                {   U32 const maxBitsOut = tableLog - BIT_highbit32 ((U32)normalizedCounter[s]-1);
+                {   U32 const maxBitsOut = tableLog - ZSTD_highbit32 ((U32)normalizedCounter[s]-1);
                     U32 const minStatePlus = (U32)normalizedCounter[s] << maxBitsOut;
                     symbolTT[s].deltaNbBits = (maxBitsOut << 16) - minStatePlus;
                     symbolTT[s].deltaFindState = (int)(total - (unsigned)normalizedCounter[s]);
@@ -355,8 +356,8 @@ void FSE_freeCTable (FSE_CTable* ct) { ZSTD_free(ct); }
 /* provides the minimum logSize to safely represent a distribution */
 static unsigned FSE_minTableLog(size_t srcSize, unsigned maxSymbolValue)
 {
-    U32 minBitsSrc = BIT_highbit32((U32)(srcSize)) + 1;
-    U32 minBitsSymbols = BIT_highbit32(maxSymbolValue) + 2;
+    U32 minBitsSrc = ZSTD_highbit32((U32)(srcSize)) + 1;
+    U32 minBitsSymbols = ZSTD_highbit32(maxSymbolValue) + 2;
     U32 minBits = minBitsSrc < minBitsSymbols ? minBitsSrc : minBitsSymbols;
     assert(srcSize > 1); /* Not supported, RLE should be used instead */
     return minBits;
@@ -364,7 +365,7 @@ static unsigned FSE_minTableLog(size_t srcSize, unsigned maxSymbolValue)
 
 unsigned FSE_optimalTableLog_internal(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue, unsigned minus)
 {
-    U32 maxBitsSrc = BIT_highbit32((U32)(srcSize - 1)) - minus;
+    U32 maxBitsSrc = ZSTD_highbit32((U32)(srcSize - 1)) - minus;
     U32 tableLog = maxTableLog;
     U32 minBits = FSE_minTableLog(srcSize, maxSymbolValue);
     assert(srcSize > 1); /* Not supported, RLE should be used instead */

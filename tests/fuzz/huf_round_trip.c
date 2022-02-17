@@ -24,11 +24,12 @@
 #include "common/huf.h"
 #include "fuzz_helpers.h"
 #include "fuzz_data_producer.h"
+#include "common/bits.h"
 
 static size_t adjustTableLog(size_t tableLog, size_t maxSymbol)
 {
     size_t const alphabetSize = maxSymbol + 1;
-    size_t minTableLog = BIT_highbit32(alphabetSize) + 1;
+    size_t minTableLog = ZSTD_highbit32(alphabetSize) + 1;
     if ((alphabetSize & (alphabetSize - 1)) != 0) {
         ++minTableLog;
     }

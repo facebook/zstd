@@ -32,6 +32,7 @@
 #define HUF_STATIC_LINKING_ONLY
 #include "../common/huf.h"
 #include "../common/error_private.h"
+#include "../common/bits.h"       /* ZSTD_highbit32 */
 
 
 /* **************************************************************
@@ -407,7 +408,7 @@ static U32 HUF_setMaxHeight(nodeElt* huffNode, U32 lastNonNull, U32 targetNbBits
                 /* Try to reduce the next power of 2 above totalCost because we
                  * gain back half the rank.
                  */
-                U32 nBitsToDecrease = BIT_highbit32((U32)totalCost) + 1;
+                U32 nBitsToDecrease = ZSTD_highbit32((U32)totalCost) + 1;
                 for ( ; nBitsToDecrease > 1; nBitsToDecrease--) {
                     U32 const highPos = rankLast[nBitsToDecrease];
                     U32 const lowPos = rankLast[nBitsToDecrease-1];
@@ -505,7 +506,7 @@ typedef struct {
  */
 #define RANK_POSITION_MAX_COUNT_LOG 32
 #define RANK_POSITION_LOG_BUCKETS_BEGIN (RANK_POSITION_TABLE_SIZE - 1) - RANK_POSITION_MAX_COUNT_LOG - 1 /* == 158 */
-#define RANK_POSITION_DISTINCT_COUNT_CUTOFF RANK_POSITION_LOG_BUCKETS_BEGIN + BIT_highbit32(RANK_POSITION_LOG_BUCKETS_BEGIN) /* == 166 */
+#define RANK_POSITION_DISTINCT_COUNT_CUTOFF RANK_POSITION_LOG_BUCKETS_BEGIN + ZSTD_highbit32(RANK_POSITION_LOG_BUCKETS_BEGIN) /* == 166 */
 
 /* Return the appropriate bucket index for a given count. See definition of
  * RANK_POSITION_DISTINCT_COUNT_CUTOFF for explanation of bucketing strategy.
@@ -513,7 +514,7 @@ typedef struct {
 static U32 HUF_getIndex(U32 const count) {
     return (count < RANK_POSITION_DISTINCT_COUNT_CUTOFF)
         ? count
-        : BIT_highbit32(count) + RANK_POSITION_LOG_BUCKETS_BEGIN;
+        : ZSTD_highbit32(count) + RANK_POSITION_LOG_BUCKETS_BEGIN;
 }
 
 /* Helper swap function for HUF_quickSortPartition() */
@@ -870,7 +871,7 @@ FORCE_INLINE_TEMPLATE void HUF_addBits(HUF_CStream_t* bitC, HUF_CElt elt, int id
 #if DEBUGLEVEL >= 1
     {
         size_t const nbBits = HUF_getNbBits(elt);
-        size_t const dirtyBits = nbBits == 0 ? 0 : BIT_highbit32((U32)nbBits) + 1;
+        size_t const dirtyBits = nbBits == 0 ? 0 : ZSTD_highbit32((U32)nbBits) + 1;
         (void)dirtyBits;
         /* Middle bits are 0. */
         assert(((elt >> dirtyBits) << (dirtyBits + nbBits)) == 0);

@@ -34,6 +34,7 @@
 #include "../common/pool.h"
 #include "../common/threading.h"
 #include "../common/zstd_internal.h" /* includes zstd.h */
+#include "../common/bits.h" /* ZSTD_highbit32 */
 #include "../zdict.h"
 #include "cover.h"
 

@@ -399,6 +399,7 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
     const U32 dictIndexDelta       = prefixStartIndex - (U32)(dictEnd - dictBase);
     const U32 dictAndPrefixLength  = (U32)(ip - prefixStart + dictEnd - dictStart);
     const U32 dictHLog             = dictCParams->hashLog;
+    size_t dictHash;
 
     /* if a dictionary is still attached, it necessarily means that
      * it is within window size. So we just check it. */
@@ -421,6 +422,9 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
     assert(offset_1 <= dictAndPrefixLength);
     assert(offset_2 <= dictAndPrefixLength);
 
+    dictHash = ZSTD_hashPtr(ip, dictHLog, mls);
+    PREFETCH_L1(dictHashTable + dictHash);
+
     /* Main Search Loop */
     while (ip < ilimit) {   /* < instead of <=, because repcode check at (ip+1) */
         size_t mLength;
@@ -439,15 +443,18 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
             const BYTE* const repMatchEnd = repIndex < prefixStartIndex ? dictEnd : iend;
             mLength = ZSTD_count_2segments(ip+1+4, repMatch+4, iend, repMatchEnd, prefixStart) + 4;
             ip++;
+            dictHash = ZSTD_hashPtr(ip + mLength, dictHLog, mls);
+            PREFETCH_L1(dictHashTable + dictHash);
             ZSTD_storeSeq(seqStore, (size_t)(ip-anchor), anchor, iend, REPCODE1_TO_OFFBASE, mLength);
         } else if ( (matchIndex <= prefixStartIndex) ) {
-            size_t const dictHash = ZSTD_hashPtr(ip, dictHLog, mls);
             U32 const dictMatchIndex = dictHashTable[dictHash];
             const BYTE* dictMatch = dictBase + dictMatchIndex;
             if (dictMatchIndex <= dictStartIndex ||
                 MEM_read32(dictMatch) != MEM_read32(ip)) {
                 assert(stepSize >= 1);
                 ip += ((ip-anchor) >> kSearchStrength) + stepSize;
+                dictHash = ZSTD_hashPtr(ip, dictHLog, mls);
+                PREFETCH_L1(dictHashTable + dictHash);
                 continue;
             } else {
                 /* found a dict match */
@@ -457,6 +464,8 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
                      && (ip[-1] == dictMatch[-1])) {
                     ip--; dictMatch--; mLength++;
                 } /* catch up */
+                dictHash = ZSTD_hashPtr(ip + mLength, dictHLog, mls);
+                PREFETCH_L1(dictHashTable + dictHash);
                 offset_2 = offset_1;
                 offset_1 = offset;
                 ZSTD_storeSeq(seqStore, (size_t)(ip-anchor), anchor, iend, OFFSET_TO_OFFBASE(offset), mLength);
@@ -465,6 +474,8 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
             /* it's not a match, and we're not going to check the dictionary */
             assert(stepSize >= 1);
             ip += ((ip-anchor) >> kSearchStrength) + stepSize;
+            dictHash = ZSTD_hashPtr(ip, dictHLog, mls);
+            PREFETCH_L1(dictHashTable + dictHash);
             continue;
         } else {
             /* found a regular match */
@@ -472,6 +483,8 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
             mLength = ZSTD_count(ip+4, match+4, iend) + 4;
             while (((ip>anchor) & (match>prefixStart))
                  && (ip[-1] == match[-1])) { ip--; match--; mLength++; } /* catch up */
+            dictHash = ZSTD_hashPtr(ip + mLength, dictHLog, mls);
+            PREFETCH_L1(dictHashTable + dictHash);
             offset_2 = offset_1;
             offset_1 = offset;
             ZSTD_storeSeq(seqStore, (size_t)(ip-anchor), anchor, iend, OFFSET_TO_OFFBASE(offset), mLength);
@@ -499,6 +512,8 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
                     const BYTE* const repEnd2 = repIndex2 < prefixStartIndex ? dictEnd : iend;
                     size_t const repLength2 = ZSTD_count_2segments(ip+4, repMatch2+4, iend, repEnd2, prefixStart) + 4;
                     U32 tmpOffset = offset_2; offset_2 = offset_1; offset_1 = tmpOffset;   /* swap offset_2 <=> offset_1 */
+                    dictHash = ZSTD_hashPtr(ip + repLength2, dictHLog, mls);
+                    PREFETCH_L1(dictHashTable + dictHash);
                     ZSTD_storeSeq(seqStore, 0, anchor, iend, REPCODE1_TO_OFFBASE, repLength2);
                     hashTable[ZSTD_hashPtr(ip, hlog, mls)] = current2;
                     ip += repLength2;

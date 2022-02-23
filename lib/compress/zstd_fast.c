@@ -399,6 +399,8 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
     const U32 dictIndexDelta       = prefixStartIndex - (U32)(dictEnd - dictBase);
     const U32 dictAndPrefixLength  = (U32)(ip - prefixStart + dictEnd - dictStart);
     const U32 dictHLog             = dictCParams->hashLog;
+    const BYTE* dictPrefetchPtr    = dictEnd;
+    const BYTE* const dictPrefetchLimit = dictPrefetchPtr - MIN(dictEnd - dictStart, 102400); /* 100KB */
 
     /* if a dictionary is still attached, it necessarily means that
      * it is within window size. So we just check it. */
@@ -433,6 +435,12 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
                                dictBase + (repIndex - dictIndexDelta) :
                                base + repIndex;
         hashTable[h] = curr;   /* update hash table */
+
+        if (dictPrefetchPtr >= dictPrefetchLimit) {
+            PREFETCH_L2(dictPrefetchPtr);
+            PREFETCH_L2(dictPrefetchPtr - 64);
+            dictPrefetchPtr -= 64;
+        }
 
         if ( ((U32)((prefixStartIndex-1) - repIndex) >= 3) /* intentional underflow : ensure repIndex isn't overlapping dict + prefix */
           && (MEM_read32(repMatch) == MEM_read32(ip+1)) ) {

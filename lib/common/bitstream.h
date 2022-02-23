@@ -162,6 +162,16 @@ MEM_STATIC size_t BIT_initCStream(BIT_CStream_t* bitC,
     return 0;
 }
 
+MEM_STATIC FORCE_INLINE_ATTR size_t BIT_getLowerBits(size_t bitContainer, U32 const nbBits)
+{
+#if defined(STATIC_BMI2) && STATIC_BMI2 == 1
+	return  _bzhi_u64(bitContainer, nbBits);
+#else
+    assert(nbBits < BIT_MASK_SIZE);
+    return bitContainer & BIT_mask[nbBits];
+#endif
+}
+
 /*! BIT_addBits() :
  *  can add up to 31 bits into `bitC`.
  *  Note : does not check for register overflow ! */
@@ -171,7 +181,7 @@ MEM_STATIC void BIT_addBits(BIT_CStream_t* bitC,
     DEBUG_STATIC_ASSERT(BIT_MASK_SIZE == 32);
     assert(nbBits < BIT_MASK_SIZE);
     assert(nbBits + bitC->bitPos < sizeof(bitC->bitContainer) * 8);
-    bitC->bitContainer |= (value & BIT_mask[nbBits]) << bitC->bitPos;
+    bitC->bitContainer |= BIT_getLowerBits(value, nbBits) << bitC->bitPos;
     bitC->bitPos += nbBits;
 }
 
@@ -306,16 +316,6 @@ MEM_STATIC FORCE_INLINE_ATTR size_t BIT_getMiddleBits(size_t bitContainer, U32 c
     return (bitContainer >> (start & regMask)) & ((((U64)1) << nbBits) - 1);
 #else
     return (bitContainer >> (start & regMask)) & BIT_mask[nbBits];
-#endif
-}
-
-MEM_STATIC FORCE_INLINE_ATTR size_t BIT_getLowerBits(size_t bitContainer, U32 const nbBits)
-{
-#if defined(STATIC_BMI2) && STATIC_BMI2 == 1
-	return  _bzhi_u64(bitContainer, nbBits);
-#else
-    assert(nbBits < BIT_MASK_SIZE);
-    return bitContainer & BIT_mask[nbBits];
 #endif
 }
 

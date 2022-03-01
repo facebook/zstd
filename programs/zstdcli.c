@@ -871,7 +871,7 @@ int main(int argCount, const char* argv[])
     int cLevel = init_cLevel();
     int cLevelLast = MINCLEVEL - 1;  /* lower than minimum */
     unsigned recursive = 0;
-    size_t memLimit = 0;
+    unsigned memLimit = 0;
     FileNamesTable* filenames = UTIL_allocateFileNamesTable((size_t)argCount);  /* argCount >= 1 */
     FileNamesTable* file_of_names = UTIL_allocateFileNamesTable((size_t)argCount);  /* argCount >= 1 */
     const char* programName = argv[0];
@@ -1038,9 +1038,9 @@ int main(int argCount, const char* argv[])
                 }
 #endif
                 if (longCommandWArg(&argument, "--threads")) { NEXT_UINT32(nbWorkers); continue; }
-                if (longCommandWArg(&argument, "--memlimit=")) { memLimit = readSizeTFromChar(&argument); continue; }
-                if (longCommandWArg(&argument, "--memory=")) { memLimit = readSizeTFromChar(&argument); continue; }
-                if (longCommandWArg(&argument, "--memlimit-decompress=")) { memLimit = readSizeTFromChar(&argument); continue; }
+                if (longCommandWArg(&argument, "--memlimit=")) { memLimit = readU32FromChar(&argument); continue; }
+                if (longCommandWArg(&argument, "--memory=")) { memLimit = readU32FromChar(&argument); continue; }
+                if (longCommandWArg(&argument, "--memlimit-decompress=")) { memLimit = readU32FromChar(&argument); continue; }
                 if (longCommandWArg(&argument, "--block-size=")) { blockSize = readSizeTFromChar(&argument); continue; }
                 if (longCommandWArg(&argument, "--maxdict")) { NEXT_UINT32(maxDictSize); continue; }
                 if (longCommandWArg(&argument, "--dictID")) { NEXT_UINT32(dictID); continue; }

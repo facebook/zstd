@@ -401,7 +401,7 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
     const BYTE* dictPrefetchPtr    = dictEnd;
     const BYTE* const dictPrefetchLimit = dictPrefetchPtr - MIN(dictEnd - dictStart, 102400); /* 100KB */
 
-    /* pipeline variables */
+    /* loop variables */
     const BYTE* ip0 = istart;
     const BYTE* ip1;
     size_t hash0;
@@ -409,6 +409,8 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
     size_t dictHash; /* inside the do{} loop, this is the hash for ip1 */
     U32 matchIndex;
     U32 dictMatchIndex;
+    size_t mLength=0; /* initialize to avoid compiler warning, assert != 0 later on */
+    U32 curr;
 
     /* if a dictionary is still attached, it necessarily means that
      * it is within window size. So we just check it. */
@@ -433,11 +435,10 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
 
 _start: /* Requires: ip0 */
     assert(ip0 == anchor);
-    ip1 = ip0 + 1;
+    assert(stepSize >= 1);
 
-    if (ip1 >= ilimit) {
-        goto _cleanup;
-    }
+    ip1 = ip0 + stepSize;
+    if (ip1 >= ilimit) goto _cleanup;
 
     hash0 = ZSTD_hashPtr(ip0, hlog, mls);
     dictHash = ZSTD_hashPtr(ip0, dictHLog, mls);
@@ -445,19 +446,26 @@ _start: /* Requires: ip0 */
     matchIndex = hashTable[hash0];
     hash1 = ZSTD_hashPtr(ip1, hlog, mls);
     dictHash = ZSTD_hashPtr(ip1, dictHLog, mls);
+
+    PREFETCH_L1(hashTable + hash1);
     PREFETCH_L1(dictHashTable + dictHash);
 
     /* Main Search Loop */
-    do {
-        size_t mLength;
-        U32 const curr = (U32)(ip0-base);
+    while (1) {
         const BYTE* match = base + matchIndex;
-        const U32 repIndex = curr + 1 - offset_1;
+        const U32 repIndex = (U32)(ip0-base) + 1 - offset_1;
         const BYTE* repMatch = (repIndex < prefixStartIndex) ?
                                dictBase + (repIndex - dictIndexDelta) :
                                base + repIndex;
+        const size_t posIncr = ((ip1 - anchor) >> kSearchStrength) + stepSize;
+        const BYTE* dictIndexPrefetchPtr = ip1 + (posIncr << 2);
+        curr = (U32)(ip0-base);
         hashTable[hash0] = curr;   /* update hash table */
 
+        /* Cold dict optimization (may need to gate this) */
+        if (dictIndexPrefetchPtr < ilimit) {
+            PREFETCH_L2(dictHashTable + ZSTD_hashPtr(ip1 + (posIncr << 2), dictHLog, mls));
+        }
         if (dictPrefetchPtr >= dictPrefetchLimit) {
             PREFETCH_L2(dictPrefetchPtr);
             PREFETCH_L2(dictPrefetchPtr - 64);
@@ -470,21 +478,12 @@ _start: /* Requires: ip0 */
             mLength = ZSTD_count_2segments(ip0+1+4, repMatch+4, iend, repMatchEnd, prefixStart) + 4;
             ip0++;
             ZSTD_storeSeq(seqStore, (size_t)(ip0-anchor), anchor, iend, REPCODE1_TO_OFFBASE, mLength);
+            goto _match;
         } else if ( (matchIndex <= prefixStartIndex) ) {
+            /* We only look for a dict match if the normal matchIndex is invalid */
             const BYTE* dictMatch = dictBase + dictMatchIndex;
-            if (dictMatchIndex <= dictStartIndex ||
-                MEM_read32(dictMatch) != MEM_read32(ip0)) {
-                assert(stepSize >= 1);
-                dictMatchIndex = dictHashTable[dictHash];
-                matchIndex = hashTable[hash1];
-                ip0 = ip1;
-                ip1 = ip1 + ((ip1-anchor) >> kSearchStrength) + stepSize;
-                hash0 = hash1;
-                hash1 = ZSTD_hashPtr(ip1, hlog, mls);
-                dictHash = ZSTD_hashPtr(ip1, dictHLog, mls);
-                PREFETCH_L1(dictHashTable + dictHash);
-                continue;
-            } else {
+            if (dictMatchIndex > dictStartIndex &&
+                MEM_read32(dictMatch) == MEM_read32(ip0)) {
                 /* found a dict match */
                 U32 const offset = (U32)(curr-dictMatchIndex-dictIndexDelta);
                 mLength = ZSTD_count_2segments(ip0+4, dictMatch+4, iend, dictEnd, prefixStart) + 4;
@@ -495,20 +494,9 @@ _start: /* Requires: ip0 */
                 offset_2 = offset_1;
                 offset_1 = offset;
                 ZSTD_storeSeq(seqStore, (size_t)(ip0-anchor), anchor, iend, OFFSET_TO_OFFBASE(offset), mLength);
+                goto _match;
             }
-        } else if (MEM_read32(match) != MEM_read32(ip0)) {
-            /* it's not a match, and we're not going to check the dictionary */
-            assert(stepSize >= 1);
-            dictMatchIndex = dictHashTable[dictHash];
-            matchIndex = hashTable[hash1];
-            ip0 = ip1;
-            ip1 = ip1 + ((ip1-anchor) >> kSearchStrength) + stepSize;
-            hash0 = hash1;
-            hash1 = ZSTD_hashPtr(ip1, hlog, mls);
-            dictHash = ZSTD_hashPtr(ip1, dictHLog, mls);
-            PREFETCH_L1(dictHashTable + dictHash);
-            continue;
-        } else {
+        } else if (MEM_read32(match) == MEM_read32(ip0)) {
             /* found a regular match */
             U32 const offset = (U32)(ip0-match);
             mLength = ZSTD_count(ip0+4, match+4, iend) + 4;
@@ -517,42 +505,63 @@ _start: /* Requires: ip0 */
             offset_2 = offset_1;
             offset_1 = offset;
             ZSTD_storeSeq(seqStore, (size_t)(ip0-anchor), anchor, iend, OFFSET_TO_OFFBASE(offset), mLength);
+            goto _match;
         }
 
-        /* match found */
-        ip0 += mLength;
-        anchor = ip0;
+        /* Prepare for next iteration */
+        dictMatchIndex = dictHashTable[dictHash];
+        matchIndex = hashTable[hash1];
 
-        if (ip0 <= ilimit) {
-            /* Fill Table */
-            assert(base+curr+2 > istart);  /* check base overflow */
-            hashTable[ZSTD_hashPtr(base+curr+2, hlog, mls)] = curr+2;  /* here because curr+2 could be > iend-8 */
-            hashTable[ZSTD_hashPtr(ip0-2, hlog, mls)] = (U32)(ip0-2-base);
+        ip0 = ip1;
+        ip1 = ip1 + posIncr;
+        if (ip1 >= ilimit) goto _cleanup;
 
-            /* check immediate repcode */
-            while (ip0 <= ilimit) {
-                U32 const current2 = (U32)(ip0-base);
-                U32 const repIndex2 = current2 - offset_2;
-                const BYTE* repMatch2 = repIndex2 < prefixStartIndex ?
-                        dictBase - dictIndexDelta + repIndex2 :
-                        base + repIndex2;
-                if ( ((U32)((prefixStartIndex-1) - (U32)repIndex2) >= 3 /* intentional overflow */)
-                   && (MEM_read32(repMatch2) == MEM_read32(ip0)) ) {
-                    const BYTE* const repEnd2 = repIndex2 < prefixStartIndex ? dictEnd : iend;
-                    size_t const repLength2 = ZSTD_count_2segments(ip0+4, repMatch2+4, iend, repEnd2, prefixStart) + 4;
-                    U32 tmpOffset = offset_2; offset_2 = offset_1; offset_1 = tmpOffset;   /* swap offset_2 <=> offset_1 */
-                    ZSTD_storeSeq(seqStore, 0, anchor, iend, REPCODE1_TO_OFFBASE, repLength2);
-                    hashTable[ZSTD_hashPtr(ip0, hlog, mls)] = current2;
-                    ip0 += repLength2;
-                    anchor = ip0;
-                    continue;
-                }
-                break;
+        hash0 = hash1;
+        hash1 = ZSTD_hashPtr(ip1, hlog, mls);
+        dictHash = ZSTD_hashPtr(ip1, dictHLog, mls);
+
+        PREFETCH_L1(hashTable + hash1);
+        PREFETCH_L1(dictHashTable + dictHash);
+    }
+
+_match:
+    /* match found */
+    assert(mLength);
+    ip0 += mLength;
+    anchor = ip0;
+
+    if (ip0 <= ilimit) {
+        /* Fill Table */
+        assert(base + curr + 2 > istart);  /* check base overflow */
+        hashTable[ZSTD_hashPtr(base + curr + 2, hlog, mls)] = curr + 2;  /* here because curr+2 could be > iend-8 */
+        hashTable[ZSTD_hashPtr(ip0 - 2, hlog, mls)] = (U32) (ip0 - 2 - base);
+
+        /* check immediate repcode */
+        while (ip0 <= ilimit) {
+            U32 const current2 = (U32) (ip0 - base);
+            U32 const repIndex2 = current2 - offset_2;
+            const BYTE *repMatch2 = repIndex2 < prefixStartIndex ?
+                                    dictBase - dictIndexDelta + repIndex2 :
+                                    base + repIndex2;
+            if (((U32) ((prefixStartIndex - 1) - (U32) repIndex2) >= 3 /* intentional overflow */)
+                && (MEM_read32(repMatch2) == MEM_read32(ip0))) {
+                const BYTE *const repEnd2 = repIndex2 < prefixStartIndex ? dictEnd : iend;
+                size_t const repLength2 =
+                        ZSTD_count_2segments(ip0 + 4, repMatch2 + 4, iend, repEnd2, prefixStart) + 4;
+                U32 tmpOffset = offset_2;
+                offset_2 = offset_1;
+                offset_1 = tmpOffset;   /* swap offset_2 <=> offset_1 */
+                ZSTD_storeSeq(seqStore, 0, anchor, iend, REPCODE1_TO_OFFBASE, repLength2);
+                hashTable[ZSTD_hashPtr(ip0, hlog, mls)] = current2;
+                ip0 += repLength2;
+                anchor = ip0;
+                continue;
             }
+            break;
         }
+    }
 
-        goto _start; /* found match, reset pipeline */
-    } while (ip1 < ilimit);
+    goto _start; /* found match, reset pipeline */
 
 _cleanup:
     /* save reps for next block */

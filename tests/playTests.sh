@@ -275,6 +275,13 @@ zstd -d -f tmplimit.zst --memlimit=2K -c > $INTOVOID && die "decompression needs
 zstd -d -f tmplimit.zst --memory=2K -c > $INTOVOID && die "decompression needs more memory than allowed"  # long command
 zstd -d -f tmplimit.zst --memlimit-decompress=2K -c > $INTOVOID && die "decompression needs more memory than allowed"  # long command
 rm -f tmplimit tmplimit.zst
+println foo > tmpmemory.zst
+println "test : zstd parameter parsing (must fail)"
+zstd -d -f tmpmemory.zst --memory= -c > $INTOVOID && die "memory parameter is in an invalid format"
+zstd -d -f tmpmemory.zst --memory=hello -c > $INTOVOID && die "memory parameter is in an invalid format"
+zstd -d -f tmpmemory.zst --memlimit=512LB -c > $INTOVOID && die "memory parameter is in an invalid format"
+zstd -d -f tmpmemory.zst --memlimit-decompress=512LiB -c > $INTOVOID && die "memory parameter is in an invalid format"
+rm tmpmemory.zst
 println "test : overwrite protection"
 zstd -q tmp && die "overwrite check failed!"
 println "test : force overwrite"

@@ -871,7 +871,7 @@ int main(int argCount, const char* argv[])
     int cLevel = init_cLevel();
     int cLevelLast = MINCLEVEL - 1;  /* lower than minimum */
     unsigned recursive = 0;
-    unsigned memLimit = 0;
+    size_t memLimit = 0;
     FileNamesTable* filenames = UTIL_allocateFileNamesTable((size_t)argCount);  /* argCount >= 1 */
     FileNamesTable* file_of_names = UTIL_allocateFileNamesTable((size_t)argCount);  /* argCount >= 1 */
     const char* programName = argv[0];

@@ -37,7 +37,7 @@ cmake -LH ..
 Bool options can be set to `ON/OFF` with `-D[option]=[ON/OFF]`. You can configure cmake options like this:
 ```sh
 cd build/cmake/builddir
-cmake -DZSTD_BUILD_TESTS=ON -DZSTD_LEGACY_SUPPORT=ON ..
+cmake -DZSTD_BUILD_TESTS=ON -DZSTD_LEGACY_SUPPORT=OFF ..
 make
 ```
 

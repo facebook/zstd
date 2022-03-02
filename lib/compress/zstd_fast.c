@@ -447,9 +447,6 @@ _start: /* Requires: ip0 */
     hash1 = ZSTD_hashPtr(ip1, hlog, mls);
     dictHash = ZSTD_hashPtr(ip1, dictHLog, mls);
 
-    PREFETCH_L1(hashTable + hash1);
-    PREFETCH_L1(dictHashTable + dictHash);
-
     /* Main Search Loop */
     while (1) {
         const BYTE* match = base + matchIndex;
@@ -519,9 +516,6 @@ _start: /* Requires: ip0 */
         hash0 = hash1;
         hash1 = ZSTD_hashPtr(ip1, hlog, mls);
         dictHash = ZSTD_hashPtr(ip1, dictHLog, mls);
-
-        PREFETCH_L1(hashTable + hash1);
-        PREFETCH_L1(dictHashTable + dictHash);
     }
 
 _match:

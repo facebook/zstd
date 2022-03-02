@@ -334,6 +334,7 @@ tsan-%: clean
 
 .PHONY: apt-install
 apt-install:
+	sudo apt-get update
 	sudo apt-get -yq --no-install-suggests --no-install-recommends --force-yes install $(APT_PACKAGES)
 
 .PHONY: apt-add-repo

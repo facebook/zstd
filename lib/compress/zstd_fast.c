@@ -398,8 +398,6 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
     const U32 dictIndexDelta       = prefixStartIndex - (U32)(dictEnd - dictBase);
     const U32 dictAndPrefixLength  = (U32)(istart - prefixStart + dictEnd - dictStart);
     const U32 dictHLog             = dictCParams->hashLog;
-    const BYTE* dictPrefetchPtr    = dictEnd;
-    const BYTE* const dictPrefetchLimit = dictPrefetchPtr - MIN(dictEnd - dictStart, 102400); /* 100KB */
 
     /* loop variables */
     const BYTE* ip0 = istart;
@@ -454,20 +452,8 @@ _start: /* Requires: ip0 */
         const BYTE* repMatch = (repIndex < prefixStartIndex) ?
                                dictBase + (repIndex - dictIndexDelta) :
                                base + repIndex;
-        const size_t posIncr = ((ip1 - anchor) >> kSearchStrength) + stepSize;
-        const BYTE* dictIndexPrefetchPtr = ip1 + (posIncr << 2);
         curr = (U32)(ip0-base);
         hashTable[hash0] = curr;   /* update hash table */
-
-        /* Cold dict optimization (may need to gate this) */
-        if (dictIndexPrefetchPtr < ilimit) {
-            PREFETCH_L2(dictHashTable + ZSTD_hashPtr(ip1 + (posIncr << 2), dictHLog, mls));
-        }
-        if (dictPrefetchPtr >= dictPrefetchLimit) {
-            PREFETCH_L2(dictPrefetchPtr);
-            PREFETCH_L2(dictPrefetchPtr - 64);
-            dictPrefetchPtr -= 64;
-        }
 
         if ( ((U32)((prefixStartIndex-1) - repIndex) >= 3) /* intentional underflow : ensure repIndex isn't overlapping dict + prefix */
           && (MEM_read32(repMatch) == MEM_read32(ip0+1)) ) {
@@ -510,7 +496,7 @@ _start: /* Requires: ip0 */
         matchIndex = hashTable[hash1];
 
         ip0 = ip1;
-        ip1 = ip1 + posIncr;
+        ip1 = ip1 + ((ip1 - anchor) >> kSearchStrength) + stepSize;
         if (ip1 >= ilimit) goto _cleanup;
 
         hash0 = hash1;

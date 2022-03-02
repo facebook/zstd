@@ -128,8 +128,11 @@ static int DiB_loadFiles(
     while ( nbSamplesLoaded < sstSize && fileIndex < nbFiles ) {
         size_t fileDataLoaded;
         S64 const fileSize = DiB_getFileSize(fileNamesTable[fileIndex]);
-        if (fileSize <= 0) /* skip if zero-size or file error */
+        if (fileSize <= 0) {
+            /* skip if zero-size or file error */
+            ++fileIndex;
             continue;
+        }
 
         f = fopen( fileNamesTable[fileIndex], "rb");
         if (f == NULL)

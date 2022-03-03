@@ -735,11 +735,11 @@ test -f tmp4
 
 println "test : survive the list of files with too long filenames (--filelist=FILE)"
 datagen -g5M > tmp_badList
-zstd -f --filelist=tmp_badList && die "should have failed : file name length is too long"
+zstd -qq -f --filelist=tmp_badList && die "should have failed : file name length is too long"  # printing very long text garbage on console will cause CI failure
 
 println "test : survive a list of files which is text garbage (--filelist=FILE)"
 datagen > tmp_badList
-zstd -f --filelist=tmp_badList && die "should have failed : list is text garbage"
+zstd -qq -f --filelist=tmp_badList && die "should have failed : list is text garbage"  # printing very long text garbage on console will cause CI failure
 
 println "test : survive a list of files which is binary garbage (--filelist=FILE)"
 datagen -P0 -g1M > tmp_badList

@@ -66,7 +66,6 @@ matrix:
     - name: ARM Build Test (on Trusty)
       dist: trusty
       script:
-        - sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 762E3157 3CB3BD13 A15703C6 C17EAB57
         - make arminstall
         - make armbuild
 

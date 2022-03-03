@@ -418,7 +418,7 @@ readLinesFromFile(void* dst, size_t dstCapacity,
     while ( !feof(inputFile) ) {
         size_t const lineLength = readLineFromFile(buf+pos, dstCapacity-pos, inputFile);
         if (lineLength == 0) break;
-        assert(pos + lineLength < dstCapacity);
+        assert(pos + lineLength <= dstCapacity); /* '=' for inputFile not terminated with '\n' */
         pos += lineLength;
         ++nbFiles;
     }

@@ -334,6 +334,8 @@ tsan-%: clean
 
 .PHONY: apt-install
 apt-install:
+	# TODO: uncomment once issue 3011 is resolved and remove hack from Github Actions .yml
+	# sudo apt-get update
 	sudo apt-get -yq --no-install-suggests --no-install-recommends --force-yes install $(APT_PACKAGES)
 
 .PHONY: apt-add-repo

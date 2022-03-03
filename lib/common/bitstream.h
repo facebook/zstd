@@ -37,8 +37,8 @@ extern "C" {
 *  Target specific
 =========================================*/
 #ifndef ZSTD_NO_INTRINSICS
-#  if defined(__BMI__) && defined(__GNUC__)
-#    include <immintrin.h>   /* support for bextr (experimental) */
+#  if (defined(__BMI__) || defined(__BMI2__)) && defined(__GNUC__)
+#    include <immintrin.h>   /* support for bextr (experimental)/bzhi */
 #  elif defined(__ICCARM__)
 #    include <intrinsics.h>
 #  endif
@@ -164,8 +164,8 @@ MEM_STATIC size_t BIT_initCStream(BIT_CStream_t* bitC,
 
 MEM_STATIC FORCE_INLINE_ATTR size_t BIT_getLowerBits(size_t bitContainer, U32 const nbBits)
 {
-#if defined(STATIC_BMI2) && STATIC_BMI2 == 1
-	return  _bzhi_u64(bitContainer, nbBits);
+#if defined(STATIC_BMI2) && STATIC_BMI2 == 1 && !defined(ZSTD_NO_INTRINSICS)
+    return  _bzhi_u64(bitContainer, nbBits);
 #else
     assert(nbBits < BIT_MASK_SIZE);
     return bitContainer & BIT_mask[nbBits];

@@ -1709,9 +1709,9 @@ ZSTD_bounds ZSTD_dParam_getBounds(ZSTD_dParameter dParam)
             bounds.upperBound = (int)ZSTD_f_zstd1_magicless;
             ZSTD_STATIC_ASSERT(ZSTD_f_zstd1 < ZSTD_f_zstd1_magicless);
             return bounds;
-        case ZSTD_d_stableOutBuffer:
+        case ZSTD_d_outBufferMode:
             bounds.lowerBound = (int)ZSTD_bm_buffered;
-            bounds.upperBound = (int)ZSTD_bm_stable;
+            bounds.upperBound = (int)ZSTD_bm_expose;
             return bounds;
         case ZSTD_d_forceIgnoreChecksum:
             bounds.lowerBound = (int)ZSTD_d_validateChecksum;
@@ -1752,7 +1752,7 @@ size_t ZSTD_DCtx_getParameter(ZSTD_DCtx* dctx, ZSTD_dParameter param, int* value
         case ZSTD_d_format:
             *value = (int)dctx->format;
             return 0;
-        case ZSTD_d_stableOutBuffer:
+        case ZSTD_d_outBufferMode:
             *value = (int)dctx->outBufferMode;
             return 0;
         case ZSTD_d_forceIgnoreChecksum:
@@ -1779,8 +1779,8 @@ size_t ZSTD_DCtx_setParameter(ZSTD_DCtx* dctx, ZSTD_dParameter dParam, int value
             CHECK_DBOUNDS(ZSTD_d_format, value);
             dctx->format = (ZSTD_format_e)value;
             return 0;
-        case ZSTD_d_stableOutBuffer:
-            CHECK_DBOUNDS(ZSTD_d_stableOutBuffer, value);
+        case ZSTD_d_outBufferMode:
+            CHECK_DBOUNDS(ZSTD_d_outBufferMode, value);
             dctx->outBufferMode = (ZSTD_bufferMode_e)value;
             return 0;
         case ZSTD_d_forceIgnoreChecksum:
@@ -1874,14 +1874,22 @@ static int ZSTD_DCtx_isOversizedTooLong(ZSTD_DStream* zds)
     return zds->oversizedDuration >= ZSTD_WORKSPACETOOLARGE_MAXDURATION;
 }
 
-/* Checks that the output buffer hasn't changed if ZSTD_obm_stable is used. */
+/* Checks that the output buffer hasn't changed if ZSTD_bm_stable is used. */
 static size_t ZSTD_checkOutBuffer(ZSTD_DStream const* zds, ZSTD_outBuffer const* output)
 {
     ZSTD_outBuffer const expect = zds->expectedOutBuffer;
-    /* No requirement when ZSTD_obm_stable is not enabled. */
-    if (zds->outBufferMode != ZSTD_bm_stable)
+    /* No requirement when ZSTD_bm_buffered is enabled (default). */
+    if (zds->outBufferMode == ZSTD_bm_buffered)
         return 0;
-    /* Any buffer is allowed in zdss_init, this must be the same for every other call until
+    /* With ZSTD_bm_expose, output must be cleared because it will be set only on buffer flush.
+       Clearing output is not strictly necessary but adds extrra safety against user error. */
+    if (zds->outBufferMode == ZSTD_bm_expose) {
+        if(output->dst || output->size)
+            RETURN_ERROR(dstBuffer_wrong, "must acknowledge output by clearing dst and size");
+        return 0;
+    }
+    /* ZSTD_bm_stable:
+     * Any buffer is allowed in zdss_init, this must be the same for every other call until
      * the context is reset.
      */
     if (zds->streamStage == zdss_init)
@@ -1889,7 +1897,7 @@ static size_t ZSTD_checkOutBuffer(ZSTD_DStream const* zds, ZSTD_outBuffer const*
     /* The buffer must match our expectation exactly. */
     if (expect.dst == output->dst && expect.pos == output->pos && expect.size == output->size)
         return 0;
-    RETURN_ERROR(dstBuffer_wrong, "ZSTD_d_stableOutBuffer enabled but output differs!");
+    RETURN_ERROR(dstBuffer_wrong, "ZSTD_d_outBufferMode == ZSTD_bufmode_stable but output differs!");
 }
 
 /* Calls ZSTD_decompressContinue() with the right parameters for ZSTD_decompressStream()
@@ -1901,7 +1909,7 @@ static size_t ZSTD_decompressContinueStream(
             ZSTD_DStream* zds, char** op, char* oend,
             void const* src, size_t srcSize) {
     int const isSkipFrame = ZSTD_isSkipFrame(zds);
-    if (zds->outBufferMode == ZSTD_bm_buffered) {
+    if (zds->outBufferMode != ZSTD_bm_stable) {
         size_t const dstSize = isSkipFrame ? 0 : zds->outBuffSize - zds->outStart;
         size_t const decodedSize = ZSTD_decompressContinue(zds,
                 zds->outBuff + zds->outStart, dstSize, src, srcSize);
@@ -1945,7 +1953,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
         "forbidden. in: pos: %u   vs size: %u",
         (U32)input->pos, (U32)input->size);
     RETURN_ERROR_IF(
-        output->pos > output->size,
+        output->pos > output->size && zds->outBufferMode != ZSTD_bm_expose,
         dstSize_tooSmall,
         "forbidden. out: pos: %u   vs size: %u",
         (U32)output->pos, (U32)output->size);
@@ -1992,6 +2000,8 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                         DEBUGLOG(5, "ZSTD_decompressStream: detected legacy version v0.%u", legacyVersion);
                         RETURN_ERROR_IF(zds->staticSize, memory_allocation,
                             "legacy support is incompatible with static dctx");
+                        RETURN_ERROR_IF(zds->outBufferMode == ZSTD_bm_expose, parameter_unsupported,
+                            "legacy support is incompatible with ZSTD_bufmode_expose");
                         FORWARD_IF_ERROR(ZSTD_initLegacyStream(&zds->legacyContext,
                                     zds->previousLegacyVersion, legacyVersion,
                                     dict, dictSize), "");
@@ -2023,6 +2033,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             /* check for single-pass mode opportunity */
             if (zds->fParams.frameContentSize != ZSTD_CONTENTSIZE_UNKNOWN
                 && zds->fParams.frameType != ZSTD_skippableFrame
+                && zds->outBufferMode != ZSTD_bm_expose
                 && (U64)(size_t)(oend-op) >= zds->fParams.frameContentSize) {
                 size_t const cSize = ZSTD_findFrameCompressedSize(istart, (size_t)(iend-istart));
                 if (cSize <= (size_t)(iend-istart)) {
@@ -2038,12 +2049,12 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                     break;
             }   }
 
-            /* Check output buffer is large enough for ZSTD_odm_stable. */
+            /* Check output buffer is large enough for ZSTD_bm_stable. */
             if (zds->outBufferMode == ZSTD_bm_stable
                 && zds->fParams.frameType != ZSTD_skippableFrame
                 && zds->fParams.frameContentSize != ZSTD_CONTENTSIZE_UNKNOWN
                 && (U64)(size_t)(oend-op) < zds->fParams.frameContentSize) {
-                RETURN_ERROR(dstSize_tooSmall, "ZSTD_obm_stable passed but ZSTD_outBuffer is too small");
+                RETURN_ERROR(dstSize_tooSmall, "ZSTD_bm_stable passed but ZSTD_outBuffer is too small");
             }
 
             /* Consume header (see ZSTDds_decodeFrameHeader) */
@@ -2069,7 +2080,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
 
             /* Adapt buffer sizes to frame header instructions */
             {   size_t const neededInBuffSize = MAX(zds->fParams.blockSizeMax, 4 /* frame checksum */);
-                size_t const neededOutBuffSize = zds->outBufferMode == ZSTD_bm_buffered
+                size_t const neededOutBuffSize = zds->outBufferMode != ZSTD_bm_stable
                         ? ZSTD_decodingBufferSize_min(zds->fParams.windowSize, zds->fParams.frameContentSize)
                         : 0;
 
@@ -2150,23 +2161,36 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             }
         case zdss_flush:
             {   size_t const toFlushSize = zds->outEnd - zds->outStart;
-                size_t const flushedSize = ZSTD_limitCopy(op, (size_t)(oend-op), zds->outBuff + zds->outStart, toFlushSize);
+                size_t flushedSize;
+                if (zds->outBufferMode == ZSTD_bm_expose)
+                {
+                    output->dst = op = zds->outBuff + zds->outStart;
+                    output->size = toFlushSize;
+                    zds->streamStage = zdss_flushdone;
+                    zds->outStart += toFlushSize;
+                    someMoreWork = 0;
+                    break;
+                }
+                flushedSize = ZSTD_limitCopy(op, (size_t)(oend-op), zds->outBuff + zds->outStart, toFlushSize);
                 op += flushedSize;
                 zds->outStart += flushedSize;
-                if (flushedSize == toFlushSize) {  /* flush completed */
-                    zds->streamStage = zdss_read;
-                    if ( (zds->outBuffSize < zds->fParams.frameContentSize)
-                      && (zds->outStart + zds->fParams.blockSizeMax > zds->outBuffSize) ) {
-                        DEBUGLOG(5, "restart filling outBuff from beginning (left:%i, needed:%u)",
-                                (int)(zds->outBuffSize - zds->outStart),
-                                (U32)zds->fParams.blockSizeMax);
-                        zds->outStart = zds->outEnd = 0;
-                    }
+                if (flushedSize != toFlushSize) {
+                    /* cannot complete flush */
+                    someMoreWork = 0;
                     break;
-            }   }
-            /* cannot complete flush */
-            someMoreWork = 0;
-            break;
+                }
+            }
+            ZSTD_FALLTHROUGH;
+        case zdss_flushdone: /* flush completed */
+                zds->streamStage = zdss_read;
+                if ( (zds->outBuffSize < zds->fParams.frameContentSize)
+                    && (zds->outStart + zds->fParams.blockSizeMax > zds->outBuffSize) ) {
+                    DEBUGLOG(5, "restart filling outBuff from beginning (left:%i, needed:%u)",
+                            (int)(zds->outBuffSize - zds->outStart),
+                            (U32)zds->fParams.blockSizeMax);
+                    zds->outStart = zds->outEnd = 0;
+                }
+                break;
 
         default:
             assert(0);    /* impossible */
@@ -2177,7 +2201,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
     input->pos = (size_t)(ip - (const char*)(input->src));
     output->pos = (size_t)(op - (char*)(output->dst));
 
-    /* Update the expected output buffer for ZSTD_obm_stable. */
+    /* Update the expected output buffer for ZSTD_bm_stable. */
     zds->expectedOutBuffer = *output;
 
     if ((ip==istart) && (op==ostart)) {  /* no forward progress */

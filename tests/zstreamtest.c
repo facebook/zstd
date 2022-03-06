@@ -662,7 +662,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     DISPLAYLEVEL(3, "test%3i : ZSTD_decompressStream() single pass on empty frame : ", testNb++);
     {   ZSTD_DCtx* dctx = ZSTD_createDCtx();
         size_t const dctxSize = ZSTD_sizeof_DCtx(dctx);
-        CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_stableOutBuffer, 1));
+        CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_outBufferMode, ZSTD_bufmode_stable));
 
         outBuff.dst = decodedBuffer;
         outBuff.pos = 0;
@@ -682,13 +682,13 @@ static int basicUnitTests(U32 seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
-    /* Decompression with ZSTD_d_stableOutBuffer */
+    /* Decompression with ZSTD_d_outBufferMode == ZSTD_bufmode_stable */
     cSize = ZSTD_compress(compressedBuffer, compressedBufferSize, CNBuffer, CNBufferSize, 1);
     CHECK_Z(cSize);
     {   ZSTD_DCtx* dctx = ZSTD_createDCtx();
         size_t const dctxSize0 = ZSTD_sizeof_DCtx(dctx);
         size_t dctxSize1;
-        CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_stableOutBuffer, 1));
+        CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_outBufferMode, ZSTD_bufmode_stable));
 
         outBuff.dst = decodedBuffer;
         outBuff.pos = 0;
@@ -723,7 +723,7 @@ static int basicUnitTests(U32 seed, double compressibility)
 
         DISPLAYLEVEL(3, "test%3i : ZSTD_decompressStream() stable out buffer too small : ", testNb++);
         ZSTD_DCtx_reset(dctx, ZSTD_reset_session_only);
-        CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_stableOutBuffer, 1));
+        CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_outBufferMode, ZSTD_bufmode_stable));
         inBuff.src = compressedBuffer;
         inBuff.size = cSize;
         inBuff.pos = 0;
@@ -736,7 +736,7 @@ static int basicUnitTests(U32 seed, double compressibility)
 
         DISPLAYLEVEL(3, "test%3i : ZSTD_decompressStream() stable out buffer modified : ", testNb++);
         ZSTD_DCtx_reset(dctx, ZSTD_reset_session_only);
-        CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_stableOutBuffer, 1));
+        CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_outBufferMode, ZSTD_bufmode_stable));
         inBuff.src = compressedBuffer;
         inBuff.size = cSize - 1;
         inBuff.pos = 0;
@@ -752,7 +752,7 @@ static int basicUnitTests(U32 seed, double compressibility)
 
         DISPLAYLEVEL(3, "test%3i : ZSTD_decompressStream() buffered output : ", testNb++);
         ZSTD_DCtx_reset(dctx, ZSTD_reset_session_only);
-        CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_stableOutBuffer, 0));
+        CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_outBufferMode, ZSTD_bufmode_buffered));
         outBuff.pos = 0;
         inBuff.pos = 0;
         inBuff.size = 0;
@@ -764,6 +764,82 @@ static int basicUnitTests(U32 seed, double compressibility)
         CHECK(memcmp(CNBuffer, outBuff.dst, CNBufferSize) != 0, "Corruption!");
         CHECK(!(dctxSize1 < ZSTD_sizeof_DCtx(dctx)), "Output buffer allocated");
         DISPLAYLEVEL(3, "OK \n");
+
+        ZSTD_freeDCtx(dctx);
+    }
+
+    /* Decompression with ZSTD_d_outBufferMode == ZSTD_bufmode_expose */
+    {   ZSTD_DCtx* dctx = ZSTD_createDCtx();
+        int mustfail = 0;
+        size_t total = 0;
+        size_t dec = 0;
+        DISPLAYLEVEL(3, "test%3i : ZSTD_decompressStream() exposed window all input: ", testNb++);
+        CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_outBufferMode, ZSTD_bufmode_expose));
+        inBuff.src = compressedBuffer;
+        inBuff.pos = 0;
+        inBuff.size = cSize;
+        outBuff.dst = NULL; /* Set by decomp */
+        outBuff.size = 0;   /* Set by decomp */
+        outBuff.pos = 0;    /* Not used */
+        while (inBuff.pos < cSize) {
+            CHECK_Z(ZSTD_decompressStream(dctx, &outBuff, &inBuff));
+            CHECK(!outBuff.dst != !outBuff.size, "Should have both dst & size set or neither");
+            if (outBuff.size) {
+                CHECK(memcmp((char*)CNBuffer + total, outBuff.dst, outBuff.size) != 0, "Corruption!");
+                total += outBuff.size;
+                outBuff.size = 0; /* Acknowledge */
+                outBuff.dst = NULL;
+            }
+        }
+        CHECK(total != CNBufferSize, "Wrong size!");
+        DISPLAYLEVEL(3, "OK \n");
+
+        DISPLAYLEVEL(3, "test%3i : ZSTD_decompressStream() exposed window piecemeal : ", testNb++);
+        ZSTD_DCtx_reset(dctx, ZSTD_reset_session_only);
+        CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_outBufferMode, ZSTD_bufmode_expose));
+        inBuff.src = compressedBuffer;
+        inBuff.pos = 0;
+        inBuff.size = 0;
+        outBuff.dst = NULL; /* Set by decomp */
+        outBuff.size = 0;   /* Set by decomp */
+        outBuff.pos = 0;    /* Not used */
+        total = 0;
+        while (inBuff.pos < cSize) {
+            inBuff.size += MIN(cSize - inBuff.pos, 1 + (FUZ_rand(&coreSeed) & 15));
+            CHECK_Z(ZSTD_decompressStream(dctx, &outBuff, &inBuff));
+            CHECK(!outBuff.dst != !outBuff.size, "Should have both dst & size set or neither");
+            if (outBuff.size) {
+                CHECK(memcmp((char*)CNBuffer + total, outBuff.dst, outBuff.size) != 0, "Corruption!");
+                total += outBuff.size;
+                outBuff.size = 0; /* Acknowledge */
+                outBuff.dst = NULL;
+            }
+        }
+        CHECK(total != CNBufferSize, "Wrong size!");
+        DISPLAYLEVEL(3, "OK \n");
+
+        DISPLAYLEVEL(3, "test%3i : ZSTD_decompressStream() exposed window output error check : ", testNb++);
+        ZSTD_DCtx_reset(dctx, ZSTD_reset_session_only);
+        CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_outBufferMode, ZSTD_bufmode_expose));
+        inBuff.src = compressedBuffer;
+        inBuff.pos = 0;
+        inBuff.size = 0;
+        outBuff.dst = NULL; /* Set by decomp */
+        outBuff.size = 0;   /* Set by decomp */
+        outBuff.pos = 0;    /* Not used */
+        while (inBuff.pos < cSize) {
+            inBuff.size += MIN(cSize - inBuff.pos, 1 + (FUZ_rand(&coreSeed) & 15));
+            dec = ZSTD_decompressStream(dctx, &outBuff, &inBuff);
+            if (mustfail) {
+                CHECK(ZSTD_getErrorCode(dec) != ZSTD_error_dstBuffer_wrong, "should fail when output is not cleared");
+                break; /* failed as it should -> done here */
+            }
+            else
+                CHECK_Z(dec);
+            CHECK(!outBuff.dst != !outBuff.size, "Should have both dst & size set or neither");
+            if (outBuff.size)
+                mustfail = 1;
+        }
 
         ZSTD_freeDCtx(dctx);
     }

@@ -92,7 +92,7 @@ typedef enum { ZSTDds_getFrameHeaderSize, ZSTDds_decodeFrameHeader,
                ZSTDds_decodeSkippableHeader, ZSTDds_skipFrame } ZSTD_dStage;
 
 typedef enum { zdss_init=0, zdss_loadHeader,
-               zdss_read, zdss_load, zdss_flush } ZSTD_dStreamStage;
+               zdss_read, zdss_load, zdss_flush, zdss_flushdone } ZSTD_dStreamStage;
 
 typedef enum {
     ZSTD_use_indefinitely = -1,  /* Use the dictionary indefinitely */

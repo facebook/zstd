@@ -276,7 +276,8 @@ MEM_STATIC size_t ZSTD_limitCopy(void* dst, size_t dstCapacity, const void* src,
 /* Controls whether the input/output buffer is buffered or stable. */
 typedef enum {
     ZSTD_bm_buffered = 0,  /* Buffer the input/output */
-    ZSTD_bm_stable = 1     /* ZSTD_inBuffer/ZSTD_outBuffer is stable */
+    ZSTD_bm_stable = 1,    /* ZSTD_inBuffer/ZSTD_outBuffer is stable */
+    ZSTD_bm_expose = 2     /* Set ZSTD_outBuffer to internal window */
 } ZSTD_bufferMode_e;
 
 

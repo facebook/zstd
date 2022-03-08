@@ -217,6 +217,17 @@ If input directory contains "\.\.", the files in this directory will be ignored\
 .
 .IP "" 0
 .
+.SS "gzip Operation modifiers"
+When invoked via a \fBgzip\fR symlink, \fBzstd\fR will support further options that intend to mimic the \fBgzip\fR behavior:
+.
+.TP
+\fB\-n\fR, \fB\-\-no\-name\fR
+do not store the original filename and timestamps when compressing a file\. This is the default behavior and hence a no\-op\.
+.
+.TP
+\fB\-\-best\fR
+alias to the option \fB\-9\fR\.
+.
 .SS "Restricted usage of Environment Variables"
 Using environment variables to set parameters has security implications\. Therefore, this avenue is intentionally restricted\. Only \fBZSTD_CLEVEL\fR and \fBZSTD_NBTHREADS\fR are currently supported\. They set the compression level and number of threads to use during compression, respectively\.
 .

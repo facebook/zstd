@@ -131,9 +131,9 @@ zstd_cstream *zstd_init_cstream(const zstd_parameters *parameters,
 EXPORT_SYMBOL(zstd_init_cstream);
 
 size_t zstd_reset_cstream(zstd_cstream *cstream,
-	unsigned long long pledged_src_size)
+	unsigned long long pledgedSrcSize)
 {
-	return ZSTD_CCtx_reset(cstream, pledged_src_size);
+	return ZSTD_CCtx_setPledgedSrcSize(cstream, pledgedSrcSize);
 }
 EXPORT_SYMBOL(zstd_reset_cstream);
 

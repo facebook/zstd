@@ -424,7 +424,7 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
 
     /* Outer search loop */
     assert(stepSize >= 1);
-    while (ip1 < ilimit) {   /* < instead of <=, because repcode check at (ip+1) */
+    while (ip1 <= ilimit) { /* repcode check at (ip0 + 1) is safe because ip0 < ip1 */
         size_t mLength;
         size_t hash0 = ZSTD_hashPtr(ip0, hlog, mls);
         size_t dictHash = ZSTD_hashPtr(ip0, dictHLog, mls);
@@ -491,7 +491,7 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
             matchIndex = hashTable[hash1];
             ip0 = ip1;
             ip1 = ip1 + ((ip1 - anchor) >> kSearchStrength) + stepSize;
-            if (ip1 >= ilimit) goto _cleanup;
+            if (ip1 > ilimit) goto _cleanup;
             curr = (U32)(ip0 - base);
             hash0 = hash1;
         }

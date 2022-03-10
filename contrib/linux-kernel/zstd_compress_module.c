@@ -131,9 +131,13 @@ zstd_cstream *zstd_init_cstream(const zstd_parameters *parameters,
 EXPORT_SYMBOL(zstd_init_cstream);
 
 size_t zstd_reset_cstream(zstd_cstream *cstream,
-	unsigned long long pledgedSrcSize)
+	unsigned long long pledged_src_size)
 {
-	return ZSTD_CCtx_setPledgedSrcSize(cstream, pledgedSrcSize);
+	if (pledged_src_size == 0)
+		pledged_src_size = ZSTD_CONTENTSIZE_UNKNOWN;
+	ZSTD_FORWARD_IF_ERR( ZSTD_CCtx_reset(cstream, ZSTD_reset_session_only) );
+	ZSTD_FORWARD_IF_ERR( ZSTD_CCtx_setPledgedSrcSize(cstream, pledged_src_size) );
+	return 0;
 }
 EXPORT_SYMBOL(zstd_reset_cstream);
 

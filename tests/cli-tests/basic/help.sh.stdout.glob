@@ -1,34 +1,24 @@
 + zstd -h
-*** zstd command line interface *-bits v1.*.*, by Yann Collet ***
-Usage :
-      zstd *args* *FILE(s)* *-o file*
+Usage: zstd *OPTION*... *FILE*... *-o file*
+Compress or uncompress FILEs (with no FILE or when FILE is `-`, read from standard input).
 
-FILE    : a filename
-          with no FILE, or when FILE is - , read standard input
-Arguments :
- -#     : # compression level*
- -d     : decompression
- -D DICT: use DICT as Dictionary for compression or decompression
- -o file: result stored into `file` (only 1 output file)
- -f     : disable input and output checks. Allows overwriting existing files,
-          input from console, output to stdout, operating on links,
-          block devices, etc.
---rm    : remove source file(s) after successful de/compression
- -k     : preserve source file(s) (default)
- -h/-H  : display help/long help and exit
+  -o file              result stored into `file` (only 1 output file)
+  -1 .. -19            compression level (faster .. better; default: 3)
+  -d, --decompress     decompression
+  -f, --force          disable input and output checks. Allows overwriting existing files,
+                       input from console, output to stdout, operating on links,
+                       block devices, etc.
+      --rm             remove source file(s) after successful de/compression
+  -k, --keep           preserve source file(s) (default)
+  -D DICT              use DICT as Dictionary for compression or decompression
+  -h                   display usage and exit
+  -H,--help            display long help and exit
 
-Advanced arguments :
- -V     : display Version number and exit
-...
 + zstd -H
 ...
-Arguments :
-...
-Advanced arguments :
+Advanced options :
 ...
 + zstd --help
 ...
-Arguments :
-...
-Advanced arguments :
+Advanced options :
 ...

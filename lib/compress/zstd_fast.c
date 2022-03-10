@@ -431,6 +431,9 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
         U32 dictMatchIndex = dictHashTable[dictHash];
         U32 matchIndex = hashTable[hash0];
         U32 curr = (U32)(ip0 - base);
+        size_t step = stepSize;
+        const size_t kStepIncr = 1 << kSearchStrength;
+        const BYTE* nextStep = ip0 + kStepIncr;
 
         /* Inner search loop */
         while (1) {
@@ -489,9 +492,15 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
             /* Prepare for next iteration */
             dictMatchIndex = dictHashTable[dictHash];
             matchIndex = hashTable[hash1];
+
+            if (ip1 >= nextStep) {
+                step++;
+                nextStep += kStepIncr;
+            }
             ip0 = ip1;
-            ip1 = ip1 + ((ip1 - anchor) >> kSearchStrength) + stepSize;
+            ip1 = ip1 + step;
             if (ip1 > ilimit) goto _cleanup;
+
             curr = (U32)(ip0 - base);
             hash0 = hash1;
         }

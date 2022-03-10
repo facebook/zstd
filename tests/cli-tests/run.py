@@ -704,6 +704,7 @@ if __name__ == "__main__":
     env["ZSTDLESS_BIN"] = os.path.abspath(args.zstdless)
     env["COMMON"] = os.path.abspath(os.path.join(args.test_dir, "common"))
     env["PATH"] = bin_dir + ":" + os.getenv("PATH", "")
+    env["LC_ALL"] = "C"
 
     opts = Options(
         env=env,

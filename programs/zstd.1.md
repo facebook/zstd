@@ -159,7 +159,7 @@ the last one takes effect.
     Note: `--long` mode will be automatically activated if chainLog < fileLog
         (fileLog being the windowLog required to cover the whole file). You
         can also manually force it.
-        Node: for all levels, you can use --patch-from in --single-thread mode
+    Note: for all levels, you can use --patch-from in --single-thread mode
         to improve compression ratio at the cost of speed
     Note: for level 19, you can get increased compression ratio at the cost
         of speed by specifying `--zstd=targetLength=` to be something large

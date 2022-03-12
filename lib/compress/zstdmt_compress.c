@@ -1734,7 +1734,7 @@ findSynchronizationPoint(ZSTDMT_CCtx const* mtctx, ZSTD_inBuffer const input)
         }
     } else {
         /* We have enough bytes buffered to initialize the hash,
-         * and are have processed enough bytes to find a sync point.
+         * and have processed enough bytes to find a sync point.
          * Start scanning at the beginning of the input.
          */
         assert(mtctx->inBuff.filled >= RSYNC_MIN_BLOCK_SIZE);

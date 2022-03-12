@@ -974,7 +974,7 @@ and their content ignored, resuming decoding after the skippable frame.
 
 It can be noted that a skippable frame
 can be used to watermark a stream of concatenated frames
-embedding any kind of tracking information (even just an UUID).
+embedding any kind of tracking information (even just a UUID).
 Users wary of such possibility should scan the stream of concatenated frames
 in an attempt to detect such frame for analysis or removal.
 

@@ -15,7 +15,7 @@ namespace pzstd {
 /**
  * Dismissable scope guard.
  * `Function` must be callable and take no parameters.
- * Unless `dissmiss()` is called, the callable is executed upon destruction of
+ * Unless `dismiss()` is called, the callable is executed upon destruction of
  * `ScopeGuard`.
  *
  * Example:

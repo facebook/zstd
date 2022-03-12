@@ -922,7 +922,7 @@ ZSTDLIB_API unsigned ZSTD_getDictID_fromDDict(const ZSTD_DDict* ddict);
  *  If @return == 0, the dictID could not be decoded.
  *  This could for one of the following reasons :
  *  - The frame does not require a dictionary to be decoded (most common case).
- *  - The frame was built with dictID intentionally removed. Whatever dictionary is necessary is a hidden information.
+ *  - The frame was built with dictID intentionally removed. Whatever dictionary is necessary is a hidden piece of information.
  *    Note : this use case also happens when using a non-conformant dictionary.
  *  - `srcSize` is too small, and as a result, the frame header could not be decoded (only possible if `srcSize < ZSTD_FRAMEHEADERSIZE_MAX`).
  *  - This is not a Zstandard frame.
@@ -1409,7 +1409,7 @@ ZSTD_generateSequences( ZSTD_CCtx* zc,
 ZSTDLIB_STATIC_API size_t ZSTD_mergeBlockDelimiters(ZSTD_Sequence* sequences, size_t seqsSize);
 
 /*! ZSTD_compressSequences() :
- * Compress an array of ZSTD_Sequence, associted with @src buffer, into dst.
+ * Compress an array of ZSTD_Sequence, associated with @src buffer, into dst.
  * @src contains the entire input (not just the literals).
  * If @srcSize > sum(sequence.length), the remaining bytes are considered all literals
  * If a dictionary is included, then the cctx should reference the dict. (see: ZSTD_CCtx_refCDict(), ZSTD_CCtx_loadDictionary(), etc.)
@@ -1904,7 +1904,7 @@ ZSTDLIB_STATIC_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const vo
  * Without validation, providing a sequence that does not conform to the zstd spec will cause
  * undefined behavior, and may produce a corrupted block.
  *
- * With validation enabled, a if sequence is invalid (see doc/zstd_compression_format.md for
+ * With validation enabled, if sequence is invalid (see doc/zstd_compression_format.md for
  * specifics regarding offset/matchlength requirements) then the function will bail out and
  * return an error.
  *
@@ -2110,7 +2110,7 @@ ZSTDLIB_STATIC_API size_t ZSTD_DCtx_getParameter(ZSTD_DCtx* dctx, ZSTD_dParamete
  * in the range [dst, dst + pos) MUST not be modified during decompression
  * or you will get data corruption.
  *
- * When this flags is enabled zstd won't allocate an output buffer, because
+ * When this flag is enabled zstd won't allocate an output buffer, because
  * it can write directly to the ZSTD_outBuffer, but it will still allocate
  * an input buffer large enough to fit any compressed block. This will also
  * avoid the memcpy() from the internal output buffer to the ZSTD_outBuffer.

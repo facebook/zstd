@@ -36,7 +36,7 @@
  *      If it is set_compressed, first sub-block's literals section will be Treeless_Literals_Block
  *      and the following sub-blocks' literals sections will be Treeless_Literals_Block.
  *  @return : compressed size of literals section of a sub-block
- *            Or 0 if it unable to compress.
+ *            Or 0 if unable to compress.
  *            Or error code */
 static size_t
 ZSTD_compressSubBlock_literal(const HUF_CElt* hufTable,

@@ -700,7 +700,7 @@ MEM_STATIC size_t BIT_lookBits(BIT_DStream_t* bitD, U32 nbBits)
 }
 
 /*! BIT_lookBitsFast :
-*   unsafe version; only works only if nbBits >= 1 */
+*   unsafe version; only works if nbBits >= 1 */
 MEM_STATIC size_t BIT_lookBitsFast(BIT_DStream_t* bitD, U32 nbBits)
 {
     const U32 bitMask = sizeof(bitD->bitContainer)*8 - 1;
@@ -720,7 +720,7 @@ MEM_STATIC size_t BIT_readBits(BIT_DStream_t* bitD, U32 nbBits)
 }
 
 /*!BIT_readBitsFast :
-*  unsafe version; only works only if nbBits >= 1 */
+*  unsafe version; only works if nbBits >= 1 */
 MEM_STATIC size_t BIT_readBitsFast(BIT_DStream_t* bitD, U32 nbBits)
 {
     size_t value = BIT_lookBitsFast(bitD, nbBits);

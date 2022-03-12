@@ -107,7 +107,7 @@ def test_match_pragma() -> bool:
     return False
 
 # Finds 'file'. First the list of 'root' paths are searched, followed by the
-# the currently processing file's 'parent' path, returning a valid Path in
+# currently processing file's 'parent' path, returning a valid Path in
 # canonical form. If no match is found None is returned.
 # 
 def resolve_include(file: str, parent: Optional[Path] = None) -> Optional[Path]:

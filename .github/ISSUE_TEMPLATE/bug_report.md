@@ -26,8 +26,8 @@ If applicable, add screenshots and charts to help explain your problem.
 **Desktop (please complete the following information):**
  - OS: [e.g. Mac]
  - Version [e.g. 22]
- - Compiler [e.g gcc]
- - Flags [e.g O2]
+ - Compiler [e.g. gcc]
+ - Flags [e.g. O2]
  - Other relevant hardware specs [e.g. Dual-core]
  - Build system [e.g. Makefile]
 

@@ -91,7 +91,7 @@ The file structure is designed to make this selection manually achievable for an
         `ZSTD_LIB_COMPRESSION, ZSTD_LIB_DECOMPRESSION`, `ZSTD_LIB_DICTBUILDER`,
         and `ZSTD_LIB_DEPRECATED` as `0` to forgo compilation of the
         corresponding features. This will also disable compilation of all
-        dependencies (eg. `ZSTD_LIB_COMPRESSION=0` will also disable
+        dependencies (e.g. `ZSTD_LIB_COMPRESSION=0` will also disable
         dictBuilder).
 
 - There are a number of options that can help minimize the binary size of

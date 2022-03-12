@@ -1423,7 +1423,7 @@ int main(int argCount, const char* argv[])
 
     if (showDefaultCParams) {
         if (operation == zom_decompress) {
-            DISPLAY("error : can't use --show-default-cparams in decomrpession mode \n");
+            DISPLAY("error : can't use --show-default-cparams in decompression mode \n");
             CLEAN_RETURN(1);
         }
     }

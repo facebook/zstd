@@ -636,7 +636,7 @@ def regression(args):
     try:
         description = """
         Runs one or more regression tests.
-        The fuzzer should have been built with with
+        The fuzzer should have been built with
         LIB_FUZZING_ENGINE='libregression.a'.
         Takes input from CORPORA.
         """

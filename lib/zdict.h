@@ -110,8 +110,8 @@ extern "C" {
  * The zstd CLI defaults to a 110KB dictionary. You likely don't need a
  * dictionary larger than that. But, most use cases can get away with a
  * smaller dictionary. The advanced dictionary builders can automatically
- * shrink the dictionary for you, and select a the smallest size that
- * doesn't hurt compression ratio too much. See the `shrinkDict` parameter.
+ * shrink the dictionary for you, and select the smallest size that doesn't
+ * hurt compression ratio too much. See the `shrinkDict` parameter.
  * A smaller dictionary can save memory, and potentially speed up
  * compression.
  *

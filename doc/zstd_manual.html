@@ -790,11 +790,11 @@ size_t ZSTD_freeDStream(ZSTD_DStream* zds);  </b>/* accept NULL pointer */<b>
 </p></pre><BR>
 
 <pre><b>unsigned ZSTD_getDictID_fromFrame(const void* src, size_t srcSize);
-</b><p>  Provides the dictID required to decompressed the frame stored within `src`.
+</b><p>  Provides the dictID required to decompress the frame stored within `src`.
   If @return == 0, the dictID could not be decoded.
   This could for one of the following reasons :
   - The frame does not require a dictionary to be decoded (most common case).
-  - The frame was built with dictID intentionally removed. Whatever dictionary is necessary is a hidden information.
+  - The frame was built with dictID intentionally removed. Whatever dictionary is necessary is a hidden piece of information.
     Note : this use case also happens when using a non-conformant dictionary.
   - `srcSize` is too small, and as a result, the frame header could not be decoded (only possible if `srcSize < ZSTD_FRAMEHEADERSIZE_MAX`).
   - This is not a Zstandard frame.
@@ -1164,7 +1164,7 @@ size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 <pre><b>ZSTDLIB_STATIC_API size_t ZSTD_compressSequences(ZSTD_CCtx* const cctx, void* dst, size_t dstSize,
                       const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
                       const void* src, size_t srcSize);
-</b><p> Compress an array of ZSTD_Sequence, associted with @src buffer, into dst.
+</b><p> Compress an array of ZSTD_Sequence, associated with @src buffer, into dst.
  @src contains the entire input (not just the literals).
  If @srcSize > sum(sequence.length), the remaining bytes are considered all literals
  If a dictionary is included, then the cctx should reference the dict. (see: ZSTD_CCtx_refCDict(), ZSTD_CCtx_loadDictionary(), etc.)

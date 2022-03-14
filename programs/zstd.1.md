@@ -159,11 +159,11 @@ the last one takes effect.
     Note: `--long` mode will be automatically activated if chainLog < fileLog
         (fileLog being the windowLog required to cover the whole file). You
         can also manually force it.
-	Node: for all levels, you can use --patch-from in --single-thread mode
-		to improve compression ratio at the cost of speed
+    Note: for all levels, you can use --patch-from in --single-thread mode
+        to improve compression ratio at the cost of speed
     Note: for level 19, you can get increased compression ratio at the cost
         of speed by specifying `--zstd=targetLength=` to be something large
-        (i.e 4096), and by setting a large `--zstd=chainLog=`
+        (i.e. 4096), and by setting a large `--zstd=chainLog=`
 * `--rsyncable` :
     `zstd` will periodically synchronize the compression state to make the
     compressed file more rsync-friendly. There is a negligible impact to
@@ -185,7 +185,7 @@ the last one takes effect.
 * `-M#`, `--memory=#`:
     Set a memory usage limit. By default, Zstandard uses 128 MB for decompression
     as the maximum amount of memory the decompressor is allowed to use, but you can
-    override this manually if need be in either direction (ie. you can increase or
+    override this manually if need be in either direction (i.e. you can increase or
     decrease it).
 
     This is also used during compression when using with --patch-from=. In this case,
@@ -275,7 +275,7 @@ the last one takes effect.
 * `--show-default-cparams`:
     Shows the default compression parameters that will be used for a
     particular src file. If the provided src file is not a regular file
-    (eg. named pipe), the cli will just output the default parameters.
+    (e.g. named pipe), the cli will just output the default parameters.
     That is, the parameters that are used when the src size is unknown.
 * `--`:
     All arguments after `--` are treated as files
@@ -493,7 +493,7 @@ The list of available _options_:
 - `hashLog`=_hlog_, `hlog`=_hlog_:
     Specify the maximum number of bits for a hash table.
 
-    Bigger hash tables cause less collisions which usually makes compression
+    Bigger hash tables cause fewer collisions which usually makes compression
     faster, but requires more memory during compression.
 
     The minimum _hlog_ is 6 (64 B) and the maximum is 30 (1 GiB).

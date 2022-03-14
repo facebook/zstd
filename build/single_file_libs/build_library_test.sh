@@ -14,7 +14,7 @@ IN_FILES="zstd.c examples/roundtrip.c"
 
 # Emscripten build using emcc.
 emscripten_emcc_build() {
-  # Compile the the same example as above
+  # Compile the same example as above
   CC_FLAGS="-Wall -Wextra -Wshadow -Werror -Os -g0 -flto"
   emcc $CC_FLAGS -s WASM=1 -I. -o $OUT_WASM $IN_FILES
   # Did compilation work?

@@ -951,7 +951,7 @@ void ZSTD_row_update(ZSTD_matchState_t* const ms, const BYTE* ip) {
     const U32 mls = MIN(ms->cParams.minMatch, 6 /* mls caps out at 6 */);
 
     DEBUGLOG(5, "ZSTD_row_update(), rowLog=%u", rowLog);
-    ZSTD_row_update_internal(ms, ip, mls, rowLog, rowMask, 0 /* dont use cache */);
+    ZSTD_row_update_internal(ms, ip, mls, rowLog, rowMask, 0 /* don't use cache */);
 }
 
 #if defined(ZSTD_ARCH_X86_SSE2)

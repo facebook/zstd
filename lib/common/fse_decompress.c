@@ -128,10 +128,10 @@ static size_t FSE_buildDTable_internal(FSE_DTable* dt, const short* normalizedCo
             }
         }
         /* Now we spread those positions across the table.
-         * The benefit of doing it in two stages is that we avoid the the
+         * The benefit of doing it in two stages is that we avoid the
          * variable size inner loop, which caused lots of branch misses.
          * Now we can run through all the positions without any branch misses.
-         * We unroll the loop twice, since that is what emperically worked best.
+         * We unroll the loop twice, since that is what empirically worked best.
          */
         {
             size_t position = 0;

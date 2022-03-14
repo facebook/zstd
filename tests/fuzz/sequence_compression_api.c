@@ -294,7 +294,7 @@ int LLVMFuzzerTestOneInput(const uint8_t* src, size_t size)
         FUZZ_ASSERT(dictBuffer);
         dictBuffer = generatePseudoRandomString(dictBuffer, dictSize);
     }
-    /* Generate window log first so we dont generate offsets too large */
+    /* Generate window log first so we don't generate offsets too large */
     wLog = FUZZ_dataProducer_uint32Range(producer, ZSTD_WINDOWLOG_MIN, ZSTD_WINDOWLOG_MAX_32);
     cLevel = FUZZ_dataProducer_int32Range(producer, -3, 22);
     mode = (ZSTD_sequenceFormat_e)FUZZ_dataProducer_int32Range(producer, 0, 1);

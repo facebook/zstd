@@ -555,7 +555,7 @@ static int feasible(const BMK_benchResult_t results, const constraint_t target) 
 }
 
 /* hill climbing value for part 1 */
-/* Scoring here is a linear reward for all set constraints normalized between 0 to 1
+/* Scoring here is a linear reward for all set constraints normalized between 0 and 1
  * (with 0 at 0 and 1 being fully fulfilling the constraint), summed with a logarithmic
  * bonus to exceeding the constraint value. We also give linear ratio for compression ratio.
  * The constant factors are experimental.

@@ -549,7 +549,7 @@ size_t ZSTD_ldm_generateSequences(
          * the window through early invalidation.
          * TODO: * Test the chunk size.
          *       * Try invalidation after the sequence generation and test the
-         *         the offset against maxDist directly.
+         *         offset against maxDist directly.
          *
          * NOTE: Because of dictionaries + sequence splitting we MUST make sure
          * that any offset used is valid at the END of the sequence, since it may

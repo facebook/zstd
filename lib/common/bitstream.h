@@ -365,7 +365,7 @@ MEM_STATIC FORCE_INLINE_ATTR size_t BIT_readBits(BIT_DStream_t* bitD, unsigned n
 }
 
 /*! BIT_readBitsFast() :
- *  unsafe version; only works only if nbBits >= 1 */
+ *  unsafe version; only works if nbBits >= 1 */
 MEM_STATIC size_t BIT_readBitsFast(BIT_DStream_t* bitD, unsigned nbBits)
 {
     size_t const value = BIT_lookBitsFast(bitD, nbBits);

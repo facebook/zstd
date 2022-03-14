@@ -43,7 +43,7 @@ This behavior can be changed using `ZWRAP_setDecompressionType(ZWRAP_FORCE_ZLIB)
 
 
 #### Example
-We have take the file `test/example.c` from [the zlib library distribution](http://zlib.net/) and copied it to [zlibWrapper/examples/example.c](examples/example.c).
+We have taken the file `test/example.c` from [the zlib library distribution](http://zlib.net/) and copied it to [zlibWrapper/examples/example.c](examples/example.c).
 After compilation and execution it shows the following results: 
 ```
 zlib version 1.2.8 = 0x1280, compile flags = 0x65

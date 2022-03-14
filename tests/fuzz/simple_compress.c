@@ -9,7 +9,7 @@
  */
 
 /**
- * This fuzz target attempts to comprss the fuzzed data with the simple
+ * This fuzz target attempts to compress the fuzzed data with the simple
  * compression function with an output buffer that may be too small to
  * ensure that the compressor never crashes.
  */

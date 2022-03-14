@@ -25,7 +25,7 @@
  * Note: MEM_MODULE stops xxhash redefining BYTE, U16, etc., which are also
  * defined in mem.h (breaking C99 compatibility).
  *
- * Note: the undefs for xxHash allow Zstd's implementation to coincide with with
+ * Note: the undefs for xxHash allow Zstd's implementation to coincide with
  * standalone xxHash usage (with global defines).
  *
  * Note: if you enable ZSTD_LEGACY_SUPPORT the combine.py script will need

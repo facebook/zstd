@@ -178,7 +178,7 @@ static void usage_advanced(const char* programName)
     DISPLAYOUT( "Advanced arguments : \n");
     DISPLAYOUT( " -V     : display Version number and exit \n");
 
-    DISPLAYOUT( " -c     : write to standard output (even if it is the console) \n");
+    DISPLAYOUT( " -c     : write to standard output (even if it is the console), keep original file \n");
 
     DISPLAYOUT( " -v     : verbose mode; specify multiple times to increase verbosity \n");
     DISPLAYOUT( " -q     : suppress warnings; specify twice to suppress errors too \n");
@@ -925,7 +925,7 @@ int main(int argCount, const char* argv[])
                 if (!strcmp(argument, "--help")) { usage_advanced(programName); CLEAN_RETURN(0); }
                 if (!strcmp(argument, "--verbose")) { g_displayLevel++; continue; }
                 if (!strcmp(argument, "--quiet")) { g_displayLevel--; continue; }
-                if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; g_displayLevel-=(g_displayLevel==2); continue; }
+                if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; FIO_setRemoveSrcFile(prefs, 0); g_displayLevel-=(g_displayLevel==2); continue; }
                 if (!strcmp(argument, "--ultra")) { ultra=1; continue; }
                 if (!strcmp(argument, "--check")) { FIO_setChecksumFlag(prefs, 2); continue; }
                 if (!strcmp(argument, "--no-check")) { FIO_setChecksumFlag(prefs, 0); continue; }
@@ -1114,7 +1114,7 @@ int main(int argCount, const char* argv[])
                         operation=zom_decompress; argument++; break;
 
                     /* Force stdout, even if stdout==console */
-                case 'c': forceStdout=1; outFileName=stdoutmark; argument++; break;
+                case 'c': forceStdout=1; outFileName=stdoutmark; FIO_setRemoveSrcFile(prefs, 0); argument++; break;
 
                     /* do not store filename - gzip compatibility - nothing to do */
                 case 'n': argument++; break;
@@ -1279,7 +1279,7 @@ int main(int argCount, const char* argv[])
     }
 
     nbInputFileNames = filenames->tableSize; /* saving number of input files */
-    
+
     if (recursive) {  /* at this stage, filenameTable is a list of paths, which can contain both files and directories */
         UTIL_expandFNT(&filenames, followLinks);
     }
@@ -1392,7 +1392,7 @@ int main(int argCount, const char* argv[])
        }
        UTIL_refFilename(filenames, stdinmark);
     }
-    
+
     if (!strcmp(filenames->fileNames[0], stdinmark) && !outFileName)
         outFileName = stdoutmark;  /* when input is stdin, default output is stdout */
 

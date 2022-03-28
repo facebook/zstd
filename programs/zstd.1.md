@@ -212,7 +212,7 @@ the last one takes effect.
     disable input and output checks. Allows overwriting existing files, input
     from console, output to stdout, operating on links, block devices, etc.
 * `-c`, `--stdout`:
-    write to standard output (even if it is the console)
+    write to standard output (even if it is the console); keep original files unchanged.
 * `--[no-]sparse`:
     enable / disable sparse FS support,
     to make files with many zeroes smaller on disk.

@@ -369,7 +369,6 @@ struct ZSTD_CCtx_s {
     ZSTD_CCtx_params requestedParams;
     ZSTD_CCtx_params appliedParams;
     ZSTD_CCtx_params simpleApiParams;    /* Param storage used by the simple API - not sticky. Must only be used in top-level simple API functions for storage. */
-    U32   dictID;
     size_t dictContentSize;
 
     ZSTD_cwksp workspace; /* manages buffer for dynamic allocations */
@@ -418,6 +417,9 @@ struct ZSTD_CCtx_s {
     ZSTD_localDict localDict;
     const ZSTD_CDict* cdict;
     ZSTD_prefixDict prefixDict;   /* single-usage dictionary */
+    U32 dictID;
+    int cdictIsCold;  /* if == 1 : dictionary is "new" for working context, and presumed "cold" (not in cpu cache) */
+    const ZSTD_CDict* prevAttachedCDict; /* points to previous CDict loaded byAttach, may be null */
 
     /* Multi-threading */
 #ifdef ZSTD_MULTITHREAD

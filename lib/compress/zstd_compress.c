@@ -1837,7 +1837,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
     zc->isFirstBlock = 1;
 
     /* Set applied params early so we can modify them for LDM,
-     * and point params at the applied params.
+     * and point params at the applied params
      */
     zc->appliedParams = *params;
     params = &zc->appliedParams;
@@ -1928,6 +1928,8 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         zc->stage = ZSTDcs_init;
         zc->dictID = 0;
         zc->dictContentSize = 0;
+        zc->cdictIsCold = 0;
+        zc->prevAttachedCDict = NULL;
 
         ZSTD_reset_compressedBlockState(zc->blockState.prevCBlock);
 
@@ -2089,6 +2091,10 @@ ZSTD_resetCCtx_byAttachingCDict(ZSTD_CCtx* cctx,
 
     cctx->dictID = cdict->dictID;
     cctx->dictContentSize = cdict->dictContentSize;
+
+    /* Only mark cold if prevAttachedCDict != NULL since cdict may be freshly created in this case, and thus warm */
+    cctx->cdictIsCold = cctx->prevAttachedCDict && (cctx->prevAttachedCDict != cdict);
+    cctx->prevAttachedCDict = cdict;
 
     /* copy block state */
     ZSTD_memcpy(cctx->blockState.prevCBlock, &cdict->cBlockState, sizeof(cdict->cBlockState));

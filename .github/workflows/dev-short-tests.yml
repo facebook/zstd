@@ -214,22 +214,23 @@ jobs:
         msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v142
         /t:Clean,Build /p:Platform=${{matrix.platform}} /p:Configuration=${{matrix.configuration}}
 
-  visual-2015:
-    # only GH actions windows-2016 contains VS 2015
-    runs-on: windows-2016
-    strategy:
-      matrix:
-        platform: [x64, Win32]
-        configuration: [Debug, Release]
-    steps:
-    - uses: actions/checkout@v2
-    - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v1.0.2
-    - name: Build
-      working-directory: ${{env.GITHUB_WORKSPACE}}
-      run: >
-        msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v140
-        /t:Clean,Build /p:Platform=${{matrix.platform}} /p:Configuration=${{matrix.configuration}}
+# TODO: fix as part of https://github.com/facebook/zstd/issues/3064
+#  visual-2015:
+#    # only GH actions windows-2016 contains VS 2015
+#    runs-on: windows-2016
+#    strategy:
+#      matrix:
+#        platform: [x64, Win32]
+#        configuration: [Debug, Release]
+#    steps:
+#    - uses: actions/checkout@v2
+#    - name: Add MSBuild to PATH
+#      uses: microsoft/setup-msbuild@v1.0.2
+#    - name: Build
+#      working-directory: ${{env.GITHUB_WORKSPACE}}
+#      run: >
+#        msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v140
+#        /t:Clean,Build /p:Platform=${{matrix.platform}} /p:Configuration=${{matrix.configuration}}
 
   minimal-decompressor-macros:
     runs-on: ubuntu-latest

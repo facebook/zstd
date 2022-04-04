@@ -139,7 +139,7 @@ the last one takes effect.
     _note_ : at the time of this writing, `--adapt` can remain stuck at low speed
     when combined with multiple worker threads (>=2).
 * `--long[=#]`:
-    enables long distance matching with `#` `windowLog`, if not `#` is not
+    enables long distance matching with `#` `windowLog`, if `#` is not
     present it defaults to `27`.
     This increases the window size (`windowLog`) and memory usage for both the
     compressor and decompressor.

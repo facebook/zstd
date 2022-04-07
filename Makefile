@@ -11,6 +11,9 @@
 # verbose mode (print commands) on V=1 or VERBOSE=1
 Q = $(if $(filter 1,$(V) $(VERBOSE)),,@)
 
+
+
+
 PRGDIR   = programs
 ZSTDDIR  = lib
 BUILDIR  = build

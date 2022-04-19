@@ -92,7 +92,7 @@ feature_lz4 = get_option('lz4')
 # Dependencies
 # =============================================================================
 
-libm_dep = cc.find_library('m', required: bin_tests)
+libm_dep = cc.find_library('m', required: false)
 thread_dep = dependency('threads', required: feature_multi_thread)
 use_multi_thread = thread_dep.found()
 # Arguments in dependency should be equivalent to those passed to pkg-config

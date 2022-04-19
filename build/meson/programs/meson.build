@@ -66,7 +66,8 @@ endif
 if cc_id == compiler_msvc
   if default_library_type != 'static'
     zstd_programs_sources += [windows_mod.compile_resources(
-      join_paths(zstd_rootdir, 'build/VS2010/zstd/zstd.rc'))]
+      join_paths(zstd_rootdir, 'build/VS2010/zstd/zstd.rc'),
+      include_directories: libzstd_includes)]
   endif
 endif
 

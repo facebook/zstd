@@ -603,7 +603,6 @@ static size_t ZSTD_compressBlock_fast_extDict_generic(
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - 8;
     U32 offset_1=rep[0], offset_2=rep[1];
-    U32 offsetSaved = 0;
 
     const BYTE* ip0 = istart;
     const BYTE* ip1;
@@ -616,7 +615,6 @@ static size_t ZSTD_compressBlock_fast_extDict_generic(
     size_t hash1; /* hash for ip1 */
     U32 idx; /* match idx for ip0 */
     const BYTE* idxBase; /* base pointer for idx */
-    U32 mval; /* src or dict value at match idx */
 
     U32 offcode;
     const BYTE* match0;
@@ -657,13 +655,13 @@ _start: /* Requires: ip0 */
     idxBase = idx < prefixStartIndex ? dictBase : base;
 
     do {
-        /* load repcode match for ip[2]*/
+        U32 mval; /* src or dict value at match idx */
+
+        /* load repcode match for ip[2] */
         const U32 current2 = (U32)(ip2 - base);
         const U32 repIndex = current2 - offset_1;
         const BYTE* const repBase = repIndex < prefixStartIndex ? dictBase : base;
         U32 rval;
-
-        /* load repcode match for ip[2] */
         assert(offset_1 > 0);
         if ( ( ((U32)(prefixStartIndex - repIndex) >= 4) /* intentional underflow */
                & (offset_1 < current2 - dictStartIndex) ) ) {
@@ -762,13 +760,13 @@ _cleanup:
      * them. So let's not. */
 
     /* save reps for next block */
-    rep[0] = offset_1 ? offset_1 : offsetSaved;
-    rep[1] = offset_2 ? offset_2 : offsetSaved;
+    rep[0] = offset_1;
+    rep[1] = offset_2;
 
     /* Return the last literals size */
     return (size_t)(iend - anchor);
 
-_offset: /* Requires: ip0, idx */
+_offset: /* Requires: ip0, idx, idxBase */
 
     /* Compute the offset code. */
     {   U32 const offset = current0 - idx;
@@ -787,7 +785,7 @@ _offset: /* Requires: ip0, idx */
             mLength++;
     }   }
 
-_match: /* Requires: ip0, match0, offcode */
+_match: /* Requires: ip0, match0, offcode, matchEnd */
 
     /* Count the forward length. */
     assert(matchEnd != 0);

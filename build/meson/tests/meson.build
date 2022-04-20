@@ -134,13 +134,15 @@ checkTag = executable('checkTag',
 # =============================================================================
 
 if tests_supported_oses.contains(host_machine_os)
-  valgrind_prog = find_program('valgrind', ['/usr/bin/valgrind'], required: true)
+  valgrind_prog = find_program('valgrind', ['/usr/bin/valgrind'], required: false)
   valgrindTest_py = files('valgrindTest.py')
-  test('valgrindTest',
-    valgrindTest_py,
-    args: [valgrind_prog.path(), zstd, datagen, fuzzer, fullbench],
-    depends: [zstd, datagen, fuzzer, fullbench],
-    timeout: 600) # Timeout should work on HDD drive
+  if valgrind_prog.found()
+    test('valgrindTest',
+      valgrindTest_py,
+      args: [valgrind_prog.path(), zstd, datagen, fuzzer, fullbench],
+      depends: [zstd, datagen, fuzzer, fullbench],
+      timeout: 600) # Timeout should work on HDD drive
+  endif
 endif
 
 if host_machine_os != os_windows

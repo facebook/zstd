@@ -587,7 +587,7 @@ static size_t ZSTD_compressBlock_fast_extDict_generic(
     U32* const hashTable = ms->hashTable;
     U32 const hlog = cParams->hashLog;
     /* support stepSize of 0 */
-    U32 const stepSize = cParams->targetLength + !(cParams->targetLength) + 1;
+    size_t const stepSize = hasStep ? (cParams->targetLength + !(cParams->targetLength) + 1) : 2;
     const BYTE* const base = ms->window.base;
     const BYTE* const dictBase = ms->window.dictBase;
     const BYTE* const istart = (const BYTE*)src;
@@ -625,13 +625,17 @@ static size_t ZSTD_compressBlock_fast_extDict_generic(
     const BYTE* nextStep;
     const size_t kStepIncr = (1 << (kSearchStrength - 1));
 
-    (void)hasStep; /* not currently specialized on whether it's accelerated */
-
     DEBUGLOG(5, "ZSTD_compressBlock_fast_extDict_generic (offset_1=%u)", offset_1);
 
     /* switch to "regular" variant if extDict is invalidated due to maxDistance */
     if (prefixStartIndex == dictStartIndex)
         return ZSTD_compressBlock_fast(ms, seqStore, rep, src, srcSize);
+
+    {   U32 const curr = (U32)(ip0 - base);
+        U32 const maxRep = curr - dictStartIndex;
+        if (offset_2 >= maxRep) offset_2 = 0;
+        if (offset_1 >= maxRep) offset_1 = 0;
+    }
 
     /* start each op */
 _start: /* Requires: ip0 */
@@ -655,51 +659,44 @@ _start: /* Requires: ip0 */
     idxBase = idx < prefixStartIndex ? dictBase : base;
 
     do {
-        U32 mval; /* src or dict value at match idx */
+        {   /* load repcode match for ip[2] */
+            U32 const current2 = (U32)(ip2 - base);
+            U32 const repIndex = current2 - offset_1;
+            const BYTE* const repBase = repIndex < prefixStartIndex ? dictBase : base;
+            U32 rval;
+            if ( ((U32)(prefixStartIndex - repIndex) >= 4) /* intentional underflow */
+                 & (offset_1 > 0) ) {
+                rval = MEM_read32(repBase + repIndex);
+            } else {
+                rval = MEM_read32(ip2) ^ 1; /* guaranteed to not match. */
+            }
 
-        /* load repcode match for ip[2] */
-        const U32 current2 = (U32)(ip2 - base);
-        const U32 repIndex = current2 - offset_1;
-        const BYTE* const repBase = repIndex < prefixStartIndex ? dictBase : base;
-        U32 rval;
-        assert(offset_1 > 0);
-        if ( ( ((U32)(prefixStartIndex - repIndex) >= 4) /* intentional underflow */
-               & (offset_1 < current2 - dictStartIndex) ) ) {
-            rval = MEM_read32(repBase + repIndex);
-        } else {
-            rval = MEM_read32(ip2) ^ 1; /* guaranteed to not match. */
-        }
+            /* write back hash table entry */
+            current0 = (U32)(ip0 - base);
+            hashTable[hash0] = current0;
 
-        /* write back hash table entry */
-        current0 = (U32)(ip0 - base);
-        hashTable[hash0] = current0;
+            /* check repcode at ip[2] */
+            if (MEM_read32(ip2) == rval) {
+                ip0 = ip2;
+                match0 = repBase + repIndex;
+                matchEnd = repIndex < prefixStartIndex ? dictEnd : iend;
+                assert((match0 != prefixStart) & (match0 != dictStart));
+                mLength = ip0[-1] == match0[-1];
+                ip0 -= mLength;
+                match0 -= mLength;
+                offcode = REPCODE1_TO_OFFBASE;
+                mLength += 4;
+                goto _match;
+        }   }
 
-        /* check repcode at ip[2] */
-        if (MEM_read32(ip2) == rval) {
-            ip0 = ip2;
-            match0 = repBase + repIndex;
-            matchEnd = repIndex < prefixStartIndex ? dictEnd : iend;
-            assert((match0 != prefixStart) & (match0 != dictStart));
-            mLength = ip0[-1] == match0[-1];
-            ip0 -= mLength;
-            match0 -= mLength;
-            offcode = REPCODE1_TO_OFFBASE;
-            mLength += 4;
-            goto _match;
-        }
+        {   /* load match for ip[0] */
+            U32 const mval = idx >= dictStartIndex ? MEM_read32(idxBase + idx) : MEM_read32(ip0) ^ 1; /* guaranteed not to match */
 
-        /* load match for ip[0] */
-        if (idx >= dictStartIndex) {
-            mval = MEM_read32(idxBase + idx);
-        } else {
-            mval = MEM_read32(ip0) ^ 1; /* guaranteed to not match. */
-        }
-
-        /* check match at ip[0] */
-        if (MEM_read32(ip0) == mval) {
-            /* found a match! */
-            goto _offset;
-        }
+            /* check match at ip[0] */
+            if (MEM_read32(ip0) == mval) {
+                /* found a match! */
+                goto _offset;
+        }   }
 
         /* lookup ip[1] */
         idx = hashTable[hash1];
@@ -718,18 +715,14 @@ _start: /* Requires: ip0 */
         current0 = (U32)(ip0 - base);
         hashTable[hash0] = current0;
 
-        /* load match for ip[0] */
-        if (idx >= dictStartIndex) {
-            mval = MEM_read32(idxBase + idx);
-        } else {
-            mval = MEM_read32(ip0) ^ 1; /* guaranteed to not match. */
-        }
+        {   /* load match for ip[0] */
+            U32 const mval = idx >= dictStartIndex ? MEM_read32(idxBase + idx) : MEM_read32(ip0) ^ 1; /* guaranteed not to match */
 
-        /* check match at ip[0] */
-        if (MEM_read32(ip0) == mval) {
-            /* found a match! */
-            goto _offset;
-        }
+            /* check match at ip[0] */
+            if (MEM_read32(ip0) == mval) {
+                /* found a match! */
+                goto _offset;
+        }   }
 
         /* lookup ip[1] */
         idx = hashTable[hash1];
@@ -760,8 +753,8 @@ _cleanup:
      * them. So let's not. */
 
     /* save reps for next block */
-    rep[0] = offset_1;
-    rep[1] = offset_2;
+    rep[0] = offset_1 ? offset_1 : rep[0];
+    rep[1] = offset_2 ? offset_2 : rep[1];
 
     /* Return the last literals size */
     return (size_t)(iend - anchor);
@@ -808,11 +801,10 @@ _match: /* Requires: ip0, match0, offcode, matchEnd */
         hashTable[ZSTD_hashPtr(base+current0+2, hlog, mls)] = current0+2;  /* here because current+2 could be > iend-8 */
         hashTable[ZSTD_hashPtr(ip0-2, hlog, mls)] = (U32)(ip0-2-base);
 
-        assert(offset_2 > 0);
         while (ip0 <= ilimit) {
             U32 const repIndex2 = (U32)(ip0-base) - offset_2;
             const BYTE* const repMatch2 = repIndex2 < prefixStartIndex ? dictBase + repIndex2 : base + repIndex2;
-            if ( (((U32)((prefixStartIndex-1) - repIndex2) >= 3) & (offset_2 <= (U32)(ip0-base) - dictStartIndex))  /* intentional overflow */
+            if ( (((U32)((prefixStartIndex-1) - repIndex2) >= 3) & (offset_2 > 0))  /* intentional underflow */
                  && (MEM_read32(repMatch2) == MEM_read32(ip0)) ) {
                 const BYTE* const repEnd2 = repIndex2 < prefixStartIndex ? dictEnd : iend;
                 size_t const repLength2 = ZSTD_count_2segments(ip0+4, repMatch2+4, iend, repEnd2, prefixStart) + 4;
@@ -829,6 +821,11 @@ _match: /* Requires: ip0, match0, offcode, matchEnd */
     goto _start;
 }
 
+ZSTD_GEN_FAST_FN(extDict, 4, 1)
+ZSTD_GEN_FAST_FN(extDict, 5, 1)
+ZSTD_GEN_FAST_FN(extDict, 6, 1)
+ZSTD_GEN_FAST_FN(extDict, 7, 1)
+
 ZSTD_GEN_FAST_FN(extDict, 4, 0)
 ZSTD_GEN_FAST_FN(extDict, 5, 0)
 ZSTD_GEN_FAST_FN(extDict, 6, 0)
@@ -839,16 +836,30 @@ size_t ZSTD_compressBlock_fast_extDict(
         void const* src, size_t srcSize)
 {
     U32 const mls = ms->cParams.minMatch;
-    switch(mls)
-    {
-    default: /* includes case 3 */
-    case 4 :
-        return ZSTD_compressBlock_fast_extDict_4_0(ms, seqStore, rep, src, srcSize);
-    case 5 :
-        return ZSTD_compressBlock_fast_extDict_5_0(ms, seqStore, rep, src, srcSize);
-    case 6 :
-        return ZSTD_compressBlock_fast_extDict_6_0(ms, seqStore, rep, src, srcSize);
-    case 7 :
-        return ZSTD_compressBlock_fast_extDict_7_0(ms, seqStore, rep, src, srcSize);
+    assert(ms->dictMatchState == NULL);
+    if (ms->cParams.targetLength > 1) {
+        switch (mls) {
+            default: /* includes case 3 */
+            case 4 :
+                return ZSTD_compressBlock_fast_extDict_4_1(ms, seqStore, rep, src, srcSize);
+            case 5 :
+                return ZSTD_compressBlock_fast_extDict_5_1(ms, seqStore, rep, src, srcSize);
+            case 6 :
+                return ZSTD_compressBlock_fast_extDict_6_1(ms, seqStore, rep, src, srcSize);
+            case 7 :
+                return ZSTD_compressBlock_fast_extDict_7_1(ms, seqStore, rep, src, srcSize);
+        }
+    } else {
+        switch (mls) {
+            default: /* includes case 3 */
+            case 4 :
+                return ZSTD_compressBlock_fast_extDict_4_0(ms, seqStore, rep, src, srcSize);
+            case 5 :
+                return ZSTD_compressBlock_fast_extDict_5_0(ms, seqStore, rep, src, srcSize);
+            case 6 :
+                return ZSTD_compressBlock_fast_extDict_6_0(ms, seqStore, rep, src, srcSize);
+            case 7 :
+                return ZSTD_compressBlock_fast_extDict_7_0(ms, seqStore, rep, src, srcSize);
+        }
     }
 }

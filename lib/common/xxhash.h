@@ -3026,7 +3026,7 @@ enum XXH_VECTOR_TYPE /* fake enum */ {
  * have more than 2 NEON (F0/F1) micro-ops. If you are only using NEON instructions,
  * you are only using 2/3 of the CPU bandwidth.
  *
- * This is even more noticable on the more advanced cores like the A76 which
+ * This is even more noticeable on the more advanced cores like the A76 which
  * can dispatch 8 micro-ops per cycle, but still only 2 NEON micro-ops at once.
  *
  * Therefore, @ref XXH3_NEON_LANES lanes will be processed using NEON, and the

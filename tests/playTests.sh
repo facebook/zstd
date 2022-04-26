@@ -418,8 +418,11 @@ println "\n===>  decompression only tests "
 dd bs=1048576 count=1 if=/dev/zero of=tmp
 zstd -d -o tmp1 "$TESTDIR/golden-decompression/rle-first-block.zst"
 $DIFF -s tmp1 tmp
-rm -f tmp*
 
+touch tmp_empty
+zstd -d -o tmp2 "$TESTDIR/golden-decompression/empty-block.zst"
+$DIFF -s tmp2 tmp_empty
+rm -f tmp*
 
 println "\n===>  compress multiple files"
 println hello > tmp1

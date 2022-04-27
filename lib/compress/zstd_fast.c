@@ -581,13 +581,13 @@ size_t ZSTD_compressBlock_fast_dictMatchState(
 
 static size_t ZSTD_compressBlock_fast_extDict_generic(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
-        void const* src, size_t srcSize, U32 const mls, U32 const commonScenario)
+        void const* src, size_t srcSize, U32 const mls, U32 const hasStep)
 {
     const ZSTD_compressionParameters* const cParams = &ms->cParams;
     U32* const hashTable = ms->hashTable;
     U32 const hlog = cParams->hashLog;
     /* support stepSize of 0 */
-    size_t const stepSize = commonScenario ? 2 : (cParams->targetLength + !(cParams->targetLength) + 1);
+    size_t const stepSize = hasStep ? (cParams->targetLength + !(cParams->targetLength) + 1) : 2;
     const BYTE* const base = ms->window.base;
     const BYTE* const dictBase = ms->window.dictBase;
     const BYTE* const istart = (const BYTE*)src;
@@ -633,13 +633,9 @@ static size_t ZSTD_compressBlock_fast_extDict_generic(
 
     {   U32 const curr = (U32)(ip0 - base);
         U32 const maxRep = curr - dictStartIndex;
-        if (commonScenario) {
-            assert(offset_2 < maxRep);
-            assert(offset_1 < maxRep);
-        } else {
-            if (offset_2 >= maxRep) offset_2 = 0;
-            if (offset_1 >= maxRep) offset_1 = 0;
-    }   }
+        if (offset_2 >= maxRep) offset_2 = 0;
+        if (offset_1 >= maxRep) offset_1 = 0;
+    }
 
     /* start each op */
 _start: /* Requires: ip0 */
@@ -669,7 +665,7 @@ _start: /* Requires: ip0 */
             const BYTE* const repBase = repIndex < prefixStartIndex ? dictBase : base;
             U32 rval;
             if ( ((U32)(prefixStartIndex - repIndex) >= 4) /* intentional underflow */
-                 & (commonScenario | (offset_1 > 0)) ) {
+                 & (offset_1 > 0) ) {
                 rval = MEM_read32(repBase + repIndex);
             } else {
                 rval = MEM_read32(ip2) ^ 1; /* guaranteed to not match. */
@@ -694,9 +690,7 @@ _start: /* Requires: ip0 */
         }   }
 
         {   /* load match for ip[0] */
-            U32 const mval = idx >= dictStartIndex ?
-                    MEM_read32(idxBase + idx) :
-                    MEM_read32(ip0) ^ 1; /* guaranteed not to match */
+            U32 const mval = idx >= dictStartIndex ? MEM_read32(idxBase + idx) : MEM_read32(ip0) ^ 1; /* guaranteed not to match */
 
             /* check match at ip[0] */
             if (MEM_read32(ip0) == mval) {
@@ -722,9 +716,7 @@ _start: /* Requires: ip0 */
         hashTable[hash0] = current0;
 
         {   /* load match for ip[0] */
-            U32 const mval = idx >= dictStartIndex ?
-                    MEM_read32(idxBase + idx) :
-                    MEM_read32(ip0) ^ 1; /* guaranteed not to match */
+            U32 const mval = idx >= dictStartIndex ? MEM_read32(idxBase + idx) : MEM_read32(ip0) ^ 1; /* guaranteed not to match */
 
             /* check match at ip[0] */
             if (MEM_read32(ip0) == mval) {
@@ -812,7 +804,7 @@ _match: /* Requires: ip0, match0, offcode, matchEnd */
         while (ip0 <= ilimit) {
             U32 const repIndex2 = (U32)(ip0-base) - offset_2;
             const BYTE* const repMatch2 = repIndex2 < prefixStartIndex ? dictBase + repIndex2 : base + repIndex2;
-            if ( (((U32)((prefixStartIndex-1) - repIndex2) >= 3) & (commonScenario | (offset_2 > 0)))  /* intentional underflow */
+            if ( (((U32)((prefixStartIndex-1) - repIndex2) >= 3) & (offset_2 > 0))  /* intentional underflow */
                  && (MEM_read32(repMatch2) == MEM_read32(ip0)) ) {
                 const BYTE* const repEnd2 = repIndex2 < prefixStartIndex ? dictEnd : iend;
                 size_t const repLength2 = ZSTD_count_2segments(ip0+4, repMatch2+4, iend, repEnd2, prefixStart) + 4;
@@ -844,17 +836,8 @@ size_t ZSTD_compressBlock_fast_extDict(
         void const* src, size_t srcSize)
 {
     U32 const mls = ms->cParams.minMatch;
-    const BYTE* const istart = (const BYTE*)src;
-    const BYTE* const base = ms->window.base;
-    const U32 endIndex = (U32)((size_t)(istart - base) + srcSize);
-    const U32 lowLimit = ZSTD_getLowestMatchIndex(ms, endIndex, ms->cParams.windowLog);
-    U32 const curr = (U32)(istart - base);
-    U32 const maxRep = curr - lowLimit;
-    U32 const repOffsetsAreValid = (rep[0] < maxRep) & (rep[1] < maxRep);
-
-    assert((rep[0] > 0) & (rep[1] > 0));
     assert(ms->dictMatchState == NULL);
-    if ((ms->cParams.targetLength <= 1) & repOffsetsAreValid) {
+    if (ms->cParams.targetLength > 1) {
         switch (mls) {
             default: /* includes case 3 */
             case 4 :

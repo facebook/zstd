@@ -690,7 +690,9 @@ _start: /* Requires: ip0 */
         }   }
 
         {   /* load match for ip[0] */
-            U32 const mval = idx >= dictStartIndex ? MEM_read32(idxBase + idx) : MEM_read32(ip0) ^ 1; /* guaranteed not to match */
+            U32 const mval = idx >= dictStartIndex ?
+                    MEM_read32(idxBase + idx) :
+                    MEM_read32(ip0) ^ 1; /* guaranteed not to match */
 
             /* check match at ip[0] */
             if (MEM_read32(ip0) == mval) {
@@ -716,7 +718,9 @@ _start: /* Requires: ip0 */
         hashTable[hash0] = current0;
 
         {   /* load match for ip[0] */
-            U32 const mval = idx >= dictStartIndex ? MEM_read32(idxBase + idx) : MEM_read32(ip0) ^ 1; /* guaranteed not to match */
+            U32 const mval = idx >= dictStartIndex ?
+                    MEM_read32(idxBase + idx) :
+                    MEM_read32(ip0) ^ 1; /* guaranteed not to match */
 
             /* check match at ip[0] */
             if (MEM_read32(ip0) == mval) {

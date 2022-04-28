@@ -176,11 +176,8 @@ zstreamtest zstreamtest32 :
 	$(LINK.c) $^ -o $@$(EXT)
 
 zstreamtest_asan : CFLAGS += -fsanitize=address
-zstreamtest_asan : $(ZSTREAMFILES)
-	$(LINK.c) $(MULTITHREAD) $^ -o $@$(EXT)
-
 zstreamtest_tsan : CFLAGS += -fsanitize=thread
-zstreamtest_tsan : $(ZSTREAMFILES)
+zstreamtest_asan zstreamtest_tsan : $(ZSTREAMFILES)
 	$(LINK.c) $(MULTITHREAD) $^ -o $@$(EXT)
 
 # note : broken : requires symbols unavailable from dynamic library
@@ -346,11 +343,11 @@ test-fuzzer32: fuzzer32
 	$(QEMU_SYS) ./fuzzer32 -v $(FUZZERTEST) $(FUZZER_FLAGS)
 
 test-zstream: zstreamtest
-	$(QEMU_SYS) ./zstreamtest -v $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
-	$(QEMU_SYS) ./zstreamtest --newapi -t1 $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
+	MALLOC_PERTURB_=124 $(QEMU_SYS) ./zstreamtest -v $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
+	MALLOC_PERTURB_=124 $(QEMU_SYS) ./zstreamtest --newapi -t1 $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
 
 test-zstream32: zstreamtest32
-	$(QEMU_SYS) ./zstreamtest32 $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
+	MALLOC_PERTURB_=124 $(QEMU_SYS) ./zstreamtest32 $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
 
 test-longmatch: longmatch
 	$(QEMU_SYS) ./longmatch

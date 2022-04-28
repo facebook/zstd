@@ -587,7 +587,7 @@ static size_t ZSTD_compressBlock_fast_extDict_generic(
     U32* const hashTable = ms->hashTable;
     U32 const hlog = cParams->hashLog;
     /* support stepSize of 0 */
-    size_t const stepSize = hasStep ? (cParams->targetLength + !(cParams->targetLength) + 1) : 2;
+    size_t const stepSize = cParams->targetLength + !(cParams->targetLength) + 1;
     const BYTE* const base = ms->window.base;
     const BYTE* const dictBase = ms->window.dictBase;
     const BYTE* const istart = (const BYTE*)src;
@@ -624,6 +624,8 @@ static size_t ZSTD_compressBlock_fast_extDict_generic(
     size_t step;
     const BYTE* nextStep;
     const size_t kStepIncr = (1 << (kSearchStrength - 1));
+
+    (void)hasStep; /* not currently specialized on whether it's accelerated */
 
     DEBUGLOG(5, "ZSTD_compressBlock_fast_extDict_generic (offset_1=%u)", offset_1);
 
@@ -825,11 +827,6 @@ _match: /* Requires: ip0, match0, offcode, matchEnd */
     goto _start;
 }
 
-ZSTD_GEN_FAST_FN(extDict, 4, 1)
-ZSTD_GEN_FAST_FN(extDict, 5, 1)
-ZSTD_GEN_FAST_FN(extDict, 6, 1)
-ZSTD_GEN_FAST_FN(extDict, 7, 1)
-
 ZSTD_GEN_FAST_FN(extDict, 4, 0)
 ZSTD_GEN_FAST_FN(extDict, 5, 0)
 ZSTD_GEN_FAST_FN(extDict, 6, 0)
@@ -841,29 +838,16 @@ size_t ZSTD_compressBlock_fast_extDict(
 {
     U32 const mls = ms->cParams.minMatch;
     assert(ms->dictMatchState == NULL);
-    if (ms->cParams.targetLength > 1) {
-        switch (mls) {
-            default: /* includes case 3 */
-            case 4 :
-                return ZSTD_compressBlock_fast_extDict_4_1(ms, seqStore, rep, src, srcSize);
-            case 5 :
-                return ZSTD_compressBlock_fast_extDict_5_1(ms, seqStore, rep, src, srcSize);
-            case 6 :
-                return ZSTD_compressBlock_fast_extDict_6_1(ms, seqStore, rep, src, srcSize);
-            case 7 :
-                return ZSTD_compressBlock_fast_extDict_7_1(ms, seqStore, rep, src, srcSize);
-        }
-    } else {
-        switch (mls) {
-            default: /* includes case 3 */
-            case 4 :
-                return ZSTD_compressBlock_fast_extDict_4_0(ms, seqStore, rep, src, srcSize);
-            case 5 :
-                return ZSTD_compressBlock_fast_extDict_5_0(ms, seqStore, rep, src, srcSize);
-            case 6 :
-                return ZSTD_compressBlock_fast_extDict_6_0(ms, seqStore, rep, src, srcSize);
-            case 7 :
-                return ZSTD_compressBlock_fast_extDict_7_0(ms, seqStore, rep, src, srcSize);
-        }
+    switch(mls)
+    {
+    default: /* includes case 3 */
+    case 4 :
+        return ZSTD_compressBlock_fast_extDict_4_0(ms, seqStore, rep, src, srcSize);
+    case 5 :
+        return ZSTD_compressBlock_fast_extDict_5_0(ms, seqStore, rep, src, srcSize);
+    case 6 :
+        return ZSTD_compressBlock_fast_extDict_6_0(ms, seqStore, rep, src, srcSize);
+    case 7 :
+        return ZSTD_compressBlock_fast_extDict_7_0(ms, seqStore, rep, src, srcSize);
     }
 }

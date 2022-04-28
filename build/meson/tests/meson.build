@@ -38,7 +38,7 @@ testcommon_sources = [join_paths(zstd_rootdir, 'programs/datagen.c'),
 testcommon = static_library('testcommon',
   testcommon_sources,
   # needed due to use of private symbol + -fvisibility=hidden
-  objects: libzstd.extract_all_objects(recursive: false))
+  link_with: libzstd_static)
 
 testcommon_dep = declare_dependency(link_with: testcommon,
   dependencies: libzstd_deps,

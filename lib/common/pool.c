@@ -12,7 +12,7 @@
 /* ======   Dependencies   ======= */
 #include "zstd_deps.h" /* size_t */
 #include "debug.h"     /* assert */
-#include "zstd_internal.h"  /* ZSTD_customMalloc, ZSTD_customFree */
+#include "zstd_internal.h"  /* ZSTD_customCalloc, ZSTD_customFree */
 #include "pool.h"
 
 /* ======   Compiler specifics   ====== */
@@ -126,7 +126,7 @@ POOL_ctx* POOL_create_advanced(size_t numThreads, size_t queueSize,
      * empty and full queues.
      */
     ctx->queueSize = queueSize + 1;
-    ctx->queue = (POOL_job*)ZSTD_customMalloc(ctx->queueSize * sizeof(POOL_job), customMem);
+    ctx->queue = (POOL_job*)ZSTD_customCalloc(ctx->queueSize * sizeof(POOL_job), customMem);
     ctx->queueHead = 0;
     ctx->queueTail = 0;
     ctx->numThreadsBusy = 0;
@@ -140,7 +140,7 @@ POOL_ctx* POOL_create_advanced(size_t numThreads, size_t queueSize,
     }
     ctx->shutdown = 0;
     /* Allocate space for the thread handles */
-    ctx->threads = (ZSTD_pthread_t*)ZSTD_customMalloc(numThreads * sizeof(ZSTD_pthread_t), customMem);
+    ctx->threads = (ZSTD_pthread_t*)ZSTD_customCalloc(numThreads * sizeof(ZSTD_pthread_t), customMem);
     ctx->threadCapacity = 0;
     ctx->customMem = customMem;
     /* Check for errors */
@@ -220,7 +220,7 @@ static int POOL_resize_internal(POOL_ctx* ctx, size_t numThreads)
         return 0;
     }
     /* numThreads > threadCapacity */
-    {   ZSTD_pthread_t* const threadPool = (ZSTD_pthread_t*)ZSTD_customMalloc(numThreads * sizeof(ZSTD_pthread_t), ctx->customMem);
+    {   ZSTD_pthread_t* const threadPool = (ZSTD_pthread_t*)ZSTD_customCalloc(numThreads * sizeof(ZSTD_pthread_t), ctx->customMem);
         if (!threadPool) return 1;
         /* replace existing thread pool */
         ZSTD_memcpy(threadPool, ctx->threads, ctx->threadCapacity * sizeof(*threadPool));

@@ -126,6 +126,35 @@ libzstd = library('zstd',
 libzstd_dep = declare_dependency(link_with: libzstd,
   include_directories: libzstd_includes)
 
+# we link to both:
+# - the shared library (for public symbols)
+# - the static library (for private symbols)
+#
+# this is needed because internally private symbols are used all the time, and
+# -fvisibility=hidden means those cannot be found
+if get_option('default_library') == 'static'
+  libzstd_static = libzstd
+  libzstd_internal_dep = libzstd_dep
+else
+  if get_option('default_library') == 'shared'
+    libzstd_static = static_library('zstd_objlib',
+      objects: libzstd.extract_all_objects(recursive: true),
+      build_by_default: false)
+  else
+    libzstd_static = libzstd.get_static_lib()
+  endif
+
+  if cc_id == compiler_msvc
+    # msvc does not actually support linking to both, but errors out with:
+    #   error LNK2005: ZSTD_<foo> already defined in zstd.lib(zstd-1.dll)
+    libzstd_internal_dep = declare_dependency(link_with: libzstd_static)
+  else
+    libzstd_internal_dep = declare_dependency(link_with: libzstd,
+      # the static library must be linked after the shared one
+      dependencies: declare_dependency(link_with: libzstd_static))
+  endif
+endif
+
 pkgconfig.generate(libzstd,
   name: 'libzstd',
   filebase: 'libzstd',

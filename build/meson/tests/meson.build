@@ -38,7 +38,7 @@ testcommon_sources = [join_paths(zstd_rootdir, 'programs/datagen.c'),
 testcommon = static_library('testcommon',
   testcommon_sources,
   # needed due to use of private symbol + -fvisibility=hidden
-  objects: libzstd.extract_all_objects(recursive: false))
+  link_with: libzstd_static)
 
 testcommon_dep = declare_dependency(link_with: testcommon,
   dependencies: libzstd_deps,
@@ -116,11 +116,7 @@ decodecorpus = executable('decodecorpus',
   dependencies: [ testcommon_dep, libm_dep ],
   install: false)
 
-poolTests_sources = [join_paths(zstd_rootdir, 'tests/poolTests.c'),
-  join_paths(zstd_rootdir, 'lib/common/pool.c'),
-  join_paths(zstd_rootdir, 'lib/common/threading.c'),
-  join_paths(zstd_rootdir, 'lib/common/zstd_common.c'),
-  join_paths(zstd_rootdir, 'lib/common/error_private.c')]
+poolTests_sources = [join_paths(zstd_rootdir, 'tests/poolTests.c')]
 poolTests = executable('poolTests',
   poolTests_sources,
   include_directories: test_includes,

@@ -19,17 +19,12 @@ zstd_programs_sources = [join_paths(zstd_rootdir, 'programs/zstdcli.c'),
   join_paths(zstd_rootdir, 'programs/benchzstd.c'),
   join_paths(zstd_rootdir, 'programs/datagen.c'),
   join_paths(zstd_rootdir, 'programs/dibio.c'),
-  join_paths(zstd_rootdir, 'programs/zstdcli_trace.c'),
-  # needed due to use of private symbol + -fvisibility=hidden
-  join_paths(zstd_rootdir, 'lib/common/xxhash.c'),
-  join_paths(zstd_rootdir, 'lib/common/pool.c'),
-  join_paths(zstd_rootdir, 'lib/common/zstd_common.c'),
-  join_paths(zstd_rootdir, 'lib/common/error_private.c')]
+  join_paths(zstd_rootdir, 'programs/zstdcli_trace.c')]
 
-zstd_deps = [ libzstd_dep ]
+zstd_deps = [ libzstd_internal_dep ]
 zstd_c_args = libzstd_debug_cflags
 
-zstd_frugal_deps = [ libzstd_dep ]
+zstd_frugal_deps = [ libzstd_internal_dep ]
 zstd_frugal_c_args = [ '-DZSTD_NOBENCH', '-DZSTD_NODICT', '-DZSTD_NOTRACE' ]
 
 if use_multi_thread
@@ -82,10 +77,7 @@ zstd_frugal_sources = [join_paths(zstd_rootdir, 'programs/zstdcli.c'),
   join_paths(zstd_rootdir, 'programs/timefn.c'),
   join_paths(zstd_rootdir, 'programs/util.c'),
   join_paths(zstd_rootdir, 'programs/fileio.c'),
-  join_paths(zstd_rootdir, 'programs/fileio_asyncio.c'),
-  join_paths(zstd_rootdir, 'lib/common/pool.c'),
-  join_paths(zstd_rootdir, 'lib/common/zstd_common.c'),
-  join_paths(zstd_rootdir, 'lib/common/error_private.c')]
+  join_paths(zstd_rootdir, 'programs/fileio_asyncio.c')]
 
 # Minimal target, with only zstd compression and decompression.
 # No bench. No legacy.

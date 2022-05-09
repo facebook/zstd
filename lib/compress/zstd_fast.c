@@ -254,7 +254,7 @@ _cleanup:
      * However, it seems to be a meaningful performance hit to try to search
      * them. So let's not. */
 
-    /* If rep_offset1 started invalid (offsetSaved1 != 0) and became valid (rep_offset1 != 0),
+    /* If rep_offset1 started invalid (offsetSaved1 > 0) and became valid (rep_offset1 > 0),
      * rotate saved offsets. */
     offsetSaved2 = ((offsetSaved1 > 0) & (rep_offset1 > 0)) ? offsetSaved1 : offsetSaved2;
 
@@ -762,7 +762,7 @@ _cleanup:
      * However, it seems to be a meaningful performance hit to try to search
      * them. So let's not. */
 
-    /* If offset_1 started invalid (offsetSaved1 != 0) and became valid (offset_1 != 0),
+    /* If offset_1 started invalid (offsetSaved1 > 0) and became valid (offset_1 > 0),
      * rotate saved offsets. */
     offsetSaved2 = ((offsetSaved1 > 0) & (offset_1 > 0)) ? offsetSaved1 : offsetSaved2;
 

@@ -224,6 +224,23 @@ _start: /* Requires: ip0 */
         /* check match at ip[0] */
         if (MEM_read32(ip0) == mval) {
             /* found a match! */
+            if (step > 4) {
+                /* We need to avoid writing an index into the hash table >= the
+                 * position at which we will pick up our searching after we've
+                 * taken this match.
+                 *
+                 * The minimum possible match has length 4, so the earliest ip0
+                 * can be after we take this match will be the current ip0 + 4.
+                 * ip1 is ip0 + step - 1. If ip1 is >= ip0 + 4, we can't safely
+                 * write this position. The expedient thing to do is just to
+                 * write a bad position.
+                 *
+                 * We perform this check here, separate from the write, because
+                 * this is the only match path where this can occur. (In rep-
+                 * code and the first match checks, ip1 == ip0 + 1.)
+                 */
+                ip1 = base;
+            }
             goto _offset;
         }
 
@@ -288,9 +305,7 @@ _match: /* Requires: ip0, match0, offcode */
     anchor = ip0;
 
     /* write next hash table entry */
-    if (ip1 < ip0) {
-        hashTable[hash1] = (U32)(ip1 - base);
-    }
+    hashTable[hash1] = (U32)(ip1 - base);
 
     /* Fill table and check for immediate repcode. */
     if (ip0 <= ilimit) {

@@ -183,7 +183,9 @@ _start: /* Requires: ip0 */
             offcode = REPCODE1_TO_OFFBASE;
             mLength += 4;
 
-            /* first write next hash table entry; we've already calculated it */
+            /* First write next hash table entry; we've already calculated it.
+             * This write is known to be safe because the ip1 is before the
+             * repcode (ip2). */
             hashTable[hash1] = (U32)(ip1 - base);
 
             goto _match;
@@ -200,7 +202,9 @@ _start: /* Requires: ip0 */
         if (MEM_read32(ip0) == mval) {
             /* found a match! */
 
-            /* first write next hash table entry; we've already calculated it */
+            /* First write next hash table entry; we've already calculated it.
+             * This write is known to be safe because the ip1 == ip0 + 1, so
+             * we know we will resume searching after ip1 */
             hashTable[hash1] = (U32)(ip1 - base);
 
             goto _offset;
@@ -242,12 +246,7 @@ _start: /* Requires: ip0 */
                  * The minimum possible match has length 4, so the earliest ip0
                  * can be after we take this match will be the current ip0 + 4.
                  * ip1 is ip0 + step - 1. If ip1 is >= ip0 + 4, we can't safely
-                 * write this position. The expedient thing to do is just to
-                 * write a bad position.
-                 *
-                 * We perform this check here, separate from the write, because
-                 * this is the only match path where this can occur. (In rep-
-                 * code and the first match checks, ip1 == ip0 + 1.)
+                 * write this position.
                  */
                 hashTable[hash1] = (U32)(ip1 - base);
             }

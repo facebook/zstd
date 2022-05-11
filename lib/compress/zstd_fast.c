@@ -182,6 +182,10 @@ _start: /* Requires: ip0 */
             match0 -= mLength;
             offcode = REPCODE1_TO_OFFBASE;
             mLength += 4;
+
+            /* first write next hash table entry; we've already calculated it */
+            hashTable[hash1] = (U32)(ip1 - base);
+
             goto _match;
         }
 
@@ -195,6 +199,10 @@ _start: /* Requires: ip0 */
         /* check match at ip[0] */
         if (MEM_read32(ip0) == mval) {
             /* found a match! */
+
+            /* first write next hash table entry; we've already calculated it */
+            hashTable[hash1] = (U32)(ip1 - base);
+
             goto _offset;
         }
 
@@ -224,7 +232,9 @@ _start: /* Requires: ip0 */
         /* check match at ip[0] */
         if (MEM_read32(ip0) == mval) {
             /* found a match! */
-            if (step > 4) {
+
+            /* first write next hash table entry; we've already calculated it */
+            if (step <= 4) {
                 /* We need to avoid writing an index into the hash table >= the
                  * position at which we will pick up our searching after we've
                  * taken this match.
@@ -239,8 +249,9 @@ _start: /* Requires: ip0 */
                  * this is the only match path where this can occur. (In rep-
                  * code and the first match checks, ip1 == ip0 + 1.)
                  */
-                ip1 = base;
+                hashTable[hash1] = (U32)(ip1 - base);
             }
+
             goto _offset;
         }
 
@@ -303,9 +314,6 @@ _match: /* Requires: ip0, match0, offcode */
 
     ip0 += mLength;
     anchor = ip0;
-
-    /* write next hash table entry */
-    hashTable[hash1] = (U32)(ip1 - base);
 
     /* Fill table and check for immediate repcode. */
     if (ip0 <= ilimit) {

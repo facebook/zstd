@@ -1461,7 +1461,8 @@ ZSTD_compressBlock_lazy_generic(
     const BYTE* const prefixLowest = base + prefixLowestIndex;
 
     searchMax_f const searchMax = ZSTD_selectLazyVTable(ms, searchMethod, dictMode)->searchMax;
-    U32 offset_1 = rep[0], offset_2 = rep[1], savedOffset=0;
+    U32 offset_1 = rep[0], offset_2 = rep[1];
+    U32 offsetSaved1 = 0, offsetSaved2 = 0;
 
     const int isDMS = dictMode == ZSTD_dictMatchState;
     const int isDDS = dictMode == ZSTD_dedicatedDictSearch;
@@ -1484,8 +1485,8 @@ ZSTD_compressBlock_lazy_generic(
         U32 const curr = (U32)(ip - base);
         U32 const windowLow = ZSTD_getLowestPrefixIndex(ms, curr, ms->cParams.windowLog);
         U32 const maxRep = curr - windowLow;
-        if (offset_2 > maxRep) savedOffset = offset_2, offset_2 = 0;
-        if (offset_1 > maxRep) savedOffset = offset_1, offset_1 = 0;
+        if (offset_2 > maxRep) offsetSaved2 = offset_2, offset_2 = 0;
+        if (offset_1 > maxRep) offsetSaved1 = offset_1, offset_1 = 0;
     }
     if (isDxS) {
         /* dictMatchState repCode checks don't currently handle repCode == 0
@@ -1681,9 +1682,13 @@ _storeSequence:
                 continue;   /* faster when present ... (?) */
     }   }   }
 
-    /* Save reps for next block */
-    rep[0] = offset_1 ? offset_1 : savedOffset;
-    rep[1] = offset_2 ? offset_2 : savedOffset;
+    /* If offset_1 started invalid (offsetSaved1 != 0) and became valid (offset_1 != 0),
+     * rotate saved offsets. See comment in ZSTD_compressBlock_fast_noDict for more context. */
+    offsetSaved2 = ((offsetSaved1 != 0) && (offset_1 != 0)) ? offsetSaved1 : offsetSaved2;
+
+    /* save reps for next block */
+    rep[0] = offset_1 ? offset_1 : offsetSaved1;
+    rep[1] = offset_2 ? offset_2 : offsetSaved2;
 
     /* Return the last literals size */
     return (size_t)(iend - anchor);

@@ -117,7 +117,7 @@ ZSTD_compressBlock_fast_noDict_generic(
 
     U32 rep_offset1 = rep[0];
     U32 rep_offset2 = rep[1];
-    U32 offsetSaved = 0;
+    U32 offsetSaved1 = 0, offsetSaved2 = 0;
 
     size_t hash0; /* hash for ip0 */
     size_t hash1; /* hash for ip1 */
@@ -141,8 +141,8 @@ ZSTD_compressBlock_fast_noDict_generic(
     {   U32 const curr = (U32)(ip0 - base);
         U32 const windowLow = ZSTD_getLowestPrefixIndex(ms, curr, cParams->windowLog);
         U32 const maxRep = curr - windowLow;
-        if (rep_offset2 > maxRep) offsetSaved = rep_offset2, rep_offset2 = 0;
-        if (rep_offset1 > maxRep) offsetSaved = rep_offset1, rep_offset1 = 0;
+        if (rep_offset2 > maxRep) offsetSaved2 = rep_offset2, rep_offset2 = 0;
+        if (rep_offset1 > maxRep) offsetSaved1 = rep_offset1, rep_offset1 = 0;
     }
 
     /* start each op */
@@ -281,9 +281,24 @@ _cleanup:
      * However, it seems to be a meaningful performance hit to try to search
      * them. So let's not. */
 
+    /* When the repcodes are outside of the prefix, we set them to zero before the loop.
+     * When the offsets are still zero, we need to restore them after the block to have a correct
+     * repcode history. If only one offset was invalid, it is easy. The tricky case is when both
+     * offsets were invalid. We need to figure out which offset to refill with.
+     *     - If both offsets are zero they are in the same order.
+     *     - If both offsets are non-zero, we won't restore the offsets from `offsetSaved[12]`.
+     *     - If only one is zero, we need to decide which offset to restore.
+     *         - If rep_offset1 is non-zero, then rep_offset2 must be offsetSaved1.
+     *         - It is impossible for rep_offset2 to be non-zero.
+     *
+     * So if rep_offset1 started invalid (offsetSaved1 != 0) and became valid (rep_offset1 != 0), then
+     * set rep[0] = rep_offset1 and rep[1] = offsetSaved1.
+     */
+    offsetSaved2 = ((offsetSaved1 != 0) && (rep_offset1 != 0)) ? offsetSaved1 : offsetSaved2;
+
     /* save reps for next block */
-    rep[0] = rep_offset1 ? rep_offset1 : offsetSaved;
-    rep[1] = rep_offset2 ? rep_offset2 : offsetSaved;
+    rep[0] = rep_offset1 ? rep_offset1 : offsetSaved1;
+    rep[1] = rep_offset2 ? rep_offset2 : offsetSaved2;
 
     /* Return the last literals size */
     return (size_t)(iend - anchor);
@@ -410,7 +425,6 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - HASH_READ_SIZE;
     U32 offset_1=rep[0], offset_2=rep[1];
-    U32 offsetSaved = 0;
 
     const ZSTD_matchState_t* const dms = ms->dictMatchState;
     const ZSTD_compressionParameters* const dictCParams = &dms->cParams ;
@@ -567,8 +581,8 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
 
 _cleanup:
     /* save reps for next block */
-    rep[0] = offset_1 ? offset_1 : offsetSaved;
-    rep[1] = offset_2 ? offset_2 : offsetSaved;
+    rep[0] = offset_1;
+    rep[1] = offset_2;
 
     /* Return the last literals size */
     return (size_t)(iend - anchor);
@@ -625,6 +639,7 @@ static size_t ZSTD_compressBlock_fast_extDict_generic(
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - 8;
     U32 offset_1=rep[0], offset_2=rep[1];
+    U32 offsetSaved1 = 0, offsetSaved2 = 0;
 
     const BYTE* ip0 = istart;
     const BYTE* ip1;
@@ -657,8 +672,8 @@ static size_t ZSTD_compressBlock_fast_extDict_generic(
 
     {   U32 const curr = (U32)(ip0 - base);
         U32 const maxRep = curr - dictStartIndex;
-        if (offset_2 >= maxRep) offset_2 = 0;
-        if (offset_1 >= maxRep) offset_1 = 0;
+        if (offset_2 >= maxRep) offsetSaved2 = offset_2, offset_2 = 0;
+        if (offset_1 >= maxRep) offsetSaved1 = offset_1, offset_1 = 0;
     }
 
     /* start each op */
@@ -780,9 +795,13 @@ _cleanup:
      * However, it seems to be a meaningful performance hit to try to search
      * them. So let's not. */
 
+    /* If offset_1 started invalid (offsetSaved1 != 0) and became valid (offset_1 != 0),
+     * rotate saved offsets. See comment in ZSTD_compressBlock_fast_noDict for more context. */
+    offsetSaved2 = ((offsetSaved1 != 0) && (offset_1 != 0)) ? offsetSaved1 : offsetSaved2;
+
     /* save reps for next block */
-    rep[0] = offset_1 ? offset_1 : rep[0];
-    rep[1] = offset_2 ? offset_2 : rep[1];
+    rep[0] = offset_1 ? offset_1 : offsetSaved1;
+    rep[1] = offset_2 ? offset_2 : offsetSaved2;
 
     /* Return the last literals size */
     return (size_t)(iend - anchor);

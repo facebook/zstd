@@ -175,9 +175,9 @@ size_t ZSTD_compressBlock_doubleFast_noDict_generic(
         } while (ip1 <= ilimit);
 
 _cleanup:
-        /* If offset_1 started invalid (offsetSaved1 > 0) and became valid (offset_1 > 0),
-         * rotate saved offsets. */
-        offsetSaved2 = ((offsetSaved1 > 0) & (offset_1 > 0)) ? offsetSaved1 : offsetSaved2;
+        /* If offset_1 started invalid (offsetSaved1 != 0) and became valid (offset_1 != 0),
+         * rotate saved offsets. See comment in ZSTD_compressBlock_fast_noDict for more context. */
+        offsetSaved2 = ((offsetSaved1 != 0) && (offset_1 != 0)) ? offsetSaved1 : offsetSaved2;
 
         /* save reps for next block */
         rep[0] = offset_1 ? offset_1 : offsetSaved1;

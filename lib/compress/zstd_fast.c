@@ -254,9 +254,20 @@ _cleanup:
      * However, it seems to be a meaningful performance hit to try to search
      * them. So let's not. */
 
-    /* If rep_offset1 started invalid (offsetSaved1 > 0) and became valid (rep_offset1 > 0),
-     * rotate saved offsets. */
-    offsetSaved2 = ((offsetSaved1 > 0) & (rep_offset1 > 0)) ? offsetSaved1 : offsetSaved2;
+    /* When the repcodes are outside of the prefix, we set them to zero before the loop.
+     * When the offsets are still zero, we need to restore them after the block to have a correct
+     * repcode history. If only one offset was invalid, it is easy. The tricky case is when both
+     * offsets were invalid. We need to figure out which offset to refill with.
+     *     - If both offsets are zero they are in the same order.
+     *     - If both offsets are non-zero, we won't restore the offsets from `offsetSaved[12]`.
+     *     - If only one is zero, we need to decide which offset to restore.
+     *         - If rep_offset1 is non-zero, then rep_offset2 must be offsetSaved1.
+     *         - It is impossible for rep_offset2 to be non-zero.
+     *
+     * So if rep_offset1 started invalid (offsetSaved1 != 0) and became valid (rep_offset1 != 0), then
+     * set rep[0] = rep_offset1 and rep[1] = offsetSaved1.
+     */
+    offsetSaved2 = ((offsetSaved1 != 0) && (rep_offset1 != 0)) ? offsetSaved1 : offsetSaved2;
 
     /* save reps for next block */
     rep[0] = rep_offset1 ? rep_offset1 : offsetSaved1;
@@ -762,9 +773,9 @@ _cleanup:
      * However, it seems to be a meaningful performance hit to try to search
      * them. So let's not. */
 
-    /* If offset_1 started invalid (offsetSaved1 > 0) and became valid (offset_1 > 0),
-     * rotate saved offsets. */
-    offsetSaved2 = ((offsetSaved1 > 0) & (offset_1 > 0)) ? offsetSaved1 : offsetSaved2;
+    /* If offset_1 started invalid (offsetSaved1 != 0) and became valid (offset_1 != 0),
+     * rotate saved offsets. See comment in ZSTD_compressBlock_fast_noDict for more context. */
+    offsetSaved2 = ((offsetSaved1 != 0) && (offset_1 != 0)) ? offsetSaved1 : offsetSaved2;
 
     /* save reps for next block */
     rep[0] = offset_1 ? offset_1 : offsetSaved1;

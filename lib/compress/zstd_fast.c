@@ -476,9 +476,8 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
         size_t hash0 = ZSTD_hashPtr(ip0, hlog, mls);
 
         size_t const dictHashAndTag0 = ZSTD_hashPtr(ip0, dictHLog + ZSTD_FAST_TAG_BITS, mls);
-        U32 dictMatchIndex = dictHashTable[dictHashAndTag0 >> ZSTD_FAST_TAG_BITS] >> ZSTD_FAST_TAG_BITS;
-        U32 dictMatchTag = dictHashTable[dictHashAndTag0 >> ZSTD_FAST_TAG_BITS] & ZSTD_FAST_TAG_MASK;
-        size_t currTag = dictHashAndTag0 & ZSTD_FAST_TAG_MASK;
+        U32 dictMatchIndexAndTag = dictHashTable[dictHashAndTag0 >> ZSTD_FAST_TAG_BITS];
+        size_t dictTagsMatch = (dictMatchIndexAndTag & ZSTD_FAST_TAG_MASK) == (dictHashAndTag0 & ZSTD_FAST_TAG_MASK);
 
         U32 matchIndex = hashTable[hash0];
         U32 curr = (U32)(ip0 - base);
@@ -507,8 +506,9 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
                 break;
             }
 
-            if (dictMatchTag == currTag) {
+            if (dictTagsMatch) {
                 /* found a possible dict match */
+                const U32 dictMatchIndex = dictMatchIndexAndTag >> ZSTD_FAST_TAG_BITS;
                 const BYTE* dictMatch = dictBase + dictMatchIndex;
                 if (dictMatchIndex > dictStartIndex &&
                     MEM_read32(dictMatch) == MEM_read32(ip0)) {
@@ -547,9 +547,8 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
             }
 
             /* Prepare for next iteration */
-            dictMatchIndex = dictHashTable[dictHashAndTag1 >> ZSTD_FAST_TAG_BITS] >> ZSTD_FAST_TAG_BITS;
-            dictMatchTag = dictHashTable[dictHashAndTag1 >> ZSTD_FAST_TAG_BITS] & ZSTD_FAST_TAG_MASK;
-            currTag = dictHashAndTag1 & ZSTD_FAST_TAG_MASK;
+            dictMatchIndexAndTag = dictHashTable[dictHashAndTag1 >> ZSTD_FAST_TAG_BITS];
+            dictTagsMatch = (dictMatchIndexAndTag & ZSTD_FAST_TAG_MASK) == (dictHashAndTag1 & ZSTD_FAST_TAG_MASK);
             matchIndex = hashTable[hash1];
 
             if (ip1 >= nextStep) {

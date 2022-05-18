@@ -508,13 +508,12 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
             }
 
             if (dictMatchTag == currTag) {
-                /* We only look for a dict match if the normal matchIndex is invalid */
+                /* found a possible dict match */
                 const BYTE* dictMatch = dictBase + dictMatchIndex;
-//                TODO size_t const currTag = dictHashAndTag1 & ZSTD_FAST_TAG_BITS; TODO
                 if (dictMatchIndex > dictStartIndex &&
                     MEM_read32(dictMatch) == MEM_read32(ip0)) {
+                    /* We only look for a dict match if the normal matchIndex is invalid */
                     if (matchIndex <= prefixStartIndex) {
-                        /* found a dict match */
                         U32 const offset = (U32) (curr - dictMatchIndex - dictIndexDelta);
                         mLength = ZSTD_count_2segments(ip0 + 4, dictMatch + 4, iend, dictEnd, prefixStart) + 4;
                         while (((ip0 > anchor) & (dictMatch > dictStart))

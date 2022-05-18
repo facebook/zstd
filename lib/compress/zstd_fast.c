@@ -505,11 +505,11 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
                 ip0++;
                 ZSTD_storeSeq(seqStore, (size_t) (ip0 - anchor), anchor, iend, REPCODE1_TO_OFFBASE, mLength);
                 break;
-            } else if (matchIndex <= prefixStartIndex) {
+            } else if ((matchIndex <= prefixStartIndex) & (dictMatchTag == currTag)) {
                 /* We only look for a dict match if the normal matchIndex is invalid */
                 const BYTE* dictMatch = dictBase + dictMatchIndex;
 //                TODO size_t const currTag = dictHashAndTag1 & ZSTD_FAST_TAG_BITS; TODO
-                if (( (dictMatchIndex > dictStartIndex) & (dictMatchTag == currTag) ) &&
+                if (dictMatchIndex > dictStartIndex &&
                     MEM_read32(dictMatch) == MEM_read32(ip0)) {
                     /* found a dict match */
                     U32 const offset = (U32) (curr - dictMatchIndex - dictIndexDelta);
@@ -525,7 +525,7 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
                     ZSTD_storeSeq(seqStore, (size_t) (ip0 - anchor), anchor, iend, OFFSET_TO_OFFBASE(offset), mLength);
                     break;
                 }
-            } else if (MEM_read32(match) == MEM_read32(ip0)) {
+            } else if (matchIndex > prefixStartIndex && MEM_read32(match) == MEM_read32(ip0)) {
                 /* found a regular match */
                 U32 const offset = (U32) (ip0 - match);
                 mLength = ZSTD_count(ip0 + 4, match + 4, iend) + 4;

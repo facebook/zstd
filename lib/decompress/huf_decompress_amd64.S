@@ -21,7 +21,7 @@
 
 /* Calling convention:
  *
- * %rdi contains the first argument: HUF_DecompressAsmArgs*.
+ * %rdi contains the first argument: HUF_DecompressFastArgs*.
  * %rbp isn't maintained (no frame pointer).
  * %rsp contains the stack pointer that grows down.
  *      No red-zone is assumed, only addresses >= %rsp are used.
@@ -30,14 +30,14 @@
  * TODO: Support Windows calling convention.
  */
 
-ZSTD_HIDE_ASM_FUNCTION(HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop)
-ZSTD_HIDE_ASM_FUNCTION(HUF_decompress4X2_usingDTable_internal_bmi2_asm_loop)
-ZSTD_HIDE_ASM_FUNCTION(_HUF_decompress4X2_usingDTable_internal_bmi2_asm_loop)
-ZSTD_HIDE_ASM_FUNCTION(_HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop)
-.global HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop
-.global HUF_decompress4X2_usingDTable_internal_bmi2_asm_loop
-.global _HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop
-.global _HUF_decompress4X2_usingDTable_internal_bmi2_asm_loop
+ZSTD_HIDE_ASM_FUNCTION(HUF_decompress4X1_usingDTable_internal_asm_loop)
+ZSTD_HIDE_ASM_FUNCTION(HUF_decompress4X2_usingDTable_internal_asm_loop)
+ZSTD_HIDE_ASM_FUNCTION(_HUF_decompress4X2_usingDTable_internal_asm_loop)
+ZSTD_HIDE_ASM_FUNCTION(_HUF_decompress4X1_usingDTable_internal_asm_loop)
+.global HUF_decompress4X1_usingDTable_internal_asm_loop
+.global HUF_decompress4X2_usingDTable_internal_asm_loop
+.global _HUF_decompress4X1_usingDTable_internal_asm_loop
+.global _HUF_decompress4X2_usingDTable_internal_asm_loop
 .text
 
 /* Sets up register mappings for clarity.
@@ -95,8 +95,8 @@ ZSTD_HIDE_ASM_FUNCTION(_HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop)
 /* Define both _HUF_* & HUF_* symbols because MacOS
  * C symbols are prefixed with '_' & Linux symbols aren't.
  */
-_HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop:
-HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop:
+_HUF_decompress4X1_usingDTable_internal_asm_loop:
+HUF_decompress4X1_usingDTable_internal_asm_loop:
     /* Save all registers - even if they are callee saved for simplicity. */
     push %rax
     push %rbx
@@ -114,7 +114,7 @@ HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop:
     push %r14
     push %r15
 
-    /* Read HUF_DecompressAsmArgs* args from %rax */
+    /* Read HUF_DecompressFastArgs* args from %rax */
     movq %rdi, %rax
     movq  0(%rax), %ip0
     movq  8(%rax), %ip1
@@ -350,8 +350,8 @@ HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop:
     pop %rax
     ret
 
-_HUF_decompress4X2_usingDTable_internal_bmi2_asm_loop:
-HUF_decompress4X2_usingDTable_internal_bmi2_asm_loop:
+_HUF_decompress4X2_usingDTable_internal_asm_loop:
+HUF_decompress4X2_usingDTable_internal_asm_loop:
     /* Save all registers - even if they are callee saved for simplicity. */
     push %rax
     push %rbx

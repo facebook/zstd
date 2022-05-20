@@ -250,7 +250,7 @@ cut file(s) into independent blocks of size # (default: no block)
 \fB\-\-priority=rt\fR
 set process priority to real\-time
 .P
-\fBOutput Format:\fR CompressionLevel#Filename : IntputSize \-> OutputSize (CompressionRatio), CompressionSpeed, DecompressionSpeed
+\fBOutput Format:\fR CompressionLevel#Filename : InputSize \-> OutputSize (CompressionRatio), CompressionSpeed, DecompressionSpeed
 .P
 \fBMethodology:\fR For both compression and decompression speed, the entire input is compressed/decompressed in\-memory to measure speed\. A run lasts at least 1 sec, so when files are small, they are compressed/decompressed several times per run, in order to improve measurement accuracy\.
 .SH "ADVANCED COMPRESSION OPTIONS"

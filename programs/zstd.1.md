@@ -473,7 +473,7 @@ BENCHMARK
 * `--priority=rt`:
     set process priority to real-time
 
-**Output Format:** CompressionLevel#Filename : IntputSize -> OutputSize (CompressionRatio), CompressionSpeed, DecompressionSpeed
+**Output Format:** CompressionLevel#Filename : InputSize -> OutputSize (CompressionRatio), CompressionSpeed, DecompressionSpeed
 
 **Methodology:** For both compression and decompression speed, the entire input is compressed/decompressed in-memory to measure speed. A run lasts at least 1 sec, so when files are small, they are compressed/decompressed several times per run, in order to improve measurement accuracy.
 

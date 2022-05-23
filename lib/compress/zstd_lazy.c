@@ -963,6 +963,7 @@ ZSTD_row_matchMaskGroupWidth(const U32 rowEntries)
 {
     assert((rowEntries == 16) || (rowEntries == 32) || rowEntries == 64);
     assert(rowEntries <= ZSTD_ROW_HASH_MAX_ENTRIES);
+    (void)rowEntries;
 #if defined(ZSTD_ARCH_ARM_NEON)
     if (rowEntries == 16) {
         return 4;

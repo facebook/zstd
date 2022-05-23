@@ -1170,9 +1170,27 @@ FORCE_INLINE_TEMPLATE seq_t
 ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets)
 {
     seq_t seq;
+    /*
+     * ZSTD_seqSymbol is a structure with a total of 64 bits wide. So it can be
+     * loaded in one operation and extracted its fields by simply shifting or
+     * bit-extracting on aarch64.
+     * GCC doesn't recognize this and generates more unnecessary ldr/ldrb/ldrh
+     * operations that cause performance drop. This can be avoided by using this
+     * ZSTD_memcpy hack.
+     */
+#if defined(__aarch64__) && (defined(__GNUC__) && !defined(__clang__))
+    ZSTD_seqSymbol llDInfoS, mlDInfoS, ofDInfoS;
+    ZSTD_seqSymbol* const llDInfo = &llDInfoS;
+    ZSTD_seqSymbol* const mlDInfo = &mlDInfoS;
+    ZSTD_seqSymbol* const ofDInfo = &ofDInfoS;
+    ZSTD_memcpy(llDInfo, seqState->stateLL.table + seqState->stateLL.state, sizeof(ZSTD_seqSymbol));
+    ZSTD_memcpy(mlDInfo, seqState->stateML.table + seqState->stateML.state, sizeof(ZSTD_seqSymbol));
+    ZSTD_memcpy(ofDInfo, seqState->stateOffb.table + seqState->stateOffb.state, sizeof(ZSTD_seqSymbol));
+#else
     const ZSTD_seqSymbol* const llDInfo = seqState->stateLL.table + seqState->stateLL.state;
     const ZSTD_seqSymbol* const mlDInfo = seqState->stateML.table + seqState->stateML.state;
     const ZSTD_seqSymbol* const ofDInfo = seqState->stateOffb.table + seqState->stateOffb.state;
+#endif
     seq.matchLength = mlDInfo->baseValue;
     seq.litLength = llDInfo->baseValue;
     {   U32 const ofBase = ofDInfo->baseValue;

@@ -15,14 +15,14 @@
 #define ZSTD_FAST_TAG_MASK ((1u << ZSTD_FAST_TAG_BITS) - 1)
 
 MEM_STATIC FORCE_INLINE_ATTR
-void writeTaggedIndex(U32* const hashTable, size_t hashAndTag, size_t index) {
+void writeTaggedIndex(U32* const hashTable, size_t hashAndTag, U32 index) {
     size_t const hash = hashAndTag >> ZSTD_FAST_TAG_BITS;
-    size_t const tag = hashAndTag & ZSTD_FAST_TAG_MASK;
+    U32 const tag = (U32)(hashAndTag & ZSTD_FAST_TAG_MASK);
     assert(index >> (32 - ZSTD_FAST_TAG_BITS) == 0);
     hashTable[hash] = (index << ZSTD_FAST_TAG_BITS) | tag;
 }
 
-void ZSTD_fillHashTable(ZSTD_matchState_t* ms,
+static void ZSTD_fillHashTableForCDict(ZSTD_matchState_t* ms,
                         const void* const end,
                         ZSTD_dictTableLoadMethod_e dtlm)
 {
@@ -50,7 +50,49 @@ void ZSTD_fillHashTable(ZSTD_matchState_t* ms,
                 size_t const hashAndTag = ZSTD_hashPtr(ip + p, hBits + ZSTD_FAST_TAG_BITS, mls);
                 if (hashTable[hashAndTag >> ZSTD_FAST_TAG_BITS] == 0) {  /* not yet filled */
                     writeTaggedIndex(hashTable, hashAndTag, curr + p);
+                }   }   }   }
+}
+
+static void ZSTD_fillHashTableForCCtx(ZSTD_matchState_t* ms,
+                        const void* const end,
+                        ZSTD_dictTableLoadMethod_e dtlm)
+{
+    const ZSTD_compressionParameters* const cParams = &ms->cParams;
+    U32* const hashTable = ms->hashTable;
+    U32  const hBits = cParams->hashLog;
+    U32  const mls = cParams->minMatch;
+    const BYTE* const base = ms->window.base;
+    const BYTE* ip = base + ms->nextToUpdate;
+    const BYTE* const iend = ((const BYTE*)end) - HASH_READ_SIZE;
+    const U32 fastHashFillStep = 3;
+
+    /* Always insert every fastHashFillStep position into the hash table.
+     * Insert the other positions if their hash entry is empty.
+     */
+    for ( ; ip + fastHashFillStep < iend + 2; ip += fastHashFillStep) {
+        U32 const curr = (U32)(ip - base);
+        size_t const hash0 = ZSTD_hashPtr(ip, hBits, mls);
+        hashTable[hash0] = curr;
+        if (dtlm == ZSTD_dtlm_fast) continue;
+        /* Only load extra positions for ZSTD_dtlm_full */
+        {   U32 p;
+            for (p = 1; p < fastHashFillStep; ++p) {
+                size_t const hash = ZSTD_hashPtr(ip + p, hBits, mls);
+                if (hashTable[hash] == 0) {  /* not yet filled */
+                    hashTable[hash] = curr + p;
     }   }   }   }
+}
+
+void ZSTD_fillHashTable(ZSTD_matchState_t* ms,
+                        const void* const end,
+                        ZSTD_dictTableLoadMethod_e dtlm,
+                        const U32 forCCtx)
+{
+    if (forCCtx) {
+        ZSTD_fillHashTableForCCtx(ms, end, dtlm);
+    } else {
+        ZSTD_fillHashTableForCDict(ms, end, dtlm);
+    }
 }
 
 

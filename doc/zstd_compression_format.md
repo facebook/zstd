@@ -945,14 +945,14 @@ sequences are applied to them:
 |:--------------:|:-----------------:|:------------------:|:------------------:|:------------------:|:-----------------------:|
 |                |                   |                  1 |                  4 |                  8 | starting values         |
 |           1114 |                11 |               1111 |                  1 |                  4 | non-repeat              |
-|              1 |                22 |               1111 |                  1 |                  4 | repeat 1; no change     |
+|              1 |                22 |               1111 |                  1 |                  4 | repeat 1: no change     |
 |           2225 |                22 |               2222 |               1111 |                  1 | non-repeat              |
 |           1114 |               111 |               1111 |               2222 |               1111 | non-repeat              |
 |           3336 |                33 |               3333 |               1111 |               2222 | non-repeat              |
-|              2 |                22 |               1111 |               3333 |               2222 | repeat 2; swap 1 & 2    |
-|              3 |                33 |               2222 |               1111 |               3333 | repeat 3; rotate 3 to 1 |
-|              3 |                 0 |               2221 |               2222 |               1111 | insert resolved offset  |
-|              1 |                 0 |               2222 |               2221 |               3333 | repeat 2                |
+|              2 |                22 |               1111 |               3333 |               2222 | repeat 2: swap 1 & 2    |
+|              3 |                33 |               2222 |               1111 |               3333 | repeat 3: rotate 3 to 1 |
+|              3 |                 0 |               2221 |               2222 |               1111 | special case : insert `repeat1 - 1` |
+|              1 |                 0 |               2222 |               2221 |               1111 | == repeat 2             |
 
 
 Skippable Frames

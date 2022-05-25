@@ -4842,8 +4842,7 @@ static size_t ZSTD_initCDict_internal(
         {   size_t const dictID = ZSTD_compress_insertDictionary(
                     &cdict->cBlockState, &cdict->matchState, NULL, &cdict->workspace,
                     &params, cdict->dictContent, cdict->dictContentSize,
-                    dictContentType, ZSTD_dtlm_full, cdict->entropyWorkspace,
-                    params.cParams.strategy == ZSTD_fast ? 0 : 1);
+                    dictContentType, ZSTD_dtlm_full, cdict->entropyWorkspace, 0);
             FORWARD_IF_ERROR(dictID, "ZSTD_compress_insertDictionary failed");
             assert(dictID <= (size_t)(U32)-1);
             cdict->dictID = (U32)dictID;

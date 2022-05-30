@@ -63,6 +63,8 @@ int ZSTD_pthread_join(ZSTD_pthread_t thread, void **value_ptr)
     if (!thread.handle) return 0;
 
     result = WaitForSingleObject(thread.handle, INFINITE);
+    CloseHandle(thread.handle);
+
     switch (result) {
     case WAIT_OBJECT_0:
         if (value_ptr) *value_ptr = thread.arg;

@@ -15,14 +15,14 @@
 #define ZSTD_DFAST_TAG_MASK ((1u << ZSTD_DFAST_TAG_BITS) - 1)
 
 MEM_STATIC FORCE_INLINE_ATTR
-void writeTaggedIndex(U32* const hashTable, size_t hashAndTag, U32 index) {
+void writeTaggedIndexDoubleFast(U32* const hashTable, size_t hashAndTag, U32 index) {
     size_t const hash = hashAndTag >> ZSTD_DFAST_TAG_BITS;
     U32 const tag = (U32)(hashAndTag & ZSTD_DFAST_TAG_MASK);
     assert(index >> (32 - ZSTD_DFAST_TAG_BITS) == 0);
     hashTable[hash] = (index << ZSTD_DFAST_TAG_BITS) | tag;
 }
 
-void ZSTD_fillDoubleHashTable(ZSTD_matchState_t* ms,
+static void ZSTD_fillDoubleHashTableForCDict(ZSTD_matchState_t* ms,
                               void const* end, ZSTD_dictTableLoadMethod_e dtlm)
 {
     const ZSTD_compressionParameters* const cParams = &ms->cParams;
@@ -47,15 +47,61 @@ void ZSTD_fillDoubleHashTable(ZSTD_matchState_t* ms,
             size_t const smHashAndTag = ZSTD_hashPtr(ip + i, hBitsS + ZSTD_DFAST_TAG_BITS, mls);
             size_t const lgHashAndTag = ZSTD_hashPtr(ip + i, hBitsL + ZSTD_DFAST_TAG_BITS, 8);
             if (i == 0) {
-                writeTaggedIndex(hashSmall, smHashAndTag, curr + i);
+                writeTaggedIndexDoubleFast(hashSmall, smHashAndTag, curr + i);
             }
             if (i == 0 || hashLarge[lgHashAndTag >> ZSTD_DFAST_TAG_BITS] == 0) {
-                writeTaggedIndex(hashLarge, lgHashAndTag, curr + i);
+                writeTaggedIndexDoubleFast(hashLarge, lgHashAndTag, curr + i);
             }
             /* Only load extra positions for ZSTD_dtlm_full */
             if (dtlm == ZSTD_dtlm_fast)
                 break;
     }   }
+}
+
+static void ZSTD_fillDoubleHashTableForCCtx(ZSTD_matchState_t* ms,
+                              void const* end, ZSTD_dictTableLoadMethod_e dtlm)
+{
+    const ZSTD_compressionParameters* const cParams = &ms->cParams;
+    U32* const hashLarge = ms->hashTable;
+    U32  const hBitsL = cParams->hashLog;
+    U32  const mls = cParams->minMatch;
+    U32* const hashSmall = ms->chainTable;
+    U32  const hBitsS = cParams->chainLog;
+    const BYTE* const base = ms->window.base;
+    const BYTE* ip = base + ms->nextToUpdate;
+    const BYTE* const iend = ((const BYTE*)end) - HASH_READ_SIZE;
+    const U32 fastHashFillStep = 3;
+
+    /* Always insert every fastHashFillStep position into the hash tables.
+     * Insert the other positions into the large hash table if their entry
+     * is empty.
+     */
+    for (; ip + fastHashFillStep - 1 <= iend; ip += fastHashFillStep) {
+        U32 const curr = (U32)(ip - base);
+        U32 i;
+        for (i = 0; i < fastHashFillStep; ++i) {
+            size_t const smHash = ZSTD_hashPtr(ip + i, hBitsS, mls);
+            size_t const lgHash = ZSTD_hashPtr(ip + i, hBitsL, 8);
+            if (i == 0)
+                hashSmall[smHash] = curr + i;
+            if (i == 0 || hashLarge[lgHash] == 0)
+                hashLarge[lgHash] = curr + i;
+            /* Only load extra positions for ZSTD_dtlm_full */
+            if (dtlm == ZSTD_dtlm_fast)
+                break;
+        }   }
+}
+
+void ZSTD_fillDoubleHashTable(ZSTD_matchState_t* ms,
+                        const void* const end,
+                        ZSTD_dictTableLoadMethod_e dtlm,
+                        const U32 forCCtx) // TODO enum
+{
+    if (forCCtx) {
+        ZSTD_fillDoubleHashTableForCCtx(ms, end, dtlm);
+    } else {
+        ZSTD_fillDoubleHashTableForCDict(ms, end, dtlm);
+    }
 }
 
 

@@ -2131,7 +2131,7 @@ static size_t ZSTD_resetCCtx_byCopyingCDict(ZSTD_CCtx* cctx,
                                                             : 0;
         size_t const hSize =  (size_t)1 << cdict_cParams->hashLog;
 
-        if (cctx->appliedParams.cParams.strategy == ZSTD_fast){
+        if (cctx->appliedParams.cParams.strategy == ZSTD_fast || cctx->appliedParams.cParams.strategy == ZSTD_dfast){ // TODO clean up this logic
             size_t i;
             for (i=0; i < hSize; i++) {
                 cctx->blockState.matchState.hashTable[i] = cdict->matchState.hashTable[i] >> 8; // TODO make this reference macro
@@ -2144,9 +2144,16 @@ static size_t ZSTD_resetCCtx_byCopyingCDict(ZSTD_CCtx* cctx,
 
         /* Do not copy cdict's chainTable if cctx has parameters such that it would not use chainTable */
         if (ZSTD_allocateChainTable(cctx->appliedParams.cParams.strategy, cctx->appliedParams.useRowMatchFinder, 0 /* forDDSDict */)) {
-            ZSTD_memcpy(cctx->blockState.matchState.chainTable,
-               cdict->matchState.chainTable,
-               chainSize * sizeof(U32));
+            if (cctx->appliedParams.cParams.strategy == ZSTD_fast || cctx->appliedParams.cParams.strategy == ZSTD_dfast){ // TODO clean up this logic
+                size_t i;
+                for (i=0; i < chainSize; i++) {
+                    cctx->blockState.matchState.chainTable[i] = cdict->matchState.chainTable[i] >> 8; // TODO make this reference macro
+                }
+            } else {
+                ZSTD_memcpy(cctx->blockState.matchState.chainTable,
+                            cdict->matchState.chainTable,
+                            chainSize * sizeof(U32));
+            }
         }
         /* copy tag table */
         if (ZSTD_rowMatchFinderUsed(cdict_cParams->strategy, cdict->useRowMatchFinder)) {
@@ -4263,7 +4270,7 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
         ZSTD_fillHashTable(ms, iend, dtlm, forCCtx);
         break;
     case ZSTD_dfast:
-        ZSTD_fillDoubleHashTable(ms, iend, dtlm);
+        ZSTD_fillDoubleHashTable(ms, iend, dtlm, forCCtx);
         break;
 
     case ZSTD_greedy:

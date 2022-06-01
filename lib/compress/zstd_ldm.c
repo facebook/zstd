@@ -242,11 +242,11 @@ static size_t ZSTD_ldm_fillFastTables(ZSTD_matchState_t* ms,
     switch(ms->cParams.strategy)
     {
     case ZSTD_fast:
-        ZSTD_fillHashTable(ms, iend, ZSTD_dtlm_fast, 1);
+        ZSTD_fillHashTable(ms, iend, ZSTD_dtlm_fast, 1); // TODO replace with enum
         break;
 
     case ZSTD_dfast:
-        ZSTD_fillDoubleHashTable(ms, iend, ZSTD_dtlm_fast);
+        ZSTD_fillDoubleHashTable(ms, iend, ZSTD_dtlm_fast, 1); // TODO replace with enum
         break;
 
     case ZSTD_greedy:

@@ -1264,6 +1264,16 @@ MEM_STATIC void ZSTD_debugTable(const U32* table, U32 max)
 
 #endif
 
+#define ZSTD_SHORT_CACHE_TAG_BITS 8
+#define ZSTD_SHORT_CACHE_TAG_MASK ((1u << ZSTD_SHORT_CACHE_TAG_BITS) - 1)
+
+/* Helper function for ZSTD_fillHashTable and ZSTD_fillDoubleHashTable */
+MEM_STATIC void writeTaggedIndex(U32* const hashTable, size_t hashAndTag, U32 index) {
+    size_t const hash = hashAndTag >> ZSTD_SHORT_CACHE_TAG_BITS;
+    U32 const tag = (U32)(hashAndTag & ZSTD_SHORT_CACHE_TAG_MASK);
+    assert(index >> (32 - ZSTD_SHORT_CACHE_TAG_BITS) == 0);
+    hashTable[hash] = (index << ZSTD_SHORT_CACHE_TAG_BITS) | tag;
+}
 
 #if defined (__cplusplus)
 }

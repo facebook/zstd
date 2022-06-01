@@ -1264,6 +1264,14 @@ MEM_STATIC void ZSTD_debugTable(const U32* table, U32 max)
 
 #endif
 
+/* Short Cache */
+
+typedef enum {
+    /* TODO: this is a good place to document short cache */
+    ZSTD_tfp_forCCtx = 0,
+    ZSTD_tfp_forCDict = 1
+} ZSTD_tableFillPurpose_e;
+
 #define ZSTD_SHORT_CACHE_TAG_BITS 8
 #define ZSTD_SHORT_CACHE_TAG_MASK ((1u << ZSTD_SHORT_CACHE_TAG_BITS) - 1)
 

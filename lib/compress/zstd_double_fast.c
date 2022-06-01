@@ -84,12 +84,12 @@ static void ZSTD_fillDoubleHashTableForCCtx(ZSTD_matchState_t* ms,
 void ZSTD_fillDoubleHashTable(ZSTD_matchState_t* ms,
                         const void* const end,
                         ZSTD_dictTableLoadMethod_e dtlm,
-                        const U32 forCCtx) // TODO enum
+                        ZSTD_tableFillPurpose_e tfp)
 {
-    if (forCCtx) {
-        ZSTD_fillDoubleHashTableForCCtx(ms, end, dtlm);
-    } else {
+    if (tfp == ZSTD_tfp_forCDict) {
         ZSTD_fillDoubleHashTableForCDict(ms, end, dtlm);
+    } else {
+        ZSTD_fillDoubleHashTableForCCtx(ms, end, dtlm);
     }
 }
 

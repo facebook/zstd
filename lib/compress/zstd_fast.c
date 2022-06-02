@@ -538,12 +538,12 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
             }
 
             if (dictTagsMatch) {
-                /* found a possible dict match */
+                /* Found a possible dict match */
                 const U32 dictMatchIndex = dictMatchIndexAndTag >> ZSTD_SHORT_CACHE_TAG_BITS;
                 const BYTE* dictMatch = dictBase + dictMatchIndex;
                 if (dictMatchIndex > dictStartIndex &&
                     MEM_read32(dictMatch) == MEM_read32(ip0)) {
-                    /* We only look for a dict match if the normal matchIndex is invalid */
+                    /* To replicate extDict parse behavior, we only use dict matches when the normal matchIndex is invalid */
                     if (matchIndex <= prefixStartIndex) {
                         U32 const offset = (U32) (curr - dictMatchIndex - dictIndexDelta);
                         mLength = ZSTD_count_2segments(ip0 + 4, dictMatch + 4, iend, dictEnd, prefixStart) + 4;

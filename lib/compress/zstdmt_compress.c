@@ -1761,17 +1761,24 @@ findSynchronizationPoint(ZSTDMT_CCtx const* mtctx, ZSTD_inBuffer const input)
      * then a block will be emitted anyways, but this is okay, since if we
      * are already synchronized we will remain synchronized.
      */
+    assert(pos < RSYNC_LENGTH || ZSTD_rollingHash_compute(istart + pos - RSYNC_LENGTH, RSYNC_LENGTH) == hash);
     for (; pos < syncPoint.toLoad; ++pos) {
         BYTE const toRemove = pos < RSYNC_LENGTH ? prev[pos] : istart[pos - RSYNC_LENGTH];
-        assert(pos < RSYNC_LENGTH || ZSTD_rollingHash_compute(istart + pos - RSYNC_LENGTH, RSYNC_LENGTH) == hash);
+        /* This assert is very expensive, and Debian compiles with asserts enabled.
+         * So disable it for now. We can get similar coverage by checking it at the
+         * beginning & end of the loop.
+         * assert(pos < RSYNC_LENGTH || ZSTD_rollingHash_compute(istart + pos - RSYNC_LENGTH, RSYNC_LENGTH) == hash);
+         */
         hash = ZSTD_rollingHash_rotate(hash, toRemove, istart[pos], primePower);
         assert(mtctx->inBuff.filled + pos >= RSYNC_MIN_BLOCK_SIZE);
         if ((hash & hitMask) == hitMask) {
             syncPoint.toLoad = pos + 1;
             syncPoint.flush = 1;
+            ++pos; /* for assert */
             break;
         }
     }
+    assert(pos < RSYNC_LENGTH || ZSTD_rollingHash_compute(istart + pos - RSYNC_LENGTH, RSYNC_LENGTH) == hash);
     return syncPoint;
 }
 

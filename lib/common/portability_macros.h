@@ -114,6 +114,14 @@
 #  define ZSTD_ASM_SUPPORTED 0
 #endif
 
+#if !defined(ZSTD_DISABLE_ASM) &&                                 \
+    ZSTD_ASM_SUPPORTED &&                                         \
+    defined(__aarch64__)
+#  define ZSTD_ENABLE_ASM_AARCH64 1
+#else
+# define ZSTD_ENABLE_ASM_AARCH64 0
+#endif
+
 /**
  * Determines whether we should enable assembly for x86-64
  * with BMI2.

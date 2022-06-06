@@ -133,14 +133,14 @@ ZSTD_DICTBUILDER_FILES := $(sort $(wildcard $(LIBZSTD)/dictBuilder/*.c))
 ZSTD_DEPRECATED_FILES := $(sort $(wildcard $(LIBZSTD)/deprecated/*.c))
 ZSTD_LEGACY_FILES :=
 
-ZSTD_DECOMPRESS_AMD64_ASM_FILES := $(sort $(wildcard $(LIBZSTD)/decompress/*_amd64.S))
+ZSTD_DECOMPRESS_ASM_FILES := $(sort $(wildcard $(LIBZSTD)/decompress/*.S))
 
 ifneq ($(ZSTD_NO_ASM), 0)
   CPPFLAGS += -DZSTD_DISABLE_ASM
 else
   # Unconditionally add the ASM files they are disabled by
   # macros in the .S file.
-  ZSTD_DECOMPRESS_FILES += $(ZSTD_DECOMPRESS_AMD64_ASM_FILES)
+  ZSTD_DECOMPRESS_FILES += $(ZSTD_DECOMPRESS_ASM_FILES)
 endif
 
 ifneq ($(HUF_FORCE_DECOMPRESS_X1), 0)

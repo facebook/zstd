@@ -681,7 +681,7 @@ size_t HUF_decompress4X1_usingDTable_internal_default(void* dst, size_t dstSize,
     X(2, idx); \
     X(3, idx)
 
-#if ZSTD_ENABLE_ASM_X86_64_BMI2
+#if ZSTD_ENABLE_ASM_X86_64_BMI2 || ZSTD_ENABLE_ASM_AARCH64
 HUF_ASM_DECL void HUF_decompress4X1_usingDTable_internal_asm_loop(HUF_DecompressFastArgs* args) ZSTDLIB_HIDDEN;
 #else
 #if !HUF_NEED_BMI2_FUNCTION
@@ -798,7 +798,7 @@ HUF_decompress4X1_usingDTable_internal_fast(
     }
 
     assert(args.ip[0] >= args.ilimit);
-#if ZSTD_ENABLE_ASM_X86_64_BMI2
+#if ZSTD_ENABLE_ASM_X86_64_BMI2 || ZSTD_ENABLE_ASM_AARCH64
     HUF_decompress4X1_usingDTable_internal_asm_loop(&args);
 #elif HUF_NEED_BMI2_FUNCTION
     return HUF_decompress4X1_usingDTable_internal_default(dst, dstSize, cSrc, cSrcSize, DTable);

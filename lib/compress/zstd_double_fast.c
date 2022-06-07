@@ -16,10 +16,10 @@ static void ZSTD_fillDoubleHashTableForCDict(ZSTD_matchState_t* ms,
 {
     const ZSTD_compressionParameters* const cParams = &ms->cParams;
     U32* const hashLarge = ms->hashTable;
-    U32  const hBitsL = cParams->hashLog;
+    U32  const hBitsL = cParams->hashLog + ZSTD_SHORT_CACHE_TAG_BITS;
     U32  const mls = cParams->minMatch;
     U32* const hashSmall = ms->chainTable;
-    U32  const hBitsS = cParams->chainLog;
+    U32  const hBitsS = cParams->chainLog + ZSTD_SHORT_CACHE_TAG_BITS;
     const BYTE* const base = ms->window.base;
     const BYTE* ip = base + ms->nextToUpdate;
     const BYTE* const iend = MIN((const BYTE*)end, base + (1u << (32 - ZSTD_SHORT_CACHE_TAG_BITS))) - HASH_READ_SIZE;
@@ -33,8 +33,8 @@ static void ZSTD_fillDoubleHashTableForCDict(ZSTD_matchState_t* ms,
         U32 const curr = (U32)(ip - base);
         U32 i;
         for (i = 0; i < fastHashFillStep; ++i) {
-            size_t const smHashAndTag = ZSTD_hashPtr(ip + i, hBitsS + ZSTD_SHORT_CACHE_TAG_BITS, mls);
-            size_t const lgHashAndTag = ZSTD_hashPtr(ip + i, hBitsL + ZSTD_SHORT_CACHE_TAG_BITS, 8);
+            size_t const smHashAndTag = ZSTD_hashPtr(ip + i, hBitsS, mls);
+            size_t const lgHashAndTag = ZSTD_hashPtr(ip + i, hBitsL, 8);
             if (i == 0) {
                 writeTaggedIndex(hashSmall, smHashAndTag, curr + i);
             }
@@ -336,8 +336,8 @@ size_t ZSTD_compressBlock_doubleFast_dictMatchState_generic(
     const BYTE* const dictStart    = dictBase + dictStartIndex;
     const BYTE* const dictEnd      = dms->window.nextSrc;
     const U32 dictIndexDelta       = prefixLowestIndex - (U32)(dictEnd - dictBase);
-    const U32 dictHBitsL           = dictCParams->hashLog;
-    const U32 dictHBitsS           = dictCParams->chainLog;
+    const U32 dictHBitsL           = dictCParams->hashLog + ZSTD_SHORT_CACHE_TAG_BITS;
+    const U32 dictHBitsS           = dictCParams->chainLog + ZSTD_SHORT_CACHE_TAG_BITS;
     const U32 dictAndPrefixLength  = (U32)((ip - prefixLowest) + (dictEnd - dictStart));
 
     DEBUGLOG(5, "ZSTD_compressBlock_doubleFast_dictMatchState_generic");
@@ -359,8 +359,8 @@ size_t ZSTD_compressBlock_doubleFast_dictMatchState_generic(
         U32 offset;
         size_t const h2 = ZSTD_hashPtr(ip, hBitsL, 8);
         size_t const h = ZSTD_hashPtr(ip, hBitsS, mls);
-        size_t const dictHashAndTagL = ZSTD_hashPtr(ip, dictHBitsL + ZSTD_SHORT_CACHE_TAG_BITS, 8);
-        size_t const dictHashAndTagS = ZSTD_hashPtr(ip, dictHBitsS + ZSTD_SHORT_CACHE_TAG_BITS, mls);
+        size_t const dictHashAndTagL = ZSTD_hashPtr(ip, dictHBitsL, 8);
+        size_t const dictHashAndTagS = ZSTD_hashPtr(ip, dictHBitsS, mls);
         U32 const dictMatchIndexAndTagL = dictHashLong[dictHashAndTagL >> ZSTD_SHORT_CACHE_TAG_BITS];
         U32 const dictMatchIndexAndTagS = dictHashSmall[dictHashAndTagS >> ZSTD_SHORT_CACHE_TAG_BITS];
         size_t const dictTagsMatchL = (dictMatchIndexAndTagL & ZSTD_SHORT_CACHE_TAG_MASK) == (dictHashAndTagL & ZSTD_SHORT_CACHE_TAG_MASK);
@@ -430,7 +430,7 @@ size_t ZSTD_compressBlock_doubleFast_dictMatchState_generic(
 
 _search_next_long:
         {   size_t const hl3 = ZSTD_hashPtr(ip+1, hBitsL, 8);
-            size_t const dictHashAndTagL3 = ZSTD_hashPtr(ip+1, dictHBitsL + ZSTD_SHORT_CACHE_TAG_BITS, 8);
+            size_t const dictHashAndTagL3 = ZSTD_hashPtr(ip+1, dictHBitsL, 8);
             U32 const matchIndexL3 = hashLong[hl3];
             U32 const dictMatchIndexAndTagL3 = dictHashLong[dictHashAndTagL3 >> ZSTD_SHORT_CACHE_TAG_BITS];
             size_t const dictTagsMatchL3 = (dictMatchIndexAndTagL3 & ZSTD_SHORT_CACHE_TAG_BITS) == (dictHashAndTagL3 & ZSTD_SHORT_CACHE_TAG_BITS);

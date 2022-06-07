@@ -2141,7 +2141,8 @@ static size_t ZSTD_resetCCtx_byCopyingCDict(ZSTD_CCtx* cctx,
             size_t i;
             for (i = 0; i < hSize; i++) {
                 U32 const taggedIndex = cdict->matchState.hashTable[i];
-                cctx->blockState.matchState.hashTable[i] = taggedIndex >> ZSTD_SHORT_CACHE_TAG_BITS;
+                U32 const index = taggedIndex >> ZSTD_SHORT_CACHE_TAG_BITS;
+                cctx->blockState.matchState.hashTable[i] = index;
             }
         } else {
             ZSTD_memcpy(cctx->blockState.matchState.hashTable,
@@ -2155,7 +2156,8 @@ static size_t ZSTD_resetCCtx_byCopyingCDict(ZSTD_CCtx* cctx,
                 size_t i;
                 for (i = 0; i < chainSize; i++) {
                     U32 const taggedIndex = cdict->matchState.chainTable[i];
-                    cctx->blockState.matchState.chainTable[i] = taggedIndex >> ZSTD_SHORT_CACHE_TAG_BITS;
+                    U32 const index = taggedIndex >> ZSTD_SHORT_CACHE_TAG_BITS;
+                    cctx->blockState.matchState.chainTable[i] = index;
                 }
             } else {
                 ZSTD_memcpy(cctx->blockState.matchState.chainTable,
@@ -4445,8 +4447,8 @@ static size_t ZSTD_loadZstdDictionary(ZSTD_compressedBlockState_t* bs,
                                       ZSTD_CCtx_params const* params,
                                       const void* dict, size_t dictSize,
                                       ZSTD_dictTableLoadMethod_e dtlm,
-                                      void* workspace,
-                                      ZSTD_tableFillPurpose_e tfp)
+                                      ZSTD_tableFillPurpose_e tfp,
+                                      void* workspace)
 {
     const BYTE* dictPtr = (const BYTE*)dict;
     const BYTE* const dictEnd = dictPtr + dictSize;
@@ -4480,8 +4482,8 @@ ZSTD_compress_insertDictionary(ZSTD_compressedBlockState_t* bs,
                          const void* dict, size_t dictSize,
                                ZSTD_dictContentType_e dictContentType,
                                ZSTD_dictTableLoadMethod_e dtlm,
-                               void* workspace,
-                               ZSTD_tableFillPurpose_e tfp)
+                               ZSTD_tableFillPurpose_e tfp,
+                               void* workspace)
 {
     DEBUGLOG(4, "ZSTD_compress_insertDictionary (dictSize=%u)", (U32)dictSize);
     if ((dict==NULL) || (dictSize<8)) {
@@ -4507,7 +4509,7 @@ ZSTD_compress_insertDictionary(ZSTD_compressedBlockState_t* bs,
 
     /* dict as full zstd dictionary */
     return ZSTD_loadZstdDictionary(
-        bs, ms, ws, params, dict, dictSize, dtlm, workspace, tfp);
+        bs, ms, ws, params, dict, dictSize, dtlm, tfp, workspace);
 }
 
 #define ZSTD_USE_CDICT_PARAMS_SRCSIZE_CUTOFF (128 KB)
@@ -4550,11 +4552,11 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
                         cctx->blockState.prevCBlock, &cctx->blockState.matchState,
                         &cctx->ldmState, &cctx->workspace, &cctx->appliedParams, cdict->dictContent,
                         cdict->dictContentSize, cdict->dictContentType, dtlm,
-                        cctx->entropyWorkspace, ZSTD_tfp_forCCtx)
+                        ZSTD_tfp_forCCtx, cctx->entropyWorkspace)
               : ZSTD_compress_insertDictionary(
                         cctx->blockState.prevCBlock, &cctx->blockState.matchState,
                         &cctx->ldmState, &cctx->workspace, &cctx->appliedParams, dict, dictSize,
-                        dictContentType, dtlm, cctx->entropyWorkspace, ZSTD_tfp_forCCtx);
+                        dictContentType, dtlm, ZSTD_tfp_forCCtx, cctx->entropyWorkspace);
         FORWARD_IF_ERROR(dictID, "ZSTD_compress_insertDictionary failed");
         assert(dictID <= UINT_MAX);
         cctx->dictID = (U32)dictID;
@@ -4858,7 +4860,7 @@ static size_t ZSTD_initCDict_internal(
         {   size_t const dictID = ZSTD_compress_insertDictionary(
                     &cdict->cBlockState, &cdict->matchState, NULL, &cdict->workspace,
                     &params, cdict->dictContent, cdict->dictContentSize,
-                    dictContentType, ZSTD_dtlm_full, cdict->entropyWorkspace, ZSTD_tfp_forCDict);
+                    dictContentType, ZSTD_dtlm_full, ZSTD_tfp_forCDict, cdict->entropyWorkspace);
             FORWARD_IF_ERROR(dictID, "ZSTD_compress_insertDictionary failed");
             assert(dictID <= (size_t)(U32)-1);
             cdict->dictID = (U32)dictID;

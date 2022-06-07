@@ -36,10 +36,10 @@ static void ZSTD_fillDoubleHashTableForCDict(ZSTD_matchState_t* ms,
             size_t const smHashAndTag = ZSTD_hashPtr(ip + i, hBitsS, mls);
             size_t const lgHashAndTag = ZSTD_hashPtr(ip + i, hBitsL, 8);
             if (i == 0) {
-                writeTaggedIndex(hashSmall, smHashAndTag, curr + i);
+                ZSTD_writeTaggedIndex(hashSmall, smHashAndTag, curr + i);
             }
             if (i == 0 || hashLarge[lgHashAndTag >> ZSTD_SHORT_CACHE_TAG_BITS] == 0) {
-                writeTaggedIndex(hashLarge, lgHashAndTag, curr + i);
+                ZSTD_writeTaggedIndex(hashLarge, lgHashAndTag, curr + i);
             }
             /* Only load extra positions for ZSTD_dtlm_full */
             if (dtlm == ZSTD_dtlm_fast)

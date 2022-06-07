@@ -30,7 +30,7 @@ static void ZSTD_fillHashTableForCDict(ZSTD_matchState_t* ms,
     for ( ; ip + fastHashFillStep < iend + 2; ip += fastHashFillStep) {
         U32 const curr = (U32)(ip - base);
         {   size_t const hashAndTag = ZSTD_hashPtr(ip, hBits, mls);
-            writeTaggedIndex(hashTable, hashAndTag, curr);   }
+            ZSTD_writeTaggedIndex(hashTable, hashAndTag, curr);   }
 
         if (dtlm == ZSTD_dtlm_fast) continue;
         /* Only load extra positions for ZSTD_dtlm_full */
@@ -38,7 +38,7 @@ static void ZSTD_fillHashTableForCDict(ZSTD_matchState_t* ms,
             for (p = 1; p < fastHashFillStep; ++p) {
                 size_t const hashAndTag = ZSTD_hashPtr(ip + p, hBits, mls);
                 if (hashTable[hashAndTag >> ZSTD_SHORT_CACHE_TAG_BITS] == 0) {  /* not yet filled */
-                    writeTaggedIndex(hashTable, hashAndTag, curr + p);
+                    ZSTD_writeTaggedIndex(hashTable, hashAndTag, curr + p);
                 }   }   }   }
 }
 

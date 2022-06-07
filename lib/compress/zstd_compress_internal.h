@@ -771,6 +771,10 @@ static size_t ZSTD_hash8Ptr(const void* p, U32 h) { return ZSTD_hash8(MEM_readLE
 MEM_STATIC FORCE_INLINE_ATTR
 size_t ZSTD_hashPtr(const void* p, U32 hBits, U32 mls)
 {
+    /* Although some of these hashes do support hBits up to 64, some do not.
+     * To be on the safe side, always avoid hBits > 32. */
+    assert(hBits <= 32);
+
     switch(mls)
     {
     default:
@@ -1276,7 +1280,7 @@ typedef enum {
 #define ZSTD_SHORT_CACHE_TAG_MASK ((1u << ZSTD_SHORT_CACHE_TAG_BITS) - 1)
 
 /* Helper function for ZSTD_fillHashTable and ZSTD_fillDoubleHashTable */
-MEM_STATIC void writeTaggedIndex(U32* const hashTable, size_t hashAndTag, U32 index) {
+MEM_STATIC void ZSTD_writeTaggedIndex(U32* const hashTable, size_t hashAndTag, U32 index) {
     size_t const hash = hashAndTag >> ZSTD_SHORT_CACHE_TAG_BITS;
     U32 const tag = (U32)(hashAndTag & ZSTD_SHORT_CACHE_TAG_MASK);
     assert(index >> (32 - ZSTD_SHORT_CACHE_TAG_BITS) == 0);

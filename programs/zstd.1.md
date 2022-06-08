@@ -118,12 +118,13 @@ the last one takes effect.
     which is either 64 in 32-bit mode, or 256 for 64-bit environments.
     This modifier does nothing if `zstd` is compiled without multithread support.
 * `--single-thread`:
-    Does not spawn a thread for compression, use a single thread for both I/O and compression.
-    In this mode, compression is serialized with I/O, which is slightly slower.
-    (This is different from `-T1`, which spawns 1 compression thread in parallel of I/O).
-    This mode is the only one available when multithread support is disabled.
-    Single-thread mode features lower memory usage.
-    Final compressed result is slightly different from `-T1`.
+    Use a single thread for both I/O and compression.
+    As compression is serialized with I/O, this can be slightly slower.
+    Single-thread mode features significantly lower memory usage,
+    which can be useful for systems with limited amount of memory, such as 32-bit systems.
+    Note 1 : this mode is the only available one when multithread support is disabled.
+    Note 2 : this mode is different from `-T1`, which spawns 1 compression thread in parallel with I/O.
+    Final compressed result is also slightly different from `-T1`.
 * `--auto-threads={physical,logical} (default: physical)`:
     When using a default amount of threads via `-T0`, choose the default based on the number
     of detected physical or logical cores.

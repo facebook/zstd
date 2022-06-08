@@ -22,7 +22,7 @@ static void ZSTD_fillDoubleHashTableForCDict(ZSTD_matchState_t* ms,
     U32  const hBitsS = cParams->chainLog + ZSTD_SHORT_CACHE_TAG_BITS;
     const BYTE* const base = ms->window.base;
     const BYTE* ip = base + ms->nextToUpdate;
-    const BYTE* const iend = MIN((const BYTE*)end, base + (1u << (32 - ZSTD_SHORT_CACHE_TAG_BITS))) - HASH_READ_SIZE;
+    const BYTE* const iend = ((const BYTE*)end) - HASH_READ_SIZE;
     const U32 fastHashFillStep = 3;
 
     /* Always insert every fastHashFillStep position into the hash tables.

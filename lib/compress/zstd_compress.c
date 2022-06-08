@@ -4240,22 +4240,33 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
     /* Assert that the ms params match the params we're being given */
     ZSTD_assertEqualCParams(params->cParams, ms->cParams);
 
-    if (srcSize > ZSTD_CHUNKSIZE_MAX) {
-        /* Allow the dictionary to set indices up to exactly ZSTD_CURRENT_MAX.
-         * Dictionaries right at the edge will immediately trigger overflow
-         * correction, but I don't want to insert extra constraints here.
-         */
-        U32 const maxDictSize = ZSTD_CURRENT_MAX - ZSTD_WINDOW_START_INDEX;
-        /* We must have cleared our windows when our source is this large. */
-        assert(ZSTD_window_isEmpty(ms->window));
-        if (loadLdmDict)
-            assert(ZSTD_window_isEmpty(ls->window));
+    {   /* Ensure large dictionaries can't cause index overflow */
+        U32 maxDictSize;
+        int const CDictTaggedIndices = ZSTD_CDictIndicesAreTagged(&params->cParams);
+        if (CDictTaggedIndices && tfp == ZSTD_tfp_forCDict) {
+            /* TODO comment */
+            maxDictSize = (1u << (32 - ZSTD_SHORT_CACHE_TAG_BITS)) - ZSTD_WINDOW_START_INDEX;
+            assert(maxDictSize + ZSTD_WINDOW_START_INDEX < ZSTD_CURRENT_MAX);
+            assert(!loadLdmDict);
+        } else {
+            /* Allow the dictionary to set indices up to exactly ZSTD_CURRENT_MAX.
+             * Dictionaries right at the edge will immediately trigger overflow
+             * correction, but I don't want to insert extra constraints here.
+             */
+            maxDictSize = ZSTD_CURRENT_MAX - ZSTD_WINDOW_START_INDEX;
+        }
+
         /* If the dictionary is too large, only load the suffix of the dictionary. */
         if (srcSize > maxDictSize) {
             ip = iend - maxDictSize;
             src = ip;
             srcSize = maxDictSize;
-        }
+    }   }
+
+    if (srcSize > ZSTD_CHUNKSIZE_MAX) {
+        /* We must have cleared our windows when our source is this large. */
+        assert(ZSTD_window_isEmpty(ms->window));
+        if (loadLdmDict) assert(ZSTD_window_isEmpty(ls->window));
     }
 
     DEBUGLOG(4, "ZSTD_loadDictionaryContent(): useRowMatchFinder=%d", (int)params->useRowMatchFinder);

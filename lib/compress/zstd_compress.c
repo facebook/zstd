@@ -4219,7 +4219,7 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
          * Dictionaries right at the edge will immediately trigger overflow
          * correction, but I don't want to insert extra constraints here.
          */
-        U32 const maxDictSize = ZSTD_CURRENT_MAX - 1;
+        U32 const maxDictSize = ZSTD_CURRENT_MAX - ZSTD_WINDOW_START_INDEX;
         /* We must have cleared our windows when our source is this large. */
         assert(ZSTD_window_isEmpty(ms->window));
         if (loadLdmDict)

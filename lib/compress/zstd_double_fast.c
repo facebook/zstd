@@ -363,8 +363,8 @@ size_t ZSTD_compressBlock_doubleFast_dictMatchState_generic(
         size_t const dictHashAndTagS = ZSTD_hashPtr(ip, dictHBitsS, mls);
         U32 const dictMatchIndexAndTagL = dictHashLong[dictHashAndTagL >> ZSTD_SHORT_CACHE_TAG_BITS];
         U32 const dictMatchIndexAndTagS = dictHashSmall[dictHashAndTagS >> ZSTD_SHORT_CACHE_TAG_BITS];
-        size_t const dictTagsMatchL = (dictMatchIndexAndTagL & ZSTD_SHORT_CACHE_TAG_MASK) == (dictHashAndTagL & ZSTD_SHORT_CACHE_TAG_MASK);
-        size_t const dictTagsMatchS = (dictMatchIndexAndTagS & ZSTD_SHORT_CACHE_TAG_MASK) == (dictHashAndTagS & ZSTD_SHORT_CACHE_TAG_MASK);
+        size_t const dictTagsMatchL = ZSTD_comparePackedTags(dictMatchIndexAndTagL, dictHashAndTagL);
+        size_t const dictTagsMatchS = ZSTD_comparePackedTags(dictMatchIndexAndTagS, dictHashAndTagS);
         U32 const curr = (U32)(ip-base);
         U32 const matchIndexL = hashLong[h2];
         U32 matchIndexS = hashSmall[h];
@@ -433,7 +433,7 @@ _search_next_long:
             size_t const dictHashAndTagL3 = ZSTD_hashPtr(ip+1, dictHBitsL, 8);
             U32 const matchIndexL3 = hashLong[hl3];
             U32 const dictMatchIndexAndTagL3 = dictHashLong[dictHashAndTagL3 >> ZSTD_SHORT_CACHE_TAG_BITS];
-            size_t const dictTagsMatchL3 = (dictMatchIndexAndTagL3 & ZSTD_SHORT_CACHE_TAG_BITS) == (dictHashAndTagL3 & ZSTD_SHORT_CACHE_TAG_BITS);
+            size_t const dictTagsMatchL3 = ZSTD_comparePackedTags(dictMatchIndexAndTagL3, dictHashAndTagL3);
             const BYTE* matchL3 = base + matchIndexL3;
             hashLong[hl3] = curr + 1;
 

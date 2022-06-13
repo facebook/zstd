@@ -1289,8 +1289,8 @@ MEM_STATIC void ZSTD_writeTaggedIndex(U32* const hashTable, size_t hashAndTag, U
 
 /* Helper function for short cache matchfinders */
 MEM_STATIC int ZSTD_comparePackedTags(size_t packedTag1, size_t packedTag2) {
-    U32 tag1 = packedTag1 & ZSTD_SHORT_CACHE_TAG_MASK;
-    U32 tag2 = packedTag2 & ZSTD_SHORT_CACHE_TAG_MASK;
+    U32 const tag1 = packedTag1 & ZSTD_SHORT_CACHE_TAG_MASK;
+    U32 const tag2 = packedTag2 & ZSTD_SHORT_CACHE_TAG_MASK;
     return tag1 == tag2;
 }
 

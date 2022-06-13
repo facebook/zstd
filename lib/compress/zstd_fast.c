@@ -508,7 +508,7 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
 
         size_t const dictHashAndTag0 = ZSTD_hashPtr(ip0, dictHBits, mls);
         U32 dictMatchIndexAndTag = dictHashTable[dictHashAndTag0 >> ZSTD_SHORT_CACHE_TAG_BITS];
-        size_t dictTagsMatch = ZSTD_comparePackedTags(dictMatchIndexAndTag, dictHashAndTag0);
+        int dictTagsMatch = ZSTD_comparePackedTags(dictMatchIndexAndTag, dictHashAndTag0);
 
         U32 matchIndex = hashTable[hash0];
         U32 curr = (U32)(ip0 - base);

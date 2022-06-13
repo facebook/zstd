@@ -965,6 +965,10 @@ ZSTD_row_matchMaskGroupWidth(const U32 rowEntries)
     assert(rowEntries <= ZSTD_ROW_HASH_MAX_ENTRIES);
     (void)rowEntries;
 #if defined(ZSTD_ARCH_ARM_NEON)
+    /* NEON path only works for little endian */
+    if (!MEM_isLittleEndian()) {
+        return 1;
+    }
     if (rowEntries == 16) {
         return 4;
     }

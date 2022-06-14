@@ -577,11 +577,12 @@ typedef struct {
     cdict_collection_t dictionaries;
 } compressInstructions;
 
-compressInstructions createCompressInstructions(cdict_collection_t dictionaries)
+compressInstructions createCompressInstructions(cdict_collection_t dictionaries, ZSTD_CCtx_params* cctxParams)
 {
     compressInstructions ci;
     ci.cctx = ZSTD_createCCtx();
     CONTROL(ci.cctx != NULL);
+    ZSTD_CCtx_setParametersUsingCCtxParams(ci.cctx, cctxParams);
     ci.nbDicts = dictionaries.nbCDict;
     ci.dictNb = 0;
     ci.dictionaries = dictionaries;
@@ -622,10 +623,10 @@ size_t compress(const void* src, size_t srcSize, void* dst, size_t dstCapacity, 
     compressInstructions* const ci = (compressInstructions*) payload;
     (void)dstCapacity;
 
-    ZSTD_compress_usingCDict(ci->cctx,
-                    dst, srcSize,
-                    src, srcSize,
-                    ci->dictionaries.cdicts[ci->dictNb]);
+    ZSTD_CCtx_refCDict(ci->cctx, ci->dictionaries.cdicts[ci->dictNb]);
+    ZSTD_compress2(ci->cctx,
+            dst, srcSize,
+            src, srcSize);
 
     ci->dictNb = ci->dictNb + 1;
     if (ci->dictNb >= ci->nbDicts) ci->dictNb = 0;
@@ -655,9 +656,10 @@ static int benchMem(slice_collection_t dstBlocks,
                     ddict_collection_t ddictionaries,
                     cdict_collection_t cdictionaries,
                     unsigned nbRounds, int benchCompression,
-                    const char* exeName)
+                    const char* exeName, ZSTD_CCtx_params* cctxParams)
 {
     assert(dstBlocks.nbSlices == srcBlocks.nbSlices);
+    if (benchCompression) assert(cctxParams);
 
     unsigned const ms_per_round = RUN_TIME_DEFAULT_MS;
     unsigned const total_time_ms = nbRounds * ms_per_round;
@@ -668,7 +670,7 @@ static int benchMem(slice_collection_t dstBlocks,
             BMK_createTimedFnState(total_time_ms, ms_per_round);
 
     decompressInstructions di = createDecompressInstructions(ddictionaries);
-    compressInstructions ci = createCompressInstructions(cdictionaries);
+    compressInstructions ci = createCompressInstructions(cdictionaries, cctxParams);
     void* payload = benchCompression ? (void*)&ci : (void*)&di;
     BMK_benchParams_t const bp = {
         .benchFn = benchCompression ? compress : decompress,
@@ -834,7 +836,7 @@ int bench(const char** fileNameTable, unsigned nbFiles,
         buffer_collection_t resultCollection = createBufferCollection_fromSliceCollection(srcSlices);
         CONTROL(resultCollection.buffer.ptr != NULL);
 
-        result = benchMem(dstSlices, resultCollection.slices, ddictionaries, cdictionaries, nbRounds, benchCompression, exeName);
+        result = benchMem(dstSlices, resultCollection.slices, ddictionaries, cdictionaries, nbRounds, benchCompression, exeName, cctxParams);
 
         freeBufferCollection(resultCollection);
     } else {
@@ -848,7 +850,7 @@ int bench(const char** fileNameTable, unsigned nbFiles,
         buffer_collection_t resultCollection = createBufferCollection_fromSliceCollectionSizes(srcSlices);
         CONTROL(resultCollection.buffer.ptr != NULL);
 
-        result = benchMem(resultCollection.slices, dstSlices, ddictionaries, cdictionaries, nbRounds, benchCompression, exeName);
+        result = benchMem(resultCollection.slices, dstSlices, ddictionaries, cdictionaries, nbRounds, benchCompression, exeName, NULL);
 
         freeBufferCollection(resultCollection);
     }

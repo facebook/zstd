@@ -4248,19 +4248,23 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
     ZSTD_assertEqualCParams(params->cParams, ms->cParams);
 
     {   /* Ensure large dictionaries can't cause index overflow */
-        U32 maxDictSize;
+
+        /* Allow the dictionary to set indices up to exactly ZSTD_CURRENT_MAX.
+         * Dictionaries right at the edge will immediately trigger overflow
+         * correction, but I don't want to insert extra constraints here.
+         */
+        U32 maxDictSize = ZSTD_CURRENT_MAX - ZSTD_WINDOW_START_INDEX;
+
         int const CDictTaggedIndices = ZSTD_CDictIndicesAreTagged(&params->cParams);
         if (CDictTaggedIndices && tfp == ZSTD_tfp_forCDict) {
-            /* TODO comment */
-            maxDictSize = (1u << (32 - ZSTD_SHORT_CACHE_TAG_BITS)) - ZSTD_WINDOW_START_INDEX;
-            assert(maxDictSize + ZSTD_WINDOW_START_INDEX < ZSTD_CURRENT_MAX);
+            /* Some dictionary matchfinders in zstd use "short cache",
+             * which treats the lower ZSTD_SHORT_CACHE_TAG_BITS of each
+             * CDict hashtable entry as a tag rather than as part of an index.
+             * When short cache is used, we need to truncate the dictionary
+             * so that its indices don't overlap with the tag. */
+            U32 const shortCacheMaxDictSize = (1u << (32 - ZSTD_SHORT_CACHE_TAG_BITS)) - ZSTD_WINDOW_START_INDEX;
+            maxDictSize = MIN(maxDictSize, shortCacheMaxDictSize);
             assert(!loadLdmDict);
-        } else {
-            /* Allow the dictionary to set indices up to exactly ZSTD_CURRENT_MAX.
-             * Dictionaries right at the edge will immediately trigger overflow
-             * correction, but I don't want to insert extra constraints here.
-             */
-            maxDictSize = ZSTD_CURRENT_MAX - ZSTD_WINDOW_START_INDEX;
         }
 
         /* If the dictionary is too large, only load the suffix of the dictionary. */

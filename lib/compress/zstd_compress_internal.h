@@ -434,6 +434,7 @@ struct ZSTD_CCtx_s {
 };
 
 typedef enum { ZSTD_dtlm_fast, ZSTD_dtlm_full } ZSTD_dictTableLoadMethod_e;
+typedef enum { ZSTD_tfp_forCCtx, ZSTD_tfp_forCDict } ZSTD_tableFillPurpose_e;
 
 typedef enum {
     ZSTD_noDict = 0,
@@ -1270,11 +1271,7 @@ MEM_STATIC void ZSTD_debugTable(const U32* table, U32 max)
 
 /* Short Cache */
 
-typedef enum {
-    /* TODO: this is a good place to document short cache */
-    ZSTD_tfp_forCCtx = 0,
-    ZSTD_tfp_forCDict = 1
-} ZSTD_tableFillPurpose_e;
+/* TODO: this is a good place to document short cache */
 
 #define ZSTD_SHORT_CACHE_TAG_BITS 8
 #define ZSTD_SHORT_CACHE_TAG_MASK ((1u << ZSTD_SHORT_CACHE_TAG_BITS) - 1)

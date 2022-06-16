@@ -1276,7 +1276,8 @@ MEM_STATIC void ZSTD_debugTable(const U32* table, U32 max)
 #define ZSTD_SHORT_CACHE_TAG_BITS 8
 #define ZSTD_SHORT_CACHE_TAG_MASK ((1u << ZSTD_SHORT_CACHE_TAG_BITS) - 1)
 
-/* Helper function for ZSTD_fillHashTable and ZSTD_fillDoubleHashTable */
+/* Helper function for ZSTD_fillHashTable and ZSTD_fillDoubleHashTable.
+ * Unpacks hashAndTag into (hash, tag), then packs (index, tag) into hashTable[hash]. */
 MEM_STATIC void ZSTD_writeTaggedIndex(U32* const hashTable, size_t hashAndTag, U32 index) {
     size_t const hash = hashAndTag >> ZSTD_SHORT_CACHE_TAG_BITS;
     U32 const tag = (U32)(hashAndTag & ZSTD_SHORT_CACHE_TAG_MASK);
@@ -1284,7 +1285,8 @@ MEM_STATIC void ZSTD_writeTaggedIndex(U32* const hashTable, size_t hashAndTag, U
     hashTable[hash] = (index << ZSTD_SHORT_CACHE_TAG_BITS) | tag;
 }
 
-/* Helper function for short cache matchfinders */
+/* Helper function for short cache matchfinders.
+ * Unpacks tag1 and tag2 from lower bits of packedTag1 and packedTag2, then checks if the tags match. */
 MEM_STATIC int ZSTD_comparePackedTags(size_t packedTag1, size_t packedTag2) {
     U32 const tag1 = packedTag1 & ZSTD_SHORT_CACHE_TAG_MASK;
     U32 const tag2 = packedTag2 & ZSTD_SHORT_CACHE_TAG_MASK;

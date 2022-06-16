@@ -2109,6 +2109,22 @@ ZSTD_resetCCtx_byAttachingCDict(ZSTD_CCtx* cctx,
     return 0;
 }
 
+static void ZSTD_copyCDictTableIntoCCtx(U32* dst, U32 const* src, size_t tableSize,
+                                        ZSTD_compressionParameters const* cParams) {
+    if (ZSTD_CDictIndicesAreTagged(cParams)){
+        /* Remove tags from the CDict table if they are present.
+         * See docs on "short cache" in zstd_compress_internal.h for context. */
+        size_t i;
+        for (i = 0; i < tableSize; i++) {
+            U32 const taggedIndex = src[i];
+            U32 const index = taggedIndex >> ZSTD_SHORT_CACHE_TAG_BITS;
+            dst[i] = index;
+        }
+    } else {
+        ZSTD_memcpy(dst, src, tableSize * sizeof(U32));
+    }
+}
+
 static size_t ZSTD_resetCCtx_byCopyingCDict(ZSTD_CCtx* cctx,
                             const ZSTD_CDict* cdict,
                             ZSTD_CCtx_params params,
@@ -2144,33 +2160,15 @@ static size_t ZSTD_resetCCtx_byCopyingCDict(ZSTD_CCtx* cctx,
                                                             : 0;
         size_t const hSize =  (size_t)1 << cdict_cParams->hashLog;
 
-        if (ZSTD_CDictIndicesAreTagged(&cctx->appliedParams.cParams)){
-            size_t i;
-            for (i = 0; i < hSize; i++) {
-                U32 const taggedIndex = cdict->matchState.hashTable[i];
-                U32 const index = taggedIndex >> ZSTD_SHORT_CACHE_TAG_BITS;
-                cctx->blockState.matchState.hashTable[i] = index;
-            }
-        } else {
-            ZSTD_memcpy(cctx->blockState.matchState.hashTable,
-                cdict->matchState.hashTable,
-                hSize * sizeof(U32));
-        }
+        ZSTD_copyCDictTableIntoCCtx(cctx->blockState.matchState.hashTable,
+                                cdict->matchState.hashTable,
+                                hSize, cdict_cParams);
 
         /* Do not copy cdict's chainTable if cctx has parameters such that it would not use chainTable */
         if (ZSTD_allocateChainTable(cctx->appliedParams.cParams.strategy, cctx->appliedParams.useRowMatchFinder, 0 /* forDDSDict */)) {
-            if (ZSTD_CDictIndicesAreTagged(&cctx->appliedParams.cParams)){
-                size_t i;
-                for (i = 0; i < chainSize; i++) {
-                    U32 const taggedIndex = cdict->matchState.chainTable[i];
-                    U32 const index = taggedIndex >> ZSTD_SHORT_CACHE_TAG_BITS;
-                    cctx->blockState.matchState.chainTable[i] = index;
-                }
-            } else {
-                ZSTD_memcpy(cctx->blockState.matchState.chainTable,
-                    cdict->matchState.chainTable,
-                    chainSize * sizeof(U32));
-            }
+            ZSTD_copyCDictTableIntoCCtx(cctx->blockState.matchState.chainTable,
+                                    cdict->matchState.chainTable,
+                                    chainSize, cdict_cParams);
         }
         /* copy tag table */
         if (ZSTD_rowMatchFinderUsed(cdict_cParams->strategy, cdict->useRowMatchFinder)) {

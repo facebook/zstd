@@ -24,6 +24,10 @@ static void ZSTD_fillHashTableForCDict(ZSTD_matchState_t* ms,
     const BYTE* const iend = ((const BYTE*)end) - HASH_READ_SIZE;
     const U32 fastHashFillStep = 3;
 
+    /* Currently, we always use ZSTD_dtlm_full for filling CDict tables.
+     * Feel free to remove this assert if there's a good reason! */
+    assert(dtlm == ZSTD_dtlm_full);
+
     /* Always insert every fastHashFillStep position into the hash table.
      * Insert the other positions if their hash entry is empty.
      */
@@ -54,6 +58,10 @@ static void ZSTD_fillHashTableForCCtx(ZSTD_matchState_t* ms,
     const BYTE* ip = base + ms->nextToUpdate;
     const BYTE* const iend = ((const BYTE*)end) - HASH_READ_SIZE;
     const U32 fastHashFillStep = 3;
+
+    /* Currently, we always use ZSTD_dtlm_fast for filling CCtx tables.
+     * Feel free to remove this assert if there's a good reason! */
+    assert(dtlm == ZSTD_dtlm_fast);
 
     /* Always insert every fastHashFillStep position into the hash table.
      * Insert the other positions if their hash entry is empty.

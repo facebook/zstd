@@ -1271,8 +1271,21 @@ MEM_STATIC void ZSTD_debugTable(const U32* table, U32 max)
 
 /* Short Cache */
 
-/* TODO: this is a good place to document short cache */
-
+/* Normally, zstd matchfinders follow this flow:
+ *     1. Compute hash at ip
+ *     2. Load index from hashTable[hash]
+ *     3. Check if *ip == *(base + index)
+ * In dictionary compression, loading *(base + index) is often an L2 or even L3 miss.
+ *
+ * Short cache is an optimization which allows us to avoid step 3 most of the time.
+ * With short cache, the flow becomes:
+ *     1. Compute (hash, currentTag) at ip. currentTag is an 8-bit independent hash at ip.
+ *     2. Load (index, matchTag) from hashTable[hash]. See ZSTD_writeTaggedIndex to understand how this works.
+ *     3. Only if currentTag == matchTag, check *ip == *(base + index). Otherwise, continue.
+ *
+ * Currently, short cache is only implemented in CDict hashtables. Thus, its use is limited to
+ * dictMatchState matchfinders.
+ */
 #define ZSTD_SHORT_CACHE_TAG_BITS 8
 #define ZSTD_SHORT_CACHE_TAG_MASK ((1u << ZSTD_SHORT_CACHE_TAG_BITS) - 1)
 

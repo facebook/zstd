@@ -1277,8 +1277,8 @@ MEM_STATIC void ZSTD_debugTable(const U32* table, U32 max)
  *     3. Check if *ip == *(base + index)
  * In dictionary compression, loading *(base + index) is often an L2 or even L3 miss.
  *
- * Short cache is an optimization which allows us to avoid step 3 most of the time.
- * With short cache, the flow becomes:
+ * Short cache is an optimization which allows us to avoid step 3 most of the time
+ * when the data doesn't actually match. With short cache, the flow becomes:
  *     1. Compute (hash, currentTag) at ip. currentTag is an 8-bit independent hash at ip.
  *     2. Load (index, matchTag) from hashTable[hash]. See ZSTD_writeTaggedIndex to understand how this works.
  *     3. Only if currentTag == matchTag, check *ip == *(base + index). Otherwise, continue.

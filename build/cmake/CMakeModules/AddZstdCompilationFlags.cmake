@@ -22,10 +22,12 @@ endfunction()
 
 macro(ADD_ZSTD_COMPILATION_FLAGS)
     if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" OR MINGW) #Not only UNIX but also WIN32 for MinGW
-        #Set c++11 by default
-        EnableCompilerFlag("-std=c++11" false true)
-        #Set c99 by default
-        EnableCompilerFlag("-std=c99" true false)
+        # It's possible to select the exact standard used for compilation.
+        # It's not necessary, but can be employed for specific purposes.
+        # Note that zstd source code is compatible with both C++98 and above
+        # and C-gnu90 (c90 + long long + variadic macros ) and above
+        # EnableCompilerFlag("-std=c++11" false true) # Set C++ compilation to c++11 standard
+        # EnableCompilerFlag("-std=c99" true false)   # Set C compiation to c99 standard
         if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND MSVC)
             # clang-cl normally maps -Wall to -Weverything.
             EnableCompilerFlag("/clang:-Wall" true true)
@@ -48,7 +50,7 @@ macro(ADD_ZSTD_COMPILATION_FLAGS)
         if (CMAKE_GENERATOR MATCHES "Visual Studio" AND ACTIVATE_MULTITHREADED_COMPILATION)
             EnableCompilerFlag("/MP" true true)
         endif ()
-        
+
         # UNICODE SUPPORT
         EnableCompilerFlag("/D_UNICODE" true true)
         EnableCompilerFlag("/DUNICODE" true true)

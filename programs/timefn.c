@@ -8,6 +8,7 @@
  * You may select, at your option, one of the above-listed licenses.
  */
 
+#define _POSIX_C_SOURCE	200809L /* clock_gettime */
 
 /* ===  Dependencies  === */
 
@@ -82,10 +83,8 @@ PTime UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd)
 }
 
 
-/* C11 requires timespec_get, but FreeBSD 11 lacks it, while still claiming C11 compliance.
-   Android also lacks it but does define TIME_UTC. */
 #elif (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) /* C11 */) \
-    && defined(TIME_UTC) && !defined(__ANDROID__)
+    || defined(CLOCK_MONOTONIC) /* POSIX.1-2001 (optional) */
 
 #include <stdlib.h>   /* abort */
 #include <stdio.h>    /* perror */
@@ -95,10 +94,17 @@ UTIL_time_t UTIL_getTime(void)
     /* time must be initialized, othersize it may fail msan test.
      * No good reason, likely a limitation of timespec_get() for some target */
     UTIL_time_t time = UTIL_TIME_INITIALIZER;
+#if defined(CLOCK_MONOTONIC)
+    if (clock_gettime(CLOCK_MONOTONIC, &time) != 0) {
+        perror("timefn::clock_gettime(CLOCK_MONOTONIC)");
+        abort();
+    }
+#else
     if (timespec_get(&time, TIME_UTC) != TIME_UTC) {
         perror("timefn::timespec_get");
         abort();
     }
+#endif
     return time;
 }
 

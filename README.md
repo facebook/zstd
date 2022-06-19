@@ -124,14 +124,23 @@ Dictionary gains are mostly effective in the first few KB. Then, the compression
 
 ## Build instructions
 
+`make` is the officially maintained build system of this project.
+All other build systems are "compatible" and 3rd-party maintained,
+they may feature small differences in advanced options.
+When your system allows it, prefer using `make` to build `zstd` and `libzstd`.
+
 ### Makefile
 
 If your system is compatible with standard `make` (or `gmake`),
 invoking `make` in root directory will generate `zstd` cli in root directory.
+It will also create `libzstd` into `lib/`.
 
 Other available options include:
 - `make install` : create and install zstd cli, library and man pages
-- `make check` : create and run `zstd`, tests its behavior on local platform
+- `make check` : create and run `zstd`, test its behavior on local platform
+
+The `Makefile` follows the [GNU Standard Makefile conventions](https://www.gnu.org/prep/standards/html_node/Makefile-Conventions.html),
+allowing staged install, standard flags, directory variables and command variables.
 
 ### cmake
 

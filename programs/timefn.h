@@ -65,6 +65,7 @@ extern "C" {
 
 #else   /* relies on standard C90 (note : clock_t measurements can be wrong when using multi-threading) */
 
+    #define UTIL_TIME_USES_C90_CLOCK
     typedef clock_t UTIL_time_t;
     #define UTIL_TIME_INITIALIZER 0
 

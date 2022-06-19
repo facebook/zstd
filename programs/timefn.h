@@ -55,10 +55,8 @@ extern "C" {
     typedef PTime UTIL_time_t;
     #define UTIL_TIME_INITIALIZER 0
 
-/* C11 requires timespec_get, but FreeBSD 11 lacks it, while still claiming C11 compliance.
-   Android also lacks it but does define TIME_UTC. */
 #elif (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) /* C11 */) \
-    && defined(TIME_UTC) && !defined(__ANDROID__)
+    || defined(CLOCK_MONOTONIC) /* POSIX.1-2001 (optional) */
 
     typedef struct timespec UTIL_time_t;
     #define UTIL_TIME_INITIALIZER { 0, 0 }

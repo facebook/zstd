@@ -39,11 +39,13 @@ extern "C" {
   typedef unsigned long long PTime;  /* does not support compilers without long long support */
 #endif
 
-#define TIMEFN_HAS_TIMESPEC_GET \
-    (  defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) /* C11 */ \
+/* The following macro test is supposed to probe the existence of timespec_get() */
+#if (  defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) /* C11 */ \
     && defined(TIME_UTC)  /* some OS, like FreeBSD 11, claim C11 compliance yet don't provide timespec_get */ \
     && !defined(__ANDROID__) /* Android <= 10 even provides TIME_UTC but still does not provide timespec_get */ \
     )
+# define TIMEFN_HAS_TIMESPEC_GET
+#endif
 
 /*-****************************************
 *  Time functions
@@ -60,7 +62,7 @@ extern "C" {
     typedef PTime UTIL_time_t;
     #define UTIL_TIME_INITIALIZER 0
 
-#elif TIMEFN_HAS_TIMESPEC_GET \
+#elif defined(TIMEFN_HAS_TIMESPEC_GET) \
     || defined(CLOCK_MONOTONIC) /* POSIX.1-2001 (optional) */
 
     typedef struct timespec UTIL_time_t;

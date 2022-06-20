@@ -81,7 +81,7 @@ PTime UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd)
 }
 
 
-#elif TIMEFN_HAS_TIMESPEC_GET \
+#elif defined(TIMEFN_HAS_TIMESPEC_GET) \
     || defined(CLOCK_MONOTONIC) /* POSIX.1-2001 (optional) */
 
 #include <stdlib.h>   /* abort */
@@ -92,7 +92,7 @@ UTIL_time_t UTIL_getTime(void)
     /* time must be initialized, othersize it may fail msan test.
      * No good reason, likely a limitation of timespec_get() for some target */
     UTIL_time_t time = UTIL_TIME_INITIALIZER;
-#if TIMEFN_HAS_TIMESPEC_GET
+#if defined(TIMEFN_HAS_TIMESPEC_GET)
     /* favor timespec_get() as first choice for c11 targets */
     if (timespec_get(&time, TIME_UTC) != TIME_UTC) {
         perror("timefn::timespec_get");

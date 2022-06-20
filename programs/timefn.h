@@ -19,6 +19,7 @@ extern "C" {
 /*-****************************************
 *  Dependencies
 ******************************************/
+#define _POSIX_C_SOURCE	200809L /* clock_gettime */
 #include <time.h>         /* clock_t, clock, CLOCKS_PER_SEC */
 
 
@@ -38,7 +39,11 @@ extern "C" {
   typedef unsigned long long PTime;  /* does not support compilers without long long support */
 #endif
 
-
+#define TIMEFN_HAS_TIMESPEC_GET \
+    (  defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) /* C11 */ \
+    && defined(TIME_UTC)  /* some OS, like FreeBSD 11, claim C11 compliance yet don't provide timespec_get */ \
+    && !defined(__ANDROID__) /* Android <= 10 even provides TIME_UTC but still does not provide timespec_get */ \
+    )
 
 /*-****************************************
 *  Time functions
@@ -55,7 +60,7 @@ extern "C" {
     typedef PTime UTIL_time_t;
     #define UTIL_TIME_INITIALIZER 0
 
-#elif (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) /* C11 */) \
+#elif TIMEFN_HAS_TIMESPEC_GET \
     || defined(CLOCK_MONOTONIC) /* POSIX.1-2001 (optional) */
 
     typedef struct timespec UTIL_time_t;

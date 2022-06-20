@@ -8,8 +8,6 @@
  * You may select, at your option, one of the above-listed licenses.
  */
 
-#define _POSIX_C_SOURCE	200809L /* clock_gettime */
-
 /* ===  Dependencies  === */
 
 #include "timefn.h"
@@ -83,7 +81,7 @@ PTime UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd)
 }
 
 
-#elif (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) /* C11 */) \
+#elif TIMEFN_HAS_TIMESPEC_GET \
     || defined(CLOCK_MONOTONIC) /* POSIX.1-2001 (optional) */
 
 #include <stdlib.h>   /* abort */
@@ -94,14 +92,16 @@ UTIL_time_t UTIL_getTime(void)
     /* time must be initialized, othersize it may fail msan test.
      * No good reason, likely a limitation of timespec_get() for some target */
     UTIL_time_t time = UTIL_TIME_INITIALIZER;
-#if defined(CLOCK_MONOTONIC)
-    if (clock_gettime(CLOCK_MONOTONIC, &time) != 0) {
-        perror("timefn::clock_gettime(CLOCK_MONOTONIC)");
+#if TIMEFN_HAS_TIMESPEC_GET
+    /* favor timespec_get() as first choice for c11 targets */
+    if (timespec_get(&time, TIME_UTC) != TIME_UTC) {
+        perror("timefn::timespec_get");
         abort();
     }
 #else
-    if (timespec_get(&time, TIME_UTC) != TIME_UTC) {
-        perror("timefn::timespec_get");
+    /* CLOCK_MONOTONIC is guaranteed to be defined on reaching that part */
+    if (clock_gettime(CLOCK_MONOTONIC, &time) != 0) {
+        perror("timefn::clock_gettime(CLOCK_MONOTONIC)");
         abort();
     }
 #endif

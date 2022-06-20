@@ -13,11 +13,11 @@
 /* *************************************
 *  Includes
 ***************************************/
+#include "timefn.h"      /* UTIL_time_t, UTIL_getTime, set _POSIX_SOURCE */
 #include <stdlib.h>      /* malloc, free */
 #include <string.h>      /* memset */
 #include <assert.h>      /* assert */
 
-#include "timefn.h"        /* UTIL_time_t, UTIL_getTime */
 #include "benchfn.h"
 
 

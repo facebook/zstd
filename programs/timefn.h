@@ -19,8 +19,8 @@ extern "C" {
 /*-****************************************
 *  Dependencies
 ******************************************/
-#define _POSIX_C_SOURCE	200809L /* clock_gettime */
-#include <time.h>         /* clock_t, clock, CLOCKS_PER_SEC */
+#include "platform.h"  /* set _POSIX_C_SOURCE */
+#include <time.h>      /* clock_t, clock, CLOCKS_PER_SEC */
 
 
 

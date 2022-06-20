@@ -6,15 +6,15 @@
  * LICENSE file in the root directory of this source tree) and the GPLv2 (found
  * in the COPYING file in the root directory of this source tree).
  * You may select, at your option, one of the above-listed licenses.
- */
+**/
 
-#include "zstdcli_trace.h"
+#include "timefn.h"  /* UTIL_clockSpanNano, UTIL_TIME_INITIALIZER, set _POSIX_C_SOURCE */
 
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "timefn.h"
-#include "util.h"
+#include "zstdcli_trace.h"
+#include "util.h"  /* UTIL_isRegularFile */
 
 #define ZSTD_STATIC_LINKING_ONLY
 #include "../lib/zstd.h"

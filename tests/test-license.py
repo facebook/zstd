@@ -83,8 +83,8 @@ def valid_copyright(lines):
             continue
         if "present" in line:
             return (False, f"Copyright line '{line}' contains 'present'!")
-        if "Facebook, Inc" not in line:
-            return (False, f"Copyright line '{line}' does not contain 'Facebook, Inc'")
+        if "Meta Platforms, Inc" not in line:
+            return (False, f"Copyright line '{line}' does not contain 'Meta Platforms, Inc'")
         year = YEAR_REGEX.search(line)
         if year is not None:
             return (False, f"Copyright line '{line}' contains {year.group(0)}; it should be yearless")

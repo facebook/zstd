@@ -1956,7 +1956,27 @@ ZSTDLIB_STATIC_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const vo
  */
 #define ZSTD_c_deterministicRefPrefix ZSTD_c_experimentalParam15
 
-/* TODO document */
+/* ZSTD_c_prefetchCDictTables
+ * Controlled with ZSTD_paramSwitch_e enum. Default is ZSTD_ps_auto.
+ *
+ * In some situations, zstd uses CDict tables in-place rather than copying them
+ * into the working context. (See docs on ZSTD_dictAttachPref_e above for details).
+ * In such situations, compression speed is seriously impacted when CDict tables are
+ * "cold" (outside CPU cache). This parameter instructs zstd to prefetch CDict tables
+ * when they are used in-place.
+ *
+ * For sufficiently small inputs, the cost of the prefetch will outweigh the benefit.
+ * For sufficiently large inputs, zstd will by default memcpy() CDict tables
+ * into the working context, so there is no need to prefetch. This parameter is
+ * targeted at a middle range of input sizes, where a prefetch is cheap enough to be
+ * useful but memcpy() is too expensive. The exact range of input sizes where this
+ * makes sense is best determined by careful experimentation.
+ *
+ * Note: for this parameter, ZSTD_ps_auto is currently equivalent to ZSTD_ps_disable,
+ * but in the future zstd may conditionally enable this feature via an auto-detection
+ * heuristic for cold CDicts.
+ * Use ZSTD_ps_disable to opt out of prefetching under any circumstances.
+ */
 #define ZSTD_c_prefetchCDictTables ZSTD_c_experimentalParam16
 
 /*! ZSTD_CCtx_getParameter() :

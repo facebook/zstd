@@ -12,7 +12,10 @@ project('zstd',
   ['c', 'cpp'],
   license: ['BSD', 'GPLv2'],
   default_options : [
-    'c_std=gnu99',
+    # There shouldn't be any need to force a C standard convention for zstd
+    # but in case one would want that anyway, this can be done here.
+    # 'c_std=gnu99',
+    # c++11 standard is useful for pzstd
     'cpp_std=c++11',
     'buildtype=release',
     'warning_level=3',

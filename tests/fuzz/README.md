@@ -57,7 +57,6 @@ for target in $(./fuzz.py list); do
     ./fuzz.py libfuzzer $target -jobs=10 -workers=10 -max_total_time=1000 || break;
 done
 ```
-
 To double-check that no crashes were found, run `ls corpora/*crash`. 
 If any crashes were found, you can use the hashes to reproduce them.
 

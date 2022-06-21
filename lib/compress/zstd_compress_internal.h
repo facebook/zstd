@@ -235,6 +235,7 @@ struct ZSTD_matchState_t {
     const ZSTD_matchState_t* dictMatchState;
     ZSTD_compressionParameters cParams;
     const rawSeqStore_t* ldmSeqStore;
+    int prefetchCDictTables;  /* TODO document */
 };
 
 typedef struct {
@@ -331,6 +332,9 @@ struct ZSTD_CCtx_params_s {
 
     /* Internal use, for createCCtxParams() and freeCCtxParams() only */
     ZSTD_customMem customMem;
+
+    /* TODO document */
+    ZSTD_paramSwitch_e prefetchCDictTables;
 };  /* typedef'd to ZSTD_CCtx_params within "zstd.h" */
 
 #define COMPRESS_SEQUENCES_WORKSPACE_SIZE (sizeof(unsigned) * (MaxSeq + 2))

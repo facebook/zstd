@@ -345,6 +345,13 @@ size_t ZSTD_compressBlock_doubleFast_dictMatchState_generic(
     /* if a dictionary is attached, it must be within window range */
     assert(ms->window.dictLimit + (1U << cParams->windowLog) >= endIndex);
 
+    if (ms->prefetchCDictTables) {
+        size_t const hashTableSize = ((size_t)1) << dictCParams->hashLog;
+        size_t const chainTableSize = ((size_t)1) << dictCParams->chainLog;
+        PREFETCH_AREA(dictHashLong, hashTableSize * sizeof(U32))
+        PREFETCH_AREA(dictHashSmall, chainTableSize * sizeof(U32))
+    }
+
     /* init */
     ip += (dictAndPrefixLength == 0);
 

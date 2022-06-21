@@ -58,6 +58,9 @@ for target in $(./fuzz.py list); do
 done
 ```
 
+To double-check that no crashes were found, run `ls corpora/*crash`. 
+If any crashes were found, you can use the hashes to reproduce them.
+
 ## LibFuzzer
 
 ```

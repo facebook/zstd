@@ -50,6 +50,14 @@ See the help of the relevant command for options.
 Flags not parsed by `fuzz.py` are passed to the fuzzing engine.
 The command used to run the fuzzer is printed for debugging.
 
+Here's a helpful command to fuzz all targets in parallel,
+stopping only if a bug is found:
+```
+for target in $(./fuzz.py list); do
+    ./fuzz.py libfuzzer $target -jobs=10 -workers=10 -max_total_time=1000 || break;
+done
+```
+
 ## LibFuzzer
 
 ```

@@ -11,8 +11,42 @@
 #include "zstd_compress_internal.h"  /* ZSTD_hashPtr, ZSTD_count, ZSTD_storeSeq */
 #include "zstd_fast.h"
 
+static void ZSTD_fillHashTableForCDict(ZSTD_matchState_t* ms,
+                        const void* const end,
+                        ZSTD_dictTableLoadMethod_e dtlm)
+{
+    const ZSTD_compressionParameters* const cParams = &ms->cParams;
+    U32* const hashTable = ms->hashTable;
+    U32  const hBits = cParams->hashLog + ZSTD_SHORT_CACHE_TAG_BITS;
+    U32  const mls = cParams->minMatch;
+    const BYTE* const base = ms->window.base;
+    const BYTE* ip = base + ms->nextToUpdate;
+    const BYTE* const iend = ((const BYTE*)end) - HASH_READ_SIZE;
+    const U32 fastHashFillStep = 3;
 
-void ZSTD_fillHashTable(ZSTD_matchState_t* ms,
+    /* Currently, we always use ZSTD_dtlm_full for filling CDict tables.
+     * Feel free to remove this assert if there's a good reason! */
+    assert(dtlm == ZSTD_dtlm_full);
+
+    /* Always insert every fastHashFillStep position into the hash table.
+     * Insert the other positions if their hash entry is empty.
+     */
+    for ( ; ip + fastHashFillStep < iend + 2; ip += fastHashFillStep) {
+        U32 const curr = (U32)(ip - base);
+        {   size_t const hashAndTag = ZSTD_hashPtr(ip, hBits, mls);
+            ZSTD_writeTaggedIndex(hashTable, hashAndTag, curr);   }
+
+        if (dtlm == ZSTD_dtlm_fast) continue;
+        /* Only load extra positions for ZSTD_dtlm_full */
+        {   U32 p;
+            for (p = 1; p < fastHashFillStep; ++p) {
+                size_t const hashAndTag = ZSTD_hashPtr(ip + p, hBits, mls);
+                if (hashTable[hashAndTag >> ZSTD_SHORT_CACHE_TAG_BITS] == 0) {  /* not yet filled */
+                    ZSTD_writeTaggedIndex(hashTable, hashAndTag, curr + p);
+                }   }   }   }
+}
+
+static void ZSTD_fillHashTableForCCtx(ZSTD_matchState_t* ms,
                         const void* const end,
                         ZSTD_dictTableLoadMethod_e dtlm)
 {
@@ -24,6 +58,10 @@ void ZSTD_fillHashTable(ZSTD_matchState_t* ms,
     const BYTE* ip = base + ms->nextToUpdate;
     const BYTE* const iend = ((const BYTE*)end) - HASH_READ_SIZE;
     const U32 fastHashFillStep = 3;
+
+    /* Currently, we always use ZSTD_dtlm_fast for filling CCtx tables.
+     * Feel free to remove this assert if there's a good reason! */
+    assert(dtlm == ZSTD_dtlm_fast);
 
     /* Always insert every fastHashFillStep position into the hash table.
      * Insert the other positions if their hash entry is empty.
@@ -40,6 +78,18 @@ void ZSTD_fillHashTable(ZSTD_matchState_t* ms,
                 if (hashTable[hash] == 0) {  /* not yet filled */
                     hashTable[hash] = curr + p;
     }   }   }   }
+}
+
+void ZSTD_fillHashTable(ZSTD_matchState_t* ms,
+                        const void* const end,
+                        ZSTD_dictTableLoadMethod_e dtlm,
+                        ZSTD_tableFillPurpose_e tfp)
+{
+    if (tfp == ZSTD_tfp_forCDict) {
+        ZSTD_fillHashTableForCDict(ms, end, dtlm);
+    } else {
+        ZSTD_fillHashTableForCCtx(ms, end, dtlm);
+    }
 }
 
 
@@ -435,7 +485,7 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
     const BYTE* const dictEnd      = dms->window.nextSrc;
     const U32 dictIndexDelta       = prefixStartIndex - (U32)(dictEnd - dictBase);
     const U32 dictAndPrefixLength  = (U32)(istart - prefixStart + dictEnd - dictStart);
-    const U32 dictHLog             = dictCParams->hashLog;
+    const U32 dictHBits            = dictCParams->hashLog + ZSTD_SHORT_CACHE_TAG_BITS;
 
     /* if a dictionary is still attached, it necessarily means that
      * it is within window size. So we just check it. */
@@ -463,8 +513,11 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
     while (ip1 <= ilimit) {   /* repcode check at (ip0 + 1) is safe because ip0 < ip1 */
         size_t mLength;
         size_t hash0 = ZSTD_hashPtr(ip0, hlog, mls);
-        const size_t dictHash0 = ZSTD_hashPtr(ip0, dictHLog, mls);
-        U32 dictMatchIndex = dictHashTable[dictHash0];
+
+        size_t const dictHashAndTag0 = ZSTD_hashPtr(ip0, dictHBits, mls);
+        U32 dictMatchIndexAndTag = dictHashTable[dictHashAndTag0 >> ZSTD_SHORT_CACHE_TAG_BITS];
+        int dictTagsMatch = ZSTD_comparePackedTags(dictMatchIndexAndTag, dictHashAndTag0);
+
         U32 matchIndex = hashTable[hash0];
         U32 curr = (U32)(ip0 - base);
         size_t step = stepSize;
@@ -479,7 +532,7 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
                                    dictBase + (repIndex - dictIndexDelta) :
                                    base + repIndex;
             const size_t hash1 = ZSTD_hashPtr(ip1, hlog, mls);
-            const size_t dictHash1 = ZSTD_hashPtr(ip1, dictHLog, mls);
+            size_t const dictHashAndTag1 = ZSTD_hashPtr(ip1, dictHBits, mls);
             hashTable[hash0] = curr;   /* update hash table */
 
             if (((U32) ((prefixStartIndex - 1) - repIndex) >=
@@ -490,26 +543,33 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
                 ip0++;
                 ZSTD_storeSeq(seqStore, (size_t) (ip0 - anchor), anchor, iend, REPCODE1_TO_OFFBASE, mLength);
                 break;
-            } else if (matchIndex <= prefixStartIndex) {
-                /* We only look for a dict match if the normal matchIndex is invalid */
+            }
+
+            if (dictTagsMatch) {
+                /* Found a possible dict match */
+                const U32 dictMatchIndex = dictMatchIndexAndTag >> ZSTD_SHORT_CACHE_TAG_BITS;
                 const BYTE* dictMatch = dictBase + dictMatchIndex;
                 if (dictMatchIndex > dictStartIndex &&
                     MEM_read32(dictMatch) == MEM_read32(ip0)) {
-                    /* found a dict match */
-                    U32 const offset = (U32) (curr - dictMatchIndex - dictIndexDelta);
-                    mLength = ZSTD_count_2segments(ip0 + 4, dictMatch + 4, iend, dictEnd, prefixStart) + 4;
-                    while (((ip0 > anchor) & (dictMatch > dictStart))
-                           && (ip0[-1] == dictMatch[-1])) {
-                        ip0--;
-                        dictMatch--;
-                        mLength++;
-                    } /* catch up */
-                    offset_2 = offset_1;
-                    offset_1 = offset;
-                    ZSTD_storeSeq(seqStore, (size_t) (ip0 - anchor), anchor, iend, OFFSET_TO_OFFBASE(offset), mLength);
-                    break;
+                    /* To replicate extDict parse behavior, we only use dict matches when the normal matchIndex is invalid */
+                    if (matchIndex <= prefixStartIndex) {
+                        U32 const offset = (U32) (curr - dictMatchIndex - dictIndexDelta);
+                        mLength = ZSTD_count_2segments(ip0 + 4, dictMatch + 4, iend, dictEnd, prefixStart) + 4;
+                        while (((ip0 > anchor) & (dictMatch > dictStart))
+                            && (ip0[-1] == dictMatch[-1])) {
+                            ip0--;
+                            dictMatch--;
+                            mLength++;
+                        } /* catch up */
+                        offset_2 = offset_1;
+                        offset_1 = offset;
+                        ZSTD_storeSeq(seqStore, (size_t) (ip0 - anchor), anchor, iend, OFFSET_TO_OFFBASE(offset), mLength);
+                        break;
+                    }
                 }
-            } else if (MEM_read32(match) == MEM_read32(ip0)) {
+            }
+
+            if (matchIndex > prefixStartIndex && MEM_read32(match) == MEM_read32(ip0)) {
                 /* found a regular match */
                 U32 const offset = (U32) (ip0 - match);
                 mLength = ZSTD_count(ip0 + 4, match + 4, iend) + 4;
@@ -526,7 +586,8 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
             }
 
             /* Prepare for next iteration */
-            dictMatchIndex = dictHashTable[dictHash1];
+            dictMatchIndexAndTag = dictHashTable[dictHashAndTag1 >> ZSTD_SHORT_CACHE_TAG_BITS];
+            dictTagsMatch = ZSTD_comparePackedTags(dictMatchIndexAndTag, dictHashAndTag1);
             matchIndex = hashTable[hash1];
 
             if (ip1 >= nextStep) {

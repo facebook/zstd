@@ -434,6 +434,7 @@ struct ZSTD_CCtx_s {
 };
 
 typedef enum { ZSTD_dtlm_fast, ZSTD_dtlm_full } ZSTD_dictTableLoadMethod_e;
+typedef enum { ZSTD_tfp_forCCtx, ZSTD_tfp_forCDict } ZSTD_tableFillPurpose_e;
 
 typedef enum {
     ZSTD_noDict = 0,
@@ -745,32 +746,36 @@ ZSTD_count_2segments(const BYTE* ip, const BYTE* match,
  *  Hashes
  ***************************************/
 static const U32 prime3bytes = 506832829U;
-static U32    ZSTD_hash3(U32 u, U32 h) { return ((u << (32-24)) * prime3bytes)  >> (32-h) ; }
+static U32    ZSTD_hash3(U32 u, U32 h) { assert(h <= 32); return ((u << (32-24)) * prime3bytes)  >> (32-h) ; }
 MEM_STATIC size_t ZSTD_hash3Ptr(const void* ptr, U32 h) { return ZSTD_hash3(MEM_readLE32(ptr), h); } /* only in zstd_opt.h */
 
 static const U32 prime4bytes = 2654435761U;
-static U32    ZSTD_hash4(U32 u, U32 h) { return (u * prime4bytes) >> (32-h) ; }
+static U32    ZSTD_hash4(U32 u, U32 h) { assert(h <= 32); return (u * prime4bytes) >> (32-h) ; }
 static size_t ZSTD_hash4Ptr(const void* ptr, U32 h) { return ZSTD_hash4(MEM_read32(ptr), h); }
 
 static const U64 prime5bytes = 889523592379ULL;
-static size_t ZSTD_hash5(U64 u, U32 h) { return (size_t)(((u  << (64-40)) * prime5bytes) >> (64-h)) ; }
+static size_t ZSTD_hash5(U64 u, U32 h) { assert(h <= 64); return (size_t)(((u  << (64-40)) * prime5bytes) >> (64-h)) ; }
 static size_t ZSTD_hash5Ptr(const void* p, U32 h) { return ZSTD_hash5(MEM_readLE64(p), h); }
 
 static const U64 prime6bytes = 227718039650203ULL;
-static size_t ZSTD_hash6(U64 u, U32 h) { return (size_t)(((u  << (64-48)) * prime6bytes) >> (64-h)) ; }
+static size_t ZSTD_hash6(U64 u, U32 h) { assert(h <= 64); return (size_t)(((u  << (64-48)) * prime6bytes) >> (64-h)) ; }
 static size_t ZSTD_hash6Ptr(const void* p, U32 h) { return ZSTD_hash6(MEM_readLE64(p), h); }
 
 static const U64 prime7bytes = 58295818150454627ULL;
-static size_t ZSTD_hash7(U64 u, U32 h) { return (size_t)(((u  << (64-56)) * prime7bytes) >> (64-h)) ; }
+static size_t ZSTD_hash7(U64 u, U32 h) { assert(h <= 64); return (size_t)(((u  << (64-56)) * prime7bytes) >> (64-h)) ; }
 static size_t ZSTD_hash7Ptr(const void* p, U32 h) { return ZSTD_hash7(MEM_readLE64(p), h); }
 
 static const U64 prime8bytes = 0xCF1BBCDCB7A56463ULL;
-static size_t ZSTD_hash8(U64 u, U32 h) { return (size_t)(((u) * prime8bytes) >> (64-h)) ; }
+static size_t ZSTD_hash8(U64 u, U32 h) { assert(h <= 64); return (size_t)(((u) * prime8bytes) >> (64-h)) ; }
 static size_t ZSTD_hash8Ptr(const void* p, U32 h) { return ZSTD_hash8(MEM_readLE64(p), h); }
 
 MEM_STATIC FORCE_INLINE_ATTR
 size_t ZSTD_hashPtr(const void* p, U32 hBits, U32 mls)
 {
+    /* Although some of these hashes do support hBits up to 64, some do not.
+     * To be on the safe side, always avoid hBits > 32. */
+    assert(hBits <= 32);
+
     switch(mls)
     {
     default:
@@ -1264,6 +1269,42 @@ MEM_STATIC void ZSTD_debugTable(const U32* table, U32 max)
 
 #endif
 
+/* Short Cache */
+
+/* Normally, zstd matchfinders follow this flow:
+ *     1. Compute hash at ip
+ *     2. Load index from hashTable[hash]
+ *     3. Check if *ip == *(base + index)
+ * In dictionary compression, loading *(base + index) is often an L2 or even L3 miss.
+ *
+ * Short cache is an optimization which allows us to avoid step 3 most of the time
+ * when the data doesn't actually match. With short cache, the flow becomes:
+ *     1. Compute (hash, currentTag) at ip. currentTag is an 8-bit independent hash at ip.
+ *     2. Load (index, matchTag) from hashTable[hash]. See ZSTD_writeTaggedIndex to understand how this works.
+ *     3. Only if currentTag == matchTag, check *ip == *(base + index). Otherwise, continue.
+ *
+ * Currently, short cache is only implemented in CDict hashtables. Thus, its use is limited to
+ * dictMatchState matchfinders.
+ */
+#define ZSTD_SHORT_CACHE_TAG_BITS 8
+#define ZSTD_SHORT_CACHE_TAG_MASK ((1u << ZSTD_SHORT_CACHE_TAG_BITS) - 1)
+
+/* Helper function for ZSTD_fillHashTable and ZSTD_fillDoubleHashTable.
+ * Unpacks hashAndTag into (hash, tag), then packs (index, tag) into hashTable[hash]. */
+MEM_STATIC void ZSTD_writeTaggedIndex(U32* const hashTable, size_t hashAndTag, U32 index) {
+    size_t const hash = hashAndTag >> ZSTD_SHORT_CACHE_TAG_BITS;
+    U32 const tag = (U32)(hashAndTag & ZSTD_SHORT_CACHE_TAG_MASK);
+    assert(index >> (32 - ZSTD_SHORT_CACHE_TAG_BITS) == 0);
+    hashTable[hash] = (index << ZSTD_SHORT_CACHE_TAG_BITS) | tag;
+}
+
+/* Helper function for short cache matchfinders.
+ * Unpacks tag1 and tag2 from lower bits of packedTag1 and packedTag2, then checks if the tags match. */
+MEM_STATIC int ZSTD_comparePackedTags(size_t packedTag1, size_t packedTag2) {
+    U32 const tag1 = packedTag1 & ZSTD_SHORT_CACHE_TAG_MASK;
+    U32 const tag2 = packedTag2 & ZSTD_SHORT_CACHE_TAG_MASK;
+    return tag1 == tag2;
+}
 
 #if defined (__cplusplus)
 }

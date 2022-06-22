@@ -968,6 +968,7 @@ int main (int argc, const char** argv)
     unsigned nbBlocks = 0; /* determine nbBlocks automatically, from source and blockSize */
     ZSTD_dictContentType_e dictContentType = ZSTD_dct_auto;
     ZSTD_dictAttachPref_e dictAttachPref = ZSTD_dictDefaultAttach;
+    ZSTD_paramSwitch_e prefetchCDictTables = ZSTD_ps_auto;
 
     for (int argNb = 1; argNb < argc ; argNb++) {
         const char* argument = argv[argNb];
@@ -986,6 +987,7 @@ int main (int argc, const char** argv)
         if (longCommandWArg(&argument, "--dedicated-dict-search")) { dedicatedDictSearch = 1; continue; }
         if (longCommandWArg(&argument, "--dict-content-type=")) { dictContentType = (int)readU32FromChar(&argument); continue; }
         if (longCommandWArg(&argument, "--dict-attach-pref=")) { dictAttachPref = (int)readU32FromChar(&argument); continue; }
+        if (longCommandWArg(&argument, "--prefetch-cdict-tables=")) { prefetchCDictTables = (int)readU32FromChar(&argument); continue; }
         if (longCommandWArg(&argument, "-")) { cLevel = (int)readU32FromChar(&argument); continue; }
         /* anything that's not a command is a filename */
         nameTable[nameIdx++] = argument;
@@ -1008,6 +1010,7 @@ int main (int argc, const char** argv)
     ZSTD_CCtxParams_setParameter(cctxParams, ZSTD_c_enableDedicatedDictSearch, dedicatedDictSearch);
     ZSTD_CCtxParams_setParameter(cctxParams, ZSTD_c_nbWorkers, 0);
     ZSTD_CCtxParams_setParameter(cctxParams, ZSTD_c_forceAttachDict, dictAttachPref);
+    ZSTD_CCtxParams_setParameter(cctxParams, ZSTD_c_prefetchCDictTables, prefetchCDictTables);
 
     int result = bench(filenameTable->fileNames, (unsigned)filenameTable->tableSize, dictionary, blockSize, cLevel, nbDicts, nbBlocks, nbRounds, benchCompression, dictContentType, cctxParams, exeName);
 

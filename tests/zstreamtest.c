@@ -424,6 +424,15 @@ static int basicUnitTests(U32 seed, double compressibility)
     }   }
     DISPLAYLEVEL(3, "OK \n");
 
+    /* check decompression fails early if first bytes are wrong */
+    DISPLAYLEVEL(3, "test%3i : early decompression error if first bytes are incorrect : ", testNb++);
+    {   const char buf[3] = { 0 };  /* too short, not enough to start decoding header */
+        ZSTD_inBuffer inb = { buf, sizeof(buf), 0 };
+        size_t const remaining = ZSTD_decompressStream(zd, &outBuff, &inb);
+        if (!ZSTD_isError(remaining)) goto _output_error; /* should have errored out immediately (note: this does not test the exact error code) */
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     /* context size functions */
     DISPLAYLEVEL(3, "test%3i : estimate DStream size : ", testNb++);
     {   ZSTD_frameHeader fhi;

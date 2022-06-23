@@ -50,6 +50,20 @@ See the help of the relevant command for options.
 Flags not parsed by `fuzz.py` are passed to the fuzzing engine.
 The command used to run the fuzzer is printed for debugging.
 
+Here's a helpful command to fuzz each target across all cores,
+stopping only if a bug is found:
+```
+for target in $(./fuzz.py list); do
+    ./fuzz.py libfuzzer $target -jobs=10 -workers=10 -max_total_time=1000 || break;
+done
+```
+Alternatively, you can fuzz all targets in parallel, using one core per target:
+```
+python3 ./fuzz.py list | xargs -P$(python3 ./fuzz.py list | wc -l) -I__ sh -c "python3 ./fuzz.py libfuzzer __ 2>&1 | tee __.log"
+```
+Either way, to double-check that no crashes were found, run `ls corpora/*crash`. 
+If any crashes were found, you can use the hashes to reproduce them.
+
 ## LibFuzzer
 
 ```

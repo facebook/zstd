@@ -1943,6 +1943,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
 
         /* init params */
         zc->blockState.matchState.cParams = params->cParams;
+        zc->blockState.matchState.prefetchCDictTables = params->prefetchCDictTables == ZSTD_ps_enable;
         zc->pledgedSrcSizePlusOne = pledgedSrcSize+1;
         zc->consumedSrcSize = 0;
         zc->producedCSize = 0;
@@ -2928,7 +2929,6 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
                                                                                     zc->appliedParams.useRowMatchFinder,
                                                                                     dictMode);
             ms->ldmSeqStore = NULL;
-            ms->prefetchCDictTables = zc->appliedParams.prefetchCDictTables == ZSTD_ps_enable;
             lastLLSize = blockCompressor(ms, &zc->seqStore, zc->blockState.nextCBlock->rep, src, srcSize);
         }
         {   const BYTE* const lastLiterals = (const BYTE*)src + srcSize - lastLLSize;

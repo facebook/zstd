@@ -501,8 +501,8 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
     assert(prefixStartIndex >= (U32)(dictEnd - dictBase));
 
     if (ms->prefetchCDictTables) {
-        size_t const hashTableSize = ((size_t)1) << dictCParams->hashLog;
-        PREFETCH_AREA(dictHashTable, hashTableSize * sizeof(U32))
+        size_t const hashTableBytes = (((size_t)1) << dictCParams->hashLog) * sizeof(U32);
+        PREFETCH_AREA(dictHashTable, hashTableBytes)
     }
 
     /* init */

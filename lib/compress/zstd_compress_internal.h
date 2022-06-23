@@ -235,7 +235,11 @@ struct ZSTD_matchState_t {
     const ZSTD_matchState_t* dictMatchState;
     ZSTD_compressionParameters cParams;
     const rawSeqStore_t* ldmSeqStore;
-    int prefetchCDictTables;  /* Controls prefetching in some dictMatchState matchfinders */
+
+    /* Controls prefetching in some dictMatchState matchfinders.
+     * This behavior is controlled from the cctx ms.
+     * This parameter has no effect in the cdict ms. */
+    int prefetchCDictTables;
 };
 
 typedef struct {

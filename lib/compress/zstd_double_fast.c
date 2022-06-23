@@ -346,10 +346,10 @@ size_t ZSTD_compressBlock_doubleFast_dictMatchState_generic(
     assert(ms->window.dictLimit + (1U << cParams->windowLog) >= endIndex);
 
     if (ms->prefetchCDictTables) {
-        size_t const hashTableSize = ((size_t)1) << dictCParams->hashLog;
-        size_t const chainTableSize = ((size_t)1) << dictCParams->chainLog;
-        PREFETCH_AREA(dictHashLong, hashTableSize * sizeof(U32))
-        PREFETCH_AREA(dictHashSmall, chainTableSize * sizeof(U32))
+        size_t const hashTableBytes = (((size_t)1) << dictCParams->hashLog) * sizeof(U32);
+        size_t const chainTableBytes = (((size_t)1) << dictCParams->chainLog) * sizeof(U32);
+        PREFETCH_AREA(dictHashLong, hashTableBytes)
+        PREFETCH_AREA(dictHashSmall, chainTableBytes)
     }
 
     /* init */

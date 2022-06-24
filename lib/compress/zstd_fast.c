@@ -500,6 +500,11 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
      * when translating a dict index into a local index */
     assert(prefixStartIndex >= (U32)(dictEnd - dictBase));
 
+    if (ms->prefetchCDictTables) {
+        size_t const hashTableBytes = (((size_t)1) << dictCParams->hashLog) * sizeof(U32);
+        PREFETCH_AREA(dictHashTable, hashTableBytes)
+    }
+
     /* init */
     DEBUGLOG(5, "ZSTD_compressBlock_fast_dictMatchState_generic");
     ip0 += (dictAndPrefixLength == 0);

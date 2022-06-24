@@ -2041,6 +2041,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
                 CHECK_Z( ZSTD_CCtx_setParameter(ctxOrig, ZSTD_c_compressionLevel, l) );
                 CHECK_Z( ZSTD_CCtx_setParameter(ctxOrig, ZSTD_c_enableDedicatedDictSearch, 0) );
                 CHECK_Z( ZSTD_CCtx_setParameter(ctxOrig, ZSTD_c_forceAttachDict, ZSTD_dictForceAttach) );
+                CHECK_Z( ZSTD_CCtx_setParameter(ctxOrig, ZSTD_c_prefetchCDictTables, seed % 3) );
                 wdict_cSize = ZSTD_compress2(ctxOrig, compressedBuffer, compressedBufferSize, contentStart, contentSize);
                 if (wdict_cSize > target_wdict_cSize[l]) {
                     DISPLAYLEVEL(1, "error : compression with dictionary and compress2 at level %i worse than expected (%u > %u) \n",

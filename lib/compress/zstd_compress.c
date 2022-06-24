@@ -576,6 +576,11 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
         bounds.upperBound = 1;
         return bounds;
 
+    case ZSTD_c_prefetchCDictTables:
+        bounds.lowerBound = (int)ZSTD_ps_auto;
+        bounds.upperBound = (int)ZSTD_ps_disable;
+        return bounds;
+
     default:
         bounds.error = ERROR(parameter_unsupported);
         return bounds;
@@ -640,6 +645,7 @@ static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
     case ZSTD_c_useBlockSplitter:
     case ZSTD_c_useRowMatchFinder:
     case ZSTD_c_deterministicRefPrefix:
+    case ZSTD_c_prefetchCDictTables:
     default:
         return 0;
     }
@@ -695,6 +701,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value)
     case ZSTD_c_useBlockSplitter:
     case ZSTD_c_useRowMatchFinder:
     case ZSTD_c_deterministicRefPrefix:
+    case ZSTD_c_prefetchCDictTables:
         break;
 
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
@@ -921,6 +928,11 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
         CCtxParams->deterministicRefPrefix = !!value;
         return CCtxParams->deterministicRefPrefix;
 
+    case ZSTD_c_prefetchCDictTables:
+        BOUNDCHECK(ZSTD_c_prefetchCDictTables, value);
+        CCtxParams->prefetchCDictTables = (ZSTD_paramSwitch_e)value;
+        return CCtxParams->prefetchCDictTables;
+
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
     }
 }
@@ -1052,6 +1064,9 @@ size_t ZSTD_CCtxParams_getParameter(
         break;
     case ZSTD_c_deterministicRefPrefix:
         *value = (int)CCtxParams->deterministicRefPrefix;
+        break;
+    case ZSTD_c_prefetchCDictTables:
+        *value = (int)CCtxParams->prefetchCDictTables;
         break;
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
     }
@@ -1928,6 +1943,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
 
         /* init params */
         zc->blockState.matchState.cParams = params->cParams;
+        zc->blockState.matchState.prefetchCDictTables = params->prefetchCDictTables == ZSTD_ps_enable;
         zc->pledgedSrcSizePlusOne = pledgedSrcSize+1;
         zc->consumedSrcSize = 0;
         zc->producedCSize = 0;

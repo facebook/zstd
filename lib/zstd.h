@@ -421,6 +421,7 @@ typedef enum {
      * ZSTD_c_validateSequences
      * ZSTD_c_useBlockSplitter
      * ZSTD_c_useRowMatchFinder
+     * ZSTD_c_prefetchCDictTables
      * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
      * note : never ever use experimentalParam? names directly;
      *        also, the enums values themselves are unstable and can still change.
@@ -439,7 +440,8 @@ typedef enum {
      ZSTD_c_experimentalParam12=1009,
      ZSTD_c_experimentalParam13=1010,
      ZSTD_c_experimentalParam14=1011,
-     ZSTD_c_experimentalParam15=1012
+     ZSTD_c_experimentalParam15=1012,
+     ZSTD_c_experimentalParam16=1013
 } ZSTD_cParameter;
 
 typedef struct {
@@ -1953,6 +1955,29 @@ ZSTDLIB_STATIC_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const vo
  * cost to memcpy() the data.
  */
 #define ZSTD_c_deterministicRefPrefix ZSTD_c_experimentalParam15
+
+/* ZSTD_c_prefetchCDictTables
+ * Controlled with ZSTD_paramSwitch_e enum. Default is ZSTD_ps_auto.
+ *
+ * In some situations, zstd uses CDict tables in-place rather than copying them
+ * into the working context. (See docs on ZSTD_dictAttachPref_e above for details).
+ * In such situations, compression speed is seriously impacted when CDict tables are
+ * "cold" (outside CPU cache). This parameter instructs zstd to prefetch CDict tables
+ * when they are used in-place.
+ *
+ * For sufficiently small inputs, the cost of the prefetch will outweigh the benefit.
+ * For sufficiently large inputs, zstd will by default memcpy() CDict tables
+ * into the working context, so there is no need to prefetch. This parameter is
+ * targeted at a middle range of input sizes, where a prefetch is cheap enough to be
+ * useful but memcpy() is too expensive. The exact range of input sizes where this
+ * makes sense is best determined by careful experimentation.
+ *
+ * Note: for this parameter, ZSTD_ps_auto is currently equivalent to ZSTD_ps_disable,
+ * but in the future zstd may conditionally enable this feature via an auto-detection
+ * heuristic for cold CDicts.
+ * Use ZSTD_ps_disable to opt out of prefetching under any circumstances.
+ */
+#define ZSTD_c_prefetchCDictTables ZSTD_c_experimentalParam16
 
 /*! ZSTD_CCtx_getParameter() :
  *  Get the requested compression parameter value, selected by enum ZSTD_cParameter,

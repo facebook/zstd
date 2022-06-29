@@ -1,10 +1,10 @@
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
-<title>zstd 1.5.2 Manual</title>
+<title>zstd 1.5.3 Manual</title>
 </head>
 <body>
-<h1>zstd 1.5.2 Manual</h1>
+<h1>zstd 1.5.3 Manual</h1>
 <hr>
 <a name="Contents"></a><h2>Contents</h2>
 <ol>
@@ -359,6 +359,7 @@ size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);  </b>/* accept NULL pointer */<b>
      * ZSTD_c_validateSequences
      * ZSTD_c_useBlockSplitter
      * ZSTD_c_useRowMatchFinder
+     * ZSTD_c_prefetchCDictTables
      * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
      * note : never ever use experimentalParam? names directly;
      *        also, the enums values themselves are unstable and can still change.
@@ -377,7 +378,8 @@ size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);  </b>/* accept NULL pointer */<b>
      ZSTD_c_experimentalParam12=1009,
      ZSTD_c_experimentalParam13=1010,
      ZSTD_c_experimentalParam14=1011,
-     ZSTD_c_experimentalParam15=1012
+     ZSTD_c_experimentalParam15=1012,
+     ZSTD_c_experimentalParam16=1013
 } ZSTD_cParameter;
 </b></pre><BR>
 <pre><b>typedef struct {
@@ -790,7 +792,7 @@ size_t ZSTD_freeDStream(ZSTD_DStream* zds);  </b>/* accept NULL pointer */<b>
 </p></pre><BR>
 
 <pre><b>unsigned ZSTD_getDictID_fromFrame(const void* src, size_t srcSize);
-</b><p>  Provides the dictID required to decompress the frame stored within `src`.
+</b><p>  Provides the dictID required to decompressed the frame stored within `src`.
   If @return == 0, the dictID could not be decoded.
   This could for one of the following reasons :
   - The frame does not require a dictionary to be decoded (most common case).
@@ -1132,15 +1134,15 @@ size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
   ZSTD_sf_explicitBlockDelimiters = 1    </b>/* Representation of ZSTD_Sequence contains explicit block delimiters */<b>
 } ZSTD_sequenceFormat_e;
 </b></pre><BR>
-<pre><b></b><p> Generate sequences using ZSTD_compress2, given a source buffer.
+<pre><b></b><p> Generate sequences using ZSTD_compress2(), given a source buffer.
 
  Each block will end with a dummy sequence
  with offset == 0, matchLength == 0, and litLength == length of last literals.
  litLength may be == 0, and if so, then the sequence of (of: 0 ml: 0 ll: 0)
  simply acts as a block delimiter.
 
- zc can be used to insert custom compression params.
- This function invokes ZSTD_compress2
+ @zc can be used to insert custom compression params.
+ This function invokes ZSTD_compress2().
 
  The output of this function can be fed into ZSTD_compressSequences() with CCtx
  setting of ZSTD_c_blockDelimiters as ZSTD_sf_explicitBlockDelimiters
@@ -1150,7 +1152,7 @@ size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 
 <pre><b>ZSTDLIB_STATIC_API size_t ZSTD_mergeBlockDelimiters(ZSTD_Sequence* sequences, size_t seqsSize);
 </b><p> Given an array of ZSTD_Sequence, remove all sequences that represent block delimiters/last literals
- by merging them into into the literals of the next sequence.
+ by merging them into the literals of the next sequence.
 
  As such, the final generated result has no explicit representation of block boundaries,
  and the final last literals segment is not represented in the sequences.
@@ -1161,9 +1163,10 @@ size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
  
 </p></pre><BR>
 
-<pre><b>ZSTDLIB_STATIC_API size_t ZSTD_compressSequences(ZSTD_CCtx* const cctx, void* dst, size_t dstSize,
-                      const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
-                      const void* src, size_t srcSize);
+<pre><b>ZSTDLIB_STATIC_API size_t
+ZSTD_compressSequences( ZSTD_CCtx* cctx, void* dst, size_t dstSize,
+            const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
+            const void* src, size_t srcSize);
 </b><p> Compress an array of ZSTD_Sequence, associated with @src buffer, into dst.
  @src contains the entire input (not just the literals).
  If @srcSize > sum(sequence.length), the remaining bytes are considered all literals
@@ -1191,7 +1194,7 @@ size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
  Note: Repcodes are, as of now, always re-calculated within this function, so ZSTD_Sequence::rep is unused.
  Note 2: Once we integrate ability to ingest repcodes, the explicit block delims mode must respect those repcodes exactly,
          and cannot emit an RLE block that disagrees with the repcode history
- @return : final compressed size or a ZSTD error.
+ @return : final compressed size, or a ZSTD error code.
  
 </p></pre><BR>
 
@@ -1199,7 +1202,7 @@ size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
                                 const void* src, size_t srcSize, unsigned magicVariant);
 </b><p> Generates a zstd skippable frame containing data given by src, and writes it to dst buffer.
 
- Skippable frames begin with a a 4-byte magic number. There are 16 possible choices of magic number,
+ Skippable frames begin with a 4-byte magic number. There are 16 possible choices of magic number,
  ranging from ZSTD_MAGIC_SKIPPABLE_START to ZSTD_MAGIC_SKIPPABLE_START+15.
  As such, the parameter magicVariant controls the exact skippable frame magic number variant used, so
  the magic number used will be ZSTD_MAGIC_SKIPPABLE_START + magicVariant.

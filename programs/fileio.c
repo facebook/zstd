@@ -2721,6 +2721,7 @@ typedef struct {
     int decompUnavailable;
     int usesCheck;
     U32 nbFiles;
+    unsigned dictID;
 } fileInfo_t;
 
 typedef enum {
@@ -2775,6 +2776,7 @@ FIO_analyzeFrames(fileInfo_t* info, FILE* const srcFile)
                 }
                 ERROR_IF(ZSTD_getFrameHeader(&header, headerBuffer, numBytesRead) != 0,
                         info_frame_error, "Error: could not decode frame header");
+                info->dictID = header.dictID;
                 info->windowSize = header.windowSize;
                 /* move to the end of the frame header */
                 {   size_t const headerSize = ZSTD_frameHeaderSize(headerBuffer, numBytesRead);
@@ -2887,6 +2889,7 @@ displayInfo(const char* inFileName, const fileInfo_t* info, int displayLevel)
         DISPLAYOUT("# Zstandard Frames: %d\n", info->numActualFrames);
         if (info->numSkippableFrames)
             DISPLAYOUT("# Skippable Frames: %d\n", info->numSkippableFrames);
+        DISPLAYOUT("DictID: %u\n", info->dictID);
         DISPLAYOUT("Window Size: %.*f%s (%llu B)\n",
                    window_hrs.precision, window_hrs.value, window_hrs.suffix,
                    (unsigned long long)info->windowSize);

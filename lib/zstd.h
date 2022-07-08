@@ -2413,7 +2413,6 @@ ZSTDLIB_STATIC_API size_t ZSTD_resetDStream(ZSTD_DStream* zds);
 
   Start by initializing a context.
   Use ZSTD_compressBegin(), or ZSTD_compressBegin_usingDict() for dictionary compression.
-  It's also possible to duplicate a reference context which has already been initialized, using ZSTD_copyCCtx()
 
   Then, consume your input using ZSTD_compressContinue().
   There are some important considerations to keep in mind when using this advanced function :
@@ -2553,7 +2552,6 @@ ZSTDLIB_STATIC_API size_t ZSTD_nextSrcSizeToDecompress(ZSTD_DCtx* dctx);
 ZSTDLIB_STATIC_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 
 /* misc */
-ZSTDLIB_STATIC_API void   ZSTD_copyDCtx(ZSTD_DCtx* dctx, const ZSTD_DCtx* preparedDCtx);
 typedef enum { ZSTDnit_frameHeader, ZSTDnit_blockHeader, ZSTDnit_block, ZSTDnit_lastBlock, ZSTDnit_checksum, ZSTDnit_skippableFrame } ZSTD_nextInputType_e;
 ZSTDLIB_STATIC_API ZSTD_nextInputType_e ZSTD_nextInputType(ZSTD_DCtx* dctx);
 

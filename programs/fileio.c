@@ -2776,7 +2776,12 @@ FIO_analyzeFrames(fileInfo_t* info, FILE* const srcFile)
                 }
                 ERROR_IF(ZSTD_getFrameHeader(&header, headerBuffer, numBytesRead) != 0,
                         info_frame_error, "Error: could not decode frame header");
-                info->dictID = header.dictID;
+                if (info->dictID != 0 && info->dictID != header.dictID) {
+                    DISPLAY("WARNING: File contains multiple frames with different dictionary IDs. Showing dictID 0 instead");
+                    info->dictID = 0;
+                } else {
+                    info->dictID = header.dictID;
+                }
                 info->windowSize = header.windowSize;
                 /* move to the end of the frame header */
                 {   size_t const headerSize = ZSTD_frameHeaderSize(headerBuffer, numBytesRead);

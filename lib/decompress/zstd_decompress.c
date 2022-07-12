@@ -338,6 +338,13 @@ size_t ZSTD_freeDCtx(ZSTD_DCtx* dctx)
     }
 }
 
+/* no longer useful */
+void ZSTD_copyDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
+{
+    size_t const toCopy = (size_t)((char*)(&dstDCtx->inBuff) - (char*)dstDCtx);
+    ZSTD_memcpy(dstDCtx, srcDCtx, toCopy);  /* no need to copy workspace */
+}
+
 /* Given a dctx with a digested frame params, re-selects the correct ZSTD_DDict based on
  * the requested dict ID from the frame. If there exists a reference to the correct ZSTD_DDict, then
  * accordingly sets the ddict to be used to decompress the frame.

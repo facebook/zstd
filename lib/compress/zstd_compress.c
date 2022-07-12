@@ -2243,6 +2243,104 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
     }
 }
 
+/*! ZSTD_copyCCtx_internal() :
+ *  Duplicate an existing context `srcCCtx` into another one `dstCCtx`.
+ *  Only works during stage ZSTDcs_init (i.e. after creation, but before first call to ZSTD_compressContinue()).
+ *  The "context", in this case, refers to the hash and chain tables,
+ *  entropy tables, and dictionary references.
+ * `windowLog` value is enforced if != 0, otherwise value is copied from srcCCtx.
+ * @return : 0, or an error code */
+static size_t ZSTD_copyCCtx_internal(ZSTD_CCtx* dstCCtx,
+                            const ZSTD_CCtx* srcCCtx,
+                            ZSTD_frameParameters fParams,
+                            U64 pledgedSrcSize,
+                            ZSTD_buffered_policy_e zbuff)
+{
+    RETURN_ERROR_IF(srcCCtx->stage!=ZSTDcs_init, stage_wrong,
+                    "Can't copy a ctx that's not in init stage.");
+    DEBUGLOG(5, "ZSTD_copyCCtx_internal");
+    ZSTD_memcpy(&dstCCtx->customMem, &srcCCtx->customMem, sizeof(ZSTD_customMem));
+    {   ZSTD_CCtx_params params = dstCCtx->requestedParams;
+        /* Copy only compression parameters related to tables. */
+        params.cParams = srcCCtx->appliedParams.cParams;
+        assert(srcCCtx->appliedParams.useRowMatchFinder != ZSTD_ps_auto);
+        assert(srcCCtx->appliedParams.useBlockSplitter != ZSTD_ps_auto);
+        assert(srcCCtx->appliedParams.ldmParams.enableLdm != ZSTD_ps_auto);
+        params.useRowMatchFinder = srcCCtx->appliedParams.useRowMatchFinder;
+        params.useBlockSplitter = srcCCtx->appliedParams.useBlockSplitter;
+        params.ldmParams = srcCCtx->appliedParams.ldmParams;
+        params.fParams = fParams;
+        ZSTD_resetCCtx_internal(dstCCtx, &params, pledgedSrcSize,
+                                /* loadedDictSize */ 0,
+                                ZSTDcrp_leaveDirty, zbuff);
+        assert(dstCCtx->appliedParams.cParams.windowLog == srcCCtx->appliedParams.cParams.windowLog);
+        assert(dstCCtx->appliedParams.cParams.strategy == srcCCtx->appliedParams.cParams.strategy);
+        assert(dstCCtx->appliedParams.cParams.hashLog == srcCCtx->appliedParams.cParams.hashLog);
+        assert(dstCCtx->appliedParams.cParams.chainLog == srcCCtx->appliedParams.cParams.chainLog);
+        assert(dstCCtx->blockState.matchState.hashLog3 == srcCCtx->blockState.matchState.hashLog3);
+    }
+
+    ZSTD_cwksp_mark_tables_dirty(&dstCCtx->workspace);
+
+    /* copy tables */
+    {   size_t const chainSize = ZSTD_allocateChainTable(srcCCtx->appliedParams.cParams.strategy,
+                                                         srcCCtx->appliedParams.useRowMatchFinder,
+                                                         0 /* forDDSDict */)
+                                    ? ((size_t)1 << srcCCtx->appliedParams.cParams.chainLog)
+                                    : 0;
+        size_t const hSize =  (size_t)1 << srcCCtx->appliedParams.cParams.hashLog;
+        int const h3log = srcCCtx->blockState.matchState.hashLog3;
+        size_t const h3Size = h3log ? ((size_t)1 << h3log) : 0;
+
+        ZSTD_memcpy(dstCCtx->blockState.matchState.hashTable,
+               srcCCtx->blockState.matchState.hashTable,
+               hSize * sizeof(U32));
+        ZSTD_memcpy(dstCCtx->blockState.matchState.chainTable,
+               srcCCtx->blockState.matchState.chainTable,
+               chainSize * sizeof(U32));
+        ZSTD_memcpy(dstCCtx->blockState.matchState.hashTable3,
+               srcCCtx->blockState.matchState.hashTable3,
+               h3Size * sizeof(U32));
+    }
+
+    ZSTD_cwksp_mark_tables_clean(&dstCCtx->workspace);
+
+    /* copy dictionary offsets */
+    {
+        const ZSTD_matchState_t* srcMatchState = &srcCCtx->blockState.matchState;
+        ZSTD_matchState_t* dstMatchState = &dstCCtx->blockState.matchState;
+        dstMatchState->window       = srcMatchState->window;
+        dstMatchState->nextToUpdate = srcMatchState->nextToUpdate;
+        dstMatchState->loadedDictEnd= srcMatchState->loadedDictEnd;
+    }
+    dstCCtx->dictID = srcCCtx->dictID;
+    dstCCtx->dictContentSize = srcCCtx->dictContentSize;
+
+    /* copy block state */
+    ZSTD_memcpy(dstCCtx->blockState.prevCBlock, srcCCtx->blockState.prevCBlock, sizeof(*srcCCtx->blockState.prevCBlock));
+
+    return 0;
+}
+
+/*! ZSTD_copyCCtx() :
+ *  Duplicate an existing context `srcCCtx` into another one `dstCCtx`.
+ *  Only works during stage ZSTDcs_init (i.e. after creation, but before first call to ZSTD_compressContinue()).
+ *  pledgedSrcSize==0 means "unknown".
+*   @return : 0, or an error code */
+size_t ZSTD_copyCCtx(ZSTD_CCtx* dstCCtx, const ZSTD_CCtx* srcCCtx, unsigned long long pledgedSrcSize)
+{
+    ZSTD_frameParameters fParams = { 1 /*content*/, 0 /*checksum*/, 0 /*noDictID*/ };
+    ZSTD_buffered_policy_e const zbuff = srcCCtx->bufferedPolicy;
+    ZSTD_STATIC_ASSERT((U32)ZSTDb_buffered==1);
+    if (pledgedSrcSize==0) pledgedSrcSize = ZSTD_CONTENTSIZE_UNKNOWN;
+    fParams.contentSizeFlag = (pledgedSrcSize != ZSTD_CONTENTSIZE_UNKNOWN);
+
+    return ZSTD_copyCCtx_internal(dstCCtx, srcCCtx,
+                                fParams, pledgedSrcSize,
+                                zbuff);
+}
+
+
 #define ZSTD_ROWSIZE 16
 /*! ZSTD_reduceTable() :
  *  reduce table indexes by `reducerValue`, or squash to zero.

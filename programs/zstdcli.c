@@ -1236,6 +1236,9 @@ int main(int argCount, const char* argv[])
             DISPLAYLEVEL(3, "Note: %d physical core(s) detected \n", nbWorkers);
         }
     }
+    if ((operation==zom_decompress) && (!singleThread) && (nbWorkers > 1)) {
+        DISPLAYLEVEL(2, "Warning : decompression does not support multi-threading\n");
+    }
 #else
     (void)singleThread; (void)nbWorkers; (void)defaultLogicalCores;
 #endif

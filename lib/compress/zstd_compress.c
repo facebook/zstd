@@ -2863,7 +2863,9 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
     assert(srcSize <= ZSTD_BLOCKSIZE_MAX);
     /* Assert that we have correctly flushed the ctx params into the ms's copy */
     ZSTD_assertEqualCParams(zc->appliedParams.cParams, ms->cParams);
-    if (srcSize < MIN_CBLOCK_SIZE+ZSTD_blockHeaderSize+1) {
+    /* TODO: See 3090. We reduced MIN_CBLOCK_SIZE from 3 to 2 so to compensate we are adding
+     * additional 1. We need to revisit and change this logic to be more consistent */
+    if (srcSize < MIN_CBLOCK_SIZE+ZSTD_blockHeaderSize+1+1) {
         if (zc->appliedParams.cParams.strategy >= ZSTD_btopt) {
             ZSTD_ldm_skipRawSeqStoreBytes(&zc->externSeqStore, srcSize);
         } else {
@@ -4000,7 +4002,9 @@ static size_t ZSTD_compress_frameChunk(ZSTD_CCtx* cctx,
         ZSTD_matchState_t* const ms = &cctx->blockState.matchState;
         U32 const lastBlock = lastFrameChunk & (blockSize >= remaining);
 
-        RETURN_ERROR_IF(dstCapacity < ZSTD_blockHeaderSize + MIN_CBLOCK_SIZE,
+        /* TODO: See 3090. We reduced MIN_CBLOCK_SIZE from 3 to 2 so to compensate we are adding
+         * additional 1. We need to revisit and change this logic to be more consistent */
+        RETURN_ERROR_IF(dstCapacity < ZSTD_blockHeaderSize + MIN_CBLOCK_SIZE + 1,
                         dstSize_tooSmall,
                         "not enough space to store compressed block");
         if (remaining < blockSize) blockSize = remaining;
@@ -6215,7 +6219,9 @@ ZSTD_compressSequences_internal(ZSTD_CCtx* cctx,
         blockSize -= additionalByteAdjustment;
 
         /* If blocks are too small, emit as a nocompress block */
-        if (blockSize < MIN_CBLOCK_SIZE+ZSTD_blockHeaderSize+1) {
+        /* TODO: See 3090. We reduced MIN_CBLOCK_SIZE from 3 to 2 so to compensate we are adding
+         * additional 1. We need to revisit and change this logic to be more consistent */
+        if (blockSize < MIN_CBLOCK_SIZE+ZSTD_blockHeaderSize+1+1) {
             cBlockSize = ZSTD_noCompressBlock(op, dstCapacity, ip, blockSize, lastBlock);
             FORWARD_IF_ERROR(cBlockSize, "Nocompress block failed");
             DEBUGLOG(5, "Block too small, writing out nocompress block: cSize: %zu", cBlockSize);

@@ -670,7 +670,9 @@ static int benchMem(slice_collection_t dstBlocks,
             BMK_createTimedFnState(total_time_ms, ms_per_round);
 
     decompressInstructions di = createDecompressInstructions(ddictionaries);
-    compressInstructions ci = createCompressInstructions(cdictionaries, cctxParams);
+    compressInstructions ci;
+    if (benchCompression)
+      ci = createCompressInstructions(cdictionaries, cctxParams);
     void* payload = benchCompression ? (void*)&ci : (void*)&di;
     BMK_benchParams_t const bp = {
         .benchFn = benchCompression ? compress : decompress,

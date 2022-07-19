@@ -716,12 +716,28 @@ static int benchMem(slice_collection_t dstBlocks,
         csvFile = fopen(csvFileName, "wt");
         assert(csvFile);
         fprintf(csvFile, "%s\n", exeName);
+        /* Print table headers */
+        fprintf(
+            csvFile,
+            "Compression/Decompression,Level,nbDicts,dictAttachPref,Speed\n");
     } else {
         fclose(csvFile);
         csvFile = fopen(csvFileName, "at");
         assert(csvFile);
     }
-    fprintf(csvFile, "%.1f\n", bestSpeed);
+
+    int cLevel = -1;
+    int dictAttachPref = -1;
+    if (benchCompression) {
+      ZSTD_CCtxParams_getParameter(cctxParams, ZSTD_c_compressionLevel,
+                                   &cLevel);
+      ZSTD_CCtxParams_getParameter(cctxParams, ZSTD_c_forceAttachDict,
+                                   &dictAttachPref);
+    }
+    fprintf(csvFile, "%s,%d,%ld,%d,%.1f\n",
+            benchCompression ? "Compression" : "Decompression", cLevel,
+            benchCompression ? ci.nbDicts : di.nbDicts, dictAttachPref,
+            bestSpeed);
     fclose(csvFile);
     free(csvFileName);
 

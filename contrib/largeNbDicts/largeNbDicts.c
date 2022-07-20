@@ -582,7 +582,8 @@ compressInstructions createCompressInstructions(cdict_collection_t dictionaries,
     compressInstructions ci;
     ci.cctx = ZSTD_createCCtx();
     CONTROL(ci.cctx != NULL);
-    ZSTD_CCtx_setParametersUsingCCtxParams(ci.cctx, cctxParams);
+    if (cctxParams)
+      ZSTD_CCtx_setParametersUsingCCtxParams(ci.cctx, cctxParams);
     ci.nbDicts = dictionaries.nbCDict;
     ci.dictNb = 0;
     ci.dictionaries = dictionaries;
@@ -697,9 +698,8 @@ static int benchMem(slice_collection_t dstBlocks, slice_collection_t srcBlocks,
             BMK_createTimedFnState(total_time_ms, ms_per_round);
 
     decompressInstructions di = createDecompressInstructions(ddictionaries);
-    compressInstructions ci;
-    if (benchCompression)
-      ci = createCompressInstructions(cdictionaries, cctxParams);
+    compressInstructions ci =
+        createCompressInstructions(cdictionaries, cctxParams);
     void* payload = benchCompression ? (void*)&ci : (void*)&di;
     BMK_benchParams_t const bp = {
         .benchFn = benchCompression ? compress : decompress,

@@ -19,7 +19,7 @@
 /*---  Dependencies  ---*/
 
 #include <stddef.h>   /* size_t */
-#include <stdlib.h>   /* malloc, free, abort */
+#include <stdlib.h>   /* malloc, free, abort, qsort*/
 #include <stdio.h>    /* fprintf */
 #include <limits.h>   /* UINT_MAX */
 #include <assert.h>   /* assert */
@@ -650,13 +650,40 @@ size_t decompress(const void* src, size_t srcSize, void* dst, size_t dstCapacity
     return result;
 }
 
+typedef enum {
+  fastest = 0,
+  median = 1,
+} metricAggregatePref_e;
 
-static int benchMem(slice_collection_t dstBlocks,
-                    slice_collection_t srcBlocks,
+/* compareFunction() :
+ * Sort input in decreasing order when used with qsort() */
+int compareFunction(const void *a, const void *b)
+{
+  double x = *(const double *)a;
+  double y = *(const double *)b;
+  if (x < y)
+    return 1;
+  else if (x > y)
+    return -1;
+  return 0;
+}
+
+double aggregateData(double *data, size_t size,
+                     metricAggregatePref_e metricAggregatePref)
+{
+  qsort(data, size, sizeof(*data), compareFunction);
+  if (metricAggregatePref == fastest)
+    return data[0];
+  else /* median */
+    return (data[(size - 1) / 2] + data[size / 2]) / 2;
+}
+
+static int benchMem(slice_collection_t dstBlocks, slice_collection_t srcBlocks,
                     ddict_collection_t ddictionaries,
-                    cdict_collection_t cdictionaries,
-                    unsigned nbRounds, int benchCompression,
-                    const char* exeName, ZSTD_CCtx_params* cctxParams)
+                    cdict_collection_t cdictionaries, unsigned nbRounds,
+                    int benchCompression, const char *exeName,
+                    ZSTD_CCtx_params *cctxParams,
+                    metricAggregatePref_e metricAggregatePref)
 {
     assert(dstBlocks.nbSlices == srcBlocks.nbSlices);
     if (benchCompression) assert(cctxParams);
@@ -664,13 +691,15 @@ static int benchMem(slice_collection_t dstBlocks,
     unsigned const ms_per_round = RUN_TIME_DEFAULT_MS;
     unsigned const total_time_ms = nbRounds * ms_per_round;
 
-    double bestSpeed = 0.;
+    double *const speedPerRound = (double *)malloc(nbRounds * sizeof(double));
 
     BMK_timedFnState_t* const benchState =
             BMK_createTimedFnState(total_time_ms, ms_per_round);
 
     decompressInstructions di = createDecompressInstructions(ddictionaries);
-    compressInstructions ci = createCompressInstructions(cdictionaries, cctxParams);
+    compressInstructions ci;
+    if (benchCompression)
+      ci = createCompressInstructions(cdictionaries, cctxParams);
     void* payload = benchCompression ? (void*)&ci : (void*)&di;
     BMK_benchParams_t const bp = {
         .benchFn = benchCompression ? compress : decompress,
@@ -686,6 +715,7 @@ static int benchMem(slice_collection_t dstBlocks,
         .blockResults = NULL
     };
 
+    size_t roundNb = 0;
     for (;;) {
         BMK_runOutcome_t const outcome = BMK_benchTimedFn(benchState, bp);
         CONTROL(BMK_isSuccessful_runOutcome(outcome));
@@ -695,16 +725,24 @@ static int benchMem(slice_collection_t dstBlocks,
         double const dTime_sec = (double)dTime_ns / 1000000000;
         size_t const srcSize = result.sumOfReturn;
         double const speed_MBps = (double)srcSize / dTime_sec / (1 MB);
-        if (speed_MBps > bestSpeed) bestSpeed = speed_MBps;
+        speedPerRound[roundNb] = speed_MBps;
         if (benchCompression)
-            DISPLAY("Compression Speed : %.1f MB/s \r", bestSpeed);
+            DISPLAY("Compression Speed : %.1f MB/s \r", speed_MBps);
         else
-            DISPLAY("Decompression Speed : %.1f MB/s \r", bestSpeed);
+            DISPLAY("Decompression Speed : %.1f MB/s \r", speed_MBps);
 
         fflush(stdout);
         if (BMK_isCompleted_TimedFn(benchState)) break;
+        roundNb++;
     }
     DISPLAY("\n");
+    /* BMK_benchTimedFn may not run exactly nbRounds iterations */
+    double speedAggregated =
+        aggregateData(speedPerRound, roundNb + 1, metricAggregatePref);
+    if (metricAggregatePref == fastest)
+      DISPLAY("Fastest Speed : %.1f MB/s \n", speedAggregated);
+    else
+      DISPLAY("Median Speed : %.1f MB/s \n", speedAggregated);
 
     char* csvFileName = malloc(strlen(exeName) + 5);
     strcpy(csvFileName, exeName);
@@ -714,12 +752,28 @@ static int benchMem(slice_collection_t dstBlocks,
         csvFile = fopen(csvFileName, "wt");
         assert(csvFile);
         fprintf(csvFile, "%s\n", exeName);
+        /* Print table headers */
+        fprintf(
+            csvFile,
+            "Compression/Decompression,Level,nbDicts,dictAttachPref,metricAggregatePref,Speed\n");
     } else {
         fclose(csvFile);
         csvFile = fopen(csvFileName, "at");
         assert(csvFile);
     }
-    fprintf(csvFile, "%.1f\n", bestSpeed);
+
+    int cLevel = -1;
+    int dictAttachPref = -1;
+    if (benchCompression) {
+      ZSTD_CCtxParams_getParameter(cctxParams, ZSTD_c_compressionLevel,
+                                   &cLevel);
+      ZSTD_CCtxParams_getParameter(cctxParams, ZSTD_c_forceAttachDict,
+                                   &dictAttachPref);
+    }
+    fprintf(csvFile, "%s,%d,%ld,%d,%d,%.1f\n",
+            benchCompression ? "Compression" : "Decompression", cLevel,
+            benchCompression ? ci.nbDicts : di.nbDicts, dictAttachPref,
+            metricAggregatePref, speedAggregated);
     fclose(csvFile);
     free(csvFileName);
 
@@ -736,13 +790,11 @@ static int benchMem(slice_collection_t dstBlocks,
  *  dictionary : optional (can be NULL), file to load as dictionary,
  *              if none provided : will be calculated on the fly by the program.
  * @return : 0 is success, 1+ otherwise */
-int bench(const char** fileNameTable, unsigned nbFiles,
-          const char* dictionary,
-          size_t blockSize, int clevel,
-          unsigned nbDictMax, unsigned nbBlocks,
+int bench(const char **fileNameTable, unsigned nbFiles, const char *dictionary,
+          size_t blockSize, int clevel, unsigned nbDictMax, unsigned nbBlocks,
           unsigned nbRounds, int benchCompression,
-          ZSTD_dictContentType_e dictContentType, ZSTD_CCtx_params* cctxParams,
-          const char* exeName)
+          ZSTD_dictContentType_e dictContentType, ZSTD_CCtx_params *cctxParams,
+          const char *exeName, metricAggregatePref_e metricAggregatePref)
 {
     int result = 0;
 
@@ -837,7 +889,9 @@ int bench(const char** fileNameTable, unsigned nbFiles,
         buffer_collection_t resultCollection = createBufferCollection_fromSliceCollection(srcSlices);
         CONTROL(resultCollection.buffer.ptr != NULL);
 
-        result = benchMem(dstSlices, resultCollection.slices, ddictionaries, cdictionaries, nbRounds, benchCompression, exeName, cctxParams);
+        result = benchMem(dstSlices, resultCollection.slices, ddictionaries,
+                          cdictionaries, nbRounds, benchCompression, exeName,
+                          cctxParams, metricAggregatePref);
 
         freeBufferCollection(resultCollection);
     } else {
@@ -851,7 +905,9 @@ int bench(const char** fileNameTable, unsigned nbFiles,
         buffer_collection_t resultCollection = createBufferCollection_fromSliceCollectionSizes(srcSlices);
         CONTROL(resultCollection.buffer.ptr != NULL);
 
-        result = benchMem(resultCollection.slices, dstSlices, ddictionaries, cdictionaries, nbRounds, benchCompression, exeName, NULL);
+        result = benchMem(resultCollection.slices, dstSlices, ddictionaries,
+                          cdictionaries, nbRounds, benchCompression, exeName,
+                          NULL, metricAggregatePref);
 
         freeBufferCollection(resultCollection);
     }
@@ -929,6 +985,7 @@ int usage(const char* exeName)
     DISPLAY ("-#          : use compression level # (default: %u) \n", CLEVEL_DEFAULT);
     DISPLAY ("-D #        : use # as a dictionary (default: create one) \n");
     DISPLAY ("-i#         : nb benchmark rounds (default: %u) \n", BENCH_TIME_DEFAULT_S);
+    DISPLAY ("-p#         : print speed for all rounds 0=fastest 1=median (default: 0)");
     DISPLAY ("--nbBlocks=#: use # blocks for bench (default: one per file) \n");
     DISPLAY ("--nbDicts=# : create # dictionaries for bench (default: one per block) \n");
     DISPLAY ("-h          : help (this text) \n");
@@ -969,6 +1026,7 @@ int main (int argc, const char** argv)
     ZSTD_dictContentType_e dictContentType = ZSTD_dct_auto;
     ZSTD_dictAttachPref_e dictAttachPref = ZSTD_dictDefaultAttach;
     ZSTD_paramSwitch_e prefetchCDictTables = ZSTD_ps_auto;
+    metricAggregatePref_e metricAggregatePref = fastest;
 
     for (int argNb = 1; argNb < argc ; argNb++) {
         const char* argument = argv[argNb];
@@ -978,6 +1036,7 @@ int main (int argc, const char** argv)
         if (!strcmp(argument, "-r")) { recursiveMode = 1; continue; }
         if (!strcmp(argument, "-D")) { argNb++; assert(argNb < argc); dictionary = argv[argNb]; continue; }
         if (longCommandWArg(&argument, "-i")) { nbRounds = readU32FromChar(&argument); continue; }
+        if (longCommandWArg(&argument, "-p")) { metricAggregatePref = (int)readU32FromChar(&argument); continue;}
         if (longCommandWArg(&argument, "--dictionary=")) { dictionary = argument; continue; }
         if (longCommandWArg(&argument, "-B")) { blockSize = readU32FromChar(&argument); continue; }
         if (longCommandWArg(&argument, "--blockSize=")) { blockSize = readU32FromChar(&argument); continue; }
@@ -1012,7 +1071,11 @@ int main (int argc, const char** argv)
     ZSTD_CCtxParams_setParameter(cctxParams, ZSTD_c_forceAttachDict, dictAttachPref);
     ZSTD_CCtxParams_setParameter(cctxParams, ZSTD_c_prefetchCDictTables, prefetchCDictTables);
 
-    int result = bench(filenameTable->fileNames, (unsigned)filenameTable->tableSize, dictionary, blockSize, cLevel, nbDicts, nbBlocks, nbRounds, benchCompression, dictContentType, cctxParams, exeName);
+    int result =
+        bench(filenameTable->fileNames, (unsigned)filenameTable->tableSize,
+              dictionary, blockSize, cLevel, nbDicts, nbBlocks, nbRounds,
+              benchCompression, dictContentType, cctxParams, exeName,
+              metricAggregatePref);
 
     UTIL_freeFileNamesTable(filenameTable);
     free(nameTable);

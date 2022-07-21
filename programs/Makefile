@@ -242,7 +242,7 @@ zstd-pgo :
 	$(MAKE) zstd MOREFLAGS=-fprofile-use
 
 ## zstd-small: minimal target, supporting only zstd compression and decompression. no bench. no legacy. no other format.
-zstd-small: CFLAGS = -Os -s
+zstd-small: CFLAGS = -Os -Wl,-s
 zstd-frugal zstd-small: $(ZSTDLIB_CORE_SRC) zstdcli.c util.c timefn.c fileio.c fileio_asyncio.c
 	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOTRACE -UZSTD_LEGACY_SUPPORT -DZSTD_LEGACY_SUPPORT=0 $^ -o $@$(EXT)
 

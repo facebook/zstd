@@ -346,9 +346,22 @@ static int readU32FromCharChecked(const char** stringPtr, unsigned* value)
         (*stringPtr)++;  /* skip `K` or `M` */
         if (**stringPtr=='i') (*stringPtr)++;
         if (**stringPtr=='B') (*stringPtr)++;
+
     }
-    *value = result;
-    return 0;
+
+    //Only well formed entries will be 0, or , (specifically for zstd compound)
+    if (**stringPtr == 0 || **stringPtr == ',') {
+
+        *value = result;
+        return 0;
+
+    } else {
+
+        *value = 0;
+        return 2;
+
+    }
+
 }
 
 /*! readU32FromChar() :
@@ -357,9 +370,21 @@ static int readU32FromCharChecked(const char** stringPtr, unsigned* value)
  *  Will also modify `*stringPtr`, advancing it to position where it stopped reading.
  *  Note : function will exit() program if digit sequence overflows */
 static unsigned readU32FromChar(const char** stringPtr) {
-    static const char errorMsg[] = "error: numeric value overflows 32-bit unsigned int";
+
     unsigned result;
-    if (readU32FromCharChecked(stringPtr, &result)) { errorOut(errorMsg); }
+    const char* startChar;
+    int returnVal;
+
+    startChar = *stringPtr;
+
+    returnVal = readU32FromCharChecked(stringPtr, &result);
+
+    if (returnVal == 1) {
+        errorOut("error: numeric value overflows 32-bit unsigned int"); 
+    }
+    else if (returnVal == 2) {
+        DISPLAY("warning: poorly formed parameter of %s, resetting to default \n", startChar);
+    }
     return result;
 }
 
@@ -369,14 +394,27 @@ static unsigned readU32FromChar(const char** stringPtr) {
  *  Will also modify `*stringPtr`, advancing it to position where it stopped reading.
  *  Note : function will exit() program if digit sequence overflows */
 static int readIntFromChar(const char** stringPtr) {
-    static const char errorMsg[] = "error: numeric value overflows 32-bit int";
+    
     int sign = 1;
     unsigned result;
+    const char* startChar;
+    int returnVal;
+    
     if (**stringPtr=='-') {
         (*stringPtr)++;
         sign = -1;
     }
-    if (readU32FromCharChecked(stringPtr, &result)) { errorOut(errorMsg); }
+
+    startChar = *stringPtr;
+    
+    returnVal = readU32FromCharChecked(stringPtr, &result);
+    
+    if (returnVal == 1) {
+        errorOut("error: numeric value overflows 32-bit int");
+    }
+    else if (returnVal == 2) {
+        DISPLAY("warning: poorly formed parameter of %s, resetting to default \n", startChar);
+    }
     return (int) result * sign;
 }
 
@@ -388,6 +426,7 @@ static int readIntFromChar(const char** stringPtr) {
 static int readSizeTFromCharChecked(const char** stringPtr, size_t* value)
 {
     size_t result = 0;
+    
     while ((**stringPtr >='0') && (**stringPtr <='9')) {
         size_t const max = ((size_t)(-1)) / 10;
         size_t last = result;
@@ -397,6 +436,7 @@ static int readSizeTFromCharChecked(const char** stringPtr, size_t* value)
         if (result < last) return 1; /* overflow error */
         (*stringPtr)++ ;
     }
+
     if ((**stringPtr=='K') || (**stringPtr=='M')) {
         size_t const maxK = ((size_t)(-1)) >> 10;
         if (result > maxK) return 1; /* overflow error */
@@ -409,8 +449,20 @@ static int readSizeTFromCharChecked(const char** stringPtr, size_t* value)
         if (**stringPtr=='i') (*stringPtr)++;
         if (**stringPtr=='B') (*stringPtr)++;
     }
-    *value = result;
-    return 0;
+
+    //Only well formed entries will be 0 or , (specifically for zstd compound)
+    if (**stringPtr == 0 || **stringPtr == ',') {
+
+        *value = result;
+        return 0;
+    
+    }else{
+
+        *value = 0;
+        return 2;
+    
+    }
+
 }
 
 /*! readSizeTFromChar() :
@@ -419,9 +471,20 @@ static int readSizeTFromCharChecked(const char** stringPtr, size_t* value)
  *  Will also modify `*stringPtr`, advancing it to position where it stopped reading.
  *  Note : function will exit() program if digit sequence overflows */
 static size_t readSizeTFromChar(const char** stringPtr) {
-    static const char errorMsg[] = "error: numeric value overflows size_t";
+
     size_t result;
-    if (readSizeTFromCharChecked(stringPtr, &result)) { errorOut(errorMsg); }
+    const char* startChar;
+    int returnVal;
+
+    startChar = *stringPtr;
+    
+    returnVal = readSizeTFromCharChecked(stringPtr, &result);
+    if (returnVal == 1) { 
+        errorOut("error: numeric value overflows size_t");
+    }
+    else if (returnVal == 2) {
+        DISPLAY("warning: poorly formed parameter of %s, resetting to default \n", startChar);
+    }
     return result;
 }
 
@@ -778,6 +841,7 @@ static unsigned init_nbThreads(void) {
     val32 = readU32FromChar(&__nb); \
 }
 
+
 typedef enum { zom_compress, zom_decompress, zom_test, zom_bench, zom_train, zom_list } zstd_operation_mode;
 
 #define CLEAN_RETURN(i) { operationResult = (i); goto _end; }
@@ -1001,9 +1065,9 @@ int main(int argCount, const char* argv[])
                 }
 #endif
                 if (longCommandWArg(&argument, "--threads")) { NEXT_UINT32(nbWorkers); continue; }
-                if (longCommandWArg(&argument, "--memlimit")) { NEXT_UINT32(memLimit); continue; }
-                if (longCommandWArg(&argument, "--memory")) { NEXT_UINT32(memLimit); continue; }
-                if (longCommandWArg(&argument, "--memlimit-decompress")) { NEXT_UINT32(memLimit); continue; }
+                if (longCommandWArg(&argument, "--memlimit=")) { memLimit = readSizeTFromChar(&argument);  continue; }
+                if (longCommandWArg(&argument, "--memory=")) { memLimit = readSizeTFromChar(&argument);  continue; }
+                if (longCommandWArg(&argument, "--memlimit-decompress=")) { memLimit = readSizeTFromChar(&argument);  continue; }
                 if (longCommandWArg(&argument, "--block-size=")) { blockSize = readSizeTFromChar(&argument); continue; }
                 if (longCommandWArg(&argument, "--maxdict")) { NEXT_UINT32(maxDictSize); continue; }
                 if (longCommandWArg(&argument, "--dictID")) { NEXT_UINT32(dictID); continue; }

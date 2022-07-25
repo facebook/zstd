@@ -373,6 +373,47 @@ zstd tmpPrompt - < tmpPrompt -o tmpPromp.zst --rm && die "should have aborted im
 println "Test completed"
 
 
+
+#check we reset memory when it is incorrectly formed, and that we warn the user as well
+println "\n===>  Test: CLI memory only passes correctly formed input"
+
+if !( echo hello | zstd -vvvv --memory=32LB 2>&1 $INTOVOID | grep -q 'memory=134217728')
+then die "Invalid memory parameter has not been reset to default, parsing is not working. Please correct"
+fi
+
+if !( echo hello | zstd -vvvv --memory=32LB 2>&1 $INTOVOID | grep -q 'warning: poorly formed parameter')
+then die "Invalid memory parameter is not warning the user and is silently failing"
+fi
+
+if !( echo hello | zstd -vvvv --memory=hello 2>&1 $INTOVOID | grep -q 'memory=134217728')
+then die "Invalid memory parameter has not been reset to default, parsing is not working. Please correct"
+fi
+
+if !( echo hello | zstd -vvvv --memory=hello 2>&1 $INTOVOID | grep -q 'warning: poorly formed parameter')
+then die "Invalid memory parameter is not warning the user and is silently failing"
+fi
+
+if !( echo hello | zstd -vvvv --memory=MB45 2>&1 $INTOVOID | grep -q 'memory=134217728')
+then die "Invalid memory parameter has not been reset to default, parsing is not working. Please correct"
+fi
+
+if !( echo hello | zstd -vvvv --memory=MB45 2>&1 $INTOVOID | grep -q 'warning: poorly formed parameter')
+then die "Invalid memory parameter is not warning the user and is silently failing"
+fi
+
+#check valid memory input are not warning
+println "\n===>  Test: CLI memory does not incorrectly warn on good input"
+
+if ( echo hello | zstd -vvvv --memory=32KB 2>&1 $INTOVOID | grep -q 'warning: poorly formed parameter')
+then die "Valid memory parameter is incorrectly warning"
+fi
+
+if ( echo hello | zstd -vvvv --memory=1024 2>&1 $INTOVOID | grep -q 'warning: poorly formed parameter')
+then die "Valid memory parameter is incorrectly warning"
+fi
+
+
+
 println "\n===>  recursive mode test "
 # combination of -r with empty list of input file
 zstd -c -r < tmp > tmp.zst

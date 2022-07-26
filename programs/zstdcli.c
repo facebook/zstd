@@ -284,7 +284,7 @@ static void usage_advanced(const char* programName)
     DISPLAYOUT("  -b#                  benchmark file(s), using # compression level (default: %d)\n", ZSTDCLI_CLEVEL_DEFAULT);
     DISPLAYOUT("  -e#                  test all compression levels successively from -b# to -e# (default: 1)\n");
     DISPLAYOUT("  -i#                  minimum evaluation time in seconds (default: 3s)\n");
-    DISPLAYOUT("  -B#                  cut file into independent blocks of size # (default: no block)\n");
+    DISPLAYOUT("  -B#                  cut file into independent chunks of size # (default: no chunking)\n");
     DISPLAYOUT("  -S                   output one benchmark result per input file (default: consolidated result)\n");
     DISPLAYOUT("     --priority=rt     set process priority to real-time\n");
 #endif

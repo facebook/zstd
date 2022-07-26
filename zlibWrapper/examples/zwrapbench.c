@@ -836,7 +836,7 @@ static int usage(const char* programName)
     DISPLAY( " -b#    : benchmark file(s), using # compression level (default : %d) \n", ZSTDCLI_CLEVEL_DEFAULT);
     DISPLAY( " -e#    : test all compression levels from -bX to # (default: %d)\n", ZSTDCLI_CLEVEL_DEFAULT);
     DISPLAY( " -i#    : minimum evaluation time in seconds (default : 3s)\n");
-    DISPLAY( " -B#    : cut file into independent blocks of size # (default: no block)\n");
+    DISPLAY( " -B#    : cut file into independent chunks of size # (default: no chunking)\n");
     return 0;
 }
 

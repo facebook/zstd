@@ -470,7 +470,7 @@ BENCHMARK
 * `-i#`:
     minimum evaluation time, in seconds (default: 3s), benchmark mode only
 * `-B#`, `--block-size=#`:
-    cut file(s) into independent blocks of size # (default: no block)
+    cut file(s) into independent chunks of size # (default: no chunking)
 * `--priority=rt`:
     set process priority to real-time
 

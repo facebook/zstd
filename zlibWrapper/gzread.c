@@ -17,13 +17,13 @@
 
 
 /* Local functions */
-local int gz_load OF((gz_statep, unsigned char *, unsigned, unsigned *));
-local int gz_avail OF((gz_statep));
-local int gz_look OF((gz_statep));
-local int gz_decomp OF((gz_statep));
-local int gz_fetch OF((gz_statep));
-local int gz_skip OF((gz_statep, z_off64_t));
-local z_size_t gz_read OF((gz_statep, voidp, z_size_t));
+local int gz_load _Z_OF((gz_statep, unsigned char *, unsigned, unsigned *));
+local int gz_avail _Z_OF((gz_statep));
+local int gz_look _Z_OF((gz_statep));
+local int gz_decomp _Z_OF((gz_statep));
+local int gz_fetch _Z_OF((gz_statep));
+local int gz_skip _Z_OF((gz_statep, z_off64_t));
+local z_size_t gz_read _Z_OF((gz_statep, voidp, z_size_t));
 
 /* Use read() to load a buffer -- return -1 on error, otherwise 0.  Read from
    state.state->fd, and update state.state->eof, state.state->err, and state.state->msg as appropriate.
@@ -464,8 +464,8 @@ z_size_t ZEXPORT gzfread(buf, size, nitems, file)
 #endif
 
 #if ZLIB_VERNUM <= 0x1250
-ZEXTERN int ZEXPORT gzgetc OF((gzFile file));
-ZEXTERN int ZEXPORT gzgetc_ OF((gzFile file));
+ZEXTERN int ZEXPORT gzgetc _Z_OF((gzFile file));
+ZEXTERN int ZEXPORT gzgetc_ _Z_OF((gzFile file));
 #endif
 
 int ZEXPORT gzgetc(file)

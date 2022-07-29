@@ -355,7 +355,7 @@ int DiB_trainFromFiles(const char* dictFileName, size_t maxDictSize,
     }
 
     /* Checks */
-    if ((!sampleSizes) || (!srcBuffer) || (!dictBuffer))
+    if ((fs.nbSamples && !sampleSizes) || (!srcBuffer) || (!dictBuffer))
         EXM_THROW(12, "not enough memory for DiB_trainFiles");   /* should not happen */
     if (fs.oneSampleTooLarge) {
         DISPLAYLEVEL(2, "!  Warning : some sample(s) are very large \n");

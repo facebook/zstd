@@ -317,7 +317,7 @@ zstd -d -f tmp_corrupt.zst --no-check
 zstd -d -f tmp_corrupt.zst --check --no-check # final flag overrides
 zstd -d -f tmp.zst --no-check
 
-if [ "$isWindows" = false ]; then
+if [ "$isWindows" = false ] && [ "$UNAME" != "AIX" ]; then
   if [ -n "$(which readelf)" ]; then
     println "test: check if binary has executable stack (#2963)"
     readelf -lW "$ZSTD_BIN" | grep 'GNU_STACK .* RW ' || die "zstd binary has executable stack!"

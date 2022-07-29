@@ -1378,6 +1378,9 @@ int UTIL_countCores(int logical)
 
 int UTIL_countCores(int logical)
 {
+    /* suppress unused parameter warning */
+    (void)logical;
+
     /* assume 1 */
     return 1;
 }

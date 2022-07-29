@@ -1226,6 +1226,9 @@ int main(int argCount, const char* argv[])
     DISPLAYLEVEL(3, WELCOME_MESSAGE);
 
 #ifdef ZSTD_MULTITHREAD
+    if ((operation==zom_decompress) && (!singleThread) && (nbWorkers > 1)) {
+        DISPLAYLEVEL(2, "Warning : decompression does not support multi-threading\n");
+    }
     if ((nbWorkers==0) && (!singleThread)) {
         /* automatically set # workers based on # of reported cpus */
         if (defaultLogicalCores) {

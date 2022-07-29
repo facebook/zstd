@@ -543,7 +543,7 @@ void ZSTD_buildFSETable_body(ZSTD_seqSymbol* dt,
             for (i=0; i<n; i++) {
                 tableDecode[position].baseValue = s;
                 position = (position + step) & tableMask;
-                while (position > highThreshold) position = (position + step) & tableMask;   /* lowprob area */
+                while (UNLIKELY(position > highThreshold)) position = (position + step) & tableMask;   /* lowprob area */
         }   }
         assert(position == 0); /* position must reach all cells once, otherwise normalizedCounter is incorrect */
     }

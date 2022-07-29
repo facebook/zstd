@@ -2346,7 +2346,10 @@ static int FIO_decompressFrames(FIO_ctx_t* const fCtx,
             break;   /* no more input */
         }
         readSomething = 1;   /* there is at least 1 byte in srcFile */
-        if (ress.readCtx->srcBufferLoaded < toRead) {
+        if (ress.readCtx->srcBufferLoaded < toRead) { /* not enough input to check magic number */
+            if ((prefs->overwrite) && !strcmp (dstFileName, stdoutmark)) {  /* pass-through mode */
+                return FIO_passThrough(&ress);
+            }
             DISPLAYLEVEL(1, "zstd: %s: unknown header \n", srcFileName);
             return 1;
         }

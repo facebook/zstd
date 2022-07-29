@@ -808,6 +808,16 @@ println "Hello world 1!" | zstd -df
 println "Hello world 2!" | zstd -dcf
 println "Hello world 3!" > tmp1
 zstd -dcf tmp1
+println "" | zstd -df > tmp1
+println "" > tmp2
+$DIFF -q tmp1 tmp2
+println "1" | zstd -df > tmp1
+println "1" > tmp2
+$DIFF -q tmp1 tmp2
+println "12" | zstd -df > tmp1
+println "12" > tmp2
+$DIFF -q tmp1 tmp2
+rm -rf tmp*
 
 
 println "\n===>  frame concatenation "

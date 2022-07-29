@@ -1796,6 +1796,11 @@ FIO_determineCompressedName(const char* srcFileName, const char* outDirName, con
     char* outDirFilename = NULL;
     size_t sfnSize = strlen(srcFileName);
     size_t const srcSuffixLen = strlen(suffix);
+
+    if(!strcmp(srcFileName, stdinmark)) {
+        return stdoutmark;
+    }
+
     if (outDirName) {
         outDirFilename = FIO_createFilename_fromOutDir(srcFileName, outDirName, srcSuffixLen);
         sfnSize = strlen(outDirFilename);
@@ -2579,6 +2584,11 @@ FIO_determineDstName(const char* srcFileName, const char* outDirName)
 
     size_t srcSuffixLen;
     const char* const srcSuffix = strrchr(srcFileName, '.');
+
+    if(!strcmp(srcFileName, stdinmark)) {
+        return stdoutmark;
+    }
+
     if (srcSuffix == NULL) {
         DISPLAYLEVEL(1,
             "zstd: %s: unknown suffix (%s expected). "

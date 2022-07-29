@@ -1391,19 +1391,19 @@ int main(int argCount, const char* argv[])
        UTIL_refFilename(filenames, stdinmark);
     }
 
-    if (!strcmp(filenames->fileNames[0], stdinmark) && !outFileName)
+    if (filenames->tableSize == 1 && !strcmp(filenames->fileNames[0], stdinmark) && !outFileName)
         outFileName = stdoutmark;  /* when input is stdin, default output is stdout */
 
     /* Check if input/output defined as console; trigger an error in this case */
     if (!forceStdin
-     && !strcmp(filenames->fileNames[0], stdinmark)
+     && (UTIL_searchFileNamesTable(filenames, stdinmark) != -1)
      && IS_CONSOLE(stdin) ) {
         DISPLAYLEVEL(1, "stdin is a console, aborting\n");
         CLEAN_RETURN(1);
     }
-    if ( outFileName && !strcmp(outFileName, stdoutmark)
+    if ( (!outFileName || !strcmp(outFileName, stdoutmark))
       && IS_CONSOLE(stdout)
-      && !strcmp(filenames->fileNames[0], stdinmark)
+      && (UTIL_searchFileNamesTable(filenames, stdinmark) != -1)
       && !forceStdout
       && operation!=zom_decompress ) {
         DISPLAYLEVEL(1, "stdout is a console, aborting\n");

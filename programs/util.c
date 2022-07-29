@@ -509,6 +509,16 @@ FileNamesTable* UTIL_allocateFileNamesTable(size_t tableSize)
     return fnt;
 }
 
+int UTIL_searchFileNamesTable(FileNamesTable* table, char const* name) {
+    size_t i;
+    for(i=0 ;i < table->tableSize; i++) {
+        if(!strcmp(table->fileNames[i], name)) {
+            return (int)i;
+        }
+    }
+    return -1;
+}
+
 void UTIL_refFilename(FileNamesTable* fnt, const char* filename)
 {
     assert(fnt->tableSize < fnt->tableCapacity);

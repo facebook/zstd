@@ -269,6 +269,11 @@ UTIL_createFNT_fromROTable(const char** filenames, size_t nbFilenames);
  */
 FileNamesTable* UTIL_allocateFileNamesTable(size_t tableSize);
 
+/*! UTIL_searchFileNamesTable() :
+ *  Searched through entries in FileNamesTable for a specific name.
+ * @return : index of entry if found or -1 if not found
+ */
+int UTIL_searchFileNamesTable(FileNamesTable* table, char const* name);
 
 /*! UTIL_refFilename() :
  *  Add a reference to read-only name into @fnt table.

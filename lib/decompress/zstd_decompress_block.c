@@ -967,6 +967,11 @@ size_t ZSTD_execSequence(BYTE* op,
 
     assert(op != NULL /* Precondition */);
     assert(oend_w < oend /* No underflow */);
+
+#if defined(__aarch64__)
+    /* prefetch sequence starting from match that will be used for copy later */
+    PREFETCH_L1(match);
+#endif
     /* Handle edge cases in a slow path:
      *   - Read beyond end of literals
      *   - Match end is within WILDCOPY_OVERLIMIT of oend

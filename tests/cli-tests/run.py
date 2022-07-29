@@ -699,6 +699,7 @@ if __name__ == "__main__":
     if args.exec_prefix is not None:
         env["EXEC_PREFIX"] = args.exec_prefix
     env["ZSTD_SYMLINK_DIR"] = zstd_symlink_dir
+    env["ZSTD_REPO_DIR"] = os.path.abspath(REPO_DIR)
     env["DATAGEN_BIN"] = os.path.abspath(args.datagen)
     env["ZSTDGREP_BIN"] = os.path.abspath(args.zstdgrep)
     env["ZSTDLESS_BIN"] = os.path.abspath(args.zstdless)

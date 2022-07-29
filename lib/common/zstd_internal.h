@@ -324,10 +324,10 @@ MEM_STATIC ZSTD_sequenceLength ZSTD_getSequenceLength(seqStore_t const* seqStore
     seqLen.matchLength = seq->mlBase + MINMATCH;
     if (seqStore->longLengthPos == (U32)(seq - seqStore->sequencesStart)) {
         if (seqStore->longLengthType == ZSTD_llt_literalLength) {
-            seqLen.litLength += 0xFFFF;
+            seqLen.litLength += 0x10000;
         }
         if (seqStore->longLengthType == ZSTD_llt_matchLength) {
-            seqLen.matchLength += 0xFFFF;
+            seqLen.matchLength += 0x10000;
         }
     }
     return seqLen;

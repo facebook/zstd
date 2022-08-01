@@ -1011,7 +1011,14 @@ int main(int argCount, const char* argv[])
                 if (longCommandWArg(&argument, "--stream-size=")) { streamSrcSize = readSizeTFromChar(&argument); continue; }
                 if (longCommandWArg(&argument, "--target-compressed-block-size=")) { targetCBlockSize = readSizeTFromChar(&argument); continue; }
                 if (longCommandWArg(&argument, "--size-hint=")) { srcSizeHint = readSizeTFromChar(&argument); continue; }
-                if (longCommandWArg(&argument, "--output-dir-flat")) { NEXT_FIELD(outDirName); continue; }
+                if (longCommandWArg(&argument, "--output-dir-flat")) {
+                    NEXT_FIELD(outDirName);
+                    if (strlen(outDirName) == 0) {
+                        DISPLAY("error: output dir cannot be empty string (did you mean to pass '.' instead?)\n");
+                        CLEAN_RETURN(1);
+                    }
+                    continue;
+                }
                 if (longCommandWArg(&argument, "--auto-threads")) {
                     const char* threadDefault = NULL;
                     NEXT_FIELD(threadDefault);
@@ -1020,7 +1027,14 @@ int main(int argCount, const char* argv[])
                     continue;
                 }
 #ifdef UTIL_HAS_MIRRORFILELIST
-                if (longCommandWArg(&argument, "--output-dir-mirror")) { NEXT_FIELD(outMirroredDirName); continue; }
+                if (longCommandWArg(&argument, "--output-dir-mirror")) {
+                    NEXT_FIELD(outMirroredDirName);
+                    if (strlen(outMirroredDirName) == 0) {
+                        DISPLAY("error: output dir cannot be empty string (did you mean to pass '.' instead?)\n");
+                        CLEAN_RETURN(1);
+                    }
+                    continue;
+                }
 #endif
 #ifndef ZSTD_NOTRACE
                 if (longCommandWArg(&argument, "--trace")) { char const* traceFile; NEXT_FIELD(traceFile); TRACE_enable(traceFile); continue; }

@@ -880,30 +880,30 @@ static const char * trimPath(const char *pathname)
 
 static char* mallocAndJoin2Dir(const char *dir1, const char *dir2)
 {
-    const size_t dir1Size = strlen(dir1);
-    const size_t dir2Size = strlen(dir2);
-    char *outDirBuffer, *buffer, trailingChar;
-
     assert(dir1 != NULL && dir2 != NULL);
-    outDirBuffer = (char *) malloc(dir1Size + dir2Size + 2);
-    CONTROL(outDirBuffer != NULL);
+    {   const size_t dir1Size = strlen(dir1);
+        const size_t dir2Size = strlen(dir2);
+        char *outDirBuffer, *buffer;
 
-    memcpy(outDirBuffer, dir1, dir1Size);
-    outDirBuffer[dir1Size] = '\0';
+        outDirBuffer = (char *) malloc(dir1Size + dir2Size + 2);
+        CONTROL(outDirBuffer != NULL);
 
-    if (dir2[0] == '.')
+        memcpy(outDirBuffer, dir1, dir1Size);
+        outDirBuffer[dir1Size] = '\0';
+
+        if (dir2[0] == '.')
+            return outDirBuffer;
+
+        buffer = outDirBuffer + dir1Size;
+        if (dir1Size > 0 && *(buffer - 1) != PATH_SEP) {
+            *buffer = PATH_SEP;
+            buffer++;
+        }
+        memcpy(buffer, dir2, dir2Size);
+        buffer[dir2Size] = '\0';
+
         return outDirBuffer;
-
-    buffer = outDirBuffer + dir1Size;
-    trailingChar = *(buffer - 1);
-    if (trailingChar != PATH_SEP) {
-        *buffer = PATH_SEP;
-        buffer++;
     }
-    memcpy(buffer, dir2, dir2Size);
-    buffer[dir2Size] = '\0';
-
-    return outDirBuffer;
 }
 
 /* this function will return NULL if input srcFileName is not valid name for mirrored output path */

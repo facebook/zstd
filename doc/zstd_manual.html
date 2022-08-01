@@ -121,7 +121,9 @@ unsigned long long ZSTD_getFrameContentSize(const void *src, size_t srcSize);
    note 6 : This function replaces ZSTD_getDecompressedSize() 
 </p></pre><BR>
 
-<pre><b>unsigned long long ZSTD_getDecompressedSize(const void* src, size_t srcSize);
+<pre><b>ZSTDLIB_API
+ZSTD_DEPRECATED("Replaced by ZSTD_getFrameContentSize")
+unsigned long long ZSTD_getDecompressedSize(const void* src, size_t srcSize);
 </b><p>  NOTE: This function is now obsolete, in favor of ZSTD_getFrameContentSize().
   Both functions work the same way, but ZSTD_getDecompressedSize() blends
   "empty", "unknown" and "error" results to the same return value (0),
@@ -1379,7 +1381,8 @@ ZSTDLIB_STATIC_API size_t ZSTD_CCtx_refThreadPool(ZSTD_CCtx* cctx, ZSTD_threadPo
   This function never fails (wide contract) 
 </p></pre><BR>
 
-<pre><b>ZSTD_DEPRECATED("use ZSTD_compress2")
+<pre><b>ZSTDLIB_STATIC_API
+ZSTD_DEPRECATED("use ZSTD_compress2")
 size_t ZSTD_compress_advanced(ZSTD_CCtx* cctx,
                               void* dst, size_t dstCapacity,
                         const void* src, size_t srcSize,
@@ -1390,7 +1393,8 @@ size_t ZSTD_compress_advanced(ZSTD_CCtx* cctx,
   This prototype will generate compilation warnings. 
 </p></pre><BR>
 
-<pre><b>ZSTD_DEPRECATED("use ZSTD_compress2 with ZSTD_CCtx_loadDictionary")
+<pre><b>ZSTDLIB_STATIC_API
+ZSTD_DEPRECATED("use ZSTD_compress2 with ZSTD_CCtx_loadDictionary")
 size_t ZSTD_compress_usingCDict_advanced(ZSTD_CCtx* cctx,
                                   void* dst, size_t dstCapacity,
                             const void* src, size_t srcSize,
@@ -1551,7 +1555,8 @@ ZSTDLIB_STATIC_API size_t ZSTD_freeCCtxParams(ZSTD_CCtx_params* params);  </b>/*
  
 </p></pre><BR>
 
-<pre><b>ZSTD_DEPRECATED("use ZSTD_DCtx_setParameter() instead")
+<pre><b>ZSTDLIB_STATIC_API
+ZSTD_DEPRECATED("use ZSTD_DCtx_setParameter() instead")
 size_t ZSTD_DCtx_setFormat(ZSTD_DCtx* dctx, ZSTD_format_e format);
 </b><p>  This function is REDUNDANT. Prefer ZSTD_DCtx_setParameter().
   Instruct the decoder context about what kind of data to decode next.
@@ -1577,7 +1582,8 @@ size_t ZSTD_DCtx_setFormat(ZSTD_DCtx* dctx, ZSTD_format_e format);
 <BR></pre>
 
 <h3>Advanced Streaming compression functions</h3><pre></pre><b><pre></pre></b><BR>
-<pre><b>ZSTD_DEPRECATED("use ZSTD_CCtx_reset, see zstd.h for detailed instructions")
+<pre><b>ZSTDLIB_STATIC_API
+ZSTD_DEPRECATED("use ZSTD_CCtx_reset, see zstd.h for detailed instructions")
 size_t ZSTD_initCStream_srcSize(ZSTD_CStream* zcs,
              int compressionLevel,
              unsigned long long pledgedSrcSize);
@@ -1594,7 +1600,8 @@ size_t ZSTD_initCStream_srcSize(ZSTD_CStream* zcs,
  
 </p></pre><BR>
 
-<pre><b>ZSTD_DEPRECATED("use ZSTD_CCtx_reset, see zstd.h for detailed instructions")
+<pre><b>ZSTDLIB_STATIC_API
+ZSTD_DEPRECATED("use ZSTD_CCtx_reset, see zstd.h for detailed instructions")
 size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs,
          const void* dict, size_t dictSize,
                int compressionLevel);
@@ -1611,7 +1618,8 @@ size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs,
  
 </p></pre><BR>
 
-<pre><b>ZSTD_DEPRECATED("use ZSTD_CCtx_reset, see zstd.h for detailed instructions")
+<pre><b>ZSTDLIB_STATIC_API
+ZSTD_DEPRECATED("use ZSTD_CCtx_reset, see zstd.h for detailed instructions")
 size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs,
         const void* dict, size_t dictSize,
               ZSTD_parameters params,
@@ -1632,7 +1640,8 @@ size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs,
  
 </p></pre><BR>
 
-<pre><b>ZSTD_DEPRECATED("use ZSTD_CCtx_reset and ZSTD_CCtx_refCDict, see zstd.h for detailed instructions")
+<pre><b>ZSTDLIB_STATIC_API
+ZSTD_DEPRECATED("use ZSTD_CCtx_reset and ZSTD_CCtx_refCDict, see zstd.h for detailed instructions")
 size_t ZSTD_initCStream_usingCDict(ZSTD_CStream* zcs, const ZSTD_CDict* cdict);
 </b><p> This function is DEPRECATED, and equivalent to:
      ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
@@ -1643,7 +1652,8 @@ size_t ZSTD_initCStream_usingCDict(ZSTD_CStream* zcs, const ZSTD_CDict* cdict);
  
 </p></pre><BR>
 
-<pre><b>ZSTD_DEPRECATED("use ZSTD_CCtx_reset and ZSTD_CCtx_refCDict, see zstd.h for detailed instructions")
+<pre><b>ZSTDLIB_STATIC_API
+ZSTD_DEPRECATED("use ZSTD_CCtx_reset and ZSTD_CCtx_refCDict, see zstd.h for detailed instructions")
 size_t ZSTD_initCStream_usingCDict_advanced(ZSTD_CStream* zcs,
                    const ZSTD_CDict* cdict,
                          ZSTD_frameParameters fParams,
@@ -1664,7 +1674,8 @@ size_t ZSTD_initCStream_usingCDict_advanced(ZSTD_CStream* zcs,
  
 </p></pre><BR>
 
-<pre><b>ZSTD_DEPRECATED("use ZSTD_CCtx_reset, see zstd.h for detailed instructions")
+<pre><b>ZSTDLIB_STATIC_API
+ZSTD_DEPRECATED("use ZSTD_CCtx_reset, see zstd.h for detailed instructions")
 size_t ZSTD_resetCStream(ZSTD_CStream* zcs, unsigned long long pledgedSrcSize);
 </b><p> This function is DEPRECATED, and is equivalent to:
      ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);

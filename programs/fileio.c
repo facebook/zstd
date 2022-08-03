@@ -338,7 +338,7 @@ void FIO_setCompressionType(FIO_prefs_t* const prefs, FIO_compressionType_t comp
 
 void FIO_overwriteMode(FIO_prefs_t* const prefs) { prefs->overwrite = 1; }
 
-void FIO_setSparseWrite(FIO_prefs_t* const prefs, unsigned sparse) { prefs->sparseFileSupport = sparse; }
+void FIO_setSparseWrite(FIO_prefs_t* const prefs, int sparse) { prefs->sparseFileSupport = sparse; }
 
 void FIO_setDictIDFlag(FIO_prefs_t* const prefs, int dictIDFlag) { prefs->dictIDFlag = dictIDFlag; }
 
@@ -371,7 +371,7 @@ void FIO_setOverlapLog(FIO_prefs_t* const prefs, int overlapLog){
     prefs->overlapLog = overlapLog;
 }
 
-void FIO_setAdaptiveMode(FIO_prefs_t* const prefs, unsigned adapt) {
+void FIO_setAdaptiveMode(FIO_prefs_t* const prefs, int adapt) {
     if ((adapt>0) && (prefs->nbWorkers==0))
         EXM_THROW(1, "Adaptive mode is not compatible with single thread mode \n");
     prefs->adaptiveMode = adapt;
@@ -453,7 +453,7 @@ void FIO_setContentSize(FIO_prefs_t* const prefs, int value)
     prefs->contentSize = value != 0;
 }
 
-void FIO_setAsyncIOFlag(FIO_prefs_t* const prefs, unsigned value) {
+void FIO_setAsyncIOFlag(FIO_prefs_t* const prefs, int value) {
 #ifdef ZSTD_MULTITHREAD
     prefs->asyncIO = value;
 #else
@@ -1306,7 +1306,7 @@ FIO_compressZstdFrame(FIO_ctx_t* const fCtx,
                 windowLog = ZSTD_WINDOWLOG_LIMIT_DEFAULT;
             } else {
                 const ZSTD_compressionParameters cParams = ZSTD_getCParams(compressionLevel, fileSize, 0);
-                windowLog = cParams.windowLog;
+                windowLog = (int)cParams.windowLog;
             }
         }
         windowSize = UTIL_makeHumanReadableSize(MAX(1ULL, MIN(1ULL << windowLog, pledgedSrcSize)));
@@ -1726,14 +1726,15 @@ FIO_compressFilename_srcFile(FIO_ctx_t* const fCtx,
     return result;
 }
 
-static const char* checked_index(const char* options[], size_t length, size_t index) {
+static const char*
+checked_index(const char* options[], size_t length, size_t index) {
     assert(index < length);
     /* Necessary to avoid warnings since -O3 will omit the above `assert` */
     (void) length;
     return options[index];
 }
 
-#define INDEX(options, index) checked_index((options), sizeof(options)  / sizeof(char*), (index))
+#define INDEX(options, index) checked_index((options), sizeof(options)  / sizeof(char*), (size_t)(index))
 
 void FIO_displayCompressionParameters(const FIO_prefs_t* prefs) {
     static const char* formatOptions[5] = {ZSTD_EXTENSION, GZ_EXTENSION, XZ_EXTENSION,

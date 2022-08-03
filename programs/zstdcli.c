@@ -801,7 +801,6 @@ int main(int argCount, const char* argv[])
         hasStdout = 0,
         ldmFlag = 0,
         main_pause = 0,
-        nbWorkers = 0,
         adapt = 0,
         useRowMatchFinder = 0,
         adaptMin = MINCLEVEL,
@@ -816,6 +815,7 @@ int main(int argCount, const char* argv[])
         showDefaultCParams = 0,
         ultra=0,
         contentSize=1;
+    unsigned nbWorkers = 0;
     double compressibility = 0.5;
     unsigned bench_nbSeconds = 3;   /* would be better if this value was synchronized from bench */
     size_t blockSize = 0;
@@ -1200,7 +1200,7 @@ int main(int argCount, const char* argv[])
                     /* nb of threads (hidden option) */
                 case 'T':
                     argument++;
-                    nbWorkers = (int)readU32FromChar(&argument);
+                    nbWorkers = readU32FromChar(&argument);
                     break;
 
                     /* Dictionary Selection level */
@@ -1246,10 +1246,10 @@ int main(int argCount, const char* argv[])
     if ((nbWorkers==0) && (!singleThread)) {
         /* automatically set # workers based on # of reported cpus */
         if (defaultLogicalCores) {
-            nbWorkers = UTIL_countLogicalCores();
+            nbWorkers = (unsigned)UTIL_countLogicalCores();
             DISPLAYLEVEL(3, "Note: %d logical core(s) detected \n", nbWorkers);
         } else {
-            nbWorkers = UTIL_countPhysicalCores();
+            nbWorkers = (unsigned)UTIL_countPhysicalCores();
             DISPLAYLEVEL(3, "Note: %d physical core(s) detected \n", nbWorkers);
         }
     }
@@ -1313,7 +1313,7 @@ int main(int argCount, const char* argv[])
     if (operation==zom_bench) {
 #ifndef ZSTD_NOBENCH
         benchParams.blockSize = blockSize;
-        benchParams.nbWorkers = nbWorkers;
+        benchParams.nbWorkers = (int)nbWorkers;
         benchParams.realTime = (unsigned)setRealTimePrio;
         benchParams.nbSeconds = bench_nbSeconds;
         benchParams.ldmFlag = ldmFlag;
@@ -1474,7 +1474,7 @@ int main(int argCount, const char* argv[])
     if (operation==zom_compress) {
 #ifndef ZSTD_NOCOMPRESS
         FIO_setContentSize(prefs, contentSize);
-        FIO_setNbWorkers(prefs, nbWorkers);
+        FIO_setNbWorkers(prefs, (int)nbWorkers);
         FIO_setBlockSize(prefs, (int)blockSize);
         if (g_overlapLog!=OVERLAP_LOG_DEFAULT) FIO_setOverlapLog(prefs, (int)g_overlapLog);
         FIO_setLdmFlag(prefs, (unsigned)ldmFlag);
@@ -1482,7 +1482,7 @@ int main(int argCount, const char* argv[])
         FIO_setLdmMinMatch(prefs, (int)g_ldmMinMatch);
         if (g_ldmBucketSizeLog != LDM_PARAM_DEFAULT) FIO_setLdmBucketSizeLog(prefs, (int)g_ldmBucketSizeLog);
         if (g_ldmHashRateLog != LDM_PARAM_DEFAULT) FIO_setLdmHashRateLog(prefs, (int)g_ldmHashRateLog);
-        FIO_setAdaptiveMode(prefs, (unsigned)adapt);
+        FIO_setAdaptiveMode(prefs, adapt);
         FIO_setUseRowMatchFinder(prefs, useRowMatchFinder);
         FIO_setAdaptMin(prefs, adaptMin);
         FIO_setAdaptMax(prefs, adaptMax);

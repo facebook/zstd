@@ -12,8 +12,9 @@
 #ifndef FILEIO_H_23981798732
 #define FILEIO_H_23981798732
 
-#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_compressionParameters */
 #include "fileio_types.h"
+#include "util.h"                  /* FileNamesTable */
+#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_compressionParameters */
 #include "../lib/zstd.h"           /* ZSTD_* */
 
 #if defined (__cplusplus)

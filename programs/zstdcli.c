@@ -1051,6 +1051,8 @@ int main(int argCount, const char* argv[])
                         /* Invalid character following --long */
                         badusage(programName);
                         CLEAN_RETURN(1);
+                    } else {
+                        ldmWindowLog = g_defaultMaxWindowLog;
                     }
                     /* Only set windowLog if not already set by --zstd */
                     if (compressionParams.windowLog == 0)

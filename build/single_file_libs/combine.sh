@@ -2,11 +2,7 @@
 
 # Tool to bundle multiple C/C++ source files, inlining any includes.
 # 
-# Note: this POSIX-compliant script is many times slower than the original bash
-# implementation (due to the grep calls) but it runs and works everywhere.
-# 
 # TODO: ROOTS, FOUND, etc., as arrays (since they fail on paths with spaces)
-# TODO: revert to Bash-only regex (the grep ones being too slow)
 # 
 # Author: Carl Woffenden, Numfum GmbH (this script is released under a CC0 license/Public Domain)
 
@@ -52,13 +48,36 @@ test_deps() {
   fi
 }
 
-# Tests if list $1 has item $2 (returning zero on a match)
-list_has_item() {
-  if echo "$1" | grep -Eq "(^|\s*)$2(\$|\s*)"; then
+# Test if glob pattern $1 matches subject $2 (see fnmatch(3))
+fnmatch() {
+  case "$2" in
+  $1)
     return 0
-  else
-    return 1
-  fi
+    ;;
+  esac
+  return 1
+}
+
+# Test if line $1 is local include directive
+is_include_line() {
+  fnmatch "*#*include*" "$1" || return 1
+  printf "%s\n" "$1" | grep -Eq '^\s*#\s*include\s*".+"'
+}
+
+# Test if line $1 is pragma once directive
+is_pragma_once_line() {
+  fnmatch "*#*pragma*once*" "$1" || return 1
+  printf "%s\n" "$1" | grep -Eq '^\s*#\s*pragma\s*once\s*'
+}
+
+# Tests if list $1 has item $2 (returning zero on a match)
+# (originally used grep -Eq "(^|\s*)$2(\$|\s*))
+readonly list_FS="$IFS"
+list_has_item() {
+  for item_P in "*[$list_FS]$2[$list_FS]*" "*[$list_FS]$2" "$2[$list_FS]*" "$2"; do
+    fnmatch "${item_P}" "$1" && return 0
+  done
+  return 1
 }
 
 # Adds a new line with the supplied arguments to $DESTN (or stdout)
@@ -124,7 +143,7 @@ add_file() {
     # Read the file
     local line=
     while IFS= read -r line; do
-      if echo "$line" | grep -Eq '^\s*#\s*include\s*".+"'; then
+      if is_include_line "$line"; then
         # We have an include directive so strip the (first) file
         local inc=$(echo "$line" | grep -Eo '".*"' | sed -E 's/"([^"]+)"/\1/' | head -1)
         local res_inc="$(resolve_include "$srcdir" "$inc")"
@@ -155,7 +174,7 @@ add_file() {
         # Skip any 'pragma once' directives, otherwise write the source line
         local write=$PONCE
         if [ $write -eq 0 ]; then
-          if echo "$line" | grep -Eqv '^\s*#\s*pragma\s*once\s*'; then
+          if ! is_pragma_once_line "$line"; then
             write=1
           fi
         fi

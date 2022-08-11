@@ -74,6 +74,24 @@ is_pragma_once_line() {
 # (originally used grep -Eq "(^|\s*)$2(\$|\s*))
 readonly list_FS="$IFS"
 list_has_item() {
+  # Re: escaping glob pattern special characters in item string:
+  #
+  # bash (tested 3.2.57, 5.1.4), dash (tested 0.5.10.2), NetBSD /bin/sh
+  # (tested 8.2), and Solaris /bin/sh (tested 11.4) require escaping
+  # backslashes in a bracket expression despite POSIX specifying that
+  # backslash loses significance in a bracket expression.
+  #
+  # Conversely, neither FreeBSD /bin/sh (tested 12.2) nor OpenBSD /bin/sh
+  # (tested 7.1) obey backslash-escaping in case statement patterns even
+  # outside bracket expressions, so escape special characters using bracket
+  # expressions.
+  #
+  # Solaris /bin/sh (tested 11.4) requires vertical bar (|) to be escaped.
+  #
+  # All accommodations should behave as expected under strict POSIX semantics.
+  if fnmatch "*[\\*?[|]*" "$2"; then
+    set -- "$1" "$(printf '%s\n' "$2" | sed -e 's/[*?[|]/[&]/g; s/[\]/[\\&]/g')"
+  fi
   for item_P in "*[$list_FS]$2[$list_FS]*" "*[$list_FS]$2" "$2[$list_FS]*" "$2"; do
     fnmatch "${item_P}" "$1" && return 0
   done

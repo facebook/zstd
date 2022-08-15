@@ -7,7 +7,8 @@ Compress or uncompress FILEs (with no FILE or when FILE is `-`, read from standa
   -d, --decompress     decompression
   -f, --force          disable input and output checks. Allows overwriting existing files,
                        input from console, output to stdout, operating on links,
-                       block devices, etc.
+                       block devices, etc. During decompression and when the output
+                       destination is stdout, pass-through unrecognized formats as-is.
       --rm             remove source file(s) after successful de/compression
   -k, --keep           preserve source file(s) (default)
   -D DICT              use DICT as Dictionary for compression or decompression

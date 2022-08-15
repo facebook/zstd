@@ -154,7 +154,8 @@ static void usage(FILE* f, const char* programName)
 #endif
     DISPLAY_F(f, "  -f, --force          disable input and output checks. Allows overwriting existing files,\n");
     DISPLAY_F(f, "                       input from console, output to stdout, operating on links,\n");
-    DISPLAY_F(f, "                       block devices, etc.\n");
+    DISPLAY_F(f, "                       block devices, etc. During decompression and when the output\n");
+    DISPLAY_F(f, "                       destination is stdout, pass-through unrecognized formats as-is.\n");
     DISPLAY_F(f, "      --rm             remove source file(s) after successful de/compression\n");
     DISPLAY_F(f, "  -k, --keep           preserve source file(s) (default) \n");
 #ifdef ZSTD_GZCOMPRESS
@@ -271,7 +272,7 @@ static void usage_advanced(const char* programName)
             exeNameMatch(programName, ZSTD_GZCAT)) {
             passThroughDefault = "enabled";
         }
-        DISPLAYOUT("     --[no-]pass-through : passes through uncompressed files as-is (default: %s\n)", passThroughDefault);
+        DISPLAYOUT("     --[no-]pass-through : passes through uncompressed files as-is (default: %s)\n", passThroughDefault);
     }
 #endif  /* ZSTD_NODECOMPRESS */
 

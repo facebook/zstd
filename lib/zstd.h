@@ -169,7 +169,7 @@ ZSTDLIB_API size_t ZSTD_decompress( void* dst, size_t dstCapacity,
  *            as ZSTD_decompress() only needs an upper bound of decompressed size.
  *            (For example, data could be necessarily cut into blocks <= 16 KB).
  *   note 3 : decompressed size is always present when compression is completed using single-pass functions,
- *            such as ZSTD_compress(), ZSTD_compressCCtx() ZSTD_compress_usingDict() or ZSTD_compress_usingCDict().
+ *            such as ZSTD_compress(), ZSTD_compressCCtx(), ZSTD_compress_usingDict() or ZSTD_compress_usingCDict().
  *   note 4 : decompressed size can be very large (64-bits value),
  *            potentially larger than what local system can handle as a single memory segment.
  *            In which case, it's necessary to use streaming mode to decompress data.

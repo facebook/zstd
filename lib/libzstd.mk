@@ -120,7 +120,7 @@ endif
 
 HAVE_COLORNEVER = $(shell echo a | grep --color=never a > /dev/null 2> /dev/null && echo 1 || echo 0)
 GREP_OPTIONS ?=
-ifeq ($HAVE_COLORNEVER, 1)
+ifeq ($(HAVE_COLORNEVER), 1)
   GREP_OPTIONS += --color=never
 endif
 GREP = grep $(GREP_OPTIONS)

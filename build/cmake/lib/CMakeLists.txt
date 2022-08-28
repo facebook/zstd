@@ -135,30 +135,17 @@ if (ZSTD_BUILD_STATIC)
             OUTPUT_NAME ${STATIC_LIBRARY_BASE_NAME})
 endif ()
 
-if (UNIX OR MINGW)
-    # pkg-config
-    set(PREFIX "${CMAKE_INSTALL_PREFIX}")
-    set(EXEC_PREFIX "\${prefix}")
-    set(LIBDIR "${CMAKE_INSTALL_FULL_LIBDIR}")
-    set(INCLUDEDIR "${CMAKE_INSTALL_FULL_INCLUDEDIR}")
-    set(VERSION "${zstd_VERSION}")
+# pkg-config
+include(JoinPaths) # can be replaced by cmake_path(APPEND) in CMake 3.20
+set(PREFIX "${CMAKE_INSTALL_PREFIX}")
+set(EXEC_PREFIX "\${prefix}")
+join_paths(LIBDIR "\${exec_prefix}" "${CMAKE_INSTALL_LIBDIR}")
+join_paths(INCLUDEDIR "\${prefix}" "${CMAKE_INSTALL_INCLUDEDIR}")
+set(LIBS_PRIVATE "${THREADS_LIBS}")
+set(VERSION "${zstd_VERSION}")
 
-    string(LENGTH "${PREFIX}" PREFIX_LENGTH)
-    string(SUBSTRING "${LIBDIR}" 0 ${PREFIX_LENGTH} LIBDIR_PREFIX)
-    string(SUBSTRING "${LIBDIR}" ${PREFIX_LENGTH} -1 LIBDIR_SUFFIX)
-    string(SUBSTRING "${INCLUDEDIR}" 0 ${PREFIX_LENGTH} INCLUDEDIR_PREFIX)
-    string(SUBSTRING "${INCLUDEDIR}" ${PREFIX_LENGTH} -1 INCLUDEDIR_SUFFIX)
-
-    if ("${INCLUDEDIR_PREFIX}" STREQUAL "${PREFIX}")
-        set(INCLUDEDIR "\${prefix}${INCLUDEDIR_SUFFIX}")
-    endif()
-    if ("${LIBDIR_PREFIX}" STREQUAL "${PREFIX}")
-        set(LIBDIR "\${exec_prefix}${LIBDIR_SUFFIX}")
-    endif()
-
-    configure_file("${LIBRARY_DIR}/libzstd.pc.in" "${CMAKE_CURRENT_BINARY_DIR}/libzstd.pc" @ONLY)
-    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libzstd.pc" DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
-endif ()
+configure_file("${LIBRARY_DIR}/libzstd.pc.in" "${CMAKE_CURRENT_BINARY_DIR}/libzstd.pc" @ONLY)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libzstd.pc" DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
 
 # install target
 install(FILES

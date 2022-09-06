@@ -183,6 +183,10 @@ zstreamtest_tsan : CFLAGS += -fsanitize=thread
 zstreamtest_tsan : $(ZSTREAMFILES)
 	$(LINK.c) $(MULTITHREAD) $^ -o $@$(EXT)
 
+zstreamtest_ubsan : CFLAGS += -fsanitize=undefined
+zstreamtest_ubsan : $(ZSTREAMFILES)
+	$(LINK.c) $(MULTITHREAD) $^ -o $@$(EXT)
+
 # note : broken : requires symbols unavailable from dynamic library
 zstreamtest-dll : $(ZSTDDIR)/common/xxhash.c  # xxh symbols not exposed from dll
 zstreamtest-dll : $(ZSTREAM_LOCAL_FILES)

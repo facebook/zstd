@@ -127,7 +127,7 @@ jobs:
         sudo apt-get -qqq update
         make valgrindinstall
         make -C zlibWrapper test
-        make -C zlibWrapper valgrindTest
+        make -C zlibWrapper test-valgrind
 
   lz4-threadpool-libs:
     runs-on: ubuntu-latest

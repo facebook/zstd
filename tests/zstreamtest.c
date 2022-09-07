@@ -548,14 +548,33 @@ static int basicUnitTests(U32 seed, double compressibility)
     {   size_t const ret = ZSTD_decompressStream(zd, &outBuff, &inBuff);
         if (ret != 0) goto _output_error;
     }
-    inBuff.src = NULL;
-    inBuff.size = 0;
-    inBuff.pos = 0;
-    outBuff.dst = NULL;
-    outBuff.size = 0;
-    outBuff.pos = 0;
-    CHECK_Z( ZSTD_initDStream(zd) );
-    CHECK_Z(ZSTD_decompressStream(zd, &outBuff, &inBuff));
+
+    {
+        const char* test = "aa";
+        inBuff.src = test;
+        inBuff.size = 2;
+        inBuff.pos = 0;
+        outBuff.dst = NULL;
+        outBuff.size = 0;
+        outBuff.pos = 0;
+        CHECK_Z( ZSTD_compressStream(zc, &outBuff, &inBuff) );
+        CHECK(inBuff.pos != inBuff.size, "Entire input should be consumed");
+        CHECK_Z( ZSTD_endStream(zc, &outBuff) );
+        outBuff.dst = (char*)(compressedBuffer);
+        outBuff.size = compressedBufferSize;
+        outBuff.pos = 0;
+        {   size_t const r = ZSTD_endStream(zc, &outBuff);
+            CHECK(r != 0, "Error or some data not flushed (ret=%zu)", r);
+        }
+        inBuff.src = outBuff.dst;
+        inBuff.size = outBuff.pos;
+        inBuff.pos = 0;
+        outBuff.dst = NULL;
+        outBuff.size = 0;
+        outBuff.pos = 0;
+        CHECK_Z( ZSTD_initDStream(zd) );
+        CHECK_Z(ZSTD_decompressStream(zd, &outBuff, &inBuff));
+    }
 
     DISPLAYLEVEL(3, "OK\n");
     /* _srcSize compression test */

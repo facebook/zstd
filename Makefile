@@ -327,7 +327,7 @@ uasan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize-recover=pointer-overflow -fsanitize=address,undefined -Werror"
 
 uasan-%: clean
-	LDFLAGS=-fuse-ld=gold MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize-recover=pointer-overflow -fsanitize=address,undefined -Werror" $(MAKE) -C $(TESTDIR) $*
+	LDFLAGS=-fuse-ld=gold MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize=address,undefined -Werror" $(MAKE) -C $(TESTDIR) $*
 
 tsan-%: clean
 	LDFLAGS=-fuse-ld=gold MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize=thread -Werror" $(MAKE) -C $(TESTDIR) $* FUZZER_FLAGS=--no-big-tests

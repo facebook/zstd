@@ -242,6 +242,7 @@ clean:
         fuzzer$(EXT) fuzzer32$(EXT) \
         fuzzer-dll$(EXT) zstreamtest-dll$(EXT) \
         zstreamtest$(EXT) zstreamtest32$(EXT) \
+		zstreamtest_ubsan$(EXT) zstreamtest_asan$(EXT) zstreamtest_tsan$(EXT) \
         datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT) longmatch$(EXT) \
         symbols$(EXT) invalidDictionaries$(EXT) legacy$(EXT) poolTests$(EXT) \
         decodecorpus$(EXT) checkTag$(EXT) bigdict$(EXT)

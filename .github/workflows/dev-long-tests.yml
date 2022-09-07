@@ -50,6 +50,13 @@ jobs:
     - name: thread sanitizer zstreamtest
       run: CC=clang ZSTREAM_TESTTIME=-T3mn make tsan-test-zstream
 
+  ubsan-zstreamtest:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: undefined behavior sanitizer zstreamtest
+      run: CC=clang make uasan-test-zstream
+
   # lasts ~15mn
   tsan-fuzztest:
     runs-on: ubuntu-latest

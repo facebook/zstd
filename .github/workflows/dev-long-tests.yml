@@ -95,16 +95,6 @@ jobs:
         make libc6install
         make -j uasan-test-zstd32 V=1
 
-  clang-asan-ubsan-testzstd-32bit:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: clang + ASan + UBSan + Test Zstd, 32bit mode
-      run: |
-        sudo apt-get -qqq update
-        make libc6install
-        CC=clang make -j uasan-test-zstd32 V=1
-
     # Note : external libraries must be turned off when using MSAN tests,
     # because they are not msan-instrumented,
     # so any data coming from these libraries is always considered "uninitialized"

@@ -76,6 +76,15 @@ jobs:
         make gcc8install
         CC=gcc-8 make -j uasan-test-zstd </dev/null V=1
 
+  clang-asan-ubsan-testzstd:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: clang + ASan + UBSan + Test Zstd
+      run: |
+        sudo apt-get -qqq update
+        CC=clang make -j uasan-test-zstd </dev/null V=1
+
   gcc-asan-ubsan-testzstd-32bit:
     runs-on: ubuntu-latest
     steps:
@@ -85,6 +94,16 @@ jobs:
         sudo apt-get -qqq update
         make libc6install
         make -j uasan-test-zstd32 V=1
+
+  clang-asan-ubsan-testzstd-32bit:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: clang + ASan + UBSan + Test Zstd, 32bit mode
+      run: |
+        sudo apt-get -qqq update
+        make libc6install
+        CC=clang make -j uasan-test-zstd32 V=1
 
     # Note : external libraries must be turned off when using MSAN tests,
     # because they are not msan-instrumented,
@@ -100,6 +119,15 @@ jobs:
         make gcc8install
         CC=gcc-8 FUZZER_FLAGS="--long-tests" make clean uasan-fuzztest
 
+  clang-asan-ubsan-fuzz:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: clang + ASan + UBSan + Fuzz Test
+      run: |
+        sudo apt-get -qqq update
+        CC=clang FUZZER_FLAGS="--long-tests" make clean uasan-fuzztest
+
   gcc-asan-ubsan-fuzz32:
     runs-on: ubuntu-latest
     steps:
@@ -110,12 +138,29 @@ jobs:
         make libc6install
         CFLAGS="-O3 -m32" FUZZER_FLAGS="--long-tests" make uasan-fuzztest
 
+  clang-asan-ubsan-fuzz32:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: clang + ASan + UBSan + Fuzz Test 32bit
+      run: |
+        sudo apt-get -qqq update
+        make libc6install
+        CC=clang CFLAGS="-O3 -m32" FUZZER_FLAGS="--long-tests" make uasan-fuzztest
+
   asan-ubsan-regression:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     - name: ASan + UBSan + Regression Test
       run: make -j uasanregressiontest
+
+  clang-ubsan-regression:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: clang + ASan + UBSan + Regression Test
+      run: CC=clang make -j uasanregressiontest
 
   msan-regression:
     runs-on: ubuntu-latest

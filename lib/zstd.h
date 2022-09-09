@@ -1396,6 +1396,15 @@ typedef enum {
   ZSTD_sf_explicitBlockDelimiters = 1    /* Representation of ZSTD_Sequence contains explicit block delimiters */
 } ZSTD_sequenceFormat_e;
 
+/*! ZSTD_sequenceBound() :
+ * `srcSize` : size of the input buffer
+ *  @return : upper-bound for the number of sequences that can be generated
+ *            from a buffer of srcSize bytes
+ *
+ *  note : returns number of sequences - to get bytes, multiply by sizeof(ZSTD_Sequence).
+ */
+ZSTDLIB_STATIC_API size_t ZSTD_sequenceBound(size_t srcSize);
+
 /*! ZSTD_generateSequences() :
  * Generate sequences using ZSTD_compress2(), given a source buffer.
  *

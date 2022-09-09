@@ -225,7 +225,7 @@ typedef struct {
     frameHeader_t header;
 
     cblockStats_t stats;
-    cblockStats_t oldStats; /* so they can be rolled back if uncompressible */
+    cblockStats_t oldStats; /* so they can be rolled back if incompressible */
 } frame_t;
 
 typedef struct {

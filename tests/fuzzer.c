@@ -932,7 +932,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
-    DISPLAYLEVEL(3, "test%3i : LDM + opt parser with small uncompressible block ", testNb++);
+    DISPLAYLEVEL(3, "test%3i : LDM + opt parser with small incompressible block ", testNb++);
     {   ZSTD_CCtx* cctx = ZSTD_createCCtx();
         ZSTD_DCtx* dctx = ZSTD_createDCtx();
         size_t const srcSize = 300 KB;
@@ -951,7 +951,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         }
 
         RDG_genBuffer(src, srcSize, 0.5, 0.5, seed);
-        /* Force an LDM to exist that crosses block boundary into uncompressible block */
+        /* Force an LDM to exist that crosses block boundary into incompressible block */
         memcpy(src + 125 KB, src, 3 KB + 5);
 
         /* Enable MT, LDM, and opt parser */
@@ -1069,7 +1069,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         ZSTD_DCtx* const dctx = ZSTD_createDCtx();
 
-        /* make dict and src the same uncompressible data */
+        /* make dict and src the same incompressible data */
         RDG_genBuffer(src, size, 0, 0, seed);
         memcpy(dict, src, size);
         assert(!memcmp(dict, src, size));
@@ -1117,7 +1117,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
-    DISPLAYLEVEL(3, "test%3d: superblock uncompressible data, too many nocompress superblocks : ", testNb++);
+    DISPLAYLEVEL(3, "test%3d: superblock incompressible data, too many nocompress superblocks : ", testNb++);
     {
         ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         const BYTE* src = (BYTE*)CNBuffer; BYTE* dst = (BYTE*)compressedBuffer;
@@ -1130,16 +1130,16 @@ static int basicUnitTests(U32 const seed, double compressibility)
         const size_t streamCompressDelta = 1024;
 
         /* The first 1/5 of the buffer is compressible and the last 4/5 is
-         * uncompressible. This is an approximation of the type of data
+         * incompressible. This is an approximation of the type of data
          * the fuzzer generated to catch this bug. Streams like this were making
          * zstd generate noCompress superblocks (which are larger than the src
          * they come from). Do this enough times, and we'll run out of room
          * and throw a dstSize_tooSmall error. */
 
         const size_t compressiblePartSize = srcSize/5;
-        const size_t uncompressiblePartSize = srcSize-compressiblePartSize;
+        const size_t incompressiblePartSize = srcSize-compressiblePartSize;
         RDG_genBuffer(CNBuffer, compressiblePartSize, 0.5, 0.5, seed);
-        RDG_genBuffer((BYTE*)CNBuffer+compressiblePartSize, uncompressiblePartSize, 0, 0, seed);
+        RDG_genBuffer((BYTE*)CNBuffer+compressiblePartSize, incompressiblePartSize, 0, 0, seed);
 
         /* Setting target block size so that superblock is used */
 

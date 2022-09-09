@@ -1687,7 +1687,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
-    DISPLAYLEVEL(3, "test%3i : dictionary + uncompressible block + reusing tables checks offset table validity: ", testNb++);
+    DISPLAYLEVEL(3, "test%3i : dictionary + incompressible block + reusing tables checks offset table validity: ", testNb++);
     {   ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(
             dictionary.start, dictionary.filled,
             ZSTD_dlm_byRef, ZSTD_dct_fullDict,
@@ -1705,7 +1705,7 @@ static int basicUnitTests(U32 seed, double compressibility)
         CHECK(cdict == NULL, "failed to alloc cdict");
         CHECK(inbuf == NULL, "failed to alloc input buffer");
 
-        /* first block is uncompressible */
+        /* first block is incompressible */
         cursegmentlen = 128 * 1024;
         RDG_genBuffer(inbuf + inbufpos, cursegmentlen, 0., 0., seed);
         inbufpos += cursegmentlen;

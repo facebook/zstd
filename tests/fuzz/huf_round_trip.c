@@ -89,7 +89,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     FUZZ_ZASSERT(tableLog);
     size_t const tableSize = HUF_writeCTable_wksp(cBuf, cBufSize, ct, maxSymbol, tableLog, wksp, wkspSize);
     if (ERR_isError(tableSize)) {
-        /* Errors on uncompressible data or cBufSize too small */
+        /* Errors on incompressible data or cBufSize too small */
         goto _out;
     }
     FUZZ_ZASSERT(tableSize);

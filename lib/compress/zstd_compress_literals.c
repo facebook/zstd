@@ -99,7 +99,7 @@ size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
                         const void* src, size_t srcSize,
                               void* entropyWorkspace, size_t entropyWorkspaceSize,
                         const int bmi2,
-                        unsigned suspectUncompressible)
+                        unsigned suspectIncompressible)
 {
     size_t const minGain = ZSTD_minGain(srcSize, strategy);
     size_t const lhSize = 3 + (srcSize >= 1 KB) + (srcSize >= 16 KB);
@@ -138,7 +138,7 @@ size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
                                 entropyWorkspace, entropyWorkspaceSize,
                                 (HUF_CElt*)nextHuf->CTable,
                                 &repeat, preferRepeat,
-                                bmi2, suspectUncompressible);
+                                bmi2, suspectIncompressible);
         if (repeat != HUF_repeat_none) {
             /* reused the existing table */
             DEBUGLOG(5, "Reusing previous huffman table");

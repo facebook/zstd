@@ -2613,7 +2613,7 @@ ZSTD_buildSequencesStatistics(seqStore_t* seqStorePtr, size_t nbSeq,
  * compresses both literals and sequences
  * Returns compressed size of block, or a zstd error.
  */
-#define SUSPECT_UNCOMPRESSIBLE_LITERAL_RATIO 20
+#define SUSPECT_INCOMPRESSIBLE_LITERAL_RATIO 20
 MEM_STATIC size_t
 ZSTD_entropyCompressSeqStore_internal(seqStore_t* seqStorePtr,
                           const ZSTD_entropyCTables_t* prevEntropy,
@@ -2651,7 +2651,7 @@ ZSTD_entropyCompressSeqStore_internal(seqStore_t* seqStorePtr,
         size_t const numSequences = seqStorePtr->sequences - seqStorePtr->sequencesStart;
         size_t const numLiterals = seqStorePtr->lit - seqStorePtr->litStart;
         /* Base suspicion of uncompressibility on ratio of literals to sequences */
-        unsigned const suspectUncompressible = (numSequences == 0) || (numLiterals / numSequences >= SUSPECT_UNCOMPRESSIBLE_LITERAL_RATIO);
+        unsigned const suspectIncompressible = (numSequences == 0) || (numLiterals / numSequences >= SUSPECT_INCOMPRESSIBLE_LITERAL_RATIO);
         size_t const litSize = (size_t)(seqStorePtr->lit - literals);
         size_t const cSize = ZSTD_compressLiterals(
                                     &prevEntropy->huf, &nextEntropy->huf,
@@ -2660,7 +2660,7 @@ ZSTD_entropyCompressSeqStore_internal(seqStore_t* seqStorePtr,
                                     op, dstCapacity,
                                     literals, litSize,
                                     entropyWorkspace, entropyWkspSize,
-                                    bmi2, suspectUncompressible);
+                                    bmi2, suspectIncompressible);
         FORWARD_IF_ERROR(cSize, "ZSTD_compressLiterals failed");
         assert(cSize <= dstCapacity);
         op += cSize;

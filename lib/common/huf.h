@@ -204,12 +204,12 @@ typedef enum {
  *  If it uses hufTable it does not modify hufTable or repeat.
  *  If it doesn't, it sets *repeat = HUF_repeat_none, and it sets hufTable to the table used.
  *  If preferRepeat then the old table will always be used if valid.
- *  If suspectUncompressible then some sampling checks will be run to potentially skip huffman coding */
+ *  If suspectIncompressible then some sampling checks will be run to potentially skip huffman coding */
 size_t HUF_compress4X_repeat(void* dst, size_t dstSize,
                        const void* src, size_t srcSize,
                        unsigned maxSymbolValue, unsigned tableLog,
                        void* workSpace, size_t wkspSize,    /**< `workSpace` must be aligned on 4-bytes boundaries, `wkspSize` must be >= HUF_WORKSPACE_SIZE */
-                       HUF_CElt* hufTable, HUF_repeat* repeat, int preferRepeat, int bmi2, unsigned suspectUncompressible);
+                       HUF_CElt* hufTable, HUF_repeat* repeat, int preferRepeat, int bmi2, unsigned suspectIncompressible);
 
 /** HUF_buildCTable_wksp() :
  *  Same as HUF_buildCTable(), but using externally allocated scratch buffer.
@@ -310,12 +310,12 @@ size_t HUF_compress1X_usingCTable_bmi2(void* dst, size_t dstSize, const void* sr
  *  If it uses hufTable it does not modify hufTable or repeat.
  *  If it doesn't, it sets *repeat = HUF_repeat_none, and it sets hufTable to the table used.
  *  If preferRepeat then the old table will always be used if valid.
- *  If suspectUncompressible then some sampling checks will be run to potentially skip huffman coding */
+ *  If suspectIncompressible then some sampling checks will be run to potentially skip huffman coding */
 size_t HUF_compress1X_repeat(void* dst, size_t dstSize,
                        const void* src, size_t srcSize,
                        unsigned maxSymbolValue, unsigned tableLog,
                        void* workSpace, size_t wkspSize,   /**< `workSpace` must be aligned on 4-bytes boundaries, `wkspSize` must be >= HUF_WORKSPACE_SIZE */
-                       HUF_CElt* hufTable, HUF_repeat* repeat, int preferRepeat, int bmi2, unsigned suspectUncompressible);
+                       HUF_CElt* hufTable, HUF_repeat* repeat, int preferRepeat, int bmi2, unsigned suspectIncompressible);
 
 size_t HUF_decompress1X1 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize);   /* single-symbol decoder */
 #ifndef HUF_FORCE_DECOMPRESS_X1

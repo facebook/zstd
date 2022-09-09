@@ -522,7 +522,7 @@ static int basicUnitTests(U32 seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
-    DISPLAYLEVEL(3, "test%3i : NULL buffers : ", testNb++);
+    DISPLAYLEVEL(3, "test%3i : NULL output and NULL input : ", testNb++);
     inBuff.src = NULL;
     inBuff.size = 0;
     inBuff.pos = 0;
@@ -548,7 +548,9 @@ static int basicUnitTests(U32 seed, double compressibility)
     {   size_t const ret = ZSTD_decompressStream(zd, &outBuff, &inBuff);
         if (ret != 0) goto _output_error;
     }
+    DISPLAYLEVEL(3, "OK\n");
 
+    DISPLAYLEVEL(3, "test%3i : NULL output buffer with non-NULL input : ", testNb++);
     {
         const char* test = "aa";
         inBuff.src = test;

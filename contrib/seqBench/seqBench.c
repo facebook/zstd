@@ -22,9 +22,7 @@ int main(int argc, char *argv[]) {
     fread(inBuf, inBufSize, 1, f);
     fclose(f);
 
-    // Should work fine for this benchmark, but we really need
-    // a function like ZSTD_compressBound() for sequences
-    size_t seqsSize = 2 * (inBufSize / sizeof(ZSTD_Sequence));
+    size_t seqsSize = ZSTD_sequenceBound(inBufSize);
     ZSTD_Sequence *seqs = (ZSTD_Sequence*)malloc(seqsSize * sizeof(ZSTD_Sequence));
     char *outBuf = malloc(ZSTD_compressBound(inBufSize));
 

@@ -183,6 +183,10 @@ zstreamtest_tsan : CFLAGS += -fsanitize=thread
 zstreamtest_tsan : $(ZSTREAMFILES)
 	$(LINK.c) $(MULTITHREAD) $^ -o $@$(EXT)
 
+zstreamtest_ubsan : CFLAGS += -fsanitize=undefined
+zstreamtest_ubsan : $(ZSTREAMFILES)
+	$(LINK.c) $(MULTITHREAD) $^ -o $@$(EXT)
+
 # note : broken : requires symbols unavailable from dynamic library
 zstreamtest-dll : $(ZSTDDIR)/common/xxhash.c  # xxh symbols not exposed from dll
 zstreamtest-dll : $(ZSTREAM_LOCAL_FILES)
@@ -238,6 +242,7 @@ clean:
         fuzzer$(EXT) fuzzer32$(EXT) \
         fuzzer-dll$(EXT) zstreamtest-dll$(EXT) \
         zstreamtest$(EXT) zstreamtest32$(EXT) \
+		zstreamtest_ubsan$(EXT) zstreamtest_asan$(EXT) zstreamtest_tsan$(EXT) \
         datagen$(EXT) paramgrill$(EXT) roundTripCrash$(EXT) longmatch$(EXT) \
         symbols$(EXT) invalidDictionaries$(EXT) legacy$(EXT) poolTests$(EXT) \
         decodecorpus$(EXT) checkTag$(EXT) bigdict$(EXT)

@@ -836,7 +836,7 @@ ZSTDLIB_API size_t ZSTD_initDStream(ZSTD_DStream* zds);
 /*! ZSTD_decompressStream() :
  * Streaming decompression function.
  * Call repetitively to consume full input updating it as necessary.
- * Funtion will update both input and output `pos` fields exposing current state via these fields:
+ * Function will update both input and output `pos` fields exposing current state via these fields:
  * - `input.pos < input.size`, some input remaining and caller should provide remaining input
  *   on the next call.
  * - `output.pos < output.size`, decoder finished and flushed all remaining buffers.
@@ -844,7 +844,7 @@ ZSTDLIB_API size_t ZSTD_initDStream(ZSTD_DStream* zds);
  *   call ZSTD_decompressStream() again to flush remaining data to output.
  * Note : with no additional input, amount of data flushed <= ZSTD_BLOCKSIZE_MAX.
  *
- * @return : 0 when a frame is completly decoded and fully flushed,
+ * @return : 0 when a frame is completely decoded and fully flushed,
  *           or an error code, which can be tested using ZSTD_isError(),
  *           or any other value > 0, which means there is some decoding or flushing to do to complete current frame.
  */

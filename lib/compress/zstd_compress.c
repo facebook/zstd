@@ -3003,6 +3003,10 @@ static void ZSTD_copyBlockSequences(ZSTD_CCtx* zc)
     zc->seqCollector.seqIndex += seqStoreSeqSize;
 }
 
+size_t ZSTD_sequenceBound(size_t srcSize) {
+    return (srcSize / ZSTD_MINMATCH_MIN) + 1;
+}
+
 size_t ZSTD_generateSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
                               size_t outSeqsSize, const void* src, size_t srcSize)
 {

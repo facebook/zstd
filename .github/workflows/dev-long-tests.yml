@@ -195,7 +195,7 @@ jobs:
       run: |
         sudo apt-get -qqq update
         make valgrindinstall
-        make -C tests valgrindTest
+        make -C tests test-valgrind
         make clean
         make -C tests test-fuzzer-stackmode
 

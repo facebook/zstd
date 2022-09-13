@@ -26,7 +26,7 @@
 *  Constants
 ***************************************/
 
-/* Just a sential for the entires of the diagonal matrix */
+/* Just a sential for the entries of the diagonal matrix */
 #define ZSTD_EDIST_DIAG_MAX (S32)(1 << 30)
 
 /* How large should a snake be to be considered a 'big' snake. 
@@ -57,10 +57,10 @@ typedef struct {
     const BYTE* src;
     size_t dictSize;
     size_t srcSize;
-    S32* forwardDiag;            /* Entires of the forward diagonal stored here */ 
-    S32* backwardDiag;           /* Entires of the backward diagonal stored here.
+    S32* forwardDiag;            /* Entries of the forward diagonal stored here */
+    S32* backwardDiag;           /* Entries of the backward diagonal stored here.
                                   *   Note: this buffer and the 'forwardDiag' buffer 
-                                  *   are contiguous. See the ZSTD_eDist_genSequences */ 
+                                  *   are contiguous. See the ZSTD_eDist_genSequences */
     ZSTD_eDist_match* matches;   /* Accumulate matches of length 1 in this buffer. 
                                   *   In a subsequence post-processing step, we combine 
                                   *   contiguous matches. */
@@ -460,7 +460,7 @@ static size_t ZSTD_eDist_convertMatchesToSequences(ZSTD_Sequence* sequences,
 }
 
 /*-*************************************
-*  Interal utils
+*  Internal utils
 ***************************************/
 
 static size_t ZSTD_eDist_hamingDist(const BYTE* const a,

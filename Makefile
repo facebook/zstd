@@ -157,7 +157,7 @@ MKDIR ?= mkdir -p
 
 HAVE_COLORNEVER = $(shell echo a | egrep --color=never a > /dev/null 2> /dev/null && echo 1 || echo 0)
 EGREP_OPTIONS ?=
-ifeq ($HAVE_COLORNEVER, 1)
+ifeq ($(HAVE_COLORNEVER), 1)
 EGREP_OPTIONS += --color=never
 endif
 EGREP = egrep $(EGREP_OPTIONS)

@@ -124,7 +124,6 @@ ifeq ($(HAVE_COLORNEVER), 1)
   GREP_OPTIONS += --color=never
 endif
 GREP = grep $(GREP_OPTIONS)
-SED_ERE_OPT ?= -E
 
 ZSTD_COMMON_FILES := $(sort $(wildcard $(LIBZSTD)/common/*.c))
 ZSTD_COMPRESS_FILES := $(sort $(wildcard $(LIBZSTD)/compress/*.c))

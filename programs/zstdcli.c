@@ -1018,9 +1018,8 @@ int main(int argCount, const char* argv[])
                     const char* memStrPtr;
                     NEXT_FIELD(memStrPtr);
                     memLimit = readU32FromChar(&memStrPtr);
-                    static const char errorMsg[] = "error: only numeric values with optional suffices K, KB, KiB, M, MB, MiB are allowed";
                     if(*memStrPtr != 0) {
-                        errorOut(errorMsg);
+                        errorOut("error: only numeric values with optional suffices K, KB, KiB, M, MB, MiB are allowed");
                     }
                     continue;
                 }

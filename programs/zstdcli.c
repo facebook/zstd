@@ -1013,8 +1013,17 @@ int main(int argCount, const char* argv[])
                 }
 #endif
                 if (longCommandWArg(&argument, "--threads")) { NEXT_UINT32(nbWorkers); continue; }
-                if (longCommandWArg(&argument, "--memlimit")) { NEXT_UINT32(memLimit); continue; }
-                if (longCommandWArg(&argument, "--memory")) { NEXT_UINT32(memLimit); continue; }
+                if (longCommandWArg(&argument, "--memory") || longCommandWArg(&argument, "--memlimit")) {
+
+                    const char* memStrPtr;
+                    NEXT_FIELD(memStrPtr);
+                    memLimit = readU32FromChar(&memStrPtr);
+                    static const char errorMsg[] = "error: only numeric values with optional suffices K, KB, KiB, M, MB, MiB are allowed";
+                    if(*memStrPtr != 0) {
+                        errorOut(errorMsg);
+                    }
+                    continue;
+                }
                 if (longCommandWArg(&argument, "--memlimit-decompress")) { NEXT_UINT32(memLimit); continue; }
                 if (longCommandWArg(&argument, "--block-size=")) { blockSize = readSizeTFromChar(&argument); continue; }
                 if (longCommandWArg(&argument, "--maxdict")) { NEXT_UINT32(maxDictSize); continue; }

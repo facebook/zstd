@@ -1974,8 +1974,9 @@ static int fuzzerTests(U32 seed, unsigned nbTests, unsigned startTest, double co
         /* multi-segments compression test */
         XXH64_reset(&xxhState, 0);
         {   ZSTD_outBuffer outBuff = { cBuffer, cBufferSize, 0 } ;
-            U32 n;
-            for (n=0, cSize=0, totalTestSize=0 ; totalTestSize < maxTestSize ; n++) {
+            cSize=0;
+            totalTestSize=0;
+            while(totalTestSize < maxTestSize) {
                 /* compress random chunks into randomly sized dst buffers */
                 {   size_t const randomSrcSize = FUZ_randomLength(&lseed, maxSampleLog);
                     size_t const srcSize = MIN(maxTestSize-totalTestSize, randomSrcSize);

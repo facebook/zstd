@@ -397,7 +397,7 @@ cmakebuild:
 	cd $(BUILDIR)/cmake/build; cmake -DCMAKE_INSTALL_PREFIX:PATH=~/install_test_dir $(CMAKE_PARAMS) ..
 	$(MAKE) -C $(BUILDIR)/cmake/build -j4;
 	$(MAKE) -C $(BUILDIR)/cmake/build install;
-	$(MAKE) -C $(BUILDIR)/cmake/build uninstall;
+	$(MAKE) -C $(BUILDIR)/cmake/build zstd_uninstall;
 	cd $(BUILDIR)/cmake/build; ctest -V -L Medium
 
 c89build: clean

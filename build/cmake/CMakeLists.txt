@@ -168,7 +168,7 @@ endif ()
 #-----------------------------------------------------------------------------
 # Add clean-all target
 #-----------------------------------------------------------------------------
-add_custom_target(clean-all
+add_custom_target(zstd_clean-all
    COMMAND ${CMAKE_BUILD_TOOL} clean
    COMMAND rm -rf ${CMAKE_BINARY_DIR}/
 )

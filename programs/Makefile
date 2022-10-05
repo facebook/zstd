@@ -241,9 +241,9 @@ zstd-pgo :
 	./zstd -b7i2 $(PROFILE_WITH)
 	./zstd -b5 $(PROFILE_WITH)
 ifndef BUILD_DIR
-	$(RM) zstd obj/$(HASH_DIR)/*.o
+	$(RM) zstd obj/$(HASH_DIR)/zstd obj/$(HASH_DIR)/*.o
 else
-	$(RM) zstd $(BUILD_DIR)/*.o
+	$(RM) zstd $(BUILD_DIR)/zstd $(BUILD_DIR)/*.o
 endif
 	case $(CC) in *clang*) if ! [ -e default.profdata ]; then llvm-profdata merge -output=default.profdata default*.profraw; fi ;; esac
 	$(MAKE) zstd HASH_DIR=$(HASH_DIR) MOREFLAGS=-fprofile-use

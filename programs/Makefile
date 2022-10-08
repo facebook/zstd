@@ -232,17 +232,21 @@ zstd-dll : zstd
 ## zstd-pgo: zstd executable optimized with PGO.
 .PHONY: zstd-pgo
 zstd-pgo :
-	$(MAKE) clean
-	$(MAKE) zstd MOREFLAGS=-fprofile-generate
+	$(MAKE) clean HASH_DIR=$(HASH_DIR)
+	$(MAKE) zstd HASH_DIR=$(HASH_DIR) MOREFLAGS=-fprofile-generate
 	./zstd -b19i1 $(PROFILE_WITH)
 	./zstd -b16i1 $(PROFILE_WITH)
 	./zstd -b9i2 $(PROFILE_WITH)
 	./zstd -b $(PROFILE_WITH)
 	./zstd -b7i2 $(PROFILE_WITH)
 	./zstd -b5 $(PROFILE_WITH)
-	$(RM) zstd *.o
+ifndef BUILD_DIR
+	$(RM) zstd obj/$(HASH_DIR)/zstd obj/$(HASH_DIR)/*.o
+else
+	$(RM) zstd $(BUILD_DIR)/zstd $(BUILD_DIR)/*.o
+endif
 	case $(CC) in *clang*) if ! [ -e default.profdata ]; then llvm-profdata merge -output=default.profdata default*.profraw; fi ;; esac
-	$(MAKE) zstd MOREFLAGS=-fprofile-use
+	$(MAKE) zstd HASH_DIR=$(HASH_DIR) MOREFLAGS=-fprofile-use
 
 ## zstd-small: minimal target, supporting only zstd compression and decompression. no bench. no legacy. no other format.
 CLEAN += zstd-small zstd-frugal

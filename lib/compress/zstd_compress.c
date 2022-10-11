@@ -2654,7 +2654,7 @@ ZSTD_entropyCompressSeqStore_internal(seqStore_t* seqStorePtr,
         unsigned const suspectUncompressible = (numSequences == 0) || (numLiterals / numSequences >= SUSPECT_UNCOMPRESSIBLE_LITERAL_RATIO);
         size_t const litSize = (size_t)(seqStorePtr->lit - literals);
 
-        HUF_depth_mode depthMode = cctxParams->cParams.strategy > HUF_OPTIMAL_DEPTH_THRESHOLD ? HUF_depth_optimal : HUF_depth_fast;
+        HUF_depth_mode depthMode = cctxParams->cParams.strategy >= HUF_OPTIMAL_DEPTH_THRESHOLD ? HUF_depth_optimal : HUF_depth_fast;
         size_t const cSize = ZSTD_compressLiterals(
                                     &prevEntropy->huf, &nextEntropy->huf,
                                     cctxParams->cParams.strategy,
@@ -3270,7 +3270,7 @@ size_t ZSTD_buildBlockEntropyStats(seqStore_t* seqStorePtr,
                                    void* workspace, size_t wkspSize)
 {
     size_t const litSize = seqStorePtr->lit - seqStorePtr->litStart;
-    HUF_depth_mode depthMode = cctxParams->cParams.strategy > HUF_OPTIMAL_DEPTH_THRESHOLD ? HUF_depth_optimal : HUF_depth_fast;
+    HUF_depth_mode depthMode = cctxParams->cParams.strategy >= HUF_OPTIMAL_DEPTH_THRESHOLD ? HUF_depth_optimal : HUF_depth_fast;
 
     entropyMetadata->hufMetadata.hufDesSize =
         ZSTD_buildBlockEntropyStats_literals(seqStorePtr->litStart, litSize,

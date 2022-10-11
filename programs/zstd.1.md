@@ -211,6 +211,8 @@ the last one takes effect.
 * `-f`, `--force`:
     disable input and output checks. Allows overwriting existing files, input
     from console, output to stdout, operating on links, block devices, etc.
+    During decompression and when the output destination is stdout, pass-through
+    unrecognized formats as-is.
 * `-c`, `--stdout`:
     write to standard output (even if it is the console); keep original files unchanged.
 * `--[no-]sparse`:
@@ -221,6 +223,12 @@ the last one takes effect.
     default: enabled when output is into a file,
     and disabled when output is stdout.
     This setting overrides default and can force sparse mode over stdout.
+* `--[no-]pass-through`
+    enable / disable passing through uncompressed files as-is. During
+    decompression when pass-through is enabled, unrecognized formats will be
+    copied as-is from the input to the output. By default, pass-through will
+    occur when the output destination is stdout and the force (-f) option is
+    set.
 * `--rm`:
     remove source file(s) after successful compression or decompression. If used in combination with
     -o, will trigger a confirmation prompt (which can be silenced with -f), as this is a destructive operation.

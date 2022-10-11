@@ -34,13 +34,13 @@ typedef struct FIO_prefs_s {
 
     /* Algorithm preferences */
     FIO_compressionType_t compressionType;
-    U32 sparseFileSupport;   /* 0: no sparse allowed; 1: auto (file yes, stdout no); 2: force sparse */
+    int sparseFileSupport;   /* 0: no sparse allowed; 1: auto (file yes, stdout no); 2: force sparse */
     int dictIDFlag;
     int checksumFlag;
     int blockSize;
     int overlapLog;
-    U32 adaptiveMode;
-    U32 useRowMatchFinder;
+    int adaptiveMode;
+    int useRowMatchFinder;
     int rsyncable;
     int minAdaptLevel;
     int maxAdaptLevel;
@@ -56,9 +56,9 @@ typedef struct FIO_prefs_s {
     ZSTD_paramSwitch_e literalCompressionMode;
 
     /* IO preferences */
-    U32 removeSrcFile;
-    U32 overwrite;
-    U32 asyncIO;
+    int removeSrcFile;
+    int overwrite;
+    int asyncIO;
 
     /* Computation resources preferences */
     unsigned memLimit;
@@ -68,6 +68,7 @@ typedef struct FIO_prefs_s {
     int patchFromMode;
     int contentSize;
     int allowBlockDevices;
+    int passThrough;
 } FIO_prefs_t;
 
 #endif /* FILEIO_TYPES_HEADER */

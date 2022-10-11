@@ -12,8 +12,9 @@
 #ifndef FILEIO_H_23981798732
 #define FILEIO_H_23981798732
 
-#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_compressionParameters */
 #include "fileio_types.h"
+#include "util.h"                  /* FileNamesTable */
+#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_compressionParameters */
 #include "../lib/zstd.h"           /* ZSTD_* */
 
 #if defined (__cplusplus)
@@ -70,7 +71,7 @@ void FIO_freeContext(FIO_ctx_t* const fCtx);
 /* FIO_prefs_t functions */
 void FIO_setCompressionType(FIO_prefs_t* const prefs, FIO_compressionType_t compressionType);
 void FIO_overwriteMode(FIO_prefs_t* const prefs);
-void FIO_setAdaptiveMode(FIO_prefs_t* const prefs, unsigned adapt);
+void FIO_setAdaptiveMode(FIO_prefs_t* const prefs, int adapt);
 void FIO_setAdaptMin(FIO_prefs_t* const prefs, int minCLevel);
 void FIO_setAdaptMax(FIO_prefs_t* const prefs, int maxCLevel);
 void FIO_setUseRowMatchFinder(FIO_prefs_t* const prefs, int useRowMatchFinder);
@@ -86,7 +87,7 @@ void FIO_setMemLimit(FIO_prefs_t* const prefs, unsigned memLimit);
 void FIO_setNbWorkers(FIO_prefs_t* const prefs, int nbWorkers);
 void FIO_setOverlapLog(FIO_prefs_t* const prefs, int overlapLog);
 void FIO_setRemoveSrcFile(FIO_prefs_t* const prefs, unsigned flag);
-void FIO_setSparseWrite(FIO_prefs_t* const prefs, unsigned sparse);  /**< 0: no sparse; 1: disable on stdout; 2: always enabled */
+void FIO_setSparseWrite(FIO_prefs_t* const prefs, int sparse);  /**< 0: no sparse; 1: disable on stdout; 2: always enabled */
 void FIO_setRsyncable(FIO_prefs_t* const prefs, int rsyncable);
 void FIO_setStreamSrcSize(FIO_prefs_t* const prefs, size_t streamSrcSize);
 void FIO_setTargetCBlockSize(FIO_prefs_t* const prefs, size_t targetCBlockSize);
@@ -103,7 +104,8 @@ void FIO_setAllowBlockDevices(FIO_prefs_t* const prefs, int allowBlockDevices);
 void FIO_setPatchFromMode(FIO_prefs_t* const prefs, int value);
 void FIO_setContentSize(FIO_prefs_t* const prefs, int value);
 void FIO_displayCompressionParameters(const FIO_prefs_t* prefs);
-void FIO_setAsyncIOFlag(FIO_prefs_t* const prefs, unsigned value);
+void FIO_setAsyncIOFlag(FIO_prefs_t* const prefs, int value);
+void FIO_setPassThroughFlag(FIO_prefs_t* const prefs, int value);
 
 /* FIO_ctx_t functions */
 void FIO_setNbFilesTotal(FIO_ctx_t* const fCtx, int value);

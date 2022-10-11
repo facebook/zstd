@@ -298,7 +298,7 @@ INSTALL_DATA    ?= $(INSTALL) -m 644
 
 libzstd.pc: libzstd.pc.in
 	@echo creating pkgconfig
-	@sed $(SED_ERE_OPT) \
+	@sed \
 	        -e 's|@PREFIX@|$(PREFIX)|' \
 	        -e 's|@EXEC_PREFIX@|$(PCEXEC_PREFIX)|' \
 	        -e 's|@INCLUDEDIR@|$(PCINCPREFIX)$(PCINCDIR)|' \

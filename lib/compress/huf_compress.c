@@ -1222,15 +1222,6 @@ static size_t HUF_compressCTable_internal(
     return (size_t)(op-ostart);
 }
 
-
-unsigned HUF_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue)
-{
-    unsigned tableLog = FSE_optimalTableLog_internal(maxTableLog, srcSize, maxSymbolValue, 1);
-    assert(tableLog <= HUF_TABLELOG_MAX);
-
-    return tableLog;
-}
-
 typedef struct {
     unsigned count[HUF_SYMBOLVALUE_MAX + 1];
     HUF_CElt CTable[HUF_CTABLE_SIZE_ST(HUF_SYMBOLVALUE_MAX)];
@@ -1244,6 +1235,51 @@ typedef struct {
 #define SUSPECT_INCOMPRESSIBLE_SAMPLE_SIZE 4096
 #define SUSPECT_INCOMPRESSIBLE_SAMPLE_RATIO 10  /* Must be >= 2 */
 
+unsigned HUF_minTableLog(size_t srcSize, unsigned maxSymbolValue)
+{
+    U32 minBitsSrc = ZSTD_highbit32((U32)(srcSize)) + 1;
+    U32 minBitsSymbols = ZSTD_highbit32(maxSymbolValue) + 2;
+    U32 minBits = minBitsSrc < minBitsSymbols ? minBitsSrc : minBitsSymbols;
+    if (minBits < FSE_MIN_TABLELOG) minBits = FSE_MIN_TABLELOG;
+    assert(srcSize > 1); /* Not supported, RLE should be used instead */
+    return minBits;
+}
+
+unsigned HUF_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue, void* workSpace, size_t wkspSize, HUF_CElt* table, const unsigned* count, HUF_depth_mode depthMode)
+{
+    unsigned optLog = FSE_optimalTableLog_internal(maxTableLog, srcSize, maxSymbolValue, 1);
+
+    if (depthMode == HUF_depth_optimal) { /** Test valid depths and return optimal **/
+        BYTE* dst = (BYTE*)workSpace + sizeof(HUF_WriteCTableWksp);
+        size_t dstSize = wkspSize - sizeof(HUF_WriteCTableWksp);
+        size_t optSize = ((size_t) ~0);
+        unsigned huffLog;
+        size_t maxBits, hSize, newSize;
+
+        if (wkspSize < sizeof(HUF_buildCTable_wksp_tables)) return optLog;
+
+        for (huffLog = HUF_minTableLog(srcSize, maxSymbolValue); huffLog <= maxTableLog; huffLog++) {
+            maxBits = HUF_buildCTable_wksp(table, count,
+                                            maxSymbolValue, huffLog,
+                                            workSpace, wkspSize);
+            if (ERR_isError(maxBits)) continue;
+
+            hSize = HUF_writeCTable_wksp(dst, dstSize, table, maxSymbolValue, (U32)maxBits,
+                                              workSpace, wkspSize);
+            if (ERR_isError(hSize)) continue;
+
+            newSize = HUF_estimateCompressedSize(table, count, maxSymbolValue) + hSize;
+
+            if (newSize < optSize) {
+                optSize = newSize;
+                optLog = huffLog;
+            }
+        }
+    }
+    assert(optLog <= HUF_TABLELOG_MAX);
+    return optLog;
+}
+
 /* HUF_compress_internal() :
  * `workSpace_align4` must be aligned on 4-bytes boundaries,
  * and occupies the same space as a table of HUF_WORKSPACE_SIZE_U64 unsigned */
@@ -1254,7 +1290,7 @@ HUF_compress_internal (void* dst, size_t dstSize,
                        HUF_nbStreams_e nbStreams,
                        void* workSpace, size_t wkspSize,
                        HUF_CElt* oldHufTable, HUF_repeat* repeat, int preferRepeat,
-                 const int bmi2, unsigned suspectUncompressible)
+                 const int bmi2, unsigned suspectUncompressible, HUF_depth_mode depthMode)
 {
     HUF_compress_tables_t* const table = (HUF_compress_tables_t*)HUF_alignUpWorkspace(workSpace, &wkspSize, ZSTD_ALIGNOF(size_t));
     BYTE* const ostart = (BYTE*)dst;
@@ -1318,7 +1354,7 @@ HUF_compress_internal (void* dst, size_t dstSize,
     }
 
     /* Build Huffman Tree */
-    huffLog = HUF_optimalTableLog(huffLog, srcSize, maxSymbolValue);
+    huffLog = HUF_optimalTableLog(huffLog, srcSize, maxSymbolValue, &table->wksps, sizeof(table->wksps), table->CTable, table->count, depthMode);
     {   size_t const maxBits = HUF_buildCTable_wksp(table->CTable, table->count,
                                             maxSymbolValue, huffLog,
                                             &table->wksps.buildCTable_wksp, sizeof(table->wksps.buildCTable_wksp));
@@ -1367,7 +1403,7 @@ size_t HUF_compress1X_wksp (void* dst, size_t dstSize,
     return HUF_compress_internal(dst, dstSize, src, srcSize,
                                  maxSymbolValue, huffLog, HUF_singleStream,
                                  workSpace, wkspSize,
-                                 NULL, NULL, 0, 0 /*bmi2*/, 0);
+                                 NULL, NULL, 0, 0 /*bmi2*/, 0, HUF_depth_fast);
 }
 
 size_t HUF_compress1X_repeat (void* dst, size_t dstSize,
@@ -1375,13 +1411,13 @@ size_t HUF_compress1X_repeat (void* dst, size_t dstSize,
                       unsigned maxSymbolValue, unsigned huffLog,
                       void* workSpace, size_t wkspSize,
                       HUF_CElt* hufTable, HUF_repeat* repeat, int preferRepeat,
-                      int bmi2, unsigned suspectUncompressible)
+                      int bmi2, unsigned suspectUncompressible, HUF_depth_mode depthMode)
 {
     DEBUGLOG(5, "HUF_compress1X_repeat (srcSize = %zu)", srcSize);
     return HUF_compress_internal(dst, dstSize, src, srcSize,
                                  maxSymbolValue, huffLog, HUF_singleStream,
                                  workSpace, wkspSize, hufTable,
-                                 repeat, preferRepeat, bmi2, suspectUncompressible);
+                                 repeat, preferRepeat, bmi2, suspectUncompressible, depthMode);
 }
 
 /* HUF_compress4X_repeat():
@@ -1396,7 +1432,7 @@ size_t HUF_compress4X_wksp (void* dst, size_t dstSize,
     return HUF_compress_internal(dst, dstSize, src, srcSize,
                                  maxSymbolValue, huffLog, HUF_fourStreams,
                                  workSpace, wkspSize,
-                                 NULL, NULL, 0, 0 /*bmi2*/, 0);
+                                 NULL, NULL, 0, 0 /*bmi2*/, 0, HUF_depth_fast);
 }
 
 /* HUF_compress4X_repeat():
@@ -1407,13 +1443,14 @@ size_t HUF_compress4X_repeat (void* dst, size_t dstSize,
                       const void* src, size_t srcSize,
                       unsigned maxSymbolValue, unsigned huffLog,
                       void* workSpace, size_t wkspSize,
-                      HUF_CElt* hufTable, HUF_repeat* repeat, int preferRepeat, int bmi2, unsigned suspectUncompressible)
+                      HUF_CElt* hufTable, HUF_repeat* repeat, int preferRepeat, int bmi2,
+                      unsigned suspectUncompressible, HUF_depth_mode depthMode)
 {
     DEBUGLOG(5, "HUF_compress4X_repeat (srcSize = %zu)", srcSize);
     return HUF_compress_internal(dst, dstSize, src, srcSize,
                                  maxSymbolValue, huffLog, HUF_fourStreams,
                                  workSpace, wkspSize,
-                                 hufTable, repeat, preferRepeat, bmi2, suspectUncompressible);
+                                 hufTable, repeat, preferRepeat, bmi2, suspectUncompressible, depthMode);
 }
 
 #ifndef ZSTD_NO_UNUSED_FUNCTIONS

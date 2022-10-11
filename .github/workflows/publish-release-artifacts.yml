@@ -5,14 +5,21 @@ on:
     types:
       - published
 
+permissions:
+  contents: read
+
 jobs:
   publish-release-artifacts:
+    permissions:
+      contents: read # to fetch code (actions/checkout)
+      actions: write # to attach binaries to release artifacts (skx/github-action-publish-binaries)
+
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Archive
         env:

@@ -154,7 +154,8 @@ static void usage(FILE* f, const char* programName)
 #endif
     DISPLAY_F(f, "  -f, --force          disable input and output checks. Allows overwriting existing files,\n");
     DISPLAY_F(f, "                       input from console, output to stdout, operating on links,\n");
-    DISPLAY_F(f, "                       block devices, etc.\n");
+    DISPLAY_F(f, "                       block devices, etc. During decompression and when the output\n");
+    DISPLAY_F(f, "                       destination is stdout, pass-through unrecognized formats as-is.\n");
     DISPLAY_F(f, "      --rm             remove source file(s) after successful de/compression\n");
     DISPLAY_F(f, "  -k, --keep           preserve source file(s) (default) \n");
 #ifdef ZSTD_GZCOMPRESS
@@ -264,6 +265,15 @@ static void usage_advanced(const char* programName)
 # else
     DISPLAYOUT("     --[no-]sparse     sparse mode (default: disabled)\n");
 # endif
+    {
+        char const* passThroughDefault = "disabled";
+        if (exeNameMatch(programName, ZSTD_CAT) ||
+            exeNameMatch(programName, ZSTD_ZCAT) ||
+            exeNameMatch(programName, ZSTD_GZCAT)) {
+            passThroughDefault = "enabled";
+        }
+        DISPLAYOUT("     --[no-]pass-through : passes through uncompressed files as-is (default: %s)\n", passThroughDefault);
+    }
 #endif  /* ZSTD_NODECOMPRESS */
 
 #ifndef ZSTD_NODICT
@@ -776,6 +786,18 @@ static unsigned init_nbThreads(void) {
     const char* __nb;             \
     NEXT_FIELD(__nb);             \
     val32 = readU32FromChar(&__nb); \
+    if(*__nb != 0) {         \
+        errorOut("error: only numeric values with optional suffixes K, KB, KiB, M, MB, MiB are allowed"); \
+    }                             \
+}
+
+#define NEXT_TSIZE(valTsize) {      \
+    const char* __nb;             \
+    NEXT_FIELD(__nb);             \
+    valTsize = readSizeTFromChar(&__nb); \
+    if(*__nb != 0) {         \
+        errorOut("error: only numeric values with optional suffixes K, KB, KiB, M, MB, MiB are allowed"); \
+    }                             \
 }
 
 typedef enum { zom_compress, zom_decompress, zom_test, zom_bench, zom_train, zom_list } zstd_operation_mode;
@@ -801,7 +823,6 @@ int main(int argCount, const char* argv[])
         hasStdout = 0,
         ldmFlag = 0,
         main_pause = 0,
-        nbWorkers = 0,
         adapt = 0,
         useRowMatchFinder = 0,
         adaptMin = MINCLEVEL,
@@ -816,6 +837,7 @@ int main(int argCount, const char* argv[])
         showDefaultCParams = 0,
         ultra=0,
         contentSize=1;
+    unsigned nbWorkers = 0;
     double compressibility = 0.5;
     unsigned bench_nbSeconds = 3;   /* would be better if this value was synchronized from bench */
     size_t blockSize = 0;
@@ -870,14 +892,14 @@ int main(int argCount, const char* argv[])
     /* preset behaviors */
     if (exeNameMatch(programName, ZSTD_ZSTDMT)) nbWorkers=0, singleThread=0;
     if (exeNameMatch(programName, ZSTD_UNZSTD)) operation=zom_decompress;
-    if (exeNameMatch(programName, ZSTD_CAT)) { operation=zom_decompress; FIO_overwriteMode(prefs); forceStdout=1; followLinks=1; outFileName=stdoutmark; g_displayLevel=1; }     /* supports multiple formats */
-    if (exeNameMatch(programName, ZSTD_ZCAT)) { operation=zom_decompress; FIO_overwriteMode(prefs); forceStdout=1; followLinks=1; outFileName=stdoutmark; g_displayLevel=1; }    /* behave like zcat, also supports multiple formats */
+    if (exeNameMatch(programName, ZSTD_CAT)) { operation=zom_decompress; FIO_overwriteMode(prefs); forceStdout=1; followLinks=1; FIO_setPassThroughFlag(prefs, 1); outFileName=stdoutmark; g_displayLevel=1; }     /* supports multiple formats */
+    if (exeNameMatch(programName, ZSTD_ZCAT)) { operation=zom_decompress; FIO_overwriteMode(prefs); forceStdout=1; followLinks=1; FIO_setPassThroughFlag(prefs, 1); outFileName=stdoutmark; g_displayLevel=1; }    /* behave like zcat, also supports multiple formats */
     if (exeNameMatch(programName, ZSTD_GZ)) {   /* behave like gzip */
         suffix = GZ_EXTENSION; FIO_setCompressionType(prefs, FIO_gzipCompression); FIO_setRemoveSrcFile(prefs, 1);
         dictCLevel = cLevel = 6;  /* gzip default is -6 */
     }
     if (exeNameMatch(programName, ZSTD_GUNZIP)) { operation=zom_decompress; FIO_setRemoveSrcFile(prefs, 1); }                                                     /* behave like gunzip, also supports multiple formats */
-    if (exeNameMatch(programName, ZSTD_GZCAT)) { operation=zom_decompress; FIO_overwriteMode(prefs); forceStdout=1; followLinks=1; outFileName=stdoutmark; g_displayLevel=1; }   /* behave like gzcat, also supports multiple formats */
+    if (exeNameMatch(programName, ZSTD_GZCAT)) { operation=zom_decompress; FIO_overwriteMode(prefs); forceStdout=1; followLinks=1; FIO_setPassThroughFlag(prefs, 1); outFileName=stdoutmark; g_displayLevel=1; }   /* behave like gzcat, also supports multiple formats */
     if (exeNameMatch(programName, ZSTD_LZMA)) { suffix = LZMA_EXTENSION; FIO_setCompressionType(prefs, FIO_lzmaCompression); FIO_setRemoveSrcFile(prefs, 1); }    /* behave like lzma */
     if (exeNameMatch(programName, ZSTD_UNLZMA)) { operation=zom_decompress; FIO_setCompressionType(prefs, FIO_lzmaCompression); FIO_setRemoveSrcFile(prefs, 1); } /* behave like unlzma, also supports multiple formats */
     if (exeNameMatch(programName, ZSTD_XZ)) { suffix = XZ_EXTENSION; FIO_setCompressionType(prefs, FIO_xzCompression); FIO_setRemoveSrcFile(prefs, 1); }          /* behave like xz */
@@ -926,6 +948,8 @@ int main(int argCount, const char* argv[])
                 if (!strcmp(argument, "--no-check")) { FIO_setChecksumFlag(prefs, 0); continue; }
                 if (!strcmp(argument, "--sparse")) { FIO_setSparseWrite(prefs, 2); continue; }
                 if (!strcmp(argument, "--no-sparse")) { FIO_setSparseWrite(prefs, 0); continue; }
+                if (!strcmp(argument, "--pass-through")) { FIO_setPassThroughFlag(prefs, 1); continue; }
+                if (!strcmp(argument, "--no-pass-through")) { FIO_setPassThroughFlag(prefs, 0); continue; }
                 if (!strcmp(argument, "--test")) { operation=zom_test; continue; }
                 if (!strcmp(argument, "--asyncio")) { FIO_setAsyncIOFlag(prefs, 1); continue;}
                 if (!strcmp(argument, "--no-asyncio")) { FIO_setAsyncIOFlag(prefs, 0); continue;}
@@ -1004,13 +1028,13 @@ int main(int argCount, const char* argv[])
                 if (longCommandWArg(&argument, "--memlimit")) { NEXT_UINT32(memLimit); continue; }
                 if (longCommandWArg(&argument, "--memory")) { NEXT_UINT32(memLimit); continue; }
                 if (longCommandWArg(&argument, "--memlimit-decompress")) { NEXT_UINT32(memLimit); continue; }
-                if (longCommandWArg(&argument, "--block-size=")) { blockSize = readSizeTFromChar(&argument); continue; }
+                if (longCommandWArg(&argument, "--block-size")) { NEXT_TSIZE(blockSize); continue; }
                 if (longCommandWArg(&argument, "--maxdict")) { NEXT_UINT32(maxDictSize); continue; }
                 if (longCommandWArg(&argument, "--dictID")) { NEXT_UINT32(dictID); continue; }
                 if (longCommandWArg(&argument, "--zstd=")) { if (!parseCompressionParameters(argument, &compressionParams)) { badusage(programName); CLEAN_RETURN(1); } continue; }
-                if (longCommandWArg(&argument, "--stream-size=")) { streamSrcSize = readSizeTFromChar(&argument); continue; }
-                if (longCommandWArg(&argument, "--target-compressed-block-size=")) { targetCBlockSize = readSizeTFromChar(&argument); continue; }
-                if (longCommandWArg(&argument, "--size-hint=")) { srcSizeHint = readSizeTFromChar(&argument); continue; }
+                if (longCommandWArg(&argument, "--stream-size")) { NEXT_TSIZE(streamSrcSize); continue; }
+                if (longCommandWArg(&argument, "--target-compressed-block-size")) { NEXT_TSIZE(targetCBlockSize); continue; }
+                if (longCommandWArg(&argument, "--size-hint")) { NEXT_TSIZE(srcSizeHint); continue; }
                 if (longCommandWArg(&argument, "--output-dir-flat")) {
                     NEXT_FIELD(outDirName);
                     if (strlen(outDirName) == 0) {
@@ -1051,6 +1075,8 @@ int main(int argCount, const char* argv[])
                         /* Invalid character following --long */
                         badusage(programName);
                         CLEAN_RETURN(1);
+                    } else {
+                        ldmWindowLog = g_defaultMaxWindowLog;
                     }
                     /* Only set windowLog if not already set by --zstd */
                     if (compressionParams.windowLog == 0)
@@ -1200,7 +1226,7 @@ int main(int argCount, const char* argv[])
                     /* nb of threads (hidden option) */
                 case 'T':
                     argument++;
-                    nbWorkers = (int)readU32FromChar(&argument);
+                    nbWorkers = readU32FromChar(&argument);
                     break;
 
                     /* Dictionary Selection level */
@@ -1246,10 +1272,10 @@ int main(int argCount, const char* argv[])
     if ((nbWorkers==0) && (!singleThread)) {
         /* automatically set # workers based on # of reported cpus */
         if (defaultLogicalCores) {
-            nbWorkers = UTIL_countLogicalCores();
+            nbWorkers = (unsigned)UTIL_countLogicalCores();
             DISPLAYLEVEL(3, "Note: %d logical core(s) detected \n", nbWorkers);
         } else {
-            nbWorkers = UTIL_countPhysicalCores();
+            nbWorkers = (unsigned)UTIL_countPhysicalCores();
             DISPLAYLEVEL(3, "Note: %d physical core(s) detected \n", nbWorkers);
         }
     }
@@ -1313,7 +1339,7 @@ int main(int argCount, const char* argv[])
     if (operation==zom_bench) {
 #ifndef ZSTD_NOBENCH
         benchParams.blockSize = blockSize;
-        benchParams.nbWorkers = nbWorkers;
+        benchParams.nbWorkers = (int)nbWorkers;
         benchParams.realTime = (unsigned)setRealTimePrio;
         benchParams.nbSeconds = bench_nbSeconds;
         benchParams.ldmFlag = ldmFlag;
@@ -1474,7 +1500,7 @@ int main(int argCount, const char* argv[])
     if (operation==zom_compress) {
 #ifndef ZSTD_NOCOMPRESS
         FIO_setContentSize(prefs, contentSize);
-        FIO_setNbWorkers(prefs, nbWorkers);
+        FIO_setNbWorkers(prefs, (int)nbWorkers);
         FIO_setBlockSize(prefs, (int)blockSize);
         if (g_overlapLog!=OVERLAP_LOG_DEFAULT) FIO_setOverlapLog(prefs, (int)g_overlapLog);
         FIO_setLdmFlag(prefs, (unsigned)ldmFlag);
@@ -1482,7 +1508,7 @@ int main(int argCount, const char* argv[])
         FIO_setLdmMinMatch(prefs, (int)g_ldmMinMatch);
         if (g_ldmBucketSizeLog != LDM_PARAM_DEFAULT) FIO_setLdmBucketSizeLog(prefs, (int)g_ldmBucketSizeLog);
         if (g_ldmHashRateLog != LDM_PARAM_DEFAULT) FIO_setLdmHashRateLog(prefs, (int)g_ldmHashRateLog);
-        FIO_setAdaptiveMode(prefs, (unsigned)adapt);
+        FIO_setAdaptiveMode(prefs, adapt);
         FIO_setUseRowMatchFinder(prefs, useRowMatchFinder);
         FIO_setAdaptMin(prefs, adaptMin);
         FIO_setAdaptMax(prefs, adaptMax);

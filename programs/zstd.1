@@ -1,5 +1,5 @@
 .
-.TH "ZSTD" "1" "June 2022" "zstd 1.5.3" "User Commands"
+.TH "ZSTD" "1" "August 2022" "zstd 1.5.3" "User Commands"
 .
 .SH "NAME"
 \fBzstd\fR \- zstd, zstdmt, unzstd, zstdcat \- Compress or decompress \.zst files
@@ -162,13 +162,16 @@ Additionally, this can be used to limit memory for dictionary training\. This pa
 \fB\-o FILE\fR: save result into \fBFILE\fR
 .
 .IP "\(bu" 4
-\fB\-f\fR, \fB\-\-force\fR: disable input and output checks\. Allows overwriting existing files, input from console, output to stdout, operating on links, block devices, etc\.
+\fB\-f\fR, \fB\-\-force\fR: disable input and output checks\. Allows overwriting existing files, input from console, output to stdout, operating on links, block devices, etc\. During decompression and when the output destination is stdout, pass\-through unrecognized formats as\-is\.
 .
 .IP "\(bu" 4
 \fB\-c\fR, \fB\-\-stdout\fR: write to standard output (even if it is the console); keep original files unchanged\.
 .
 .IP "\(bu" 4
 \fB\-\-[no\-]sparse\fR: enable / disable sparse FS support, to make files with many zeroes smaller on disk\. Creating sparse files may save disk space and speed up decompression by reducing the amount of disk I/O\. default: enabled when output is into a file, and disabled when output is stdout\. This setting overrides default and can force sparse mode over stdout\.
+.
+.IP "\(bu" 4
+\fB\-\-[no\-]pass\-through\fR enable / disable passing through uncompressed files as\-is\. During decompression when pass\-through is enabled, unrecognized formats will be copied as\-is from the input to the output\. By default, pass\-through will occur when the output destination is stdout and the force (\-f) option is set\.
 .
 .IP "\(bu" 4
 \fB\-\-rm\fR: remove source file(s) after successful compression or decompression\. If used in combination with \-o, will trigger a confirmation prompt (which can be silenced with \-f), as this is a destructive operation\.

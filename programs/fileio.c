@@ -290,6 +290,7 @@ FIO_prefs_t* FIO_createPreferences(void)
     ret->excludeCompressedFiles = 0;
     ret->allowBlockDevices = 0;
     ret->asyncIO = AIO_supported();
+    ret->passThrough = -1;
     return ret;
 }
 
@@ -338,7 +339,7 @@ void FIO_setCompressionType(FIO_prefs_t* const prefs, FIO_compressionType_t comp
 
 void FIO_overwriteMode(FIO_prefs_t* const prefs) { prefs->overwrite = 1; }
 
-void FIO_setSparseWrite(FIO_prefs_t* const prefs, unsigned sparse) { prefs->sparseFileSupport = sparse; }
+void FIO_setSparseWrite(FIO_prefs_t* const prefs, int sparse) { prefs->sparseFileSupport = sparse; }
 
 void FIO_setDictIDFlag(FIO_prefs_t* const prefs, int dictIDFlag) { prefs->dictIDFlag = dictIDFlag; }
 
@@ -371,7 +372,7 @@ void FIO_setOverlapLog(FIO_prefs_t* const prefs, int overlapLog){
     prefs->overlapLog = overlapLog;
 }
 
-void FIO_setAdaptiveMode(FIO_prefs_t* const prefs, unsigned adapt) {
+void FIO_setAdaptiveMode(FIO_prefs_t* const prefs, int adapt) {
     if ((adapt>0) && (prefs->nbWorkers==0))
         EXM_THROW(1, "Adaptive mode is not compatible with single thread mode \n");
     prefs->adaptiveMode = adapt;
@@ -453,7 +454,7 @@ void FIO_setContentSize(FIO_prefs_t* const prefs, int value)
     prefs->contentSize = value != 0;
 }
 
-void FIO_setAsyncIOFlag(FIO_prefs_t* const prefs, unsigned value) {
+void FIO_setAsyncIOFlag(FIO_prefs_t* const prefs, int value) {
 #ifdef ZSTD_MULTITHREAD
     prefs->asyncIO = value;
 #else
@@ -461,6 +462,10 @@ void FIO_setAsyncIOFlag(FIO_prefs_t* const prefs, unsigned value) {
     (void) value;
     DISPLAYLEVEL(2, "Note : asyncio is disabled (lack of multithreading support) \n");
 #endif
+}
+
+void FIO_setPassThroughFlag(FIO_prefs_t* const prefs, int value) {
+    prefs->passThrough = (value != 0);
 }
 
 /* FIO_ctx_t functions */
@@ -1306,7 +1311,7 @@ FIO_compressZstdFrame(FIO_ctx_t* const fCtx,
                 windowLog = ZSTD_WINDOWLOG_LIMIT_DEFAULT;
             } else {
                 const ZSTD_compressionParameters cParams = ZSTD_getCParams(compressionLevel, fileSize, 0);
-                windowLog = cParams.windowLog;
+                windowLog = (int)cParams.windowLog;
             }
         }
         windowSize = UTIL_makeHumanReadableSize(MAX(1ULL, MIN(1ULL << windowLog, pledgedSrcSize)));
@@ -1726,14 +1731,15 @@ FIO_compressFilename_srcFile(FIO_ctx_t* const fCtx,
     return result;
 }
 
-static const char* checked_index(const char* options[], size_t length, size_t index) {
+static const char*
+checked_index(const char* options[], size_t length, size_t index) {
     assert(index < length);
     /* Necessary to avoid warnings since -O3 will omit the above `assert` */
     (void) length;
     return options[index];
 }
 
-#define INDEX(options, index) checked_index((options), sizeof(options)  / sizeof(char*), (index))
+#define INDEX(options, index) checked_index((options), sizeof(options)  / sizeof(char*), (size_t)(index))
 
 void FIO_displayCompressionParameters(const FIO_prefs_t* prefs) {
     static const char* formatOptions[5] = {ZSTD_EXTENSION, GZ_EXTENSION, XZ_EXTENSION,
@@ -2335,6 +2341,16 @@ static int FIO_decompressFrames(FIO_ctx_t* const fCtx,
 {
     unsigned readSomething = 0;
     unsigned long long filesize = 0;
+    int passThrough = prefs->passThrough;
+
+    if (passThrough == -1) {
+        /* If pass-through mode is not explicitly enabled or disabled,
+         * default to the legacy behavior of enabling it if we are writing
+         * to stdout with the overwrite flag enabled.
+         */
+        passThrough = prefs->overwrite && !strcmp(dstFileName, stdoutmark);
+    }
+    assert(passThrough == 0 || passThrough == 1);
 
     /* for each frame */
     for ( ; ; ) {
@@ -2352,7 +2368,7 @@ static int FIO_decompressFrames(FIO_ctx_t* const fCtx,
         }
         readSomething = 1;   /* there is at least 1 byte in srcFile */
         if (ress.readCtx->srcBufferLoaded < toRead) { /* not enough input to check magic number */
-            if ((prefs->overwrite) && !strcmp (dstFileName, stdoutmark)) {  /* pass-through mode */
+            if (passThrough) {
                 return FIO_passThrough(&ress);
             }
             DISPLAYLEVEL(1, "zstd: %s: unknown header \n", srcFileName);
@@ -2390,7 +2406,7 @@ static int FIO_decompressFrames(FIO_ctx_t* const fCtx,
             DISPLAYLEVEL(1, "zstd: %s: lz4 file cannot be uncompressed (zstd compiled without HAVE_LZ4) -- ignored \n", srcFileName);
             return 1;
 #endif
-        } else if ((prefs->overwrite) && !strcmp (dstFileName, stdoutmark)) {  /* pass-through mode */
+        } else if (passThrough) {
             return FIO_passThrough(&ress);
         } else {
             DISPLAYLEVEL(1, "zstd: %s: unsupported format \n", srcFileName);

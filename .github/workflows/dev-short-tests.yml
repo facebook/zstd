@@ -14,21 +14,21 @@ jobs:
   linux-kernel:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: linux kernel, library + build + test
       run: make -C contrib/linux-kernel test CFLAGS="-Werror -Wunused-const-variable -Wunused-but-set-variable"
 
   benchmarking:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: make benchmarking
       run: make benchmarking
 
   check-32bit: # designed to catch https://github.com/facebook/zstd/issues/2428
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: make check on 32-bit
       run: |
         sudo apt update
@@ -38,7 +38,7 @@ jobs:
   check-x32:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: make check on x32 ABI # https://en.wikipedia.org/wiki/X32_ABI
       env:
         CHECK_CONSTRAINED_MEM: true
@@ -50,7 +50,7 @@ jobs:
   gcc-7-libzstd:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: gcc-7 + libzstdmt compilation
       run: |
         sudo apt-get -qqq update
@@ -65,7 +65,7 @@ jobs:
   cmake-build-and-test-check:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: cmake build and test check
       run: |
         FUZZERTEST=-T1mn ZSTREAM_TESTTIME=-T1mn make cmakebuild
@@ -76,7 +76,7 @@ jobs:
   cpp-gnu90-c99-compatibility:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: C++, gnu90 and c99 compatibility
       run: |
         make cxxtest
@@ -90,7 +90,7 @@ jobs:
   mingw-cross-compilation:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: mingw cross-compilation
       run: |
         # sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix; (doesn't work)
@@ -101,7 +101,7 @@ jobs:
   armbuild:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: ARM Build Test
       run: |
         sudo apt-get -qqq update
@@ -121,18 +121,18 @@ jobs:
   zlib-wrapper:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: zlib wrapper test
       run: |
         sudo apt-get -qqq update
         make valgrindinstall
         make -C zlibWrapper test
-        make -C zlibWrapper valgrindTest
+        make -C zlibWrapper test-valgrind
 
   lz4-threadpool-libs:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: LZ4, thread pool, and libs build testslib wrapper test
       run: |
         make lz4install
@@ -146,7 +146,7 @@ jobs:
   gcc-make-tests-32bit:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Make all, 32bit mode
       run: |
         sudo apt-get -qqq update
@@ -156,7 +156,7 @@ jobs:
   gcc-8-make:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: gcc-8 build
         run: |
           sudo apt-get -qqq update
@@ -166,7 +166,7 @@ jobs:
   implicit-fall-through:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: -Wimplicit-fallthrough build
         run: |
           make clean
@@ -185,7 +185,7 @@ jobs:
             flags: "-A Win32"
           - generator: "MinGW Makefiles"
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v1.0.2
     - name: Build
@@ -204,7 +204,7 @@ jobs:
         platform: [x64, Win32]
         configuration: [Debug, Release]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v1.0.2
     - name: Build
@@ -223,7 +223,7 @@ jobs:
 #        platform: [x64, Win32]
 #        configuration: [Debug, Release]
 #    steps:
-#    - uses: actions/checkout@v2
+#    - uses: actions/checkout@v3
 #    - name: Add MSBuild to PATH
 #      uses: microsoft/setup-msbuild@v1.0.2
 #    - name: Build
@@ -235,7 +235,7 @@ jobs:
   minimal-decompressor-macros:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: minimal decompressor macros
       run: |
         make clean && make -j all ZSTD_LIB_MINIFY=1 MOREFLAGS="-Werror"
@@ -250,7 +250,7 @@ jobs:
   dynamic-bmi2:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: dynamic bmi2 tests
       run: |
         make clean && make -j check MOREFLAGS="-O0 -Werror -mbmi2"
@@ -262,7 +262,7 @@ jobs:
   test-variants:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: make all variants & validate
       run: |
         make -j -C programs allVariants MOREFLAGS=-O0
@@ -288,7 +288,7 @@ jobs:
       XCC: ${{ matrix.xcc }}
       XEMU: ${{ matrix.xemu }}
     steps:
-    - uses: actions/checkout@v2 # https://github.com/actions/checkout
+    - uses: actions/checkout@v3
     - name: apt update & install
       run: |
         sudo apt-get update
@@ -341,7 +341,7 @@ jobs:
           { compiler: clang, platform: x64, script: "CFLAGS='--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion' make -j allzstd V=1"},
         ]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Mingw short test
       run: |
         ECHO "Building ${{matrix.compiler}} ${{matrix.platform}}"
@@ -374,7 +374,7 @@ jobs:
         platform: [x64, Win32]
         configuration: [Release]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v1.0.2
     - name: Build and run tests
@@ -394,7 +394,7 @@ jobs:
   intel-cet-compatibility:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Build Zstd
       run: |
         make -j zstd V=1
@@ -410,6 +410,22 @@ jobs:
       run: |
         sde-external-9.0.0-2021-11-07-lin/sde -cet -cet-raise 0 -cet-endbr-exe -cet-stderr -cet-abort -- ./zstd -b3
 
+  pkg-config:
+    runs-on: ubuntu-latest
+    container:
+      image: debian:testing
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install dependencies
+        run: |
+          apt -y update
+          apt -y install --no-install-recommends gcc libc6-dev make pkg-config
+      - name: Build and install
+        run: make -C lib install
+      - name: Test pkg-config
+        run: |
+          cc -Wall -Wextra -Wpedantic -Werror -o simple examples/simple_compression.c $(pkg-config --cflags --libs libzstd)
+          ./simple LICENSE
 
 
 # This test currently fails on Github Actions specifically.
@@ -419,7 +435,7 @@ jobs:
 #  versions-compatibility:
 #    runs-on: ubuntu-latest
 #    steps:
-#    - uses: actions/checkout@v2
+#    - uses: actions/checkout@v3
 #    - name: Versions Compatibility Test
 #      run: |
 #        make -C tests versionsTest
@@ -443,7 +459,7 @@ jobs:
 #        sudo add-apt-repository "deb https://apt.repos.intel.com/oneapi all main"
 #        sudo apt-get update
 #        sudo apt-get install -y intel-basekit intel-hpckit
-#    - uses: actions/checkout@v2
+#    - uses: actions/checkout@v3
 #    - name: make check
 #      run: |
 #        make CC=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/icc check

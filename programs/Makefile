@@ -129,10 +129,10 @@ SET_CACHE_DIRECTORY = \
 
 
 .PHONY: all
-all: zstd
+all: zstd zstd-compress zstd-decompress zstd-small
 
 .PHONY: allVariants
-allVariants: zstd zstd-compress zstd-decompress zstd-small zstd-frugal zstd-nolegacy zstd-dictBuilder
+allVariants: all zstd-frugal zstd-nolegacy zstd-dictBuilder
 
 .PHONY: zstd  # must always be run
 zstd : CPPFLAGS += $(THREAD_CPP) $(ZLIBCPP) $(LZMACPP) $(LZ4CPP)
@@ -180,11 +180,13 @@ zstd : $(BUILD_DIR)/zstd
 endif  # BUILD_DIR
 
 
+CLEAN += zstd
 .PHONY: zstd-release
 zstd-release: DEBUGFLAGS := -DBACKTRACE_ENABLE=0
 zstd-release: DEBUGFLAGS_LD :=
 zstd-release: zstd
 
+CLEAN += zstd32
 zstd32 : CPPFLAGS += $(THREAD_CPP)
 zstd32 : LDFLAGS  += $(THREAD_LD)
 zstd32 : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
@@ -194,7 +196,8 @@ endif
 zstd32 : $(ZSTDLIB_FULL_SRC) $(ZSTD_CLI_SRC)
 	$(CC) -m32 $(FLAGS) $^ -o $@$(EXT)
 
-## zstd-nolegacy: same scope as zstd, with just support of legacy formats removed
+## zstd-nolegacy: same scope as zstd, with removed support of legacy formats
+CLEAN += zstd-nolegacy
 zstd-nolegacy : LDFLAGS += $(THREAD_LD) $(ZLIBLD) $(LZMALD) $(LZ4LD) $(DEBUGFLAGS_LD)
 zstd-nolegacy : CPPFLAGS += -UZSTD_LEGACY_SUPPORT -DZSTD_LEGACY_SUPPORT=0
 zstd-nolegacy : $(ZSTDLIB_CORE_SRC) $(ZDICT_SRC) $(ZSTD_CLI_OBJ)
@@ -229,33 +232,42 @@ zstd-dll : zstd
 ## zstd-pgo: zstd executable optimized with PGO.
 .PHONY: zstd-pgo
 zstd-pgo :
-	$(MAKE) clean
-	$(MAKE) zstd MOREFLAGS=-fprofile-generate
+	$(MAKE) clean HASH_DIR=$(HASH_DIR)
+	$(MAKE) zstd HASH_DIR=$(HASH_DIR) MOREFLAGS=-fprofile-generate
 	./zstd -b19i1 $(PROFILE_WITH)
 	./zstd -b16i1 $(PROFILE_WITH)
 	./zstd -b9i2 $(PROFILE_WITH)
 	./zstd -b $(PROFILE_WITH)
 	./zstd -b7i2 $(PROFILE_WITH)
 	./zstd -b5 $(PROFILE_WITH)
-	$(RM) zstd *.o
+ifndef BUILD_DIR
+	$(RM) zstd obj/$(HASH_DIR)/zstd obj/$(HASH_DIR)/*.o
+else
+	$(RM) zstd $(BUILD_DIR)/zstd $(BUILD_DIR)/*.o
+endif
 	case $(CC) in *clang*) if ! [ -e default.profdata ]; then llvm-profdata merge -output=default.profdata default*.profraw; fi ;; esac
-	$(MAKE) zstd MOREFLAGS=-fprofile-use
+	$(MAKE) zstd HASH_DIR=$(HASH_DIR) MOREFLAGS=-fprofile-use
 
 ## zstd-small: minimal target, supporting only zstd compression and decompression. no bench. no legacy. no other format.
+CLEAN += zstd-small zstd-frugal
 zstd-small: CFLAGS = -Os -Wl,-s
 zstd-frugal zstd-small: $(ZSTDLIB_CORE_SRC) zstdcli.c util.c timefn.c fileio.c fileio_asyncio.c
 	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOTRACE -UZSTD_LEGACY_SUPPORT -DZSTD_LEGACY_SUPPORT=0 $^ -o $@$(EXT)
 
+CLEAN += zstd-decompress
 zstd-decompress: $(ZSTDLIB_COMMON_SRC) $(ZSTDLIB_DECOMPRESS_SRC) zstdcli.c util.c timefn.c fileio.c fileio_asyncio.c
 	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NOCOMPRESS -DZSTD_NOTRACE -UZSTD_LEGACY_SUPPORT -DZSTD_LEGACY_SUPPORT=0 $^ -o $@$(EXT)
 
+CLEAN += zstd-compress
 zstd-compress: $(ZSTDLIB_COMMON_SRC) $(ZSTDLIB_COMPRESS_SRC) zstdcli.c util.c timefn.c fileio.c fileio_asyncio.c
 	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODICT -DZSTD_NODECOMPRESS -DZSTD_NOTRACE -UZSTD_LEGACY_SUPPORT -DZSTD_LEGACY_SUPPORT=0 $^ -o $@$(EXT)
 
 ## zstd-dictBuilder: executable supporting dictionary creation and compression (only)
+CLEAN += zstd-dictBuilder
 zstd-dictBuilder: $(ZSTDLIB_COMMON_SRC) $(ZSTDLIB_COMPRESS_SRC) $(ZDICT_SRC) zstdcli.c util.c timefn.c fileio.c fileio_asyncio.c dibio.c
 	$(CC) $(FLAGS) -DZSTD_NOBENCH -DZSTD_NODECOMPRESS -DZSTD_NOTRACE $^ -o $@$(EXT)
 
+CLEAN += zstdmt
 zstdmt: zstd
 	ln -sf zstd zstdmt
 
@@ -273,12 +285,8 @@ endif
 
 .PHONY: clean
 clean:
-	$(RM) core *.o tmp* result* *.gcda dictionary *.zst \
-        zstd$(EXT) zstd32$(EXT) zstd-dll$(EXT) \
-        zstd-compress$(EXT) zstd-decompress$(EXT) \
-        zstd-small$(EXT) zstd-frugal$(EXT) zstd-nolegacy$(EXT) zstd4$(EXT) \
-        zstd-dictBuilder$(EXT) \
-        *.gcda default*.profraw default.profdata have_zlib$(EXT)
+	$(RM) $(CLEAN) core *.o tmp* result* dictionary *.zst \
+        *.gcda default*.profraw default.profdata have_zlib
 	$(RM) -r obj/*
 	@echo Cleaning completed
 
@@ -339,7 +347,7 @@ ifneq (,$(filter $(UNAME),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD D
 
 HAVE_COLORNEVER = $(shell echo a | egrep --color=never a > /dev/null 2> /dev/null && echo 1 || echo 0)
 EGREP_OPTIONS ?=
-ifeq ($HAVE_COLORNEVER, 1)
+ifeq ($(HAVE_COLORNEVER), 1)
   EGREP_OPTIONS += --color=never
 endif
 EGREP = egrep $(EGREP_OPTIONS)

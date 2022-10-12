@@ -183,7 +183,7 @@ the last one takes effect.
     The decoder will have to rely on implicit knowledge about which dictionary to use,
     it won't be able to check if it's correct.
 * `-M#`, `--memory=#`:
-    Set a memory usage limit. By default, Zstandard uses 128 MB for decompression
+    Set a memory usage limit. By default, `zstd` uses 128 MB for decompression
     as the maximum amount of memory the decompressor is allowed to use, but you can
     override this manually if need be in either direction (i.e. you can increase or
     decrease it).

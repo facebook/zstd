@@ -144,7 +144,7 @@ Note: cannot use both this and \-D together Note: \fB\-\-long\fR mode will be au
 \fB\-\-no\-dictID\fR: do not store dictionary ID within frame header (dictionary compression)\. The decoder will have to rely on implicit knowledge about which dictionary to use, it won\'t be able to check if it\'s correct\.
 .
 .IP "\(bu" 4
-\fB\-M#\fR, \fB\-\-memory=#\fR: Set a memory usage limit\. By default, Zstandard uses 128 MB for decompression as the maximum amount of memory the decompressor is allowed to use, but you can override this manually if need be in either direction (i\.e\. you can increase or decrease it)\.
+\fB\-M#\fR, \fB\-\-memory=#\fR: Set a memory usage limit\. By default, \fBzstd\fR uses 128 MB for decompression as the maximum amount of memory the decompressor is allowed to use, but you can override this manually if need be in either direction (i\.e\. you can increase or decrease it)\.
 .
 .IP
 This is also used during compression when using with \-\-patch\-from=\. In this case, this parameter overrides that maximum size allowed for a dictionary\. (128 MB)\.

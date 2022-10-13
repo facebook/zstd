@@ -96,13 +96,14 @@ add_test(NAME zstreamtest COMMAND zstreamtest ${ZSTD_ZSTREAM_FLAGS})
 AddTestFlagsOption(ZSTD_PLAYTESTS_FLAGS "$ENV{PLAYTESTS_FLAGS}"
     "Semicolon-separated list of flags to pass to the playTests.sh test")
 add_test(NAME playTests COMMAND sh -c "\"${TESTS_DIR}/playTests.sh\" ${ZSTD_PLAYTESTS_FLAGS}")
-if (ZSTD_BUILD_PROGRAMS)
+find_program(UNAME uname) # Run script only in unix shell environments
+if (ZSTD_BUILD_PROGRAMS AND UNAME)
     set_property(TEST playTests APPEND PROPERTY ENVIRONMENT
         "ZSTD_BIN=$<TARGET_FILE:zstd>"
         "DATAGEN_BIN=$<TARGET_FILE:datagen>"
         )
 else()
-    message(STATUS "Disabling playTests.sh test because ZSTD_BUILD_PROGRAMS is not enabled")
+    message(STATUS "Disabling playTests.sh test because requirements not met")
     set_tests_properties(playTests PROPERTIES DISABLED YES)
 endif()
 

@@ -173,7 +173,7 @@ size_t HUF_decompress4X2_DCtx_wksp(HUF_DTable* dctx, void* dst, size_t dstSize, 
 /* ****************************************
  *  HUF detailed API
  * ****************************************/
-#define HUF_OPTIMAL_DEPTH_THRESHOLD ZSTD_btlazy2
+#define HUF_OPTIMAL_DEPTH_THRESHOLD 1
 typedef enum {
    HUF_depth_fast, /** Use heuristic to find the table depth**/
    HUF_depth_optimal /** Test possible table depths to find the one that produces the smallest header + encoded size**/
@@ -191,6 +191,7 @@ typedef enum {
  *  or to save and regenerate 'CTable' using external methods.
  */
 unsigned HUF_minTableLog(size_t srcSize, unsigned maxSymbolValue);
+unsigned HUF_cardinality(const unsigned* count, unsigned maxSymbolValue);
 unsigned HUF_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue, void* workSpace, size_t wkspSize, HUF_CElt* table, const unsigned* count, HUF_depth_mode depthMode);
 size_t HUF_buildCTable (HUF_CElt* CTable, const unsigned* count, unsigned maxSymbolValue, unsigned maxNbBits);   /* @return : maxNbBits; CTable and count can overlap. In which case, CTable will overwrite count content */
 size_t HUF_writeCTable (void* dst, size_t maxDstSize, const HUF_CElt* CTable, unsigned maxSymbolValue, unsigned huffLog);

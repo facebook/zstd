@@ -1235,12 +1235,23 @@ typedef struct {
 #define SUSPECT_INCOMPRESSIBLE_SAMPLE_SIZE 4096
 #define SUSPECT_INCOMPRESSIBLE_SAMPLE_RATIO 10  /* Must be >= 2 */
 
+unsigned HUF_cardinality(const unsigned* count, unsigned maxSymbolValue)
+{
+    unsigned cardinality = 0;
+    unsigned i;
+
+    for (i = 0; i < maxSymbolValue + 1; i++) {
+        if (count[i] != 0) cardinality += 1;
+    }
+
+    return cardinality;
+}
+
 unsigned HUF_minTableLog(size_t srcSize, unsigned maxSymbolValue)
 {
     U32 minBitsSrc = ZSTD_highbit32((U32)(srcSize)) + 1;
-    U32 minBitsSymbols = ZSTD_highbit32(maxSymbolValue) + 2;
+    U32 minBitsSymbols = ZSTD_highbit32(maxSymbolValue) + 1;
     U32 minBits = minBitsSrc < minBitsSymbols ? minBitsSrc : minBitsSymbols;
-    if (minBits < FSE_MIN_TABLELOG) minBits = FSE_MIN_TABLELOG;
     assert(srcSize > 1); /* Not supported, RLE should be used instead */
     return minBits;
 }
@@ -1255,10 +1266,11 @@ unsigned HUF_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxS
         size_t optSize = ((size_t) ~0);
         unsigned huffLog;
         size_t maxBits, hSize, newSize;
+        unsigned cardinality = HUF_cardinality(count, maxSymbolValue);
 
         if (wkspSize < sizeof(HUF_buildCTable_wksp_tables)) return optLog;
 
-        for (huffLog = HUF_minTableLog(srcSize, maxSymbolValue); huffLog <= maxTableLog; huffLog++) {
+        for (huffLog = HUF_minTableLog(srcSize, cardinality); huffLog <= maxTableLog; huffLog++) {
             maxBits = HUF_buildCTable_wksp(table, count,
                                             maxSymbolValue, huffLog,
                                             workSpace, wkspSize);

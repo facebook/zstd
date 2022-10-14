@@ -1247,10 +1247,10 @@ unsigned HUF_cardinality(const unsigned* count, unsigned maxSymbolValue)
     return cardinality;
 }
 
-unsigned HUF_minTableLog(size_t srcSize, unsigned maxSymbolValue)
+unsigned HUF_minTableLog(size_t srcSize, unsigned symbolCardinality)
 {
     U32 minBitsSrc = ZSTD_highbit32((U32)(srcSize)) + 1;
-    U32 minBitsSymbols = ZSTD_highbit32(maxSymbolValue) + 1;
+    U32 minBitsSymbols = ZSTD_highbit32(symbolCardinality) + 1;
     U32 minBits = minBitsSrc < minBitsSymbols ? minBitsSrc : minBitsSymbols;
     assert(srcSize > 1); /* Not supported, RLE should be used instead */
     return minBits;
@@ -1266,11 +1266,11 @@ unsigned HUF_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxS
         size_t optSize = ((size_t) ~0);
         unsigned huffLog;
         size_t maxBits, hSize, newSize;
-        unsigned cardinality = HUF_cardinality(count, maxSymbolValue);
+        const unsigned symbolCardinality = HUF_cardinality(count, maxSymbolValue);
 
         if (wkspSize < sizeof(HUF_buildCTable_wksp_tables)) return optLog;
 
-        for (huffLog = HUF_minTableLog(srcSize, cardinality); huffLog <= maxTableLog; huffLog++) {
+        for (huffLog = HUF_minTableLog(srcSize, symbolCardinality); huffLog <= maxTableLog; huffLog++) {
             maxBits = HUF_buildCTable_wksp(table, count,
                                             maxSymbolValue, huffLog,
                                             workSpace, wkspSize);

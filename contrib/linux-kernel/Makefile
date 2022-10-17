@@ -60,6 +60,7 @@ libzstd:
 	mv linux/lib/zstd/zstd.h linux/include/linux/zstd_lib.h
 	mv linux/lib/zstd/zstd_errors.h linux/include/linux/
 	cp linux_zstd.h linux/include/linux/zstd.h
+	cp zstd_common_module.c linux/lib/zstd
 	cp zstd_compress_module.c linux/lib/zstd
 	cp zstd_decompress_module.c linux/lib/zstd
 	cp decompress_sources.h linux/lib/zstd

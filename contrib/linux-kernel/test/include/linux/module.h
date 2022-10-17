@@ -12,6 +12,8 @@
 
 #define EXPORT_SYMBOL(symbol)                                                  \
   void* __##symbol = symbol
+#define EXPORT_SYMBOL_GPL(symbol)                                              \
+  void* __##symbol = symbol
 #define MODULE_LICENSE(license)
 #define MODULE_DESCRIPTION(description)
 

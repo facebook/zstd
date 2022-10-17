@@ -190,7 +190,7 @@ typedef enum {
  *  For example, it's possible to compress several blocks using the same 'CTable',
  *  or to save and regenerate 'CTable' using external methods.
  */
-unsigned HUF_minTableLog(size_t srcSize, unsigned symbolCardinality);
+unsigned HUF_minTableLog(unsigned symbolCardinality);
 unsigned HUF_cardinality(const unsigned* count, unsigned maxSymbolValue);
 unsigned HUF_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue, void* workSpace,
  size_t wkspSize, HUF_CElt* table, const unsigned* count, HUF_depth_mode depthMode); /* table is used as scratch space for building and testing tables, not a return value */

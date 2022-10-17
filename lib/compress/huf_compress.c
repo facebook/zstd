@@ -1247,19 +1247,17 @@ unsigned HUF_cardinality(const unsigned* count, unsigned maxSymbolValue)
     return cardinality;
 }
 
-unsigned HUF_minTableLog(size_t srcSize, unsigned symbolCardinality)
+unsigned HUF_minTableLog(unsigned symbolCardinality)
 {
-    U32 minBitsSrc = ZSTD_highbit32((U32)(srcSize)) + 1;
     U32 minBitsSymbols = ZSTD_highbit32(symbolCardinality) + 1;
-    U32 minBits = minBitsSrc < minBitsSymbols ? minBitsSrc : minBitsSymbols;
-    assert(srcSize > 1); /* Not supported, RLE should be used instead */
-    return minBits;
+    return minBitsSymbols;
 }
 
 unsigned HUF_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue, void* workSpace, size_t wkspSize, HUF_CElt* table, const unsigned* count, HUF_depth_mode depthMode)
 {
     unsigned optLogGuess = FSE_optimalTableLog_internal(maxTableLog, srcSize, maxSymbolValue, 1);
     unsigned optLog = optLogGuess;
+    assert(srcSize > 1); /* Not supported, RLE should be used instead */
 
     if (depthMode == HUF_depth_optimal) { /** Test valid depths and return optimal **/
         BYTE* dst = (BYTE*)workSpace + sizeof(HUF_WriteCTableWksp);

@@ -26,6 +26,6 @@ size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
                         const void* src, size_t srcSize,
                               void* entropyWorkspace, size_t entropyWorkspaceSize,
                         const int bmi2,
-                        unsigned suspectUncompressible);
+                        unsigned suspectUncompressible, HUF_depth_mode depthMode);
 
 #endif /* ZSTD_COMPRESS_LITERALS_H */

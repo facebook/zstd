@@ -173,6 +173,11 @@ size_t HUF_decompress4X2_DCtx_wksp(HUF_DTable* dctx, void* dst, size_t dstSize, 
 /* ****************************************
  *  HUF detailed API
  * ****************************************/
+#define HUF_OPTIMAL_DEPTH_THRESHOLD ZSTD_btultra
+typedef enum {
+   HUF_depth_fast, /** Use heuristic to find the table depth**/
+   HUF_depth_optimal /** Test possible table depths to find the one that produces the smallest header + encoded size**/
+ } HUF_depth_mode;
 
 /*! HUF_compress() does the following:
  *  1. count symbol occurrence from source[] into table count[] using FSE_count() (exposed within "fse.h")
@@ -185,7 +190,10 @@ size_t HUF_decompress4X2_DCtx_wksp(HUF_DTable* dctx, void* dst, size_t dstSize, 
  *  For example, it's possible to compress several blocks using the same 'CTable',
  *  or to save and regenerate 'CTable' using external methods.
  */
-unsigned HUF_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue);
+unsigned HUF_minTableLog(unsigned symbolCardinality);
+unsigned HUF_cardinality(const unsigned* count, unsigned maxSymbolValue);
+unsigned HUF_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue, void* workSpace,
+ size_t wkspSize, HUF_CElt* table, const unsigned* count, HUF_depth_mode depthMode); /* table is used as scratch space for building and testing tables, not a return value */
 size_t HUF_buildCTable (HUF_CElt* CTable, const unsigned* count, unsigned maxSymbolValue, unsigned maxNbBits);   /* @return : maxNbBits; CTable and count can overlap. In which case, CTable will overwrite count content */
 size_t HUF_writeCTable (void* dst, size_t maxDstSize, const HUF_CElt* CTable, unsigned maxSymbolValue, unsigned huffLog);
 size_t HUF_writeCTable_wksp(void* dst, size_t maxDstSize, const HUF_CElt* CTable, unsigned maxSymbolValue, unsigned huffLog, void* workspace, size_t workspaceSize);
@@ -199,6 +207,7 @@ typedef enum {
    HUF_repeat_check, /**< Can use the previous table but it must be checked. Note : The previous table must have been constructed by HUF_compress{1, 4}X_repeat */
    HUF_repeat_valid  /**< Can use the previous table and it is assumed to be valid */
  } HUF_repeat;
+
 /** HUF_compress4X_repeat() :
  *  Same as HUF_compress4X_wksp(), but considers using hufTable if *repeat != HUF_repeat_none.
  *  If it uses hufTable it does not modify hufTable or repeat.
@@ -209,7 +218,8 @@ size_t HUF_compress4X_repeat(void* dst, size_t dstSize,
                        const void* src, size_t srcSize,
                        unsigned maxSymbolValue, unsigned tableLog,
                        void* workSpace, size_t wkspSize,    /**< `workSpace` must be aligned on 4-bytes boundaries, `wkspSize` must be >= HUF_WORKSPACE_SIZE */
-                       HUF_CElt* hufTable, HUF_repeat* repeat, int preferRepeat, int bmi2, unsigned suspectUncompressible);
+                       HUF_CElt* hufTable, HUF_repeat* repeat, int preferRepeat, int bmi2,
+                       unsigned suspectUncompressible, HUF_depth_mode depthMode);
 
 /** HUF_buildCTable_wksp() :
  *  Same as HUF_buildCTable(), but using externally allocated scratch buffer.
@@ -315,7 +325,8 @@ size_t HUF_compress1X_repeat(void* dst, size_t dstSize,
                        const void* src, size_t srcSize,
                        unsigned maxSymbolValue, unsigned tableLog,
                        void* workSpace, size_t wkspSize,   /**< `workSpace` must be aligned on 4-bytes boundaries, `wkspSize` must be >= HUF_WORKSPACE_SIZE */
-                       HUF_CElt* hufTable, HUF_repeat* repeat, int preferRepeat, int bmi2, unsigned suspectUncompressible);
+                       HUF_CElt* hufTable, HUF_repeat* repeat, int preferRepeat, int bmi2,
+                       unsigned suspectUncompressible, HUF_depth_mode depthMode);
 
 size_t HUF_decompress1X1 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize);   /* single-symbol decoder */
 #ifndef HUF_FORCE_DECOMPRESS_X1

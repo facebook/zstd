@@ -29,7 +29,6 @@ zstd_compress-y := \
 
 zstd_decompress-y := \
 		zstd_decompress_module.o \
-		decompress/huf_decompress_amd64.o \
 		decompress/huf_decompress.o \
 		decompress/zstd_ddict.o \
 		decompress/zstd_decompress.o \

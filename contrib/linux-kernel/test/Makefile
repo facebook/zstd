@@ -45,4 +45,5 @@ clean:
 	$(RM) -f $(LINUX_ZSTDLIB)/*.o
 	$(RM) -f $(LINUX_ZSTDLIB)/**/*.o
 	$(RM) -f *.o *.a
+	$(RM) -f static_test
 	$(RM) -f test

@@ -26,6 +26,7 @@ libzstd:
 		--rewrite-include '"(\.\./)?zstd_errors.h"=<linux/zstd_errors.h>' \
 		--sed 's,/\*\*\*,/* *,g' \
 		--sed 's,/\*\*,/*,g' \
+		--spdx \
 		-DZSTD_NO_INTRINSICS \
 		-DZSTD_NO_UNUSED_FUNCTIONS \
 		-DZSTD_LEGACY_SUPPORT=0 \

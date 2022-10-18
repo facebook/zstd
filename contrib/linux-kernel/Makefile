@@ -56,7 +56,9 @@ libzstd:
 		-DZSTD_HAVE_WEAK_SYMBOLS=0 \
 		-DZSTD_TRACE=0 \
 		-DZSTD_NO_TRACE \
+		-DZSTD_DISABLE_ASM \
 		-DZSTD_LINUX_KERNEL
+	rm linux/lib/zstd/decompress/huf_decompress_amd64.S
 	mv linux/lib/zstd/zstd.h linux/include/linux/zstd_lib.h
 	mv linux/lib/zstd/zstd_errors.h linux/include/linux/
 	cp linux_zstd.h linux/include/linux/zstd.h
@@ -104,4 +106,5 @@ test: libzstd
 
 .PHONY: clean
 clean:
-	$(RM) -rf linux test/test test/static_test
+	$(RM) -rf linux
+	$(MAKE) -C test clean

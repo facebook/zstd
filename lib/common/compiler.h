@@ -165,6 +165,12 @@
 #define UNLIKELY(x) (x)
 #endif
 
+#if __has_builtin(__builtin_unreachable) || (defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 5)))
+#  define ZSTD_UNREACHABLE { assert(0), __builtin_unreachable(); }
+#else
+#  define ZSTD_UNREACHABLE { assert(0); }
+#endif
+
 /* disable warnings */
 #ifdef _MSC_VER    /* Visual Studio */
 #  include <intrin.h>                    /* For Visual 2005 */

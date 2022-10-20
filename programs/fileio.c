@@ -2749,6 +2749,7 @@ typedef struct {
     int numSkippableFrames;
     int decompUnavailable;
     int usesCheck;
+    BYTE checksum[4];
     U32 nbFiles;
     unsigned dictID;
 } fileInfo_t;
@@ -2843,8 +2844,8 @@ FIO_analyzeFrames(fileInfo_t* info, FILE* const srcFile)
                     int const contentChecksumFlag = (frameHeaderDescriptor & (1 << 2)) >> 2;
                     if (contentChecksumFlag) {
                         info->usesCheck = 1;
-                        ERROR_IF(fseek(srcFile, 4, SEEK_CUR) != 0,
-                                info_frame_error, "Error: could not skip past checksum");
+                        ERROR_IF(fread(info->checksum, 1, 4, srcFile) != 4,
+                                info_frame_error, "Error: could not read checksum");
                 }   }
                 info->numActualFrames++;
             }
@@ -2936,7 +2937,16 @@ displayInfo(const char* inFileName, const fileInfo_t* info, int displayLevel)
                     (unsigned long long)info->decompressedSize);
             DISPLAYOUT("Ratio: %.4f\n", ratio);
         }
-        DISPLAYOUT("Check: %s\n", checkString);
+
+        if (info->usesCheck && info->numActualFrames == 1) {
+            DISPLAYOUT("Check: %s %02x%02x%02x%02x\n", checkString,
+                info->checksum[3], info->checksum[2],
+                info->checksum[1], info->checksum[0]
+            );
+        } else {
+            DISPLAYOUT("Check: %s\n", checkString);
+        }
+
         DISPLAYOUT("\n");
     }
 }

@@ -1317,14 +1317,10 @@ size_t ZSTD_RowFindBestMatch(
 }
 
 
-typedef size_t (*searchMax_f)(
-                    ZSTD_matchState_t* ms,
-                    const BYTE* ip, const BYTE* iLimit, size_t* offsetPtr);
-
 /**
- * This struct contains the functions necessary for lazy to search.
- * Currently, that is only searchMax. However, it is still valuable to have the
- * VTable because this makes it easier to add more functions to the VTable later.
+ * Generate search functions templated on (dictMode, mls, rowLog).
+ * These functions are outlined for code size & compilation time.
+ * ZSTD_searchMax() dispatches to the correct implementation function.
  *
  * TODO: The start of the search function involves loading and calculating a
  * bunch of constants from the ZSTD_matchState_t. These computations could be
@@ -1342,25 +1338,25 @@ typedef size_t (*searchMax_f)(
  * the single segment loop. It should go in searchMax instead of its own
  * function to avoid having multiple virtual function calls per search.
  */
-typedef struct {
-    searchMax_f searchMax;
-} ZSTD_LazyVTable;
 
-#define GEN_ZSTD_BT_VTABLE(dictMode, mls)                                             \
-    static size_t ZSTD_BtFindBestMatch_##dictMode##_##mls(                            \
-            ZSTD_matchState_t* ms,                                                    \
-            const BYTE* ip, const BYTE* const iLimit,                                 \
-            size_t* offBasePtr)                                                       \
-    {                                                                                 \
-        assert(MAX(4, MIN(6, ms->cParams.minMatch)) == mls);                          \
-        return ZSTD_BtFindBestMatch(ms, ip, iLimit, offBasePtr, mls, ZSTD_##dictMode);\
-    }                                                                                 \
-    static const ZSTD_LazyVTable ZSTD_BtVTable_##dictMode##_##mls = {                 \
-        ZSTD_BtFindBestMatch_##dictMode##_##mls                                       \
-    };
+#define ZSTD_BT_SEARCH_FN(dictMode, mls) ZSTD_BtFindBestMatch_##dictMode##_##mls
+#define ZSTD_HC_SEARCH_FN(dictMode, mls) ZSTD_HcFindBestMatch_##dictMode##_##mls
+#define ZSTD_ROW_SEARCH_FN(dictMode, mls, rowLog) ZSTD_RowFindBestMatch_##dictMode##_##mls##_##rowLog
 
-#define GEN_ZSTD_HC_VTABLE(dictMode, mls)                                             \
-    static size_t ZSTD_HcFindBestMatch_##dictMode##_##mls(                            \
+#define ZSTD_SEARCH_FN_ATTRS FORCE_NOINLINE
+
+#define GEN_ZSTD_BT_SEARCH_FN(dictMode, mls)                                           \
+    ZSTD_SEARCH_FN_ATTRS size_t ZSTD_BT_SEARCH_FN(dictMode, mls)(                      \
+            ZSTD_matchState_t* ms,                                                     \
+            const BYTE* ip, const BYTE* const iLimit,                                  \
+            size_t* offBasePtr)                                                        \
+    {                                                                                  \
+        assert(MAX(4, MIN(6, ms->cParams.minMatch)) == mls);                           \
+        return ZSTD_BtFindBestMatch(ms, ip, iLimit, offBasePtr, mls, ZSTD_##dictMode); \
+    }                                                                                  \
+
+#define GEN_ZSTD_HC_SEARCH_FN(dictMode, mls)                                          \
+    ZSTD_SEARCH_FN_ATTRS size_t ZSTD_HC_SEARCH_FN(dictMode, mls)(                     \
             ZSTD_matchState_t* ms,                                                    \
             const BYTE* ip, const BYTE* const iLimit,                                 \
             size_t* offsetPtr)                                                        \
@@ -1368,12 +1364,9 @@ typedef struct {
         assert(MAX(4, MIN(6, ms->cParams.minMatch)) == mls);                          \
         return ZSTD_HcFindBestMatch(ms, ip, iLimit, offsetPtr, mls, ZSTD_##dictMode); \
     }                                                                                 \
-    static const ZSTD_LazyVTable ZSTD_HcVTable_##dictMode##_##mls = {                 \
-        ZSTD_HcFindBestMatch_##dictMode##_##mls                                       \
-    };
 
-#define GEN_ZSTD_ROW_VTABLE(dictMode, mls, rowLog)                                             \
-    static size_t ZSTD_RowFindBestMatch_##dictMode##_##mls##_##rowLog(                         \
+#define GEN_ZSTD_ROW_SEARCH_FN(dictMode, mls, rowLog)                                          \
+    ZSTD_SEARCH_FN_ATTRS size_t ZSTD_ROW_SEARCH_FN(dictMode, mls, rowLog)(                     \
             ZSTD_matchState_t* ms,                                                             \
             const BYTE* ip, const BYTE* const iLimit,                                          \
             size_t* offsetPtr)                                                                 \
@@ -1382,9 +1375,6 @@ typedef struct {
         assert(MAX(4, MIN(6, ms->cParams.searchLog)) == rowLog);                               \
         return ZSTD_RowFindBestMatch(ms, ip, iLimit, offsetPtr, mls, ZSTD_##dictMode, rowLog); \
     }                                                                                          \
-    static const ZSTD_LazyVTable ZSTD_RowVTable_##dictMode##_##mls##_##rowLog = {              \
-        ZSTD_RowFindBestMatch_##dictMode##_##mls##_##rowLog                                    \
-    };
 
 #define ZSTD_FOR_EACH_ROWLOG(X, dictMode, mls) \
     X(dictMode, mls, 4)                        \
@@ -1407,83 +1397,102 @@ typedef struct {
     X(__VA_ARGS__, dictMatchState)      \
     X(__VA_ARGS__, dedicatedDictSearch)
 
-/* Generate Row VTables for each combination of (dictMode, mls, rowLog) */
-ZSTD_FOR_EACH_DICT_MODE(ZSTD_FOR_EACH_MLS_ROWLOG, GEN_ZSTD_ROW_VTABLE)
-/* Generate Binary Tree VTables for each combination of (dictMode, mls) */
-ZSTD_FOR_EACH_DICT_MODE(ZSTD_FOR_EACH_MLS, GEN_ZSTD_BT_VTABLE)
-/* Generate Hash Chain VTables for each combination of (dictMode, mls) */
-ZSTD_FOR_EACH_DICT_MODE(ZSTD_FOR_EACH_MLS, GEN_ZSTD_HC_VTABLE)
+/* Generate row search fns for each combination of (dictMode, mls, rowLog) */
+ZSTD_FOR_EACH_DICT_MODE(ZSTD_FOR_EACH_MLS_ROWLOG, GEN_ZSTD_ROW_SEARCH_FN)
+/* Generate binary Tree search fns for each combination of (dictMode, mls) */
+ZSTD_FOR_EACH_DICT_MODE(ZSTD_FOR_EACH_MLS, GEN_ZSTD_BT_SEARCH_FN)
+/* Generate hash chain search fns for each combination of (dictMode, mls) */
+ZSTD_FOR_EACH_DICT_MODE(ZSTD_FOR_EACH_MLS, GEN_ZSTD_HC_SEARCH_FN)
 
-#define GEN_ZSTD_BT_VTABLE_ARRAY(dictMode) \
-    {                                      \
-        &ZSTD_BtVTable_##dictMode##_4,     \
-        &ZSTD_BtVTable_##dictMode##_5,     \
-        &ZSTD_BtVTable_##dictMode##_6      \
+typedef enum { search_hashChain=0, search_binaryTree=1, search_rowHash=2 } searchMethod_e;
+
+#define GEN_ZSTD_CALL_BT_SEARCH_FN(dictMode, mls)                         \
+    case mls:                                                             \
+        return ZSTD_BT_SEARCH_FN(dictMode, mls)(ms, ip, iend, offsetPtr);
+#define GEN_ZSTD_CALL_HC_SEARCH_FN(dictMode, mls)                         \
+    case mls:                                                             \
+        return ZSTD_HC_SEARCH_FN(dictMode, mls)(ms, ip, iend, offsetPtr);
+#define GEN_ZSTD_CALL_ROW_SEARCH_FN(dictMode, mls, rowLog)                         \
+    case rowLog:                                                                   \
+        return ZSTD_ROW_SEARCH_FN(dictMode, mls, rowLog)(ms, ip, iend, offsetPtr);
+
+#define ZSTD_SWITCH_MLS(X, dictMode)   \
+    switch (mls) {                     \
+        ZSTD_FOR_EACH_MLS(X, dictMode) \
     }
 
-#define GEN_ZSTD_HC_VTABLE_ARRAY(dictMode) \
-    {                                      \
-        &ZSTD_HcVTable_##dictMode##_4,     \
-        &ZSTD_HcVTable_##dictMode##_5,     \
-        &ZSTD_HcVTable_##dictMode##_6      \
-    }
+#define ZSTD_SWITCH_ROWLOG(dictMode, mls)                                    \
+    case mls:                                                                \
+        switch (rowLog) {                                                    \
+            ZSTD_FOR_EACH_ROWLOG(GEN_ZSTD_CALL_ROW_SEARCH_FN, dictMode, mls) \
+        }                                                                    \
+        ZSTD_UNREACHABLE;                                                    \
+        break;
 
-#define GEN_ZSTD_ROW_VTABLE_ARRAY_(dictMode, mls) \
-    {                                             \
-        &ZSTD_RowVTable_##dictMode##_##mls##_4,   \
-        &ZSTD_RowVTable_##dictMode##_##mls##_5,   \
-        &ZSTD_RowVTable_##dictMode##_##mls##_6    \
-    }
+#define ZSTD_SWITCH_SEARCH_METHOD(dictMode)                       \
+    switch (searchMethod) {                                       \
+        case search_hashChain:                                    \
+            ZSTD_SWITCH_MLS(GEN_ZSTD_CALL_HC_SEARCH_FN, dictMode) \
+            break;                                                \
+        case search_binaryTree:                                   \
+            ZSTD_SWITCH_MLS(GEN_ZSTD_CALL_BT_SEARCH_FN, dictMode) \
+            break;                                                \
+        case search_rowHash:                                      \
+            ZSTD_SWITCH_MLS(ZSTD_SWITCH_ROWLOG, dictMode)         \
+            break;                                                \
+    }                                                             \
+    ZSTD_UNREACHABLE;
 
-#define GEN_ZSTD_ROW_VTABLE_ARRAY(dictMode)      \
-    {                                            \
-        GEN_ZSTD_ROW_VTABLE_ARRAY_(dictMode, 4), \
-        GEN_ZSTD_ROW_VTABLE_ARRAY_(dictMode, 5), \
-        GEN_ZSTD_ROW_VTABLE_ARRAY_(dictMode, 6)  \
+/**
+ * Searches for the longest match at @p ip.
+ * Dispatches to the correct implementation function based on the
+ * (searchMethod, dictMode, mls, rowLog). We use switch statements
+ * here instead of using an indirect function call through a function
+ * pointer because after Spectre and Meltdown mitigations, indirect
+ * function calls can be very costly, especially in the kernel.
+ *
+ * NOTE: dictMode and searchMethod should be templated, so those switch
+ * statements should be optimized out. Only the mls & rowLog switches
+ * should be left.
+ *
+ * @param ms The match state.
+ * @param ip The position to search at.
+ * @param iend The end of the input data.
+ * @param[out] offsetPtr Stores the match offset into this pointer.
+ * @param mls The minimum search length, in the range [4, 6].
+ * @param rowLog The row log (if applicable), in the range [4, 6].
+ * @param searchMethod The search method to use (templated).
+ * @param dictMode The dictMode (templated).
+ *
+ * @returns The length of the longest match found, or < mls if no match is found.
+ * If a match is found its offset is stored in @p offsetPtr.
+ */
+FORCE_INLINE_TEMPLATE size_t ZSTD_searchMax(
+    ZSTD_matchState_t* ms,
+    const BYTE* ip,
+    const BYTE* iend,
+    size_t* offsetPtr,
+    U32 const mls,
+    U32 const rowLog,
+    searchMethod_e const searchMethod,
+    ZSTD_dictMode_e const dictMode)
+{
+    if (dictMode == ZSTD_noDict) {
+        ZSTD_SWITCH_SEARCH_METHOD(noDict)
+    } else if (dictMode == ZSTD_extDict) {
+        ZSTD_SWITCH_SEARCH_METHOD(extDict)
+    } else if (dictMode == ZSTD_dictMatchState) {
+        ZSTD_SWITCH_SEARCH_METHOD(dictMatchState)
+    } else if (dictMode == ZSTD_dedicatedDictSearch) {
+        ZSTD_SWITCH_SEARCH_METHOD(dedicatedDictSearch)
     }
-
-#define GEN_ZSTD_VTABLE_ARRAY(X) \
-    {                            \
-        X(noDict),               \
-        X(extDict),              \
-        X(dictMatchState),       \
-        X(dedicatedDictSearch)   \
-    }
+    ZSTD_UNREACHABLE;
+    return 0;
+}
 
 /* *******************************
 *  Common parser - lazy strategy
 *********************************/
-typedef enum { search_hashChain=0, search_binaryTree=1, search_rowHash=2 } searchMethod_e;
-
-/**
- * This table is indexed first by the four ZSTD_dictMode_e values, and then
- * by the two searchMethod_e values. NULLs are placed for configurations
- * that should never occur (extDict modes go to the other implementation
- * below and there is no DDSS for binary tree search yet).
- */
-
-static ZSTD_LazyVTable const*
-ZSTD_selectLazyVTable(ZSTD_matchState_t const* ms, searchMethod_e searchMethod, ZSTD_dictMode_e dictMode)
-{
-    /* Fill the Hc/Bt VTable arrays with the right functions for the (dictMode, mls) combination. */
-    ZSTD_LazyVTable const* const hcVTables[4][3] = GEN_ZSTD_VTABLE_ARRAY(GEN_ZSTD_HC_VTABLE_ARRAY);
-    ZSTD_LazyVTable const* const btVTables[4][3] = GEN_ZSTD_VTABLE_ARRAY(GEN_ZSTD_BT_VTABLE_ARRAY);
-    /* Fill the Row VTable array with the right functions for the (dictMode, mls, rowLog) combination. */
-    ZSTD_LazyVTable const* const rowVTables[4][3][3] = GEN_ZSTD_VTABLE_ARRAY(GEN_ZSTD_ROW_VTABLE_ARRAY);
-
-    U32 const mls = MAX(4, MIN(6, ms->cParams.minMatch));
-    U32 const rowLog = MAX(4, MIN(6, ms->cParams.searchLog));
-    switch (searchMethod) {
-        case search_hashChain:
-            return hcVTables[dictMode][mls - 4];
-        case search_binaryTree:
-            return btVTables[dictMode][mls - 4];
-        case search_rowHash:
-            return rowVTables[dictMode][mls - 4][rowLog - 4];
-        default:
-            return NULL;
-    }
-}
 
 FORCE_INLINE_TEMPLATE size_t
 ZSTD_compressBlock_lazy_generic(
@@ -1501,8 +1510,9 @@ ZSTD_compressBlock_lazy_generic(
     const BYTE* const base = ms->window.base;
     const U32 prefixLowestIndex = ms->window.dictLimit;
     const BYTE* const prefixLowest = base + prefixLowestIndex;
+    const U32 mls = BOUNDED(4, ms->cParams.minMatch, 6);
+    const U32 rowLog = BOUNDED(4, ms->cParams.searchLog, 6);
 
-    searchMax_f const searchMax = ZSTD_selectLazyVTable(ms, searchMethod, dictMode)->searchMax;
     U32 offset_1 = rep[0], offset_2 = rep[1];
     U32 offsetSaved1 = 0, offsetSaved2 = 0;
 
@@ -1518,8 +1528,6 @@ ZSTD_compressBlock_lazy_generic(
                                      prefixLowestIndex - (U32)(dictEnd - dictBase) :
                                      0;
     const U32 dictAndPrefixLength = (U32)((ip - prefixLowest) + (dictEnd - dictLowest));
-
-    assert(searchMax != NULL);
 
     DEBUGLOG(5, "ZSTD_compressBlock_lazy_generic (dictMode=%u) (searchFunc=%u)", (U32)dictMode, (U32)searchMethod);
     ip += (dictAndPrefixLength == 0);
@@ -1538,7 +1546,6 @@ ZSTD_compressBlock_lazy_generic(
     }
 
     if (searchMethod == search_rowHash) {
-        const U32 rowLog = MAX(4, MIN(6, ms->cParams.searchLog));
         ZSTD_row_fillHashCache(ms, base, rowLog,
                             MIN(ms->cParams.minMatch, 6 /* mls caps out at 6 */),
                             ms->nextToUpdate, ilimit);
@@ -1579,7 +1586,7 @@ ZSTD_compressBlock_lazy_generic(
 
         /* first search (depth 0) */
         {   size_t offbaseFound = 999999999;
-            size_t const ml2 = searchMax(ms, ip, iend, &offbaseFound);
+            size_t const ml2 = ZSTD_searchMax(ms, ip, iend, &offbaseFound, mls, rowLog, searchMethod, dictMode);
             if (ml2 > matchLength)
                 matchLength = ml2, start = ip, offBase = offbaseFound;
         }
@@ -1618,7 +1625,7 @@ ZSTD_compressBlock_lazy_generic(
                 }
             }
             {   size_t ofbCandidate=999999999;
-                size_t const ml2 = searchMax(ms, ip, iend, &ofbCandidate);
+                size_t const ml2 = ZSTD_searchMax(ms, ip, iend, &ofbCandidate, mls, rowLog, searchMethod, dictMode);
                 int const gain2 = (int)(ml2*4 - ZSTD_highbit32((U32)ofbCandidate));   /* raw approx */
                 int const gain1 = (int)(matchLength*4 - ZSTD_highbit32((U32)offBase) + 4);
                 if ((ml2 >= 4) && (gain2 > gain1)) {
@@ -1654,7 +1661,7 @@ ZSTD_compressBlock_lazy_generic(
                     }
                 }
                 {   size_t ofbCandidate=999999999;
-                    size_t const ml2 = searchMax(ms, ip, iend, &ofbCandidate);
+                    size_t const ml2 = ZSTD_searchMax(ms, ip, iend, &ofbCandidate, mls, rowLog, searchMethod, dictMode);
                     int const gain2 = (int)(ml2*4 - ZSTD_highbit32((U32)ofbCandidate));   /* raw approx */
                     int const gain1 = (int)(matchLength*4 - ZSTD_highbit32((U32)offBase) + 7);
                     if ((ml2 >= 4) && (gain2 > gain1)) {
@@ -1899,9 +1906,9 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
     const BYTE* const dictEnd  = dictBase + dictLimit;
     const BYTE* const dictStart  = dictBase + ms->window.lowLimit;
     const U32 windowLog = ms->cParams.windowLog;
-    const U32 rowLog = ms->cParams.searchLog < 5 ? 4 : 5;
+    const U32 mls = BOUNDED(4, ms->cParams.minMatch, 6);
+    const U32 rowLog = BOUNDED(4, ms->cParams.searchLog, 6);
 
-    searchMax_f const searchMax = ZSTD_selectLazyVTable(ms, searchMethod, ZSTD_extDict)->searchMax;
     U32 offset_1 = rep[0], offset_2 = rep[1];
 
     DEBUGLOG(5, "ZSTD_compressBlock_lazy_extDict_generic (searchFunc=%u)", (U32)searchMethod);
@@ -1943,7 +1950,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
 
         /* first search (depth 0) */
         {   size_t ofbCandidate = 999999999;
-            size_t const ml2 = searchMax(ms, ip, iend, &ofbCandidate);
+            size_t const ml2 = ZSTD_searchMax(ms, ip, iend, &ofbCandidate, mls, rowLog, searchMethod, ZSTD_extDict);
             if (ml2 > matchLength)
                 matchLength = ml2, start = ip, offBase = ofbCandidate;
         }
@@ -1978,7 +1985,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
 
             /* search match, depth 1 */
             {   size_t ofbCandidate = 999999999;
-                size_t const ml2 = searchMax(ms, ip, iend, &ofbCandidate);
+                size_t const ml2 = ZSTD_searchMax(ms, ip, iend, &ofbCandidate, mls, rowLog, searchMethod, ZSTD_extDict);
                 int const gain2 = (int)(ml2*4 - ZSTD_highbit32((U32)ofbCandidate));   /* raw approx */
                 int const gain1 = (int)(matchLength*4 - ZSTD_highbit32((U32)offBase) + 4);
                 if ((ml2 >= 4) && (gain2 > gain1)) {
@@ -2010,7 +2017,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
 
                 /* search match, depth 2 */
                 {   size_t ofbCandidate = 999999999;
-                    size_t const ml2 = searchMax(ms, ip, iend, &ofbCandidate);
+                    size_t const ml2 = ZSTD_searchMax(ms, ip, iend, &ofbCandidate, mls, rowLog, searchMethod, ZSTD_extDict);
                     int const gain2 = (int)(ml2*4 - ZSTD_highbit32((U32)ofbCandidate));   /* raw approx */
                     int const gain1 = (int)(matchLength*4 - ZSTD_highbit32((U32)offBase) + 7);
                     if ((ml2 >= 4) && (gain2 > gain1)) {

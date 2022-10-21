@@ -30,6 +30,11 @@
 ****************************************************************/
 
 #define HUF_DECODER_FAST_TABLELOG 11
+#if defined(__aarch64__)
+#define SYMBOLS_PER_ITER 5
+#else
+#define SYMBOLS_PER_ITER 4
+#endif
 
 /* **************************************************************
 *  Macros
@@ -504,13 +509,17 @@ HUF_decodeStreamX1(BYTE* p, BIT_DStream_t* const bitDPtr, BYTE* const pEnd, cons
 {
     BYTE* const pStart = p;
 
-    /* up to 4 symbols at a time */
-    if ((pEnd - p) > 3) {
-        while ((BIT_reloadDStream(bitDPtr) == BIT_DStream_unfinished) & (p < pEnd-3)) {
+    /* up to SYMBOLS_PER_ITER symbols at a time */
+    if ((pEnd - p) > (SYMBOLS_PER_ITER - 1)) {
+        while ((BIT_reloadDStream(bitDPtr) == BIT_DStream_unfinished) &
+            (p < pEnd - (SYMBOLS_PER_ITER - 1))) {
             HUF_DECODE_SYMBOLX1_2(p, bitDPtr);
             HUF_DECODE_SYMBOLX1_1(p, bitDPtr);
             HUF_DECODE_SYMBOLX1_2(p, bitDPtr);
             HUF_DECODE_SYMBOLX1_0(p, bitDPtr);
+            if (SYMBOLS_PER_ITER == 5) {
+                HUF_DECODE_SYMBOLX1_0(p, bitDPtr);
+            }
         }
     } else {
         BIT_reloadDStream(bitDPtr);
@@ -563,7 +572,7 @@ HUF_decompress4X1_usingDTable_internal_body(
     {   const BYTE* const istart = (const BYTE*) cSrc;
         BYTE* const ostart = (BYTE*) dst;
         BYTE* const oend = ostart + dstSize;
-        BYTE* const olimit = oend - 3;
+        BYTE* const olimit = oend - SYMBOLS_PER_ITER;
         const void* const dtPtr = DTable + 1;
         const HUF_DEltX1* const dt = (const HUF_DEltX1*)dtPtr;
 
@@ -599,7 +608,8 @@ HUF_decompress4X1_usingDTable_internal_body(
         CHECK_F( BIT_initDStream(&bitD3, istart3, length3) );
         CHECK_F( BIT_initDStream(&bitD4, istart4, length4) );
 
-        /* up to 16 symbols per loop (4 symbols per stream) in 64-bit mode */
+        /* up to 4*SYMBOLS_PER_ITER symbols per loop */
+        /* (SYMBOLS_PER_ITER symbols per stream) in 64-bit mode */
         if ((size_t)(oend - op4) >= sizeof(size_t)) {
             for ( ; (endSignal) & (op4 < olimit) ; ) {
                 HUF_DECODE_SYMBOLX1_2(op1, &bitD1);
@@ -618,6 +628,13 @@ HUF_decompress4X1_usingDTable_internal_body(
                 HUF_DECODE_SYMBOLX1_0(op2, &bitD2);
                 HUF_DECODE_SYMBOLX1_0(op3, &bitD3);
                 HUF_DECODE_SYMBOLX1_0(op4, &bitD4);
+                if (SYMBOLS_PER_ITER == 5) {
+                    /* Can only reach here if in 64 bit mode, safe to use HUF_DECODE_SYMBOLX1_0 */
+                    HUF_DECODE_SYMBOLX1_0(op1, &bitD1);
+                    HUF_DECODE_SYMBOLX1_0(op2, &bitD2);
+                    HUF_DECODE_SYMBOLX1_0(op3, &bitD3);
+                    HUF_DECODE_SYMBOLX1_0(op4, &bitD4);
+                }
                 endSignal &= BIT_reloadDStreamFast(&bitD1) == BIT_DStream_unfinished;
                 endSignal &= BIT_reloadDStreamFast(&bitD2) == BIT_DStream_unfinished;
                 endSignal &= BIT_reloadDStreamFast(&bitD3) == BIT_DStream_unfinished;

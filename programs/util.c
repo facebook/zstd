@@ -569,7 +569,7 @@ UTIL_mergeFileNamesTable(FileNamesTable* table1, FileNamesTable* table2)
         for( idx2=0 ; (idx2 < table2->tableSize) && table2->fileNames[idx2] && (pos < newTotalTableSize) ; ++idx2, ++newTableIdx) {
             size_t const curLen = strlen(table2->fileNames[idx2]);
             memcpy(buf+pos, table2->fileNames[idx2], curLen);
-            assert(newTableIdx <= newTable->tableSize);
+            assert(newTableIdx < newTable->tableSize);
             newTable->fileNames[newTableIdx] = buf+pos;
             pos += curLen+1;
     }   }

@@ -1266,10 +1266,11 @@ unsigned HUF_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxS
         unsigned huffLog;
         size_t maxBits, hSize, newSize;
         const unsigned symbolCardinality = HUF_cardinality(count, maxSymbolValue);
-        const unsigned minTableLog = HUF_minTableLog(srcSize, symbolCardinality);
+        const unsigned minTableLog = HUF_minTableLog(symbolCardinality);
 
         if (wkspSize < sizeof(HUF_buildCTable_wksp_tables)) return optLog;
 
+        /* Search left of guess until size increases */
         for (huffLog = optLogGuess; huffLog >= minTableLog; huffLog--) {
             maxBits = HUF_buildCTable_wksp(table, count,
                                             maxSymbolValue, huffLog,
@@ -1290,6 +1291,7 @@ unsigned HUF_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxS
             }
         }
 
+        /* Search right of estimate until size increases */
         for (huffLog = optLogGuess + 1; huffLog <= maxTableLog; huffLog++) {
             maxBits = HUF_buildCTable_wksp(table, count,
                                             maxSymbolValue, huffLog,

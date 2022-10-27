@@ -173,7 +173,7 @@ size_t HUF_decompress4X2_DCtx_wksp(HUF_DTable* dctx, void* dst, size_t dstSize, 
 /* ****************************************
  *  HUF detailed API
  * ****************************************/
-#define HUF_OPTIMAL_DEPTH_THRESHOLD 3
+#define HUF_OPTIMAL_DEPTH_THRESHOLD ZSTD_btultra
 typedef enum {
    HUF_depth_fast, /** Use heuristic to find the table depth**/
    HUF_depth_optimal /** Test possible table depths to find the one that produces the smallest header + encoded size**/

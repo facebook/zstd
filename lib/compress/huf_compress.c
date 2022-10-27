@@ -1253,63 +1253,54 @@ unsigned HUF_minTableLog(unsigned symbolCardinality)
     return minBitsSymbols;
 }
 
+#define ESTIMATE_TOTAL_SIZE(huffLog) {\
+            maxBits = HUF_buildCTable_wksp(table, count, maxSymbolValue, huffLog, workSpace, wkspSize);\
+            if (ERR_isError(maxBits)) continue;\
+            hSize = HUF_writeCTable_wksp(dst, dstSize, table, maxSymbolValue, (U32)maxBits, workSpace, wkspSize);\
+            if (ERR_isError(hSize)) continue;\
+            newSize = HUF_estimateCompressedSize(table, count, maxSymbolValue) + hSize;\
+            }\
+
 unsigned HUF_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue, void* workSpace, size_t wkspSize, HUF_CElt* table, const unsigned* count, HUF_depth_mode depthMode)
 {
-    unsigned optLogGuess = FSE_optimalTableLog_internal(maxTableLog, srcSize, maxSymbolValue, 1);
-    unsigned optLog = optLogGuess;
+    unsigned optLog = FSE_optimalTableLog_internal(maxTableLog, srcSize, maxSymbolValue, 1);
     assert(srcSize > 1); /* Not supported, RLE should be used instead */
 
     if (depthMode == HUF_depth_optimal) { /** Test valid depths and return optimal **/
         BYTE* dst = (BYTE*)workSpace + sizeof(HUF_WriteCTableWksp);
         size_t dstSize = wkspSize - sizeof(HUF_WriteCTableWksp);
-        size_t optSize = ((size_t) ~0);
-        unsigned huffLog;
         size_t maxBits, hSize, newSize;
         const unsigned symbolCardinality = HUF_cardinality(count, maxSymbolValue);
         const unsigned minTableLog = HUF_minTableLog(symbolCardinality);
+        size_t optSize = ((size_t) ~0);
+        unsigned optLogGuess = optLog;
 
-        if (wkspSize < sizeof(HUF_buildCTable_wksp_tables)) return optLog;
+        if (wkspSize < sizeof(HUF_buildCTable_wksp_tables)) return optLog; /** Assert workspace is large enough **/
 
-        /* Search left of guess until size increases */
-        for (huffLog = optLogGuess; huffLog >= minTableLog; huffLog--) {
-            maxBits = HUF_buildCTable_wksp(table, count,
-                                            maxSymbolValue, huffLog,
-                                            workSpace, wkspSize);
-            if (ERR_isError(maxBits)) continue;
-
-            hSize = HUF_writeCTable_wksp(dst, dstSize, table, maxSymbolValue, (U32)maxBits,
-                                              workSpace, wkspSize);
-            if (ERR_isError(hSize)) continue;
-
-            newSize = HUF_estimateCompressedSize(table, count, maxSymbolValue) + hSize;
+        /* Search below estimate log until size increases */
+        for (; optLogGuess >= minTableLog; optLogGuess--) {
+            ESTIMATE_TOTAL_SIZE(optLogGuess);
 
             if (newSize > optSize) {
                 break;
-            } else {
-                optSize = newSize;
-                optLog = huffLog;
             }
+            optSize = newSize;
+            optLog = optLogGuess;
         }
 
-        /* Search right of estimate until size increases */
-        for (huffLog = optLogGuess + 1; huffLog <= maxTableLog; huffLog++) {
-            maxBits = HUF_buildCTable_wksp(table, count,
-                                            maxSymbolValue, huffLog,
-                                            workSpace, wkspSize);
-            if (ERR_isError(maxBits)) continue;
+        if (optSize < ((size_t) ~0)) {
+            return optLog;
+        }
 
-            hSize = HUF_writeCTable_wksp(dst, dstSize, table, maxSymbolValue, (U32)maxBits,
-                                              workSpace, wkspSize);
-            if (ERR_isError(hSize)) continue;
-
-            newSize = HUF_estimateCompressedSize(table, count, maxSymbolValue) + hSize;
+        /* Search above estimate log until size increases */
+        for (; optLogGuess <= maxTableLog; optLogGuess++) {
+            ESTIMATE_TOTAL_SIZE(optLogGuess);
 
             if (newSize > optSize) {
                 break;
-            } else {
-                optSize = newSize;
-                optLog = huffLog;
             }
+            optSize = newSize;
+            optLog = optLogGuess;
         }
     }
     assert(optLog <= HUF_TABLELOG_MAX);

@@ -693,8 +693,11 @@ static int UTIL_prepareFileList(const char *dirName,
                 ptrdiff_t newListSize = (*bufEnd - *bufStart) + LIST_SIZE_INCREASE;
                 assert(newListSize >= 0);
                 *bufStart = (char*)UTIL_realloc(*bufStart, (size_t)newListSize);
-                *bufEnd = *bufStart + newListSize;
-                if (*bufStart == NULL) { free(path); closedir(dir); return 0; }
+                if (*bufStart != NULL) {
+                    *bufEnd = *bufStart + newListSize;
+                } else {
+                    free(path); closedir(dir); return 0;
+                }
             }
             if (*bufStart + *pos + pathLength < *bufEnd) {
                 memcpy(*bufStart + *pos, path, pathLength + 1);  /* with final \0 */

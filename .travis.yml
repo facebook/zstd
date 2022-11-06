@@ -115,7 +115,7 @@ matrix:
             -Dbin_tests=true \
             -Dbin_contrib=true \
             -Ddefault_library=both \
-             build/meson builddir
+             builddir
         - pushd builddir
         - ninja
         - meson test --verbose --no-rebuild

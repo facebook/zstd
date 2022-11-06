@@ -24,7 +24,7 @@ project('zstd',
     #'werror=true'
   ],
   version: run_command(
-    find_program('GetZstdLibraryVersion.py'), '../../lib/zstd.h',
+    find_program('build/meson/GetZstdLibraryVersion.py'), 'lib/zstd.h',
     check: true).stdout().strip(),
   meson_version: '>=0.48.0')
 
@@ -128,16 +128,16 @@ endif
 # Subdirs
 # =============================================================================
 
-subdir('lib')
+subdir('build/meson/lib')
 
 if bin_programs
-  subdir('programs')
+  subdir('build/meson/programs')
 endif
 
 if bin_tests
-  subdir('tests')
+  subdir('build/meson/tests')
 endif
 
 if bin_contrib
-  subdir('contrib')
+  subdir('build/meson/contrib')
 endif

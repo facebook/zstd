@@ -28,6 +28,7 @@
 #include "zstd_ldm.h"
 #include "zstd_compress_superblock.h"
 #include  "../common/bits.h"      /* ZSTD_highbit32 */
+#include <stdio.h>
 
 /* ***************************************************************
 *  Tuning parameters
@@ -2870,6 +2871,14 @@ void ZSTD_resetSeqStore(seqStore_t* ssPtr)
 
 typedef enum { ZSTDbss_compress, ZSTDbss_noCompress } ZSTD_buildSeqStore_e;
 
+// @nocommit External matchfinder, need to move this at some point
+ZSTD_Sequence globalSeqs[100000]; // @nocommit
+
+void ZSTD_registerExternalMatchfinder(ZSTD_CCtx* zc, ZSTD_externalMatchfinder_F* externalBlockMatchfinder) {
+    // @nocommit Check on how to make this sticky
+    zc->externalBlockMatchfinder = externalBlockMatchfinder;
+}
+
 static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
 {
     ZSTD_matchState_t* const ms = &zc->blockState.matchState;
@@ -2940,6 +2949,15 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
                                        zc->appliedParams.useRowMatchFinder,
                                        src, srcSize);
             assert(ldmSeqStore.pos == ldmSeqStore.size);
+        } else if (1 /* @nocommit: change to a cparam */) {
+            size_t numSeqsFound = (zc->externalBlockMatchfinder)(
+                NULL, globalSeqs, 100000, src, srcSize, 0
+            );
+            ZSTD_sequencePosition seqPos = {0,0,0};
+            lastLLSize = 0; // @nocommit
+            ZSTD_copySequencesToSeqStoreExplicitBlockDelim(
+                zc, &seqPos, globalSeqs, numSeqsFound, src, srcSize
+            );
         } else {   /* not long range mode */
             ZSTD_blockCompressor const blockCompressor = ZSTD_selectBlockCompressor(zc->appliedParams.cParams.strategy,
                                                                                     zc->appliedParams.useRowMatchFinder,
@@ -3862,6 +3880,22 @@ ZSTD_compressBlock_splitBlock(ZSTD_CCtx* zc,
     FORWARD_IF_ERROR(cSize, "Splitting blocks failed!");
     return cSize;
 }
+
+// @nocommit
+// static size_t ZSTD_buildSeqStoreUsingExternalMatchfinder(
+//     ZSTD_CCtx* zc, const void* src, size_t srcSize
+// ) {
+//     if (srcSize < MIN_CBLOCK_SIZE+ZSTD_blockHeaderSize+1+1) {
+//         if (zc->appliedParams.cParams.strategy >= ZSTD_btopt) {
+//             ZSTD_ldm_skipRawSeqStoreBytes(&zc->externSeqStore, srcSize);
+//         } else {
+//             ZSTD_ldm_skipSequences(&zc->externSeqStore, srcSize, zc->appliedParams.cParams.minMatch);
+//         }
+//         return ZSTDbss_noCompress; /* don't even attempt compression below a certain srcSize */
+//     }
+//     ZSTD_resetSeqStore(&(zc->seqStore));
+//     return 0;
+// }
 
 static size_t
 ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
@@ -5927,12 +5961,6 @@ size_t ZSTD_compress2(ZSTD_CCtx* cctx,
     }
 }
 
-typedef struct {
-    U32 idx;            /* Index in array of ZSTD_Sequence */
-    U32 posInSequence;  /* Position within sequence at idx */
-    size_t posInSrc;    /* Number of bytes given by sequences provided so far */
-} ZSTD_sequencePosition;
-
 /* ZSTD_validateSequence() :
  * @offCode : is presumed to follow format required by ZSTD_storeSeq()
  * @returns a ZSTD error code if sequence is not valid
@@ -5973,7 +6001,7 @@ static U32 ZSTD_finalizeOffBase(U32 rawOffset, const U32 rep[ZSTD_REP_NUM], U32 
 /* Returns 0 on success, and a ZSTD_error otherwise. This function scans through an array of
  * ZSTD_Sequence, storing the sequences it finds, until it reaches a block delimiter.
  */
-static size_t
+size_t
 ZSTD_copySequencesToSeqStoreExplicitBlockDelim(ZSTD_CCtx* cctx,
                                               ZSTD_sequencePosition* seqPos,
                                         const ZSTD_Sequence* const inSeqs, size_t inSeqsSize,

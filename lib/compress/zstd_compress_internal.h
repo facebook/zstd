@@ -150,6 +150,18 @@ typedef struct {
   size_t capacity;      /* The capacity starting from `seq` pointer */
 } rawSeqStore_t;
 
+typedef struct {
+    U32 idx;            /* Index in array of ZSTD_Sequence */
+    U32 posInSequence;  /* Position within sequence at idx */
+    size_t posInSrc;    /* Number of bytes given by sequences provided so far */
+} ZSTD_sequencePosition;
+
+size_t
+ZSTD_copySequencesToSeqStoreExplicitBlockDelim(ZSTD_CCtx* cctx,
+                                              ZSTD_sequencePosition* seqPos,
+                                        const ZSTD_Sequence* const inSeqs, size_t inSeqsSize,
+                                        const void* src, size_t blockSize);
+
 UNUSED_ATTR static const rawSeqStore_t kNullRawSeqStore = {NULL, 0, 0, 0, 0};
 
 typedef struct {
@@ -440,6 +452,9 @@ struct ZSTD_CCtx_s {
 
     /* Workspace for block splitter */
     ZSTD_blockSplitCtx blockSplitCtx;
+
+    /* External block matchfinder */
+    ZSTD_externalMatchfinder_F* externalBlockMatchfinder;
 };
 
 typedef enum { ZSTD_dtlm_fast, ZSTD_dtlm_full } ZSTD_dictTableLoadMethod_e;

@@ -1508,6 +1508,24 @@ ZSTD_compressSequences( ZSTD_CCtx* cctx, void* dst, size_t dstSize,
                         const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
                         const void* src, size_t srcSize);
 
+typedef size_t ZSTD_externalMatchfinder_F (
+  void* externalMatchState, // TODO make this an externalMatchState type
+  ZSTD_Sequence* outSeqs, size_t outSeqsCapacity,
+  // outSeqsCapacity >= blockSize / MINMATCH
+  const void* src, size_t srcSize, size_t historySize
+  // srcSize - historySize <= 128 KB
+  // historySize < srcSize ; any size
+);
+
+// @nocommit document this
+ZSTDLIB_STATIC_API void
+ZSTD_registerExternalMatchfinder(ZSTD_CCtx* cctx, ZSTD_externalMatchfinder_F* externalBlockMatchfinder);
+
+// @nocommit
+size_t DONT_COMMIT_simpleExternalMatchfinder(
+  void* matchState, ZSTD_Sequence* outSeqs, size_t outSeqsCapacity,
+  const void* src, size_t srcSize, size_t historySize
+);
 
 /*! ZSTD_writeSkippableFrame() :
  * Generates a zstd skippable frame containing data given by src, and writes it to dst buffer.

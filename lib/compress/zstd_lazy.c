@@ -1078,7 +1078,7 @@ ZSTD_row_getMatchMask(const BYTE* const tagRow, const BYTE tag, const U32 headGr
     }
 # endif /* ZSTD_ARCH_ARM_NEON */
     /* SWAR */
-    {   const size_t chunkSize = sizeof(size_t);
+    {   const int chunkSize = sizeof(size_t);
         const size_t shiftAmount = ((chunkSize * 8) - chunkSize);
         const size_t xFF = ~((size_t)0);
         const size_t x01 = xFF / 0xFF;

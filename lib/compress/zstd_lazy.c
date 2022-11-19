@@ -2123,7 +2123,6 @@ size_t ZSTD_compressBlock_lazy_extDict_row(
 size_t ZSTD_compressBlock_lazy2_extDict_row(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize)
-
 {
     return ZSTD_compressBlock_lazy_extDict_generic(ms, seqStore, rep, src, srcSize, search_rowHash, 2);
 }

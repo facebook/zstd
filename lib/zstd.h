@@ -1516,7 +1516,8 @@ typedef size_t ZSTD_externalMatchFinder_F (
   void* externalMatchState, // TODO make this an externalMatchState type
   ZSTD_Sequence* outSeqs, size_t outSeqsCapacity,
   // outSeqsCapacity >= blockSize / MINMATCH
-  const void* src, size_t srcSize, size_t historySize
+  const void* src, size_t srcSize,
+  const void* dict, size_t dictSize
   // srcSize - historySize <= 128 KB
   // historySize < srcSize ; any size
 );

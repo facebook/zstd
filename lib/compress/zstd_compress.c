@@ -2964,8 +2964,9 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
                                        src, srcSize);
             assert(ldmSeqStore.pos == ldmSeqStore.size);
         } else if (1 /* @nocommit: change to a cparam */) {
+            // @nocommit document lack of dictionary support in function call
             size_t numSeqsFound = (zc->externalMatchCtx.mFinder)(
-                NULL, zc->externalMatchCtx.seqBuffer, zc->externalMatchCtx.seqBufferCapacity, src, srcSize, 0
+                NULL, zc->externalMatchCtx.seqBuffer, zc->externalMatchCtx.seqBufferCapacity, src, srcSize, NULL, 0
             );
             ZSTD_sequencePosition seqPos = {0,0,0};
             lastLLSize = 0; // @nocommit

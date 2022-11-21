@@ -2880,15 +2880,15 @@ void ZSTD_registerExternalMatchfinder(
     ZSTD_externalMatchStateDestructor_F* mStateDestructor
 ) {
     // @nocommit Call clearExternalMatchContext()
-    size_t const seqBufferSize = ZSTD_sequenceBound(ZSTD_BLOCKSIZE_MAX) * sizeof(ZSTD_Sequence);
-    void* seqBuffer = ZSTD_malloc(seqBufferSize);
+    size_t const seqBufferCapacity = ZSTD_sequenceBound(ZSTD_BLOCKSIZE_MAX);
+    ZSTD_Sequence* seqBuffer = (ZSTD_Sequence*)ZSTD_malloc(seqBufferCapacity * sizeof(ZSTD_Sequence));
 
     ZSTD_externalMatchCtx emctx = {
         mState,
         mFinder,
         mStateDestructor,
         seqBuffer,
-        seqBufferSize
+        seqBufferCapacity
     };
     zc->externalMatchCtx = emctx;
 }
@@ -2965,7 +2965,7 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
             assert(ldmSeqStore.pos == ldmSeqStore.size);
         } else if (1 /* @nocommit: change to a cparam */) {
             size_t numSeqsFound = (zc->externalMatchCtx.mFinder)(
-                NULL, zc->externalMatchCtx.seqBuffer, zc->externalMatchCtx.seqBufferSize, src, srcSize, 0
+                NULL, zc->externalMatchCtx.seqBuffer, zc->externalMatchCtx.seqBufferCapacity, src, srcSize, 0
             );
             ZSTD_sequencePosition seqPos = {0,0,0};
             lastLLSize = 0; // @nocommit

@@ -389,8 +389,8 @@ typedef struct {
   void* mState;
   ZSTD_externalMatchFinder_F* mFinder;
   ZSTD_externalMatchStateDestructor_F* mStateDestructor;
-  void* seqBuffer; // @nocommit change from void* to ZSTD_Sequence*
-  size_t seqBufferSize;
+  ZSTD_Sequence* seqBuffer;
+  size_t seqBufferCapacity;
 } ZSTD_externalMatchCtx;
 
 struct ZSTD_CCtx_s {

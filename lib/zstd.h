@@ -1526,13 +1526,19 @@ typedef void ZSTD_externalMatchStateDestructor_F (
   void* externalMatchState
 );
 
-// @nocommit document this
-ZSTDLIB_STATIC_API void
-ZSTD_registerExternalMatchfinder(
+ZSTDLIB_STATIC_API size_t
+ZSTD_registerExternalMatchFinder(
   ZSTD_CCtx* cctx,
   void* externalMatchState,
   ZSTD_externalMatchFinder_F* externalMatchFinder,
   ZSTD_externalMatchStateDestructor_F* externalMatchStateDestructor
+);
+
+/* Note: calls the previously-registered ZSTD_externalMatchStateDestructor_F*
+ * if it is non-NULL. */
+ZSTDLIB_STATIC_API void
+ZSTD_clearExternalMatchFinder(
+  ZSTD_CCtx* cctx
 );
 
 /****************************************/

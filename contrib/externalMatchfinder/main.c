@@ -10,18 +10,25 @@
 const size_t ZSTD_LEVEL = 1;
 
 int main(int argc, char *argv[]) {
+    size_t res;
+
+    if (argc != 2) {
+        printf("Usage: exampleMatchfinder <file>\n");
+        return 1;
+    }
+
     ZSTD_CCtx* zc = ZSTD_createCCtx();
 
     // Here is the crucial bit of code!
-    ZSTD_registerExternalMatchfinder(
+    res = ZSTD_registerExternalMatchFinder(
         zc,
         NULL,
         simpleExternalMatchFinder,
         simpleExternalMatchStateDestructor
     );
 
-    if (argc != 2) {
-        printf("Usage: exampleMatchfinder <file>\n");
+    if (ZSTD_isError(res)) {
+        printf("ERROR: %s\n", ZSTD_getErrorString(res));
         return 1;
     }
 
@@ -45,7 +52,9 @@ int main(int argc, char *argv[]) {
     }
 
     char *val = malloc(srcSize);
-    size_t res = ZSTD_decompress(val, srcSize, dst, cSize);
+    res = ZSTD_decompress(val, srcSize, dst, cSize);
+
+    ZSTD_freeCCtx(zc);
 
     if (ZSTD_isError(res)) {
         printf("ERROR: %s\n", ZSTD_getErrorString(res));

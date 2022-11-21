@@ -173,6 +173,7 @@ static void ZSTD_freeCCtxContent(ZSTD_CCtx* cctx)
     assert(cctx != NULL);
     assert(cctx->staticSize == 0);
     ZSTD_clearAllDicts(cctx);
+    ZSTD_clearExternalMatchFinder(cctx);
 #ifdef ZSTD_MULTITHREAD
     ZSTDMT_freeCCtx(cctx->mtctx); cctx->mtctx = NULL;
 #endif
@@ -2874,14 +2875,18 @@ void ZSTD_resetSeqStore(seqStore_t* ssPtr)
 typedef enum { ZSTDbss_compress, ZSTDbss_noCompress } ZSTD_buildSeqStore_e;
 
 // @nocommit External matchfinder, need to move this at some point
-void ZSTD_registerExternalMatchfinder(
+size_t ZSTD_registerExternalMatchFinder(
     ZSTD_CCtx* zc, void* mState,
     ZSTD_externalMatchFinder_F* mFinder,
     ZSTD_externalMatchStateDestructor_F* mStateDestructor
 ) {
-    // @nocommit Call clearExternalMatchContext()
+    ZSTD_clearExternalMatchFinder(zc);
+
     size_t const seqBufferCapacity = ZSTD_sequenceBound(ZSTD_BLOCKSIZE_MAX);
     ZSTD_Sequence* seqBuffer = (ZSTD_Sequence*)ZSTD_malloc(seqBufferCapacity * sizeof(ZSTD_Sequence));
+    if (seqBuffer == NULL) {
+        return ZSTD_error_memory_allocation;
+    }
 
     ZSTD_externalMatchCtx emctx = {
         mState,
@@ -2891,6 +2896,21 @@ void ZSTD_registerExternalMatchfinder(
         seqBufferCapacity
     };
     zc->externalMatchCtx = emctx;
+
+    return ZSTD_error_no_error;
+}
+
+void ZSTD_clearExternalMatchFinder(
+    ZSTD_CCtx* zc
+) {
+    ZSTD_externalMatchCtx const emctx = zc->externalMatchCtx;
+    if (emctx.mFinder != NULL) {
+        if (emctx.mStateDestructor != NULL) {
+            (emctx.mStateDestructor)(emctx.mState);
+        }
+        ZSTD_free(emctx.seqBuffer);
+        ZSTD_memset(&zc->externalMatchCtx, 0, sizeof(zc->externalMatchCtx));
+    }
 }
 
 static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)

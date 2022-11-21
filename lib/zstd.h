@@ -1508,7 +1508,11 @@ ZSTD_compressSequences( ZSTD_CCtx* cctx, void* dst, size_t dstSize,
                         const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
                         const void* src, size_t srcSize);
 
-typedef size_t ZSTD_externalMatchfinder_F (
+/* Block-level sequence compression API */
+// @nocommit improve docs
+
+// @nocommit move bounds comments into docs
+typedef size_t ZSTD_externalMatchFinder_F (
   void* externalMatchState, // TODO make this an externalMatchState type
   ZSTD_Sequence* outSeqs, size_t outSeqsCapacity,
   // outSeqsCapacity >= blockSize / MINMATCH
@@ -1517,15 +1521,20 @@ typedef size_t ZSTD_externalMatchfinder_F (
   // historySize < srcSize ; any size
 );
 
+typedef void ZSTD_externalMatchStateDestructor_F (
+  void* externalMatchState
+);
+
 // @nocommit document this
 ZSTDLIB_STATIC_API void
-ZSTD_registerExternalMatchfinder(ZSTD_CCtx* cctx, ZSTD_externalMatchfinder_F* externalBlockMatchfinder);
-
-// @nocommit
-size_t DONT_COMMIT_simpleExternalMatchfinder(
-  void* matchState, ZSTD_Sequence* outSeqs, size_t outSeqsCapacity,
-  const void* src, size_t srcSize, size_t historySize
+ZSTD_registerExternalMatchfinder(
+  ZSTD_CCtx* cctx,
+  void* externalMatchState,
+  ZSTD_externalMatchFinder_F* externalMatchFinder,
+  ZSTD_externalMatchStateDestructor_F* externalMatchStateDestructor
 );
+
+/****************************************/
 
 /*! ZSTD_writeSkippableFrame() :
  * Generates a zstd skippable frame containing data given by src, and writes it to dst buffer.
@@ -2692,6 +2701,7 @@ ZSTDLIB_STATIC_API size_t ZSTD_getBlockSize   (const ZSTD_CCtx* cctx);
 ZSTDLIB_STATIC_API size_t ZSTD_compressBlock  (ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 ZSTDLIB_STATIC_API size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 ZSTDLIB_STATIC_API size_t ZSTD_insertBlock    (ZSTD_DCtx* dctx, const void* blockStart, size_t blockSize);  /**< insert uncompressed block into `dctx` history. Useful for multi-blocks decompression. */
+
 
 
 #endif   /* ZSTD_H_ZSTD_STATIC_LINKING_ONLY */

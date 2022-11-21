@@ -383,6 +383,16 @@ typedef struct {
     ZSTD_entropyCTablesMetadata_t entropyMetadata;
 } ZSTD_blockSplitCtx;
 
+/* Block-level sequence compression API */
+// @nocommit improve docs
+typedef struct {
+  void* mState;
+  ZSTD_externalMatchFinder_F* mFinder;
+  ZSTD_externalMatchStateDestructor_F* mStateDestructor;
+  void* seqBuffer; // @nocommit change from void* to ZSTD_Sequence*
+  size_t seqBufferSize;
+} ZSTD_externalMatchCtx;
+
 struct ZSTD_CCtx_s {
     ZSTD_compressionStage_e stage;
     int cParamsChanged;                  /* == 1 if cParams(except wlog) or compression level are changed in requestedParams. Triggers transmission of new params to ZSTDMT (if available) then reset to 0. */
@@ -454,7 +464,7 @@ struct ZSTD_CCtx_s {
     ZSTD_blockSplitCtx blockSplitCtx;
 
     /* External block matchfinder */
-    ZSTD_externalMatchfinder_F* externalBlockMatchfinder;
+    ZSTD_externalMatchCtx externalMatchCtx;
 };
 
 typedef enum { ZSTD_dtlm_fast, ZSTD_dtlm_full } ZSTD_dictTableLoadMethod_e;

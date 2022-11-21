@@ -4,7 +4,8 @@
 
 #define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
-#include "matchfinder.h" // simpleExternalMatchfinder
+#include "zstd_errors.h"
+#include "matchfinder.h" // simpleExternalMatchFinder, simpleExternalMatchStateDestructor
 
 const size_t ZSTD_LEVEL = 1;
 
@@ -12,7 +13,12 @@ int main(int argc, char *argv[]) {
     ZSTD_CCtx* zc = ZSTD_createCCtx();
 
     // Here is the crucial bit of code!
-    ZSTD_registerExternalMatchfinder(zc, simpleExternalMatchfinder);
+    ZSTD_registerExternalMatchfinder(
+        zc,
+        NULL,
+        simpleExternalMatchFinder,
+        simpleExternalMatchStateDestructor
+    );
 
     if (argc != 2) {
         printf("Usage: exampleMatchfinder <file>\n");
@@ -34,7 +40,7 @@ int main(int argc, char *argv[]) {
     size_t cSize = ZSTD_compress2(zc, dst, dstSize, src, srcSize);
 
     if (ZSTD_isError(cSize)) {
-        printf("ERROR: %lu\n", cSize);
+        printf("ERROR: %s\n", ZSTD_getErrorString(cSize));
         return 1;
     }
 
@@ -42,7 +48,7 @@ int main(int argc, char *argv[]) {
     size_t res = ZSTD_decompress(val, srcSize, dst, cSize);
 
     if (ZSTD_isError(res)) {
-        printf("ERROR: %lu\n", cSize);
+        printf("ERROR: %s\n", ZSTD_getErrorString(res));
         return 1;
     }
 

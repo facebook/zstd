@@ -7,7 +7,7 @@ static U32 const HLOG = 10;
 static U32 const MLS = 4;
 static U32 const BADIDX = (1 << 31);
 
-size_t simpleExternalMatchfinder(
+size_t simpleExternalMatchFinder(
   void* externalMatchState, ZSTD_Sequence* outSeqs, size_t outSeqsCapacity,
   const void* src, size_t srcSize, size_t historySize
 ) {
@@ -59,4 +59,8 @@ size_t simpleExternalMatchfinder(
     }
 
     return seqCount;
+}
+
+void simpleExternalMatchStateDestructor(void* externalMatchState) {
+    (void)externalMatchState;
 }

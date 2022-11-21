@@ -851,7 +851,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         RDG_genBuffer(dict, size, 0.5, 0.5, seed);
         RDG_genBuffer(src, size, 0.5, 0.5, seed);
 
-        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, 1));
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, ZSTD_ps_enable));
         assert(!ZSTD_isError(ZSTD_compress_usingDict(cctx, dst, dstCapacity, src, size, dict, size, 3)));
 
         ZSTD_freeCCtx(cctx);
@@ -875,7 +875,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
             CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, nbWorkers));
             CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1));
             CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_forceMaxWindow, 1));
-            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, 1));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, ZSTD_ps_enable));
             CHECK_Z(ZSTD_CCtx_refPrefix(cctx, dict, CNBuffSize));
             cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize);
             CHECK_Z(cSize);
@@ -900,7 +900,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         RDG_genBuffer(CNBuffer, testSize, 0.6, 0.6, seed);
         memcpy(dict + testSize, CNBuffer, testSize);
         for (level = 1; level <= 5; ++level) {
-            for (ldmEnabled = 0; ldmEnabled <= 1; ++ldmEnabled) {
+            for (ldmEnabled = ZSTD_ps_enable; ldmEnabled <= ZSTD_ps_disable; ++ldmEnabled) {
                 size_t cSize0;
                 XXH64_hash_t compressedChecksum0;
 
@@ -956,7 +956,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
         /* Enable MT, LDM, and opt parser */
         CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 1));
-        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, 1));
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, ZSTD_ps_enable));
         CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1));
         CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, 19));
 
@@ -995,7 +995,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         /* Disable content size to skip single-pass decompression. */
         CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_contentSizeFlag, 0));
         CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_windowLog, (int)kWindowLog));
-        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, 1));
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, ZSTD_ps_enable));
         CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_ldmMinMatch, 32));
         CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_ldmHashRateLog, 1));
         CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_ldmHashLog, 16));
@@ -1092,7 +1092,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
         /* compress on level 1 using refPrefix and ldm */
         ZSTD_CCtx_refPrefix(cctx, dict, size);;
-        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, 1))
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, ZSTD_ps_enable))
         refPrefixLdmCompressedSize = ZSTD_compress2(cctx, dst, dstSize, src, size);
         assert(!ZSTD_isError(refPrefixLdmCompressedSize));
 
@@ -2820,7 +2820,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
             DISPLAYLEVEL(3, "test%3i : parameters in order : ", testNb++);
             assert(cctx != NULL);
             CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, 2) );
-            CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, 1) );
+            CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, ZSTD_ps_enable) );
             CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_windowLog, 18) );
             {   size_t const compressedSize = ZSTD_compress2(cctx,
                                 compressedBuffer, ZSTD_compressBound(inputSize),
@@ -2836,7 +2836,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         {   ZSTD_CCtx* cctx = ZSTD_createCCtx();
             DISPLAYLEVEL(3, "test%3i : parameters disordered : ", testNb++);
             CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_windowLog, 18) );
-            CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, 1) );
+            CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, ZSTD_ps_enable) );
             CHECK( ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, 2) );
             {   size_t const result = ZSTD_compress2(cctx,
                                 compressedBuffer, ZSTD_compressBound(inputSize),
@@ -3492,7 +3492,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
         /* Enable MT, LDM, and use refPrefix() for a small dict */
         CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 2));
-        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, 1));
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, ZSTD_ps_enable));
         CHECK_Z(ZSTD_CCtx_refPrefix(cctx, dict, dictSize));
 
         CHECK_Z(ZSTD_compress2(cctx, dst, dstSize, src, srcSize));
@@ -3686,7 +3686,7 @@ static int longUnitTests(U32 const seed, double compressibility)
 
         /* Enable checksum to verify round trip. */
         CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1));
-        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, 1));
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, ZSTD_ps_enable));
         CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, 19));
 
         /* Round trip once with ldm. */
@@ -3696,7 +3696,7 @@ static int longUnitTests(U32 const seed, double compressibility)
 
         ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
         CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1));
-        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, 0));
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, ZSTD_ps_disable));
         CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, 19));
 
         /* Round trip once without ldm. */

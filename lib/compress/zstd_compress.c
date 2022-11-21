@@ -265,9 +265,9 @@ static int ZSTD_allocateChainTable(const ZSTD_strategy strategy,
     return forDDSDict || ((strategy != ZSTD_fast) && !ZSTD_rowMatchFinderUsed(strategy, useRowMatchFinder));
 }
 
-/* Returns 1 if compression parameters are such that we should
+/* Returns ZSTD_ps_enable if compression parameters are such that we should
  * enable long distance matching (wlog >= 27, strategy >= btopt).
- * Returns 0 otherwise.
+ * Returns ZSTD_ps_disable otherwise.
  */
 static ZSTD_paramSwitch_e ZSTD_resolveEnableLdm(ZSTD_paramSwitch_e mode,
                                  const ZSTD_compressionParameters* const cParams) {
@@ -482,8 +482,8 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
         return bounds;
 
     case ZSTD_c_enableLongDistanceMatching:
-        bounds.lowerBound = 0;
-        bounds.upperBound = 1;
+        bounds.lowerBound = (int)ZSTD_ps_auto;
+        bounds.upperBound = (int)ZSTD_ps_disable;
         return bounds;
 
     case ZSTD_c_ldmHashLog:
@@ -854,6 +854,7 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
         return (size_t)CCtxParams->enableDedicatedDictSearch;
 
     case ZSTD_c_enableLongDistanceMatching :
+        BOUNDCHECK(ZSTD_c_enableLongDistanceMatching, value);
         CCtxParams->ldmParams.enableLdm = (ZSTD_paramSwitch_e)value;
         return CCtxParams->ldmParams.enableLdm;
 

@@ -11,10 +11,10 @@ size_t simpleExternalMatchFinder(
   void* externalMatchState, ZSTD_Sequence* outSeqs, size_t outSeqsCapacity,
   const void* src, size_t srcSize, const void* dict, size_t dictSize
 ) {
-    (void)(externalMatchState);
-    (void)(dict);
-    (void)(dictSize);
-    (void)(outSeqsCapacity); // @nocommit return an error
+    (void)externalMatchState;
+    (void)dict;
+    (void)dictSize;
+    (void)outSeqsCapacity; // @nocommit return an error
 
     const BYTE* const istart = (const BYTE*)src;
     const BYTE* const iend = istart + srcSize;

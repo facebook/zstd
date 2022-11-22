@@ -1097,7 +1097,7 @@ size_t ZSTD_CCtx_setParametersUsingCCtxParams(
 
 size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long long pledgedSrcSize)
 {
-    DEBUGLOG(4, "ZSTD_CCtx_setPledgedSrcSize to %u bytes", (U32)pledgedSrcSize);
+    DEBUGLOG(4, "ZSTD_CCtx_setPledgedSrcSize to %llu bytes", pledgedSrcSize);
     RETURN_ERROR_IF(cctx->streamStage != zcss_init, stage_wrong,
                     "Can't set pledgedSrcSize when not in init stage.");
     cctx->pledgedSrcSizePlusOne = pledgedSrcSize+1;

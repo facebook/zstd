@@ -28,14 +28,14 @@ int main(int argc, char *argv[]) {
     );
 
     if (ZSTD_isError(res)) {
-        printf("ERROR: %s\n", ZSTD_getErrorString(res));
+        printf("ERROR: %s\n", ZSTD_getErrorName(res));
         return 1;
     }
 
     res = ZSTD_CCtx_setParameter(zc, ZSTD_c_useExternalMatchfinder, 1);
 
     if (ZSTD_isError(res)) {
-        printf("ERROR: %s\n", ZSTD_getErrorString(res));
+        printf("ERROR: %s\n", ZSTD_getErrorName(res));
         return 1;
     }
 
@@ -54,7 +54,7 @@ int main(int argc, char *argv[]) {
     size_t cSize = ZSTD_compress2(zc, dst, dstSize, src, srcSize);
 
     if (ZSTD_isError(cSize)) {
-        printf("ERROR: %s\n", ZSTD_getErrorString(cSize));
+        printf("ERROR: %s\n", ZSTD_getErrorName(cSize));
         return 1;
     }
 
@@ -64,7 +64,7 @@ int main(int argc, char *argv[]) {
     ZSTD_freeCCtx(zc);
 
     if (ZSTD_isError(res)) {
-        printf("ERROR: %s\n", ZSTD_getErrorString(res));
+        printf("ERROR: %s\n", ZSTD_getErrorName(res));
         return 1;
     }
 

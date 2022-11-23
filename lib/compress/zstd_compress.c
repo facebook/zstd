@@ -681,6 +681,14 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value)
                         "MT not compatible with static alloc");
         break;
 
+    case ZSTD_c_useExternalMatchfinder:
+        RETURN_ERROR_IF(
+            (value == 1) && (cctx->externalMatchCtx.mFinder == NULL),
+            parameter_unsupported,
+            "Must register an external matchfinder to set useExternalMatchfinder=1"
+        );
+        break;
+
     case ZSTD_c_compressionLevel:
     case ZSTD_c_windowLog:
     case ZSTD_c_hashLog:
@@ -715,7 +723,6 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value)
     case ZSTD_c_useRowMatchFinder:
     case ZSTD_c_deterministicRefPrefix:
     case ZSTD_c_prefetchCDictTables:
-    case ZSTD_c_useExternalMatchfinder:
         break;
 
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
@@ -2982,6 +2989,7 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
                                        src, srcSize);
             assert(zc->externSeqStore.pos <= zc->externSeqStore.size);
         } else if (zc->appliedParams.ldmParams.enableLdm == ZSTD_ps_enable) {
+            // @nocommit Check for LDM, fail if useExternalMatchfinder is set
             rawSeqStore_t ldmSeqStore = kNullRawSeqStore;
 
             ldmSeqStore.seq = zc->ldmSequences;
@@ -3000,6 +3008,10 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
             assert(ldmSeqStore.pos == ldmSeqStore.size);
         } else if (zc->appliedParams.useExternalMatchfinder) {
             // @nocommit document lack of dictionary support in function call
+            RETURN_ERROR_IF(
+                zc->externalMatchCtx.mFinder == NULL, parameter_unsupported,
+                "useExternalMatchfinder=1 but no external matchfinder is registered!"
+            );
             size_t numSeqsFound = (zc->externalMatchCtx.mFinder)(
                 NULL, zc->externalMatchCtx.seqBuffer, zc->externalMatchCtx.seqBufferCapacity, src, srcSize, NULL, 0
             );

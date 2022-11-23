@@ -352,6 +352,9 @@ struct ZSTD_CCtx_params_s {
 
     /* Controls prefetching in some dictMatchState matchfinders */
     ZSTD_paramSwitch_e prefetchCDictTables;
+
+    /* Controls block-level sequence compression API */
+    int useExternalMatchfinder;
 };  /* typedef'd to ZSTD_CCtx_params within "zstd.h" */
 
 #define COMPRESS_SEQUENCES_WORKSPACE_SIZE (sizeof(unsigned) * (MaxSeq + 2))

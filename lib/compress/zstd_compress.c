@@ -588,6 +588,11 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
         bounds.upperBound = (int)ZSTD_ps_disable;
         return bounds;
 
+    case ZSTD_c_useExternalMatchfinder:
+        bounds.lowerBound = 0;
+        bounds.upperBound = 1;
+        return bounds;
+
     default:
         bounds.error = ERROR(parameter_unsupported);
         return bounds;
@@ -653,6 +658,7 @@ static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
     case ZSTD_c_useRowMatchFinder:
     case ZSTD_c_deterministicRefPrefix:
     case ZSTD_c_prefetchCDictTables:
+    case ZSTD_c_useExternalMatchfinder:
     default:
         return 0;
     }
@@ -709,6 +715,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value)
     case ZSTD_c_useRowMatchFinder:
     case ZSTD_c_deterministicRefPrefix:
     case ZSTD_c_prefetchCDictTables:
+    case ZSTD_c_useExternalMatchfinder:
         break;
 
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
@@ -941,6 +948,11 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
         CCtxParams->prefetchCDictTables = (ZSTD_paramSwitch_e)value;
         return CCtxParams->prefetchCDictTables;
 
+    case ZSTD_c_useExternalMatchfinder:
+        BOUNDCHECK(ZSTD_c_useExternalMatchfinder, value);
+        CCtxParams->useExternalMatchfinder = value;
+        return CCtxParams->useExternalMatchfinder;
+
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
     }
 }
@@ -1075,6 +1087,9 @@ size_t ZSTD_CCtxParams_getParameter(
         break;
     case ZSTD_c_prefetchCDictTables:
         *value = (int)CCtxParams->prefetchCDictTables;
+        break;
+    case ZSTD_c_useExternalMatchfinder:
+        *value = CCtxParams->useExternalMatchfinder;
         break;
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
     }
@@ -2983,7 +2998,7 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
                                        zc->appliedParams.useRowMatchFinder,
                                        src, srcSize);
             assert(ldmSeqStore.pos == ldmSeqStore.size);
-        } else if (1 /* @nocommit: change to a cparam */) {
+        } else if (zc->appliedParams.useExternalMatchfinder) {
             // @nocommit document lack of dictionary support in function call
             size_t numSeqsFound = (zc->externalMatchCtx.mFinder)(
                 NULL, zc->externalMatchCtx.seqBuffer, zc->externalMatchCtx.seqBufferCapacity, src, srcSize, NULL, 0

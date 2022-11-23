@@ -2942,6 +2942,16 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
     assert(srcSize <= ZSTD_BLOCKSIZE_MAX);
     /* Assert that we have correctly flushed the ctx params into the ms's copy */
     ZSTD_assertEqualCParams(zc->appliedParams.cParams, ms->cParams);
+
+    /* External matchfinder + LDM is technically possible, just not implemented yet.
+     * We need to revisit soon and implement it. */
+    RETURN_ERROR_IF(
+        (zc->appliedParams.useExternalMatchfinder == 1) &&
+        (zc->appliedParams.ldmParams.enableLdm == ZSTD_ps_enable),
+        parameter_unsupported, // @nocommit Make this a parameter *combination* error
+        "Long-distance matching with external matchfinder enabled is not currently supported."
+    );
+
     /* TODO: See 3090. We reduced MIN_CBLOCK_SIZE from 3 to 2 so to compensate we are adding
      * additional 1. We need to revisit and change this logic to be more consistent */
     if (srcSize < MIN_CBLOCK_SIZE+ZSTD_blockHeaderSize+1+1) {
@@ -2989,7 +2999,6 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
                                        src, srcSize);
             assert(zc->externSeqStore.pos <= zc->externSeqStore.size);
         } else if (zc->appliedParams.ldmParams.enableLdm == ZSTD_ps_enable) {
-            // @nocommit Check for LDM, fail if useExternalMatchfinder is set
             rawSeqStore_t ldmSeqStore = kNullRawSeqStore;
 
             ldmSeqStore.seq = zc->ldmSequences;

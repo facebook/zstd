@@ -2902,6 +2902,11 @@ size_t ZSTD_registerExternalMatchFinder(
     ZSTD_externalMatchFinder_F* mFinder,
     ZSTD_externalMatchStateDestructor_F* mStateDestructor
 ) {
+    RETURN_ERROR_IF(
+        zc->staticSize, parameter_unsupported,
+        "External matchfinder is not compatible with static alloc"
+    );
+
     ZSTD_clearExternalMatchFinder(zc);
 
     size_t const seqBufferCapacity = ZSTD_sequenceBound(ZSTD_BLOCKSIZE_MAX);

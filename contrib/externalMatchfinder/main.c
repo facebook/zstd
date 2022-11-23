@@ -19,10 +19,12 @@ int main(int argc, char *argv[]) {
 
     ZSTD_CCtx* zc = ZSTD_createCCtx();
 
+    int simpleExternalMatchState = 0xdeadbeef; // @nocommit
+
     // Here is the crucial bit of code!
     res = ZSTD_registerExternalMatchFinder(
         zc,
-        NULL,
+        &simpleExternalMatchState,
         simpleExternalMatchFinder,
         simpleExternalMatchStateDestructor
     );

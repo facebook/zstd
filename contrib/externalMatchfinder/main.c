@@ -41,6 +41,13 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    res = ZSTD_CCtx_setParameter(zc, ZSTD_c_enableMatchfinderFallback, 1);
+
+    if (ZSTD_isError(res)) {
+        printf("ERROR: %s\n", ZSTD_getErrorName(res));
+        return 1;
+    }
+
     FILE *f = fopen(argv[1], "rb");
     fseek(f, 0, SEEK_END);
     long srcSize = ftell(f);

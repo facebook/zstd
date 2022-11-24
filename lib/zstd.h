@@ -479,6 +479,7 @@ typedef enum {
      * ZSTD_c_useRowMatchFinder
      * ZSTD_c_prefetchCDictTables
      * ZSTD_c_useExternalMatchfinder
+     * ZSTD_c_enableMatchfinderFallback
      * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
      * note : never ever use experimentalParam? names directly;
      *        also, the enums values themselves are unstable and can still change.
@@ -499,7 +500,8 @@ typedef enum {
      ZSTD_c_experimentalParam14=1011,
      ZSTD_c_experimentalParam15=1012,
      ZSTD_c_experimentalParam16=1013,
-     ZSTD_c_experimentalParam17=1014
+     ZSTD_c_experimentalParam17=1014,
+     ZSTD_c_experimentalParam18=1015
 } ZSTD_cParameter;
 
 typedef struct {
@@ -1513,15 +1515,29 @@ ZSTD_compressSequences( ZSTD_CCtx* cctx, void* dst, size_t dstSize,
 /* Block-level sequence compression API */
 // @nocommit improve docs
 
+typedef enum {
+  /* External matchfinder successfully compressed the block. */
+  ZSTD_emf_error_none = 0,
+
+  /* External matchfinder hit an unspecified failure condition.
+   * Will fail the overall compression operation. */
+  ZSTD_emf_error_generic= 1,
+} ZSTD_externalMatchFinder_errorCode_e;
+
+typedef struct {
+  size_t nbSeqsFound;
+  ZSTD_externalMatchFinder_errorCode_e errorCode;
+} ZSTD_externalMatchResult;
+
 // @nocommit move bounds comments into docs
-typedef size_t ZSTD_externalMatchFinder_F (
-  void* externalMatchState, // TODO make this an externalMatchState type
+typedef ZSTD_externalMatchResult ZSTD_externalMatchFinder_F (
+  void* externalMatchState,
   ZSTD_Sequence* outSeqs, size_t outSeqsCapacity,
   // outSeqsCapacity >= blockSize / MINMATCH
   const void* src, size_t srcSize,
   const void* dict, size_t dictSize
-  // srcSize - historySize <= 128 KB
-  // historySize < srcSize ; any size
+  // srcSize <= 128 KB
+  // dictSize is not bounded
 );
 
 typedef void ZSTD_externalMatchStateDestructor_F (
@@ -1536,8 +1552,7 @@ ZSTD_registerExternalMatchFinder(
   ZSTD_externalMatchStateDestructor_F* externalMatchStateDestructor
 );
 
-/* Note: calls the previously-registered ZSTD_externalMatchStateDestructor_F*
- * if it is non-NULL. */
+/* Note: calls the previously-registered destructor if it is not NULL. */
 ZSTDLIB_STATIC_API void
 ZSTD_clearExternalMatchFinder(
   ZSTD_CCtx* cctx
@@ -2082,6 +2097,9 @@ ZSTDLIB_STATIC_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const vo
 
 // @nocommit document
 #define ZSTD_c_useExternalMatchfinder ZSTD_c_experimentalParam17
+
+// @nocommit document
+#define ZSTD_c_enableMatchfinderFallback ZSTD_c_experimentalParam18
 
 /*! ZSTD_CCtx_getParameter() :
  *  Get the requested compression parameter value, selected by enum ZSTD_cParameter,

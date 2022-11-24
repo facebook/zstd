@@ -593,6 +593,11 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
         bounds.upperBound = 1;
         return bounds;
 
+    case ZSTD_c_enableMatchfinderFallback:
+        bounds.lowerBound = 0;
+        bounds.upperBound = 1;
+        return bounds;
+
     default:
         bounds.error = ERROR(parameter_unsupported);
         return bounds;
@@ -659,6 +664,7 @@ static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
     case ZSTD_c_deterministicRefPrefix:
     case ZSTD_c_prefetchCDictTables:
     case ZSTD_c_useExternalMatchfinder:
+    case ZSTD_c_enableMatchfinderFallback:
     default:
         return 0;
     }
@@ -723,6 +729,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value)
     case ZSTD_c_useRowMatchFinder:
     case ZSTD_c_deterministicRefPrefix:
     case ZSTD_c_prefetchCDictTables:
+    case ZSTD_c_enableMatchfinderFallback:
         break;
 
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
@@ -960,6 +967,11 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
         CCtxParams->useExternalMatchfinder = value;
         return CCtxParams->useExternalMatchfinder;
 
+    case ZSTD_c_enableMatchfinderFallback:
+        BOUNDCHECK(ZSTD_c_enableMatchfinderFallback, value);
+        CCtxParams->enableMatchfinderFallback = value;
+        return CCtxParams->enableMatchfinderFallback;
+
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
     }
 }
@@ -1097,6 +1109,9 @@ size_t ZSTD_CCtxParams_getParameter(
         break;
     case ZSTD_c_useExternalMatchfinder:
         *value = CCtxParams->useExternalMatchfinder;
+        break;
+    case ZSTD_c_enableMatchfinderFallback:
+        *value = CCtxParams->enableMatchfinderFallback;
         break;
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
     }
@@ -3049,14 +3064,30 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
                 zc->externalMatchCtx.mFinder == NULL, parameter_unsupported,
                 "useExternalMatchfinder=1 but no external matchfinder is registered!"
             );
-            size_t numSeqsFound = (zc->externalMatchCtx.mFinder)(
+            ZSTD_externalMatchResult matchResult = (zc->externalMatchCtx.mFinder)(
                 NULL, zc->externalMatchCtx.seqBuffer, zc->externalMatchCtx.seqBufferCapacity, src, srcSize, NULL, 0
             );
-            ZSTD_sequencePosition seqPos = {0,0,0};
-            lastLLSize = 0; // @nocommit
-            ZSTD_copySequencesToSeqStoreExplicitBlockDelim(
-                zc, &seqPos, zc->externalMatchCtx.seqBuffer, numSeqsFound, src, srcSize
-            );
+            if (matchResult.errorCode == ZSTD_emf_error_none) {
+                ZSTD_sequencePosition seqPos = {0,0,0};
+                ms->ldmSeqStore = NULL;
+                lastLLSize = 0;
+                ZSTD_copySequencesToSeqStoreExplicitBlockDelim(
+                    zc, &seqPos, zc->externalMatchCtx.seqBuffer, matchResult.nbSeqsFound, src, srcSize
+                );
+            } else {
+                if (zc->appliedParams.enableMatchfinderFallback) {
+                    ZSTD_blockCompressor const blockCompressor = ZSTD_selectBlockCompressor(zc->appliedParams.cParams.strategy,
+                                                                                            zc->appliedParams.useRowMatchFinder,
+                                                                                            dictMode);
+                    ms->ldmSeqStore = NULL;
+                    lastLLSize = blockCompressor(ms, &zc->seqStore, zc->blockState.nextCBlock->rep, src, srcSize);
+                } else {
+                    RETURN_ERROR(
+                        externalMatchFinder_failed,
+                        "External matchfinder returned a non-zero error code!"
+                    );
+                }
+            }
         } else {   /* not long range mode */
             ZSTD_blockCompressor const blockCompressor = ZSTD_selectBlockCompressor(zc->appliedParams.cParams.strategy,
                                                                                     zc->appliedParams.useRowMatchFinder,

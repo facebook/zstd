@@ -355,6 +355,10 @@ struct ZSTD_CCtx_params_s {
 
     /* Controls block-level sequence compression API */
     int useExternalMatchfinder;
+
+    /* Controls whether zstd will fall back to an internal matchfinder
+     * when the external matchfinder returns a non-zero error code. */
+    int enableMatchfinderFallback;
 };  /* typedef'd to ZSTD_CCtx_params within "zstd.h" */
 
 #define COMPRESS_SEQUENCES_WORKSPACE_SIZE (sizeof(unsigned) * (MaxSeq + 2))

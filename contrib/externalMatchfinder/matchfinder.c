@@ -7,7 +7,7 @@ static U32 const HLOG = 10;
 static U32 const MLS = 4;
 static U32 const BADIDX = (1 << 31);
 
-size_t simpleExternalMatchFinder(
+ZSTD_externalMatchResult simpleExternalMatchFinder(
   void* externalMatchState, ZSTD_Sequence* outSeqs, size_t outSeqsCapacity,
   const void* src, size_t srcSize, const void* dict, size_t dictSize
 ) {
@@ -52,14 +52,13 @@ size_t simpleExternalMatchFinder(
         ip++;
     }
 
-    {
-        ZSTD_Sequence const finalSeq = {
-            0, iend - anchor, 0, 0
-        };
-        outSeqs[seqCount] = finalSeq;
-    }
+    ZSTD_Sequence const finalSeq = {
+        0, iend - anchor, 0, 0
+    };
+    outSeqs[seqCount] = finalSeq;
 
-    return seqCount;
+    ZSTD_externalMatchResult res = {seqCount, ZSTD_emf_error_none};
+    return res;
 }
 
 void simpleExternalMatchStateDestructor(void* externalMatchState) {

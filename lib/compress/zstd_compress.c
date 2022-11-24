@@ -2954,15 +2954,6 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
     /* Assert that we have correctly flushed the ctx params into the ms's copy */
     ZSTD_assertEqualCParams(zc->appliedParams.cParams, ms->cParams);
 
-    /* External matchfinder + LDM is technically possible, just not implemented yet.
-     * We need to revisit soon and implement it. */
-    RETURN_ERROR_IF(
-        (zc->appliedParams.useExternalMatchfinder == 1) &&
-        (zc->appliedParams.ldmParams.enableLdm == ZSTD_ps_enable),
-        parameter_unsupported, // @nocommit Make this a parameter *combination* error
-        "Long-distance matching with external matchfinder enabled is not currently supported."
-    );
-
     /* TODO: See 3090. We reduced MIN_CBLOCK_SIZE from 3 to 2 so to compensate we are adding
      * additional 1. We need to revisit and change this logic to be more consistent */
     if (srcSize < MIN_CBLOCK_SIZE+ZSTD_blockHeaderSize+1+1) {
@@ -3001,6 +2992,24 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
         }
         if (zc->externSeqStore.pos < zc->externSeqStore.size) {
             assert(zc->appliedParams.ldmParams.enableLdm == ZSTD_ps_disable);
+
+            /* External matchfinder + LDM is technically possible, just not implemented yet.
+             * We need to revisit soon and implement it. */
+            if (zc->appliedParams.useBlockSplitter == ZSTD_ps_enable) {
+                RETURN_ERROR_IF(
+                    zc->appliedParams.useExternalMatchfinder == 1,
+                    parameter_unsupported, // @nocommit Make this a parameter *combination* error?
+                    "Block splitting with external matchfinder enabled is not currently supported. "
+                    "Note: block splitting is enabled by default at high compression levels."
+                );
+            } else {
+                RETURN_ERROR_IF(
+                    zc->appliedParams.useExternalMatchfinder == 1,
+                    parameter_unsupported, // @nocommit Make this a parameter *combination* error?
+                    "Long-distance matching with external matchfinder enabled is not currently supported."
+                );
+            }
+
             /* Updates ldmSeqStore.pos */
             lastLLSize =
                 ZSTD_ldm_blockCompress(&zc->externSeqStore,
@@ -3011,6 +3020,14 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
             assert(zc->externSeqStore.pos <= zc->externSeqStore.size);
         } else if (zc->appliedParams.ldmParams.enableLdm == ZSTD_ps_enable) {
             rawSeqStore_t ldmSeqStore = kNullRawSeqStore;
+
+            /* External matchfinder + LDM is technically possible, just not implemented yet.
+             * We need to revisit soon and implement it. */
+            RETURN_ERROR_IF(
+                zc->appliedParams.useExternalMatchfinder == 1,
+                parameter_unsupported, // @nocommit Make this a parameter *combination* error?
+                "Long-distance matching with external matchfinder enabled is not currently supported."
+            );
 
             ldmSeqStore.seq = zc->ldmSequences;
             ldmSeqStore.capacity = zc->maxNbLdmSequences;

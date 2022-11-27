@@ -3232,12 +3232,18 @@ static int ZSTD_isRLE(const BYTE* src, size_t length) {
  * This is just a heuristic based on the compressibility.
  * It may return both false positives and false negatives.
  */
-static int ZSTD_maybeRLE(seqStore_t const* seqStore)
+static int ZSTD_maybeRLE(seqStore_t const* seqStore, ZSTD_CCtx_params const* appliedParams)
 {
     size_t const nbSeqs = (size_t)(seqStore->sequences - seqStore->sequencesStart);
     size_t const nbLits = (size_t)(seqStore->lit - seqStore->litStart);
 
-    return nbSeqs < 4 && nbLits < 10;
+    if (appliedParams->useExternalMatchfinder) {
+        /* We shouldn't make any assumptions about how an external matchfinder
+         * will compress an RLE block. */
+        return 1;
+    } else {
+        return nbSeqs < 4 && nbLits < 10;
+    }
 }
 
 static void
@@ -4087,7 +4093,7 @@ static size_t ZSTD_compressBlock_targetCBlockSize_body(ZSTD_CCtx* zc,
             * This is only an issue for zstd <= v1.4.3
             */
             !zc->isFirstBlock &&
-            ZSTD_maybeRLE(&zc->seqStore) &&
+            ZSTD_maybeRLE(&zc->seqStore, &zc->appliedParams) &&
             ZSTD_isRLE((BYTE const*)src, srcSize))
         {
             return ZSTD_rleCompressBlock(dst, dstCapacity, *(BYTE const*)src, srcSize, lastBlock);
@@ -6441,7 +6447,7 @@ ZSTD_compressSequences_internal(ZSTD_CCtx* cctx,
         DEBUGLOG(5, "Compressed sequences size: %zu", compressedSeqsSize);
 
         if (!cctx->isFirstBlock &&
-            ZSTD_maybeRLE(&cctx->seqStore) &&
+            ZSTD_maybeRLE(&cctx->seqStore, &cctx->appliedParams) &&
             ZSTD_isRLE(ip, blockSize)) {
             /* We don't want to emit our first block as a RLE even if it qualifies because
             * doing so will cause the decoder (cli only) to throw a "should consume all input error."

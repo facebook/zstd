@@ -7,8 +7,6 @@
 #include "zstd_errors.h"
 #include "matchfinder.h" // simpleExternalMatchFinder, simpleExternalMatchStateDestructor
 
-const size_t ZSTD_LEVEL = 1;
-
 int main(int argc, char *argv[]) {
     size_t res;
 

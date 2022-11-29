@@ -20,24 +20,11 @@ int main(int argc, char *argv[]) {
     int simpleExternalMatchState = 0xdeadbeef; // @nocommit
 
     // Here is the crucial bit of code!
-    res = ZSTD_registerExternalMatchFinder(
+    ZSTD_refExternalMatchFinder(
         zc,
         &simpleExternalMatchState,
-        simpleExternalMatchFinder,
-        simpleExternalMatchStateDestructor
+        simpleExternalMatchFinder
     );
-
-    if (ZSTD_isError(res)) {
-        printf("ERROR: %s\n", ZSTD_getErrorName(res));
-        return 1;
-    }
-
-    res = ZSTD_CCtx_setParameter(zc, ZSTD_c_useExternalMatchfinder, 1);
-
-    if (ZSTD_isError(res)) {
-        printf("ERROR: %s\n", ZSTD_getErrorName(res));
-        return 1;
-    }
 
     res = ZSTD_CCtx_setParameter(zc, ZSTD_c_enableMatchfinderFallback, 1);
 

@@ -353,11 +353,8 @@ struct ZSTD_CCtx_params_s {
     /* Controls prefetching in some dictMatchState matchfinders */
     ZSTD_paramSwitch_e prefetchCDictTables;
 
-    /* Controls block-level sequence compression API */
-    int useExternalMatchfinder;
-
     /* Controls whether zstd will fall back to an internal matchfinder
-     * when the external matchfinder returns a non-zero error code. */
+     * when the external matchfinder returns an error code. */
     int enableMatchfinderFallback;
 };  /* typedef'd to ZSTD_CCtx_params within "zstd.h" */
 
@@ -395,7 +392,6 @@ typedef struct {
 typedef struct {
   void* mState;
   ZSTD_externalMatchFinder_F* mFinder;
-  ZSTD_externalMatchStateDestructor_F* mStateDestructor;
   ZSTD_Sequence* seqBuffer;
   size_t seqBufferCapacity;
 } ZSTD_externalMatchCtx;
@@ -470,7 +466,7 @@ struct ZSTD_CCtx_s {
     /* Workspace for block splitter */
     ZSTD_blockSplitCtx blockSplitCtx;
 
-    /* External block matchfinder */
+    /* Workspace for external matchfinder */
     ZSTD_externalMatchCtx externalMatchCtx;
 };
 

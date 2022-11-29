@@ -51,7 +51,7 @@ const char* ERR_getErrorString(ERR_enum code)
     case PREFIX(seekableIO): return "An I/O error occurred when reading/seeking";
     case PREFIX(dstBuffer_wrong): return "Destination buffer is wrong";
     case PREFIX(srcBuffer_wrong): return "Source buffer is wrong";
-    case PREFIX(externalMatchFinder_failed): return "External matchfinder returned a non-zero error code";
+    case PREFIX(externalMatchFinder_failed): return "External matchfinder returned an error code";
     case PREFIX(maxCode):
     default: return notErrorCode;
     }

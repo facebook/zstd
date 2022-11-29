@@ -173,7 +173,6 @@ static void ZSTD_freeCCtxContent(ZSTD_CCtx* cctx)
     assert(cctx != NULL);
     assert(cctx->staticSize == 0);
     ZSTD_clearAllDicts(cctx);
-    ZSTD_clearExternalMatchFinder(cctx);
 #ifdef ZSTD_MULTITHREAD
     ZSTDMT_freeCCtx(cctx->mtctx); cctx->mtctx = NULL;
 #endif
@@ -588,11 +587,6 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
         bounds.upperBound = (int)ZSTD_ps_disable;
         return bounds;
 
-    case ZSTD_c_useExternalMatchfinder:
-        bounds.lowerBound = 0;
-        bounds.upperBound = 1;
-        return bounds;
-
     case ZSTD_c_enableMatchfinderFallback:
         bounds.lowerBound = 0;
         bounds.upperBound = 1;
@@ -663,7 +657,6 @@ static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
     case ZSTD_c_useRowMatchFinder:
     case ZSTD_c_deterministicRefPrefix:
     case ZSTD_c_prefetchCDictTables:
-    case ZSTD_c_useExternalMatchfinder:
     case ZSTD_c_enableMatchfinderFallback:
     default:
         return 0;
@@ -685,14 +678,6 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value)
     case ZSTD_c_nbWorkers:
         RETURN_ERROR_IF((value!=0) && cctx->staticSize, parameter_unsupported,
                         "MT not compatible with static alloc");
-        break;
-
-    case ZSTD_c_useExternalMatchfinder:
-        RETURN_ERROR_IF(
-            (value == 1) && (cctx->externalMatchCtx.mFinder == NULL),
-            parameter_unsupported,
-            "Must register an external matchfinder to set useExternalMatchfinder=1"
-        );
         break;
 
     case ZSTD_c_compressionLevel:
@@ -962,11 +947,6 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
         CCtxParams->prefetchCDictTables = (ZSTD_paramSwitch_e)value;
         return CCtxParams->prefetchCDictTables;
 
-    case ZSTD_c_useExternalMatchfinder:
-        BOUNDCHECK(ZSTD_c_useExternalMatchfinder, value);
-        CCtxParams->useExternalMatchfinder = value;
-        return CCtxParams->useExternalMatchfinder;
-
     case ZSTD_c_enableMatchfinderFallback:
         BOUNDCHECK(ZSTD_c_enableMatchfinderFallback, value);
         CCtxParams->enableMatchfinderFallback = value;
@@ -1106,9 +1086,6 @@ size_t ZSTD_CCtxParams_getParameter(
         break;
     case ZSTD_c_prefetchCDictTables:
         *value = (int)CCtxParams->prefetchCDictTables;
-        break;
-    case ZSTD_c_useExternalMatchfinder:
-        *value = CCtxParams->useExternalMatchfinder;
         break;
     case ZSTD_c_enableMatchfinderFallback:
         *value = CCtxParams->enableMatchfinderFallback;
@@ -2911,56 +2888,6 @@ void ZSTD_resetSeqStore(seqStore_t* ssPtr)
 
 typedef enum { ZSTDbss_compress, ZSTDbss_noCompress } ZSTD_buildSeqStore_e;
 
-// @nocommit External matchfinder, need to move this at some point
-size_t ZSTD_registerExternalMatchFinder(
-    ZSTD_CCtx* zc, void* mState,
-    ZSTD_externalMatchFinder_F* mFinder,
-    ZSTD_externalMatchStateDestructor_F* mStateDestructor
-) {
-    RETURN_ERROR_IF(
-        zc->staticSize, parameter_unsupported,
-        "External matchfinder is not compatible with static alloc"
-    );
-
-    RETURN_ERROR_IF(
-        (mState && !mStateDestructor) || (!mState && mStateDestructor),
-        GENERIC,
-        "Cannot provide external match state without corresponding destructor, or vice versa!"
-    );
-
-    ZSTD_clearExternalMatchFinder(zc);
-
-    size_t const seqBufferCapacity = ZSTD_sequenceBound(ZSTD_BLOCKSIZE_MAX);
-    ZSTD_Sequence* seqBuffer = (ZSTD_Sequence*)ZSTD_malloc(seqBufferCapacity * sizeof(ZSTD_Sequence));
-    if (seqBuffer == NULL) {
-        return ZSTD_error_memory_allocation;
-    }
-
-    ZSTD_externalMatchCtx emctx = {
-        mState,
-        mFinder,
-        mStateDestructor,
-        seqBuffer,
-        seqBufferCapacity
-    };
-    zc->externalMatchCtx = emctx;
-
-    return ZSTD_error_no_error;
-}
-
-void ZSTD_clearExternalMatchFinder(
-    ZSTD_CCtx* zc
-) {
-    ZSTD_externalMatchCtx const emctx = zc->externalMatchCtx;
-    if (emctx.mFinder != NULL) {
-        if (emctx.mStateDestructor != NULL) {
-            (emctx.mStateDestructor)(emctx.mState);
-        }
-        ZSTD_free(emctx.seqBuffer);
-        ZSTD_memset(&zc->externalMatchCtx, 0, sizeof(zc->externalMatchCtx));
-    }
-}
-
 static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
 {
     ZSTD_matchState_t* const ms = &zc->blockState.matchState;
@@ -3012,14 +2939,14 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
              * We need to revisit soon and implement it. */
             if (zc->appliedParams.useBlockSplitter == ZSTD_ps_enable) {
                 RETURN_ERROR_IF(
-                    zc->appliedParams.useExternalMatchfinder == 1,
+                    zc->externalMatchCtx.mFinder != NULL,
                     parameter_unsupported, // @nocommit Make this a parameter *combination* error?
                     "Block splitting with external matchfinder enabled is not currently supported. "
                     "Note: block splitting is enabled by default at high compression levels."
                 );
             } else {
                 RETURN_ERROR_IF(
-                    zc->appliedParams.useExternalMatchfinder == 1,
+                    zc->externalMatchCtx.mFinder != NULL,
                     parameter_unsupported, // @nocommit Make this a parameter *combination* error?
                     "Long-distance matching with external matchfinder enabled is not currently supported."
                 );
@@ -3039,7 +2966,7 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
             /* External matchfinder + LDM is technically possible, just not implemented yet.
              * We need to revisit soon and implement it. */
             RETURN_ERROR_IF(
-                zc->appliedParams.useExternalMatchfinder == 1,
+                zc->externalMatchCtx.mFinder != NULL,
                 parameter_unsupported, // @nocommit Make this a parameter *combination* error?
                 "Long-distance matching with external matchfinder enabled is not currently supported."
             );
@@ -3058,22 +2985,26 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
                                        zc->appliedParams.useRowMatchFinder,
                                        src, srcSize);
             assert(ldmSeqStore.pos == ldmSeqStore.size);
-        } else if (zc->appliedParams.useExternalMatchfinder) {
-            // @nocommit document lack of dictionary support in function call
-            RETURN_ERROR_IF(
-                zc->externalMatchCtx.mFinder == NULL, parameter_unsupported,
-                "useExternalMatchfinder=1 but no external matchfinder is registered!"
+        } else if (zc->externalMatchCtx.mFinder != NULL) {
+            assert(
+                zc->externalMatchCtx.seqBufferCapacity >= ZSTD_sequenceBound(srcSize)
             );
-            ZSTD_externalMatchResult matchResult = (zc->externalMatchCtx.mFinder)(
-                NULL, zc->externalMatchCtx.seqBuffer, zc->externalMatchCtx.seqBufferCapacity, src, srcSize, NULL, 0
+
+            size_t nbExternalSeqs = (zc->externalMatchCtx.mFinder)(
+                zc->externalMatchCtx.mState,
+                zc->externalMatchCtx.seqBuffer,
+                zc->externalMatchCtx.seqBufferCapacity,
+                src, srcSize,
+                NULL, 0  /* dict and dictSize, currently not supported */
             );
-            if (matchResult.errorCode == ZSTD_emf_error_none) {
+
+            if (nbExternalSeqs <= zc->externalMatchCtx.seqBufferCapacity) {
                 ZSTD_sequencePosition seqPos = {0,0,0};
+                ZSTD_copySequencesToSeqStoreExplicitBlockDelim(
+                    zc, &seqPos, zc->externalMatchCtx.seqBuffer, nbExternalSeqs, src, srcSize
+                );
                 ms->ldmSeqStore = NULL;
                 lastLLSize = 0;
-                ZSTD_copySequencesToSeqStoreExplicitBlockDelim(
-                    zc, &seqPos, zc->externalMatchCtx.seqBuffer, matchResult.nbSeqsFound, src, srcSize
-                );
             } else {
                 if (zc->appliedParams.enableMatchfinderFallback) {
                     ZSTD_blockCompressor const blockCompressor = ZSTD_selectBlockCompressor(zc->appliedParams.cParams.strategy,
@@ -3084,11 +3015,11 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
                 } else {
                     RETURN_ERROR(
                         externalMatchFinder_failed,
-                        "External matchfinder returned a non-zero error code!"
+                        "External matchfinder returned an error code!"
                     );
                 }
             }
-        } else {   /* not long range mode */
+        } else {   /* not long range mode and no external matchfinder */
             ZSTD_blockCompressor const blockCompressor = ZSTD_selectBlockCompressor(zc->appliedParams.cParams.strategy,
                                                                                     zc->appliedParams.useRowMatchFinder,
                                                                                     dictMode);
@@ -3232,12 +3163,12 @@ static int ZSTD_isRLE(const BYTE* src, size_t length) {
  * This is just a heuristic based on the compressibility.
  * It may return both false positives and false negatives.
  */
-static int ZSTD_maybeRLE(seqStore_t const* seqStore, ZSTD_CCtx_params const* appliedParams)
+static int ZSTD_maybeRLE(seqStore_t const* seqStore, ZSTD_externalMatchCtx const* externalMatchCtx)
 {
     size_t const nbSeqs = (size_t)(seqStore->sequences - seqStore->sequencesStart);
     size_t const nbLits = (size_t)(seqStore->lit - seqStore->litStart);
 
-    if (appliedParams->useExternalMatchfinder) {
+    if (externalMatchCtx->mFinder != NULL) {
         /* We shouldn't make any assumptions about how an external matchfinder
          * will compress an RLE block. */
         return 1;
@@ -4093,7 +4024,7 @@ static size_t ZSTD_compressBlock_targetCBlockSize_body(ZSTD_CCtx* zc,
             * This is only an issue for zstd <= v1.4.3
             */
             !zc->isFirstBlock &&
-            ZSTD_maybeRLE(&zc->seqStore, &zc->appliedParams) &&
+            ZSTD_maybeRLE(&zc->seqStore, &zc->externalMatchCtx) &&
             ZSTD_isRLE((BYTE const*)src, srcSize))
         {
             return ZSTD_rleCompressBlock(dst, dstCapacity, *(BYTE const*)src, srcSize, lastBlock);
@@ -6447,7 +6378,7 @@ ZSTD_compressSequences_internal(ZSTD_CCtx* cctx,
         DEBUGLOG(5, "Compressed sequences size: %zu", compressedSeqsSize);
 
         if (!cctx->isFirstBlock &&
-            ZSTD_maybeRLE(&cctx->seqStore, &cctx->appliedParams) &&
+            ZSTD_maybeRLE(&cctx->seqStore, &cctx->externalMatchCtx) &&
             ZSTD_isRLE(ip, blockSize)) {
             /* We don't want to emit our first block as a RLE even if it qualifies because
             * doing so will cause the decoder (cli only) to throw a "should consume all input error."
@@ -6719,4 +6650,22 @@ static ZSTD_parameters ZSTD_getParams_internal(int compressionLevel, unsigned lo
 ZSTD_parameters ZSTD_getParams(int compressionLevel, unsigned long long srcSizeHint, size_t dictSize) {
     if (srcSizeHint == 0) srcSizeHint = ZSTD_CONTENTSIZE_UNKNOWN;
     return ZSTD_getParams_internal(compressionLevel, srcSizeHint, dictSize, ZSTD_cpm_unknown);
+}
+
+void ZSTD_refExternalMatchFinder(
+    ZSTD_CCtx* zc, void* mState,
+    ZSTD_externalMatchFinder_F* mFinder
+) {
+    size_t const seqBufferCapacity = ZSTD_sequenceBound(ZSTD_BLOCKSIZE_MAX);
+    ZSTD_Sequence* const seqBuffer = malloc(seqBufferCapacity * sizeof(ZSTD_Sequence));
+
+    ZSTD_externalMatchCtx emctx = {
+        mState,
+        mFinder,
+
+        /* @nocommit seqBuffer should move into the cwksp */
+        seqBuffer,
+        seqBufferCapacity
+    };
+    zc->externalMatchCtx = emctx;
 }

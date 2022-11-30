@@ -354,8 +354,13 @@ struct ZSTD_CCtx_params_s {
     ZSTD_paramSwitch_e prefetchCDictTables;
 
     /* Controls whether zstd will fall back to an internal matchfinder
-     * when the external matchfinder returns an error code. */
+     * if the external matchfinder returns an error code. */
     int enableMatchfinderFallback;
+
+    /* Indicates whether an external matchfinder has been referenced.
+     * Users can't set this externally.
+     * It is set internally in ZSTD_refExternalMatchfinder(). */
+    int useExternalMatchfinder;
 };  /* typedef'd to ZSTD_CCtx_params within "zstd.h" */
 
 #define COMPRESS_SEQUENCES_WORKSPACE_SIZE (sizeof(unsigned) * (MaxSeq + 2))

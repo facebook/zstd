@@ -1520,7 +1520,7 @@ static size_t ZSTD_estimateCCtxSize_usingCCtxParams_internal(
 {
     size_t const windowSize = (size_t) BOUNDED(1ULL, 1ULL << cParams->windowLog, pledgedSrcSize);
     size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, windowSize);
-    U32    const divider = (cParams->minMatch==3) ? 3 : 4;
+    U32    const divider = (cParams->minMatch==3 || useExternalMatchfinder) ? 3 : 4;
     size_t const maxNbSeq = blockSize / divider;
     size_t const tokenSpace = ZSTD_cwksp_alloc_size(WILDCOPY_OVERLENGTH + blockSize)
                             + ZSTD_cwksp_aligned_alloc_size(maxNbSeq * sizeof(seqDef))
@@ -1914,7 +1914,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
 
     {   size_t const windowSize = MAX(1, (size_t)MIN(((U64)1 << params->cParams.windowLog), pledgedSrcSize));
         size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, windowSize);
-        U32    const divider = (params->cParams.minMatch==3) ? 3 : 4;
+        U32    const divider = (params->cParams.minMatch==3 || params->useExternalMatchfinder) ? 3 : 4;
         size_t const maxNbSeq = blockSize / divider;
         size_t const buffOutSize = (zbuff == ZSTDb_buffered && params->outBufferMode == ZSTD_bm_buffered)
                 ? ZSTD_compressBound(blockSize) + 1

@@ -158,6 +158,13 @@ static void ZSTD_clearAllDicts(ZSTD_CCtx* cctx)
     cctx->cdict = NULL;
 }
 
+/* Clears the external matchfinder, if one has been referenced.
+ * Does not free any resources owned by the external match state! */
+static void ZSTD_clearExternalMatchCtx(ZSTD_CCtx* cctx) {
+    ZSTD_externalMatchCtx nullCtx = {0};
+    cctx->externalMatchCtx = nullCtx;
+}
+
 static size_t ZSTD_sizeof_localDict(ZSTD_localDict dict)
 {
     size_t const bufferSize = dict.dictBuffer != NULL ? dict.dictSize : 0;
@@ -1258,6 +1265,7 @@ size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx, ZSTD_ResetDirective reset)
         RETURN_ERROR_IF(cctx->streamStage != zcss_init, stage_wrong,
                         "Can't reset parameters only when not in init stage.");
         ZSTD_clearAllDicts(cctx);
+        ZSTD_clearExternalMatchCtx(cctx);
         return ZSTD_CCtxParams_reset(&cctx->requestedParams);
     }
     return 0;

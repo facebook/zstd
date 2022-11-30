@@ -28,9 +28,6 @@
 #include "zstd_ldm.h"
 #include "zstd_compress_superblock.h"
 #include  "../common/bits.h"      /* ZSTD_highbit32 */
-#define ZSTD_DEPS_NEED_MALLOC
-#include "../common/zstd_deps.h" /* ZSTD_malloc */
-#include <stdio.h>
 
 /* ***************************************************************
 *  Tuning parameters
@@ -1510,7 +1507,8 @@ static size_t ZSTD_estimateCCtxSize_usingCCtxParams_internal(
         const ZSTD_paramSwitch_e useRowMatchFinder,
         const size_t buffInSize,
         const size_t buffOutSize,
-        const U64 pledgedSrcSize)
+        const U64 pledgedSrcSize,
+        int useExternalMatchfinder)
 {
     size_t const windowSize = (size_t) BOUNDED(1ULL, 1ULL << cParams->windowLog, pledgedSrcSize);
     size_t const blockSize = MIN(ZSTD_BLOCKSIZE_MAX, windowSize);
@@ -1534,6 +1532,9 @@ static size_t ZSTD_estimateCCtxSize_usingCCtxParams_internal(
 
     size_t const cctxSpace = isStatic ? ZSTD_cwksp_alloc_size(sizeof(ZSTD_CCtx)) : 0;
 
+    size_t const externalSeqSpace = useExternalMatchfinder ?
+        ZSTD_sequenceBound(ZSTD_BLOCKSIZE_MAX) * sizeof(ZSTD_Sequence) : 0;
+
     size_t const neededSpace =
         cctxSpace +
         entropySpace +
@@ -1542,7 +1543,8 @@ static size_t ZSTD_estimateCCtxSize_usingCCtxParams_internal(
         ldmSeqSpace +
         matchStateSize +
         tokenSpace +
-        bufferSpace;
+        bufferSpace +
+        externalSeqSpace;
 
     DEBUGLOG(5, "estimate workspace : %u", (U32)neededSpace);
     return neededSpace;
@@ -1560,7 +1562,7 @@ size_t ZSTD_estimateCCtxSize_usingCCtxParams(const ZSTD_CCtx_params* params)
      * be needed. However, we still allocate two 0-sized buffers, which can
      * take space under ASAN. */
     return ZSTD_estimateCCtxSize_usingCCtxParams_internal(
-        &cParams, &params->ldmParams, 1, useRowMatchFinder, 0, 0, ZSTD_CONTENTSIZE_UNKNOWN);
+        &cParams, &params->ldmParams, 1, useRowMatchFinder, 0, 0, ZSTD_CONTENTSIZE_UNKNOWN, params->useExternalMatchfinder);
 }
 
 size_t ZSTD_estimateCCtxSize_usingCParams(ZSTD_compressionParameters cParams)
@@ -1621,7 +1623,7 @@ size_t ZSTD_estimateCStreamSize_usingCCtxParams(const ZSTD_CCtx_params* params)
 
         return ZSTD_estimateCCtxSize_usingCCtxParams_internal(
             &cParams, &params->ldmParams, 1, useRowMatchFinder, inBuffSize, outBuffSize,
-            ZSTD_CONTENTSIZE_UNKNOWN);
+            ZSTD_CONTENTSIZE_UNKNOWN, params->useExternalMatchfinder);
     }
 }
 
@@ -1922,7 +1924,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         size_t const neededSpace =
             ZSTD_estimateCCtxSize_usingCCtxParams_internal(
                 &params->cParams, &params->ldmParams, zc->staticSize != 0, params->useRowMatchFinder,
-                buffInSize, buffOutSize, pledgedSrcSize);
+                buffInSize, buffOutSize, pledgedSrcSize, params->useExternalMatchfinder);
         int resizeWorkspace;
 
         FORWARD_IF_ERROR(neededSpace, "cctx size estimate failed!");
@@ -2033,6 +2035,14 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
 
             ZSTD_window_init(&zc->ldmState.window);
             zc->ldmState.loadedDictEnd = 0;
+        }
+
+        /* reserve space for block-level external sequences */
+        if (params->useExternalMatchfinder) {
+            size_t const maxNbExternalSeq = ZSTD_sequenceBound(ZSTD_BLOCKSIZE_MAX);
+            zc->externalMatchCtx.seqBufferCapacity = maxNbExternalSeq;
+            zc->externalMatchCtx.seqBuffer =
+                (ZSTD_Sequence*)ZSTD_cwksp_reserve_aligned(ws, maxNbExternalSeq * sizeof(ZSTD_Sequence));
         }
 
         DEBUGLOG(3, "wksp: finished allocating, %zd bytes remain available", ZSTD_cwksp_available_space(ws));
@@ -6658,18 +6668,14 @@ void ZSTD_refExternalMatchFinder(
     ZSTD_CCtx* zc, void* mState,
     ZSTD_externalMatchFinder_F* mFinder
 ) {
-    size_t const seqBufferCapacity = ZSTD_sequenceBound(ZSTD_BLOCKSIZE_MAX);
-    ZSTD_Sequence* const seqBuffer = malloc(seqBufferCapacity * sizeof(ZSTD_Sequence));
-
     zc->requestedParams.useExternalMatchfinder = 1;
-
     ZSTD_externalMatchCtx emctx = {
         mState,
         mFinder,
 
-        /* @nocommit seqBuffer should move into the cwksp */
-        seqBuffer,
-        seqBufferCapacity
+        /* seqBuffer is allocated later (from the cwskp) */
+        NULL, /* seqBuffer */
+        0 /* seqBufferCapacity */
     };
     zc->externalMatchCtx = emctx;
 }

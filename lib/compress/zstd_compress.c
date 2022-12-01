@@ -3024,12 +3024,18 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
                 );
                 ms->ldmSeqStore = NULL;
                 lastLLSize = 0;
+                DEBUGLOG(5, "Copied %lu sequences from external matchfinder to internal seqStore.", (unsigned long)nbExternalSeqs);
             } else {
                 if (zc->appliedParams.enableMatchFinderFallback) {
                     ZSTD_blockCompressor const blockCompressor = ZSTD_selectBlockCompressor(zc->appliedParams.cParams.strategy,
                                                                                             zc->appliedParams.useRowMatchFinder,
                                                                                             dictMode);
                     ms->ldmSeqStore = NULL;
+                    DEBUGLOG(
+                        5,
+                        "External matchfinder returned error code %lu. Falling back to internal matchfinder.",
+                        (unsigned long)nbExternalSeqs
+                    );
                     lastLLSize = blockCompressor(ms, &zc->seqStore, zc->blockState.nextCBlock->rep, src, srcSize);
                 } else {
                     RETURN_ERROR(

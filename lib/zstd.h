@@ -1511,20 +1511,20 @@ ZSTD_compressSequences( ZSTD_CCtx* cctx, void* dst, size_t dstSize,
                         const void* src, size_t srcSize);
 
 /* Block-level sequence compression API */
-// @nocommit improve docs
+/* @nocommit improve docs */
 
 #define ZSTD_EXTERNAL_MATCHFINDER_ERROR ((size_t)(-1))
 
-// @nocommit move bounds comments into docs
+/* @nocommit move bounds comments into docs:
+ * outSeqsCapacity >= blockSize / MINMATCH
+ * srcSize <= 128 KB
+ * dictSize is not bounded */
 typedef size_t ZSTD_externalMatchFinder_F (
   void* externalMatchState,
   ZSTD_Sequence* outSeqs, size_t outSeqsCapacity,
-  // outSeqsCapacity >= blockSize / MINMATCH
   const void* src, size_t srcSize,
   const void* dict, size_t dictSize,
   int compressionLevel
-  // srcSize <= 128 KB
-  // dictSize is not bounded
 );
 
 ZSTDLIB_STATIC_API void
@@ -2071,7 +2071,7 @@ ZSTDLIB_STATIC_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const vo
  */
 #define ZSTD_c_prefetchCDictTables ZSTD_c_experimentalParam16
 
-// @nocommit document
+/* @nocommit document */
 #define ZSTD_c_enableMatchFinderFallback ZSTD_c_experimentalParam17
 
 /*! ZSTD_CCtx_getParameter() :

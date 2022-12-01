@@ -75,6 +75,7 @@ typedef enum {
   ZSTD_error_dictionary_wrong          = 32,
   ZSTD_error_dictionaryCreation_failed = 34,
   ZSTD_error_parameter_unsupported   = 40,
+  ZSTD_error_parameter_combination_unsupported = 41,
   ZSTD_error_parameter_outOfBound    = 42,
   ZSTD_error_tableLog_tooLarge       = 44,
   ZSTD_error_maxSymbolValue_tooLarge = 46,

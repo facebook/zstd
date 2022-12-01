@@ -31,6 +31,7 @@ const char* ERR_getErrorString(ERR_enum code)
     case PREFIX(checksum_wrong): return "Restored data doesn't match checksum";
     case PREFIX(literals_headerWrong): return "Header of Literals' block doesn't respect format specification";
     case PREFIX(parameter_unsupported): return "Unsupported parameter";
+    case PREFIX(parameter_combination_unsupported): return "Unsupported combination of parameters";
     case PREFIX(parameter_outOfBound): return "Parameter is out of bound";
     case PREFIX(init_missing): return "Context should be init first";
     case PREFIX(memory_allocation): return "Allocation error : not enough memory";

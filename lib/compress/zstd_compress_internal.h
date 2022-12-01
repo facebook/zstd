@@ -392,8 +392,7 @@ typedef struct {
     ZSTD_entropyCTablesMetadata_t entropyMetadata;
 } ZSTD_blockSplitCtx;
 
-/* Block-level sequence compression API */
-// @nocommit improve docs
+/* Context for block-level external matchfinder API */
 typedef struct {
   void* mState;
   ZSTD_externalMatchFinder_F* mFinder;

@@ -1521,7 +1521,8 @@ typedef size_t ZSTD_externalMatchFinder_F (
   ZSTD_Sequence* outSeqs, size_t outSeqsCapacity,
   // outSeqsCapacity >= blockSize / MINMATCH
   const void* src, size_t srcSize,
-  const void* dict, size_t dictSize
+  const void* dict, size_t dictSize,
+  int compressionLevel
   // srcSize <= 128 KB
   // dictSize is not bounded
 );

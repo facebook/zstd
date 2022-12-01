@@ -158,13 +158,6 @@ static void ZSTD_clearAllDicts(ZSTD_CCtx* cctx)
     cctx->cdict = NULL;
 }
 
-/* Clears the external matchfinder, if one has been referenced.
- * Does not free any resources owned by the external match state! */
-static void ZSTD_clearExternalMatchCtx(ZSTD_CCtx* cctx) {
-    ZSTD_externalMatchCtx nullCtx = {0};
-    cctx->externalMatchCtx = nullCtx;
-}
-
 static size_t ZSTD_sizeof_localDict(ZSTD_localDict dict)
 {
     size_t const bufferSize = dict.dictBuffer != NULL ? dict.dictSize : 0;
@@ -1265,7 +1258,7 @@ size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx, ZSTD_ResetDirective reset)
         RETURN_ERROR_IF(cctx->streamStage != zcss_init, stage_wrong,
                         "Can't reset parameters only when not in init stage.");
         ZSTD_clearAllDicts(cctx);
-        ZSTD_clearExternalMatchCtx(cctx);
+        ZSTD_memset(&cctx->externalMatchCtx, 0, sizeof(cctx->externalMatchCtx));
         return ZSTD_CCtxParams_reset(&cctx->requestedParams);
     }
     return 0;
@@ -2913,7 +2906,6 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
     assert(srcSize <= ZSTD_BLOCKSIZE_MAX);
     /* Assert that we have correctly flushed the ctx params into the ms's copy */
     ZSTD_assertEqualCParams(zc->appliedParams.cParams, ms->cParams);
-
     /* TODO: See 3090. We reduced MIN_CBLOCK_SIZE from 3 to 2 so to compensate we are adding
      * additional 1. We need to revisit and change this logic to be more consistent */
     if (srcSize < MIN_CBLOCK_SIZE+ZSTD_blockHeaderSize+1+1) {

@@ -2706,7 +2706,6 @@ ZSTDLIB_STATIC_API size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx, void* dst, size_
 ZSTDLIB_STATIC_API size_t ZSTD_insertBlock    (ZSTD_DCtx* dctx, const void* blockStart, size_t blockSize);  /**< insert uncompressed block into `dctx` history. Useful for multi-blocks decompression. */
 
 
-
 #endif   /* ZSTD_H_ZSTD_STATIC_LINKING_ONLY */
 
 #if defined (__cplusplus)

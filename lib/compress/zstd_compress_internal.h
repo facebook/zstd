@@ -355,12 +355,12 @@ struct ZSTD_CCtx_params_s {
 
     /* Controls whether zstd will fall back to an internal matchfinder
      * if the external matchfinder returns an error code. */
-    int enableMatchfinderFallback;
+    int enableMatchFinderFallback;
 
     /* Indicates whether an external matchfinder has been referenced.
      * Users can't set this externally.
-     * It is set internally in ZSTD_refExternalMatchfinder(). */
-    int useExternalMatchfinder;
+     * It is set internally in ZSTD_refExternalMatchFinder(). */
+    int useExternalMatchFinder;
 };  /* typedef'd to ZSTD_CCtx_params within "zstd.h" */
 
 #define COMPRESS_SEQUENCES_WORKSPACE_SIZE (sizeof(unsigned) * (MaxSeq + 2))

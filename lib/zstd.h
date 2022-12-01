@@ -478,7 +478,7 @@ typedef enum {
      * ZSTD_c_useBlockSplitter
      * ZSTD_c_useRowMatchFinder
      * ZSTD_c_prefetchCDictTables
-     * ZSTD_c_enableMatchfinderFallback
+     * ZSTD_c_enableMatchFinderFallback
      * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
      * note : never ever use experimentalParam? names directly;
      *        also, the enums values themselves are unstable and can still change.
@@ -2071,7 +2071,7 @@ ZSTDLIB_STATIC_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const vo
 #define ZSTD_c_prefetchCDictTables ZSTD_c_experimentalParam16
 
 // @nocommit document
-#define ZSTD_c_enableMatchfinderFallback ZSTD_c_experimentalParam17
+#define ZSTD_c_enableMatchFinderFallback ZSTD_c_experimentalParam17
 
 /*! ZSTD_CCtx_getParameter() :
  *  Get the requested compression parameter value, selected by enum ZSTD_cParameter,

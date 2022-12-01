@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
         simpleExternalMatchFinder
     );
 
-    res = ZSTD_CCtx_setParameter(zc, ZSTD_c_enableMatchfinderFallback, 1);
+    res = ZSTD_CCtx_setParameter(zc, ZSTD_c_enableMatchFinderFallback, 1);
 
     if (ZSTD_isError(res)) {
         printf("ERROR: %s\n", ZSTD_getErrorName(res));

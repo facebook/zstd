@@ -52,7 +52,9 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: gcc-7 + libzstdmt compilation
+      # See https://askubuntu.com/a/1428822
       run: |
+        echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu focal main universe" | sudo tee -a /etc/apt/sources.list
         sudo apt-get -qqq update
         make gcc7install
         CC=gcc-7 CFLAGS=-Werror make -j all
@@ -158,7 +160,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: gcc-8 build
+        # See https://askubuntu.com/a/1428822
         run: |
+          echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu focal main universe" | sudo tee -a /etc/apt/sources.list
           sudo apt-get -qqq update
           make gcc8install
           CC=gcc-8 CFLAGS="-Werror" make -j all

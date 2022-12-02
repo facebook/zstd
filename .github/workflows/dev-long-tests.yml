@@ -71,7 +71,9 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: gcc-8 + ASan + UBSan + Test Zstd
+      # See https://askubuntu.com/a/1428822
       run: |
+        echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu focal main universe" | sudo tee -a /etc/apt/sources.list
         sudo apt-get -qqq update
         make gcc8install
         CC=gcc-8 make -j uasan-test-zstd </dev/null V=1
@@ -102,7 +104,9 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: gcc-8 + ASan + UBSan + Fuzz Test
+      # See https://askubuntu.com/a/1428822
       run: |
+        echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu focal main universe" | sudo tee -a /etc/apt/sources.list
         sudo apt-get -qqq update
         make gcc8install
         CC=gcc-8 FUZZER_FLAGS="--long-tests" make clean uasan-fuzztest

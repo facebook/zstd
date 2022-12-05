@@ -1078,7 +1078,7 @@ ZSTD_row_getMatchMask(const BYTE* const tagRow, const BYTE tag, const U32 headGr
     }
 # endif /* ZSTD_ARCH_ARM_NEON */
     /* SWAR */
-    {   const size_t chunkSize = sizeof(size_t);
+    {   const int chunkSize = sizeof(size_t);
         const size_t shiftAmount = ((chunkSize * 8) - chunkSize);
         const size_t xFF = ~((size_t)0);
         const size_t x01 = xFF / 0xFF;
@@ -2123,7 +2123,6 @@ size_t ZSTD_compressBlock_lazy_extDict_row(
 size_t ZSTD_compressBlock_lazy2_extDict_row(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize)
-
 {
     return ZSTD_compressBlock_lazy_extDict_generic(ms, seqStore, rep, src, srcSize, search_rowHash, 2);
 }

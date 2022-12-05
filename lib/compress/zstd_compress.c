@@ -2897,6 +2897,49 @@ void ZSTD_resetSeqStore(seqStore_t* ssPtr)
     ssPtr->longLengthType = ZSTD_llt_none;
 }
 
+/* ZSTD_postProcessExternalMatchFinderResult() :
+ * Validates and post-processes sequences obtained through the external matchfinder API.
+ * Returns the number of sequences after post-processing, or an error code. */
+static size_t ZSTD_postProcessExternalMatchFinderResult(
+    ZSTD_Sequence* outSeqs, size_t nbExternalSeqs, size_t outSeqsCapacity, int emptySrc
+) {
+    RETURN_ERROR_IF(
+        nbExternalSeqs > outSeqsCapacity,
+        externalMatchFinder_failed,
+        "External matchfinder returned error code %lu",
+        (unsigned long)nbExternalSeqs
+    );
+
+    RETURN_ERROR_IF(
+        nbExternalSeqs == 0 && !emptySrc,
+        externalMatchFinder_failed,
+        "External matchfinder produced zero sequences for a non-empty src buffer!"
+    );
+
+    if (emptySrc) {
+        ZSTD_memset(&outSeqs[0], 0, sizeof(ZSTD_Sequence));
+        return 1;
+    } else {
+        ZSTD_Sequence const lastSeq = outSeqs[nbExternalSeqs - 1];
+
+        /* Check if lastSeq is a block delimiter, append one if not */
+        if (lastSeq.offset == 0 && lastSeq.matchLength == 0) {
+            return nbExternalSeqs;
+        } else {
+            /* This error condition is only possible if the external matchfinder
+            * produced an invalid parse, by definition of ZSTD_sequenceBound(). */
+            RETURN_ERROR_IF(
+                nbExternalSeqs == outSeqsCapacity,
+                externalMatchFinder_failed,
+                "nbExternalSeqs == outSeqsCapacity but lastSeq is not a block delimiter!"
+            );
+
+            ZSTD_memset(&outSeqs[nbExternalSeqs], 0, sizeof(ZSTD_Sequence));
+            return nbExternalSeqs + 1;
+        }
+    }
+}
+
 typedef enum { ZSTDbss_compress, ZSTDbss_noCompress } ZSTD_buildSeqStore_e;
 
 static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
@@ -3010,10 +3053,17 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
                     zc->appliedParams.compressionLevel
                 );
 
-                if (nbExternalSeqs <= zc->externalMatchCtx.seqBufferCapacity) {
+                size_t const nbPostProcessedSeqs = ZSTD_postProcessExternalMatchFinderResult(
+                    zc->externalMatchCtx.seqBuffer,
+                    nbExternalSeqs,
+                    zc->externalMatchCtx.seqBufferCapacity,
+                    srcSize == 0  /* emptySrc */
+                );
+
+                if (!ZSTD_isError(nbPostProcessedSeqs)) {
                     ZSTD_sequencePosition seqPos = {0,0,0};
                     ZSTD_copySequencesToSeqStoreExplicitBlockDelim(
-                        zc, &seqPos, zc->externalMatchCtx.seqBuffer, nbExternalSeqs, src, srcSize
+                        zc, &seqPos, zc->externalMatchCtx.seqBuffer, nbPostProcessedSeqs, src, srcSize
                     );
                     ms->ldmSeqStore = NULL;
                     lastLLSize = 0;
@@ -3031,10 +3081,7 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
                         );
                         lastLLSize = blockCompressor(ms, &zc->seqStore, zc->blockState.nextCBlock->rep, src, srcSize);
                     } else {
-                        RETURN_ERROR(
-                            externalMatchFinder_failed,
-                            "External matchfinder returned an error code!"
-                        );
+                        return nbPostProcessedSeqs;  /* return an error */
                     }
             }   }
         } else {   /* not long range mode and no external matchfinder */

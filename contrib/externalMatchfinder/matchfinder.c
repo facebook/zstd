@@ -7,28 +7,29 @@ static U32 const MLS = 4;
 static U32 const BADIDX = (1 << 31);
 
 size_t simpleExternalMatchFinder(
-  void* externalMatchState, ZSTD_Sequence* outSeqs, size_t outSeqsCapacity,
+  void* externalMatchState,
+  ZSTD_Sequence* outSeqs, size_t outSeqsCapacity,
   const void* src, size_t srcSize,
   const void* dict, size_t dictSize,
   int compressionLevel
 ) {
+    const BYTE* const istart = (const BYTE*)src;
+    const BYTE* const iend = istart + srcSize;
+    const BYTE* ip = istart;
+    const BYTE* anchor = istart;
+    size_t seqCount = 0;
+    U32 hashTable[HSIZE];
+
     (void)externalMatchState;
     (void)dict;
     (void)dictSize;
     (void)outSeqsCapacity;
     (void)compressionLevel;
 
-    const BYTE* const istart = (const BYTE*)src;
-    const BYTE* const iend = istart + srcSize;
-    const BYTE* ip = istart;
-    const BYTE* anchor = istart;
-
-    size_t seqCount = 0;
-
-    U32 hashTable[HSIZE];
-    for (int i=0; i < HSIZE; i++) {
-        hashTable[i] = BADIDX;
-    }
+    {   int i;
+        for (i=0; i < HSIZE; i++) {
+            hashTable[i] = BADIDX;
+    }   }
 
     while (ip + 4 < iend) {
         size_t const hash = ZSTD_hashPtr(ip, HLOG, MLS);
@@ -54,10 +55,11 @@ size_t simpleExternalMatchFinder(
         ip++;
     }
 
-    ZSTD_Sequence const finalSeq = {
-        0, iend - anchor, 0, 0
-    };
-    outSeqs[seqCount++] = finalSeq;
+    {   ZSTD_Sequence const finalSeq = {
+            0, iend - anchor, 0, 0
+        };
+        outSeqs[seqCount++] = finalSeq;
+    }
 
     return seqCount;
 }

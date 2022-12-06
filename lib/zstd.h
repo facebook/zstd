@@ -562,7 +562,7 @@ typedef enum {
  *                  They will be used to compress next frame.
  *                  Resetting session never fails.
  *  - The parameters : changes all parameters back to "default".
- *                  This removes any reference to any dictionary too. @nocommit mention external matchfinder
+ *                  This also removes any reference to any dictionary or external matchfinder.
  *                  Parameters can only be changed between 2 sessions (i.e. no compression is currently ongoing)
  *                  otherwise the reset fails, and function returns an error value (which can be tested using ZSTD_isError())
  *  - Both : similar to resetting the session, followed by resetting parameters.
@@ -1511,14 +1511,14 @@ ZSTD_compressSequences( ZSTD_CCtx* cctx, void* dst, size_t dstSize,
                         const void* src, size_t srcSize);
 
 /* Block-level sequence compression API */
-/* @nocommit improve docs */
+/* @nocommit document */
 
 #define ZSTD_EXTERNAL_MATCHFINDER_ERROR ((size_t)(-1))
 
-/* @nocommit move bounds comments into docs:
- * outSeqsCapacity >= blockSize / MINMATCH
- * srcSize <= 128 KB
- * dictSize is not bounded */
+/* @nocommit document these constraints:
+ *     - outSeqsCapacity >= (blockSize / MINMATCH) + 1
+ *     - srcSize <= 128 KB
+ *     - dictSize is not bounded */
 typedef size_t ZSTD_externalMatchFinder_F (
   void* externalMatchState,
   ZSTD_Sequence* outSeqs, size_t outSeqsCapacity,

@@ -5,7 +5,7 @@
 #define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
 #include "zstd_errors.h"
-#include "matchfinder.h" // simpleExternalMatchFinder, simpleExternalMatchStateDestructor
+#include "matchfinder.h" // simpleExternalMatchFinder
 
 int main(int argc, char *argv[]) {
     size_t res;
@@ -35,17 +35,17 @@ int main(int argc, char *argv[]) {
 
     FILE *f = fopen(argv[1], "rb");
     fseek(f, 0, SEEK_END);
-    long srcSize = ftell(f);
+    long const srcSize = ftell(f);
     fseek(f, 0, SEEK_SET);
 
     char *src = malloc(srcSize + 1);
     fread(src, srcSize, 1, f);
     fclose(f);
 
-    size_t dstSize = ZSTD_compressBound(srcSize);
+    size_t const dstSize = ZSTD_compressBound(srcSize);
     char *dst = malloc(dstSize);
 
-    size_t cSize = ZSTD_compress2(zc, dst, dstSize, src, srcSize);
+    size_t const cSize = ZSTD_compress2(zc, dst, dstSize, src, srcSize);
 
     if (ZSTD_isError(cSize)) {
         printf("ERROR: %s\n", ZSTD_getErrorName(cSize));

@@ -1913,6 +1913,9 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
         externalMatchState = EMF_BIG_ERROR; /* ensure zstd will fail if the matchfinder wasn't cleared */
         CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_enableMatchFinderFallback, 0));
         CHECK_Z(ZSTD_compress2(zc, dstBuf, dstBufSize, CNBuffer, CNBufferSize));
+
+        free(dstBuf);
+        free(checkBuf);
     }
     DISPLAYLEVEL(3, "OK \n");
 

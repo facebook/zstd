@@ -39,7 +39,7 @@
 #include "seqgen.h"
 #include "util.h"
 #include "timefn.h"       /* UTIL_time_t, UTIL_clockSpanMicro, UTIL_getTime */
-#include "external_matchfinder.h"   /* zstreamExternalMatchFinder */
+#include "external_matchfinder.h"   /* zstreamExternalMatchFinder, EMF_testCase */
 
 /*-************************************
  *  Constants

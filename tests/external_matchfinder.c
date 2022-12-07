@@ -73,7 +73,7 @@ size_t zstreamExternalMatchFinder(
   const void* dict, size_t dictSize,
   int compressionLevel
 ) {
-    EMF_testCase testCase = *((EMF_testCase*)externalMatchState);
+    EMF_testCase const testCase = *((EMF_testCase*)externalMatchState);
     memset(outSeqs, 0, outSeqsCapacity);
 
     switch (testCase) {

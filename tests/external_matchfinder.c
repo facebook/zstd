@@ -36,14 +36,14 @@ static size_t simpleExternalMatchFinder(
     while (ip + 4 < iend) {
         size_t const hash = ZSTD_hashPtr(ip, HLOG, MLS);
         U32 const matchIndex = hashTable[hash];
-        hashTable[hash] = ip - istart;
+        hashTable[hash] = (U32)(ip - istart);
 
         if (matchIndex != BADIDX) {
             const BYTE* const match = istart + matchIndex;
-            size_t const matchLen = ZSTD_count(ip, match, iend);
+            U32 const matchLen = (U32)ZSTD_count(ip, match, iend);
             if (matchLen >= ZSTD_MINMATCH_MIN) {
-                U32 const litLen = ip - anchor;
-                U32 const offset = ip - match;
+                U32 const litLen = (U32)(ip - anchor);
+                U32 const offset = (U32)(ip - match);
                 ZSTD_Sequence const seq = {
                     offset, litLen, matchLen, 0
                 };
@@ -58,7 +58,7 @@ static size_t simpleExternalMatchFinder(
     }
 
     {   ZSTD_Sequence const finalSeq = {
-            0, iend - anchor, 0, 0
+            0, (U32)(iend - anchor), 0, 0
         };
         outSeqs[seqCount++] = finalSeq;
     }
@@ -82,7 +82,7 @@ size_t zstreamExternalMatchFinder(
         case EMF_ONE_BIG_SEQ:
             outSeqs[0].offset = 0;
             outSeqs[0].matchLength = 0;
-            outSeqs[0].litLength = srcSize;
+            outSeqs[0].litLength = (U32)(srcSize);
             return 1;
          case EMF_LOTS_OF_SEQS:
             return simpleExternalMatchFinder(

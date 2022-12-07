@@ -6117,9 +6117,6 @@ static U32 ZSTD_finalizeOffBase(U32 rawOffset, const U32 rep[ZSTD_REP_NUM], U32 
     return offBase;
 }
 
-/* Returns 0 on success, and a ZSTD_error otherwise. This function scans through an array of
- * ZSTD_Sequence, storing the sequences it finds, until it reaches a block delimiter.
- */
 size_t
 ZSTD_copySequencesToSeqStoreExplicitBlockDelim(ZSTD_CCtx* cctx,
                                               ZSTD_sequencePosition* seqPos,
@@ -6174,19 +6171,7 @@ ZSTD_copySequencesToSeqStoreExplicitBlockDelim(ZSTD_CCtx* cctx,
     return 0;
 }
 
-/* Returns the number of bytes to move the current read position back by.
- * Only non-zero if we ended up splitting a sequence.
- * Otherwise, it may return a ZSTD error if something went wrong.
- *
- * This function will attempt to scan through blockSize bytes
- * represented by the sequences in @inSeqs,
- * storing any (partial) sequences.
- *
- * Occasionally, we may want to change the actual number of bytes we consumed from inSeqs to
- * avoid splitting a match, or to avoid splitting a match such that it would produce a match
- * smaller than MINMATCH. In this case, we return the number of bytes that we didn't read from this block.
- */
-static size_t
+size_t
 ZSTD_copySequencesToSeqStoreNoBlockDelim(ZSTD_CCtx* cctx, ZSTD_sequencePosition* seqPos,
                                    const ZSTD_Sequence* const inSeqs, size_t inSeqsSize,
                                    const void* src, size_t blockSize)

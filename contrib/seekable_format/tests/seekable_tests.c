@@ -186,6 +186,36 @@ int main(int argc, const char** argv)
     }
     printf("Success!\n");
 
+
+    printf("Test %u - check ZSTD magic in compressing empty string: ", testNb++);
+    { // compressing empty string should return a zstd header
+        char *data_in = (char *) malloc(255 * sizeof(char));
+        assert(data_in != NULL);
+        data_in = "\0";
+
+        char *data_out = (char *) malloc(255 * 255 * sizeof(char));
+        assert(data_out != NULL);
+
+        ZSTD_seekable_CStream *s = ZSTD_seekable_createCStream();
+        ZSTD_seekable_initCStream(s, 1, 1, 1024 * 1024);
+
+        ZSTD_inBuffer input = { data_in, 0, 0 };
+        ZSTD_outBuffer output = { data_out, 255*255, 0 };
+
+        ZSTD_seekable_compressStream(s, &output, &input);
+        ZSTD_seekable_endStream(s, &output);
+
+        if((((char*)output.dst)[0] != '\x28') | (((char*)output.dst)[1] != '\xb5') | (((char*)output.dst)[2] != '\x2f') | (((char*)output.dst)[3] != '\xfd')) {
+            printf("%#02x %#02x %#02x %#02x\n", ((char*)output.dst)[0], ((char*)output.dst)[1] , ((char*)output.dst)[2] , ((char*)output.dst)[3] );
+
+            ZSTD_seekable_freeCStream(s);
+            goto _test_error;
+        }
+
+        ZSTD_seekable_freeCStream(s);
+    }
+    printf("Success!\n");
+
     /* TODO: Add more tests */
     printf("Finished tests\n");
     return 0;

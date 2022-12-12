@@ -191,7 +191,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v1.0.2
+      uses: microsoft/setup-msbuild@v1.1.3
     - name: Build
       working-directory: ${{env.GITHUB_WORKSPACE}}
       run: |
@@ -210,7 +210,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v1.0.2
+      uses: microsoft/setup-msbuild@v1.1.3
     - name: Build
       working-directory: ${{env.GITHUB_WORKSPACE}}
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
@@ -229,7 +229,7 @@ jobs:
 #    steps:
 #    - uses: actions/checkout@v3
 #    - name: Add MSBuild to PATH
-#      uses: microsoft/setup-msbuild@v1.0.2
+#      uses: microsoft/setup-msbuild@v1.1.3
 #    - name: Build
 #      working-directory: ${{env.GITHUB_WORKSPACE}}
 #      run: >
@@ -380,7 +380,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v1.0.2
+      uses: microsoft/setup-msbuild@v1.1.3
     - name: Build and run tests
       working-directory: ${{env.GITHUB_WORKSPACE}}
       env:

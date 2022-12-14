@@ -1549,7 +1549,7 @@ unsigned ZSTD_getDictID_fromDict(const void* dict, size_t dictSize)
  *  ZSTD_getFrameHeader(), which will provide a more precise error code. */
 unsigned ZSTD_getDictID_fromFrame(const void* src, size_t srcSize)
 {
-    ZSTD_frameHeader zfp = { 0, 0, 0, ZSTD_frame, 0, 0, 0 };
+    ZSTD_frameHeader zfp = { 0, 0, 0, ZSTD_frame, 0, 0, 0, 0, 0 };
     size_t const hError = ZSTD_getFrameHeader(&zfp, src, srcSize);
     if (ZSTD_isError(hError)) return 0;
     return zfp.dictID;

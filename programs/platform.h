@@ -33,7 +33,7 @@ extern "C" {
 
 /* **************************************
 *  Detect 64-bit OS
-*  http://nadeausoftware.com/articles/2012/02/c_c_tip_how_detect_processor_type_using_compiler_predefined_macros
+*  https://nadeausoftware.com/articles/2012/02/c_c_tip_how_detect_processor_type_using_compiler_predefined_macros
 ****************************************/
 #if defined __ia64 || defined _M_IA64                                                                               /* Intel Itanium */ \
   || defined __powerpc64__ || defined __ppc64__ || defined __PPC64__                                                /* POWER 64-bit */  \
@@ -80,7 +80,7 @@ extern "C" {
       * note: it's better to use unistd.h's _POSIX_VERSION whenever possible */
 #    define PLATFORM_POSIX_VERSION 200112L
 
-/* try to determine posix version through official unistd.h's _POSIX_VERSION (http://pubs.opengroup.org/onlinepubs/7908799/xsh/unistd.h.html).
+/* try to determine posix version through official unistd.h's _POSIX_VERSION (https://pubs.opengroup.org/onlinepubs/7908799/xsh/unistd.h.html).
  * note : there is no simple way to know in advance if <unistd.h> is present or not on target system,
  * Posix specification mandates its presence and its content, but target system must respect this spec.
  * It's necessary to _not_ #include <unistd.h> whenever target OS is not unix-like
@@ -192,13 +192,13 @@ static __inline int IS_CONSOLE(FILE* stdStream) {
 
 
 #ifndef ZSTD_SETPRIORITY_SUPPORT
-   /* mandates presence of <sys/resource.h> and support for setpriority() : http://man7.org/linux/man-pages/man2/setpriority.2.html */
+   /* mandates presence of <sys/resource.h> and support for setpriority() : https://man7.org/linux/man-pages/man2/setpriority.2.html */
 #  define ZSTD_SETPRIORITY_SUPPORT (PLATFORM_POSIX_VERSION >= 200112L)
 #endif
 
 
 #ifndef ZSTD_NANOSLEEP_SUPPORT
-   /* mandates support of nanosleep() within <time.h> : http://man7.org/linux/man-pages/man2/nanosleep.2.html */
+   /* mandates support of nanosleep() within <time.h> : https://man7.org/linux/man-pages/man2/nanosleep.2.html */
 #  if (defined(__linux__) && (PLATFORM_POSIX_VERSION >= 199309L)) \
    || (PLATFORM_POSIX_VERSION >= 200112L)
 #     define ZSTD_NANOSLEEP_SUPPORT 1

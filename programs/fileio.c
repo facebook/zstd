@@ -1006,7 +1006,7 @@ FIO_compressGzFrame(const cRess_t* ress,  /* buffers & handlers are used, but no
 
     {   int const ret = deflateInit2(&strm, compressionLevel, Z_DEFLATED,
                         15 /* maxWindowLogSize */ + 16 /* gzip only */,
-                        8, Z_DEFAULT_STRATEGY); /* see http://www.zlib.net/manual.html */
+                        8, Z_DEFAULT_STRATEGY); /* see https://www.zlib.net/manual.html */
         if (ret != Z_OK) {
             EXM_THROW(71, "zstd: %s: deflateInit2 error %d \n", srcFileName, ret);
     }   }
@@ -2134,7 +2134,7 @@ FIO_decompressGzFrame(dRess_t* ress, const char* srcFileName)
     strm.opaque = Z_NULL;
     strm.next_in = 0;
     strm.avail_in = 0;
-    /* see http://www.zlib.net/manual.html */
+    /* see https://www.zlib.net/manual.html */
     if (inflateInit2(&strm, 15 /* maxWindowLogSize */ + 16 /* gzip only */) != Z_OK)
         return FIO_ERROR_FRAME_DECODING;
 

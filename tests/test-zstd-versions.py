@@ -126,7 +126,7 @@ def compress_sample(tag, sample):
     print(tag + " : compression completed")
 
 
-# http://stackoverflow.com/a/19711609/2132223
+# https://stackoverflow.com/a/19711609/2132223
 def sha1_of_file(filepath):
     with open(filepath, 'rb') as f:
         return hashlib.sha1(f.read()).hexdigest()

@@ -26,7 +26,7 @@ The purpose of this document is to define a lossless compressed data format,
 that is independent of CPU type, operating system,
 file system and character set, suitable for
 file compression, pipe and streaming compression,
-using the [Zstandard algorithm](http://www.zstandard.org).
+using the [Zstandard algorithm](https://facebook.github.io/zstd/).
 The text of the specification assumes a basic background in programming
 at the level of bits and other primitive data representations.
 
@@ -35,7 +35,7 @@ even for an arbitrarily long sequentially presented input data stream,
 using only an a priori bounded amount of intermediate storage,
 and hence can be used in data communications.
 The format uses the Zstandard compression method,
-and optional [xxHash-64 checksum method](http://www.xxhash.org),
+and optional [xxHash-64 checksum method](https://cyan4973.github.io/xxHash/),
 for detection of data corruption.
 
 The data format defined by this specification
@@ -134,7 +134,7 @@ __`Content_Checksum`__
 
 An optional 32-bit checksum, only present if `Content_Checksum_flag` is set.
 The content checksum is the result
-of [xxh64() hash function](http://www.xxhash.org)
+of [xxh64() hash function](https://cyan4973.github.io/xxHash/)
 digesting the original (decoded) data as input, and a seed of zero.
 The low 4 bytes of the checksum are stored in __little-endian__ format.
 
@@ -967,7 +967,7 @@ into a flow of concatenated frames.
 
 Skippable frames defined in this specification are compatible with [LZ4] ones.
 
-[LZ4]:http://www.lz4.org
+[LZ4]:https://lz4.github.io/lz4/
 
 From a compliant decoder perspective, skippable frames need just be skipped,
 and their content ignored, resuming decoding after the skippable frame.

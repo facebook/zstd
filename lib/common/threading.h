@@ -23,8 +23,7 @@ extern "C" {
 #if defined(ZSTD_MULTITHREAD) && defined(_WIN32)
 
 /**
- * Windows minimalist Pthread Wrapper, based on :
- * http://www.cse.wustl.edu/~schmidt/win32-cv-1.html
+ * Windows minimalist Pthread Wrapper
  */
 #ifdef WINVER
 #  undef WINVER

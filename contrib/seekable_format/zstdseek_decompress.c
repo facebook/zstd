@@ -38,7 +38,7 @@
       * note: it's better to use unistd.h's _POSIX_VERSION whenever possible */
 #    define PLATFORM_POSIX_VERSION 200112L
 
-/* try to determine posix version through official unistd.h's _POSIX_VERSION (http://pubs.opengroup.org/onlinepubs/7908799/xsh/unistd.h.html).
+/* try to determine posix version through official unistd.h's _POSIX_VERSION (https://pubs.opengroup.org/onlinepubs/7908799/xsh/unistd.h.html).
  * note : there is no simple way to know in advance if <unistd.h> is present or not on target system,
  * Posix specification mandates its presence and its content, but target system must respect this spec.
  * It's necessary to _not_ #include <unistd.h> whenever target OS is not unix-like

@@ -2573,6 +2573,8 @@ typedef struct {
     unsigned headerSize;
     unsigned dictID;
     unsigned checksumFlag;
+    unsigned _reserved1;
+    unsigned _reserved2;
 } ZSTD_frameHeader;
 
 /*! ZSTD_getFrameHeader() :

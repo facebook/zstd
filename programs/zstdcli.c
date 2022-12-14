@@ -216,7 +216,6 @@ static void usage_advanced(const char* programName)
     DISPLAYOUT("\n");
     DISPLAYOUT("Advanced compression options :\n");
     DISPLAYOUT("     --ultra           enable levels beyond %i, up to %i (requires more memory)\n", ZSTDCLI_CLEVEL_MAX, ZSTD_maxCLevel());
-    DISPLAYOUT("     --long[=#]        enable long distance matching with given window log (default: %u)\n", g_defaultMaxWindowLog);
     DISPLAYOUT("     --fast[=#]        switch to very fast compression levels (default: %u)\n", 1);
 #ifdef ZSTD_GZCOMPRESS
     if (exeNameMatch(programName, ZSTD_GZ)) {     /* behave like gzip */
@@ -224,9 +223,9 @@ static void usage_advanced(const char* programName)
         DISPLAYOUT("     --no-name         do not store original filename when compressing\n");
     }
 #endif
-    DISPLAYOUT("     --adapt           dynamically adapt compression level to I/O conditions\n");
-    DISPLAYOUT("     --[no-]row-match-finder :  force enable/disable usage of fast row-based matchfinder for greedy, lazy, and lazy2 strategies\n");
+    DISPLAYOUT("     --long[=#]        enable long distance matching with given window log (default: %u)\n", g_defaultMaxWindowLog);
     DISPLAYOUT("     --patch-from=FILE :  specify the file to be used as a reference point for zstd's diff engine. \n");
+    DISPLAYOUT("     --adapt           dynamically adapt compression level to I/O conditions\n");
 # ifdef ZSTD_MULTITHREAD
     DISPLAYOUT("  -T#                  spawn # compression threads (default: 1, 0==# cores) \n");
     DISPLAYOUT("  -B#                  select size of each job (default: 0==automatic) \n");
@@ -240,6 +239,7 @@ static void usage_advanced(const char* programName)
     DISPLAYOUT("     --target-compressed-block-size=# :  generate compressed block of approximately targeted size \n");
     DISPLAYOUT("     --no-dictID       don't write dictID into header (dictionary compression only)\n");
     DISPLAYOUT("     --[no-]compress-literals :  force (un)compressed literals\n");
+    DISPLAYOUT("     --[no-]row-match-finder :  force enable/disable usage of fast row-based matchfinder for greedy, lazy, and lazy2 strategies\n");
 
     DISPLAYOUT("     --format=zstd     compress files to the .zst format (default)\n");
 #ifdef ZSTD_GZCOMPRESS

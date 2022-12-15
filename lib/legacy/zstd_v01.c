@@ -190,19 +190,6 @@ typedef   signed long long  S64;
 /****************************************************************
 *  Memory I/O
 *****************************************************************/
-/* FSE_FORCE_MEMORY_ACCESS : For accessing unaligned memory:
- * Method 0 : always use `memcpy()`. Safe and portable.
- * Method 1 : Use compiler extension to set unaligned access.
- * Method 2 : direct access. This method is portable but violate C standard.
- *            It can generate buggy code on targets depending on alignment.
- * Default  : method 1 if supported, else method 0
- */
-#ifndef FSE_FORCE_MEMORY_ACCESS   /* can be defined externally, on command line for example */
-#  ifdef __GNUC__
-#    define FSE_FORCE_MEMORY_ACCESS 1
-#  endif
-#endif
-
 
 static unsigned FSE_32bits(void)
 {
@@ -214,24 +201,6 @@ static unsigned FSE_isLittleEndian(void)
     const union { U32 i; BYTE c[4]; } one = { 1 };   /* don't use static : performance detrimental  */
     return one.c[0];
 }
-
-#if defined(FSE_FORCE_MEMORY_ACCESS) && (FSE_FORCE_MEMORY_ACCESS==2)
-
-static U16 FSE_read16(const void* memPtr) { return *(const U16*) memPtr; }
-static U32 FSE_read32(const void* memPtr) { return *(const U32*) memPtr; }
-static U64 FSE_read64(const void* memPtr) { return *(const U64*) memPtr; }
-
-#elif defined(FSE_FORCE_MEMORY_ACCESS) && (FSE_FORCE_MEMORY_ACCESS==1)
-
-typedef __attribute__((aligned(1))) U16 unalign16;
-typedef __attribute__((aligned(1))) U32 unalign32;
-typedef __attribute__((aligned(1))) U64 unalign64;
-
-static U16 FSE_read16(const void* ptr) { return *(const unalign16*)ptr; }
-static U32 FSE_read32(const void* ptr) { return *(const unalign32*)ptr; }
-static U64 FSE_read64(const void* ptr) { return *(const unalign64*)ptr; }
-
-#else
 
 static U16 FSE_read16(const void* memPtr)
 {
@@ -247,8 +216,6 @@ static U64 FSE_read64(const void* memPtr)
 {
     U64 val; memcpy(&val, memPtr, sizeof(val)); return val;
 }
-
-#endif /* FSE_FORCE_MEMORY_ACCESS */
 
 static U16 FSE_readLE16(const void* memPtr)
 {

@@ -106,18 +106,6 @@ extern "C" {
 /*-**************************************************************
 *  Memory I/O
 *****************************************************************/
-/* MEM_FORCE_MEMORY_ACCESS : For accessing unaligned memory:
- * Method 0 : always use `memcpy()`. Safe and portable.
- * Method 1 : Use compiler extension to set unaligned access.
- * Method 2 : direct access. This method is portable but violate C standard.
- *            It can generate buggy code on targets depending on alignment.
- * Default  : method 1 if supported, else method 0
- */
-#ifndef MEM_FORCE_MEMORY_ACCESS   /* can be defined externally, on command line for example */
-#  ifdef __GNUC__
-#    define MEM_FORCE_MEMORY_ACCESS 1
-#  endif
-#endif
 
 MEM_STATIC unsigned MEM_32bits(void) { return sizeof(void*)==4; }
 MEM_STATIC unsigned MEM_64bits(void) { return sizeof(void*)==8; }
@@ -127,37 +115,6 @@ MEM_STATIC unsigned MEM_isLittleEndian(void)
     const union { U32 u; BYTE c[4]; } one = { 1 };   /* don't use static : performance detrimental  */
     return one.c[0];
 }
-
-#if defined(MEM_FORCE_MEMORY_ACCESS) && (MEM_FORCE_MEMORY_ACCESS==2)
-
-/* violates C standard, by lying on structure alignment.
-Only use if no other choice to achieve best performance on target platform */
-MEM_STATIC U16 MEM_read16(const void* memPtr) { return *(const U16*) memPtr; }
-MEM_STATIC U32 MEM_read32(const void* memPtr) { return *(const U32*) memPtr; }
-MEM_STATIC U64 MEM_read64(const void* memPtr) { return *(const U64*) memPtr; }
-
-MEM_STATIC void MEM_write16(void* memPtr, U16 value) { *(U16*)memPtr = value; }
-MEM_STATIC void MEM_write32(void* memPtr, U32 value) { *(U32*)memPtr = value; }
-MEM_STATIC void MEM_write64(void* memPtr, U64 value) { *(U64*)memPtr = value; }
-
-#elif defined(MEM_FORCE_MEMORY_ACCESS) && (MEM_FORCE_MEMORY_ACCESS==1)
-
-typedef __attribute__((aligned(1))) U16 unalign16;
-typedef __attribute__((aligned(1))) U32 unalign32;
-typedef __attribute__((aligned(1))) U64 unalign64;
-
-MEM_STATIC U16 MEM_read16(const void* ptr) { return *(const unalign16*)ptr; }
-MEM_STATIC U32 MEM_read32(const void* ptr) { return *(const unalign32*)ptr; }
-MEM_STATIC U64 MEM_read64(const void* ptr) { return *(const unalign64*)ptr; }
-
-MEM_STATIC void MEM_write16(void* memPtr, U16 value) { *(unalign16*)memPtr = value; }
-MEM_STATIC void MEM_write32(void* memPtr, U32 value) { *(unalign32*)memPtr = value; }
-MEM_STATIC void MEM_write64(void* memPtr, U64 value) { *(unalign64*)memPtr = value; }
-
-#else
-
-/* default method, safe and standard.
-   can sometimes prove slower */
 
 MEM_STATIC U16 MEM_read16(const void* memPtr)
 {
@@ -188,9 +145,6 @@ MEM_STATIC void MEM_write64(void* memPtr, U64 value)
 {
     memcpy(memPtr, &value, sizeof(value));
 }
-
-#endif /* MEM_FORCE_MEMORY_ACCESS */
-
 
 MEM_STATIC U16 MEM_readLE16(const void* memPtr)
 {

@@ -4411,7 +4411,8 @@ size_t ZBUFFv07_decompressContinue(ZBUFFv07_DCtx* zbd,
                 if (hSize != 0) {
                     size_t const toLoad = hSize - zbd->lhSize;   /* if hSize!=0, hSize > zbd->lhSize */
                     if (toLoad > (size_t)(iend-ip)) {   /* not enough input to load full header */
-                        memcpy(zbd->headerBuffer + zbd->lhSize, ip, iend-ip);
+                        if (ip != NULL)
+                            memcpy(zbd->headerBuffer + zbd->lhSize, ip, iend-ip);
                         zbd->lhSize += iend-ip;
                         *dstCapacityPtr = 0;
                         return (hSize - zbd->lhSize) + ZSTDv07_blockHeaderSize;   /* remaining header bytes + next block header */

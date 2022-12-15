@@ -190,25 +190,6 @@ typedef   signed long long  S64;
 /****************************************************************
 *  Memory I/O
 *****************************************************************/
-/* FSE_FORCE_MEMORY_ACCESS
- * By default, access to unaligned memory is controlled by `memcpy()`, which is safe and portable.
- * Unfortunately, on some target/compiler combinations, the generated assembly is sub-optimal.
- * The below switch allow to select different access method for improved performance.
- * Method 0 (default) : use `memcpy()`. Safe and portable.
- * Method 1 : `__packed` statement. It depends on compiler extension (ie, not portable).
- *            This method is safe if your compiler supports it, and *generally* as fast or faster than `memcpy`.
- * Method 2 : direct access. This method is portable but violate C standard.
- *            It can generate buggy code on targets generating assembly depending on alignment.
- *            But in some circumstances, it's the only known way to get the most performance (ie GCC + ARMv6)
- * See https://fastcompression.blogspot.fr/2015/08/accessing-unaligned-memory.html for details.
- * Prefer these methods in priority order (0 > 1 > 2)
- */
-#ifndef FSE_FORCE_MEMORY_ACCESS   /* can be defined externally, on command line for example */
-#  if defined(__INTEL_COMPILER) || defined(__GNUC__) || defined(__ICCARM__)
-#    define FSE_FORCE_MEMORY_ACCESS 1
-#  endif
-#endif
-
 
 static unsigned FSE_32bits(void)
 {
@@ -220,24 +201,6 @@ static unsigned FSE_isLittleEndian(void)
     const union { U32 i; BYTE c[4]; } one = { 1 };   /* don't use static : performance detrimental  */
     return one.c[0];
 }
-
-#if defined(FSE_FORCE_MEMORY_ACCESS) && (FSE_FORCE_MEMORY_ACCESS==2)
-
-static U16 FSE_read16(const void* memPtr) { return *(const U16*) memPtr; }
-static U32 FSE_read32(const void* memPtr) { return *(const U32*) memPtr; }
-static U64 FSE_read64(const void* memPtr) { return *(const U64*) memPtr; }
-
-#elif defined(FSE_FORCE_MEMORY_ACCESS) && (FSE_FORCE_MEMORY_ACCESS==1)
-
-/* __pack instructions are safer, but compiler specific, hence potentially problematic for some compilers */
-/* currently only defined for gcc and icc */
-typedef union { U16 u16; U32 u32; U64 u64; } __attribute__((packed)) unalign;
-
-static U16 FSE_read16(const void* ptr) { return ((const unalign*)ptr)->u16; }
-static U32 FSE_read32(const void* ptr) { return ((const unalign*)ptr)->u32; }
-static U64 FSE_read64(const void* ptr) { return ((const unalign*)ptr)->u64; }
-
-#else
 
 static U16 FSE_read16(const void* memPtr)
 {
@@ -253,8 +216,6 @@ static U64 FSE_read64(const void* memPtr)
 {
     U64 val; memcpy(&val, memPtr, sizeof(val)); return val;
 }
-
-#endif /* FSE_FORCE_MEMORY_ACCESS */
 
 static U16 FSE_readLE16(const void* memPtr)
 {

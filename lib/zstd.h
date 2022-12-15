@@ -21,14 +21,24 @@ extern "C" {
 
 /* =====   ZSTDLIB_API : control library symbols visibility   ===== */
 #ifndef ZSTDLIB_VISIBLE
-#  if defined(__GNUC__) && (__GNUC__ >= 4) && !defined(__MINGW32__)
+   /* Backwards compatibility with old macro name */
+#  ifdef ZSTDLIB_VISIBILITY
+#    define ZSTDLIB_VISIBLE ZSTDLIB_VISIBILITY
+#  elif defined(__GNUC__) && (__GNUC__ >= 4) && !defined(__MINGW32__)
 #    define ZSTDLIB_VISIBLE __attribute__ ((visibility ("default")))
-#    define ZSTDLIB_HIDDEN __attribute__ ((visibility ("hidden")))
 #  else
 #    define ZSTDLIB_VISIBLE
+#  endif
+#endif
+
+#ifndef ZSTDLIB_HIDDEN
+#  if defined(__GNUC__) && (__GNUC__ >= 4) && !defined(__MINGW32__)
+#    define ZSTDLIB_HIDDEN __attribute__ ((visibility ("hidden")))
+#  else
 #    define ZSTDLIB_HIDDEN
 #  endif
 #endif
+
 #if defined(ZSTD_DLL_EXPORT) && (ZSTD_DLL_EXPORT==1)
 #  define ZSTDLIB_API __declspec(dllexport) ZSTDLIB_VISIBLE
 #elif defined(ZSTD_DLL_IMPORT) && (ZSTD_DLL_IMPORT==1)

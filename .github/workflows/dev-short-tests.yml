@@ -178,6 +178,30 @@ jobs:
           make clean
           CC=clang MOREFLAGS="-Werror -Wimplicit-fallthrough -O0" make -C lib -j libzstd.a ZSTD_LEGACY_SUPPORT=0
 
+  meson-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install packages
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install build-essential python3-pip ninja-build liblz4-dev
+          pip install --pre meson
+      - name: Build with Meson
+        run: |
+          meson setup \
+            --buildtype=debugoptimized \
+            -Db_lundef=false \
+            -Dauto_features=enabled \
+            -Dbin_programs=true \
+            -Dbin_tests=true \
+            -Dbin_contrib=true \
+            -Ddefault_library=both \
+            build/meson builddir
+          ninja -C builddir/
+          meson test -C builddir/ --print-errorlogs
+          meson install -C builddir --destdir staging/
+
   cmake-visual-2019:
     runs-on: windows-2019
     strategy:

@@ -142,6 +142,10 @@ Other available options include:
 The `Makefile` follows the [GNU Standard Makefile conventions](https://www.gnu.org/prep/standards/html_node/Makefile-Conventions.html),
 allowing staged install, standard flags, directory variables and command variables.
 
+For advanced use cases, specialized compilation flags which control binary generation
+are documented in [`lib/README.md`](lib/README.md#modular-build) for the `libzstd` library
+and in [`programs/README.md`](programs/README.md#compilation-variables) for the `zstd` CLI.
+
 ### cmake
 
 A `cmake` project generator is provided within `build/cmake`.

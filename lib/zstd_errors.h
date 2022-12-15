@@ -20,19 +20,31 @@ extern "C" {
 
 
 /* =====   ZSTDERRORLIB_API : control library symbols visibility   ===== */
-#ifndef ZSTDERRORLIB_VISIBILITY
-#  if defined(__GNUC__) && (__GNUC__ >= 4)
-#    define ZSTDERRORLIB_VISIBILITY __attribute__ ((visibility ("default")))
+#ifndef ZSTDERRORLIB_VISIBLE
+   /* Backwards compatibility with old macro name */
+#  ifdef ZSTDERRORLIB_VISIBILITY
+#    define ZSTDERRORLIB_VISIBLE ZSTDERRORLIB_VISIBILITY
+#  elif defined(__GNUC__) && (__GNUC__ >= 4) && !defined(__MINGW32__)
+#    define ZSTDERRORLIB_VISIBLE __attribute__ ((visibility ("default")))
 #  else
-#    define ZSTDERRORLIB_VISIBILITY
+#    define ZSTDERRORLIB_VISIBLE
 #  endif
 #endif
+
+#ifndef ZSTDERRORLIB_HIDDEN
+#  if defined(__GNUC__) && (__GNUC__ >= 4) && !defined(__MINGW32__)
+#    define ZSTDERRORLIB_HIDDEN __attribute__ ((visibility ("hidden")))
+#  else
+#    define ZSTDERRORLIB_HIDDEN
+#  endif
+#endif
+
 #if defined(ZSTD_DLL_EXPORT) && (ZSTD_DLL_EXPORT==1)
-#  define ZSTDERRORLIB_API __declspec(dllexport) ZSTDERRORLIB_VISIBILITY
+#  define ZSTDERRORLIB_API __declspec(dllexport) ZSTDERRORLIB_VISIBLE
 #elif defined(ZSTD_DLL_IMPORT) && (ZSTD_DLL_IMPORT==1)
-#  define ZSTDERRORLIB_API __declspec(dllimport) ZSTDERRORLIB_VISIBILITY /* It isn't required but allows to generate better code, saving a function pointer load from the IAT and an indirect jump.*/
+#  define ZSTDERRORLIB_API __declspec(dllimport) ZSTDERRORLIB_VISIBLE /* It isn't required but allows to generate better code, saving a function pointer load from the IAT and an indirect jump.*/
 #else
-#  define ZSTDERRORLIB_API ZSTDERRORLIB_VISIBILITY
+#  define ZSTDERRORLIB_API ZSTDERRORLIB_VISIBLE
 #endif
 
 /*-*********************************************

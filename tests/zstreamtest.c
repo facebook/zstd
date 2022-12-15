@@ -259,7 +259,7 @@ static U32 badParameters(ZSTD_CCtx* zc, ZSTD_parameters const savedParams)
     return 0;
 }
 
-static int basicUnitTests(U32 seed, double compressibility)
+static int basicUnitTests(U32 seed, double compressibility, int bigTests)
 {
     size_t const CNBufferSize = COMPRESSIBLE_NOISE_LENGTH;
     void* CNBuffer = malloc(CNBufferSize);
@@ -1565,6 +1565,63 @@ static int basicUnitTests(U32 seed, double compressibility)
     CHECK(!ZSTD_isError(ZSTD_CCtx_setParameter(zc, ZSTD_c_srcSizeHint, -1)), "Out of range doesn't error");
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : Test offset == windowSize : ", testNb++);
+    {
+        int windowLog;
+        int const kMaxWindowLog = bigTests ? 29 : 26;
+        size_t const kNbSequences = 10000;
+        size_t const kMaxSrcSize = (1u << kMaxWindowLog) + 10 * kNbSequences;
+        char* src = calloc(kMaxSrcSize, 1);
+        ZSTD_Sequence* sequences = malloc(sizeof(ZSTD_Sequence) * kNbSequences);
+        for (windowLog = ZSTD_WINDOWLOG_MIN; windowLog <= kMaxWindowLog; ++windowLog) {
+            size_t const srcSize = ((size_t)1 << windowLog) + 10 * (kNbSequences - 1);
+
+            sequences[0].offset = 32;
+            sequences[0].litLength = 32;
+            sequences[0].matchLength = (1u << windowLog) - 32;
+            sequences[0].rep = 0;
+            {
+                size_t i;
+                for (i = 1; i < kNbSequences; ++i) {
+                    sequences[i].offset = (1u << windowLog) - (FUZ_rand(&seed) % 8);
+                    sequences[i].litLength = FUZ_rand(&seed) & 7;
+                    sequences[i].matchLength = 10 - sequences[i].litLength;
+                    sequences[i].rep = 0;
+                }
+            }
+
+            CHECK_Z(ZSTD_CCtx_reset(zc, ZSTD_reset_session_and_parameters));
+            CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_checksumFlag, 1));
+            CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_minMatch, 3));
+            CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_validateSequences, 1));
+            CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_windowLog, windowLog));
+            assert(srcSize <= kMaxSrcSize);
+            cSize = ZSTD_compressSequences(zc, compressedBuffer, compressedBufferSize, sequences, kNbSequences, src, srcSize);
+            CHECK_Z(cSize);
+            CHECK_Z(ZSTD_DCtx_reset(zd, ZSTD_reset_session_and_parameters));
+            CHECK_Z(ZSTD_DCtx_setParameter(zd, ZSTD_d_windowLogMax, windowLog))
+            {
+                ZSTD_inBuffer in = {compressedBuffer, cSize, 0};
+                size_t decompressedBytes = 0;
+                for (;;) {
+                    ZSTD_outBuffer out = {decodedBuffer, decodedBufferSize, 0};
+                    size_t const ret = ZSTD_decompressStream(zd, &out, &in);
+                    CHECK_Z(ret);
+                    CHECK(decompressedBytes + out.pos > srcSize, "Output too large");
+                    CHECK(memcmp(out.dst, src + decompressedBytes, out.pos), "Corrupted");
+                    decompressedBytes += out.pos;
+                    if (ret == 0) {
+                        break;
+                    }
+                }
+                CHECK(decompressedBytes != srcSize, "Output wrong size");
+            }
+        }
+        free(sequences);
+        free(src);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     /* Overlen overwriting window data bug */
     DISPLAYLEVEL(3, "test%3i : wildcopy doesn't overwrite potential match data : ", testNb++);
     {   /* This test has a window size of 1024 bytes and consists of 3 blocks:
@@ -2677,7 +2734,7 @@ int main(int argc, const char** argv)
     if (nbTests<=0) nbTests=1;
 
     if (testNb==0) {
-        result = basicUnitTests(0, ((double)proba) / 100);  /* constant seed for predictability */
+        result = basicUnitTests(0, ((double)proba) / 100, bigTests);  /* constant seed for predictability */
     }
 
     if (!result) {

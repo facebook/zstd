@@ -2624,7 +2624,7 @@ ZSTD_entropyCompressSeqStore_internal(seqStore_t* seqStorePtr,
                                 void* entropyWorkspace, size_t entropyWkspSize,
                           const int bmi2)
 {
-    const int longOffsets = cctxParams->cParams.windowLog > STREAM_ACCUMULATOR_MIN;
+    const int longOffsets = cctxParams->cParams.windowLog >= STREAM_ACCUMULATOR_MIN;
     ZSTD_strategy const strategy = cctxParams->cParams.strategy;
     unsigned* count = (unsigned*)entropyWorkspace;
     FSE_CTable* CTable_LitLength = nextEntropy->fse.litlengthCTable;
@@ -5897,7 +5897,7 @@ static size_t
 ZSTD_validateSequence(U32 offCode, U32 matchLength,
                       size_t posInSrc, U32 windowLog, size_t dictSize)
 {
-    U32 const windowSize = 1 << windowLog;
+    U32 const windowSize = 1u << windowLog;
     /* posInSrc represents the amount of data the decoder would decode up to this point.
      * As long as the amount of data decoded is less than or equal to window size, offsets may be
      * larger than the total length of output decoded in order to reference the dict, even larger than
@@ -6256,7 +6256,7 @@ ZSTD_compressSequences_internal(ZSTD_CCtx* cctx,
 
         if (!cctx->isFirstBlock &&
             ZSTD_maybeRLE(&cctx->seqStore) &&
-            ZSTD_isRLE((BYTE const*)src, srcSize)) {
+            ZSTD_isRLE(ip, blockSize)) {
             /* We don't want to emit our first block as a RLE even if it qualifies because
             * doing so will cause the decoder (cli only) to throw a "should consume all input error."
             * This is only an issue for zstd <= v1.4.3

@@ -91,7 +91,7 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct,
     assert(tableLog < 16);   /* required for threshold strategy to work */
 
     /* For explanations on how to distribute symbol values over the table :
-     * http://fastcompression.blogspot.fr/2014/02/fse-distributing-symbol-values.html */
+     * https://fastcompression.blogspot.fr/2014/02/fse-distributing-symbol-values.html */
 
      #ifdef __clang_analyzer__
      ZSTD_memset(tableSymbol, 0, sizeof(*tableSymbol) * tableSize);   /* useless initialization, just to keep scan-build happy */

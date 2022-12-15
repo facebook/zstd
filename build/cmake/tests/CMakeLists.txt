@@ -27,7 +27,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # You can contact the author at :
-#  - zstd homepage : http://www.zstd.net/
+#  - zstd homepage : https://facebook.github.io/zstd/
 # ################################################################
 
 project(tests)

@@ -160,7 +160,7 @@ pkgconfig.generate(libzstd,
   filebase: 'libzstd',
   description: 'fast lossless compression algorithm library',
   version: zstd_libversion,
-  url: 'http://www.zstd.net/')
+  url: 'https://facebook.github.io/zstd/')
 
 install_headers(join_paths(zstd_rootdir, 'lib/zstd.h'),
   join_paths(zstd_rootdir, 'lib/zdict.h'),

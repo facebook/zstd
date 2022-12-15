@@ -49,7 +49,7 @@ else()
     )
 endif()
 message(STATUS "ZSTD VERSION: ${zstd_VERSION}")
-set(zstd_HOMEPAGE_URL "http://www.zstd.net")
+set(zstd_HOMEPAGE_URL "https://facebook.github.io/zstd")
 set(zstd_DESCRIPTION  "Zstandard is a real-time compression algorithm, providing high compression ratios.")
 
 # Set a default build type if none was specified

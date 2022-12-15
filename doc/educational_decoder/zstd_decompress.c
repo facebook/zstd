@@ -1890,7 +1890,7 @@ static size_t HUF_decompress_4stream(const HUF_dtable *const dtable,
 
 /// Initializes a Huffman table using canonical Huffman codes
 /// For more explanation on canonical Huffman codes see
-/// http://www.cs.uofs.edu/~mccloske/courses/cmps340/huff_canonical_dec2015.html
+/// https://www.cs.scranton.edu/~mccloske/courses/cmps340/huff_canonical_dec2015.html
 /// Codes within a level are allocated in symbol order (i.e. smaller symbols get
 /// earlier codes)
 static void HUF_init_dtable(HUF_dtable *const table, const u8 *const bits,

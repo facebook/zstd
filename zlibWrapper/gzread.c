@@ -3,7 +3,7 @@
 
  /* gzread.c -- zlib functions for reading gzip files
  * Copyright (C) 2004, 2005, 2010, 2011, 2012, 2013, 2016 Mark Adler
- * For conditions of distribution and use, see http://www.zlib.net/zlib_license.html
+ * For conditions of distribution and use, see https://www.zlib.net/zlib_license.html
  */
 
 #include "gzguts.h"

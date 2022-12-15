@@ -17,7 +17,7 @@
 
 // A small subset of `std::filesystem`.
 // `std::filesystem` should be a drop in replacement.
-// See http://en.cppreference.com/w/cpp/filesystem for documentation.
+// See https://en.cppreference.com/w/cpp/filesystem for documentation.
 
 namespace pzstd {
 
@@ -28,7 +28,7 @@ typedef struct ::_stat64 file_status;
 typedef struct ::stat file_status;
 #endif
 
-/// http://en.cppreference.com/w/cpp/filesystem/status
+/// https://en.cppreference.com/w/cpp/filesystem/status
 inline file_status status(StringPiece path, std::error_code& ec) noexcept {
   file_status status;
 #if defined(_MSC_VER)
@@ -44,7 +44,7 @@ inline file_status status(StringPiece path, std::error_code& ec) noexcept {
   return status;
 }
 
-/// http://en.cppreference.com/w/cpp/filesystem/is_regular_file
+/// https://en.cppreference.com/w/cpp/filesystem/is_regular_file
 inline bool is_regular_file(file_status status) noexcept {
 #if defined(S_ISREG)
   return S_ISREG(status.st_mode);
@@ -55,12 +55,12 @@ inline bool is_regular_file(file_status status) noexcept {
 #endif
 }
 
-/// http://en.cppreference.com/w/cpp/filesystem/is_regular_file
+/// https://en.cppreference.com/w/cpp/filesystem/is_regular_file
 inline bool is_regular_file(StringPiece path, std::error_code& ec) noexcept {
   return is_regular_file(status(path, ec));
 }
 
-/// http://en.cppreference.com/w/cpp/filesystem/is_directory
+/// https://en.cppreference.com/w/cpp/filesystem/is_directory
 inline bool is_directory(file_status status) noexcept {
 #if defined(S_ISDIR)
   return S_ISDIR(status.st_mode);
@@ -71,12 +71,12 @@ inline bool is_directory(file_status status) noexcept {
 #endif
 }
 
-/// http://en.cppreference.com/w/cpp/filesystem/is_directory
+/// https://en.cppreference.com/w/cpp/filesystem/is_directory
 inline bool is_directory(StringPiece path, std::error_code& ec) noexcept {
   return is_directory(status(path, ec));
 }
 
-/// http://en.cppreference.com/w/cpp/filesystem/file_size
+/// https://en.cppreference.com/w/cpp/filesystem/file_size
 inline std::uintmax_t file_size(
     StringPiece path,
     std::error_code& ec) noexcept {

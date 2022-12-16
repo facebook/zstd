@@ -26,7 +26,7 @@ project('zstd',
   version: run_command(
     find_program('GetZstdLibraryVersion.py'), '../../lib/zstd.h',
     check: true).stdout().strip(),
-  meson_version: '>=0.48.0')
+  meson_version: '>=0.50.0')
 
 cc = meson.get_compiler('c')
 cxx = meson.get_compiler('cpp')

@@ -51,8 +51,8 @@ endif
 
 export_dynamic_on_windows = false
 # explicit backtrace enable/disable for Linux & Darwin
-execinfo = cc.has_header('execinfo.h', required: use_backtrace)
-if not execinfo.found()
+have_execinfo = cc.has_header('execinfo.h', required: use_backtrace)
+if not have_execinfo
   zstd_c_args += '-DBACKTRACE_ENABLE=0'
 elif use_debug and host_machine_os == os_windows  # MinGW target
   zstd_c_args += '-DBACKTRACE_ENABLE=1'

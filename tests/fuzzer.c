@@ -429,8 +429,8 @@ static int threadPoolTests(void) {
 
         ZSTD_pthread_create(&t1, NULL, threadPoolTests_compressionJob, &p1);
         ZSTD_pthread_create(&t2, NULL, threadPoolTests_compressionJob, &p2);
-        ZSTD_pthread_join(t1, NULL);
-        ZSTD_pthread_join(t2, NULL);
+        ZSTD_pthread_join(t1);
+        ZSTD_pthread_join(t2);
 
         assert(!memcmp(decodedBuffer, decodedBuffer2, CNBuffSize));
         free(decodedBuffer2);

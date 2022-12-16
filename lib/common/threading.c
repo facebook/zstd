@@ -37,7 +37,7 @@ int g_ZSTD_threading_useless_symbol;
 static unsigned __stdcall worker(void *arg)
 {
     ZSTD_pthread_t* const thread = (ZSTD_pthread_t*) arg;
-    thread->arg = thread->start_routine(thread->arg);
+    thread->start_routine(thread->arg);
     return 0;
 }
 
@@ -55,7 +55,7 @@ int ZSTD_pthread_create(ZSTD_pthread_t* thread, const void* unused,
         return 0;
 }
 
-int ZSTD_pthread_join(ZSTD_pthread_t thread, void **value_ptr)
+int ZSTD_pthread_join(ZSTD_pthread_t thread)
 {
     DWORD result;
 
@@ -66,7 +66,6 @@ int ZSTD_pthread_join(ZSTD_pthread_t thread, void **value_ptr)
 
     switch (result) {
     case WAIT_OBJECT_0:
-        if (value_ptr) *value_ptr = thread.arg;
         return 0;
     case WAIT_ABANDONED:
         return EINVAL;

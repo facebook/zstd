@@ -485,6 +485,61 @@ static void test_compressBound(int tnb)
     DISPLAYLEVEL(3, "OK \n");
 }
 
+static void test_decompressBound(int tnb)
+{
+    DISPLAYLEVEL(3, "test%3i : decompressBound : ", tnb);
+
+    // Simple compression, with size : should provide size;
+    {   const char example[] = "abcd";
+        char cBuffer[ZSTD_COMPRESSBOUND(sizeof(example))];
+        size_t const cSize = ZSTD_compress(cBuffer, sizeof(cBuffer), example, sizeof(example), 0);
+        CHECK_Z(cSize);
+        {   size_t const dbSize = ZSTD_decompressBound(cBuffer, cSize);
+            CHECK_Z(dbSize);
+            CHECK_EQ(dbSize, sizeof(example));
+    }   }
+
+    // Simple small compression without size : should provide 1 block size
+    {   char cBuffer[ZSTD_COMPRESSBOUND(0)];
+        ZSTD_outBuffer out = { cBuffer, sizeof(cBuffer), 0 };
+        ZSTD_inBuffer in = { NULL, 0, 0 };
+        ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        assert(cctx);
+        CHECK_Z( ZSTD_initCStream(cctx, 0) );
+        CHECK_Z( ZSTD_compressStream(cctx, &out, &in) );
+        CHECK_EQ( ZSTD_endStream(cctx, &out), 0 );
+        CHECK_EQ( ZSTD_decompressBound(cBuffer, out.pos), ZSTD_BLOCKSIZE_MAX );
+        ZSTD_freeCCtx(cctx);
+    }
+
+    // Attempt to overflow 32-bit intermediate multiplication result
+    // This requires dBound >= 4 GB, aka 2^32.
+    // This requires 2^32 / 2^17 = 2^15 blocks
+    // => create 2^15 blocks (can be empty, or just 1 byte).
+    {   const char input[] = "a";
+        size_t const nbBlocks = (1 << 15) + 1;
+        size_t blockNb;
+        size_t const outCapacity = 1 << 18; // large margin
+        char* const outBuffer = malloc (outCapacity);
+        ZSTD_outBuffer out = { outBuffer, outCapacity, 0 };
+        ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        assert(cctx);
+        assert(outBuffer);
+        CHECK_Z( ZSTD_initCStream(cctx, 0) );
+        for (blockNb=0; blockNb<nbBlocks; blockNb++) {
+            ZSTD_inBuffer in = { input, sizeof(input), 0 };
+            CHECK_Z( ZSTD_compressStream(cctx, &out, &in) );
+            CHECK_EQ( ZSTD_flushStream(cctx, &out), 0 );
+        }
+        CHECK_EQ( ZSTD_endStream(cctx, &out), 0 );
+        CHECK( ZSTD_decompressBound(outBuffer, out.pos) > 0x100000000LLU /* 4 GB */ );
+        ZSTD_freeCCtx(cctx);
+        free(outBuffer);
+    }
+
+    DISPLAYLEVEL(3, "OK \n");
+}
+
 static int basicUnitTests(U32 const seed, double compressibility)
 {
     size_t const CNBuffSize = 5 MB;
@@ -532,6 +587,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
 
     test_compressBound(testNb++);
+
+    test_decompressBound(testNb++);
 
     DISPLAYLEVEL(3, "test%3u : ZSTD_adjustCParams : ", testNb++);
     {

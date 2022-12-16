@@ -211,8 +211,30 @@ ZSTDLIB_API size_t ZSTD_findFrameCompressedSize(const void* src, size_t srcSize)
 
 
 /*======  Helper functions  ======*/
-#define ZSTD_COMPRESSBOUND(srcSize)   ((srcSize) + ((srcSize)>>8) + (((srcSize) < (128<<10)) ? (((128<<10) - (srcSize)) >> 11) /* margin, from 64 to 0 */ : 0))  /* this formula ensures that bound(A) + bound(B) <= bound(A+B) as long as A and B >= 128 KB */
-ZSTDLIB_API size_t      ZSTD_compressBound(size_t srcSize); /*!< maximum compressed size in worst case single-pass scenario */
+/* ZSTD_compressBound() :
+ * maximum compressed size in worst case single-pass scenario.
+ * When invoking `ZSTD_compress()` or any other one-pass compression function,
+ * it's recommended to provide @dstCapacity >= ZSTD_compressBound(srcSize)
+ * as it eliminates one potential failure scenario,
+ * aka not enough room in dst buffer to write the compressed frame.
+ * Note : ZSTD_compressBound() itself can fail, if @srcSize > ZSTD_MAX_INPUT_SIZE .
+ *        In which case, ZSTD_compressBound() will return an error code
+ *        which can be tested using ZSTD_isError().
+ *
+ * ZSTD_COMPRESSBOUND() :
+ * same as ZSTD_compressBound(), but as a macro.
+ * It can be used to produce constants, which can be useful for static allocation,
+ * for example to size a static array on stack.
+ * Will produce constant value 0 if srcSize too large.
+ */
+#define ZSTD_MAX_INPUT_SIZE ((sizeof(size_t)==8) ? 0xFF00FF00FF00FF00LLU : 0xFF00FF00U)
+#define ZSTD_COMPRESSBOUND(srcSize)   (((size_t)(srcSize) > ZSTD_MAX_INPUT_SIZE) ? 0 : (srcSize) + ((srcSize)>>8) + (((srcSize) < (128<<10)) ? (((128<<10) - (srcSize)) >> 11) /* margin, from 64 to 0 */ : 0))  /* this formula ensures that bound(A) + bound(B) <= bound(A+B) as long as A and B >= 128 KB */
+ZSTDLIB_API size_t ZSTD_compressBound(size_t srcSize); /*!< maximum compressed size in worst case single-pass scenario */
+/* ZSTD_isError() :
+ * Most ZSTD_* functions returning a size_t value can be tested for error,
+ * using ZSTD_isError().
+ * @return 1 if error, 0 otherwise
+ */
 ZSTDLIB_API unsigned    ZSTD_isError(size_t code);          /*!< tells if a `size_t` function result is an error code */
 ZSTDLIB_API const char* ZSTD_getErrorName(size_t code);     /*!< provides readable string from an error code */
 ZSTDLIB_API int         ZSTD_minCLevel(void);               /*!< minimum negative compression level allowed, requires v1.4.0+ */

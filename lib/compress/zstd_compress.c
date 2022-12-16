@@ -59,14 +59,17 @@
 *  Helper functions
 ***************************************/
 /* ZSTD_compressBound()
- * Note that the result from this function is only compatible with the "normal"
- * full-block strategy.
- * When there are a lot of small blocks due to frequent flush in streaming mode
- * the overhead of headers can make the compressed data to be larger than the
- * return value of ZSTD_compressBound().
+ * Note that the result from this function is only valid for
+ * the one-pass compression functions.
+ * When employing the streaming mode,
+ * if flushes are frequently altering the size of blocks,
+ * the overhead from block headers can make the compressed data larger
+ * than the return value of ZSTD_compressBound().
  */
 size_t ZSTD_compressBound(size_t srcSize) {
-    return ZSTD_COMPRESSBOUND(srcSize);
+    size_t const r = ZSTD_COMPRESSBOUND(srcSize);
+    if (r==0) return ERROR(srcSize_wrong);
+    return r;
 }
 
 

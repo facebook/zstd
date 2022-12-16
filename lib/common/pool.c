@@ -173,7 +173,7 @@ static void POOL_join(POOL_ctx* ctx) {
     /* Join all of the threads */
     {   size_t i;
         for (i = 0; i < ctx->threadCapacity; ++i) {
-            ZSTD_pthread_join(ctx->threads[i], NULL);  /* note : could fail */
+            ZSTD_pthread_join(ctx->threads[i]);  /* note : could fail */
     }   }
 }
 

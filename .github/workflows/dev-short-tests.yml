@@ -431,18 +431,13 @@ jobs:
           cc -Wall -Wextra -Wpedantic -Werror -o simple examples/simple_compression.c $(pkg-config --cflags --libs libzstd)
           ./simple LICENSE
 
-
-# This test currently fails on Github Actions specifically.
-# Possible reason : TTY emulation.
-# Note that the same test works fine locally and on travisCI.
-# This will have to be fixed before transferring the test to GA.
-#  versions-compatibility:
-#    runs-on: ubuntu-latest
-#    steps:
-#    - uses: actions/checkout@v3
-#    - name: Versions Compatibility Test
-#      run: |
-#        make -C tests versionsTest
+  versions-compatibility:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Versions Compatibility Test
+      run: |
+        make -C tests versionsTest
 
 
 # For reference : icc tests

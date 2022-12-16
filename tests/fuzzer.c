@@ -494,10 +494,8 @@ static void test_decompressBound(int tnb)
         char cBuffer[ZSTD_COMPRESSBOUND(sizeof(example))];
         size_t const cSize = ZSTD_compress(cBuffer, sizeof(cBuffer), example, sizeof(example), 0);
         CHECK_Z(cSize);
-        {   size_t const dbSize = ZSTD_decompressBound(cBuffer, cSize);
-            CHECK_Z(dbSize);
-            CHECK_EQ(dbSize, sizeof(example));
-    }   }
+        CHECK_EQ(ZSTD_decompressBound(cBuffer, cSize), (unsigned long long)sizeof(example));
+    }
 
     // Simple small compression without size : should provide 1 block size
     {   char cBuffer[ZSTD_COMPRESSBOUND(0)];

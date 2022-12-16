@@ -1,4 +1,4 @@
-FROM circleci/buildpack-deps:bionic
+FROM circleci/buildpack-deps:focal
 
 RUN sudo dpkg --add-architecture i386
 RUN sudo apt-get -y -qq update

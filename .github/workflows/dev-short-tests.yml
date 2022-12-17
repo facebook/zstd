@@ -209,7 +209,7 @@ jobs:
       - name: Install packages
         run: pip install --pre meson
       - name: Initialize the MSVC dev command prompt
-        uses: ilammy/msvc-dev-cmd@674ff850cbd739c402260838fa45b7114f750570
+        uses: ilammy/msvc-dev-cmd@7315a94840631165970262a99c72cfb48a65d25d
       - name: Configure with Meson
         run: |
           meson setup build/meson/ builddir/ -Dbin_tests=true

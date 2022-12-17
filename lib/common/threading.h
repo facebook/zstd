@@ -61,11 +61,7 @@ extern "C" {
 #define ZSTD_pthread_cond_broadcast(a)  WakeAllConditionVariable((a))
 
 /* ZSTD_pthread_create() and ZSTD_pthread_join() */
-typedef struct {
-    HANDLE handle;
-    void* (*start_routine)(void*);
-    void* arg;
-} ZSTD_pthread_t;
+typedef HANDLE ZSTD_pthread_t;
 
 int ZSTD_pthread_create(ZSTD_pthread_t* thread, const void* unused,
                    void* (*start_routine) (void*), void* arg);

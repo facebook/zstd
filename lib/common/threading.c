@@ -34,35 +34,72 @@ int g_ZSTD_threading_useless_symbol;
 
 /* ===  Implementation  === */
 
+typedef struct {
+    void* (*start_routine)(void*);
+    void* arg;
+    int initialized;
+    ZSTD_pthread_cond_t initialized_cond;
+    ZSTD_pthread_mutex_t initialized_mutex;
+} ZSTD_thread_params_t;
+
 static unsigned __stdcall worker(void *arg)
 {
-    ZSTD_pthread_t* const thread = (ZSTD_pthread_t*) arg;
-    thread->start_routine(thread->arg);
+    ZSTD_thread_params_t* const thread_param = (ZSTD_thread_params_t*)arg;
+    void* (*start_routine)(void*) = thread_param->start_routine;
+    void* thread_arg = thread_param->arg;
+
+    /* Signal main thread that we are running and do not depend on its memory anymore */
+    ZSTD_pthread_mutex_lock(&thread_param->initialized_mutex);
+    thread_param->initialized = 1;
+    ZSTD_pthread_mutex_unlock(&thread_param->initialized_mutex);
+    ZSTD_pthread_cond_signal(&thread_param->initialized_cond);
+
+    start_routine(thread_arg);
+
     return 0;
 }
 
 int ZSTD_pthread_create(ZSTD_pthread_t* thread, const void* unused,
             void* (*start_routine) (void*), void* arg)
 {
+    ZSTD_thread_params_t thread_param;
+    int error = 0;
     (void)unused;
-    thread->arg = arg;
-    thread->start_routine = start_routine;
-    thread->handle = (HANDLE) _beginthreadex(NULL, 0, worker, thread, 0, NULL);
+    thread_param.start_routine = start_routine;
+    thread_param.arg = arg;
+    thread_param.initialized = 0;
 
-    if (!thread->handle)
+    /* Setup thread initialization synchronization */
+    error |= ZSTD_pthread_cond_init(&thread_param.initialized_cond, NULL);
+    error |= ZSTD_pthread_mutex_init(&thread_param.initialized_mutex, NULL);
+    if(error)
+        return -1;
+    ZSTD_pthread_mutex_lock(&thread_param.initialized_mutex);
+
+    /* Spawn thread */
+    *thread = (HANDLE)_beginthreadex(NULL, 0, worker, &thread_param, 0, NULL);
+    if (!thread)
         return errno;
-    else
-        return 0;
+
+    /* Wait for thread to be initialized */
+    while(!thread_param.initialized) {
+        ZSTD_pthread_cond_wait(&thread_param.initialized_cond, &thread_param.initialized_mutex);
+    }
+    ZSTD_pthread_mutex_unlock(&thread_param.initialized_mutex);
+    ZSTD_pthread_mutex_destroy(&thread_param.initialized_mutex);
+    ZSTD_pthread_cond_destroy(&thread_param.initialized_cond);
+
+    return 0;
 }
 
 int ZSTD_pthread_join(ZSTD_pthread_t thread)
 {
     DWORD result;
 
-    if (!thread.handle) return 0;
+    if (!thread) return 0;
 
-    result = WaitForSingleObject(thread.handle, INFINITE);
-    CloseHandle(thread.handle);
+    result = WaitForSingleObject(thread, INFINITE);
+    CloseHandle(thread);
 
     switch (result) {
     case WAIT_OBJECT_0:

@@ -2496,11 +2496,13 @@ typedef struct {
  * entropyWkspSize must be of size at least ENTROPY_WORKSPACE_SIZE - (MaxSeq + 1)*sizeof(U32)
  */
 static ZSTD_symbolEncodingTypeStats_t
-ZSTD_buildSequencesStatistics(seqStore_t* seqStorePtr, size_t nbSeq,
-                        const ZSTD_fseCTables_t* prevEntropy, ZSTD_fseCTables_t* nextEntropy,
-                              BYTE* dst, const BYTE* const dstEnd,
-                              ZSTD_strategy strategy, unsigned* countWorkspace,
-                              void* entropyWorkspace, size_t entropyWkspSize) {
+ZSTD_buildSequencesStatistics(
+                const seqStore_t* seqStorePtr, size_t nbSeq,
+                const ZSTD_fseCTables_t* prevEntropy, ZSTD_fseCTables_t* nextEntropy,
+                      BYTE* dst, const BYTE* const dstEnd,
+                      ZSTD_strategy strategy, unsigned* countWorkspace,
+                      void* entropyWorkspace, size_t entropyWkspSize)
+{
     BYTE* const ostart = dst;
     const BYTE* const oend = dstEnd;
     BYTE* op = ostart;
@@ -2619,13 +2621,14 @@ ZSTD_buildSequencesStatistics(seqStore_t* seqStorePtr, size_t nbSeq,
  */
 #define SUSPECT_UNCOMPRESSIBLE_LITERAL_RATIO 20
 MEM_STATIC size_t
-ZSTD_entropyCompressSeqStore_internal(seqStore_t* seqStorePtr,
-                          const ZSTD_entropyCTables_t* prevEntropy,
-                                ZSTD_entropyCTables_t* nextEntropy,
-                          const ZSTD_CCtx_params* cctxParams,
-                                void* dst, size_t dstCapacity,
-                                void* entropyWorkspace, size_t entropyWkspSize,
-                          const int bmi2)
+ZSTD_entropyCompressSeqStore_internal(
+                        const seqStore_t* seqStorePtr,
+                        const ZSTD_entropyCTables_t* prevEntropy,
+                              ZSTD_entropyCTables_t* nextEntropy,
+                        const ZSTD_CCtx_params* cctxParams,
+                              void* dst, size_t dstCapacity,
+                              void* entropyWorkspace, size_t entropyWkspSize,
+                        const int bmi2)
 {
     const int longOffsets = cctxParams->cParams.windowLog >= STREAM_ACCUMULATOR_MIN;
     ZSTD_strategy const strategy = cctxParams->cParams.strategy;
@@ -2634,7 +2637,7 @@ ZSTD_entropyCompressSeqStore_internal(seqStore_t* seqStorePtr,
     FSE_CTable* CTable_OffsetBits = nextEntropy->fse.offcodeCTable;
     FSE_CTable* CTable_MatchLength = nextEntropy->fse.matchlengthCTable;
     const seqDef* const sequences = seqStorePtr->sequencesStart;
-    const size_t nbSeq = seqStorePtr->sequences - seqStorePtr->sequencesStart;
+    const size_t nbSeq = (size_t)(seqStorePtr->sequences - seqStorePtr->sequencesStart);
     const BYTE* const ofCodeTable = seqStorePtr->ofCode;
     const BYTE* const llCodeTable = seqStorePtr->llCode;
     const BYTE* const mlCodeTable = seqStorePtr->mlCode;
@@ -2652,8 +2655,8 @@ ZSTD_entropyCompressSeqStore_internal(seqStore_t* seqStorePtr,
 
     /* Compress literals */
     {   const BYTE* const literals = seqStorePtr->litStart;
-        size_t const numSequences = seqStorePtr->sequences - seqStorePtr->sequencesStart;
-        size_t const numLiterals = seqStorePtr->lit - seqStorePtr->litStart;
+        size_t const numSequences = (size_t)(seqStorePtr->sequences - seqStorePtr->sequencesStart);
+        size_t const numLiterals = (size_t)(seqStorePtr->lit - seqStorePtr->litStart);
         /* Base suspicion of uncompressibility on ratio of literals to sequences */
         unsigned const suspectUncompressible = (numSequences == 0) || (numLiterals / numSequences >= SUSPECT_UNCOMPRESSIBLE_LITERAL_RATIO);
         size_t const litSize = (size_t)(seqStorePtr->lit - literals);
@@ -2738,14 +2741,15 @@ ZSTD_entropyCompressSeqStore_internal(seqStore_t* seqStorePtr,
 }
 
 MEM_STATIC size_t
-ZSTD_entropyCompressSeqStore(seqStore_t* seqStorePtr,
-                       const ZSTD_entropyCTables_t* prevEntropy,
-                             ZSTD_entropyCTables_t* nextEntropy,
-                       const ZSTD_CCtx_params* cctxParams,
-                             void* dst, size_t dstCapacity,
-                             size_t srcSize,
-                             void* entropyWorkspace, size_t entropyWkspSize,
-                             int bmi2)
+ZSTD_entropyCompressSeqStore(
+                    const seqStore_t* seqStorePtr,
+                    const ZSTD_entropyCTables_t* prevEntropy,
+                          ZSTD_entropyCTables_t* nextEntropy,
+                    const ZSTD_CCtx_params* cctxParams,
+                          void* dst, size_t dstCapacity,
+                          size_t srcSize,
+                          void* entropyWorkspace, size_t entropyWkspSize,
+                          int bmi2)
 {
     size_t const cSize = ZSTD_entropyCompressSeqStore_internal(
                             seqStorePtr, prevEntropy, nextEntropy, cctxParams,
@@ -3058,19 +3062,17 @@ static int ZSTD_isRLE(const BYTE* src, size_t length) {
     const size_t unrollMask = unrollSize - 1;
     const size_t prefixLength = length & unrollMask;
     size_t i;
-    size_t u;
     if (length == 1) return 1;
     /* Check if prefix is RLE first before using unrolled loop */
     if (prefixLength && ZSTD_count(ip+1, ip, ip+prefixLength) != prefixLength-1) {
         return 0;
     }
     for (i = prefixLength; i != length; i += unrollSize) {
+        size_t u;
         for (u = 0; u < unrollSize; u += sizeof(size_t)) {
             if (MEM_readST(ip + i + u) != valueST) {
                 return 0;
-            }
-        }
-    }
+    }   }   }
     return 1;
 }
 
@@ -3086,7 +3088,8 @@ static int ZSTD_maybeRLE(seqStore_t const* seqStore)
     return nbSeqs < 4 && nbLits < 10;
 }
 
-static void ZSTD_blockState_confirmRepcodesAndEntropyTables(ZSTD_blockState_t* const bs)
+static void
+ZSTD_blockState_confirmRepcodesAndEntropyTables(ZSTD_blockState_t* const bs)
 {
     ZSTD_compressedBlockState_t* const tmp = bs->prevCBlock;
     bs->prevCBlock = bs->nextCBlock;
@@ -3094,7 +3097,9 @@ static void ZSTD_blockState_confirmRepcodesAndEntropyTables(ZSTD_blockState_t* c
 }
 
 /* Writes the block header */
-static void writeBlockHeader(void* op, size_t cSize, size_t blockSize, U32 lastBlock) {
+static void
+writeBlockHeader(void* op, size_t cSize, size_t blockSize, U32 lastBlock)
+{
     U32 const cBlockHeader = cSize == 1 ?
                         lastBlock + (((U32)bt_rle)<<1) + (U32)(blockSize << 3) :
                         lastBlock + (((U32)bt_compressed)<<1) + (U32)(cSize << 3);
@@ -3107,13 +3112,16 @@ static void writeBlockHeader(void* op, size_t cSize, size_t blockSize, U32 lastB
  *  Stores literals block type (raw, rle, compressed, repeat) and
  *  huffman description table to hufMetadata.
  *  Requires ENTROPY_WORKSPACE_SIZE workspace
- *  @return : size of huffman description table or error code */
-static size_t ZSTD_buildBlockEntropyStats_literals(void* const src, size_t srcSize,
-                                            const ZSTD_hufCTables_t* prevHuf,
-                                                  ZSTD_hufCTables_t* nextHuf,
-                                                  ZSTD_hufCTablesMetadata_t* hufMetadata,
-                                                  const int literalsCompressionIsDisabled,
-                                                  void* workspace, size_t wkspSize, HUF_depth_mode depthMode)
+ * @return : size of huffman description table, or an error code
+ */
+static size_t
+ZSTD_buildBlockEntropyStats_literals(void* const src, size_t srcSize,
+                               const ZSTD_hufCTables_t* prevHuf,
+                                     ZSTD_hufCTables_t* nextHuf,
+                                     ZSTD_hufCTablesMetadata_t* hufMetadata,
+                               const int literalsCompressionIsDisabled,
+                                     void* workspace, size_t wkspSize,
+                                     HUF_depth_mode depthMode)
 {
     BYTE* const wkspStart = (BYTE*)workspace;
     BYTE* const wkspEnd = wkspStart + wkspSize;
@@ -3138,33 +3146,37 @@ static size_t ZSTD_buildBlockEntropyStats_literals(void* const src, size_t srcSi
 
     /* small ? don't even attempt compression (speed opt) */
 #ifndef COMPRESS_LITERALS_SIZE_MIN
-#define COMPRESS_LITERALS_SIZE_MIN 63
+# define COMPRESS_LITERALS_SIZE_MIN 63  /* heuristic */
 #endif
     {   size_t const minLitSize = (prevHuf->repeatMode == HUF_repeat_valid) ? 6 : COMPRESS_LITERALS_SIZE_MIN;
         if (srcSize <= minLitSize) {
             DEBUGLOG(5, "set_basic - too small");
             hufMetadata->hType = set_basic;
             return 0;
-        }
-    }
+    }   }
 
     /* Scan input and build symbol stats */
-    {   size_t const largest = HIST_count_wksp (countWksp, &maxSymbolValue, (const BYTE*)src, srcSize, workspace, wkspSize);
+    {   size_t const largest =
+            HIST_count_wksp (countWksp, &maxSymbolValue,
+                            (const BYTE*)src, srcSize,
+                            workspace, wkspSize);
         FORWARD_IF_ERROR(largest, "HIST_count_wksp failed");
         if (largest == srcSize) {
+            /* only one literal symbol */
             DEBUGLOG(5, "set_rle");
             hufMetadata->hType = set_rle;
             return 0;
         }
         if (largest <= (srcSize >> 7)+4) {
+            /* heuristic: likely not compressible */
             DEBUGLOG(5, "set_basic - no gain");
             hufMetadata->hType = set_basic;
             return 0;
-        }
-    }
+    }   }
 
     /* Validate the previous Huffman table */
-    if (repeat == HUF_repeat_check && !HUF_validateCTable((HUF_CElt const*)prevHuf->CTable, countWksp, maxSymbolValue)) {
+    if (repeat == HUF_repeat_check
+      && !HUF_validateCTable((HUF_CElt const*)prevHuf->CTable, countWksp, maxSymbolValue)) {
         repeat = HUF_repeat_none;
     }
 
@@ -3177,35 +3189,34 @@ static size_t ZSTD_buildBlockEntropyStats_literals(void* const src, size_t srcSi
                                                     nodeWksp, nodeWkspSize);
         FORWARD_IF_ERROR(maxBits, "HUF_buildCTable_wksp");
         huffLog = (U32)maxBits;
-        {   /* Build and write the CTable */
-            size_t const newCSize = HUF_estimateCompressedSize(
-                    (HUF_CElt*)nextHuf->CTable, countWksp, maxSymbolValue);
-            size_t const hSize = HUF_writeCTable_wksp(
-                    hufMetadata->hufDesBuffer, sizeof(hufMetadata->hufDesBuffer),
-                    (HUF_CElt*)nextHuf->CTable, maxSymbolValue, huffLog,
-                    nodeWksp, nodeWkspSize);
-            /* Check against repeating the previous CTable */
-            if (repeat != HUF_repeat_none) {
-                size_t const oldCSize = HUF_estimateCompressedSize(
-                        (HUF_CElt const*)prevHuf->CTable, countWksp, maxSymbolValue);
-                if (oldCSize < srcSize && (oldCSize <= hSize + newCSize || hSize + 12 >= srcSize)) {
-                    DEBUGLOG(5, "set_repeat - smaller");
-                    ZSTD_memcpy(nextHuf, prevHuf, sizeof(*prevHuf));
-                    hufMetadata->hType = set_repeat;
-                    return 0;
-                }
-            }
-            if (newCSize + hSize >= srcSize) {
-                DEBUGLOG(5, "set_basic - no gains");
+    }
+    {   /* Build and write the CTable */
+        size_t const newCSize = HUF_estimateCompressedSize(
+                (HUF_CElt*)nextHuf->CTable, countWksp, maxSymbolValue);
+        size_t const hSize = HUF_writeCTable_wksp(
+                hufMetadata->hufDesBuffer, sizeof(hufMetadata->hufDesBuffer),
+                (HUF_CElt*)nextHuf->CTable, maxSymbolValue, huffLog,
+                nodeWksp, nodeWkspSize);
+        /* Check against repeating the previous CTable */
+        if (repeat != HUF_repeat_none) {
+            size_t const oldCSize = HUF_estimateCompressedSize(
+                    (HUF_CElt const*)prevHuf->CTable, countWksp, maxSymbolValue);
+            if (oldCSize < srcSize && (oldCSize <= hSize + newCSize || hSize + 12 >= srcSize)) {
+                DEBUGLOG(5, "set_repeat - smaller");
                 ZSTD_memcpy(nextHuf, prevHuf, sizeof(*prevHuf));
-                hufMetadata->hType = set_basic;
+                hufMetadata->hType = set_repeat;
                 return 0;
-            }
-            DEBUGLOG(5, "set_compressed (hSize=%u)", (U32)hSize);
-            hufMetadata->hType = set_compressed;
-            nextHuf->repeatMode = HUF_repeat_check;
-            return hSize;
+        }   }
+        if (newCSize + hSize >= srcSize) {
+            DEBUGLOG(5, "set_basic - no gains");
+            ZSTD_memcpy(nextHuf, prevHuf, sizeof(*prevHuf));
+            hufMetadata->hType = set_basic;
+            return 0;
         }
+        DEBUGLOG(5, "set_compressed (hSize=%u)", (U32)hSize);
+        hufMetadata->hType = set_compressed;
+        nextHuf->repeatMode = HUF_repeat_check;
+        return hSize;
     }
 }
 
@@ -3215,7 +3226,8 @@ static size_t ZSTD_buildBlockEntropyStats_literals(void* const src, size_t srcSi
  * and updates nextEntropy to the appropriate repeatMode.
  */
 static ZSTD_symbolEncodingTypeStats_t
-ZSTD_buildDummySequencesStatistics(ZSTD_fseCTables_t* nextEntropy) {
+ZSTD_buildDummySequencesStatistics(ZSTD_fseCTables_t* nextEntropy)
+{
     ZSTD_symbolEncodingTypeStats_t stats = {set_basic, set_basic, set_basic, 0, 0};
     nextEntropy->litlength_repeatMode = FSE_repeat_none;
     nextEntropy->offcode_repeatMode = FSE_repeat_none;
@@ -3227,16 +3239,18 @@ ZSTD_buildDummySequencesStatistics(ZSTD_fseCTables_t* nextEntropy) {
  *  Builds entropy for the sequences.
  *  Stores symbol compression modes and fse table to fseMetadata.
  *  Requires ENTROPY_WORKSPACE_SIZE wksp.
- *  @return : size of fse tables or error code */
-static size_t ZSTD_buildBlockEntropyStats_sequences(seqStore_t* seqStorePtr,
-                                              const ZSTD_fseCTables_t* prevEntropy,
-                                                    ZSTD_fseCTables_t* nextEntropy,
-                                              const ZSTD_CCtx_params* cctxParams,
-                                                    ZSTD_fseCTablesMetadata_t* fseMetadata,
-                                                    void* workspace, size_t wkspSize)
+ * @return : size of fse tables or error code */
+static size_t
+ZSTD_buildBlockEntropyStats_sequences(
+                const seqStore_t* seqStorePtr,
+                const ZSTD_fseCTables_t* prevEntropy,
+                      ZSTD_fseCTables_t* nextEntropy,
+                const ZSTD_CCtx_params* cctxParams,
+                      ZSTD_fseCTablesMetadata_t* fseMetadata,
+                      void* workspace, size_t wkspSize)
 {
     ZSTD_strategy const strategy = cctxParams->cParams.strategy;
-    size_t const nbSeq = seqStorePtr->sequences - seqStorePtr->sequencesStart;
+    size_t const nbSeq = (size_t)(seqStorePtr->sequences - seqStorePtr->sequencesStart);
     BYTE* const ostart = fseMetadata->fseTablesBuffer;
     BYTE* const oend = ostart + sizeof(fseMetadata->fseTablesBuffer);
     BYTE* op = ostart;
@@ -3263,18 +3277,20 @@ static size_t ZSTD_buildBlockEntropyStats_sequences(seqStore_t* seqStorePtr,
 /** ZSTD_buildBlockEntropyStats() :
  *  Builds entropy for the block.
  *  Requires workspace size ENTROPY_WORKSPACE_SIZE
- *
- *  @return : 0 on success or error code
+ * @return : 0 on success, or an error code
+ *  Note : also employed in superblock
  */
-size_t ZSTD_buildBlockEntropyStats(seqStore_t* seqStorePtr,
-                             const ZSTD_entropyCTables_t* prevEntropy,
-                                   ZSTD_entropyCTables_t* nextEntropy,
-                             const ZSTD_CCtx_params* cctxParams,
-                                   ZSTD_entropyCTablesMetadata_t* entropyMetadata,
-                                   void* workspace, size_t wkspSize)
+size_t ZSTD_buildBlockEntropyStats(
+            const seqStore_t* seqStorePtr,
+            const ZSTD_entropyCTables_t* prevEntropy,
+                  ZSTD_entropyCTables_t* nextEntropy,
+            const ZSTD_CCtx_params* cctxParams,
+                  ZSTD_entropyCTablesMetadata_t* entropyMetadata,
+                  void* workspace, size_t wkspSize)
 {
-    size_t const litSize = seqStorePtr->lit - seqStorePtr->litStart;
-    HUF_depth_mode depthMode = cctxParams->cParams.strategy >= HUF_OPTIMAL_DEPTH_THRESHOLD ? HUF_depth_optimal : HUF_depth_fast;
+    size_t const litSize = (size_t)(seqStorePtr->lit - seqStorePtr->litStart);
+    int const huf_useOptDepth = (cctxParams->cParams.strategy >= HUF_OPTIMAL_DEPTH_THRESHOLD);
+    HUF_depth_mode const depthMode = huf_useOptDepth ? HUF_depth_optimal : HUF_depth_fast;
 
     entropyMetadata->hufMetadata.hufDesSize =
         ZSTD_buildBlockEntropyStats_literals(seqStorePtr->litStart, litSize,
@@ -3295,11 +3311,12 @@ size_t ZSTD_buildBlockEntropyStats(seqStore_t* seqStorePtr,
 }
 
 /* Returns the size estimate for the literals section (header + content) of a block */
-static size_t ZSTD_estimateBlockSize_literal(const BYTE* literals, size_t litSize,
-                                                const ZSTD_hufCTables_t* huf,
-                                                const ZSTD_hufCTablesMetadata_t* hufMetadata,
-                                                void* workspace, size_t wkspSize,
-                                                int writeEntropy)
+static size_t
+ZSTD_estimateBlockSize_literal(const BYTE* literals, size_t litSize,
+                               const ZSTD_hufCTables_t* huf,
+                               const ZSTD_hufCTablesMetadata_t* hufMetadata,
+                               void* workspace, size_t wkspSize,
+                               int writeEntropy)
 {
     unsigned* const countWksp = (unsigned*)workspace;
     unsigned maxSymbolValue = HUF_SYMBOLVALUE_MAX;
@@ -3321,12 +3338,13 @@ static size_t ZSTD_estimateBlockSize_literal(const BYTE* literals, size_t litSiz
 }
 
 /* Returns the size estimate for the FSE-compressed symbols (of, ml, ll) of a block */
-static size_t ZSTD_estimateBlockSize_symbolType(symbolEncodingType_e type,
-                        const BYTE* codeTable, size_t nbSeq, unsigned maxCode,
-                        const FSE_CTable* fseCTable,
-                        const U8* additionalBits,
-                        short const* defaultNorm, U32 defaultNormLog, U32 defaultMax,
-                        void* workspace, size_t wkspSize)
+static size_t
+ZSTD_estimateBlockSize_symbolType(symbolEncodingType_e type,
+                    const BYTE* codeTable, size_t nbSeq, unsigned maxCode,
+                    const FSE_CTable* fseCTable,
+                    const U8* additionalBits,
+                    short const* defaultNorm, U32 defaultNormLog, U32 defaultMax,
+                    void* workspace, size_t wkspSize)
 {
     unsigned* const countWksp = (unsigned*)workspace;
     const BYTE* ctp = codeTable;
@@ -3358,99 +3376,107 @@ static size_t ZSTD_estimateBlockSize_symbolType(symbolEncodingType_e type,
 }
 
 /* Returns the size estimate for the sequences section (header + content) of a block */
-static size_t ZSTD_estimateBlockSize_sequences(const BYTE* ofCodeTable,
-                                                  const BYTE* llCodeTable,
-                                                  const BYTE* mlCodeTable,
-                                                  size_t nbSeq,
-                                                  const ZSTD_fseCTables_t* fseTables,
-                                                  const ZSTD_fseCTablesMetadata_t* fseMetadata,
-                                                  void* workspace, size_t wkspSize,
-                                                  int writeEntropy)
+static size_t
+ZSTD_estimateBlockSize_sequences(const BYTE* ofCodeTable,
+                                 const BYTE* llCodeTable,
+                                 const BYTE* mlCodeTable,
+                                 size_t nbSeq,
+                                 const ZSTD_fseCTables_t* fseTables,
+                                 const ZSTD_fseCTablesMetadata_t* fseMetadata,
+                                 void* workspace, size_t wkspSize,
+                                 int writeEntropy)
 {
     size_t sequencesSectionHeaderSize = 1 /* seqHead */ + 1 /* min seqSize size */ + (nbSeq >= 128) + (nbSeq >= LONGNBSEQ);
     size_t cSeqSizeEstimate = 0;
     cSeqSizeEstimate += ZSTD_estimateBlockSize_symbolType(fseMetadata->ofType, ofCodeTable, nbSeq, MaxOff,
-                                         fseTables->offcodeCTable, NULL,
-                                         OF_defaultNorm, OF_defaultNormLog, DefaultMaxOff,
-                                         workspace, wkspSize);
+                                    fseTables->offcodeCTable, NULL,
+                                    OF_defaultNorm, OF_defaultNormLog, DefaultMaxOff,
+                                    workspace, wkspSize);
     cSeqSizeEstimate += ZSTD_estimateBlockSize_symbolType(fseMetadata->llType, llCodeTable, nbSeq, MaxLL,
-                                         fseTables->litlengthCTable, LL_bits,
-                                         LL_defaultNorm, LL_defaultNormLog, MaxLL,
-                                         workspace, wkspSize);
+                                    fseTables->litlengthCTable, LL_bits,
+                                    LL_defaultNorm, LL_defaultNormLog, MaxLL,
+                                    workspace, wkspSize);
     cSeqSizeEstimate += ZSTD_estimateBlockSize_symbolType(fseMetadata->mlType, mlCodeTable, nbSeq, MaxML,
-                                         fseTables->matchlengthCTable, ML_bits,
-                                         ML_defaultNorm, ML_defaultNormLog, MaxML,
-                                         workspace, wkspSize);
+                                    fseTables->matchlengthCTable, ML_bits,
+                                    ML_defaultNorm, ML_defaultNormLog, MaxML,
+                                    workspace, wkspSize);
     if (writeEntropy) cSeqSizeEstimate += fseMetadata->fseTablesSize;
     return cSeqSizeEstimate + sequencesSectionHeaderSize;
 }
 
 /* Returns the size estimate for a given stream of literals, of, ll, ml */
-static size_t ZSTD_estimateBlockSize(const BYTE* literals, size_t litSize,
-                                     const BYTE* ofCodeTable,
-                                     const BYTE* llCodeTable,
-                                     const BYTE* mlCodeTable,
-                                     size_t nbSeq,
-                                     const ZSTD_entropyCTables_t* entropy,
-                                     const ZSTD_entropyCTablesMetadata_t* entropyMetadata,
-                                     void* workspace, size_t wkspSize,
-                                     int writeLitEntropy, int writeSeqEntropy) {
+static size_t
+ZSTD_estimateBlockSize(const BYTE* literals, size_t litSize,
+                       const BYTE* ofCodeTable,
+                       const BYTE* llCodeTable,
+                       const BYTE* mlCodeTable,
+                       size_t nbSeq,
+                       const ZSTD_entropyCTables_t* entropy,
+                       const ZSTD_entropyCTablesMetadata_t* entropyMetadata,
+                       void* workspace, size_t wkspSize,
+                       int writeLitEntropy, int writeSeqEntropy)
+{
     size_t const literalsSize = ZSTD_estimateBlockSize_literal(literals, litSize,
-                                                         &entropy->huf, &entropyMetadata->hufMetadata,
-                                                         workspace, wkspSize, writeLitEntropy);
+                                    &entropy->huf, &entropyMetadata->hufMetadata,
+                                    workspace, wkspSize, writeLitEntropy);
     size_t const seqSize = ZSTD_estimateBlockSize_sequences(ofCodeTable, llCodeTable, mlCodeTable,
-                                                         nbSeq, &entropy->fse, &entropyMetadata->fseMetadata,
-                                                         workspace, wkspSize, writeSeqEntropy);
+                                    nbSeq, &entropy->fse, &entropyMetadata->fseMetadata,
+                                    workspace, wkspSize, writeSeqEntropy);
     return seqSize + literalsSize + ZSTD_blockHeaderSize;
 }
 
 /* Builds entropy statistics and uses them for blocksize estimation.
  *
- * Returns the estimated compressed size of the seqStore, or a zstd error.
+ * @return: estimated compressed size of the seqStore, or a zstd error.
  */
-static size_t ZSTD_buildEntropyStatisticsAndEstimateSubBlockSize(seqStore_t* seqStore, ZSTD_CCtx* zc) {
-    ZSTD_entropyCTablesMetadata_t* entropyMetadata = &zc->blockSplitCtx.entropyMetadata;
+static size_t
+ZSTD_buildEntropyStatisticsAndEstimateSubBlockSize(seqStore_t* seqStore, ZSTD_CCtx* zc)
+{
+    ZSTD_entropyCTablesMetadata_t* const entropyMetadata = &zc->blockSplitCtx.entropyMetadata;
     DEBUGLOG(6, "ZSTD_buildEntropyStatisticsAndEstimateSubBlockSize()");
     FORWARD_IF_ERROR(ZSTD_buildBlockEntropyStats(seqStore,
                     &zc->blockState.prevCBlock->entropy,
                     &zc->blockState.nextCBlock->entropy,
                     &zc->appliedParams,
                     entropyMetadata,
-                    zc->entropyWorkspace, ENTROPY_WORKSPACE_SIZE /* statically allocated in resetCCtx */), "");
-    return ZSTD_estimateBlockSize(seqStore->litStart, (size_t)(seqStore->lit - seqStore->litStart),
+                    zc->entropyWorkspace, ENTROPY_WORKSPACE_SIZE), "");
+    return ZSTD_estimateBlockSize(
+                    seqStore->litStart, (size_t)(seqStore->lit - seqStore->litStart),
                     seqStore->ofCode, seqStore->llCode, seqStore->mlCode,
                     (size_t)(seqStore->sequences - seqStore->sequencesStart),
-                    &zc->blockState.nextCBlock->entropy, entropyMetadata, zc->entropyWorkspace, ENTROPY_WORKSPACE_SIZE,
+                    &zc->blockState.nextCBlock->entropy,
+                    entropyMetadata,
+                    zc->entropyWorkspace, ENTROPY_WORKSPACE_SIZE,
                     (int)(entropyMetadata->hufMetadata.hType == set_compressed), 1);
 }
 
 /* Returns literals bytes represented in a seqStore */
-static size_t ZSTD_countSeqStoreLiteralsBytes(const seqStore_t* const seqStore) {
+static size_t ZSTD_countSeqStoreLiteralsBytes(const seqStore_t* const seqStore)
+{
     size_t literalsBytes = 0;
-    size_t const nbSeqs = seqStore->sequences - seqStore->sequencesStart;
+    size_t const nbSeqs = (size_t)(seqStore->sequences - seqStore->sequencesStart);
     size_t i;
     for (i = 0; i < nbSeqs; ++i) {
-        seqDef seq = seqStore->sequencesStart[i];
+        seqDef const seq = seqStore->sequencesStart[i];
         literalsBytes += seq.litLength;
         if (i == seqStore->longLengthPos && seqStore->longLengthType == ZSTD_llt_literalLength) {
             literalsBytes += 0x10000;
-        }
-    }
+    }   }
     return literalsBytes;
 }
 
 /* Returns match bytes represented in a seqStore */
-static size_t ZSTD_countSeqStoreMatchBytes(const seqStore_t* const seqStore) {
+static size_t ZSTD_countSeqStoreMatchBytes(const seqStore_t* const seqStore)
+{
     size_t matchBytes = 0;
-    size_t const nbSeqs = seqStore->sequences - seqStore->sequencesStart;
+    size_t const nbSeqs = (size_t)(seqStore->sequences - seqStore->sequencesStart);
     size_t i;
     for (i = 0; i < nbSeqs; ++i) {
         seqDef seq = seqStore->sequencesStart[i];
         matchBytes += seq.mlBase + MINMATCH;
         if (i == seqStore->longLengthPos && seqStore->longLengthType == ZSTD_llt_matchLength) {
             matchBytes += 0x10000;
-        }
-    }
+    }   }
     return matchBytes;
 }
 
@@ -3499,6 +3525,7 @@ ZSTD_resolveRepcodeToRawOffset(const U32 rep[ZSTD_REP_NUM], const U32 offBase, c
     U32 const adjustedRepCode = OFFBASE_TO_REPCODE(offBase) - 1 + ll0;  /* [ 0 - 3 ] */
     assert(OFFBASE_IS_REPCODE(offBase));
     if (adjustedRepCode == ZSTD_REP_NUM) {
+        assert(ll0);
         /* litlength == 0 and offCode == 2 implies selection of first repcode - 1
          * This is only valid if it results in a valid offset value, aka > 0.
          * Note : it may happen that `rep[0]==1` in exceptional circumstances.
@@ -3524,14 +3551,16 @@ ZSTD_resolveRepcodeToRawOffset(const U32 rep[ZSTD_REP_NUM], const U32 offBase, c
  *        1-3 : repcode 1-3
  *        4+ : real_offset+3
  */
-static void ZSTD_seqStore_resolveOffCodes(repcodes_t* const dRepcodes, repcodes_t* const cRepcodes,
-                                          seqStore_t* const seqStore, U32 const nbSeq) {
+static void
+ZSTD_seqStore_resolveOffCodes(repcodes_t* const dRepcodes, repcodes_t* const cRepcodes,
+                        const seqStore_t* const seqStore, U32 const nbSeq)
+{
     U32 idx = 0;
     for (; idx < nbSeq; ++idx) {
         seqDef* const seq = seqStore->sequencesStart + idx;
         U32 const ll0 = (seq->litLength == 0);
         U32 const offBase = seq->offBase;
-        assert(seq->offBase > 0);
+        assert(offBase > 0);
         if (OFFBASE_IS_REPCODE(offBase)) {
             U32 const dRawOffset = ZSTD_resolveRepcodeToRawOffset(dRepcodes->rep, offBase, ll0);
             U32 const cRawOffset = ZSTD_resolveRepcodeToRawOffset(cRepcodes->rep, offBase, ll0);
@@ -3540,7 +3569,7 @@ static void ZSTD_seqStore_resolveOffCodes(repcodes_t* const dRepcodes, repcodes_
              * repcode history.
              */
             if (dRawOffset != cRawOffset) {
-                seq->offBase = cRawOffset + ZSTD_REP_NUM;
+                seq->offBase = OFFSET_TO_OFFBASE(cRawOffset);
             }
         }
         /* Compression repcode history is always updated with values directly from the unmodified seqStore.
@@ -3557,10 +3586,11 @@ static void ZSTD_seqStore_resolveOffCodes(repcodes_t* const dRepcodes, repcodes_
  * Returns the total size of that block (including header) or a ZSTD error code.
  */
 static size_t
-ZSTD_compressSeqStore_singleBlock(ZSTD_CCtx* zc, seqStore_t* const seqStore,
+ZSTD_compressSeqStore_singleBlock(ZSTD_CCtx* zc,
+                            const seqStore_t* const seqStore,
                                   repcodes_t* const dRep, repcodes_t* const cRep,
                                   void* dst, size_t dstCapacity,
-                                  const void* src, size_t srcSize,
+                            const void* src, size_t srcSize,
                                   U32 lastBlock, U32 isPartition)
 {
     const U32 rleMaxLength = 25;
@@ -3634,10 +3664,11 @@ typedef struct {
 
 /* Helper function to perform the recursive search for block splits.
  * Estimates the cost of seqStore prior to split, and estimates the cost of splitting the sequences in half.
- * If advantageous to split, then we recurse down the two sub-blocks. If not, or if an error occurred in estimation, then
- * we do not recurse.
+ * If advantageous to split, then we recurse down the two sub-blocks.
+ * If not, or if an error occurred in estimation, then we do not recurse.
  *
- * Note: The recursion depth is capped by a heuristic minimum number of sequences, defined by MIN_SEQUENCES_BLOCK_SPLITTING.
+ * Note: The recursion depth is capped by a heuristic minimum number of sequences,
+ * defined by MIN_SEQUENCES_BLOCK_SPLITTING.
  * In theory, this means the absolute largest recursion depth is 10 == log2(maxNbSeqInBlock/MIN_SEQUENCES_BLOCK_SPLITTING).
  * In practice, recursion depth usually doesn't go beyond 4.
  *
@@ -3649,16 +3680,17 @@ static void
 ZSTD_deriveBlockSplitsHelper(seqStoreSplits* splits, size_t startIdx, size_t endIdx,
                              ZSTD_CCtx* zc, const seqStore_t* origSeqStore)
 {
-    seqStore_t* fullSeqStoreChunk = &zc->blockSplitCtx.fullSeqStoreChunk;
-    seqStore_t* firstHalfSeqStore = &zc->blockSplitCtx.firstHalfSeqStore;
-    seqStore_t* secondHalfSeqStore = &zc->blockSplitCtx.secondHalfSeqStore;
+    seqStore_t* const fullSeqStoreChunk = &zc->blockSplitCtx.fullSeqStoreChunk;
+    seqStore_t* const firstHalfSeqStore = &zc->blockSplitCtx.firstHalfSeqStore;
+    seqStore_t* const secondHalfSeqStore = &zc->blockSplitCtx.secondHalfSeqStore;
     size_t estimatedOriginalSize;
     size_t estimatedFirstHalfSize;
     size_t estimatedSecondHalfSize;
     size_t midIdx = (startIdx + endIdx)/2;
 
+    assert(endIdx >= startIdx);
     if (endIdx - startIdx < MIN_SEQUENCES_BLOCK_SPLITTING || splits->idx >= ZSTD_MAX_NB_BLOCK_SPLITS) {
-        DEBUGLOG(6, "ZSTD_deriveBlockSplitsHelper: Too few sequences");
+        DEBUGLOG(6, "ZSTD_deriveBlockSplitsHelper: Too few sequences (%zu)", endIdx - startIdx);
         return;
     }
     DEBUGLOG(5, "ZSTD_deriveBlockSplitsHelper: startIdx=%zu endIdx=%zu", startIdx, endIdx);
@@ -3682,15 +3714,16 @@ ZSTD_deriveBlockSplitsHelper(seqStoreSplits* splits, size_t startIdx, size_t end
     }
 }
 
-/* Base recursive function. Populates a table with intra-block partition indices that can improve compression ratio.
+/* Base recursive function.
+ * Populates a table with intra-block partition indices that can improve compression ratio.
  *
- * Returns the number of splits made (which equals the size of the partition table - 1).
+ * @return: number of splits made (which equals the size of the partition table - 1).
  */
 static size_t ZSTD_deriveBlockSplits(ZSTD_CCtx* zc, U32 partitions[], U32 nbSeq)
 {
     seqStoreSplits splits = {partitions, 0};
     if (nbSeq <= 4) {
-        DEBUGLOG(5, "ZSTD_deriveBlockSplits: Too few sequences to split");
+        DEBUGLOG(5, "ZSTD_deriveBlockSplits: Too few sequences to split (%u <= 4)", nbSeq);
         /* Refuse to try and split anything with less than 4 sequences */
         return 0;
     }
@@ -3706,18 +3739,20 @@ static size_t ZSTD_deriveBlockSplits(ZSTD_CCtx* zc, U32 partitions[], U32 nbSeq)
  * Returns combined size of all blocks (which includes headers), or a ZSTD error code.
  */
 static size_t
-ZSTD_compressBlock_splitBlock_internal(ZSTD_CCtx* zc, void* dst, size_t dstCapacity,
-                                       const void* src, size_t blockSize, U32 lastBlock, U32 nbSeq)
+ZSTD_compressBlock_splitBlock_internal(ZSTD_CCtx* zc,
+                                    void* dst, size_t dstCapacity,
+                              const void* src, size_t blockSize,
+                                    U32 lastBlock, U32 nbSeq)
 {
     size_t cSize = 0;
     const BYTE* ip = (const BYTE*)src;
     BYTE* op = (BYTE*)dst;
     size_t i = 0;
     size_t srcBytesTotal = 0;
-    U32* partitions = zc->blockSplitCtx.partitions; /* size == ZSTD_MAX_NB_BLOCK_SPLITS */
-    seqStore_t* nextSeqStore = &zc->blockSplitCtx.nextSeqStore;
-    seqStore_t* currSeqStore = &zc->blockSplitCtx.currSeqStore;
-    size_t numSplits = ZSTD_deriveBlockSplits(zc, partitions, nbSeq);
+    U32* const partitions = zc->blockSplitCtx.partitions; /* size == ZSTD_MAX_NB_BLOCK_SPLITS */
+    seqStore_t* const nextSeqStore = &zc->blockSplitCtx.nextSeqStore;
+    seqStore_t* const currSeqStore = &zc->blockSplitCtx.currSeqStore;
+    size_t const numSplits = ZSTD_deriveBlockSplits(zc, partitions, nbSeq);
 
     /* If a block is split and some partitions are emitted as RLE/uncompressed, then repcode history
      * may become invalid. In order to reconcile potentially invalid repcodes, we keep track of two
@@ -3739,19 +3774,21 @@ ZSTD_compressBlock_splitBlock_internal(ZSTD_CCtx* zc, void* dst, size_t dstCapac
     ZSTD_memcpy(cRep.rep, zc->blockState.prevCBlock->rep, sizeof(repcodes_t));
     ZSTD_memset(nextSeqStore, 0, sizeof(seqStore_t));
 
-    DEBUGLOG(4, "ZSTD_compressBlock_splitBlock_internal (dstCapacity=%u, dictLimit=%u, nextToUpdate=%u)",
+    DEBUGLOG(5, "ZSTD_compressBlock_splitBlock_internal (dstCapacity=%u, dictLimit=%u, nextToUpdate=%u)",
                 (unsigned)dstCapacity, (unsigned)zc->blockState.matchState.window.dictLimit,
                 (unsigned)zc->blockState.matchState.nextToUpdate);
 
     if (numSplits == 0) {
-        size_t cSizeSingleBlock = ZSTD_compressSeqStore_singleBlock(zc, &zc->seqStore,
-                                                                   &dRep, &cRep,
-                                                                    op, dstCapacity,
-                                                                    ip, blockSize,
-                                                                    lastBlock, 0 /* isPartition */);
+        size_t cSizeSingleBlock =
+            ZSTD_compressSeqStore_singleBlock(zc, &zc->seqStore,
+                                            &dRep, &cRep,
+                                            op, dstCapacity,
+                                            ip, blockSize,
+                                            lastBlock, 0 /* isPartition */);
         FORWARD_IF_ERROR(cSizeSingleBlock, "Compressing single block from splitBlock_internal() failed!");
         DEBUGLOG(5, "ZSTD_compressBlock_splitBlock_internal: No splits");
-        assert(cSizeSingleBlock <= ZSTD_BLOCKSIZE_MAX + ZSTD_blockHeaderSize);
+        assert(zc->blockSize <= ZSTD_BLOCKSIZE_MAX);
+        assert(cSizeSingleBlock <= zc->blockSize + ZSTD_blockHeaderSize);
         return cSizeSingleBlock;
     }
 
@@ -3776,7 +3813,8 @@ ZSTD_compressBlock_splitBlock_internal(ZSTD_CCtx* zc, void* dst, size_t dstCapac
                                                        op, dstCapacity,
                                                        ip, srcBytes,
                                                        lastBlockEntireSrc, 1 /* isPartition */);
-        DEBUGLOG(5, "Estimated size: %zu actual size: %zu", ZSTD_buildEntropyStatisticsAndEstimateSubBlockSize(currSeqStore, zc), cSizeChunk);
+        DEBUGLOG(5, "Estimated size: %zu vs %zu : actual size",
+                    ZSTD_buildEntropyStatisticsAndEstimateSubBlockSize(currSeqStore, zc), cSizeChunk);
         FORWARD_IF_ERROR(cSizeChunk, "Compressing chunk failed!");
 
         ip += srcBytes;
@@ -3784,10 +3822,10 @@ ZSTD_compressBlock_splitBlock_internal(ZSTD_CCtx* zc, void* dst, size_t dstCapac
         dstCapacity -= cSizeChunk;
         cSize += cSizeChunk;
         *currSeqStore = *nextSeqStore;
-        assert(cSizeChunk <= ZSTD_BLOCKSIZE_MAX + ZSTD_blockHeaderSize);
+        assert(cSizeChunk <= zc->blockSize + ZSTD_blockHeaderSize);
     }
-    /* cRep and dRep may have diverged during the compression. If so, we use the dRep repcodes
-     * for the next block.
+    /* cRep and dRep may have diverged during the compression.
+     * If so, we use the dRep repcodes for the next block.
      */
     ZSTD_memcpy(zc->blockState.prevCBlock->rep, dRep.rep, sizeof(repcodes_t));
     return cSize;
@@ -3798,8 +3836,6 @@ ZSTD_compressBlock_splitBlock(ZSTD_CCtx* zc,
                               void* dst, size_t dstCapacity,
                               const void* src, size_t srcSize, U32 lastBlock)
 {
-    const BYTE* ip = (const BYTE*)src;
-    BYTE* op = (BYTE*)dst;
     U32 nbSeq;
     size_t cSize;
     DEBUGLOG(4, "ZSTD_compressBlock_splitBlock");
@@ -3810,7 +3846,7 @@ ZSTD_compressBlock_splitBlock(ZSTD_CCtx* zc,
         if (bss == ZSTDbss_noCompress) {
             if (zc->blockState.prevCBlock->entropy.fse.offcode_repeatMode == FSE_repeat_valid)
                 zc->blockState.prevCBlock->entropy.fse.offcode_repeatMode = FSE_repeat_check;
-            cSize = ZSTD_noCompressBlock(op, dstCapacity, ip, srcSize, lastBlock);
+            cSize = ZSTD_noCompressBlock(dst, dstCapacity, src, srcSize, lastBlock);
             FORWARD_IF_ERROR(cSize, "ZSTD_noCompressBlock failed");
             DEBUGLOG(4, "ZSTD_compressBlock_splitBlock: Nocompress block");
             return cSize;
@@ -3922,10 +3958,11 @@ static size_t ZSTD_compressBlock_targetCBlockSize_body(ZSTD_CCtx* zc,
          *   * cSize >= blockBound(srcSize): We have expanded the block too much so
          *     emit an uncompressed block.
          */
-        {
-            size_t const cSize = ZSTD_compressSuperBlock(zc, dst, dstCapacity, src, srcSize, lastBlock);
+        {   size_t const cSize =
+                ZSTD_compressSuperBlock(zc, dst, dstCapacity, src, srcSize, lastBlock);
             if (cSize != ERROR(dstSize_tooSmall)) {
-                size_t const maxCSize = srcSize - ZSTD_minGain(srcSize, zc->appliedParams.cParams.strategy);
+                size_t const maxCSize =
+                    srcSize - ZSTD_minGain(srcSize, zc->appliedParams.cParams.strategy);
                 FORWARD_IF_ERROR(cSize, "ZSTD_compressSuperBlock failed");
                 if (cSize != 0 && cSize < maxCSize + ZSTD_blockHeaderSize) {
                     ZSTD_blockState_confirmRepcodesAndEntropyTables(&zc->blockState);
@@ -3933,7 +3970,7 @@ static size_t ZSTD_compressBlock_targetCBlockSize_body(ZSTD_CCtx* zc,
                 }
             }
         }
-    }
+    } /* if (bss == ZSTDbss_compress)*/
 
     DEBUGLOG(6, "Resorting to ZSTD_noCompressBlock()");
     /* Superblock compression failed, attempt to emit a single no compress block.
@@ -3991,7 +4028,7 @@ static void ZSTD_overflowCorrectIfNeeded(ZSTD_matchState_t* ms,
 *   All blocks will be terminated, all input will be consumed.
 *   Function will issue an error if there is not enough `dstCapacity` to hold the compressed content.
 *   Frame is supposed already started (header already produced)
-*   @return : compressed size, or an error code
+*  @return : compressed size, or an error code
 */
 static size_t ZSTD_compress_frameChunk(ZSTD_CCtx* cctx,
                                      void* dst, size_t dstCapacity,
@@ -4056,7 +4093,7 @@ static size_t ZSTD_compress_frameChunk(ZSTD_CCtx* cctx,
                     MEM_writeLE24(op, cBlockHeader);
                     cSize += ZSTD_blockHeaderSize;
                 }
-            }
+            }  /* if (ZSTD_useTargetCBlockSize(&cctx->appliedParams))*/
 
 
             ip += blockSize;

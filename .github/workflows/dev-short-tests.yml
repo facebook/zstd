@@ -212,7 +212,7 @@ jobs:
         uses: ilammy/msvc-dev-cmd@7315a94840631165970262a99c72cfb48a65d25d
       - name: Configure with Meson
         run: |
-          meson setup build/meson/ builddir -Dbin_tests=true -Dbin_programs=true
+          meson setup build/meson/ builddir -Dbin_tests=true -Dbin_programs=true -Dbin_contrib=true
       - name: Build with Meson
         run: |
           ninja -C builddir/

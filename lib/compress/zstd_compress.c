@@ -2904,9 +2904,10 @@ void ZSTD_resetSeqStore(seqStore_t* ssPtr)
  *   - Checks whether nbExternalSeqs represents an error condition.
  *   - Appends a block delimiter to outSeqs if one is not already present.
  *     See zstd.h for context regarding block delimiters.
+ *   - In debug builds, verify that the external litLengths + matchLengths add to srcSize.
  * Returns the number of sequences after post-processing, or an error code. */
 static size_t ZSTD_postProcessExternalMatchFinderResult(
-    ZSTD_Sequence* outSeqs, size_t nbExternalSeqs, size_t outSeqsCapacity, int emptySrc
+    ZSTD_Sequence* outSeqs, size_t nbExternalSeqs, size_t outSeqsCapacity, size_t srcSize
 ) {
     RETURN_ERROR_IF(
         nbExternalSeqs > outSeqsCapacity,
@@ -2916,15 +2917,34 @@ static size_t ZSTD_postProcessExternalMatchFinderResult(
     );
 
     RETURN_ERROR_IF(
-        nbExternalSeqs == 0 && !emptySrc,
+        nbExternalSeqs == 0 && srcSize > 0,
         externalMatchFinder_failed,
         "External matchfinder produced zero sequences for a non-empty src buffer!"
     );
 
-    if (emptySrc) {
+    if (srcSize == 0) {
         ZSTD_memset(&outSeqs[0], 0, sizeof(ZSTD_Sequence));
         return 1;
     }
+
+#if defined(DEBUGLEVEL) && (DEBUGLEVEL>=2)
+    {
+        size_t coveredBytes, idx;
+
+        for (idx = 0; idx < nbExternalSeqs; idx++) {
+            /* We already know that nbExternalSeqs <= outSeqsCapacity */
+            assert(idx < outSeqsCapacity);
+            coveredBytes += outSeqs[idx].litLength;
+            coveredBytes += outSeqs[idx].matchLength;
+        }
+
+        RETURN_ERROR_IF(
+            coveredBytes != srcSize,
+            externalMatchFinder_failed,
+            "External matchfinder produced an incorrect parse!"
+        );
+    }
+#endif
 
     {
         ZSTD_Sequence const lastSeq = outSeqs[nbExternalSeqs - 1];
@@ -3065,7 +3085,7 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
                     zc->externalMatchCtx.seqBuffer,
                     nbExternalSeqs,
                     zc->externalMatchCtx.seqBufferCapacity,
-                    srcSize == 0  /* emptySrc */
+                    srcSize
                 );
 
                 if (!ZSTD_isError(nbPostProcessedSeqs)) {

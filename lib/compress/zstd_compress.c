@@ -1533,7 +1533,7 @@ static size_t ZSTD_estimateCCtxSize_usingCCtxParams_internal(
 
     size_t const cctxSpace = isStatic ? ZSTD_cwksp_alloc_size(sizeof(ZSTD_CCtx)) : 0;
 
-    size_t const maxNbExternalSeq = ZSTD_sequenceBound(ZSTD_BLOCKSIZE_MAX);
+    size_t const maxNbExternalSeq = ZSTD_sequenceBound(blockSize);
     size_t const externalSeqSpace = useExternalMatchFinder
         ? ZSTD_cwksp_alloc_size(maxNbExternalSeq * sizeof(ZSTD_Sequence))
         : 0;
@@ -2042,7 +2042,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
 
         /* reserve space for block-level external sequences */
         if (params->useExternalMatchFinder) {
-            size_t const maxNbExternalSeq = ZSTD_sequenceBound(ZSTD_BLOCKSIZE_MAX);
+            size_t const maxNbExternalSeq = ZSTD_sequenceBound(blockSize);
             zc->externalMatchCtx.seqBufferCapacity = maxNbExternalSeq;
             zc->externalMatchCtx.seqBuffer =
                 (ZSTD_Sequence*)ZSTD_cwksp_reserve_aligned(ws, maxNbExternalSeq * sizeof(ZSTD_Sequence));

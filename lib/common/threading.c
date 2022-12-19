@@ -44,15 +44,23 @@ typedef struct {
 
 static unsigned __stdcall worker(void *arg)
 {
-    ZSTD_thread_params_t* const thread_param = (ZSTD_thread_params_t*)arg;
-    void* (*start_routine)(void*) = thread_param->start_routine;
-    void* thread_arg = thread_param->arg;
+    void* (*start_routine)(void*);
+    void* thread_arg;
 
-    /* Signal main thread that we are running and do not depend on its memory anymore */
-    ZSTD_pthread_mutex_lock(&thread_param->initialized_mutex);
-    thread_param->initialized = 1;
-    ZSTD_pthread_mutex_unlock(&thread_param->initialized_mutex);
-    ZSTD_pthread_cond_signal(&thread_param->initialized_cond);
+    /* Inialized thread_arg and start_routine and signal main thread that we don't need it
+     * to wait any longer.
+     */
+    {
+        ZSTD_thread_params_t*  thread_param = (ZSTD_thread_params_t*)arg;
+        thread_arg = thread_param->arg;
+        start_routine = thread_param->start_routine;
+
+        /* Signal main thread that we are running and do not depend on its memory anymore */
+        ZSTD_pthread_mutex_lock(&thread_param->initialized_mutex);
+        thread_param->initialized = 1;
+        ZSTD_pthread_cond_signal(&thread_param->initialized_cond);
+        ZSTD_pthread_mutex_unlock(&thread_param->initialized_mutex);
+    }
 
     start_routine(thread_arg);
 
@@ -63,25 +71,34 @@ int ZSTD_pthread_create(ZSTD_pthread_t* thread, const void* unused,
             void* (*start_routine) (void*), void* arg)
 {
     ZSTD_thread_params_t thread_param;
-    int error = 0;
     (void)unused;
+
     thread_param.start_routine = start_routine;
     thread_param.arg = arg;
     thread_param.initialized = 0;
+    *thread = NULL;
 
     /* Setup thread initialization synchronization */
-    error |= ZSTD_pthread_cond_init(&thread_param.initialized_cond, NULL);
-    error |= ZSTD_pthread_mutex_init(&thread_param.initialized_mutex, NULL);
-    if(error)
+    if(ZSTD_pthread_cond_init(&thread_param.initialized_cond, NULL)) {
+        /* Should never happen on Windows */
         return -1;
-    ZSTD_pthread_mutex_lock(&thread_param.initialized_mutex);
+    }
+    if(ZSTD_pthread_mutex_init(&thread_param.initialized_mutex, NULL)) {
+        /* Should never happen on Windows */
+        ZSTD_pthread_cond_destroy(&thread_param.initialized_cond);
+        return -1;
+    }
 
     /* Spawn thread */
     *thread = (HANDLE)_beginthreadex(NULL, 0, worker, &thread_param, 0, NULL);
-    if (!thread)
+    if (!thread) {
+        ZSTD_pthread_mutex_destroy(&thread_param.initialized_mutex);
+        ZSTD_pthread_cond_destroy(&thread_param.initialized_cond);
         return errno;
+    }
 
     /* Wait for thread to be initialized */
+    ZSTD_pthread_mutex_lock(&thread_param.initialized_mutex);
     while(!thread_param.initialized) {
         ZSTD_pthread_cond_wait(&thread_param.initialized_cond, &thread_param.initialized_mutex);
     }

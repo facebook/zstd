@@ -2929,7 +2929,8 @@ static size_t ZSTD_postProcessExternalMatchFinderResult(
 
 #if defined(DEBUGLEVEL) && (DEBUGLEVEL>=2)
     {
-        size_t coveredBytes, idx;
+        size_t coveredBytes = 0;
+        size_t idx = 0;
 
         for (idx = 0; idx < nbExternalSeqs; idx++) {
             /* We already know that nbExternalSeqs <= outSeqsCapacity */

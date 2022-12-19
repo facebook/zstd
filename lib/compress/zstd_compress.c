@@ -2900,7 +2900,10 @@ void ZSTD_resetSeqStore(seqStore_t* ssPtr)
 }
 
 /* ZSTD_postProcessExternalMatchFinderResult() :
- * Validates and post-processes sequences obtained through the external matchfinder API.
+ * Validates and post-processes sequences obtained through the external matchfinder API:
+ *   - Checks whether nbExternalSeqs represents an error condition.
+ *   - Appends a block delimiter to outSeqs if one is not already present.
+ *     See zstd.h for context regarding block delimiters.
  * Returns the number of sequences after post-processing, or an error code. */
 static size_t ZSTD_postProcessExternalMatchFinderResult(
     ZSTD_Sequence* outSeqs, size_t nbExternalSeqs, size_t outSeqsCapacity, int emptySrc
@@ -2921,24 +2924,27 @@ static size_t ZSTD_postProcessExternalMatchFinderResult(
     if (emptySrc) {
         ZSTD_memset(&outSeqs[0], 0, sizeof(ZSTD_Sequence));
         return 1;
-    } else {
+    }
+
+    {
         ZSTD_Sequence const lastSeq = outSeqs[nbExternalSeqs - 1];
 
-        /* Check if lastSeq is a block delimiter, append one if not */
+        /* We can return early if lastSeq is already a block delimiter. */
         if (lastSeq.offset == 0 && lastSeq.matchLength == 0) {
             return nbExternalSeqs;
-        } else {
-            /* This error condition is only possible if the external matchfinder
-            * produced an invalid parse, by definition of ZSTD_sequenceBound(). */
-            RETURN_ERROR_IF(
-                nbExternalSeqs == outSeqsCapacity,
-                externalMatchFinder_failed,
-                "nbExternalSeqs == outSeqsCapacity but lastSeq is not a block delimiter!"
-            );
-
-            ZSTD_memset(&outSeqs[nbExternalSeqs], 0, sizeof(ZSTD_Sequence));
-            return nbExternalSeqs + 1;
         }
+
+        /* This error condition is only possible if the external matchfinder
+         * produced an invalid parse, by definition of ZSTD_sequenceBound(). */
+        RETURN_ERROR_IF(
+            nbExternalSeqs == outSeqsCapacity,
+            externalMatchFinder_failed,
+            "nbExternalSeqs == outSeqsCapacity but lastSeq is not a block delimiter!"
+        );
+
+        /* lastSeq is not a block delimiter, so we need to append one. */
+        ZSTD_memset(&outSeqs[nbExternalSeqs], 0, sizeof(ZSTD_Sequence));
+        return nbExternalSeqs + 1;
     }
 }
 

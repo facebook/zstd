@@ -14,7 +14,9 @@
 #pragma once
 
 #include "utils/Likely.h"
+#include "utils/Portability.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstring>
 #include <stdexcept>

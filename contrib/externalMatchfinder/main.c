@@ -11,21 +11,28 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
 #include "zstd_errors.h"
 #include "matchfinder.h" // simpleExternalMatchFinder
 
-int main(int argc, char *argv[]) {
-    size_t res;
+#define CHECK(res)                                      \
+do  {                                                   \
+    if (ZSTD_isError(res)) {                            \
+        printf("ERROR: %s\n", ZSTD_getErrorName(res));  \
+        return 1;                                       \
+    }                                                   \
+} while (0)                                             \
 
+int main(int argc, char *argv[]) {
     if (argc != 2) {
         printf("Usage: exampleMatchfinder <file>\n");
         return 1;
     }
 
-    ZSTD_CCtx* zc = ZSTD_createCCtx();
+    ZSTD_CCtx* const zc = ZSTD_createCCtx();
 
     int simpleExternalMatchState = 0xdeadbeef;
 
@@ -36,40 +43,33 @@ int main(int argc, char *argv[]) {
         simpleExternalMatchFinder
     );
 
-    res = ZSTD_CCtx_setParameter(zc, ZSTD_c_enableMatchFinderFallback, 1);
-
-    if (ZSTD_isError(res)) {
-        printf("ERROR: %s\n", ZSTD_getErrorName(res));
-        return 1;
+    {
+        size_t const res = ZSTD_CCtx_setParameter(zc, ZSTD_c_enableMatchFinderFallback, 1);
+        CHECK(res);
     }
 
     FILE *f = fopen(argv[1], "rb");
+    assert(f);
     fseek(f, 0, SEEK_END);
     long const srcSize = ftell(f);
     fseek(f, 0, SEEK_SET);
 
-    char *src = malloc(srcSize + 1);
+    char* const src = malloc(srcSize + 1);
     fread(src, srcSize, 1, f);
     fclose(f);
 
     size_t const dstSize = ZSTD_compressBound(srcSize);
-    char *dst = malloc(dstSize);
+    char* const dst = malloc(dstSize);
 
     size_t const cSize = ZSTD_compress2(zc, dst, dstSize, src, srcSize);
+    CHECK(cSize);
 
-    if (ZSTD_isError(cSize)) {
-        printf("ERROR: %s\n", ZSTD_getErrorName(cSize));
-        return 1;
-    }
+    char* const val = malloc(srcSize);
+    assert(val);
 
-    char *val = malloc(srcSize);
-    res = ZSTD_decompress(val, srcSize, dst, cSize);
-
-    ZSTD_freeCCtx(zc);
-
-    if (ZSTD_isError(res)) {
-        printf("ERROR: %s\n", ZSTD_getErrorName(res));
-        return 1;
+    {
+        size_t const res = ZSTD_decompress(val, srcSize, dst, cSize);
+        CHECK(res);
     }
 
     if (memcmp(src, val, srcSize) == 0) {
@@ -87,4 +87,6 @@ int main(int argc, char *argv[]) {
         }
         return 1;
     }
+
+    ZSTD_freeCCtx(zc);
 }

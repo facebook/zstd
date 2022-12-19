@@ -42,7 +42,7 @@ static size_t simpleExternalMatchFinder(
             hashTable[i] = BADIDX;
     }   }
 
-    while (ip + 4 < iend) {
+    while (ip + MLS < iend) {
         size_t const hash = ZSTD_hashPtr(ip, HLOG, MLS);
         U32 const matchIndex = hashTable[hash];
         hashTable[hash] = (U32)(ip - istart);

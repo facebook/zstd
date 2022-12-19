@@ -192,8 +192,6 @@ test('test-zstream-1',
 test('test-zstream-3',
   zstreamtest,
   args: ['--newapi', '-t1', ZSTREAM_TESTTIME] + FUZZER_FLAGS,
-  # --newapi dies on Windows with "exit status 3221225477 or signal 3221225349 SIGinvalid"
-  should_fail: host_machine_os == os_windows,
   timeout: 120)
 test('test-longmatch', longmatch, timeout: 36)
 test('test-invalidDictionaries', invalidDictionaries) # should be fast

@@ -1848,7 +1848,7 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
 
         /* Reference external matchfinder outside the test loop to
          * check that the reference is preserved across compressions */
-        ZSTD_refExternalMatchFinder(
+        ZSTD_registerExternalMatchFinder(
             zc,
             &externalMatchState,
             zstreamExternalMatchFinder

@@ -30,7 +30,7 @@ int main(int argc, char *argv[]) {
     int simpleExternalMatchState = 0xdeadbeef;
 
     // Here is the crucial bit of code!
-    ZSTD_refExternalMatchFinder(
+    ZSTD_registerExternalMatchFinder(
         zc,
         &simpleExternalMatchState,
         simpleExternalMatchFinder

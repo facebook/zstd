@@ -353,7 +353,7 @@ struct ZSTD_CCtx_params_s {
 
     /* Indicates whether an external matchfinder has been referenced.
      * Users can't set this externally.
-     * It is set internally in ZSTD_refExternalMatchFinder(). */
+     * It is set internally in ZSTD_registerExternalMatchFinder(). */
     int useExternalMatchFinder;
 };  /* typedef'd to ZSTD_CCtx_params within "zstd.h" */
 

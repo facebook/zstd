@@ -6731,7 +6731,7 @@ ZSTD_parameters ZSTD_getParams(int compressionLevel, unsigned long long srcSizeH
     return ZSTD_getParams_internal(compressionLevel, srcSizeHint, dictSize, ZSTD_cpm_unknown);
 }
 
-void ZSTD_refExternalMatchFinder(
+void ZSTD_registerExternalMatchFinder(
     ZSTD_CCtx* zc, void* mState,
     ZSTD_externalMatchFinder_F* mFinder
 ) {

@@ -1528,7 +1528,7 @@ typedef size_t ZSTD_externalMatchFinder_F (
 );
 
 ZSTDLIB_STATIC_API void
-ZSTD_refExternalMatchFinder(
+ZSTD_registerExternalMatchFinder(
   ZSTD_CCtx* cctx,
   void* externalMatchState,
   ZSTD_externalMatchFinder_F* externalMatchFinder

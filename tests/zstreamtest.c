@@ -1841,8 +1841,9 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
         size_t const checkBufSize = CNBufferSize;
         BYTE* checkBuf = (BYTE*)malloc(checkBufSize);
         int enableFallback;
-        size_t res;
         EMF_testCase externalMatchState;
+
+        CHECK(dstBuf == NULL || checkBuf == NULL, "allocation failed");
 
         ZSTD_CCtx_reset(zc, ZSTD_reset_session_and_parameters);
 
@@ -1872,6 +1873,7 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
 
             /* Test external matchfinder success scenarios */
             for (testCaseId = 0; testCaseId < EMF_numSuccessCases; testCaseId++) {
+                size_t res;
                 externalMatchState = EMF_successCases[testCaseId];
                 ZSTD_CCtx_reset(zc, ZSTD_reset_session_only);
                 CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_enableMatchFinderFallback, enableFallback));
@@ -1883,6 +1885,7 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
 
             /* Test external matchfinder failure scenarios */
             for (testCaseId = 0; testCaseId < EMF_numFailureCases; testCaseId++) {
+                size_t res;
                 externalMatchState = EMF_failureCases[testCaseId];
                 ZSTD_CCtx_reset(zc, ZSTD_reset_session_only);
                 CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_enableMatchFinderFallback, enableFallback));
@@ -1900,12 +1903,15 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
             }
 
             /* Test compression with external matchfinder + empty src buffer */
-            externalMatchState = EMF_ZERO_SEQS;
-            ZSTD_CCtx_reset(zc, ZSTD_reset_session_only);
-            CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_enableMatchFinderFallback, enableFallback));
-            res = ZSTD_compress2(zc, dstBuf, dstBufSize, CNBuffer, 0);
-            CHECK(ZSTD_isError(res), "EMF: Compression error: %s", ZSTD_getErrorName(res));
-            CHECK(ZSTD_decompress(checkBuf, checkBufSize, dstBuf, res) != 0, "EMF: Empty src round trip failed!");
+            {
+                size_t res;
+                externalMatchState = EMF_ZERO_SEQS;
+                ZSTD_CCtx_reset(zc, ZSTD_reset_session_only);
+                CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_enableMatchFinderFallback, enableFallback));
+                res = ZSTD_compress2(zc, dstBuf, dstBufSize, CNBuffer, 0);
+                CHECK(ZSTD_isError(res), "EMF: Compression error: %s", ZSTD_getErrorName(res));
+                CHECK(ZSTD_decompress(checkBuf, checkBufSize, dstBuf, res) != 0, "EMF: Empty src round trip failed!");
+            }
         }
 
         /* Test that reset clears the external matchfinder */

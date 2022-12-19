@@ -19,7 +19,7 @@
 #include "matchfinder.h" // simpleExternalMatchFinder
 
 #define CHECK(res)                                      \
-do  {                                                   \
+do {                                                    \
     if (ZSTD_isError(res)) {                            \
         printf("ERROR: %s\n", ZSTD_getErrorName(res));  \
         return 1;                                       \
@@ -76,7 +76,6 @@ int main(int argc, char *argv[]) {
         printf("Compression and decompression were successful!\n");
         printf("Original size: %lu\n", srcSize);
         printf("Compressed size: %lu\n", cSize);
-        return 0;
     } else {
         printf("ERROR: input and validation buffers don't match!\n");
         for (int i = 0; i < srcSize; i++) {
@@ -89,4 +88,8 @@ int main(int argc, char *argv[]) {
     }
 
     ZSTD_freeCCtx(zc);
+    free(src);
+    free(dst);
+    free(val);
+    return 0;
 }

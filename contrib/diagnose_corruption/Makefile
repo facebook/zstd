@@ -1,5 +1,5 @@
 # ################################################################
-# Copyright (c) 2019-present, Meta Platforms, Inc. and affiliates.
+# Copyright (c) 2019-2022, Meta Platforms, Inc. and affiliates.
 # All rights reserved.
 #
 # This source code is licensed under both the BSD-style license (found in the

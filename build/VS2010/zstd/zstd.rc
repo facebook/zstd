@@ -36,7 +36,7 @@ BEGIN
             VALUE "FileDescription", "Zstandard - Fast and efficient compression algorithm"
             VALUE "FileVersion", ZSTD_VERSION_STRING
             VALUE "InternalName", "zstd.exe"
-            VALUE "LegalCopyright", "Copyright (c) 2013-present, Meta Platforms, Inc."
+            VALUE "LegalCopyright", "Copyright (c) 2013-2022, Meta Platforms, Inc."
             VALUE "OriginalFilename", "zstd.exe"
             VALUE "ProductName", "Zstandard"
             VALUE "ProductVersion", ZSTD_VERSION_STRING

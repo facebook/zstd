@@ -8,7 +8,7 @@
  * \endcode
  */
 /*
- * Copyright (c) 2016-present, Yann Collet, Meta Platforms, Inc. and affiliates.
+ * Copyright (c) 2016-2022, Yann Collet, Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the

@@ -990,8 +990,9 @@ ZSTDLIB_API unsigned ZSTD_getDictID_fromFrame(const void* src, size_t srcSize);
  * @result : 0, or an error code (which can be tested with ZSTD_isError()).
  *  Special: Loading a NULL (or 0-size) dictionary invalidates previous dictionary,
  *           meaning "return to no-dictionary mode".
- *  Note 1 : Dictionary is sticky, it will be used for all future compressed frames.
- *           To return to "no-dictionary" situation, load a NULL dictionary (or reset parameters).
+ *  Note 1 : Dictionary is sticky, it will be used for all future compressed frames,
+ *           until parameters are reset, a new dictionary is loaded, or the dictionary
+ *           is explicitly invalidated by loading a NULL dictionary.
  *  Note 2 : Loading a dictionary involves building tables.
  *           It's also a CPU consuming operation, with non-negligible impact on latency.
  *           Tables are dependent on compression parameters, and for this reason,
@@ -1004,7 +1005,7 @@ ZSTDLIB_API unsigned ZSTD_getDictID_fromFrame(const void* src, size_t srcSize);
 ZSTDLIB_API size_t ZSTD_CCtx_loadDictionary(ZSTD_CCtx* cctx, const void* dict, size_t dictSize);
 
 /*! ZSTD_CCtx_refCDict() : Requires v1.4.0+
- *  Reference a prepared dictionary, to be used for all next compressed frames.
+ *  Reference a prepared dictionary, to be used for all future compressed frames.
  *  Note that compression parameters are enforced from within CDict,
  *  and supersede any compression parameter previously set within CCtx.
  *  The parameters ignored are labelled as "superseded-by-cdict" in the ZSTD_cParameter enum docs.
@@ -1039,9 +1040,9 @@ ZSTDLIB_API size_t ZSTD_CCtx_refPrefix(ZSTD_CCtx* cctx,
                                  const void* prefix, size_t prefixSize);
 
 /*! ZSTD_DCtx_loadDictionary() : Requires v1.4.0+
- *  Create an internal DDict from dict buffer,
- *  to be used to decompress next frames.
- *  The dictionary remains valid for all future frames, until explicitly invalidated.
+ *  Create an internal DDict from dict buffer, to be used to decompress all future frames.
+ *  The dictionary remains valid for all future frames, until explicitly invalidated, or
+ *  a new dictionary is loaded.
  * @result : 0, or an error code (which can be tested with ZSTD_isError()).
  *  Special : Adding a NULL (or 0-size) dictionary invalidates any previous dictionary,
  *            meaning "return to no-dictionary mode".
@@ -1065,9 +1066,10 @@ ZSTDLIB_API size_t ZSTD_DCtx_loadDictionary(ZSTD_DCtx* dctx, const void* dict, s
  *  The memory for the table is allocated on the first call to refDDict, and can be
  *  freed with ZSTD_freeDCtx().
  *
+ *  If called with ZSTD_d_refMultipleDDicts disabled (the default), only one dictionary
+ *  will be managed, and referencing a dictionary effectively "discards" any previous one.
+ *
  * @result : 0, or an error code (which can be tested with ZSTD_isError()).
- *  Note 1 : Currently, only one dictionary can be managed.
- *           Referencing a new dictionary effectively "discards" any previous one.
  *  Special: referencing a NULL DDict means "return to no-dictionary mode".
  *  Note 2 : DDict is just referenced, its lifetime must outlive its usage from DCtx.
  */

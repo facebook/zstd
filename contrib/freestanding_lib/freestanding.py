@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ################################################################
-# Copyright (c) 2021-2021, Meta Platforms, Inc. and affiliates.
+# Copyright (c) 2021-present, Meta Platforms, Inc. and affiliates.
 # All rights reserved.
 #
 # This source code is licensed under both the BSD-style license (found in the

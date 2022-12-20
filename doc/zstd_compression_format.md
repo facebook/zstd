@@ -3,7 +3,7 @@ Zstandard Compression Format
 
 ### Notices
 
-Copyright (c) 2016-2021 Yann Collet, Meta Platforms, Inc. and affiliates.
+Copyright (c) 2016-present Yann Collet, Meta Platforms, Inc. and affiliates.
 
 Permission is granted to copy and distribute this document
 for any purpose and without charge,

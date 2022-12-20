@@ -80,7 +80,7 @@ void FUZZ_setRandomParameters(ZSTD_CCtx *cctx, size_t srcSize, FUZZ_dataProducer
     setRand(cctx, ZSTD_c_checksumFlag, 0, 1, producer);
     setRand(cctx, ZSTD_c_dictIDFlag, 0, 1, producer);
     /* Select long distance matching parameters */
-    setRand(cctx, ZSTD_c_enableLongDistanceMatching, 0, 1, producer);
+    setRand(cctx, ZSTD_c_enableLongDistanceMatching, ZSTD_ps_auto, ZSTD_ps_disable, producer);
     setRand(cctx, ZSTD_c_ldmHashLog, ZSTD_HASHLOG_MIN, 16, producer);
     setRand(cctx, ZSTD_c_ldmMinMatch, ZSTD_LDM_MINMATCH_MIN,
             ZSTD_LDM_MINMATCH_MAX, producer);

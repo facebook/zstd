@@ -1253,14 +1253,6 @@ unsigned HUF_minTableLog(unsigned symbolCardinality)
     return minBitsSymbols;
 }
 
-#define ESTIMATE_TOTAL_SIZE(huffLog) {\
-            maxBits = HUF_buildCTable_wksp(table, count, maxSymbolValue, huffLog, workSpace, wkspSize);\
-            if (ERR_isError(maxBits)) continue;\
-            hSize = HUF_writeCTable_wksp(dst, dstSize, table, maxSymbolValue, (U32)maxBits, workSpace, wkspSize);\
-            if (ERR_isError(hSize)) continue;\
-            newSize = HUF_estimateCompressedSize(table, count, maxSymbolValue) + hSize;\
-            }\
-
 unsigned HUF_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue, void* workSpace, size_t wkspSize, HUF_CElt* table, const unsigned* count, HUF_depth_mode depthMode)
 {
     unsigned optLog = FSE_optimalTableLog_internal(maxTableLog, srcSize, maxSymbolValue, 1);
@@ -1273,28 +1265,20 @@ unsigned HUF_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxS
         const unsigned symbolCardinality = HUF_cardinality(count, maxSymbolValue);
         const unsigned minTableLog = HUF_minTableLog(symbolCardinality);
         size_t optSize = ((size_t) ~0);
-        unsigned optLogGuess = optLog;
 
         if (wkspSize < sizeof(HUF_buildCTable_wksp_tables)) return optLog; /** Assert workspace is large enough **/
 
-        /* Search below estimate log until size increases */
-        for (; optLogGuess >= minTableLog; optLogGuess--) {
-            ESTIMATE_TOTAL_SIZE(optLogGuess);
+        /* Search until size increases */
+        for (unsigned optLogGuess = minTableLog; optLogGuess <= maxTableLog; optLogGuess++) {
+            maxBits = HUF_buildCTable_wksp(table, count, maxSymbolValue, optLogGuess, workSpace, wkspSize);
 
-            if (newSize > optSize) {
-                break;
-            }
-            optSize = newSize;
-            optLog = optLogGuess;
-        }
+            if (ERR_isError(maxBits)) continue;
 
-        if (optSize < ((size_t) ~0)) {
-            return optLog;
-        }
+            hSize = HUF_writeCTable_wksp(dst, dstSize, table, maxSymbolValue, (U32)maxBits, workSpace, wkspSize);
 
-        /* Search above estimate log until size increases */
-        for (; optLogGuess <= maxTableLog; optLogGuess++) {
-            ESTIMATE_TOTAL_SIZE(optLogGuess);
+            if (ERR_isError(hSize)) continue;
+
+            newSize = HUF_estimateCompressedSize(table, count, maxSymbolValue) + hSize;
 
             if (newSize > optSize) {
                 break;

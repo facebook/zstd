@@ -569,7 +569,7 @@ UTIL_mergeFileNamesTable(FileNamesTable* table1, FileNamesTable* table2)
         for( idx2=0 ; (idx2 < table2->tableSize) && table2->fileNames[idx2] && (pos < newTotalTableSize) ; ++idx2, ++newTableIdx) {
             size_t const curLen = strlen(table2->fileNames[idx2]);
             memcpy(buf+pos, table2->fileNames[idx2], curLen);
-            assert(newTableIdx <= newTable->tableSize);
+            assert(newTableIdx < newTable->tableSize);
             newTable->fileNames[newTableIdx] = buf+pos;
             pos += curLen+1;
     }   }
@@ -693,8 +693,11 @@ static int UTIL_prepareFileList(const char *dirName,
                 ptrdiff_t newListSize = (*bufEnd - *bufStart) + LIST_SIZE_INCREASE;
                 assert(newListSize >= 0);
                 *bufStart = (char*)UTIL_realloc(*bufStart, (size_t)newListSize);
-                *bufEnd = *bufStart + newListSize;
-                if (*bufStart == NULL) { free(path); closedir(dir); return 0; }
+                if (*bufStart != NULL) {
+                    *bufEnd = *bufStart + newListSize;
+                } else {
+                    free(path); closedir(dir); return 0;
+                }
             }
             if (*bufStart + *pos + pathLength < *bufEnd) {
                 memcpy(*bufStart + *pos, path, pathLength + 1);  /* with final \0 */

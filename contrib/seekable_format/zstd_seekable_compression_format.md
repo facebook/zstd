@@ -2,7 +2,7 @@
 
 ### Notices
 
-Copyright (c) 2017-present Facebook, Inc.
+Copyright (c) 2017-present Meta Platforms, Inc. and affiliates.
 
 Permission is granted to copy and distribute this document
 for any purpose and without charge,

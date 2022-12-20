@@ -1,6 +1,6 @@
 /* ******************************************************************
  * Huffman encoder, part of New Generation Entropy library
- * Copyright (c) Yann Collet, Meta Platforms, Inc. and affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  *  You can contact the author at :
  *  - FSE+HUF source repository : https://github.com/Cyan4973/FiniteStateEntropy

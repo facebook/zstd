@@ -2,7 +2,7 @@
 
 ### Notices
 
-Copyright (c) 2017-2022 Meta Platforms, Inc. and affiliates.
+Copyright (c) Meta Platforms, Inc. and affiliates.
 
 Permission is granted to copy and distribute this document
 for any purpose and without charge,

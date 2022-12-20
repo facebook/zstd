@@ -1,7 +1,7 @@
 /* ******************************************************************
  * FSE : Finite State Entropy codec
  * Public Prototypes declaration
- * Copyright (c) Yann Collet, Meta Platforms, Inc. and affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * You can contact the author at :
  * - Source repository : https://github.com/Cyan4973/FiniteStateEntropy

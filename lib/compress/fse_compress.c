@@ -1,6 +1,6 @@
 /* ******************************************************************
  * FSE : Finite State Entropy encoder
- * Copyright (c) Yann Collet, Meta Platforms, Inc. and affiliates.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  *  You can contact the author at :
  *  - FSE source repository : https://github.com/Cyan4973/FiniteStateEntropy

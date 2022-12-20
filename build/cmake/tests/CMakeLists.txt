@@ -1,6 +1,6 @@
 # ################################################################
 # zstd - Makefile
-# Copyright (C) Yann Collet 2014-2022
+# Copyright (c) Meta Platforms, Inc. and affiliates.
 # All rights reserved.
 #
 # BSD license

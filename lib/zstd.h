@@ -1510,7 +1510,6 @@ ZSTD_compressSequences( ZSTD_CCtx* cctx, void* dst, size_t dstSize,
                         const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
                         const void* src, size_t srcSize);
 
-/****************************************/
 
 /*! ZSTD_writeSkippableFrame() :
  * Generates a zstd skippable frame containing data given by src, and writes it to dst buffer.

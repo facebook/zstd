@@ -1,0 +1,292 @@
+saltar al contenido
+Facebook
+/
+zstd
+Público
+Código
+Cuestiones
+109
+Solicitudes de extracción
+22
+Comportamiento
+Proyectos
+wiki
+Seguridad
+Perspectivas
+zstd/ CONTRIBUYENDO.md
+@dpelle
+dpelle Corrección de errores tipográficos y gramaticales
+ 4 colaboradores
+489 líneas (431 turnos)  30,1 KB
+Contribuyendo a Zstandard
+Queremos que contribuir a este proyecto sea lo más fácil y transparente posible.
+
+Nuestro proceso de desarrollo
+Se están desarrollando nuevas versiones en la rama "dev", o en su propia rama de funciones. Cuando se consideran listos para un lanzamiento, se fusionan en "lanzamiento".
+
+Como consecuencia, todas las contribuciones deben pasar primero por "dev" o su propia rama de funciones.
+
+Solicitudes de extracción
+Damos la bienvenida activamente a sus solicitudes de incorporación de cambios.
+
+Bifurque el repositorio y cree su rama desde dev.
+Si ha agregado código que debe probarse, agregue pruebas.
+Si ha cambiado las API, actualice la documentación.
+Asegúrese de que el conjunto de pruebas pase.
+Asegúrate de que tu código se filtre.
+Si aún no lo ha hecho, complete el Acuerdo de licencia de colaborador ("CLA").
+Acuerdo de licencia de colaborador ("CLA")
+Para aceptar su solicitud de extracción, necesitamos que envíe un CLA. Solo necesita hacer esto una vez para trabajar en cualquiera de los proyectos de código abierto de Facebook.
+
+Completa tu CLA aquí: https://code.facebook.com/cla
+
+flujo de trabajo
+Zstd utiliza un flujo de trabajo basado en ramas para realizar cambios en el código base. Por lo general, zstd utilizará una nueva rama por tema considerable. Para cambios más pequeños, está bien agrupar varios cambios relacionados en una rama.
+
+Nuestro proceso de contribución funciona en tres etapas principales:
+
+desarrollo local
+Actualizar:
+Consulte su bifurcación de zstd si aún no lo ha hecho
+git checkout https://github.com/<username>/zstd
+cd zstd
+Actualiza tu rama de desarrollo local
+git pull https://github.com/facebook/zstd dev
+git push origin dev
+Tema y desarrollo:
+Haz una nueva rama en tu bifurcación sobre el tema que estás desarrollando
+# branch names should be concise but sufficiently informative
+git checkout -b <branch-name>
+git push origin <branch-name>
+Hacer compromisos y empujar
+# make some changes =
+git add -u && git commit -m <message>
+git push origin <branch-name>
+Nota: ejecute pruebas locales para asegurarse de que sus cambios no rompan la funcionalidad existente
+Comprobación rápida
+make shortest
+cheque más largo
+make test
+Revisión de código y pruebas de CI
+Asegúrese de que pasen las pruebas de CI:
+Antes de compartir algo con la comunidad, cree una solicitud de incorporación de cambios en su propia bifurcación contra la rama de desarrollo y asegúrese de que se superen todas las pruebas de CI de GitHub Actions. Consulte la sección Integración continua a continuación para obtener más información.
+Asegúrese de que el análisis estático se transmita a su máquina de desarrollo. Consulte la sección Análisis estático a continuación para ver cómo hacerlo.
+Crear una solicitud de extracción:
+Cuando esté listo para compartir sus cambios con la comunidad, cree una solicitud de incorporación de cambios desde su rama a facebook:dev. Puede hacerlo muy fácilmente haciendo clic en 'Crear solicitud de extracción' en la página de inicio de su bifurcación.
+Desde allí, seleccione la sucursal donde realizó los cambios como su sucursal de origen y facebook:dev como el destino.
+Examine la diferencia que se presenta entre las dos ramas para asegurarse de que no haya nada inesperado.
+Escriba una buena descripción de solicitud de extracción:
+Si bien no existe una plantilla estricta que sigan nuestros colaboradores, nos gustaría que resuman y motiven suficientemente los cambios que proponen. Recomendamos que todas las solicitudes de extracción, al menos indirectamente, aborden los siguientes puntos.
+¿Es importante esta solicitud de extracción y por qué?
+¿Está abordando un problema? Si es así, ¿qué problema? (Proporcione enlaces para mayor comodidad, por favor)
+¿Es esta una nueva característica? Si es así, ¿por qué es útil y/o necesario?
+¿Hay referencias de antecedentes y documentos que los revisores deberían conocer para evaluar adecuadamente este cambio?
+Nota: asegúrese de señalar cualquier decisión de diseño y arquitectura que haya tomado y la razón detrás de ellas.
+Nota: si ha estado trabajando con un usuario específico y desea que revise su trabajo, asegúrese de mencionarlo usando (@)
+Envíe la solicitud de extracción e itere con comentarios.
+Fusionar y Liberar
+Obtener aprobación:
+Tendrá que repetir sus cambios con los comentarios de otros colaboradores para llegar a un punto en el que su solicitud de extracción se pueda fusionar de manera segura.
+Para evitar demasiados comentarios sobre el estilo y la convención, asegúrese de echar un vistazo a nuestra sección de estilo a continuación antes de crear una solicitud de extracción.
+Eventualmente, alguien del equipo de zstd aprobará su solicitud de extracción y poco después la fusionará en la rama de desarrollo.
+Limpieza interna:
+La mayoría de los PR están vinculados con uno o más problemas de Github. Si este es el caso de su RP, asegúrese de que se mencione el problema correspondiente. Si su cambio 'soluciona' o soluciona completamente el problema en cuestión, indíquelo solicitando que se cierre el problema con un comentario.
+El hecho de que sus cambios se hayan fusionado no significa que el tema o problema más grande esté completo. Recuerde que el cambio debe llegar a una versión oficial de zstd para que sea significativo. Recomendamos que los contribuyentes realicen un seguimiento de la actividad en su solicitud de extracción y en la(s) página(s) de problema(s) correspondiente(s) hasta que su cambio llegue a la próxima versión de zstd. Los usuarios a menudo descubrirán errores en su código o sugerirán formas de refinar y mejorar sus cambios iniciales incluso después de fusionar la solicitud de extracción.
+Análisis estático
+El análisis estático es un proceso para examinar la corrección o validez de un programa sin ejecutarlo realmente. Por lo general, nos ayuda a encontrar muchos errores simples. Zstd utiliza la scan-buildherramienta de clang para el análisis estático. Puede instalarlo siguiendo las instrucciones para su sistema operativo en https://clang-analyzer.llvm.org/scan-build .
+
+Una vez instalado, puede asegurarse de que nuestras pruebas de análisis estático pasen en su máquina de desarrollo local ejecutando:
+
+make staticAnalyze
+En general, puede usar scan-buildpara analizar estáticamente cualquier script de compilación. Por ejemplo, para realizar un análisis estático contrib/largeNbDictsy nada más, puede ejecutar:
+
+scan-build make -C contrib/largeNbDicts largeNbDicts
+Trampas del análisis estático
+scan-buildes parte de nuestra suite regular de CI. Otros analizadores estáticos no lo son.
+
+Puede ser útil mirar analizadores estáticos adicionales de vez en cuando (y lo hacemos), pero no es una buena idea multiplicar el número de analizadores que se ejecutan continuamente en cada confirmación y PR. Las razones son:
+
+Los analizadores estáticos están llenos de falsos positivos. La relación señal/ruido es bastante baja.
+Una buena política de CI es la "tolerancia de advertencia cero". Eso significa que todos los problemas deben resolverse, incluidos los falsos positivos. Esto se convierte rápidamente en una carga de trabajo tediosa.
+Múltiples analizadores estáticos presentarán múltiples tipos de falsos positivos, que a veces se aplican al mismo código pero de diferentes maneras que conducen a:
+código tortuoso, tratando de complacer múltiples restricciones, perjudicando la legibilidad y, por lo tanto, el mantenimiento. A veces, tal complejidad introduce otros errores más sutiles, que simplemente están fuera del alcance de los analizadores.
+a veces, estas restricciones son mutuamente excluyentes: si uno intenta resolver uno, el otro analizador estático se quejará, no pueden estar contentos los dos al mismo tiempo.
+Por si fuera poco, la lista de falsos positivos cambia con cada versión. Ya es bastante difícil seguir un analizador estático, pero varios con su propia agenda de actualización, esto rápidamente se convierte en un reductor de velocidad masivo.
+Esto es diferente de ejecutar un analizador estático de vez en cuando, mirar el resultado y seleccionar algunas advertencias que parecen útiles, ya sea porque detectaron un riesgo genuino de error o porque ayuda a expresar el código de una manera que es más legible o más difícil de mal uso. Este tipo de informes pueden ser útiles y son aceptados.
+
+Integración continua
+Las pruebas de CI se ejecutan cada vez que se crea o actualiza una solicitud de extracción (PR). Las pruebas exactas que se ejecuten dependerán de la rama de destino que especifique. Algunas pruebas tardan más en ejecutarse que otras. Actualmente, nuestro CI está configurado para ejecutar una serie corta de pruebas al crear una PR para la rama de desarrollo y una serie más larga de pruebas al crear una PR para la rama de lanzamiento. Puede buscar en los archivos de configuración de la plataforma CI respectiva para obtener más información sobre qué se ejecuta y cuándo.
+
+La mayoría de las personas solo querrán crear un PR con el destino establecido en su rama de desarrollo local de zstd. A continuación, puede encontrar el estado de las pruebas en la página de PR. También puede volver a ejecutar las pruebas y cancelar las pruebas en ejecución desde la página de PR o desde el tablero del CI respectivo.
+
+Casi todo el CI de zstd se ejecuta en GitHub Actions (configurado en .github/workflows), que se ejecutará automáticamente en PR en su propia bifurcación. Una pequeña cantidad de pruebas se ejecutan en otros servicios (p. ej., Travis CI, Circle CI, Appveyor). Estos requieren trabajo para configurar en su bifurcación local y (al menos para Travis CI) cuestan dinero. Por lo tanto, si el PR en su bifurcación local pasa GitHub Actions, siéntase libre de enviar un PR contra el repositorio principal.
+
+IC de terceros
+Una pequeña cantidad de pruebas no se pueden ejecutar en GitHub Actions o aún no se han migrado. Para estos, utilizamos una variedad de servicios de terceros (enumerados a continuación). No es necesario configurarlos en tu bifurcación para contribuir a zstd; sin embargo, tenemos un enlace a las instrucciones para aquellos que quieren una señal anterior.
+
+Servicio	Objetivo	Enlaces de configuración	Ruta de configuración
+Travis CI	Se utiliza para realizar pruebas en arquitecturas que no son x86, como PowerPC	https://docs.travis-ci.com/user/tutorial/#to-get-started-with-travis-ci-using-github
+https://github.com/marketplace/travis-ci	.travis.yml
+AppVeyor	Se utiliza para algunas pruebas de Windows (por ejemplo, cygwin, mingw)	https://www.appveyor.com/blog/2018/10/02/github-apps-integration/
+https://github.com/marketplace/appveyor	appveyor.yml
+Cirro CI	Usado para probar en FreeBSD	https://github.com/marketplace/cirrus-ci/	.cirrus.yml
+CI circular	Históricamente se usó para proporcionar una señal más rápida,
+pero es posible que podamos migrarlos a Github Actions	https://circleci.com/docs/2.0/getting-started/#setting-up-circleci
+https://youtu.be/Js3hMUsSZ2c
+https://circleci.com/docs/2.0/enable-checks/	.circleci/config.yml
+Nota: las instrucciones vinculadas anteriormente cubren principalmente cómo configurar un repositorio con CI desde cero. La idea general debería ser la misma para configurar CI en su bifurcación de zstd, pero es posible que deba seguir pasos ligeramente diferentes. En particular, ignore las instrucciones relacionadas con la configuración de los archivos de configuración (ya que zstd ya tiene configuraciones para cada uno de estos servicios).
+
+Rendimiento
+El rendimiento es extremadamente importante para zstd y solo fusionamos solicitudes de extracción cuyo panorama de rendimiento y las compensaciones correspondientes se han analizado, reproducido y presentado adecuadamente. Esta barra alta para el rendimiento significa que cada RP que tiene el potencial de impactar en el rendimiento lleva mucho tiempo para que lo revisemos adecuadamente. Dicho esto, siempre agradecemos las contribuciones para mejorar el rendimiento (o empeorar el rendimiento a cambio de algo más). Tenga en cuenta lo siguiente antes de enviar un PR relacionado con el desempeño:
+
+Zstd no es tan antiguo como gzip, pero existe desde hace tiempo y su evolución está muy bien documentada a través de problemas anteriores de Github y solicitudes de extracción. Puede darse el caso de que su optimización de rendimiento particular ya se haya considerado en el pasado. Tómese un tiempo para buscar entre ediciones anteriores y solicitudes de extracción utilizando palabras clave específicas para su posible RP. Por supuesto, el hecho de que un tema ya se haya discutido (y tal vez rechazado por algunos motivos) en el pasado no significa que no valga la pena volver a mencionarlo. Pero incluso en ese caso, le será útil tener un contexto de la historia de ese tema antes de contribuir.
+Desafortunadamente, la distinción entre el ruido y las ganancias de rendimiento reales puede ser muy sutil, especialmente cuando se realizan microbenchmarking de ganancias o pérdidas extremadamente pequeñas. El único remedio para fusionar algo sutil es una evaluación comparativa exhaustiva. Nos hará un gran favor si se toma el tiempo de ejecutar comparativas extensas, de larga duración y potencialmente cruzadas (sistema operativo, plataforma, proceso, etc.) antes de enviar un PR. Por supuesto, no podrá comparar sus cambios en todos los procesadores y sistemas operativos (y nosotros tampoco), pero hágalo lo mejor que pueda :) Hemos agregado algunas cosas en las que pensar al comparar a continuación en el rendimiento de evaluación comparativa sección que podría serle útil.
+Optimizar el rendimiento para un determinado sistema operativo, proveedor de procesadores, compilador o sistema de red es algo perfectamente legítimo, siempre que no perjudique el rendimiento general de Zstd. Este es un equilibrio difícil de lograr, pero tenga en cuenta otros aspectos de Zstd cuando envíe cambios que sean específicos de clang, específicos de Windows, etc.
+Rendimiento de evaluación comparativa
+El microbenchmarking de rendimiento es un tema complicado pero también esencial para Zstd. Valoramos las pruebas empíricas sobre la especulación teórica. Esta guía no es perfecta, pero para la mayoría de los escenarios, es un buen punto de partida.
+
+Estabilidad
+Desafortunadamente, el aspecto más importante para poder comparar de manera confiable es tener una máquina de evaluación comparativa estable. Una máquina virtual, una máquina con recursos compartidos o su computadora portátil generalmente no serán lo suficientemente estables para obtener resultados de referencia confiables. Si puede tener en sus manos una computadora de escritorio, este suele ser un mejor escenario.
+
+Por supuesto, la evaluación comparativa también se puede realizar en máquinas no hiperestables. Solo tendrá que hacer un poco más de trabajo para asegurarse de que, de hecho, está midiendo los cambios que ha hecho, no y el ruido. Aquí hay algunas cosas que puede hacer para que sus puntos de referencia sean más estables:
+
+Lo más simple que puede hacer para mejorar drásticamente la estabilidad de su punto de referencia es ejecutarlo varias veces y luego agregar los resultados de esas ejecuciones. Como regla general, cuanto menor sea el cambio que está tratando de medir, más muestras de ejecuciones de referencia tendrá que agregar para obtener resultados confiables. Aquí hay algunas cosas adicionales a tener en cuenta cuando se ejecutan múltiples pruebas:
+La forma en que agrega sus muestras es importante. Es posible que tenga la tentación de utilizar la media de sus resultados. Si bien este será sin duda un número más estable que un número de referencia de muestra única sin procesar, es posible que tenga más suerte si toma la mediana. La media no es robusta a los valores atípicos, mientras que la mediana sí lo es. Mejor aún, podría simplemente tomar la velocidad más rápida que alcanzó su punto de referencia en cada ejecución, ya que es probable que su proceso sea capaz de ejecutar su código más rápido. En nuestra experiencia, este (agregar simplemente tomando la muestra con el tiempo de ejecución más rápido) ha sido el enfoque más estable.
+Cuantas más muestras tenga, más estables deberían ser sus puntos de referencia. Puede verificar su estabilidad mejorada observando el tamaño de sus intervalos de confianza a medida que aumenta su recuento de muestras. Estos deben ser cada vez más pequeños. Eventualmente, es de esperar que sea más pequeño que la ganancia de rendimiento que espera.
+La mayoría de los procesadores tardarán un tiempo hoten funcionar cuando se ejecuta cualquier cosa. Las observaciones que recopile durante ese período de tiempo serán muy diferentes del número de rendimiento real. Tener una gran cantidad de muestras ayudará a aliviar un poco este problema, pero también puede abordarlo directamente al simplemente no incluir las primeras niteraciones de su punto de referencia en sus agregaciones. Puede determinar nsimplemente mirando los resultados de cada iteración y luego seleccionando manualmente un buen umbral después del cual la variación en los resultados parece estabilizarse.
+Realmente no puede obtener puntos de referencia confiables si su máquina host ejecuta simultáneamente otra aplicación de CPU/memoria intensiva en segundo plano. Si está ejecutando puntos de referencia en su computadora portátil personal, por ejemplo, debe cerrar todas las aplicaciones (incluido el editor de código y el navegador) antes de ejecutar sus puntos de referencia. También puede tener aplicaciones en segundo plano invisibles ejecutándose. Puede ver cuáles son consultando el Monitor de actividad en Mac o el Administrador de tareas en Windows. Obtendrá resultados de referencia más estables si finaliza esos procesos también.
+Si tiene varios núcleos, incluso puede ejecutar su punto de referencia en un núcleo reservado para evitar la contaminación de otros sistemas operativos y procesos de usuario. Hay varias maneras de hacer esto dependiendo de su sistema operativo:
+En las cajas de Linux, debe usar https://github.com/lpechacek/cpuset .
+En Windows, puede "Establecer la afinidad del procesador" usando https://www.thewindowsclub.com/processor-affinity-windows
+En Mac, puede intentar usar su API de afinidad dedicada https://developer.apple.com/library/archive/releasenotes/Performance/RN-AffinityAPI/#//apple_ref/doc/uid/TP40006635-CH1-DontLinkElementID_2
+Para comparar, probablemente terminará escribiendo un programa c/c++ separado que vinculará libzstd. La vinculación dinámica de su biblioteca introducirá algunas variaciones adicionales (no una gran cantidad, pero definitivamente algunas). La vinculación estática de libzstd será más estable. Las bibliotecas estáticas deben estar habilitadas de forma predeterminada al compilar zstd.
+Utilice un perfilador con un buen temporizador de alta resolución. Consulte la sección a continuación sobre la creación de perfiles para obtener detalles al respecto.
+Deshabilite la escala de frecuencia, el impulso turbo y la aleatorización del espacio de direcciones (esto variará según el sistema operativo)
+Trate de evitar el almacenamiento. En algunos sistemas puede usar tmpfs. Poner el programa, las entradas y las salidas en tmpfs evita tocar un sistema de almacenamiento real, que puede tener una variabilidad bastante grande.
+Consulte también nuestra guía de LLVM sobre evaluación comparativa aquí: https://llvm.org/docs/Benchmarking.html
+
+punto de referencia zstd
+La señal más rápida que puede obtener con respecto a sus cambios de rendimiento es a través de la opción de banco zstd cli incorporada. Puede ejecutar Zstd como lo haría normalmente para su escenario utilizando un conjunto de opciones y luego, además, también especificar la -b#opción. Al hacer esto, se ejecutará nuestra canalización de evaluación comparativa para las opciones que acaba de proporcionar. Si desea ver los aspectos internos de cómo funciona este script de evaluación comparativa, puede consultar programas/benchzstd.c
+
+Por ejemplo: supongamos que realizó un cambio que cree que mejora la velocidad del nivel 1 de zstd. Lo primero que debe usar para evaluar si realmente logró algún tipo de mejora es zstd -b. Podrías intentar hacer algo como esto. Nota: puede usar la -iopción para especificar un tiempo de ejecución para su punto de referencia en segundos (el valor predeterminado es 3 segundos). Por lo general, cuanto mayor sea el tiempo de ejecución, más estables serán los resultados.
+
+$ git checkout <commit-before-your-change>
+$ make && cp zstd zstd-old
+$ git checkout <commit-after-your-change>
+$ make && cp zstd zstd-new
+$ zstd-old -i5 -b1 <your-test-data>
+ 1<your-test-data>         :      8990 ->      3992 (2.252), 302.6 MB/s , 626.4 MB/s
+$ zstd-new -i5 -b1 <your-test-data>
+ 1<your-test-data>         :      8990 ->      3992 (2.252), 302.8 MB/s , 628.4 MB/s
+A menos que su ganancia de rendimiento sea lo suficientemente grande como para ser visible a pesar del ruido intrínseco en su computadora, es probable que solo benchzstd no sea suficiente para validar el impacto de sus cambios. Por ejemplo, los resultados del ejemplo anterior indican que, efectivamente, nada cambió, pero podría haber una pequeña mejora de <3 % que oscureció el ruido en la máquina host. Entonces, a menos que vea una gran ganancia de rendimiento (10-15% consistentemente), usar solo este método de evaluación no será suficiente.
+
+perfilado
+Hay una serie de grandes perfiladores por ahí. Vamos a mencionar brevemente cómo puede perfilar su código usando instrumentsMac, perfLinux y visual studio profiler Windows.
+
+Supongamos que tiene una idea para un cambio que cree que proporcionará buenas ganancias de rendimiento para la compresión de nivel 1 en Zstd. Por lo general, esto significa que ha identificado una sección de código que cree que se puede hacer para que se ejecute más rápido.
+
+Lo primero que querrás hacer es asegurarte de que el fragmento de código realmente esté tomando una cantidad considerable de tiempo para ejecutarse. Por lo general, no vale la pena optimizar algo que representa menos del 0,0001% del tiempo total de ejecución. Afortunadamente, hay herramientas para ayudar con esto. Los generadores de perfiles le permitirán ver cuánto tiempo pasa su código dentro de una función en particular. Si su fragmento de código de destino es solo parte de una función, podría valer la pena tratar de aislar ese fragmento moviéndolo a su propia función (esto generalmente no es necesario, pero podría serlo).
+
+La mayoría de los generadores de perfiles (incluidos los generadores de perfiles que se analizan a continuación) generarán un gráfico de llamadas de funciones para usted. Tu objetivo será encontrar tu función de interés en este gráfico de llamadas y luego inspeccionar el tiempo que pasa dentro de él. También es posible que desee ver el ensamblaje anotado que le proporcionarán la mayoría de los generadores de perfiles.
+
+Instrumentos
+Una vez más, consideraremos el escenario en el que cree que ha identificado un fragmento de código cuyo rendimiento se puede mejorar. Siga estos pasos para perfilar su código usando Instruments.
+
+Instrumentos abiertos
+Seleccione Time Profilerde la lista de plantillas estándar
+Cierre todas las demás aplicaciones excepto la ventana de instrumentos y su terminal
+Ejecute su script de evaluación comparativa desde la ventana de su terminal
+Querrá un punto de referencia que se ejecute durante al menos unos segundos (5 segundos generalmente serán suficientes). De esta manera, el generador de perfiles tendrá algo con lo que trabajar y usted tendrá tiempo suficiente para adjuntar su generador de perfiles a este proceso :)
+Solo usaré benchzstd como mi script de evaluación comparativa para este ejemplo:
+$ zstd -b1 -i5 <my-data> # this will run for 5 seconds
+Una vez que ejecute su secuencia de comandos de evaluación comparativa, vuelva a cambiar a los instrumentos y adjunte su proceso al generador de perfiles de tiempo. Puedes hacer esto por:
+Haciendo clic en el All Processesmenú desplegable en la parte superior izquierda de la barra de herramientas.
+Seleccionando tu proceso en el menú desplegable. En mi caso, solo se va a etiquetar zstd
+Presionando el botón de círculo de registro rojo brillante en la parte superior izquierda de la barra de herramientas
+Su generador de perfiles ahora comenzará a recopilar métricas de su script de evaluación comparativa. Una vez que crea que ha recopilado suficientes muestras (por lo general, este es el caso después de 3 segundos de grabación), detenga su generador de perfiles.
+Asegúrese de que en la barra de herramientas de la ventana inferior profileesté seleccionado.
+Debería poder ver su gráfico de llamadas.
+Si no ve el gráfico de llamadas o un gráfico de llamadas incompleto, asegúrese de haber compilado zstd y su secuencia de comandos de evaluación comparativa utilizando indicadores de depuración. En Mac y Linux, esto solo significa que tendrá que proporcionar la -gbandera solo con su script de compilación. Es posible que también deba proporcionar la -fno-omit-frame-pointerbandera
+Excave en el gráfico para encontrar su llamada de función y luego inspecciónela haciendo doble clic en el elemento de la lista. Podrá ver el código fuente anotado y el ensamblado uno al lado del otro.
+Rendimiento
+Este wiki tiene un tutorial bastante detallado sobre cómo comenzar a trabajar con perf, por lo que lo dejaremos para que lo compruebe cuando esté comenzando:
+
+https://perf.wiki.kernel.org/index.php/Tutorial
+
+Algunas notas generales sobre el rendimiento:
+
+Úselo perf stat -r # <bench-program>para obtener rápidamente algunas estadísticas relevantes de tiempo y contador. Perf usa un temporizador de alta resolución y es probable que esta sea una de las primeras cosas que ejecutará su equipo al evaluar su PR.
+Perf tiene una larga lista de contadores de hardware que se pueden ver con perf --list. Al medir las optimizaciones, algo que vale la pena probar es asegurarse de que los contadores de hardware que espera que se vean afectados por su cambio, de hecho lo estén. Por ejemplo, si espera que los errores de caché L1 disminuyan con su cambio, puede mirar el contadorL1-dcache-load-misses
+Los contadores de hardware Perf no funcionarán en una máquina virtual.
+Estudio visual
+HACER
+
+Cuestiones
+Usamos problemas de GitHub para rastrear errores públicos. Asegúrese de que su descripción sea clara y tenga suficientes instrucciones para poder reproducir el problema.
+
+Facebook tiene un programa de recompensas por la divulgación segura de errores de seguridad. En esos casos, siga el proceso descrito en esa página y no presente un problema público.
+
+Estilo de codificación
+Es un tema bastante largo, que es difícil de resumir en un solo párrafo. Como regla general, intente imitar el estilo de codificación de líneas de códigos similares en torno a su contribución. La siguiente es una lista no exhaustiva de las reglas empleadas en el código base de zstd:
+
+C90
+Esta base de código sigue el estricto estándar C90, con 2 extensiones: long longtipos de 64 bits y macros variadas. Esta regla se aplica estrictamente al código dentro de lib/y programs/. Los subproyectos en contrib/pueden usar otras convenciones.
+
+Compatibilidad directa con C++: manipulación de símbolos
+Todas las declaraciones de símbolos públicos deben incluirse en extern “C” { … }, de modo que este proyecto pueda compilarse como código C++98 y vincularse a aplicaciones C++.
+
+Mínimo frugal
+Este requisito de diseño es fundamental para preservar la portabilidad del código base.
+
+dependencias
+Reducir las dependencias al mínimo nivel posible. Cualquier dependencia debe considerarse "mala" de forma predeterminada y solo tolerada porque brinda un servicio de una mejor manera que la que se puede lograr localmente. Las únicas dependencias externas que tolera este repositorio son las bibliotecas C estándar y, en casos excepcionales, los encabezados de nivel del sistema.
+Dentro lib/de , esta política es aún más drástica. Las únicas dependencias externas permitidas son <assert.h>, <stdlib.h>, <string.h>e incluso entonces, no directamente. En particular, ninguna función se asignará nunca en el montón directamente, y debe usar en su lugar ZSTD_malloc()un equivalente. Otros encabezados sin símbolos aceptados son <stddef.h>y <limits.h>.
+Dentro del proyecto, existe una estricta jerarquía de dependencias que se debe respetar. programs/puede depender de lib/, pero solo de su API pública. Dentro lib/de , lib/commonno depende de ningún otro directorio. lib/compressy lib/decompressno dependerán unos de otros. lib/dictBuilderpuede depender de lib/commony lib/compress, pero no lib/decompress.
+Recursos
+Las funciones lib/deben usar muy poco espacio de pila, varias docenas de bytes como máximo. Todo lo que sea más grande debe usar el asignador de almacenamiento dinámico o requerir que se coloque un búfer temporal manualmente.
+Denominación
+Todos los símbolos públicos tienen el prefijoZSTD_
+los símbolos privados, con un alcance limitado a su propia unidad, están libres de esta restricción. Sin embargo, dado libzstdque el código fuente se puede amalgamar, cada nombre de símbolo debe intentar ser (y permanecer) único. Evite nombres demasiado genéricos que puedan convertirse en terreno para futuras colisiones. Esto generalmente implica el uso de algún tipo de prefijo.
+Para símbolos (funciones y variables), la convención de nomenclatura es PREFIX_camelCase.
+En algunos casos avanzados, también se pueden encontrar:
+PREFIX_prefix2_camelCase
+PREFIX_camelCase_extendedQualifier
+Los nombres de varias palabras generalmente consisten en una acción seguida de un objeto:
+por ejemplo :ZSTD_createCCtx()
+Prefiere acciones positivas
+goBackwarden vez denotGoForward
+Los nombres de tipo ( struct, etc.) siguen una convención similar, excepto que se les permite e incluso se les invita a comenzar con una letra mayúscula. Ejemplo : ZSTD_CCtx,ZSTD_CDict
+Los nombres de las macros son todas mayúsculas. Se aplican las mismas reglas de composición ( PREFIX_NAME_QUALIFIER).
+Los nombres de los archivos son todos en minúsculas. La convención es snake_case. Los nombres de los archivos deben ser únicos en todo el código base, incluso cuando se encuentran en directorios claramente separados.
+clasificatorios
+Esta base de código es constamigable, si no constfanática. Cualquier variable que pueda ser const(también conocida como de solo lectura) debe ser const. Cualquier puntero cuyo contenido no se modificará debe ser const. Luego, esta propiedad se controla a nivel del compilador. constLas variables son una señal importante para los lectores de que esta variable no se modifica. Por el contrario, las variables que no son constantes son una señal para que los lectores estén atentos a las modificaciones posteriores en la función.
+Si una función debe estar en línea, menciónela explícitamente, utilizando las propias macros portátiles del proyecto, como FORCE_INLINE_ATTR, definidas en lib/common/compiler.h.
+depuración
+Las aserciones son bienvenidas y deben usarse con mucha libertad para controlar cualquier condición que el código espera para su correcta ejecución. Estas comprobaciones de afirmación se ejecutarán en compilaciones de depuración y se deshabilitarán en producción.
+Para las trazas, este proyecto proporciona sus propias macros de depuración, en particular DEBUGLOG(level, ...), definidas en lib/common/debug.h.
+Documentación de código
+Evite la documentación del código que simplemente repite lo que el código ya indica. Siempre que corresponda, prefiera emplear el código como la forma principal de transmitir explicaciones. Ejemplo 1 : int nbTokens = n;en lugar de int i = n; /* i is a nb of tokens *./. Ejemplo 2 : assert(size > 0);en lugar de /* here, size should be positive */.
+A nivel de declaración, la documentación explica cómo usar la función o variable y, en su caso, por qué es necesaria, de los escenarios en los que puede ser útil.
+A nivel de implementación, la documentación explica el esquema general del algoritmo empleado y, cuando corresponda, por qué se prefirió esta opción específica.
+Disposición general
+4 espacios para sangría en lugar de tabulaciones
+La documentación del código debe preceder directamente a la declaración o implementación de la función.
+Las implementaciones de funciones y su documentación de código deben ir precedidas y seguidas de una línea vacía.
+Licencia
+Al contribuir a Zstandard, acepta que sus contribuciones se licenciarán bajo el archivo de LICENCIA y el archivo de COPIA en el directorio raíz de este árbol de fuentes.
+
+Pie de página
+© 2022 GitHub, Inc.
+Pie de página de navegación
+Términos
+Privacidad
+Seguridad
+Estado
+Documentos
+Póngase en contacto con GitHub
+Precios
+API
+Capacitación
+Blog
+Sobre
+zstd/CONTRIBUTING.md al 7607b96ed953248a439dbcdcbda702201e194a16 · facebook/zstd

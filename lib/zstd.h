@@ -2700,6 +2700,9 @@ ZSTDLIB_STATIC_API size_t ZSTD_insertBlock    (ZSTD_DCtx* dctx, const void* bloc
  * include hardware-accelerated matchfinders and matchfinders specialized to
  * particular types of data.
  *
+ * See contrib/externalMatchfinder for an example program employing the
+ * external matchfinder API.
+ *
  * USAGE
  * The user is responsible for implementing a function of type
  * ZSTD_externalMatchFinder_F. For each block, zstd will pass the following

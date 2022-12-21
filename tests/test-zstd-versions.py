@@ -29,8 +29,19 @@ test_dat_src = 'README.md'
 test_dat = 'test_dat'
 head = 'vdevel'
 dict_source = 'dict_source'
-dict_files = './zstd/programs/*.c ./zstd/lib/common/*.c ./zstd/lib/compress/*.c ./zstd/lib/decompress/*.c ./zstd/lib/dictBuilder/*.c ./zstd/lib/legacy/*.c '
-dict_files += './zstd/programs/*.h ./zstd/lib/common/*.h ./zstd/lib/compress/*.h ./zstd/lib/dictBuilder/*.h ./zstd/lib/legacy/*.h'
+dict_globs = [
+    'programs/*.c',
+    'lib/common/*.c',
+    'lib/compress/*.c',
+    'lib/decompress/*.c',
+    'lib/dictBuilder/*.c',
+    'lib/legacy/*.c',
+    'programs/*.h',
+    'lib/common/*.h',
+    'lib/compress/*.h',
+    'lib/dictBuilder/*.h',
+    'lib/legacy/*.h'
+]
 
 
 def execute(command, print_output=False, print_error=True, param_shell=False):
@@ -85,6 +96,7 @@ def create_dict(tag, dict_source_path):
             result = execute('./zstd.' + tag + ' -f --train ' + ' '.join(cFiles) + ' ' + ' '.join(hFiles) + ' -o ' + dict_name, print_output=False, param_shell=True)
         if result == 0:
             print(dict_name + ' created')
+            assert os.path.isfile(dict_name)
         else:
             raise RuntimeError('ERROR: creating of ' + dict_name + ' failed')
     else:
@@ -103,12 +115,15 @@ def zstd(tag, args, input_file, output_file):
             print("Running: '{}', input={}, output={}" .format(
                 ' '.join(cmd), input_file, output_file
             ))
-            subprocess.check_call(cmd, stdin=i, stdout=o)
+            result = subprocess.run(cmd, stdin=i, stdout=o, stderr=subprocess.PIPE)
+            print("Stderr: {}".format(result.stderr.decode("ascii")))
+            result.check_returncode()
 
 
 def dict_compress_sample(tag, sample):
     dict_name = 'dict.' + tag
-    zstd(tag, ['-D', dict_name, '-1'], sample, sample + '_01_64_' + tag + '_dictio.zst')
+    verbose = ['-v', '-v', '-v']
+    zstd(tag, ['-D', dict_name, '-1'] + verbose, sample, sample + '_01_64_' + tag + '_dictio.zst')
     zstd(tag, ['-D', dict_name, '-3'], sample, sample + '_03_64_' + tag + '_dictio.zst')
     zstd(tag, ['-D', dict_name, '-5'], sample, sample + '_05_64_' + tag + '_dictio.zst')
     zstd(tag, ['-D', dict_name, '-9'], sample, sample + '_09_64_' + tag + '_dictio.zst')
@@ -246,8 +261,12 @@ if __name__ == '__main__':
     # copy *.c and *.h to a temporary directory ("dict_source")
     if not os.path.isdir(dict_source_path):
         os.mkdir(dict_source_path)
-        print('cp ' + dict_files + ' ' + dict_source_path)
-        execute('cp ' + dict_files + ' ' + dict_source_path, param_shell=True)
+        for dict_glob in dict_globs:
+            files = glob.glob(dict_glob, root_dir=base_dir)
+            for file in files:
+                file = os.path.join(base_dir, file)
+                print("copying " + file + " to " + dict_source_path)
+                shutil.copy(file, dict_source_path)
 
     print('-----------------------------------------------')
     print('Compress test.dat by all released zstd')

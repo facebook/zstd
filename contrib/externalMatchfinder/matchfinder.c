@@ -14,7 +14,7 @@
 #define HSIZE 1024
 static U32 const HLOG = 10;
 static U32 const MLS = 4;
-static U32 const BADIDX = (1 << 31);
+static U32 const BADIDX = 0xffffffff;
 
 size_t simpleExternalMatchFinder(
   void* externalMatchState,

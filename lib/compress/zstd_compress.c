@@ -3018,21 +3018,12 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
             assert(zc->appliedParams.ldmParams.enableLdm == ZSTD_ps_disable);
 
             /* External matchfinder + LDM is technically possible, just not implemented yet.
-             * We need to revisit soon and implement it. */
-            if (zc->appliedParams.useBlockSplitter == ZSTD_ps_enable) {
-                RETURN_ERROR_IF(
-                    zc->appliedParams.useExternalMatchFinder,
-                    parameter_combination_unsupported,
-                    "Block splitting with external matchfinder enabled is not currently supported. "
-                    "Note: block splitting is enabled by default at high compression levels."
-                );
-            } else {
-                RETURN_ERROR_IF(
-                    zc->appliedParams.useExternalMatchFinder,
-                    parameter_combination_unsupported,
-                    "Long-distance matching with external matchfinder enabled is not currently supported."
-                );
-            }
+            * We need to revisit soon and implement it. */
+            RETURN_ERROR_IF(
+                zc->appliedParams.useExternalMatchFinder,
+                parameter_combination_unsupported,
+                "Long-distance matching with external matchfinder enabled is not currently supported."
+            );
 
             /* Updates ldmSeqStore.pos */
             lastLLSize =
@@ -3089,29 +3080,34 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
                     srcSize
                 );
 
+                /* Return early if there is no error, since we don't need to worry about last literals */
                 if (!ZSTD_isError(nbPostProcessedSeqs)) {
                     ZSTD_sequencePosition seqPos = {0,0,0};
                     ZSTD_copySequencesToSeqStoreExplicitBlockDelim(
                         zc, &seqPos, zc->externalMatchCtx.seqBuffer, nbPostProcessedSeqs, src, srcSize
                     );
                     ms->ldmSeqStore = NULL;
-                    lastLLSize = 0;
                     DEBUGLOG(5, "Copied %lu sequences from external matchfinder to internal seqStore.", (unsigned long)nbExternalSeqs);
-                } else {
-                    if (zc->appliedParams.enableMatchFinderFallback) {
-                        ZSTD_blockCompressor const blockCompressor = ZSTD_selectBlockCompressor(zc->appliedParams.cParams.strategy,
-                                                                                                zc->appliedParams.useRowMatchFinder,
-                                                                                                dictMode);
-                        ms->ldmSeqStore = NULL;
-                        DEBUGLOG(
-                            5,
-                            "External matchfinder returned error code %lu. Falling back to internal matchfinder.",
-                            (unsigned long)nbExternalSeqs
-                        );
-                        lastLLSize = blockCompressor(ms, &zc->seqStore, zc->blockState.nextCBlock->rep, src, srcSize);
-                    } else {
-                        return nbPostProcessedSeqs;  /* return an error */
-                    }
+                    return ZSTDbss_compress;
+                }
+
+                /* Propagate the error if fallback is disabled */
+                if (!zc->appliedParams.enableMatchFinderFallback) {
+
+                    return nbPostProcessedSeqs;
+                }
+
+                /* Fallback to software matchfinder */
+                {   ZSTD_blockCompressor const blockCompressor = ZSTD_selectBlockCompressor(zc->appliedParams.cParams.strategy,
+                                                                                            zc->appliedParams.useRowMatchFinder,
+                                                                                            dictMode);
+                    ms->ldmSeqStore = NULL;
+                    DEBUGLOG(
+                        5,
+                        "External matchfinder returned error code %lu. Falling back to internal matchfinder.",
+                        (unsigned long)nbExternalSeqs
+                    );
+                    lastLLSize = blockCompressor(ms, &zc->seqStore, zc->blockState.nextCBlock->rep, src, srcSize);
             }   }
         } else {   /* not long range mode and no external matchfinder */
             ZSTD_blockCompressor const blockCompressor = ZSTD_selectBlockCompressor(zc->appliedParams.cParams.strategy,

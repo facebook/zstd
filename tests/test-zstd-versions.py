@@ -262,9 +262,9 @@ if __name__ == '__main__':
     if not os.path.isdir(dict_source_path):
         os.mkdir(dict_source_path)
         for dict_glob in dict_globs:
-            files = glob.glob(dict_glob, root_dir=base_dir)
+            files = glob.glob(dict_glob, root_dir=clone_dir)
             for file in files:
-                file = os.path.join(base_dir, file)
+                file = os.path.join(clone_dir, file)
                 print("copying " + file + " to " + dict_source_path)
                 shutil.copy(file, dict_source_path)
 

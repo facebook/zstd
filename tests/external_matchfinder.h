@@ -28,7 +28,8 @@ size_t zstreamExternalMatchFinder(
   ZSTD_Sequence* outSeqs, size_t outSeqsCapacity,
   const void* src, size_t srcSize,
   const void* dict, size_t dictSize,
-  int compressionLevel
+  int compressionLevel,
+  size_t windowSize
 );
 
 #endif // EXTERNAL_MATCHFINDER

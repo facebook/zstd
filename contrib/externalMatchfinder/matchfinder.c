@@ -21,7 +21,8 @@ size_t simpleExternalMatchFinder(
   ZSTD_Sequence* outSeqs, size_t outSeqsCapacity,
   const void* src, size_t srcSize,
   const void* dict, size_t dictSize,
-  int compressionLevel
+  int compressionLevel,
+  size_t windowSize
 ) {
     const BYTE* const istart = (const BYTE*)src;
     const BYTE* const iend = istart + srcSize;
@@ -55,10 +56,14 @@ size_t simpleExternalMatchFinder(
                 ZSTD_Sequence const seq = {
                     offset, litLen, matchLen, 0
                 };
-                outSeqs[seqCount++] = seq;
-                ip += matchLen;
-                anchor = ip;
-                continue;
+
+                /* Note: it's crucial to stay within the window size! */
+                if (offset <= windowSize) {
+                    outSeqs[seqCount++] = seq;
+                    ip += matchLen;
+                    anchor = ip;
+                    continue;
+                }
             }
         }
 

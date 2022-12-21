@@ -278,6 +278,15 @@ static ZSTD_paramSwitch_e ZSTD_resolveEnableLdm(ZSTD_paramSwitch_e mode,
     return (cParams->strategy >= ZSTD_btopt && cParams->windowLog >= 27) ? ZSTD_ps_enable : ZSTD_ps_disable;
 }
 
+/* Enables validation for external sequences in debug builds. */
+static int ZSTD_resolveExternalSequenceValidation(int mode) {
+#if defined(DEBUGLEVEL) && (DEBUGLEVEL>=2)
+    return 1;
+#else
+    return mode;
+#endif
+}
+
 /* Returns 1 if compression parameters are such that CDict hashtable and chaintable indices are tagged.
  * If so, the tags need to be removed in ZSTD_resetCCtx_byCopyingCDict. */
 static int ZSTD_CDictIndicesAreTagged(const ZSTD_compressionParameters* const cParams) {
@@ -301,6 +310,7 @@ static ZSTD_CCtx_params ZSTD_makeCCtxParamsFromCParams(
     }
     cctxParams.useBlockSplitter = ZSTD_resolveBlockSplitterMode(cctxParams.useBlockSplitter, &cParams);
     cctxParams.useRowMatchFinder = ZSTD_resolveRowMatchFinderMode(cctxParams.useRowMatchFinder, &cParams);
+    cctxParams.validateSequences = ZSTD_resolveExternalSequenceValidation(cctxParams.validateSequences);
     assert(!ZSTD_checkCParams(cParams));
     return cctxParams;
 }
@@ -362,6 +372,7 @@ static void ZSTD_CCtxParams_init_internal(ZSTD_CCtx_params* cctxParams, ZSTD_par
     cctxParams->useRowMatchFinder = ZSTD_resolveRowMatchFinderMode(cctxParams->useRowMatchFinder, &params->cParams);
     cctxParams->useBlockSplitter = ZSTD_resolveBlockSplitterMode(cctxParams->useBlockSplitter, &params->cParams);
     cctxParams->ldmParams.enableLdm = ZSTD_resolveEnableLdm(cctxParams->ldmParams.enableLdm, &params->cParams);
+    cctxParams->validateSequences = ZSTD_resolveExternalSequenceValidation(cctxParams->validateSequences);
     DEBUGLOG(4, "ZSTD_CCtxParams_init_internal: useRowMatchFinder=%d, useBlockSplitter=%d ldm=%d",
                 cctxParams->useRowMatchFinder, cctxParams->useBlockSplitter, cctxParams->ldmParams.enableLdm);
 }
@@ -2904,7 +2915,6 @@ void ZSTD_resetSeqStore(seqStore_t* ssPtr)
  *   - Checks whether nbExternalSeqs represents an error condition.
  *   - Appends a block delimiter to outSeqs if one is not already present.
  *     See zstd.h for context regarding block delimiters.
- *   - In debug builds, verify that the external litLengths + matchLengths add to srcSize.
  * Returns the number of sequences after post-processing, or an error code. */
 static size_t ZSTD_postProcessExternalMatchFinderResult(
     ZSTD_Sequence* outSeqs, size_t nbExternalSeqs, size_t outSeqsCapacity, size_t srcSize
@@ -2926,26 +2936,6 @@ static size_t ZSTD_postProcessExternalMatchFinderResult(
         ZSTD_memset(&outSeqs[0], 0, sizeof(ZSTD_Sequence));
         return 1;
     }
-
-#if defined(DEBUGLEVEL) && (DEBUGLEVEL>=2)
-    {
-        size_t coveredBytes = 0;
-        size_t idx = 0;
-
-        for (idx = 0; idx < nbExternalSeqs; idx++) {
-            /* We already know that nbExternalSeqs <= outSeqsCapacity */
-            assert(idx < outSeqsCapacity);
-            coveredBytes += outSeqs[idx].litLength;
-            coveredBytes += outSeqs[idx].matchLength;
-        }
-
-        RETURN_ERROR_IF(
-            coveredBytes != srcSize,
-            externalMatchFinder_failed,
-            "External matchfinder produced an incorrect parse!"
-        );
-    }
-#endif
 
     {
         ZSTD_Sequence const lastSeq = outSeqs[nbExternalSeqs - 1];
@@ -3018,7 +3008,7 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
             assert(zc->appliedParams.ldmParams.enableLdm == ZSTD_ps_disable);
 
             /* External matchfinder + LDM is technically possible, just not implemented yet.
-            * We need to revisit soon and implement it. */
+             * We need to revisit soon and implement it. */
             RETURN_ERROR_IF(
                 zc->appliedParams.useExternalMatchFinder,
                 parameter_combination_unsupported,
@@ -3064,13 +3054,16 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
             );
             assert(zc->externalMatchCtx.mFinder != NULL);
 
-            {   size_t const nbExternalSeqs = (zc->externalMatchCtx.mFinder)(
+            {   U32 const windowSize = (U32)1 << zc->appliedParams.cParams.windowLog;
+
+                size_t const nbExternalSeqs = (zc->externalMatchCtx.mFinder)(
                     zc->externalMatchCtx.mState,
                     zc->externalMatchCtx.seqBuffer,
                     zc->externalMatchCtx.seqBufferCapacity,
                     src, srcSize,
                     NULL, 0,  /* dict and dictSize, currently not supported */
-                    zc->appliedParams.compressionLevel
+                    zc->appliedParams.compressionLevel,
+                    windowSize
                 );
 
                 size_t const nbPostProcessedSeqs = ZSTD_postProcessExternalMatchFinderResult(
@@ -3093,7 +3086,6 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
 
                 /* Propagate the error if fallback is disabled */
                 if (!zc->appliedParams.enableMatchFinderFallback) {
-
                     return nbPostProcessedSeqs;
                 }
 
@@ -5902,6 +5894,7 @@ static size_t ZSTD_CCtx_init_compressStream2(ZSTD_CCtx* cctx,
     params.useBlockSplitter = ZSTD_resolveBlockSplitterMode(params.useBlockSplitter, &params.cParams);
     params.ldmParams.enableLdm = ZSTD_resolveEnableLdm(params.ldmParams.enableLdm, &params.cParams);
     params.useRowMatchFinder = ZSTD_resolveRowMatchFinderMode(params.useRowMatchFinder, &params.cParams);
+    params.validateSequences = ZSTD_resolveExternalSequenceValidation(params.validateSequences);
 
 #ifdef ZSTD_MULTITHREAD
     if ((cctx->pledgedSrcSizePlusOne-1) <= ZSTDMT_JOBSIZE_MIN) {

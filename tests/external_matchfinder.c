@@ -22,7 +22,8 @@ static size_t simpleExternalMatchFinder(
   ZSTD_Sequence* outSeqs, size_t outSeqsCapacity,
   const void* src, size_t srcSize,
   const void* dict, size_t dictSize,
-  int compressionLevel
+  int compressionLevel,
+  size_t windowSize
 ) {
     const BYTE* const istart = (const BYTE*)src;
     const BYTE* const iend = istart + srcSize;
@@ -56,10 +57,14 @@ static size_t simpleExternalMatchFinder(
                 ZSTD_Sequence const seq = {
                     offset, litLen, matchLen, 0
                 };
-                outSeqs[seqCount++] = seq;
-                ip += matchLen;
-                anchor = ip;
-                continue;
+
+                /* Note: it's crucial to stay within the window size! */
+                if (offset <= windowSize) {
+                    outSeqs[seqCount++] = seq;
+                    ip += matchLen;
+                    anchor = ip;
+                    continue;
+                }
             }
         }
 
@@ -80,7 +85,8 @@ size_t zstreamExternalMatchFinder(
   ZSTD_Sequence* outSeqs, size_t outSeqsCapacity,
   const void* src, size_t srcSize,
   const void* dict, size_t dictSize,
-  int compressionLevel
+  int compressionLevel,
+  size_t windowSize
 ) {
     EMF_testCase const testCase = *((EMF_testCase*)externalMatchState);
     memset(outSeqs, 0, outSeqsCapacity);
@@ -99,7 +105,8 @@ size_t zstreamExternalMatchFinder(
                 outSeqs, outSeqsCapacity,
                 src, srcSize,
                 dict, dictSize,
-                compressionLevel
+                compressionLevel,
+                windowSize
             );
         case EMF_SMALL_ERROR:
             return outSeqsCapacity + 1;

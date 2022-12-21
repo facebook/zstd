@@ -2727,15 +2727,14 @@ ZSTD_entropyCompressSeqStore_internal(
         unsigned const suspectUncompressible = (numSequences == 0) || (numLiterals / numSequences >= SUSPECT_UNCOMPRESSIBLE_LITERAL_RATIO);
         size_t const litSize = (size_t)(seqStorePtr->lit - literals);
 
-        HUF_depth_mode depthMode = cctxParams->cParams.strategy >= HUF_OPTIMAL_DEPTH_THRESHOLD ? HUF_depth_optimal : HUF_depth_fast;
         size_t const cSize = ZSTD_compressLiterals(
-                                    &prevEntropy->huf, &nextEntropy->huf,
-                                    cctxParams->cParams.strategy,
-                                    ZSTD_literalsCompressionIsDisabled(cctxParams),
                                     op, dstCapacity,
                                     literals, litSize,
                                     entropyWorkspace, entropyWkspSize,
-                                    bmi2, suspectUncompressible, depthMode);
+                                    &prevEntropy->huf, &nextEntropy->huf,
+                                    cctxParams->cParams.strategy,
+                                    ZSTD_literalsCompressionIsDisabled(cctxParams),
+                                    suspectUncompressible, bmi2);
         FORWARD_IF_ERROR(cSize, "ZSTD_compressLiterals failed");
         assert(cSize <= dstCapacity);
         op += cSize;
@@ -3878,12 +3877,12 @@ ZSTD_deriveBlockSplitsHelper(seqStoreSplits* splits, size_t startIdx, size_t end
     size_t estimatedSecondHalfSize;
     size_t midIdx = (startIdx + endIdx)/2;
 
+    DEBUGLOG(5, "ZSTD_deriveBlockSplitsHelper: startIdx=%zu endIdx=%zu", startIdx, endIdx);
     assert(endIdx >= startIdx);
     if (endIdx - startIdx < MIN_SEQUENCES_BLOCK_SPLITTING || splits->idx >= ZSTD_MAX_NB_BLOCK_SPLITS) {
         DEBUGLOG(6, "ZSTD_deriveBlockSplitsHelper: Too few sequences (%zu)", endIdx - startIdx);
         return;
     }
-    DEBUGLOG(5, "ZSTD_deriveBlockSplitsHelper: startIdx=%zu endIdx=%zu", startIdx, endIdx);
     ZSTD_deriveSeqStoreChunk(fullSeqStoreChunk, origSeqStore, startIdx, endIdx);
     ZSTD_deriveSeqStoreChunk(firstHalfSeqStore, origSeqStore, startIdx, midIdx);
     ZSTD_deriveSeqStoreChunk(secondHalfSeqStore, origSeqStore, midIdx, endIdx);

@@ -386,7 +386,7 @@ static U32 HUF_setMaxHeight(nodeElt* huffNode, U32 lastNonNull, U32 targetNbBits
 
         /* renorm totalCost from 2^largestBits to 2^targetNbBits
          * note : totalCost is necessarily a multiple of baseCost */
-        assert((totalCost & (baseCost - 1)) == 0);
+        assert(((U32)totalCost & (baseCost - 1)) == 0);
         totalCost >>= (largestBits - targetNbBits);
         assert(totalCost > 0);
 
@@ -1253,7 +1253,14 @@ unsigned HUF_minTableLog(unsigned symbolCardinality)
     return minBitsSymbols;
 }
 
-unsigned HUF_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue, void* workSpace, size_t wkspSize, HUF_CElt* table, const unsigned* count, HUF_depth_mode depthMode)
+unsigned HUF_optimalTableLog(
+            unsigned maxTableLog,
+            size_t srcSize,
+            unsigned maxSymbolValue,
+            void* workSpace, size_t wkspSize,
+            HUF_CElt* table,
+      const unsigned* count,
+            HUF_depth_mode depthMode)
 {
     unsigned optLog = FSE_optimalTableLog_internal(maxTableLog, srcSize, maxSymbolValue, 1);
     assert(srcSize > 1); /* Not supported, RLE should be used instead */
@@ -1267,12 +1274,13 @@ unsigned HUF_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxS
         size_t optSize = ((size_t) ~0) - 1;
         unsigned optLogGuess;
 
-        if (wkspSize < sizeof(HUF_buildCTable_wksp_tables)) return optLog; /** Assert workspace is large enough **/
+        DEBUGLOG(6, "HUF_optimalTableLog: probing huf depth (srcSize=%zu)", srcSize);
+        if (wkspSize < sizeof(HUF_buildCTable_wksp_tables)) return optLog; /* silently return if workspace is not large enough  */
 
         /* Search until size increases */
         for (optLogGuess = minTableLog; optLogGuess <= maxTableLog; optLogGuess++) {
+            DEBUGLOG(7, "checking for huffLog=%u", optLogGuess);
             maxBits = HUF_buildCTable_wksp(table, count, maxSymbolValue, optLogGuess, workSpace, wkspSize);
-
             if (ERR_isError(maxBits)) continue;
 
             if (maxBits < optLogGuess && optLogGuess > minTableLog) break;

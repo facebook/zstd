@@ -92,16 +92,37 @@ size_t ZSTD_compressRleLiteralsBlock (void* dst, size_t dstCapacity, const void*
     return flSize+1;
 }
 
-size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
-                              ZSTD_hufCTables_t* nextHuf,
-                              ZSTD_strategy strategy, int disableLiteralCompression,
-                              void* dst, size_t dstCapacity,
-                        const void* src, size_t srcSize,
-                              void* entropyWorkspace, size_t entropyWorkspaceSize,
-                        const int bmi2,
-                        unsigned suspectUncompressible, HUF_depth_mode depthMode)
+/* ZSTD_minLiteralsToCompress() :
+ * returns minimal amount of literals
+ * for literal compression to even be attempted.
+ * Minimum is made tighter as compression strategy increases.
+ */
+static size_t
+ZSTD_minLiteralsToCompress(ZSTD_strategy strategy, HUF_repeat huf_repeat)
 {
-    size_t const minGain = ZSTD_minGain(srcSize, strategy);
+    assert((int)strategy >= 0);
+    assert((int)strategy <= 9);
+    /* btultra2 : min 8 bytes;
+     * then 2x larger for each successive compression strategy
+     * max threshold 64 bytes */
+    {   int const shift = MIN(9-strategy, 3);
+        size_t const mintc = (huf_repeat == HUF_repeat_valid) ? 6 : 8 << shift;
+        DEBUGLOG(7, "minLiteralsToCompress = %zu", mintc);
+        return mintc;
+    }
+}
+
+size_t ZSTD_compressLiterals (
+                  void* dst, size_t dstCapacity,
+            const void* src, size_t srcSize,
+                  void* entropyWorkspace, size_t entropyWorkspaceSize,
+            const ZSTD_hufCTables_t* prevHuf,
+                  ZSTD_hufCTables_t* nextHuf,
+                  ZSTD_strategy strategy,
+                  int disableLiteralCompression,
+                  int suspectUncompressible,
+                  int bmi2)
+{
     size_t const lhSize = 3 + (srcSize >= 1 KB) + (srcSize >= 16 KB);
     BYTE*  const ostart = (BYTE*)dst;
     U32 singleStream = srcSize < 256;
@@ -119,15 +140,14 @@ size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
     if (disableLiteralCompression)
         return ZSTD_noCompressLiterals(dst, dstCapacity, src, srcSize);
 
-    /* small ? don't even attempt compression (speed opt) */
-#   define COMPRESS_LITERALS_SIZE_MIN 63
-    {   size_t const minLitSize = (prevHuf->repeatMode == HUF_repeat_valid) ? 6 : COMPRESS_LITERALS_SIZE_MIN;
-        if (srcSize <= minLitSize) return ZSTD_noCompressLiterals(dst, dstCapacity, src, srcSize);
-    }
+    /* if too small, don't even attempt compression (speed opt) */
+    if (srcSize < ZSTD_minLiteralsToCompress(strategy, prevHuf->repeatMode))
+        return ZSTD_noCompressLiterals(dst, dstCapacity, src, srcSize);
 
     RETURN_ERROR_IF(dstCapacity < lhSize+1, dstSize_tooSmall, "not enough space for compression");
     {   HUF_repeat repeat = prevHuf->repeatMode;
         int const preferRepeat = (strategy < ZSTD_lazy) ? srcSize <= 1024 : 0;
+        HUF_depth_mode const depthMode = (strategy >= HUF_OPTIMAL_DEPTH_THRESHOLD) ? HUF_depth_optimal : HUF_depth_fast;
         typedef size_t (*huf_compress_f)(void*, size_t, const void*, size_t, unsigned, unsigned, void*, size_t, HUF_CElt*, HUF_repeat*, int, int, unsigned, HUF_depth_mode);
         huf_compress_f huf_compress;
         if (repeat == HUF_repeat_valid && lhSize == 3) singleStream = 1;
@@ -146,10 +166,11 @@ size_t ZSTD_compressLiterals (ZSTD_hufCTables_t const* prevHuf,
         }
     }
 
-    if ((cLitSize==0) || (cLitSize >= srcSize - minGain) || ERR_isError(cLitSize)) {
-        ZSTD_memcpy(nextHuf, prevHuf, sizeof(*prevHuf));
-        return ZSTD_noCompressLiterals(dst, dstCapacity, src, srcSize);
-    }
+    {   size_t const minGain = ZSTD_minGain(srcSize, strategy);
+        if ((cLitSize==0) || (cLitSize >= srcSize - minGain) || ERR_isError(cLitSize)) {
+            ZSTD_memcpy(nextHuf, prevHuf, sizeof(*prevHuf));
+            return ZSTD_noCompressLiterals(dst, dstCapacity, src, srcSize);
+    }   }
     if (cLitSize==1) {
         ZSTD_memcpy(nextHuf, prevHuf, sizeof(*prevHuf));
         return ZSTD_compressRleLiteralsBlock(dst, dstCapacity, src, srcSize);

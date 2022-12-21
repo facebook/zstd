@@ -1439,6 +1439,7 @@ void ZSTD_CCtx_trace(ZSTD_CCtx* cctx, size_t extraCSize);
 
 /* Returns 0 on success, and a ZSTD_error otherwise. This function scans through an array of
  * ZSTD_Sequence, storing the sequences it finds, until it reaches a block delimiter.
+ * Note that the block delimiter must include the last literals of the block.
  */
 size_t
 ZSTD_copySequencesToSeqStoreExplicitBlockDelim(ZSTD_CCtx* cctx,

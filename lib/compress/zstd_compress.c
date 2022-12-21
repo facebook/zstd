@@ -281,6 +281,7 @@ static ZSTD_paramSwitch_e ZSTD_resolveEnableLdm(ZSTD_paramSwitch_e mode,
 /* Enables validation for external sequences in debug builds. */
 static int ZSTD_resolveExternalSequenceValidation(int mode) {
 #if defined(DEBUGLEVEL) && (DEBUGLEVEL>=2)
+    (void)mode;
     return 1;
 #else
     return mode;

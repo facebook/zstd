@@ -52,12 +52,12 @@
 /*-************************************
 *  Constants
 **************************************/
-#define COMPRESSOR_NAME "zstd command line interface"
+#define COMPRESSOR_NAME "Zstandard CLI"
 #ifndef ZSTD_VERSION
 #  define ZSTD_VERSION "v" ZSTD_VERSION_STRING
 #endif
 #define AUTHOR "Yann Collet"
-#define WELCOME_MESSAGE "*** %s %i-bits %s, by %s ***\n", COMPRESSOR_NAME, (int)(sizeof(size_t)*8), ZSTD_VERSION, AUTHOR
+#define WELCOME_MESSAGE "*** %s (%i-bit) %s, by %s ***\n", COMPRESSOR_NAME, (int)(sizeof(size_t)*8), ZSTD_VERSION, AUTHOR
 
 #define ZSTD_ZSTDMT "zstdmt"
 #define ZSTD_UNZSTD "unzstd"
@@ -178,6 +178,7 @@ static void usage(FILE* f, const char* programName)
 static void usage_advanced(const char* programName)
 {
     DISPLAYOUT(WELCOME_MESSAGE);
+    DISPLAYOUT("\n");
     usage(stdout, programName);
     DISPLAYOUT("Advanced options:\n");
     DISPLAYOUT("  -c, --stdout                  Write to STDOUT (even if it is a console) and keep the INPUT file(s).\n\n");

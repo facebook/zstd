@@ -262,7 +262,6 @@ UTIL_mergeFileNamesTable(FileNamesTable* table1, FileNamesTable* table2);
 /*! UTIL_expandFNT() :
  *  read names from @fnt, and expand those corresponding to directories
  *  update @fnt, now containing only file names,
- * @return : 0 in case of success, 1 if error
  *  note : in case of error, @fnt[0] is NULL
  */
 void UTIL_expandFNT(FileNamesTable** fnt, int followLinks);

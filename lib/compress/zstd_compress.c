@@ -2770,6 +2770,10 @@ ZSTD_entropyCompressSeqStore(
         if (cSize >= maxCSize) return 0;  /* block not compressed */
     }
     DEBUGLOG(5, "ZSTD_entropyCompressSeqStore() cSize: %zu", cSize);
+    /* libzstd decoder before  > v1.5.4 is not compatible with compressed blocks of size ZSTD_BLOCKSIZE_MAX exactly.
+     * This restriction is indirectly already fulfilled by respecting ZSTD_minGain() condition above.
+     */
+    assert(cSize < ZSTD_BLOCKSIZE_MAX);
     return cSize;
 }
 

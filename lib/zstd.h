@@ -2764,12 +2764,12 @@ ZSTDLIB_STATIC_API size_t ZSTD_insertBlock    (ZSTD_DCtx* dctx, const void* bloc
  * compression operation.
  *
  * The user shall instruct zstd to use a particular ZSTD_externalMatchFinder_F
- * function by calling ZSTD_refExternalMatchFinder(cctx, externalMatchState,
+ * function by calling ZSTD_registerExternalMatchFinder(cctx, externalMatchState,
  * externalMatchFinder). This setting will persist until the next parameter reset
  * of the CCtx.
  *
  * The externalMatchState must be initialized by the user before calling
- * ZSTD_refExternalMatchFinder. The user is responsible for destroying the
+ * ZSTD_registerExternalMatchFinder. The user is responsible for destroying the
  * externalMatchState.
  *
  * LIMITATIONS

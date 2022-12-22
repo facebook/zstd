@@ -50,13 +50,23 @@ int main(int argc, char *argv[]) {
 
     FILE *f = fopen(argv[1], "rb");
     assert(f);
-    fseek(f, 0, SEEK_END);
-    long const srcSize = ftell(f);
-    fseek(f, 0, SEEK_SET);
+    {
+        int const ret = fseek(f, 0, SEEK_END);
+        assert(ret == 0);
+    }
+    size_t const srcSize = ftell(f);
+    {
+        int const ret = fseek(f, 0, SEEK_SET);
+        assert(ret == 0);
+    }
 
     char* const src = malloc(srcSize + 1);
-    fread(src, srcSize, 1, f);
-    fclose(f);
+    {
+        size_t const ret = fread(src, srcSize, 1, f);
+        assert(ret == 1);
+        int const ret2 = fclose(f);
+        assert(ret2 == 0);
+    }
 
     size_t const dstSize = ZSTD_compressBound(srcSize);
     char* const dst = malloc(dstSize);
@@ -78,9 +88,9 @@ int main(int argc, char *argv[]) {
         printf("Compressed size: %lu\n", cSize);
     } else {
         printf("ERROR: input and validation buffers don't match!\n");
-        for (int i = 0; i < srcSize; i++) {
+        for (size_t i = 0; i < srcSize; i++) {
             if (src[i] != val[i]) {
-                printf("First bad index: %d\n", i);
+                printf("First bad index: %zu\n", i);
                 break;
             }
         }

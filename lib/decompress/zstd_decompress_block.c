@@ -2010,12 +2010,20 @@ ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
      * Offsets are long if they are larger than 2^STREAM_ACCUMULATOR_MIN.
      * We don't expect that to be the case in 64-bit mode.
      * In block mode, window size is not known, so we have to be conservative.
-     * (note: but it could be evaluated from current-lowLimit)
+     * (note: it could possibly be evaluated from current-lowLimit)
      */
     ZSTD_longOffset_e const isLongOffset = (ZSTD_longOffset_e)(MEM_32bits() && (!frame || (dctx->fParams.windowSize > (1ULL << STREAM_ACCUMULATOR_MIN))));
     DEBUGLOG(5, "ZSTD_decompressBlock_internal (size : %u)", (U32)srcSize);
 
-    RETURN_ERROR_IF(srcSize >= ZSTD_BLOCKSIZE_MAX, srcSize_wrong, "");
+    /* Note : the wording of the specification
+     * allows compressed block to be sized exactly ZSTD_BLOCKSIZE_MAX.
+     * This generally does not happen, as it makes little sense,
+     * since an uncompressed block would feature same size and have no decompression cost.
+     * Also, note that decoder from reference libzstd before < v1.5.4
+     * would consider this edge case as an error.
+     * As a consequence, avoid generating compressed blocks of size ZSTD_BLOCKSIZE_MAX
+     * for broader compatibility with the deployed ecosystem of zstd decoders */
+    RETURN_ERROR_IF(srcSize > ZSTD_BLOCKSIZE_MAX, srcSize_wrong, "");
 
     /* Decode literals section */
     {   size_t const litCSize = ZSTD_decodeLiteralsBlock(dctx, src, srcSize, dst, dstCapacity, streaming);

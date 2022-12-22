@@ -70,6 +70,7 @@ typedef enum {
   ZSTD_error_frameParameter_windowTooLarge = 16,
   ZSTD_error_corruption_detected = 20,
   ZSTD_error_checksum_wrong      = 22,
+  ZSTD_error_literals_headerWrong = 24,
   ZSTD_error_dictionary_corrupted      = 30,
   ZSTD_error_dictionary_wrong          = 32,
   ZSTD_error_dictionaryCreation_failed = 34,

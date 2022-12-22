@@ -29,6 +29,7 @@ const char* ERR_getErrorString(ERR_enum code)
     case PREFIX(frameParameter_windowTooLarge): return "Frame requires too much memory for decoding";
     case PREFIX(corruption_detected): return "Data corruption detected";
     case PREFIX(checksum_wrong): return "Restored data doesn't match checksum";
+    case PREFIX(literals_headerWrong): return "Header of Literals' block doesn't respect format specification";
     case PREFIX(parameter_unsupported): return "Unsupported parameter";
     case PREFIX(parameter_outOfBound): return "Parameter is out of bound";
     case PREFIX(init_missing): return "Context should be init first";

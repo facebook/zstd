@@ -376,7 +376,7 @@ size_t ZSTD_CCtxParams_init_advanced(ZSTD_CCtx_params* cctxParams, ZSTD_paramete
 
 /**
  * Sets cctxParams' cParams and fParams from params, but otherwise leaves them alone.
- * @param param Validated zstd parameters.
+ * @param params Validated zstd parameters.
  */
 static void ZSTD_CCtxParams_setZstdParams(
         ZSTD_CCtx_params* cctxParams, const ZSTD_parameters* params)

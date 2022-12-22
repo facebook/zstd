@@ -498,6 +498,14 @@ jobs:
       run: |
         make -C tests versionsTest
 
+  clangbuild:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b # tag=v3
+    - name: make clangbuild
+      run: |
+        make clangbuild
+
 
 # For reference : icc tests
 # icc tests are currently failing on Github Actions, likely to issues during installation stage

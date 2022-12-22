@@ -1059,12 +1059,12 @@ FIO_compressGzFrame(const cRess_t* ress,  /* buffers & handlers are used, but no
             DISPLAYUPDATE_PROGRESS(
                     "\rRead : %u MB ==> %.2f%% ",
                     (unsigned)(inFileSize>>20),
-                    (double)outFileSize/inFileSize*100)
+                    (double)outFileSize/(double)inFileSize*100)
         } else {
             DISPLAYUPDATE_PROGRESS(
                     "\rRead : %u / %u MB ==> %.2f%% ",
                     (unsigned)(inFileSize>>20), (unsigned)(srcFileSize>>20),
-                    (double)outFileSize/inFileSize*100);
+                    (double)outFileSize/(double)inFileSize*100);
     }   }
 
     while (1) {
@@ -1157,11 +1157,11 @@ FIO_compressLzmaFrame(cRess_t* ress,
         if (srcFileSize == UTIL_FILESIZE_UNKNOWN)
             DISPLAYUPDATE_PROGRESS("\rRead : %u MB ==> %.2f%%",
                             (unsigned)(inFileSize>>20),
-                            (double)outFileSize/inFileSize*100)
+                            (double)outFileSize/(double)inFileSize*100)
         else
             DISPLAYUPDATE_PROGRESS("\rRead : %u / %u MB ==> %.2f%%",
                             (unsigned)(inFileSize>>20), (unsigned)(srcFileSize>>20),
-                            (double)outFileSize/inFileSize*100);
+                            (double)outFileSize/(double)inFileSize*100);
         if (ret == LZMA_STREAM_END) break;
     }
 
@@ -1241,11 +1241,11 @@ FIO_compressLz4Frame(cRess_t* ress,
             if (srcFileSize == UTIL_FILESIZE_UNKNOWN) {
                 DISPLAYUPDATE_PROGRESS("\rRead : %u MB ==> %.2f%%",
                                 (unsigned)(inFileSize>>20),
-                                (double)outFileSize/inFileSize*100)
+                                (double)outFileSize/(double)inFileSize*100)
             } else {
                 DISPLAYUPDATE_PROGRESS("\rRead : %u / %u MB ==> %.2f%%",
                                 (unsigned)(inFileSize>>20), (unsigned)(srcFileSize>>20),
-                                (double)outFileSize/inFileSize*100);
+                                (double)outFileSize/(double)inFileSize*100);
             }
 
             /* Write Block */

@@ -38,7 +38,7 @@ macro(ADD_ZSTD_COMPILATION_FLAGS)
         # EnableCompilerFlag("-std=c99" true false)   # Set C compiation to c99 standard
         if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND MSVC)
             # clang-cl normally maps -Wall to -Weverything.
-            EnableCompilerFlag("/clang:-Wall" true true flase)
+            EnableCompilerFlag("/clang:-Wall" true true false)
         else ()
             EnableCompilerFlag("-Wall" true true false)
         endif ()

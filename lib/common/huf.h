@@ -88,8 +88,10 @@ HUF_PUBLIC_API size_t HUF_compress2 (void* dst, size_t dstCapacity,
                                unsigned maxSymbolValue, unsigned tableLog);
 
 /** HUF_compress4X_wksp() :
- *  Same as HUF_compress2(), but uses externally allocated `workSpace`.
- * `workspace` must be at least as large as HUF_WORKSPACE_SIZE */
+ *  Same as HUF_compress2(), but uses externally allocated @workSpace.
+ * @workSpace's size, aka @wkspSize, must be >= HUF_WORKSPACE_SIZE
+ * @srcSize must be >= 6
+ */
 #define HUF_WORKSPACE_SIZE ((8 << 10) + 512 /* sorting scratch space */)
 #define HUF_WORKSPACE_SIZE_U64 (HUF_WORKSPACE_SIZE / sizeof(U64))
 HUF_PUBLIC_API size_t HUF_compress4X_wksp (void* dst, size_t dstCapacity,

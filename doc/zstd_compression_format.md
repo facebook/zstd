@@ -435,7 +435,7 @@ They can be decoded first, and then copied during [Sequence Execution],
 or they can be decoded on the flow during [Sequence Execution].
 
 Literals can be stored uncompressed or compressed using Huffman prefix codes.
-When compressed, an optional tree description can be present,
+When compressed, a tree description may optionally be present,
 followed by 1 or 4 streams.
 
 | `Literals_Section_Header` | [`Huffman_Tree_Description`] | [jumpTable] | Stream1 | [Stream2] | [Stream3] | [Stream4] |
@@ -510,7 +510,7 @@ Its value is : `Size_Format = (Literals_Section_Header[0]>>2) & 3`
                `Regenerated_Size = (Literals_Section_Header[0]>>4) + (Literals_Section_Header[1]<<4) + (Literals_Section_Header[2]<<12)`
 
 Only Stream1 is present for these cases.
-Note : it's allowed to represent a short value (for example `13`)
+Note : it's allowed to represent a short value (for example `27`)
 using a long format, even if it's less efficient.
 
 __`Size_Format` for `Compressed_Literals_Block` and `Treeless_Literals_Block`__ :
@@ -521,18 +521,32 @@ __`Size_Format` for `Compressed_Literals_Block` and `Treeless_Literals_Block`__ 
                Both `Regenerated_Size` and `Compressed_Size` use 10 bits (0-1023).
                `Literals_Section_Header` uses 3 bytes.
 - `Size_Format` == 01 : 4 streams.
-               Both `Regenerated_Size` and `Compressed_Size` use 10 bits (0-1023).
+               Both `Regenerated_Size` and `Compressed_Size` use 10 bits (6-1023).
                `Literals_Section_Header` uses 3 bytes.
 - `Size_Format` == 10 : 4 streams.
-               Both `Regenerated_Size` and `Compressed_Size` use 14 bits (0-16383).
+               Both `Regenerated_Size` and `Compressed_Size` use 14 bits (6-16383).
                `Literals_Section_Header` uses 4 bytes.
 - `Size_Format` == 11 : 4 streams.
-               Both `Regenerated_Size` and `Compressed_Size` use 18 bits (0-262143).
+               Both `Regenerated_Size` and `Compressed_Size` use 18 bits (6-262143).
                `Literals_Section_Header` uses 5 bytes.
 
 Both `Compressed_Size` and `Regenerated_Size` fields follow __little-endian__ convention.
 Note: `Compressed_Size` __includes__ the size of the Huffman Tree description
 _when_ it is present.
+
+4 streams is superior to 1 stream in decompression speed,
+by exploiting instruction level parallelism.
+But it's also more expensive,
+costing on average ~7.3 bytes more than the 1 stream mode, mostly from the jump table.
+
+In general, use the 4 streams mode when there are more literals to decode,
+to favor higher decompression speeds.
+Beyond 1KB, the 4 streams mode is compulsory anyway.
+
+Note that a minimum of 6 bytes is required for the 4 streams mode.
+That's a technical minimum, but it's not recommended to employ the 4 streams mode
+for such a small quantity, that would be wasteful.
+A more practical lower bound would be around ~256 bytes.
 
 #### Raw Literals Block
 The data in Stream1 is `Regenerated_Size` bytes long,

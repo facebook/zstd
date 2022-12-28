@@ -461,8 +461,8 @@ ZDICTLIB_STATIC_API size_t ZDICT_trainFromBuffer_legacy(
 #  endif
 #endif /* ZDICT_DISABLE_DEPRECATE_WARNINGS */
 
-ZDICTLIB_STATIC_API
 ZDICT_DEPRECATED("use ZDICT_finalizeDictionary() instead")
+ZDICTLIB_STATIC_API
 size_t ZDICT_addEntropyTablesFromBuffer(void* dictBuffer, size_t dictContentSize, size_t dictBufferCapacity,
                                   const void* samplesBuffer, const size_t* samplesSizes, unsigned nbSamples);
 

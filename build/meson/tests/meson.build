@@ -65,8 +65,10 @@ fuzzer = executable('fuzzer',
   dependencies: [ testcommon_dep, thread_dep ],
   install: false)
 
-zstreamtest_sources = [join_paths(zstd_rootdir, 'tests/seqgen.c'),
-  join_paths(zstd_rootdir, 'tests/zstreamtest.c')]
+zstreamtest_sources = [
+  join_paths(zstd_rootdir, 'tests/seqgen.c'),
+  join_paths(zstd_rootdir, 'tests/zstreamtest.c'),
+  join_paths(zstd_rootdir, 'tests/external_matchfinder.c')]
 zstreamtest = executable('zstreamtest',
   zstreamtest_sources,
   include_directories: test_includes,

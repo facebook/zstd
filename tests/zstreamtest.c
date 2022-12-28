@@ -39,7 +39,7 @@
 #include "seqgen.h"
 #include "util.h"
 #include "timefn.h"       /* UTIL_time_t, UTIL_clockSpanMicro, UTIL_getTime */
-
+#include "external_matchfinder.h"   /* zstreamExternalMatchFinder, EMF_testCase */
 
 /*-************************************
  *  Constants
@@ -1831,6 +1831,97 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
         CHECK_Z(ZSTD_decompress_usingDict(zd, decodedBuffer, CNBufferSize, out.dst, out.pos, dictionary.start, dictionary.filled));
 
         ZSTD_freeCDict(cdict);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : External matchfinder API: ", testNb++);
+    {
+        size_t const dstBufSize = ZSTD_compressBound(CNBufferSize);
+        BYTE* const dstBuf = (BYTE*)malloc(ZSTD_compressBound(dstBufSize));
+        size_t const checkBufSize = CNBufferSize;
+        BYTE* const checkBuf = (BYTE*)malloc(checkBufSize);
+        int enableFallback;
+        EMF_testCase externalMatchState;
+
+        CHECK(dstBuf == NULL || checkBuf == NULL, "allocation failed");
+
+        ZSTD_CCtx_reset(zc, ZSTD_reset_session_and_parameters);
+
+        /* Reference external matchfinder outside the test loop to
+         * check that the reference is preserved across compressions */
+        ZSTD_registerExternalMatchFinder(
+            zc,
+            &externalMatchState,
+            zstreamExternalMatchFinder
+        );
+
+        for (enableFallback = 0; enableFallback < 1; enableFallback++) {
+            size_t testCaseId;
+
+            EMF_testCase const EMF_successCases[] = {
+                EMF_ONE_BIG_SEQ,
+                EMF_LOTS_OF_SEQS,
+            };
+            size_t const EMF_numSuccessCases = 2;
+
+            EMF_testCase const EMF_failureCases[] = {
+                EMF_ZERO_SEQS,
+                EMF_BIG_ERROR,
+                EMF_SMALL_ERROR,
+            };
+            size_t const EMF_numFailureCases = 3;
+
+            /* Test external matchfinder success scenarios */
+            for (testCaseId = 0; testCaseId < EMF_numSuccessCases; testCaseId++) {
+                size_t res;
+                externalMatchState = EMF_successCases[testCaseId];
+                ZSTD_CCtx_reset(zc, ZSTD_reset_session_only);
+                CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_enableMatchFinderFallback, enableFallback));
+                res = ZSTD_compress2(zc, dstBuf, dstBufSize, CNBuffer, CNBufferSize);
+                CHECK(ZSTD_isError(res), "EMF: Compression error: %s", ZSTD_getErrorName(res));
+                CHECK_Z(ZSTD_decompress(checkBuf, checkBufSize, dstBuf, res));
+                CHECK(memcmp(CNBuffer, checkBuf, CNBufferSize) != 0, "EMF: Corruption!");
+            }
+
+            /* Test external matchfinder failure scenarios */
+            for (testCaseId = 0; testCaseId < EMF_numFailureCases; testCaseId++) {
+                size_t res;
+                externalMatchState = EMF_failureCases[testCaseId];
+                ZSTD_CCtx_reset(zc, ZSTD_reset_session_only);
+                CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_enableMatchFinderFallback, enableFallback));
+                res = ZSTD_compress2(zc, dstBuf, dstBufSize, CNBuffer, CNBufferSize);
+                if (enableFallback) {
+                    CHECK_Z(ZSTD_decompress(checkBuf, checkBufSize, dstBuf, res));
+                    CHECK(memcmp(CNBuffer, checkBuf, CNBufferSize) != 0, "EMF: Corruption!");
+                } else {
+                    CHECK(!ZSTD_isError(res), "EMF: Should have raised an error!");
+                    CHECK(
+                        ZSTD_getErrorCode(res) != ZSTD_error_externalMatchFinder_failed,
+                        "EMF: Wrong error code: %s", ZSTD_getErrorName(res)
+                    );
+                }
+            }
+
+            /* Test compression with external matchfinder + empty src buffer */
+            {
+                size_t res;
+                externalMatchState = EMF_ZERO_SEQS;
+                ZSTD_CCtx_reset(zc, ZSTD_reset_session_only);
+                CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_enableMatchFinderFallback, enableFallback));
+                res = ZSTD_compress2(zc, dstBuf, dstBufSize, CNBuffer, 0);
+                CHECK(ZSTD_isError(res), "EMF: Compression error: %s", ZSTD_getErrorName(res));
+                CHECK(ZSTD_decompress(checkBuf, checkBufSize, dstBuf, res) != 0, "EMF: Empty src round trip failed!");
+            }
+        }
+
+        /* Test that reset clears the external matchfinder */
+        ZSTD_CCtx_reset(zc, ZSTD_reset_session_and_parameters);
+        externalMatchState = EMF_BIG_ERROR; /* ensure zstd will fail if the matchfinder wasn't cleared */
+        CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_enableMatchFinderFallback, 0));
+        CHECK_Z(ZSTD_compress2(zc, dstBuf, dstBufSize, CNBuffer, CNBufferSize));
+
+        free(dstBuf);
+        free(checkBuf);
     }
     DISPLAYLEVEL(3, "OK \n");
 

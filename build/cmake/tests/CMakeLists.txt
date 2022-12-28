@@ -81,7 +81,7 @@ add_test(NAME fuzzer COMMAND fuzzer ${ZSTD_FUZZER_FLAGS})
 #
 # zstreamtest
 #
-add_executable(zstreamtest ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/timefn.c ${TESTS_DIR}/seqgen.c ${TESTS_DIR}/zstreamtest.c)
+add_executable(zstreamtest ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/timefn.c ${TESTS_DIR}/seqgen.c ${TESTS_DIR}/zstreamtest.c ${TESTS_DIR}/external_matchfinder.c)
 if (NOT MSVC)
     target_compile_options(zstreamtest PRIVATE "-Wno-deprecated-declarations")
 endif()

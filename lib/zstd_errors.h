@@ -75,6 +75,7 @@ typedef enum {
   ZSTD_error_dictionary_wrong          = 32,
   ZSTD_error_dictionaryCreation_failed = 34,
   ZSTD_error_parameter_unsupported   = 40,
+  ZSTD_error_parameter_combination_unsupported = 41,
   ZSTD_error_parameter_outOfBound    = 42,
   ZSTD_error_tableLog_tooLarge       = 44,
   ZSTD_error_maxSymbolValue_tooLarge = 46,
@@ -92,6 +93,7 @@ typedef enum {
   ZSTD_error_seekableIO          = 102,
   ZSTD_error_dstBuffer_wrong     = 104,
   ZSTD_error_srcBuffer_wrong     = 105,
+  ZSTD_error_externalMatchFinder_failed = 106,
   ZSTD_error_maxCode = 120  /* never EVER use this value directly, it can change in future versions! Use ZSTD_isError() instead */
 } ZSTD_ErrorCode;
 

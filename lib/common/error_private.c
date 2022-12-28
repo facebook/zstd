@@ -31,6 +31,7 @@ const char* ERR_getErrorString(ERR_enum code)
     case PREFIX(checksum_wrong): return "Restored data doesn't match checksum";
     case PREFIX(literals_headerWrong): return "Header of Literals' block doesn't respect format specification";
     case PREFIX(parameter_unsupported): return "Unsupported parameter";
+    case PREFIX(parameter_combination_unsupported): return "Unsupported combination of parameters";
     case PREFIX(parameter_outOfBound): return "Parameter is out of bound";
     case PREFIX(init_missing): return "Context should be init first";
     case PREFIX(memory_allocation): return "Allocation error : not enough memory";
@@ -51,6 +52,7 @@ const char* ERR_getErrorString(ERR_enum code)
     case PREFIX(seekableIO): return "An I/O error occurred when reading/seeking";
     case PREFIX(dstBuffer_wrong): return "Destination buffer is wrong";
     case PREFIX(srcBuffer_wrong): return "Source buffer is wrong";
+    case PREFIX(externalMatchFinder_failed): return "External matchfinder returned an error code";
     case PREFIX(maxCode):
     default: return notErrorCode;
     }

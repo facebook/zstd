@@ -61,6 +61,7 @@ int main(int argc, char *argv[]) {
     }
 
     char* const src = malloc(srcSize + 1);
+    assert(src);
     {
         size_t const ret = fread(src, srcSize, 1, f);
         assert(ret == 1);
@@ -70,6 +71,7 @@ int main(int argc, char *argv[]) {
 
     size_t const dstSize = ZSTD_compressBound(srcSize);
     char* const dst = malloc(dstSize);
+    assert(dst);
 
     size_t const cSize = ZSTD_compress2(zc, dst, dstSize, src, srcSize);
     CHECK(cSize);

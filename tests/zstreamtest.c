@@ -1837,9 +1837,9 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
     DISPLAYLEVEL(3, "test%3i : External matchfinder API: ", testNb++);
     {
         size_t const dstBufSize = ZSTD_compressBound(CNBufferSize);
-        BYTE* dstBuf = (BYTE*)malloc(ZSTD_compressBound(dstBufSize));
+        BYTE* const dstBuf = (BYTE*)malloc(ZSTD_compressBound(dstBufSize));
         size_t const checkBufSize = CNBufferSize;
-        BYTE* checkBuf = (BYTE*)malloc(checkBufSize);
+        BYTE* const checkBuf = (BYTE*)malloc(checkBufSize);
         int enableFallback;
         EMF_testCase externalMatchState;
 

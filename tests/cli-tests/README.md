@@ -45,6 +45,16 @@ Examples:
 ./run.py --preserve --verbose basic/help.sh
 ```
 
+### Updating exact output
+
+If a test is failing because a `.stderr.exact` or `.stdout.exact` no longer matches, you can re-run the tests with `--set-exact-output` and the correct output will be written.
+
+Example:
+```
+./run.py --set-exact-output
+./run.py basic/help.sh --set-exact-output
+```
+
 ## Writing a test
 
 Test cases are arbitrary executables, and can be written in any language, but are generally shell scripts.

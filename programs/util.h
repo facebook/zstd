@@ -189,6 +189,11 @@ void UTIL_fakeStdinIsConsole(void);
 void UTIL_fakeStdoutIsConsole(void);
 void UTIL_fakeStderrIsConsole(void);
 
+/**
+ * Emit traces for functions that read, or modify file metadata.
+ */
+void UTIL_traceFileStat(void);
+
 #define UTIL_FILESIZE_UNKNOWN  ((U64)(-1))
 U64 UTIL_getFileSize(const char* infilename);
 U64 UTIL_getTotalFileSize(const char* const * fileNamesTable, unsigned nbFiles);

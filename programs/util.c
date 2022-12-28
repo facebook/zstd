@@ -66,6 +66,27 @@ extern "C" {
 #define UTIL_DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
 #define UTIL_DISPLAYLEVEL(l, ...) { if (g_utilDisplayLevel>=l) { UTIL_DISPLAY(__VA_ARGS__); } }
 
+static int g_traceDepth = 0;
+int g_traceFileStat = 0;
+
+#define UTIL_TRACE_CALL(...)                                         \
+    {                                                                \
+        if (g_traceFileStat) {                                       \
+            UTIL_DISPLAY("Trace:FileStat: %*s> ", g_traceDepth, ""); \
+            UTIL_DISPLAY(__VA_ARGS__);                               \
+            UTIL_DISPLAY("\n");                                      \
+            ++g_traceDepth;                                          \
+        }                                                            \
+    }
+
+#define UTIL_TRACE_RET(ret)                                                     \
+    {                                                                           \
+        if (g_traceFileStat) {                                                  \
+            --g_traceDepth;                                                     \
+            UTIL_DISPLAY("Trace:FileStat: %*s< %d\n", g_traceDepth, "", (ret)); \
+        }                                                                      \
+    }
+
 /* A modified version of realloc().
  * If UTIL_realloc() fails the original block is freed.
  */
@@ -121,21 +142,34 @@ int UTIL_requireUserConfirmation(const char* prompt, const char* abortMsg,
 *  Functions
 ***************************************/
 
+void UTIL_traceFileStat(void)
+{
+    g_traceFileStat = 1;
+}
+
 int UTIL_stat(const char* filename, stat_t* statbuf)
 {
+    int ret;
+    UTIL_TRACE_CALL("UTIL_stat(%s)", filename);
 #if defined(_MSC_VER)
-    return !_stat64(filename, statbuf);
+    ret = !_stat64(filename, statbuf);
 #elif defined(__MINGW32__) && defined (__MSVCRT__)
-    return !_stati64(filename, statbuf);
+    ret = !_stati64(filename, statbuf);
 #else
-    return !stat(filename, statbuf);
+    ret = !stat(filename, statbuf);
 #endif
+    UTIL_TRACE_RET(ret);
+    return ret;
 }
 
 int UTIL_isRegularFile(const char* infilename)
 {
     stat_t statbuf;
-    return UTIL_stat(infilename, &statbuf) && UTIL_isRegularFileStat(&statbuf);
+    int ret;
+    UTIL_TRACE_CALL("UTIL_isRegularFile(%s)", infilename);
+    ret = UTIL_stat(infilename, &statbuf) && UTIL_isRegularFileStat(&statbuf);
+    UTIL_TRACE_RET(ret);
+    return ret;
 }
 
 int UTIL_isRegularFileStat(const stat_t* statbuf)
@@ -151,44 +185,66 @@ int UTIL_isRegularFileStat(const stat_t* statbuf)
 int UTIL_chmod(char const* filename, const stat_t* statbuf, mode_t permissions)
 {
     stat_t localStatBuf;
+    UTIL_TRACE_CALL("UTIL_chmod(%s, %u)", filename, (unsigned)permissions);
     if (statbuf == NULL) {
-        if (!UTIL_stat(filename, &localStatBuf)) return 0;
+        if (!UTIL_stat(filename, &localStatBuf)) {
+            UTIL_TRACE_RET(0);
+            return 0;
+        }
         statbuf = &localStatBuf;
     }
-    if (!UTIL_isRegularFileStat(statbuf)) return 0; /* pretend success, but don't change anything */
-    return chmod(filename, permissions);
+    if (!UTIL_isRegularFileStat(statbuf)) {
+        UTIL_TRACE_RET(0);
+        return 0; /* pretend success, but don't change anything */
+    }
+    UTIL_TRACE_CALL("chmod");
+    {
+        int const ret = chmod(filename, permissions);
+        UTIL_TRACE_RET(ret);
+        UTIL_TRACE_RET(ret);
+        return ret;
+    }
 }
 
 /* set access and modification times */
 int UTIL_utime(const char* filename, const stat_t *statbuf)
 {
     int ret;
+    UTIL_TRACE_CALL("UTIL_utime(%s)", filename);
     /* We check that st_mtime is a macro here in order to give us confidence
      * that struct stat has a struct timespec st_mtim member. We need this
      * check because there are some platforms that claim to be POSIX 2008
      * compliant but which do not have st_mtim... */
 #if (PLATFORM_POSIX_VERSION >= 200809L) && defined(st_mtime)
-    /* (atime, mtime) */
-    struct timespec timebuf[2] = { {0, UTIME_NOW} };
-    timebuf[1] = statbuf->st_mtim;
-    ret = utimensat(AT_FDCWD, filename, timebuf, 0);
+    {
+        /* (atime, mtime) */
+        struct timespec timebuf[2] = { {0, UTIME_NOW} };
+        timebuf[1] = statbuf->st_mtim;
+        ret = utimensat(AT_FDCWD, filename, timebuf, 0);
+    }
 #else
-    struct utimbuf timebuf;
-    timebuf.actime = time(NULL);
-    timebuf.modtime = statbuf->st_mtime;
-    ret = utime(filename, &timebuf);
+    {
+        struct utimbuf timebuf;
+        timebuf.actime = time(NULL);
+        timebuf.modtime = statbuf->st_mtime;
+        ret = utime(filename, &timebuf);
+    }
 #endif
     errno = 0;
+    UTIL_TRACE_RET(ret);
     return ret;
 }
 
 int UTIL_setFileStat(const char *filename, const stat_t *statbuf)
 {
     int res = 0;
-
     stat_t curStatBuf;
-    if (!UTIL_stat(filename, &curStatBuf) || !UTIL_isRegularFileStat(&curStatBuf))
+    UTIL_TRACE_CALL("UTIL_setFileStat(%s)", filename);
+
+    if (!UTIL_stat(filename, &curStatBuf) || !UTIL_isRegularFileStat(&curStatBuf)) {
+        UTIL_TRACE_RET(-1);
         return -1;
+    }
 
     /* set access and modification times */
     res += UTIL_utime(filename, statbuf);
@@ -200,13 +256,18 @@ int UTIL_setFileStat(const char *filename, const stat_t *statbuf)
     res += UTIL_chmod(filename, &curStatBuf, statbuf->st_mode & 07777);  /* Copy file permissions */
 
     errno = 0;
+    UTIL_TRACE_RET(-res);
     return -res; /* number of errors is returned */
 }
 
 int UTIL_isDirectory(const char* infilename)
 {
     stat_t statbuf;
-    return UTIL_stat(infilename, &statbuf) && UTIL_isDirectoryStat(&statbuf);
+    int ret;
+    UTIL_TRACE_CALL("UTIL_isDirectory(%s)", infilename);
+    ret = UTIL_stat(infilename, &statbuf) && UTIL_isDirectoryStat(&statbuf);
+    UTIL_TRACE_RET(ret);
+    return ret;
 }
 
 int UTIL_isDirectoryStat(const stat_t* statbuf)
@@ -224,33 +285,44 @@ int UTIL_compareStr(const void *p1, const void *p2) {
 
 int UTIL_isSameFile(const char* fName1, const char* fName2)
 {
+    int ret;
     assert(fName1 != NULL); assert(fName2 != NULL);
+    UTIL_TRACE_CALL("UTIL_isSameFile(%s, %s)", fName1, fName2);
 #if defined(_MSC_VER) || defined(_WIN32)
     /* note : Visual does not support file identification by inode.
      *        inode does not work on Windows, even with a posix layer, like msys2.
      *        The following work-around is limited to detecting exact name repetition only,
      *        aka `filename` is considered different from `subdir/../filename` */
-    return !strcmp(fName1, fName2);
+    ret = !strcmp(fName1, fName2);
 #else
     {   stat_t file1Stat;
         stat_t file2Stat;
-        return UTIL_stat(fName1, &file1Stat)
+        ret =  UTIL_stat(fName1, &file1Stat)
             && UTIL_stat(fName2, &file2Stat)
             && (file1Stat.st_dev == file2Stat.st_dev)
             && (file1Stat.st_ino == file2Stat.st_ino);
     }
 #endif
+    UTIL_TRACE_RET(ret);
+    return ret;
 }
 
 /* UTIL_isFIFO : distinguish named pipes */
 int UTIL_isFIFO(const char* infilename)
 {
+    UTIL_TRACE_CALL("UTIL_isFIFO(%s)", infilename);
 /* macro guards, as defined in : https://linux.die.net/man/2/lstat */
 #if PLATFORM_POSIX_VERSION >= 200112L
-    stat_t statbuf;
-    if (UTIL_stat(infilename, &statbuf) && UTIL_isFIFOStat(&statbuf)) return 1;
+    {
+        stat_t statbuf;
+        if (UTIL_stat(infilename, &statbuf) && UTIL_isFIFOStat(&statbuf)) {
+            UTIL_TRACE_RET(1);
+            return 1;
+        }
+    }
 #endif
     (void)infilename;
+    UTIL_TRACE_RET(0);
     return 0;
 }
 
@@ -278,13 +350,20 @@ int UTIL_isBlockDevStat(const stat_t* statbuf)
 
 int UTIL_isLink(const char* infilename)
 {
+    UTIL_TRACE_CALL("UTIL_isLink(%s)", infilename);
 /* macro guards, as defined in : https://linux.die.net/man/2/lstat */
 #if PLATFORM_POSIX_VERSION >= 200112L
-    stat_t statbuf;
-    int const r = lstat(infilename, &statbuf);
-    if (!r && S_ISLNK(statbuf.st_mode)) return 1;
+    {
+        stat_t statbuf;
+        int const r = lstat(infilename, &statbuf);
+        if (!r && S_ISLNK(statbuf.st_mode)) {
+            UTIL_TRACE_RET(1);
+            return 1;
+        }
+    }
 #endif
     (void)infilename;
+    UTIL_TRACE_RET(0);
     return 0;
 }
 
@@ -294,13 +373,18 @@ static int g_fakeStdoutIsConsole = 0;
 
 int UTIL_isConsole(FILE* file)
 {
+    int ret;
+    UTIL_TRACE_CALL("UTIL_isConsole(%d)", fileno(file));
     if (file == stdin && g_fakeStdinIsConsole)
-        return 1;
-    if (file == stderr && g_fakeStderrIsConsole)
-        return 1;
-    if (file == stdout && g_fakeStdoutIsConsole)
-        return 1;
-    return IS_CONSOLE(file);
+        ret = 1;
+    else if (file == stderr && g_fakeStderrIsConsole)
+        ret = 1;
+    else if (file == stdout && g_fakeStdoutIsConsole)
+        ret = 1;
+    else
+        ret = IS_CONSOLE(file);
+    UTIL_TRACE_RET(ret);
+    return ret;
 }
 
 void UTIL_fakeStdinIsConsole(void)
@@ -319,8 +403,16 @@ void UTIL_fakeStderrIsConsole(void)
 U64 UTIL_getFileSize(const char* infilename)
 {
     stat_t statbuf;
-    if (!UTIL_stat(infilename, &statbuf)) return UTIL_FILESIZE_UNKNOWN;
-    return UTIL_getFileSizeStat(&statbuf);
+    UTIL_TRACE_CALL("UTIL_getFileSize(%s)", infilename);
+    if (!UTIL_stat(infilename, &statbuf)) {
+        UTIL_TRACE_RET(-1);
+        return UTIL_FILESIZE_UNKNOWN;
+    }
+    {
+        U64 const size = UTIL_getFileSizeStat(&statbuf);
+        UTIL_TRACE_RET((int)size);
+        return size;
+    }
 }
 
 U64 UTIL_getFileSizeStat(const stat_t* statbuf)
@@ -397,11 +489,16 @@ U64 UTIL_getTotalFileSize(const char* const * fileNamesTable, unsigned nbFiles)
 {
     U64 total = 0;
     unsigned n;
+    UTIL_TRACE_CALL("UTIL_getTotalFileSize(%u)", nbFiles);
     for (n=0; n<nbFiles; n++) {
         U64 const size = UTIL_getFileSize(fileNamesTable[n]);
-        if (size == UTIL_FILESIZE_UNKNOWN) return UTIL_FILESIZE_UNKNOWN;
+        if (size == UTIL_FILESIZE_UNKNOWN) {
+            UTIL_TRACE_RET(-1);
+            return UTIL_FILESIZE_UNKNOWN;
+        }
         total += size;
     }
+    UTIL_TRACE_RET((int)total);
     return total;
 }
 

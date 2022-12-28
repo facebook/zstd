@@ -1004,6 +1004,7 @@ int main(int argCount, const char* argv[])
                 if (!strcmp(argument, "--fake-stdin-is-console")) { UTIL_fakeStdinIsConsole(); continue; }
                 if (!strcmp(argument, "--fake-stdout-is-console")) { UTIL_fakeStdoutIsConsole(); continue; }
                 if (!strcmp(argument, "--fake-stderr-is-console")) { UTIL_fakeStderrIsConsole(); continue; }
+                if (!strcmp(argument, "--trace-file-stat")) { UTIL_traceFileStat(); continue; }
 
                 /* long commands with arguments */
 #ifndef ZSTD_NODICT

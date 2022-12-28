@@ -664,7 +664,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value)
         if (ZSTD_isUpdateAuthorized(param)) {
             cctx->cParamsChanged = 1;
         } else {
-            RETURN_ERROR(stage_wrong, "can only set params in ctx init stage");
+            RETURN_ERROR(stage_wrong, "can only set params in cctx init stage");
     }   }
 
     switch(param)
@@ -1103,8 +1103,15 @@ size_t ZSTD_CCtx_setParametersUsingCCtxParams(
 
 size_t ZSTD_CCtx_setCParams(ZSTD_CCtx* cctx, ZSTD_compressionParameters cparams)
 {
-    FORWARD_IF_ERROR(ZSTD_checkCParams(cparams), "");
+    DEBUGLOG(4, "ZSTD_CCtx_setCParams");
     assert(cctx != NULL);
+    if (cctx->streamStage != zcss_init) {
+        /* All parameters in @cparams are allowed to be updated during MT compression.
+         * This must be signaled, so that MT compression picks up the changes */
+        cctx->cParamsChanged = 1;
+    }
+    /* only update if parameters are valid */
+    FORWARD_IF_ERROR(ZSTD_checkCParams(cparams), "");
     cctx->requestedParams.cParams = cparams;
     return 0;
 }

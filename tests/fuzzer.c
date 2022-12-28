@@ -463,9 +463,9 @@ _output_error:
 *   Unit tests
 =============================================*/
 
-static void test_compressBound(int tnb)
+static void test_compressBound(unsigned tnb)
 {
-    DISPLAYLEVEL(3, "test%3i : compressBound : ", tnb);
+    DISPLAYLEVEL(3, "test%3u : compressBound : ", tnb);
 
     /* check ZSTD_compressBound == ZSTD_COMPRESSBOUND
      * for a large range of known valid values */
@@ -485,9 +485,9 @@ static void test_compressBound(int tnb)
     DISPLAYLEVEL(3, "OK \n");
 }
 
-static void test_decompressBound(int tnb)
+static void test_decompressBound(unsigned tnb)
 {
-    DISPLAYLEVEL(3, "test%3i : decompressBound : ", tnb);
+    DISPLAYLEVEL(3, "test%3u : decompressBound : ", tnb);
 
     // Simple compression, with size : should provide size;
     {   const char example[] = "abcd";
@@ -535,6 +535,26 @@ static void test_decompressBound(int tnb)
         free(outBuffer);
     }
 
+    DISPLAYLEVEL(3, "OK \n");
+}
+
+static void test_setCParams(unsigned tnb)
+{
+    ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+    ZSTD_compressionParameters cparams;
+    assert(cctx);
+
+    DISPLAYLEVEL(3, "test%3u : ZSTD_CCtx_setCParams : ", tnb);
+
+    /* valid cparams */
+    cparams = ZSTD_getCParams(1, 0, 0);
+    CHECK_Z(ZSTD_CCtx_setCParams(cctx, cparams));
+
+    /* invalid cparams (must fail) */
+    cparams.windowLog = 99;
+    CHECK(ZSTD_isError(ZSTD_CCtx_setCParams(cctx, cparams)));
+
+    free(cctx);
     DISPLAYLEVEL(3, "OK \n");
 }
 
@@ -587,6 +607,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
     test_compressBound(testNb++);
 
     test_decompressBound(testNb++);
+
+    test_setCParams(testNb++);
 
     DISPLAYLEVEL(3, "test%3u : ZSTD_adjustCParams : ", testNb++);
     {

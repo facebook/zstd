@@ -357,10 +357,13 @@ size_t ZSTD_CCtxParams_init(ZSTD_CCtx_params* cctxParams, int compressionLevel) 
 #define ZSTD_NO_CLEVEL 0
 
 /**
- * Initializes the cctxParams from params and compressionLevel.
+ * Initializes `cctxParams` from `params` and `compressionLevel`.
  * @param compressionLevel If params are derived from a compression level then that compression level, otherwise ZSTD_NO_CLEVEL.
  */
-static void ZSTD_CCtxParams_init_internal(ZSTD_CCtx_params* cctxParams, ZSTD_parameters const* params, int compressionLevel)
+static void
+ZSTD_CCtxParams_init_internal(ZSTD_CCtx_params* cctxParams,
+                        const ZSTD_parameters* params,
+                              int compressionLevel)
 {
     assert(!ZSTD_checkCParams(params->cParams));
     ZSTD_memset(cctxParams, 0, sizeof(*cctxParams));
@@ -679,7 +682,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value)
         if (ZSTD_isUpdateAuthorized(param)) {
             cctx->cParamsChanged = 1;
         } else {
-            RETURN_ERROR(stage_wrong, "can only set params in ctx init stage");
+            RETURN_ERROR(stage_wrong, "can only set params in cctx init stage");
     }   }
 
     switch(param)
@@ -815,14 +818,14 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
 
     case ZSTD_c_forceAttachDict : {
         const ZSTD_dictAttachPref_e pref = (ZSTD_dictAttachPref_e)value;
-        BOUNDCHECK(ZSTD_c_forceAttachDict, pref);
+        BOUNDCHECK(ZSTD_c_forceAttachDict, (int)pref);
         CCtxParams->attachDictPref = pref;
         return CCtxParams->attachDictPref;
     }
 
     case ZSTD_c_literalCompressionMode : {
         const ZSTD_paramSwitch_e lcm = (ZSTD_paramSwitch_e)value;
-        BOUNDCHECK(ZSTD_c_literalCompressionMode, lcm);
+        BOUNDCHECK(ZSTD_c_literalCompressionMode, (int)lcm);
         CCtxParams->literalCompressionMode = lcm;
         return CCtxParams->literalCompressionMode;
     }
@@ -1122,6 +1125,21 @@ size_t ZSTD_CCtx_setParametersUsingCCtxParams(
                     "be inherited from the cdict).");
 
     cctx->requestedParams = *params;
+    return 0;
+}
+
+size_t ZSTD_CCtx_setCParams(ZSTD_CCtx* cctx, ZSTD_compressionParameters cparams)
+{
+    DEBUGLOG(4, "ZSTD_CCtx_setCParams");
+    assert(cctx != NULL);
+    if (cctx->streamStage != zcss_init) {
+        /* All parameters in @cparams are allowed to be updated during MT compression.
+         * This must be signaled, so that MT compression picks up the changes */
+        cctx->cParamsChanged = 1;
+    }
+    /* only update if parameters are valid */
+    FORWARD_IF_ERROR(ZSTD_checkCParams(cparams), "");
+    cctx->requestedParams.cParams = cparams;
     return 0;
 }
 

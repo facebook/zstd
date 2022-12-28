@@ -1742,6 +1742,11 @@ ZSTDLIB_STATIC_API size_t ZSTD_checkCParams(ZSTD_compressionParameters params);
  *  This function never fails (wide contract) */
 ZSTDLIB_STATIC_API ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, unsigned long long srcSize, size_t dictSize);
 
+/*! ZSTD_CCtx_setCParams() :
+ *  Set all parameters provided within @cparams into the working @cctx
+ * @return 0 on success, or an error code (can be checked with ZSTD_isError()) */
+ZSTDLIB_STATIC_API size_t ZSTD_CCtx_setCParams(ZSTD_CCtx* cctx, ZSTD_compressionParameters cparams);
+
 /*! ZSTD_compress_advanced() :
  *  Note : this function is now DEPRECATED.
  *         It can be replaced by ZSTD_compress2(), in combination with ZSTD_CCtx_setParameter() and other parameter setters.
@@ -1749,10 +1754,10 @@ ZSTDLIB_STATIC_API ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressio
 ZSTD_DEPRECATED("use ZSTD_compress2")
 ZSTDLIB_STATIC_API
 size_t ZSTD_compress_advanced(ZSTD_CCtx* cctx,
-                                          void* dst, size_t dstCapacity,
-                                    const void* src, size_t srcSize,
-                                    const void* dict,size_t dictSize,
-                                          ZSTD_parameters params);
+                              void* dst, size_t dstCapacity,
+                        const void* src, size_t srcSize,
+                        const void* dict,size_t dictSize,
+                              ZSTD_parameters params);
 
 /*! ZSTD_compress_usingCDict_advanced() :
  *  Note : this function is now DEPRECATED.

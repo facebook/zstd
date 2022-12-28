@@ -1743,7 +1743,9 @@ ZSTDLIB_STATIC_API size_t ZSTD_checkCParams(ZSTD_compressionParameters params);
 ZSTDLIB_STATIC_API ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, unsigned long long srcSize, size_t dictSize);
 
 /*! ZSTD_CCtx_setCParams() :
- *  Set all parameters provided within @cparams into the working @cctx
+ *  Set all parameters provided within @cparams into the working @cctx.
+ *  Note : if modifying parameters during compression (MT mode only),
+ *         note that changes to the .windowLog parameter will be ignored.
  * @return 0 on success, or an error code (can be checked with ZSTD_isError()) */
 ZSTDLIB_STATIC_API size_t ZSTD_CCtx_setCParams(ZSTD_CCtx* cctx, ZSTD_compressionParameters cparams);
 

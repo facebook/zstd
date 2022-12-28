@@ -2694,7 +2694,7 @@ ZSTDLIB_STATIC_API size_t ZSTD_insertBlock    (ZSTD_DCtx* dctx, const void* bloc
 
 /* ********************** EXTERNAL MATCHFINDER API **********************
  *
- * OVERVIEW
+ * *** OVERVIEW ***
  * This API allows users to replace the zstd internal block-level matchfinder
  * with an external matchfinder function. Potential applications of the API
  * include hardware-accelerated matchfinders and matchfinders specialized to
@@ -2703,7 +2703,7 @@ ZSTDLIB_STATIC_API size_t ZSTD_insertBlock    (ZSTD_DCtx* dctx, const void* bloc
  * See contrib/externalMatchfinder for an example program employing the
  * external matchfinder API.
  *
- * USAGE
+ * *** USAGE ***
  * The user is responsible for implementing a function of type
  * ZSTD_externalMatchFinder_F. For each block, zstd will pass the following
  * arguments to the user-provided function:
@@ -2772,10 +2772,32 @@ ZSTDLIB_STATIC_API size_t ZSTD_insertBlock    (ZSTD_DCtx* dctx, const void* bloc
  * ZSTD_registerExternalMatchFinder. The user is responsible for destroying the
  * externalMatchState.
  *
- * LIMITATIONS
- * This API is currently incompatible with long-distance matching. As mentioned
- * above, history buffers (stream history, dictionaries) are currently not
- * supported. We plan to remove these limitations in the future.
+ * *** LIMITATIONS ***
+ * External matchfinders are compatible with all zstd compression APIs. There are
+ * only two limitations.
+ *
+ * First, the ZSTD_c_enableLongDistanceMatching cParam is not supported.
+ * COMPRESSION WILL FAIL if it is enabled and the user tries to compress with an
+ * external matchfinder.
+ *   - Note that ZSTD_c_enableLongDistanceMatching is auto-enabled by default in
+ *     some cases (see its documentation for details). Users must explicitly set
+ *     ZSTD_c_enableLongDistanceMatching to ZSTD_ps_disable in such cases if an
+ *     external matchfinder is registered.
+ *   - As of this writing, ZSTD_c_enableLongDistanceMatching is disabled by default
+ *     whenever ZSTD_c_windowLog < 128MB, but that's subject to change. Users should
+ *     check the docs on ZSTD_c_enableLongDistanceMatching whenever the external
+ *     matchfinder API is used in conjunction with advanced settings (like windowLog).
+ *
+ * Second, history buffers are not supported. Concretely, zstd will always pass
+ * dictSize == 0 to the external matchfinder (for now). This has two implications:
+ *   - Dictionaries are not supported. Compression will *not* fail if the user
+ *     references a dictionary, but the dictionary won't have any effect.
+ *   - Stream history is not supported. All compression APIs, including streaming
+ *     APIs, work with the external matchfinder, but the external matchfinder won't
+ *     receive any history from the previous block. Each block is an independent chunk.
+ *
+ * Long-term, we plan to overcome both limitations. There is no technical blocker to
+ * overcoming them. It is purely a question of engineering effort.
  */
 
 #define ZSTD_EXTERNAL_MATCHFINDER_ERROR ((size_t)(-1))

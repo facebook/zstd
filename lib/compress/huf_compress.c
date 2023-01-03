@@ -1264,7 +1264,7 @@ unsigned HUF_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxS
         size_t maxBits, hSize, newSize;
         const unsigned symbolCardinality = HUF_cardinality(count, maxSymbolValue);
         const unsigned minTableLog = HUF_minTableLog(symbolCardinality);
-        size_t optSize = ((size_t) ~0);
+        size_t optSize = ((size_t) ~0) - 1;
         unsigned optLogGuess;
 
         if (wkspSize < sizeof(HUF_buildCTable_wksp_tables)) return optLog; /** Assert workspace is large enough **/
@@ -1275,17 +1275,22 @@ unsigned HUF_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxS
 
             if (ERR_isError(maxBits)) continue;
 
+            if (maxBits < optLogGuess && optLogGuess > minTableLog) break;
+
             hSize = HUF_writeCTable_wksp(dst, dstSize, table, maxSymbolValue, (U32)maxBits, workSpace, wkspSize);
 
             if (ERR_isError(hSize)) continue;
 
             newSize = HUF_estimateCompressedSize(table, count, maxSymbolValue) + hSize;
 
-            if (newSize > optSize) {
+            if (newSize > optSize + 1) {
                 break;
             }
-            optSize = newSize;
-            optLog = optLogGuess;
+
+            if (newSize < optSize) {
+                optSize = newSize;
+                optLog = optLogGuess;
+            }
         }
     }
     assert(optLog <= HUF_TABLELOG_MAX);

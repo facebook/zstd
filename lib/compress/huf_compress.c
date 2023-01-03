@@ -1261,28 +1261,35 @@ unsigned HUF_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxS
     if (depthMode == HUF_depth_optimal) { /** Test valid depths and return optimal **/
         BYTE* dst = (BYTE*)workSpace + sizeof(HUF_WriteCTableWksp);
         size_t dstSize = wkspSize - sizeof(HUF_WriteCTableWksp);
-        size_t optSize = ((size_t) ~0);
-        unsigned huffLog;
         size_t maxBits, hSize, newSize;
         const unsigned symbolCardinality = HUF_cardinality(count, maxSymbolValue);
+        const unsigned minTableLog = HUF_minTableLog(symbolCardinality);
+        size_t optSize = ((size_t) ~0) - 1;
+        unsigned optLogGuess;
 
-        if (wkspSize < sizeof(HUF_buildCTable_wksp_tables)) return optLog;
+        if (wkspSize < sizeof(HUF_buildCTable_wksp_tables)) return optLog; /** Assert workspace is large enough **/
 
-        for (huffLog = HUF_minTableLog(symbolCardinality); huffLog <= maxTableLog; huffLog++) {
-            maxBits = HUF_buildCTable_wksp(table, count,
-                                            maxSymbolValue, huffLog,
-                                            workSpace, wkspSize);
+        /* Search until size increases */
+        for (optLogGuess = minTableLog; optLogGuess <= maxTableLog; optLogGuess++) {
+            maxBits = HUF_buildCTable_wksp(table, count, maxSymbolValue, optLogGuess, workSpace, wkspSize);
+
             if (ERR_isError(maxBits)) continue;
 
-            hSize = HUF_writeCTable_wksp(dst, dstSize, table, maxSymbolValue, (U32)maxBits,
-                                              workSpace, wkspSize);
+            if (maxBits < optLogGuess && optLogGuess > minTableLog) break;
+
+            hSize = HUF_writeCTable_wksp(dst, dstSize, table, maxSymbolValue, (U32)maxBits, workSpace, wkspSize);
+
             if (ERR_isError(hSize)) continue;
 
             newSize = HUF_estimateCompressedSize(table, count, maxSymbolValue) + hSize;
 
+            if (newSize > optSize + 1) {
+                break;
+            }
+
             if (newSize < optSize) {
                 optSize = newSize;
-                optLog = huffLog;
+                optLog = optLogGuess;
             }
         }
     }

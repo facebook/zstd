@@ -675,7 +675,7 @@ static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
     case ZSTD_c_deterministicRefPrefix:
     case ZSTD_c_prefetchCDictTables:
     case ZSTD_c_enableMatchFinderFallback:
-    case ZSTD_c_maxBlockSize:
+    case ZSTD_c_maxBlockSize
     default:
         return 0;
     }
@@ -975,7 +975,7 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
         BOUNDCHECK(ZSTD_c_maxBlockSize, value);
         CCtxParams->maxBlockSize = value;
         return CCtxParams->prefetchCDictTables;
-
+    
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
     }
 }

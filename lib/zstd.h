@@ -502,7 +502,6 @@ typedef enum {
      ZSTD_c_experimentalParam16=1013,
      ZSTD_c_experimentalParam17=1014,
      ZSTD_c_experimentalParam18=1015,
-
 } ZSTD_cParameter;
 
 typedef struct {

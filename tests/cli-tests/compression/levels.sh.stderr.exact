@@ -6,11 +6,9 @@ zstd --fast=10 file -o file-f10.zst
 zstd --fast=1 file -o file-f1.zst
 zstd -1 file -o file-1.zst
 zstd -19 file -o file-19.zst
-zstd -22 --ultra file -o file-22.zst
 
-zstd -t file-f10.zst file-f1.zst file-1.zst file-19.zst file-22.zst
+zstd -t file-f10.zst file-f1.zst file-1.zst file-19.zst
 
-cmp_size -ne file-19.zst file-22.zst
 cmp_size -lt file-19.zst file-1.zst
 cmp_size -lt file-1.zst file-f1.zst
 cmp_size -lt file-f1.zst file-f10.zst

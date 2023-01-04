@@ -386,7 +386,7 @@ static U32 HUF_setMaxHeight(nodeElt* huffNode, U32 lastNonNull, U32 targetNbBits
 
         /* renorm totalCost from 2^largestBits to 2^targetNbBits
          * note : totalCost is necessarily a multiple of baseCost */
-        assert((totalCost & (baseCost - 1)) == 0);
+        assert(((U32)totalCost & (baseCost - 1)) == 0);
         totalCost >>= (largestBits - targetNbBits);
         assert(totalCost > 0);
 
@@ -1253,26 +1253,37 @@ unsigned HUF_minTableLog(unsigned symbolCardinality)
     return minBitsSymbols;
 }
 
-unsigned HUF_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxSymbolValue, void* workSpace, size_t wkspSize, HUF_CElt* table, const unsigned* count, HUF_depth_mode depthMode)
+unsigned HUF_optimalTableLog(
+            unsigned maxTableLog,
+            size_t srcSize,
+            unsigned maxSymbolValue,
+            void* workSpace, size_t wkspSize,
+            HUF_CElt* table,
+      const unsigned* count,
+            HUF_depth_mode depthMode)
 {
-    unsigned optLog = FSE_optimalTableLog_internal(maxTableLog, srcSize, maxSymbolValue, 1);
     assert(srcSize > 1); /* Not supported, RLE should be used instead */
+    assert(wkspSize >= sizeof(HUF_buildCTable_wksp_tables));
 
-    if (depthMode == HUF_depth_optimal) { /** Test valid depths and return optimal **/
-        BYTE* dst = (BYTE*)workSpace + sizeof(HUF_WriteCTableWksp);
+    if (depthMode != HUF_depth_optimal) {
+        /* cheap evaluation, based on FSE */
+        return FSE_optimalTableLog_internal(maxTableLog, srcSize, maxSymbolValue, 1);
+    }
+
+    {   BYTE* dst = (BYTE*)workSpace + sizeof(HUF_WriteCTableWksp);
         size_t dstSize = wkspSize - sizeof(HUF_WriteCTableWksp);
         size_t maxBits, hSize, newSize;
         const unsigned symbolCardinality = HUF_cardinality(count, maxSymbolValue);
         const unsigned minTableLog = HUF_minTableLog(symbolCardinality);
         size_t optSize = ((size_t) ~0) - 1;
-        unsigned optLogGuess;
+        unsigned optLog = maxTableLog, optLogGuess;
 
-        if (wkspSize < sizeof(HUF_buildCTable_wksp_tables)) return optLog; /** Assert workspace is large enough **/
+        DEBUGLOG(6, "HUF_optimalTableLog: probing huf depth (srcSize=%zu)", srcSize);
 
         /* Search until size increases */
         for (optLogGuess = minTableLog; optLogGuess <= maxTableLog; optLogGuess++) {
+            DEBUGLOG(7, "checking for huffLog=%u", optLogGuess);
             maxBits = HUF_buildCTable_wksp(table, count, maxSymbolValue, optLogGuess, workSpace, wkspSize);
-
             if (ERR_isError(maxBits)) continue;
 
             if (maxBits < optLogGuess && optLogGuess > minTableLog) break;
@@ -1292,9 +1303,9 @@ unsigned HUF_optimalTableLog(unsigned maxTableLog, size_t srcSize, unsigned maxS
                 optLog = optLogGuess;
             }
         }
+        assert(optLog <= HUF_TABLELOG_MAX);
+        return optLog;
     }
-    assert(optLog <= HUF_TABLELOG_MAX);
-    return optLog;
 }
 
 /* HUF_compress_internal() :

@@ -16,7 +16,7 @@
 #define ZSTD_LITFREQ_ADD    2   /* scaling factor for litFreq, so that frequencies adapt faster to new stats */
 #define ZSTD_MAX_PRICE     (1<<30)
 
-#define ZSTD_PREDEF_THRESHOLD 1024   /* if srcSize < ZSTD_PREDEF_THRESHOLD, symbols' cost is assumed static, directly determined by pre-defined distributions */
+#define ZSTD_PREDEF_THRESHOLD 8   /* if srcSize < ZSTD_PREDEF_THRESHOLD, symbols' cost is assumed static, directly determined by pre-defined distributions */
 
 
 /*-*************************************
@@ -96,14 +96,18 @@ static U32 sum_u32(const unsigned table[], size_t nbElts)
     return total;
 }
 
-static U32 ZSTD_downscaleStats(unsigned* table, U32 lastEltIndex, U32 shift)
+typedef enum { base_0possible=0, base_1guaranteed=1 } base_directive_e;
+
+static U32
+ZSTD_downscaleStats(unsigned* table, U32 lastEltIndex, U32 shift, base_directive_e base1)
 {
     U32 s, sum=0;
     DEBUGLOG(5, "ZSTD_downscaleStats (nbElts=%u, shift=%u)",
             (unsigned)lastEltIndex+1, (unsigned)shift );
     assert(shift < 30);
     for (s=0; s<lastEltIndex+1; s++) {
-        unsigned newStat = 1 + (table[s] >> shift);
+        unsigned const base = base1 ? 1 : (table[s]>0);
+        unsigned const newStat = base + (table[s] >> shift);
         sum += newStat;
         table[s] = newStat;
     }
@@ -120,7 +124,7 @@ static U32 ZSTD_scaleStats(unsigned* table, U32 lastEltIndex, U32 logTarget)
     DEBUGLOG(5, "ZSTD_scaleStats (nbElts=%u, target=%u)", (unsigned)lastEltIndex+1, (unsigned)logTarget);
     assert(logTarget < 30);
     if (factor <= 1) return prevsum;
-    return ZSTD_downscaleStats(table, lastEltIndex, ZSTD_highbit32(factor));
+    return ZSTD_downscaleStats(table, lastEltIndex, ZSTD_highbit32(factor), base_1guaranteed);
 }
 
 /* ZSTD_rescaleFreqs() :
@@ -202,14 +206,14 @@ ZSTD_rescaleFreqs(optState_t* const optPtr,
                     optPtr->offCodeSum += optPtr->offCodeFreq[of];
             }   }
 
-        } else {  /* huf.repeatMode != HUF_repeat_valid => presumed not a dictionary */
+        } else {  /* first block, no dictionary */
 
             assert(optPtr->litFreq != NULL);
             if (compressedLiterals) {
                 /* base initial cost of literals on direct frequency within src */
                 unsigned lit = MaxLit;
                 HIST_count_simple(optPtr->litFreq, &lit, src, srcSize);   /* use raw first block to init statistics */
-                optPtr->litSum = ZSTD_downscaleStats(optPtr->litFreq, MaxLit, 8);
+                optPtr->litSum = ZSTD_downscaleStats(optPtr->litFreq, MaxLit, 8, base_0possible);
             }
 
             {   unsigned const baseLLfreqs[MaxLL+1] = {

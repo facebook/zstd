@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-present, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -8,11 +8,13 @@
  */
 #pragma once
 
+#include "utils/Portability.h"
 #include "utils/Range.h"
 
 #include <sys/stat.h>
 #include <cerrno>
 #include <cstdint>
+#include <limits>
 #include <system_error>
 
 // A small subset of `std::filesystem`.
@@ -82,11 +84,11 @@ inline std::uintmax_t file_size(
     std::error_code& ec) noexcept {
   auto stat = status(path, ec);
   if (ec) {
-    return -1;
+    return std::numeric_limits<uintmax_t>::max();
   }
   if (!is_regular_file(stat)) {
     ec.assign(ENOTSUP, std::generic_category());
-    return -1;
+    return std::numeric_limits<uintmax_t>::max();
   }
   ec.clear();
   return stat.st_size;

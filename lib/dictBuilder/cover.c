@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Yann Collet, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -647,7 +647,7 @@ static size_t COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
 
 void COVER_warnOnSmallCorpus(size_t maxDictSize, size_t nbDmers, int displayLevel)
 {
-  const double ratio = (double)nbDmers / maxDictSize;
+  const double ratio = (double)nbDmers / (double)maxDictSize;
   if (ratio >= 10) {
       return;
   }
@@ -1040,7 +1040,7 @@ COVER_dictSelection_t COVER_selectDict(BYTE* customDictContent, size_t dictBuffe
       return COVER_dictSelectionError(totalCompressedSize);
     }
 
-    if (totalCompressedSize <= largestCompressed * regressionTolerance) {
+    if ((double)totalCompressedSize <= (double)largestCompressed * regressionTolerance) {
       COVER_dictSelection_t selection = { candidateDictBuffer, dictContentSize, totalCompressedSize };
       free(largestDictbuffer);
       return selection;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Yann Collet, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -136,7 +136,7 @@ static void RAND_genDist(U32* seed, BYTE* dist, double weight)
     BYTE step = (BYTE) ((RAND(seed) % 256) | 1); /* force it to be odd so it's relatively prime to 256 */
 
     while (i < DISTSIZE) {
-        size_t states = ((size_t)(weight * statesLeft)) + 1;
+        size_t states = ((size_t)(weight * (double)statesLeft)) + 1;
         size_t j;
         for (j = 0; j < states && i < DISTSIZE; j++, i++) {
             dist[i] = symb;
@@ -662,11 +662,11 @@ generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
          * ensure nice numbers */
         U32 matchLen =
                 MIN_SEQ_LEN +
-                ROUND(RAND_exp(seed, excessMatch / (double)(numSequences - i)));
+                ROUND(RAND_exp(seed, (double)excessMatch / (double)(numSequences - i)));
         U32 literalLen =
                 (RAND(seed) & 7)
                         ? ROUND(RAND_exp(seed,
-                                         literalsSize /
+                                         (double)literalsSize /
                                                  (double)(numSequences - i)))
                         : 0;
         /* actual offset, code to send, and point to copy up to when shifting

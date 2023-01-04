@@ -1,5 +1,5 @@
 # ################################################################
-# Copyright (c) Yann Collet, Facebook, Inc.
+# Copyright (c) Meta Platforms, Inc. and affiliates.
 # All rights reserved.
 #
 # This source code is licensed under both the BSD-style license (found in the
@@ -15,17 +15,34 @@
 # Zstd lib directory
 LIBZSTD ?= ./
 
+# ZSTD_LIB_MINIFY is a helper variable that
+# configures a bunch of other variables to space-optimized defaults.
+ZSTD_LIB_MINIFY ?= 0
+
 # Legacy support
-ZSTD_LEGACY_SUPPORT ?= 5
+ifneq ($(ZSTD_LIB_MINIFY), 0)
+  ZSTD_LEGACY_SUPPORT ?= 0
+else
+  ZSTD_LEGACY_SUPPORT ?= 5
+endif
 ZSTD_LEGACY_MULTITHREADED_API ?= 0
 
 # Build size optimizations
-HUF_FORCE_DECOMPRESS_X1 ?= 0
-HUF_FORCE_DECOMPRESS_X2 ?= 0
-ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT ?= 0
-ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG ?= 0
-ZSTD_NO_INLINE ?= 0
-ZSTD_STRIP_ERROR_STRINGS ?= 0
+ifneq ($(ZSTD_LIB_MINIFY), 0)
+  HUF_FORCE_DECOMPRESS_X1 ?= 1
+  HUF_FORCE_DECOMPRESS_X2 ?= 0
+  ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT ?= 1
+  ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG ?= 0
+  ZSTD_NO_INLINE ?= 1
+  ZSTD_STRIP_ERROR_STRINGS ?= 1
+else
+  HUF_FORCE_DECOMPRESS_X1 ?= 0
+  HUF_FORCE_DECOMPRESS_X2 ?= 0
+  ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT ?= 0
+  ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG ?= 0
+  ZSTD_NO_INLINE ?= 0
+  ZSTD_STRIP_ERROR_STRINGS ?= 0
+endif
 
 # Assembly support
 ZSTD_NO_ASM ?= 0
@@ -61,17 +78,8 @@ LIBVER := $(shell echo $(LIBVER_SCRIPT))
 CCVER := $(shell $(CC) --version)
 ZSTD_VERSION?= $(LIBVER)
 
-# ZSTD_LIB_MINIFY is a helper variable that
-# configures a bunch of other variables to space-optimized defaults.
-ZSTD_LIB_MINIFY ?= 0
 ifneq ($(ZSTD_LIB_MINIFY), 0)
   HAVE_CC_OZ ?= $(shell echo "" | $(CC) -Oz -x c -c - -o /dev/null 2> /dev/null && echo 1 || echo 0)
-  ZSTD_LEGACY_SUPPORT ?= 0
-  ZSTD_LIB_DEPRECATED ?= 0
-  HUF_FORCE_DECOMPRESS_X1 ?= 1
-  ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT ?= 1
-  ZSTD_NO_INLINE ?= 1
-  ZSTD_STRIP_ERROR_STRINGS ?= 1
 ifneq ($(HAVE_CC_OZ), 0)
     # Some compilers (clang) support an even more space-optimized setting.
     CFLAGS += -Oz

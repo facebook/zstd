@@ -1,5 +1,5 @@
 #   ZSTD - standard compression algorithm
-#   Copyright (C) 2014-2016, Yann Collet, Facebook
+#   Copyright (c) Meta Platforms, Inc. and affiliates.
 #   BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)
 
 prefix=@PREFIX@

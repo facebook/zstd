@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Yann Collet, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -373,7 +373,7 @@ static U32 ZDICT_tryMerge(dictItem* table, dictItem elt, U32 eltNbToSkip, const 
             elt = table[u];
             /* sort : improve rank */
             while ((u>1) && (table[u-1].savings < elt.savings))
-            table[u] = table[u-1], u--;
+                table[u] = table[u-1], u--;
             table[u] = elt;
             return u;
     }   }
@@ -524,7 +524,7 @@ static size_t ZDICT_trainBuffer_legacy(dictItem* dictList, U32 dictListSize,
             if (solution.length==0) { cursor++; continue; }
             ZDICT_insertDictItem(dictList, dictListSize, solution, buffer);
             cursor += solution.length;
-            DISPLAYUPDATE(2, "\r%4.2f %% \r", (double)cursor / bufferSize * 100);
+            DISPLAYUPDATE(2, "\r%4.2f %% \r", (double)cursor / (double)bufferSize * 100.0);
     }   }
 
 _cleanup:

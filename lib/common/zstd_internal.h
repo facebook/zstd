@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Yann Collet, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -94,6 +94,7 @@ typedef enum { bt_raw, bt_rle, bt_compressed, bt_reserved } blockType_e;
 
 #define MIN_SEQUENCES_SIZE 1 /* nbSeq==0 */
 #define MIN_CBLOCK_SIZE (1 /*litCSize*/ + 1 /* RLE or RAW */)   /* for a non-null block */
+#define MIN_LITERALS_FOR_4_STREAMS 6
 
 typedef enum { set_basic, set_rle, set_compressed, set_repeat } symbolEncodingType_e;
 

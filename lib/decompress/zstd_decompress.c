@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Yann Collet, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -785,7 +785,7 @@ static ZSTD_frameSizeInfo ZSTD_findFrameSizeInfo(const void* src, size_t srcSize
         frameSizeInfo.compressedSize = (size_t)(ip - ipstart);
         frameSizeInfo.decompressedBound = (zfh.frameContentSize != ZSTD_CONTENTSIZE_UNKNOWN)
                                         ? zfh.frameContentSize
-                                        : nbBlocks * zfh.blockSizeMax;
+                                        : (unsigned long long)nbBlocks * zfh.blockSizeMax;
         return frameSizeInfo;
     }
 }

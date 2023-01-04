@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-present, Przemyslaw Skibinski, Yann Collet, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -388,7 +388,7 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
             markNb = (markNb+1) % NB_MARKS;
             DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.3f),%6.1f MB/s\r",
                     marks[markNb], displayName, (unsigned)srcSize, (unsigned)cSize, ratio,
-                    (double)srcSize / fastestC );
+                    (double)srcSize / (double)fastestC );
 
             (void)fastestD; (void)crcOrig;   /*  unused when decompression disabled */
 #if 1
@@ -527,8 +527,8 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
             markNb = (markNb+1) % NB_MARKS;
             DISPLAYLEVEL(2, "%2s-%-17.17s :%10u ->%10u (%5.3f),%6.1f MB/s ,%6.1f MB/s\r",
                     marks[markNb], displayName, (unsigned)srcSize, (unsigned)cSize, ratio,
-                    (double)srcSize / fastestC,
-                    (double)srcSize / fastestD );
+                    (double)srcSize / (double)fastestC,
+                    (double)srcSize / (double)fastestD );
 
             /* CRC Checking */
             {   U64 const crcCheck = XXH64(resultBuffer, srcSize, 0);
@@ -558,8 +558,8 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
         }   /* for (testNb = 1; testNb <= (g_nbIterations + !g_nbIterations); testNb++) */
 
         if (g_displayLevel == 1) {
-            double cSpeed = (double)srcSize / fastestC;
-            double dSpeed = (double)srcSize / fastestD;
+            double cSpeed = (double)srcSize / (double)fastestC;
+            double dSpeed = (double)srcSize / (double)fastestD;
             if (g_additionalParam)
                 DISPLAY("-%-3i%11i (%5.3f) %6.2f MB/s %6.1f MB/s  %s (param=%d)\n", cLevel, (int)cSize, ratio, cSpeed, dSpeed, displayName, g_additionalParam);
             else

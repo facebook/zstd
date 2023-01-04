@@ -1,5 +1,5 @@
 # ################################################################
-# Copyright (c) Facebook, Inc.
+# Copyright (c) Meta Platforms, Inc. and affiliates.
 # All rights reserved.
 #
 # This source code is licensed under both the BSD-style license (found in the
@@ -49,8 +49,8 @@ libzstd:
 		-UZSTD_MULTITHREAD \
 		-U_MSC_VER \
 		-U_WIN32 \
-		-RZSTDLIB_VISIBILITY= \
-		-RZSTDERRORLIB_VISIBILITY= \
+		-RZSTDLIB_VISIBLE= \
+		-RZSTDERRORLIB_VISIBLE= \
 		-RZSTD_FALLTHROUGH=fallthrough \
 		-DZSTD_HAVE_WEAK_SYMBOLS=0 \
 		-DZSTD_TRACE=0 \

@@ -55,36 +55,36 @@ decompress 2 files
 
 args = --no-progress --fake-stderr-is-console -v
 compress file to file
-*zstd*
+*Zstandard CLI*
 hello*hello.zst*
 compress pipe to pipe
-*zstd*
+*Zstandard CLI*
 *stdin*stdout*
 compress pipe to file
-*zstd*
+*Zstandard CLI*
 *stdin*hello.zst*
 compress file to pipe
-*zstd*
+*Zstandard CLI*
 *hello*stdout*
 compress 2 files
-*zstd*
+*Zstandard CLI*
 *hello*hello.zst*
 *world*world.zst*
 2 files compressed*
 decompress file to file
-*zstd*
+*Zstandard CLI*
 hello.zst*
 decompress pipe to pipe
-*zstd*
+*Zstandard CLI*
 *stdin*
 decompress pipe to file
-*zstd*
+*Zstandard CLI*
 *stdin*
 decompress file to pipe
-*zstd*
+*Zstandard CLI*
 hello.zst*
 decompress 2 files
-*zstd*
+*Zstandard CLI*
 hello.zst*
 world.zst*
 2 files decompressed*

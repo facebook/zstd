@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Yann Collet, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -166,6 +166,10 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 }
                 RETURN_ERROR_IF(litSize > 0 && dst == NULL, dstSize_tooSmall, "NULL not handled");
                 RETURN_ERROR_IF(litSize > ZSTD_BLOCKSIZE_MAX, corruption_detected, "");
+                if (!singleStream)
+                    RETURN_ERROR_IF(litSize < MIN_LITERALS_FOR_4_STREAMS, literals_headerWrong,
+                        "Not enough literals (%zu) for the 4-streams mode (min %u)",
+                        litSize, MIN_LITERALS_FOR_4_STREAMS);
                 RETURN_ERROR_IF(litCSize + lhSize > srcSize, corruption_detected, "");
                 RETURN_ERROR_IF(expectedWriteSize < litSize , dstSize_tooSmall, "");
                 ZSTD_allocateLiteralsBuffer(dctx, dst, dstCapacity, litSize, streaming, expectedWriteSize, 0);
@@ -181,6 +185,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                             dctx->litBuffer, litSize, istart+lhSize, litCSize,
                             dctx->HUFptr, ZSTD_DCtx_get_bmi2(dctx));
                     } else {
+                        assert(litSize >= MIN_LITERALS_FOR_4_STREAMS);
                         hufSuccess = HUF_decompress4X_usingDTable_bmi2(
                             dctx->litBuffer, litSize, istart+lhSize, litCSize,
                             dctx->HUFptr, ZSTD_DCtx_get_bmi2(dctx));
@@ -509,7 +514,8 @@ void ZSTD_buildFSETable_body(ZSTD_seqSymbol* dt,
                 for (i = 8; i < n; i += 8) {
                     MEM_write64(spread + pos + i, sv);
                 }
-                pos += n;
+                assert(n>=0);
+                pos += (size_t)n;
             }
         }
         /* Now we spread those positions across the table.
@@ -2010,12 +2016,20 @@ ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
      * Offsets are long if they are larger than 2^STREAM_ACCUMULATOR_MIN.
      * We don't expect that to be the case in 64-bit mode.
      * In block mode, window size is not known, so we have to be conservative.
-     * (note: but it could be evaluated from current-lowLimit)
+     * (note: it could possibly be evaluated from current-lowLimit)
      */
     ZSTD_longOffset_e const isLongOffset = (ZSTD_longOffset_e)(MEM_32bits() && (!frame || (dctx->fParams.windowSize > (1ULL << STREAM_ACCUMULATOR_MIN))));
     DEBUGLOG(5, "ZSTD_decompressBlock_internal (size : %u)", (U32)srcSize);
 
-    RETURN_ERROR_IF(srcSize >= ZSTD_BLOCKSIZE_MAX, srcSize_wrong, "");
+    /* Note : the wording of the specification
+     * allows compressed block to be sized exactly ZSTD_BLOCKSIZE_MAX.
+     * This generally does not happen, as it makes little sense,
+     * since an uncompressed block would feature same size and have no decompression cost.
+     * Also, note that decoder from reference libzstd before < v1.5.4
+     * would consider this edge case as an error.
+     * As a consequence, avoid generating compressed blocks of size ZSTD_BLOCKSIZE_MAX
+     * for broader compatibility with the deployed ecosystem of zstd decoders */
+    RETURN_ERROR_IF(srcSize > ZSTD_BLOCKSIZE_MAX, srcSize_wrong, "");
 
     /* Decode literals section */
     {   size_t const litCSize = ZSTD_decodeLiteralsBlock(dctx, src, srcSize, dst, dstCapacity, streaming);

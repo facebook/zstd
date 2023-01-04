@@ -1656,7 +1656,7 @@ size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t di
 size_t ZSTD_initDStream(ZSTD_DStream* zds)
 {
     DEBUGLOG(4, "ZSTD_initDStream");
-    FORWARD_IF_ERROR(ZSTD_DCtx_reset(zds, ZSTD_reset_session_only));
+    FORWARD_IF_ERROR(ZSTD_DCtx_reset(zds, ZSTD_reset_session_only), "");
     return ZSTD_DCtx_refDDict(zds, NULL);
 }
 

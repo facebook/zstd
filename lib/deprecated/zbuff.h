@@ -125,7 +125,9 @@ ZBUFF_DEPRECATED("use ZSTD_createDStream") ZBUFF_DCtx* ZBUFF_createDCtx(void);
 ZBUFF_DEPRECATED("use ZSTD_freeDStream")   size_t      ZBUFF_freeDCtx(ZBUFF_DCtx* dctx);
 
 ZBUFF_DEPRECATED("use ZSTD_initDStream")           size_t ZBUFF_decompressInit(ZBUFF_DCtx* dctx);
-ZBUFF_DEPRECATED("use ZSTD_initDStream_usingDict") size_t ZBUFF_decompressInitDictionary(ZBUFF_DCtx* dctx, const void* dict, size_t dictSize);
+
+ZBUFF_DEPRECATED("use ZSTD_DCtx_reset + ZSTD_DCtx_loadDictionary, see zstd.h for detailed instructions")
+size_t ZBUFF_decompressInitDictionary(ZBUFF_DCtx* dctx, const void* dict, size_t dictSize);
 
 ZBUFF_DEPRECATED("use ZSTD_decompressStream") size_t ZBUFF_decompressContinue(ZBUFF_DCtx* dctx,
                                             void* dst, size_t* dstCapacityPtr,
@@ -200,9 +202,10 @@ ZBUFF_DEPRECATED("use ZSTD_createDStream_advanced") ZBUFF_DCtx* ZBUFF_createDCtx
 
 
 /*--- Advanced Streaming Initialization ---*/
-ZBUFF_DEPRECATED("use ZSTD_initDStream_usingDict") size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc,
-                                               const void* dict, size_t dictSize,
-                                               ZSTD_parameters params, unsigned long long pledgedSrcSize);
+ZBUFF_DEPRECATED("use ZSTD_DCtx_reset + ZSTD_DCtx_loadDictionary, see zstd.h for detailed instructions")
+size_t ZBUFF_compressInit_advanced(ZBUFF_CCtx* zbc,
+                                   const void* dict, size_t dictSize,
+                                   ZSTD_parameters params, unsigned long long pledgedSrcSize);
 
 
 #endif    /* ZBUFF_STATIC_H_30298098432 */

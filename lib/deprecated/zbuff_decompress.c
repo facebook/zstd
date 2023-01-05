@@ -15,6 +15,7 @@
 ***************************************/
 #define ZBUFF_STATIC_LINKING_ONLY
 #include "zbuff.h"
+#include "../zstd_errors.h"  /* FORWARD_IF_ERROR */
 
 
 ZBUFF_DCtx* ZBUFF_createDCtx(void)
@@ -37,7 +38,9 @@ size_t ZBUFF_freeDCtx(ZBUFF_DCtx* zbd)
 
 size_t ZBUFF_decompressInitDictionary(ZBUFF_DCtx* zbd, const void* dict, size_t dictSize)
 {
-    return ZSTD_initDStream_usingDict(zbd, dict, dictSize);
+    FORWARD_IF_ERROR( ZSTD_DCtx_reset(zbd, ZSTD_reset_session_only) , "");
+    FORWARD_IF_ERROR( ZSTD_DCtx_loadDictionary(zbd, dict, dictSize) , "");
+    return ZSTD_startingInputLength(zbd->format);
 }
 
 size_t ZBUFF_decompressInit(ZBUFF_DCtx* zbd)

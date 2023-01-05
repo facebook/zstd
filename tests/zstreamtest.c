@@ -127,7 +127,7 @@ static U32 FUZ_rand(U32* seedPtr)
 }
 
 /* These functions are deprecated, but heavily used in zstreamtest.c.
- * For now, let's use macros to suppress the compiler warning.
+ * For now, let's use macros to suppress the compiler warnings.
  * At some point, we should go through and actually migrate each callsite. */
 static size_t ZSTD_initDStream_usingDict_helper(ZSTD_DStream* zds, const void* dict, size_t dictSize) {
     DEBUGLOG(4, "ZSTD_initDStream_usingDict");

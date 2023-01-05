@@ -138,18 +138,18 @@ static size_t ZSTD_startingInputLength(ZSTD_format_e format)
 }
 static size_t ZSTD_initDStream_usingDict_helper(ZSTD_DStream* zds, const void* dict, size_t dictSize) {
     DEBUGLOG(4, "ZSTD_initDStream_usingDict");
-    const size_t resetRes = ZSTD_DCtx_reset(zds, ZSTD_reset_session_only);
-    if (ZSTD_isError(resetRes)) return resetRes;
-    const size_t loadRes = ZSTD_DCtx_loadDictionary(zds, dict, dictSize);
-    if (ZSTD_isError(loadRes)) return loadRes;
+    {   const size_t resetRes = ZSTD_DCtx_reset(zds, ZSTD_reset_session_only);
+        if (ZSTD_isError(resetRes)) return resetRes;   }
+    {   const size_t loadRes = ZSTD_DCtx_loadDictionary(zds, dict, dictSize);
+        if (ZSTD_isError(loadRes)) return loadRes;   }
     return ZSTD_startingInputLength(zds->format);
 }
 static size_t ZSTD_initDStream_usingDDict_helper(ZSTD_DStream* zds, const ZSTD_DDict* ddict) {
     DEBUGLOG(4, "ZSTD_initDStream_usingDDict");
-    const size_t resetRes = ZSTD_DCtx_reset(zds, ZSTD_reset_session_only);
-    if (ZSTD_isError(resetRes)) return resetRes;
-    const size_t refRes = ZSTD_DCtx_refDDict(zds, ddict);
-    if (ZSTD_isError(refRes)) return refRes;
+    {   const size_t resetRes = ZSTD_DCtx_reset(zds, ZSTD_reset_session_only);
+        if (ZSTD_isError(resetRes)) return resetRes;   }
+    {   const size_t refRes = ZSTD_DCtx_refDDict(zds, ddict);
+        if (ZSTD_isError(refRes)) return refRes;   }
     return ZSTD_startingInputLength(dctx->format);
 }
 #define ZSTD_initDStream_usingDict(zds, dict, dictSize) (

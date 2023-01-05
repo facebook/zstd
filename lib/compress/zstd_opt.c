@@ -65,7 +65,7 @@ MEM_STATIC U32 ZSTD_fracWeight(U32 rawStat)
 /* debugging function,
  * @return price in bytes as fractional value
  * for debug messages only */
-MEM_STATIC double ZSTD_fCost(U32 price)
+MEM_STATIC double ZSTD_fCost(int price)
 {
     return (double)price / (BITCOST_MULTIPLIER*8);
 }
@@ -575,16 +575,17 @@ void ZSTD_updateTree(ZSTD_matchState_t* ms, const BYTE* ip, const BYTE* iend) {
     ZSTD_updateTree_internal(ms, ip, iend, ms->cParams.minMatch, ZSTD_noDict);
 }
 
-FORCE_INLINE_TEMPLATE
-U32 ZSTD_insertBtAndGetAllMatches (
-                    ZSTD_match_t* matches,   /* store result (found matches) in this table (presumed large enough) */
-                    ZSTD_matchState_t* ms,
-                    U32* nextToUpdate3,
-                    const BYTE* const ip, const BYTE* const iLimit, const ZSTD_dictMode_e dictMode,
-                    const U32 rep[ZSTD_REP_NUM],
-                    U32 const ll0,   /* tells if associated literal length is 0 or not. This value must be 0 or 1 */
-                    const U32 lengthToBeat,
-                    U32 const mls /* template */)
+FORCE_INLINE_TEMPLATE U32
+ZSTD_insertBtAndGetAllMatches (
+                ZSTD_match_t* matches,  /* store result (found matches) in this table (presumed large enough) */
+                ZSTD_matchState_t* ms,
+                U32* nextToUpdate3,
+                const BYTE* const ip, const BYTE* const iLimit,
+                const ZSTD_dictMode_e dictMode,
+                const U32 rep[ZSTD_REP_NUM],
+                const U32 ll0,  /* tells if associated literal length is 0 or not. This value must be 0 or 1 */
+                const U32 lengthToBeat,
+                const U32 mls /* template */)
 {
     const ZSTD_compressionParameters* const cParams = &ms->cParams;
     U32 const sufficient_len = MIN(cParams->targetLength, ZSTD_OPT_NUM -1);
@@ -1151,7 +1152,7 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                         U32 const matchPrice = ZSTD_getMatchPrice(offBase, pos, optStatePtr, optLevel);
                         U32 const sequencePrice = literalsPrice + matchPrice;
                         DEBUGLOG(7, "rPos:%u => set initial price : %.2f",
-                                    pos, ZSTD_fCost(sequencePrice));
+                                    pos, ZSTD_fCost((int)sequencePrice));
                         opt[pos].mlen = pos;
                         opt[pos].off = offBase;
                         opt[pos].litlen = litlen;

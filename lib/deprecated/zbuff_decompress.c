@@ -15,7 +15,6 @@
 ***************************************/
 #define ZBUFF_STATIC_LINKING_ONLY
 #include "zbuff.h"
-#include "../zstd_errors.h"  /* FORWARD_IF_ERROR */
 
 
 ZBUFF_DCtx* ZBUFF_createDCtx(void)
@@ -38,8 +37,10 @@ size_t ZBUFF_freeDCtx(ZBUFF_DCtx* zbd)
 
 size_t ZBUFF_decompressInitDictionary(ZBUFF_DCtx* zbd, const void* dict, size_t dictSize)
 {
-    FORWARD_IF_ERROR( ZSTD_DCtx_reset(zbd, ZSTD_reset_session_only) , "");
-    FORWARD_IF_ERROR( ZSTD_DCtx_loadDictionary(zbd, dict, dictSize) , "");
+    {   const size_t resetRet = ZSTD_DCtx_reset(zbd, ZSTD_reset_session_only);
+        if (ZSTD_isError(resetRet)) return resetRet;   }
+    {   const size_t loadRet = ZSTD_DCtx_loadDictionary(zbd, dict, dictSize);
+        if (ZSTD_isError(loadRet)) return loadRet;   }
     return ZSTD_startingInputLength(zbd->format);
 }
 

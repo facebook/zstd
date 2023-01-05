@@ -223,25 +223,16 @@ jobs:
         run: |
           meson install -C builddir --destdir staging/
 
-  cmake-visual-studio:
+  cmake-visual-2022:
     strategy:
       matrix:
         include:
           - generator: "Visual Studio 17 2022"
             flags: "-A x64"
-            runner: "windows-2022"
           - generator: "Visual Studio 17 2022"
             flags: "-A Win32"
-            runner: "windows-2022"
-          - generator: "Visual Studio 16 2019"
-            flags: "-A x64"
-            runner: "windows-2019"
-          - generator: "Visual Studio 16 2019"
-            flags: "-A Win32"
-            runner: "windows-2019"
           - generator: "MinGW Makefiles"
-            runner: "windows-latest"
-    runs-on: ${{matrix.runner}}
+    runs-on: windows-2022
     steps:
     - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
     - name: Add MSBuild to PATH

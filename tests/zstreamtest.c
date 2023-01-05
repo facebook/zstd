@@ -126,6 +126,28 @@ static U32 FUZ_rand(U32* seedPtr)
           #f, ZSTD_getErrorName(err));                       \
 }
 
+/* These functions are deprecated, but heavily used in zstreamtest.c.
+ * For now, let's use macros to suppress the compiler warning.
+ * At some point, we should go through and actually migrate each callsite. */
+static size_t ZSTD_initDStream_usingDict_helper(ZSTD_DStream* zds, const void* dict, size_t dictSize) {
+    DEBUGLOG(4, "ZSTD_initDStream_usingDict");
+    FORWARD_IF_ERROR( ZSTD_DCtx_reset(zds, ZSTD_reset_session_only) , "");
+    FORWARD_IF_ERROR( ZSTD_DCtx_loadDictionary(zds, dict, dictSize) , "");
+    return ZSTD_startingInputLength(zds->format);
+}
+static size_t ZSTD_initDStream_usingDDict_helper(ZSTD_DStream* zds, const ZSTD_DDict* ddict) {
+    DEBUGLOG(4, "ZSTD_initDStream_usingDDict");
+    FORWARD_IF_ERROR( ZSTD_DCtx_reset(dctx, ZSTD_reset_session_only) , "");
+    FORWARD_IF_ERROR( ZSTD_DCtx_refDDict(dctx, ddict) , "");
+    return ZSTD_startingInputLength(dctx->format);
+}
+#define ZSTD_initDStream_usingDict(zds, dict, dictSize) (
+    ZSTD_initDStream_usingDict_helper(zds, dict, dictSize)
+)
+#define ZSTD_initDStream_usingDDict(zds, dict, dictSize) (
+    ZSTD_initDStream_usingDDict_helper(zds, ddict)
+)
+
 
 /*======================================================
  *   Basic Unit tests

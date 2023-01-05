@@ -1657,7 +1657,7 @@ size_t ZSTD_initDStream(ZSTD_DStream* zds)
 {
     DEBUGLOG(4, "ZSTD_initDStream");
     FORWARD_IF_ERROR(ZSTD_DCtx_reset(zds, ZSTD_reset_session_only), "");
-    FORWARD_IF_ERROR(ZSTD_DCtx_refDDict(zds, NULL, "");
+    FORWARD_IF_ERROR(ZSTD_DCtx_refDDict(zds, NULL), "");
     return ZSTD_startingInputLength(zds->format);
 }
 

@@ -245,7 +245,7 @@ jobs:
     steps:
     - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
     - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@34cfbaee7f672c76950673338facd8a73f637506 # tag=v1.1.3
+      uses: microsoft/setup-msbuild@v1.3
     - name: Build
       working-directory: ${{env.GITHUB_WORKSPACE}}
       run: |
@@ -458,7 +458,7 @@ jobs:
     steps:
     - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
     - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@34cfbaee7f672c76950673338facd8a73f637506 # tag=v1.1.3
+      uses: microsoft/setup-msbuild@v1.3
     - name: Build and run tests
       working-directory: ${{env.GITHUB_WORKSPACE}}
       env:

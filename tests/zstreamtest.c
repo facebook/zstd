@@ -126,19 +126,30 @@ static U32 FUZ_rand(U32* seedPtr)
           #f, ZSTD_getErrorName(err));                       \
 }
 
-/* These functions are deprecated, but heavily used in zstreamtest.c.
+/* The initDStream_using* functions are deprecated, but heavily used in zstreamtest.c.
  * For now, let's use macros to suppress the compiler warnings.
  * At some point, we should go through and actually migrate each callsite. */
+static size_t ZSTD_startingInputLength(ZSTD_format_e format)
+{
+    size_t const startingInputLength = ZSTD_FRAMEHEADERSIZE_PREFIX(format);
+    /* only supports formats ZSTD_f_zstd1 and ZSTD_f_zstd1_magicless */
+    assert( (format == ZSTD_f_zstd1) || (format == ZSTD_f_zstd1_magicless) );
+    return startingInputLength;
+}
 static size_t ZSTD_initDStream_usingDict_helper(ZSTD_DStream* zds, const void* dict, size_t dictSize) {
     DEBUGLOG(4, "ZSTD_initDStream_usingDict");
-    FORWARD_IF_ERROR( ZSTD_DCtx_reset(zds, ZSTD_reset_session_only) , "");
-    FORWARD_IF_ERROR( ZSTD_DCtx_loadDictionary(zds, dict, dictSize) , "");
+    const size_t resetRes = ZSTD_DCtx_reset(zds, ZSTD_reset_session_only);
+    if (ZSTD_isError(resetRes)) return resetRes;
+    const size_t loadRes = ZSTD_DCtx_loadDictionary(zds, dict, dictSize);
+    if (ZSTD_isError(loadRes)) return loadRes;
     return ZSTD_startingInputLength(zds->format);
 }
 static size_t ZSTD_initDStream_usingDDict_helper(ZSTD_DStream* zds, const ZSTD_DDict* ddict) {
     DEBUGLOG(4, "ZSTD_initDStream_usingDDict");
-    FORWARD_IF_ERROR( ZSTD_DCtx_reset(dctx, ZSTD_reset_session_only) , "");
-    FORWARD_IF_ERROR( ZSTD_DCtx_refDDict(dctx, ddict) , "");
+    const size_t resetRes = ZSTD_DCtx_reset(zds, ZSTD_reset_session_only);
+    if (ZSTD_isError(resetRes)) return resetRes;
+    const size_t refRes = ZSTD_DCtx_refDDict(zds, ddict);
+    if (ZSTD_isError(refRes)) return refRes;
     return ZSTD_startingInputLength(dctx->format);
 }
 #define ZSTD_initDStream_usingDict(zds, dict, dictSize) (

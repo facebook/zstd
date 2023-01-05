@@ -421,8 +421,11 @@ jobs:
         update: true
     # Based on https://ariya.io/2020/07/on-github-actions-with-msys2
     - name: install mingw gcc
-      if: ${{ matrix.compiler == 'gcc' }}
-      run: pacman --noconfirm -S gcc
+      if: ${{ (matrix.msystem == 'MINGW32') && (matrix.compiler == 'gcc') }}
+      run: pacman --noconfirm -S mingw-w64-i686-gcc
+    - name: install mingw gcc
+      if: ${{ (matrix.msystem == 'MINGW64') && (matrix.compiler == 'gcc') }}
+      run: pacman --noconfirm -S mingw-w64-x86_64-gcc
     - name: install mingw clang x86_64
       if: ${{ (matrix.msystem == 'MINGW64') && (matrix.compiler == 'clang') }}
       run: pacman --noconfirm -S mingw-w64-x86_64-clang

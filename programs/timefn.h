@@ -16,12 +16,6 @@ extern "C" {
 #endif
 
 
-/*-****************************************
-*  Dependencies
-******************************************/
-#include <time.h>         /* clock_t, clock, CLOCKS_PER_SEC */
-
-
 
 /*-****************************************
 *  Local Types
@@ -31,7 +25,7 @@ extern "C" {
 # if defined(_AIX)
 #  include <inttypes.h>
 # else
-#  include <stdint.h> /* intptr_t */
+#  include <stdint.h> /* uint64_t */
 # endif
   typedef uint64_t           PTime;  /* Precise Time */
 #else
@@ -41,8 +35,10 @@ extern "C" {
 
 
 /*-****************************************
-*  Time functions
+*  Time types (note: OS dependent)
 ******************************************/
+#include <time.h>     /* TIME_UTC, then struct timespec and clock_t */
+
 #if defined(_WIN32)   /* Windows */
 
     #include <windows.h>   /* LARGE_INTEGER */
@@ -63,7 +59,7 @@ extern "C" {
     typedef struct timespec UTIL_time_t;
     #define UTIL_TIME_INITIALIZER { 0, 0 }
 
-#else   /* relies on standard C90 (note : clock_t measurements can be wrong when using multi-threading) */
+#else   /* relies on standard C90 (note : clock_t produces wrong measurements for multi-threaded workloads) */
 
     #define UTIL_TIME_USES_C90_CLOCK
     typedef clock_t UTIL_time_t;
@@ -72,15 +68,21 @@ extern "C" {
 #endif
 
 
-UTIL_time_t UTIL_getTime(void);
-PTime UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd);
-PTime UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd);
+/*-****************************************
+*  Time functions
+******************************************/
 
-#define SEC_TO_MICRO ((PTime)1000000)
-PTime UTIL_clockSpanMicro(UTIL_time_t clockStart);
+UTIL_time_t UTIL_getTime(void);
+void UTIL_waitForNextTick(void);
+
+PTime UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd);
 PTime UTIL_clockSpanNano(UTIL_time_t clockStart);
 
-void UTIL_waitForNextTick(void);
+#define SEC_TO_MICRO ((PTime)1000000)
+PTime UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd);
+PTime UTIL_clockSpanMicro(UTIL_time_t clockStart);
+
+
 
 
 #if defined (__cplusplus)

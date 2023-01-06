@@ -25,20 +25,6 @@
 
 UTIL_time_t UTIL_getTime(void) { UTIL_time_t x; QueryPerformanceCounter(&x); return x; }
 
-PTime UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd)
-{
-    static LARGE_INTEGER ticksPerSecond;
-    static int init = 0;
-    if (!init) {
-        if (!QueryPerformanceFrequency(&ticksPerSecond)) {
-            perror("timefn::QueryPerformanceFrequency");
-            abort();
-        }
-        init = 1;
-    }
-    return 1000000ULL*(clockEnd.QuadPart - clockStart.QuadPart)/ticksPerSecond.QuadPart;
-}
-
 PTime UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd)
 {
     static LARGE_INTEGER ticksPerSecond;
@@ -58,17 +44,6 @@ PTime UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd)
 #elif defined(__APPLE__) && defined(__MACH__)
 
 UTIL_time_t UTIL_getTime(void) { return mach_absolute_time(); }
-
-PTime UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd)
-{
-    static mach_timebase_info_data_t rate;
-    static int init = 0;
-    if (!init) {
-        mach_timebase_info(&rate);
-        init = 1;
-    }
-    return (((clockEnd - clockStart) * (PTime)rate.numer) / ((PTime)rate.denom))/1000ULL;
-}
 
 PTime UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd)
 {
@@ -115,15 +90,6 @@ static UTIL_time_t UTIL_getSpanTime(UTIL_time_t begin, UTIL_time_t end)
     return diff;
 }
 
-PTime UTIL_getSpanTimeMicro(UTIL_time_t begin, UTIL_time_t end)
-{
-    UTIL_time_t const diff = UTIL_getSpanTime(begin, end);
-    PTime micro = 0;
-    micro += 1000000ULL * diff.tv_sec;
-    micro += diff.tv_nsec / 1000ULL;
-    return micro;
-}
-
 PTime UTIL_getSpanTimeNano(UTIL_time_t begin, UTIL_time_t end)
 {
     UTIL_time_t const diff = UTIL_getSpanTime(begin, end);
@@ -134,25 +100,26 @@ PTime UTIL_getSpanTimeNano(UTIL_time_t begin, UTIL_time_t end)
 }
 
 
-
-#else   /* relies on standard C90 (note : clock_t measurements can be wrong when using multi-threading) */
+#else   /* relies on standard C90 (note : clock_t produces wrong measurements for multi-threaded workloads) */
 
 UTIL_time_t UTIL_getTime(void) { return clock(); }
-PTime UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC; }
 PTime UTIL_getSpanTimeNano(UTIL_time_t clockStart, UTIL_time_t clockEnd) { return 1000000000ULL * (clockEnd - clockStart) / CLOCKS_PER_SEC; }
 
 #endif
 
+/* ==== Common functions, valid for all time API ==== */
 
+PTime UTIL_getSpanTimeMicro(UTIL_time_t begin, UTIL_time_t end)
+{
+    return UTIL_getSpanTimeNano(begin, end) / 1000ULL;
+}
 
-/* returns time span in microseconds */
 PTime UTIL_clockSpanMicro(UTIL_time_t clockStart )
 {
     UTIL_time_t const clockEnd = UTIL_getTime();
     return UTIL_getSpanTimeMicro(clockStart, clockEnd);
 }
 
-/* returns time span in microseconds */
 PTime UTIL_clockSpanNano(UTIL_time_t clockStart )
 {
     UTIL_time_t const clockEnd = UTIL_getTime();

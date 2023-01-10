@@ -26,9 +26,14 @@ static void set(ZSTD_CCtx *cctx, ZSTD_cParameter param, int value)
     FUZZ_ZASSERT(ZSTD_CCtx_setParameter(cctx, param, value));
 }
 
+static unsigned produceParamValue(unsigned min, unsigned max,
+                                  FUZZ_dataProducer_t *producer) {
+    return FUZZ_dataProducer_uint32Range(producer, min, max);
+}
+
 static void setRand(ZSTD_CCtx *cctx, ZSTD_cParameter param, unsigned min,
                     unsigned max, FUZZ_dataProducer_t *producer) {
-    unsigned const value = FUZZ_dataProducer_uint32Range(producer, min, max);
+    unsigned const value = produceParamValue(min, max, producer);
     set(cctx, param, value);
 }
 
@@ -89,11 +94,18 @@ void FUZZ_setRandomParameters(ZSTD_CCtx *cctx, size_t srcSize, FUZZ_dataProducer
     setRand(cctx, ZSTD_c_ldmHashRateLog, ZSTD_LDM_HASHRATELOG_MIN,
             ZSTD_LDM_HASHRATELOG_MAX, producer);
     /* Set misc parameters */
-    setRand(cctx, ZSTD_c_nbWorkers, 0, 2, producer);
-    setRand(cctx, ZSTD_c_rsyncable, 0, 1, producer);
 #ifndef ZSTD_MULTITHREAD
+    // To reproduce with or without ZSTD_MULTITHREAD, we are going to use
+    // the same amount of entropy.
+    unsigned const nbWorkers_value = produceParamValue(0, 2, producer);
+    unsigned const rsyncable_value = produceParamValue(0, 1, producer);
+    (void)nbWorkers_value;
+    (void)rsyncable_value;
     set(cctx, ZSTD_c_nbWorkers, 0);
     set(cctx, ZSTD_c_rsyncable, 0);
+#else
+    setRand(cctx, ZSTD_c_nbWorkers, 0, 2, producer);
+    setRand(cctx, ZSTD_c_rsyncable, 0, 1, producer);
 #endif
     setRand(cctx, ZSTD_c_useRowMatchFinder, 0, 2, producer);
     setRand(cctx, ZSTD_c_enableDedicatedDictSearch, 0, 1, producer);

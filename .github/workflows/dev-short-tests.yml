@@ -223,20 +223,20 @@ jobs:
         run: |
           meson install -C builddir --destdir staging/
 
-  cmake-visual-2019:
-    runs-on: windows-2019
+  cmake-visual-2022:
     strategy:
       matrix:
         include:
-          - generator: "Visual Studio 16 2019"
+          - generator: "Visual Studio 17 2022"
             flags: "-A x64"
-          - generator: "Visual Studio 16 2019"
+          - generator: "Visual Studio 17 2022"
             flags: "-A Win32"
           - generator: "MinGW Makefiles"
+    runs-on: windows-2022
     steps:
     - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
     - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@34cfbaee7f672c76950673338facd8a73f637506 # tag=v1.1.3
+      uses: microsoft/setup-msbuild@v1.3
     - name: Build
       working-directory: ${{env.GITHUB_WORKSPACE}}
       run: |
@@ -246,40 +246,28 @@ jobs:
         cmake.exe -G "${{matrix.generator}}" ${{matrix.flags}} ..
         cmake.exe --build .
 
-  visual-2019:
-    runs-on: windows-2019
+  msbuild-visual-studio:
     strategy:
       matrix:
-        platform: [x64, Win32]
-        configuration: [Debug, Release]
+        include: [
+          { name: "VS 2022 x64 Debug", platform: x64, configuration: Debug, toolset: v143, runner: "windows-2022"},
+          { name: "VS 2022 Win32 Debug", platform: Win32, configuration: Debug, toolset: v143, runner: "windows-2022"},
+          { name: "VS 2022 x64 Release", platform: x64, configuration: Release, toolset: v143, runner: "windows-2022"},
+          { name: "VS 2022 Win32 Release", platform: Win32, configuration: Release, toolset: v143, runner: "windows-2022"},
+          { name: "VS 2019 x64 Release", platform: Win32, configuration: Release, toolset: v142, runner: "windows-2019"},
+          { name: "VS 2019 Win32 Release", platform: x64, configuration: Release, toolset: v142, runner: "windows-2019"},
+        ]
+    runs-on: ${{matrix.runner}}
     steps:
     - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
     - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@34cfbaee7f672c76950673338facd8a73f637506 # tag=v1.1.3
+      uses: microsoft/setup-msbuild@v1.3
     - name: Build
       working-directory: ${{env.GITHUB_WORKSPACE}}
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
       run: >
-        msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v142
+        msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=${{matrix.toolset}}
         /t:Clean,Build /p:Platform=${{matrix.platform}} /p:Configuration=${{matrix.configuration}}
-
-# TODO: fix as part of https://github.com/facebook/zstd/issues/3064
-#  visual-2015:
-#    # only GH actions windows-2016 contains VS 2015
-#    runs-on: windows-2016
-#    strategy:
-#      matrix:
-#        platform: [x64, Win32]
-#        configuration: [Debug, Release]
-#    steps:
-#    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
-#    - name: Add MSBuild to PATH
-#      uses: microsoft/setup-msbuild@34cfbaee7f672c76950673338facd8a73f637506 # tag=v1.1.3
-#    - name: Build
-#      working-directory: ${{env.GITHUB_WORKSPACE}}
-#      run: >
-#        msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v140
-#        /t:Clean,Build /p:Platform=${{matrix.platform}} /p:Configuration=${{matrix.configuration}}
 
   # This tests that we don't accidently grow the size too much.
   # If the size grows intentionally, you can raise these numbers.
@@ -394,44 +382,49 @@ jobs:
         LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
 
   mingw-short-test:
-    runs-on: windows-2019
+    runs-on: windows-latest
     strategy:
-      fail-fast: false
       matrix:
         include: [
-          { compiler: gcc, platform: x64, script: "CFLAGS=-Werror make -j allzstd DEBUGLEVEL=2"},
-          { compiler: gcc, platform: x86, script: "CFLAGS=-Werror make -j allzstd"},
-          { compiler: clang, platform: x64, script: "CFLAGS='--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion' make -j allzstd V=1"},
+          { compiler: gcc, msystem: MINGW32, cflags: "-Werror"},
+          { compiler: gcc, msystem: MINGW64, cflags: "-Werror"},
+          { compiler: clang, msystem: MINGW64, cflags: "--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion -Wno-unused-command-line-argument"},
         ]
+    defaults:
+      run:
+        shell: msys2 {0}
     steps:
     - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
-    - name: Mingw short test
+    - uses: msys2/setup-msys2@v2
+      with:
+        msystem: ${{ matrix.msystem }}
+        install: make diffutils
+        update: true
+    # Based on https://ariya.io/2020/07/on-github-actions-with-msys2
+    - name: install mingw gcc
+      if: ${{ (matrix.msystem == 'MINGW32') && (matrix.compiler == 'gcc') }}
+      run: pacman --noconfirm -S mingw-w64-i686-gcc
+    - name: install mingw gcc
+      if: ${{ (matrix.msystem == 'MINGW64') && (matrix.compiler == 'gcc') }}
+      run: pacman --noconfirm -S mingw-w64-x86_64-gcc
+    - name: install mingw clang x86_64
+      if: ${{ (matrix.msystem == 'MINGW64') && (matrix.compiler == 'clang') }}
+      run: pacman --noconfirm -S mingw-w64-x86_64-clang
+    - name: install mingw clang i686
+      if: ${{ (matrix.msystem == 'MINGW32') && (matrix.compiler == 'clang') }}
+      run: pacman --noconfirm -S mingw-w64-i686-clang
+    - name: run mingw tests
       run: |
-        ECHO "Building ${{matrix.compiler}} ${{matrix.platform}}"
-        $env:PATH_ORIGINAL = $env:PATH
-        $env:PATH_MINGW32 = "C:\msys64\mingw32\bin"
-        $env:PATH_MINGW64 = "C:\msys64\mingw64\bin"
-        COPY C:\msys64\usr\bin\make.exe C:\msys64\mingw32\bin\make.exe
-        COPY C:\msys64\usr\bin\make.exe C:\msys64\mingw64\bin\make.exe
-        IF ("${{matrix.platform}}" -eq "x64")
-        {
-            $env:PATH = $env:PATH_MINGW64 + ";" + $env:PATH_ORIGINAL
-        }
-        ELSEIF ("${{matrix.platform}}" -eq "x86")
-        {
-            $env:PATH = $env:PATH_MINGW32 + ";" + $env:PATH_ORIGINAL
-        }
         make -v
-        sh -c "${{matrix.compiler}} -v"
-        $env:CC = "${{matrix.compiler}}"
-        sh -c "${{matrix.script}}"
-        ECHO "Testing ${{matrix.compiler}} ${{matrix.platform}}"
+        export CC=${{ matrix.compiler }}
+        $CC --version
+        CFLAGS="${{ matrix.cflags }}" make -j allzstd
+        echo "Testing $CC ${{ matrix.msystem }}"
         make clean
         make check
 
-
   visual-runtime-tests:
-    runs-on: windows-2019
+    runs-on: windows-latest
     strategy:
       matrix:
         platform: [x64, Win32]
@@ -439,7 +432,7 @@ jobs:
     steps:
     - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
     - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@34cfbaee7f672c76950673338facd8a73f637506 # tag=v1.1.3
+      uses: microsoft/setup-msbuild@v1.3
     - name: Build and run tests
       working-directory: ${{env.GITHUB_WORKSPACE}}
       env:

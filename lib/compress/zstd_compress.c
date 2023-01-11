@@ -361,7 +361,6 @@ size_t ZSTD_CCtxParams_init(ZSTD_CCtx_params* cctxParams, int compressionLevel) 
     ZSTD_memset(cctxParams, 0, sizeof(*cctxParams));
     cctxParams->compressionLevel = compressionLevel;
     cctxParams->fParams.contentSizeFlag = 1;
-    // cctxParams->maxBlockSize = ZSTD_BLOCKSIZE_MAX;
     return 0;
 }
 
@@ -617,7 +616,7 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
         return bounds;
 
     case ZSTD_c_maxBlockSize:
-        bounds.lowerBound = 1;
+        bounds.lowerBound = ZSTD_BLOCKSIZE_MAX_MIN;
         bounds.upperBound = ZSTD_BLOCKSIZE_MAX;
         return bounds;
 

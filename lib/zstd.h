@@ -141,6 +141,7 @@ ZSTDLIB_API const char* ZSTD_versionString(void);
 
 #define ZSTD_BLOCKSIZELOG_MAX  17
 #define ZSTD_BLOCKSIZE_MAX     (1<<ZSTD_BLOCKSIZELOG_MAX)
+#define ZSTD_BLOCKSIZE_MAX_MIN 1 << 10 /* The minimum valid max blocksize. Maximum blocksizes smaller than this make compressBound() inaccurate. */
 
 
 /***************************************

@@ -24,9 +24,9 @@ static size_t showHexa(const void* src, size_t srcSize)
     const BYTE* const ip = (const BYTE*)src;
     size_t u;
     for (u=0; u<srcSize; u++) {
-        RAWLOG(6, " %02X", ip[u]); (void)ip;
+        RAWLOG(5, " %02X", ip[u]); (void)ip;
     }
-    RAWLOG(6, " \n");
+    RAWLOG(5, " \n");
     return srcSize;
 }
 
@@ -65,12 +65,26 @@ size_t ZSTD_noCompressLiterals (void* dst, size_t dstCapacity, const void* src, 
     return srcSize + flSize;
 }
 
+static int allBytesIdentical(const void* src, size_t srcSize)
+{
+    assert(srcSize >= 1);
+    assert(src != NULL);
+    {   const BYTE b = ((const BYTE*)src)[0];
+        size_t p;
+        for (p=1; p<srcSize; p++) {
+            if (((const BYTE*)src)[p] != b) return 0;
+        }
+        return 1;
+    }
+}
+
 size_t ZSTD_compressRleLiteralsBlock (void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
     BYTE* const ostart = (BYTE*)dst;
     U32   const flSize = 1 + (srcSize>31) + (srcSize>4095);
 
-    (void)dstCapacity;  /* dstCapacity already guaranteed to be >=4, hence large enough */
+    assert(dstCapacity >= 4); (void)dstCapacity;
+    assert(allBytesIdentical(src, srcSize));
 
     switch(flSize)
     {
@@ -88,7 +102,7 @@ size_t ZSTD_compressRleLiteralsBlock (void* dst, size_t dstCapacity, const void*
     }
 
     ostart[flSize] = *(const BYTE*)src;
-    DEBUGLOG(5, "RLE literals: %u -> %u", (U32)srcSize, (U32)flSize + 1);
+    DEBUGLOG(5, "RLE : Repeated Literal (%02X: %u times) -> %u bytes encoded", ((const BYTE*)src)[0], (U32)srcSize, (U32)flSize + 1);
     return flSize+1;
 }
 
@@ -105,8 +119,8 @@ ZSTD_minLiteralsToCompress(ZSTD_strategy strategy, HUF_repeat huf_repeat)
     /* btultra2 : min 8 bytes;
      * then 2x larger for each successive compression strategy
      * max threshold 64 bytes */
-    {   int const shift = MIN(9-strategy, 3);
-        size_t const mintc = (huf_repeat == HUF_repeat_valid) ? 6 : 8 << shift;
+    {   int const shift = MIN(9-(int)strategy, 3);
+        size_t const mintc = (huf_repeat == HUF_repeat_valid) ? 6 : (size_t)8 << shift;
         DEBUGLOG(7, "minLiteralsToCompress = %zu", mintc);
         return mintc;
     }
@@ -148,7 +162,7 @@ size_t ZSTD_compressLiterals (
     {   HUF_repeat repeat = prevHuf->repeatMode;
         int const preferRepeat = (strategy < ZSTD_lazy) ? srcSize <= 1024 : 0;
         HUF_depth_mode const depthMode = (strategy >= HUF_OPTIMAL_DEPTH_THRESHOLD) ? HUF_depth_optimal : HUF_depth_fast;
-        typedef size_t (*huf_compress_f)(void*, size_t, const void*, size_t, unsigned, unsigned, void*, size_t, HUF_CElt*, HUF_repeat*, int, int, unsigned, HUF_depth_mode);
+        typedef size_t (*huf_compress_f)(void*, size_t, const void*, size_t, unsigned, unsigned, void*, size_t, HUF_CElt*, HUF_repeat*, int, int, int, HUF_depth_mode);
         huf_compress_f huf_compress;
         if (repeat == HUF_repeat_valid && lhSize == 3) singleStream = 1;
         huf_compress = singleStream ? HUF_compress1X_repeat : HUF_compress4X_repeat;
@@ -159,9 +173,10 @@ size_t ZSTD_compressLiterals (
                                 (HUF_CElt*)nextHuf->CTable,
                                 &repeat, preferRepeat,
                                 bmi2, suspectUncompressible, depthMode);
+        DEBUGLOG(5, "%zu literals compressed into %zu bytes (before header)", srcSize, cLitSize);
         if (repeat != HUF_repeat_none) {
             /* reused the existing table */
-            DEBUGLOG(5, "Reusing previous huffman table");
+            DEBUGLOG(5, "reusing statistics from previous huffman block");
             hType = set_repeat;
         }
     }
@@ -172,9 +187,10 @@ size_t ZSTD_compressLiterals (
             return ZSTD_noCompressLiterals(dst, dstCapacity, src, srcSize);
     }   }
     if (cLitSize==1) {
-        ZSTD_memcpy(nextHuf, prevHuf, sizeof(*prevHuf));
-        return ZSTD_compressRleLiteralsBlock(dst, dstCapacity, src, srcSize);
-    }
+        if ((srcSize >= 8) || allBytesIdentical(src, srcSize)) {
+            ZSTD_memcpy(nextHuf, prevHuf, sizeof(*prevHuf));
+            return ZSTD_compressRleLiteralsBlock(dst, dstCapacity, src, srcSize);
+    }   }
 
     if (hType == set_compressed) {
         /* using a newly constructed table */

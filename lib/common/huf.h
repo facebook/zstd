@@ -221,7 +221,7 @@ size_t HUF_compress4X_repeat(void* dst, size_t dstSize,
                        unsigned maxSymbolValue, unsigned tableLog,
                        void* workSpace, size_t wkspSize,    /**< `workSpace` must be aligned on 4-bytes boundaries, `wkspSize` must be >= HUF_WORKSPACE_SIZE */
                        HUF_CElt* hufTable, HUF_repeat* repeat, int preferRepeat, int bmi2,
-                       unsigned suspectUncompressible, HUF_depth_mode depthMode);
+                       int suspectUncompressible, HUF_depth_mode depthMode);
 
 /** HUF_buildCTable_wksp() :
  *  Same as HUF_buildCTable(), but using externally allocated scratch buffer.
@@ -328,7 +328,7 @@ size_t HUF_compress1X_repeat(void* dst, size_t dstSize,
                        unsigned maxSymbolValue, unsigned tableLog,
                        void* workSpace, size_t wkspSize,   /**< `workSpace` must be aligned on 4-bytes boundaries, `wkspSize` must be >= HUF_WORKSPACE_SIZE */
                        HUF_CElt* hufTable, HUF_repeat* repeat, int preferRepeat, int bmi2,
-                       unsigned suspectUncompressible, HUF_depth_mode depthMode);
+                       int suspectUncompressible, HUF_depth_mode depthMode);
 
 size_t HUF_decompress1X1 (void* dst, size_t dstSize, const void* cSrc, size_t cSrcSize);   /* single-symbol decoder */
 #ifndef HUF_FORCE_DECOMPRESS_X1

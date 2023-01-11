@@ -37,11 +37,7 @@ size_t ZBUFF_freeDCtx(ZBUFF_DCtx* zbd)
 
 size_t ZBUFF_decompressInitDictionary(ZBUFF_DCtx* zbd, const void* dict, size_t dictSize)
 {
-    {   const size_t resetRet = ZSTD_DCtx_reset(zbd, ZSTD_reset_session_only);
-        if (ZSTD_isError(resetRet)) return resetRet;   }
-    {   const size_t loadRet = ZSTD_DCtx_loadDictionary(zbd, dict, dictSize);
-        if (ZSTD_isError(loadRet)) return loadRet;   }
-    return ZSTD_startingInputLength(zbd->format);
+    return ZSTD_initDStream_usingDict(zbd, dict, dictSize);
 }
 
 size_t ZBUFF_decompressInit(ZBUFF_DCtx* zbd)

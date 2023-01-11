@@ -394,26 +394,7 @@ jobs:
       run:
         shell: msys2 {0}
     steps:
-<<<<<<< HEAD
     - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
-    - name: Mingw short test
-      run: |
-        ECHO "Building ${{matrix.compiler}} ${{matrix.platform}}"
-        $env:PATH_ORIGINAL = $env:PATH
-        $env:PATH_MINGW32 = "C:\msys64\mingw32\bin"
-        $env:PATH_MINGW64 = "C:\msys64\mingw64\bin"
-        COPY C:\msys64\usr\bin\make.exe C:\msys64\mingw32\bin\make.exe
-        COPY C:\msys64\usr\bin\make.exe C:\msys64\mingw64\bin\make.exe
-        IF ("${{matrix.platform}}" -eq "x64")
-        {
-            $env:PATH = $env:PATH_MINGW64 + ";" + $env:PATH_ORIGINAL
-        }
-        ELSEIF ("${{matrix.platform}}" -eq "x86")
-        {
-            $env:PATH = $env:PATH_MINGW32 + ";" + $env:PATH_ORIGINAL
-        }
-=======
-    - uses: actions/checkout@v2
     - uses: msys2/setup-msys2@v2
       with:
         msystem: ${{ matrix.msystem }}
@@ -434,7 +415,6 @@ jobs:
       run: pacman --noconfirm -S mingw-w64-i686-clang
     - name: run mingw tests
       run: |
->>>>>>> e16c485f (Overhaul windows CI)
         make -v
         export CC=${{ matrix.compiler }}
         $CC --version

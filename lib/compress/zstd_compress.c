@@ -983,7 +983,8 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
         return CCtxParams->enableMatchFinderFallback;
 
     case ZSTD_c_maxBlockSize:
-        BOUNDCHECK(ZSTD_c_maxBlockSize, value);
+        if (value!=0)    /* 0 ==> default */
+            BOUNDCHECK(ZSTD_c_maxBlockSize, value);
         CCtxParams->maxBlockSize = value;
         return CCtxParams->maxBlockSize;
 

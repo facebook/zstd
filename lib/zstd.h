@@ -2071,8 +2071,13 @@ ZSTDLIB_STATIC_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const vo
 #define ZSTD_c_enableMatchFinderFallback ZSTD_c_experimentalParam17
 
 /*  ZSTD_c_maxBlockSize
+ *  Allowed values are between 1KB and ZSTD_BLOCKSIZE_MAX (128KB).
+ *  The default is ZSTD_BLOCKSIZE_MAX, and setting to 0 will set to the default.
  *
- *  Default is ZSTD_BLOCKSIZE_MAX.
+ *  This parameter can be used to set an upper bound on the blocksize
+ *  that overrides the default ZSTD_BLOCKSIZE_MAX. It cannot be used to set upper
+ *  bounds greater than ZSTD_BLOCKSIZE_MAX or bounds lower than 1KB (will make
+ *  compressBound() innacurate). Only currently meant to be used for testing.
  *
  */
 #define ZSTD_c_maxBlockSize ZSTD_c_experimentalParam18

@@ -28,7 +28,6 @@ extern "C" {
 *  Dependencies
 ***************************************/
 #include <stddef.h>      /* size_t */
-#define ZSTD_DISABLE_DEPRECATE_WARNINGS /* zbuff_decompress.c depends on deprecated zstd functions */
 #include "../zstd.h"        /* ZSTD_CStream, ZSTD_DStream, ZSTDLIB_API */
 
 

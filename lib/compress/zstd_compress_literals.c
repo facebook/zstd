@@ -187,6 +187,11 @@ size_t ZSTD_compressLiterals (
             return ZSTD_noCompressLiterals(dst, dstCapacity, src, srcSize);
     }   }
     if (cLitSize==1) {
+        /* A return value of 1 signals that the alphabet consists of a single symbol.
+         * However, in some rare circumstances, it could be the compressed size (a single byte).
+         * For that outcome to have a chance to happen, it's necessary that `srcSize < 8`.
+         * (it's also necessary to not generate statistics).
+         * Therefore, in such a case, actively check that all bytes are identical. */
         if ((srcSize >= 8) || allBytesIdentical(src, srcSize)) {
             ZSTD_memcpy(nextHuf, prevHuf, sizeof(*prevHuf));
             return ZSTD_compressRleLiteralsBlock(dst, dstCapacity, src, srcSize);

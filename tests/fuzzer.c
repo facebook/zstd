@@ -1220,6 +1220,60 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : in-place decompression : ", testNb++);
+    cSize = ZSTD_compress(compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize, -ZSTD_BLOCKSIZE_MAX);
+    CHECK_Z(cSize);
+    CHECK_LT(CNBuffSize, cSize);
+    {
+        size_t const margin = ZSTD_decompressionMargin(compressedBuffer, cSize);
+        size_t const outputSize = (CNBuffSize + margin);
+        char* output = malloc(outputSize);
+        char* input = output + outputSize - cSize;
+        CHECK_LT(cSize, CNBuffSize + margin);
+        CHECK(output != NULL);
+        CHECK_Z(margin);
+        CHECK(margin <= ZSTD_DECOMPRESSION_MARGIN(CNBuffSize, ZSTD_BLOCKSIZE_MAX));
+        memcpy(input, compressedBuffer, cSize);
+
+        {
+            size_t const dSize = ZSTD_decompress(output, outputSize, input, cSize);
+            CHECK_Z(dSize);
+            CHECK_EQ(dSize, CNBuffSize);
+        }
+        CHECK(!memcmp(output, CNBuffer, CNBuffSize));
+        free(output);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : in-place decompression with 2 frames : ", testNb++);
+    cSize = ZSTD_compress(compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize / 3, -ZSTD_BLOCKSIZE_MAX);
+    CHECK_Z(cSize);
+    {
+        size_t const cSize2 = ZSTD_compress((char*)compressedBuffer + cSize, compressedBufferSize - cSize, (char const*)CNBuffer + (CNBuffSize / 3), CNBuffSize / 3, -ZSTD_BLOCKSIZE_MAX);
+        CHECK_Z(cSize2);
+        cSize += cSize2;
+    }
+    {
+        size_t const srcSize = (CNBuffSize / 3) * 2;
+        size_t const margin = ZSTD_decompressionMargin(compressedBuffer, cSize);
+        size_t const outputSize = (CNBuffSize + margin);
+        char* output = malloc(outputSize);
+        char* input = output + outputSize - cSize;
+        CHECK_LT(cSize, CNBuffSize + margin);
+        CHECK(output != NULL);
+        CHECK_Z(margin);
+        memcpy(input, compressedBuffer, cSize);
+
+        {
+            size_t const dSize = ZSTD_decompress(output, outputSize, input, cSize);
+            CHECK_Z(dSize);
+            CHECK_EQ(dSize, srcSize);
+        }
+        CHECK(!memcmp(output, CNBuffer, srcSize));
+        free(output);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     DISPLAYLEVEL(3, "test%3d: superblock uncompressible data, too many nocompress superblocks : ", testNb++);
     {
         ZSTD_CCtx* const cctx = ZSTD_createCCtx();

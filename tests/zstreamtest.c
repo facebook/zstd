@@ -1925,6 +1925,49 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+
+    /* Test maxBlockSize cctx param functionality */
+    DISPLAYLEVEL(3, "test%3i : Testing maxBlockSize PR#3418: ", testNb++);
+    {
+        ZSTD_CCtx* cctx = ZSTD_createCCtx();
+        size_t const srcSize = 2 << 10;
+        void* const src = CNBuffer;
+        size_t const dstSize = ZSTD_compressBound(srcSize);
+        void* const dst1 = compressedBuffer;
+        void* const dst2 = (BYTE*)compressedBuffer + dstSize;
+        size_t size1, size2;
+        void* const checkBuf = malloc(srcSize);
+
+        memset(src, 'x', srcSize);
+
+        /* Quick test to make sure maxBlockSize bounds are enforced */
+        assert(ZSTD_isError(ZSTD_CCtx_setParameter(cctx, ZSTD_c_maxBlockSize, ZSTD_BLOCKSIZE_MAX_MIN - 1)));
+        assert(ZSTD_isError(ZSTD_CCtx_setParameter(cctx, ZSTD_c_maxBlockSize, ZSTD_BLOCKSIZE_MAX + 1)));
+
+        /* maxBlockSize = 1KB */
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_maxBlockSize, 1 << 10));
+        size1 = ZSTD_compress2(cctx, dst1, dstSize, src, srcSize);
+
+        if (ZSTD_isError(size1)) goto _output_error;
+        CHECK_Z(ZSTD_decompress(checkBuf, srcSize, dst1, size1));
+        CHECK(memcmp(src, checkBuf, srcSize) != 0, "Corruption!");
+
+        /* maxBlockSize = 3KB */
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_maxBlockSize, 3 << 10));
+        size2 = ZSTD_compress2(cctx, dst2, dstSize, src, srcSize);
+
+        if (ZSTD_isError(size2)) goto _output_error;
+        CHECK_Z(ZSTD_decompress(checkBuf, srcSize, dst2, size2));
+        CHECK(memcmp(src, checkBuf, srcSize) != 0, "Corruption!");
+
+        /* Compressed output should not be equal */
+        assert(memcmp(dst1, dst2, dstSize) != 0);
+        assert(size1 - size2 == 4); /* We add another RLE block with header + character */
+        ZSTD_freeCCtx(cctx);
+        free(checkBuf);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
 _end:
     FUZ_freeDictionary(dictionary);
     ZSTD_freeCStream(zc);

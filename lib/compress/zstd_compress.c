@@ -288,7 +288,7 @@ static int ZSTD_resolveExternalSequenceValidation(int mode) {
 #endif
 }
 
-/* Sets the default maximum block size. */
+/* Resolves maxBlockSize to the default if no value is present. */
 static size_t ZSTD_resolveMaxBlockSize(size_t maxBlockSize) {
     if (maxBlockSize == 0) {
         return ZSTD_BLOCKSIZE_MAX;

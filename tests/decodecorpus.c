@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>  /* time(), for seed random initialization */
 
 #include "util.h"
 #include "timefn.h"   /* UTIL_clockSpanMicro, SEC_TO_MICRO, UTIL_TIME_INITIALIZER */
@@ -24,7 +25,7 @@
 #include "zdict.h"
 
 /* Direct access to internal compression functions is required */
-#include "zstd_compress.c"
+#include "zstd_compress.c" /* ZSTD_resetSeqStore, ZSTD_storeSeq, *_TO_OFFBASE, HIST_countFast_wksp, HIST_isError */
 
 #define XXH_STATIC_LINKING_ONLY
 #include "xxhash.h"     /* XXH64 */
@@ -165,7 +166,7 @@ static double RAND_exp(U32* seed, double mean)
 /*-*******************************************************
 *  Constants and Structs
 *********************************************************/
-const char *BLOCK_TYPES[] = {"raw", "rle", "compressed"};
+const char* BLOCK_TYPES[] = {"raw", "rle", "compressed"};
 
 #define MAX_DECOMPRESSED_SIZE_LOG 20
 #define MAX_DECOMPRESSED_SIZE (1ULL << MAX_DECOMPRESSED_SIZE_LOG)

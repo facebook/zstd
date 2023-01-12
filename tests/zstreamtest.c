@@ -25,6 +25,7 @@
 #include <stdlib.h>       /* free */
 #include <stdio.h>        /* fgets, sscanf */
 #include <string.h>       /* strcmp */
+#include <time.h>         /* time_t, time(), to randomize seed */
 #include <assert.h>       /* assert */
 #include "timefn.h"       /* UTIL_time_t, UTIL_getTime */
 #include "mem.h"

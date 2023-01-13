@@ -16,6 +16,10 @@
 
 size_t ZSTD_noCompressLiterals (void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 
+/* ZSTD_compressRleLiteralsBlock() :
+ * Conditions :
+ * - All bytes in @src are identical
+ * - dstCapacity >= 4 */
 size_t ZSTD_compressRleLiteralsBlock (void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 
 /* ZSTD_compressLiterals():

@@ -12,8 +12,8 @@
 /* ===  Dependencies  === */
 
 #include "timefn.h"
-
-#include <time.h>     /* TIME_UTC, then struct timespec and clock_t */
+#include "platform.h" /* set _POSIX_C_SOURCE */
+#include <time.h>     /* CLOCK_MONOTONIC, TIME_UTC */
 
 /*-****************************************
 *  Time functions
@@ -37,8 +37,10 @@ UTIL_time_t UTIL_getTime(void)
         init = 1;
     }
     {   UTIL_time_t r;
-        r.t = (PTime)(QueryPerformanceCounter(&x).QuadPart * 1000000000ULL / ticksPerSecond.QuadPart);
-        return ;
+        LARGE_INTEGER x;
+        QueryPerformanceCounter(&x);
+        r.t = (PTime)(x.QuadPart * 1000000000ULL / ticksPerSecond.QuadPart);
+        return r;
     }
 }
 
@@ -61,10 +63,31 @@ UTIL_time_t UTIL_getTime(void)
     }
 }
 
+/* POSIX.1-2001 (optional) */
+#elif defined(CLOCK_MONOTONIC)
 
-/* C11 requires timespec_get().
- * However, FreeBSD 11 claims C11 compliance but lacks timespec_get().
- * Double confirm by requiring the definition of TIME_UTC.
+#include <stdlib.h>   /* abort */
+#include <stdio.h>    /* perror */
+
+UTIL_time_t UTIL_getTime(void)
+{
+    /* time must be initialized, othersize it may fail msan test.
+     * No good reason, likely a limitation of timespec_get() for some target */
+    struct timespec time = { 0, 0 };
+    if (clock_gettime(CLOCK_MONOTONIC, &time) != 0) {
+        perror("timefn::clock_gettime(CLOCK_MONOTONIC)");
+        abort();
+    }
+    {   UTIL_time_t r;
+        r.t = (PTime)time.tv_sec * 1000000000ULL + (PTime)time.tv_nsec;
+        return r;
+    }
+}
+
+
+/* C11 requires support of timespec_get().
+ * However, FreeBSD 11 claims C11 compliance while lacking timespec_get().
+ * Double confirm timespec_get() support by checking the definition of TIME_UTC.
  * However, some versions of Android manage to simultanously define TIME_UTC
  * and lack timespec_get() support... */
 #elif (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) /* C11 */) \
@@ -79,7 +102,7 @@ UTIL_time_t UTIL_getTime(void)
      * No good reason, likely a limitation of timespec_get() for some target */
     struct timespec time = { 0, 0 };
     if (timespec_get(&time, TIME_UTC) != TIME_UTC) {
-        perror("timefn::timespec_get");
+        perror("timefn::timespec_get(TIME_UTC)");
         abort();
     }
     {   UTIL_time_t r;

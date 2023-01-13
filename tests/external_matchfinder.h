@@ -32,4 +32,4 @@ size_t zstreamExternalMatchFinder(
   size_t windowSize
 );
 
-#endif // EXTERNAL_MATCHFINDER
+#endif /* EXTERNAL_MATCHFINDER */

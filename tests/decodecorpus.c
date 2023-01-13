@@ -25,21 +25,13 @@
 #include "zdict.h"
 
 /* Direct access to internal compression functions is required */
-#include "zstd_compress.c" /* ZSTD_resetSeqStore, ZSTD_storeSeq, *_TO_OFFBASE, HIST_countFast_wksp, HIST_isError */
+#include "compress/zstd_compress.c" /* ZSTD_resetSeqStore, ZSTD_storeSeq, *_TO_OFFBASE, HIST_countFast_wksp, HIST_isError */
 
 #define XXH_STATIC_LINKING_ONLY
 #include "xxhash.h"     /* XXH64 */
 
-#ifndef MIN
-    #define MIN(a, b) ((a) < (b) ? (a) : (b))
-#endif
-
-#ifndef MAX_PATH
-    #ifdef PATH_MAX
-        #define MAX_PATH PATH_MAX
-    #else
-        #define MAX_PATH 256
-    #endif
+#if !(defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */))
+# define inline  /* disable */
 #endif
 
 /*-************************************
@@ -70,6 +62,7 @@ static UTIL_time_t g_displayClock = UTIL_TIME_INITIALIZER;
             exit(1);                                                           \
         }                                                                      \
     } while (0)
+
 
 /*-*******************************************************
 *  Random function
@@ -176,6 +169,14 @@ const char* BLOCK_TYPES[] = {"raw", "rle", "compressed"};
 #define MIN_SEQ_LEN (3)
 #define MAX_NB_SEQ ((ZSTD_BLOCKSIZE_MAX + MIN_SEQ_LEN - 1) / MIN_SEQ_LEN)
 
+#ifndef MAX_PATH
+    #ifdef PATH_MAX
+        #define MAX_PATH PATH_MAX
+    #else
+        #define MAX_PATH 256
+    #endif
+#endif
+
 BYTE CONTENT_BUFFER[MAX_DECOMPRESSED_SIZE];
 BYTE FRAME_BUFFER[MAX_DECOMPRESSED_SIZE * 2];
 BYTE LITERAL_BUFFER[ZSTD_BLOCKSIZE_MAX];
@@ -240,6 +241,10 @@ typedef enum {
   gt_frame = 0,  /* generate frames */
   gt_block,      /* generate compressed blocks without block/frame headers */
 } genType_e;
+
+#ifndef MIN
+    #define MIN(a, b) ((a) < (b) ? (a) : (b))
+#endif
 
 /*-*******************************************************
 *  Global variables (set from command line)

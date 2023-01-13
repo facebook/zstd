@@ -1925,7 +1925,21 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
         {   /* Row match finder needs an additional table of hashes ("tags") */
             size_t const tagTableSize = hSize*sizeof(U16);
             ms->tagTable = (U16*)ZSTD_cwksp_reserve_aligned(ws, tagTableSize);
-            if (ms->tagTable) ZSTD_memset(ms->tagTable, 0, tagTableSize);
+            if(forWho == ZSTD_resetTarget_CDict) {
+                ms->hashSalt = 0;
+            } else {
+                ms->hashSalt = (ms->hashSalt + 12345) * 1103515245; // ISO C PRNG
+            }
+#if ZSTD_MEMORY_SANITIZER
+            /* The rowHash algorithm has the ability to work with uninitialized tag space.
+                 * It doesn't matter if the tag space is initially correct or not,
+                 * at worst it will incorrectly "hint" at a match position
+                 * which is then properly filtered out by indices analysis.
+                 * There is also no requirement to start the series of tag from position "0".
+                 * */
+                __msan_unpoison(ms->tagTable, tagTableSize);
+#endif
+
         }
         {   /* Switch to 32-entry rows if searchLog is 5 (or more) */
             U32 const rowLog = BOUNDED(4, cParams->searchLog, 6);

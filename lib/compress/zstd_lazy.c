@@ -841,7 +841,7 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_prefetch(U32 const* hashTable, U16 const* ta
  */
 FORCE_INLINE_TEMPLATE void ZSTD_row_fillHashCache(ZSTD_matchState_t* ms, const BYTE* base,
                                    U32 const rowLog, U32 const mls,
-                                   U32 idx, const BYTE* const iLimit)
+                                   U32 idx, const BYTE* const iLimit, U32 const hashSalt)
 {
     U32 const* const hashTable = ms->hashTable;
     U16 const* const tagTable = ms->tagTable;
@@ -850,7 +850,7 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_fillHashCache(ZSTD_matchState_t* ms, const B
     U32 const lim = idx + MIN(ZSTD_ROW_HASH_CACHE_SIZE, maxElemsToPrefetch);
 
     for (; idx < lim; ++idx) {
-        U32 const hash = (U32)ZSTD_hashPtr(base + idx, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls);
+        U32 const hash = (U32)ZSTD_hashPtrSalted(base + idx, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls, hashSalt);
         U32 const row = (hash >> ZSTD_ROW_HASH_TAG_BITS) << rowLog;
         ZSTD_row_prefetch(hashTable, tagTable, row, rowLog);
         ms->hashCache[idx & ZSTD_ROW_HASH_CACHE_MASK] = hash;
@@ -868,9 +868,10 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_fillHashCache(ZSTD_matchState_t* ms, const B
 FORCE_INLINE_TEMPLATE U32 ZSTD_row_nextCachedHash(U32* cache, U32 const* hashTable,
                                                   U16 const* tagTable, BYTE const* base,
                                                   U32 idx, U32 const hashLog,
-                                                  U32 const rowLog, U32 const mls)
+                                                  U32 const rowLog, U32 const mls,
+                                                  U32 const hashSalt)
 {
-    U32 const newHash = (U32)ZSTD_hashPtr(base+idx+ZSTD_ROW_HASH_CACHE_SIZE, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls);
+    U32 const newHash = (U32)ZSTD_hashPtrSalted(base+idx+ZSTD_ROW_HASH_CACHE_SIZE, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls, hashSalt);
     U32 const row = (newHash >> ZSTD_ROW_HASH_TAG_BITS) << rowLog;
     ZSTD_row_prefetch(hashTable, tagTable, row, rowLog);
     {   U32 const hash = cache[idx & ZSTD_ROW_HASH_CACHE_MASK];
@@ -885,7 +886,8 @@ FORCE_INLINE_TEMPLATE U32 ZSTD_row_nextCachedHash(U32* cache, U32 const* hashTab
 FORCE_INLINE_TEMPLATE void ZSTD_row_update_internalImpl(ZSTD_matchState_t* ms,
                                                         U32 updateStartIdx, U32 const updateEndIdx,
                                                         U32 const mls, U32 const rowLog,
-                                                        U32 const rowMask, U32 const useCache)
+                                                        U32 const rowMask, U32 const useCache,
+                                                        U32 const hashSalt)
 {
     U32* const hashTable = ms->hashTable;
     U16* const tagTable = ms->tagTable;
@@ -894,15 +896,15 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_update_internalImpl(ZSTD_matchState_t* ms,
 
     DEBUGLOG(6, "ZSTD_row_update_internalImpl(): updateStartIdx=%u, updateEndIdx=%u", updateStartIdx, updateEndIdx);
     for (; updateStartIdx < updateEndIdx; ++updateStartIdx) {
-        U32 const hash = useCache ? ZSTD_row_nextCachedHash(ms->hashCache, hashTable, tagTable, base, updateStartIdx, hashLog, rowLog, mls)
-                                  : (U32)ZSTD_hashPtr(base + updateStartIdx, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls);
+        U32 const hash = useCache ? ZSTD_row_nextCachedHash(ms->hashCache, hashTable, tagTable, base, updateStartIdx, hashLog, rowLog, mls, hashSalt)
+                                  : (U32)ZSTD_hashPtrSalted(base + updateStartIdx, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls, hashSalt);
         U32 const relRow = (hash >> ZSTD_ROW_HASH_TAG_BITS) << rowLog;
         U32* const row = hashTable + relRow;
         BYTE* tagRow = (BYTE*)(tagTable + relRow);  /* Though tagTable is laid out as a table of U16, each tag is only 1 byte.
                                                        Explicit cast allows us to get exact desired position within each row */
         U32 const pos = ZSTD_row_nextIndex(tagRow, rowMask);
 
-        assert(hash == ZSTD_hashPtr(base + updateStartIdx, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls));
+        assert(hash == ZSTD_hashPtrSalted(base + updateStartIdx, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls, hashSalt));
         ((BYTE*)tagRow)[pos + ZSTD_ROW_HASH_TAG_OFFSET] = hash & ZSTD_ROW_HASH_TAG_MASK;
         row[pos] = updateStartIdx;
     }
@@ -914,7 +916,8 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_update_internalImpl(ZSTD_matchState_t* ms,
  */
 FORCE_INLINE_TEMPLATE void ZSTD_row_update_internal(ZSTD_matchState_t* ms, const BYTE* ip,
                                                     U32 const mls, U32 const rowLog,
-                                                    U32 const rowMask, U32 const useCache)
+                                                    U32 const rowMask, U32 const useCache,
+                                                    U32 const hashSalt)
 {
     U32 idx = ms->nextToUpdate;
     const BYTE* const base = ms->window.base;
@@ -931,13 +934,13 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_update_internal(ZSTD_matchState_t* ms, const
          */
         if (UNLIKELY(target - idx > kSkipThreshold)) {
             U32 const bound = idx + kMaxMatchStartPositionsToUpdate;
-            ZSTD_row_update_internalImpl(ms, idx, bound, mls, rowLog, rowMask, useCache);
+            ZSTD_row_update_internalImpl(ms, idx, bound, mls, rowLog, rowMask, useCache, hashSalt);
             idx = target - kMaxMatchEndPositionsToUpdate;
-            ZSTD_row_fillHashCache(ms, base, rowLog, mls, idx, ip+1);
+            ZSTD_row_fillHashCache(ms, base, rowLog, mls, idx, ip+1, hashSalt);
         }
     }
     assert(target >= idx);
-    ZSTD_row_update_internalImpl(ms, idx, target, mls, rowLog, rowMask, useCache);
+    ZSTD_row_update_internalImpl(ms, idx, target, mls, rowLog, rowMask, useCache, hashSalt);
     ms->nextToUpdate = target;
 }
 
@@ -951,7 +954,7 @@ void ZSTD_row_update(ZSTD_matchState_t* const ms, const BYTE* ip) {
     const U32 mls = MIN(ms->cParams.minMatch, 6 /* mls caps out at 6 */);
 
     DEBUGLOG(5, "ZSTD_row_update(), rowLog=%u", rowLog);
-    ZSTD_row_update_internal(ms, ip, mls, rowLog, rowMask, 0 /* don't use cache */);
+    ZSTD_row_update_internal(ms, ip, mls, rowLog, rowMask, 0 /* don't use cache */, ms->hashSalt);
 }
 
 /* Returns the mask width of bits group of which will be set to 1. Given not all
@@ -1163,6 +1166,7 @@ size_t ZSTD_RowFindBestMatch(
     const U32 rowMask = rowEntries - 1;
     const U32 cappedSearchLog = MIN(cParams->searchLog, rowLog); /* nb of searches is capped at nb entries per row */
     const U32 groupWidth = ZSTD_row_matchMaskGroupWidth(rowEntries);
+    const U32 hashSalt = ms->hashSalt;
     U32 nbAttempts = 1U << cappedSearchLog;
     size_t ml=4-1;
 
@@ -1198,9 +1202,9 @@ size_t ZSTD_RowFindBestMatch(
     }
 
     /* Update the hashTable and tagTable up to (but not including) ip */
-    ZSTD_row_update_internal(ms, ip, mls, rowLog, rowMask, 1 /* useCache */);
+    ZSTD_row_update_internal(ms, ip, mls, rowLog, rowMask, 1 /* useCache */, hashSalt);
     {   /* Get the hash for ip, compute the appropriate row */
-        U32 const hash = ZSTD_row_nextCachedHash(hashCache, hashTable, tagTable, base, curr, hashLog, rowLog, mls);
+        U32 const hash = ZSTD_row_nextCachedHash(hashCache, hashTable, tagTable, base, curr, hashLog, rowLog, mls, hashSalt);
         U32 const relRow = (hash >> ZSTD_ROW_HASH_TAG_BITS) << rowLog;
         U32 const tag = hash & ZSTD_ROW_HASH_TAG_MASK;
         U32* const row = hashTable + relRow;
@@ -1547,7 +1551,7 @@ ZSTD_compressBlock_lazy_generic(
     if (searchMethod == search_rowHash) {
         ZSTD_row_fillHashCache(ms, base, rowLog,
                             MIN(ms->cParams.minMatch, 6 /* mls caps out at 6 */),
-                            ms->nextToUpdate, ilimit);
+                            ms->nextToUpdate, ilimit, ms->hashSalt);
     }
 
     /* Match Loop */
@@ -1917,7 +1921,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
     if (searchMethod == search_rowHash) {
         ZSTD_row_fillHashCache(ms, base, rowLog,
                                MIN(ms->cParams.minMatch, 6 /* mls caps out at 6 */),
-                               ms->nextToUpdate, ilimit);
+                               ms->nextToUpdate, ilimit, ms->hashSalt);
     }
 
     /* Match Loop */

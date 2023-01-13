@@ -25,7 +25,8 @@
 #include <stdlib.h>       /* free */
 #include <stdio.h>        /* fgets, sscanf */
 #include <string.h>       /* strcmp */
-#undef NDEBUG
+#include <time.h>         /* time(), time_t */
+#undef NDEBUG             /* always enable assert() */
 #include <assert.h>
 #define ZSTD_STATIC_LINKING_ONLY  /* ZSTD_compressContinue, ZSTD_compressBlock */
 #include "debug.h"        /* DEBUG_STATIC_ASSERT */

@@ -428,8 +428,10 @@ static int BMK_benchMem(z_const void* srcBuffer, size_t srcSize,
                     ZSTD_DStream* zbd = ZSTD_createDStream();
                     size_t rSize;
                     if (zbd == NULL) EXM_THROW(1, "ZSTD_createDStream() allocation failure");
-                    rSize = ZSTD_initDStream_usingDict(zbd, dictBuffer, dictBufferSize);
-                    if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_initDStream() failed : %s", ZSTD_getErrorName(rSize));
+                    rSize = ZSTD_DCtx_reset(zbd, ZSTD_reset_session_only);
+                    if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_DCtx_reset() failed : %s", ZSTD_getErrorName(rSize));
+                    rSize = ZSTD_DCtx_loadDictionary(zbd, dictBuffer, dictBufferSize);
+                    if (ZSTD_isError(rSize)) EXM_THROW(1, "ZSTD_DCtx_loadDictionary() failed : %s", ZSTD_getErrorName(rSize));
                     do {
                         U32 blockNb;
                         for (blockNb=0; blockNb<nbBlocks; blockNb++) {

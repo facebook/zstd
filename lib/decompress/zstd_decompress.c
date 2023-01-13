@@ -1719,7 +1719,9 @@ size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t di
 size_t ZSTD_initDStream(ZSTD_DStream* zds)
 {
     DEBUGLOG(4, "ZSTD_initDStream");
-    return ZSTD_initDStream_usingDDict(zds, NULL);
+    FORWARD_IF_ERROR(ZSTD_DCtx_reset(zds, ZSTD_reset_session_only), "");
+    FORWARD_IF_ERROR(ZSTD_DCtx_refDDict(zds, NULL), "");
+    return ZSTD_startingInputLength(zds->format);
 }
 
 /* ZSTD_initDStream_usingDDict() :
@@ -1727,6 +1729,7 @@ size_t ZSTD_initDStream(ZSTD_DStream* zds)
  * this function cannot fail */
 size_t ZSTD_initDStream_usingDDict(ZSTD_DStream* dctx, const ZSTD_DDict* ddict)
 {
+    DEBUGLOG(4, "ZSTD_initDStream_usingDDict");
     FORWARD_IF_ERROR( ZSTD_DCtx_reset(dctx, ZSTD_reset_session_only) , "");
     FORWARD_IF_ERROR( ZSTD_DCtx_refDDict(dctx, ddict) , "");
     return ZSTD_startingInputLength(dctx->format);
@@ -1737,6 +1740,7 @@ size_t ZSTD_initDStream_usingDDict(ZSTD_DStream* dctx, const ZSTD_DDict* ddict)
  * this function cannot fail */
 size_t ZSTD_resetDStream(ZSTD_DStream* dctx)
 {
+    DEBUGLOG(4, "ZSTD_resetDStream");
     FORWARD_IF_ERROR(ZSTD_DCtx_reset(dctx, ZSTD_reset_session_only), "");
     return ZSTD_startingInputLength(dctx->format);
 }

@@ -706,8 +706,10 @@ ZEXTERN int ZEXPORT z_inflateSetDictionary _Z_OF((z_streamp strm,
 
     {   ZWRAP_DCtx* const zwd = (ZWRAP_DCtx*) strm->state;
         if (zwd == NULL || zwd->zbd == NULL) return Z_STREAM_ERROR;
-        { size_t const initErr = ZSTD_initDStream_usingDict(zwd->zbd, dictionary, dictLength);
-          if (ZSTD_isError(initErr)) return ZWRAPD_finishWithError(zwd, strm, 0); }
+        { size_t const resetErr = ZSTD_DCtx_reset(zwd->zbd, ZSTD_reset_session_only);
+          if (ZSTD_isError(resetErr)) return ZWRAPD_finishWithError(zwd, strm, 0); }
+        { size_t const loadErr = ZSTD_DCtx_loadDictionary(zwd->zbd, dictionary, dictLength);
+          if (ZSTD_isError(loadErr)) return ZWRAPD_finishWithError(zwd, strm, 0); }
         zwd->decompState = ZWRAP_useReset;
 
         if (zwd->totalInBytes == ZSTD_HEADERSIZE) {

@@ -292,7 +292,7 @@
 #endif
 #endif
 
-#if ZSTD_MEMORY_SANITIZER
+#if ZSTD_MEMORY_SANITIZER && !defined(ZSTD_MSAN_DONT_POISON_WORKSPACE)
 /* Not all platforms that support msan provide sanitizers/msan_interface.h.
  * We therefore declare the functions we need ourselves, rather than trying to
  * include the header file... */
@@ -313,7 +313,7 @@ void __msan_poison(const volatile void *a, size_t size);
 intptr_t __msan_test_shadow(const volatile void *x, size_t size);
 #endif
 
-#if ZSTD_ADDRESS_SANITIZER
+#if ZSTD_ADDRESS_SANITIZER && !defined(ZSTD_ASAN_DONT_POISON_WORKSPACE)
 /* Not all platforms that support asan provide sanitizers/asan_interface.h.
  * We therefore declare the functions we need ourselves, rather than trying to
  * include the header file... */

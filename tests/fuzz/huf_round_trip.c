@@ -49,7 +49,8 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
         | (FUZZ_dataProducer_int32Range(producer, 0, 1) ? HUF_flags_optimalDepth : 0)
         | (FUZZ_dataProducer_int32Range(producer, 0, 1) ? HUF_flags_preferRepeat : 0)
         | (FUZZ_dataProducer_int32Range(producer, 0, 1) ? HUF_flags_suspectUncompressible : 0)
-        | (FUZZ_dataProducer_int32Range(producer, 0, 1) ? HUF_flags_disableAsm : 0);
+        | (FUZZ_dataProducer_int32Range(producer, 0, 1) ? HUF_flags_disableAsm : 0)
+        | (FUZZ_dataProducer_int32Range(producer, 0, 1) ? HUF_flags_disableFast : 0);
     /* Select a random cBufSize - it may be too small */
     size_t const cBufSize = FUZZ_dataProducer_uint32Range(producer, 0, 4 * size);
     /* Select a random tableLog - we'll adjust it up later */

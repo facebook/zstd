@@ -43,10 +43,14 @@
 #error "Cannot force the use of the X1 and X2 decoders at the same time!"
 #endif
 
-#if ZSTD_ENABLE_ASM_X86_64_BMI2 && DYNAMIC_BMI2
-# define HUF_ASM_X86_64_BMI2_ATTRS BMI2_TARGET_ATTRIBUTE
+/* When DYNAMIC_BMI2 is enabled, fast decoders are only called when bmi2 is
+ * supported at runtime, so we can add the BMI2 target attribute.
+ * When it is disabled, we will still get BMI2 if it is enabled statically.
+ */
+#if DYNAMIC_BMI2
+# define HUF_FAST_BMI2_ATTRS BMI2_TARGET_ATTRIBUTE
 #else
-# define HUF_ASM_X86_64_BMI2_ATTRS
+# define HUF_FAST_BMI2_ATTRS
 #endif
 
 #ifdef __cplusplus
@@ -56,7 +60,7 @@
 #endif
 #define HUF_ASM_DECL HUF_EXTERN_C
 
-#if DYNAMIC_BMI2 || (ZSTD_ENABLE_ASM_X86_64_BMI2 && defined(__BMI2__))
+#if DYNAMIC_BMI2
 # define HUF_NEED_BMI2_FUNCTION 1
 #else
 # define HUF_NEED_BMI2_FUNCTION 0
@@ -78,6 +82,11 @@
 /* **************************************************************
 *  BMI2 Variant Wrappers
 ****************************************************************/
+typedef size_t (*HUF_DecompressUsingDTableFn)(void *dst, size_t dstSize,
+                                              const void *cSrc,
+                                              size_t cSrcSize,
+                                              const HUF_DTable *DTable);
+
 #if DYNAMIC_BMI2
 
 #define HUF_DGEN(fn)                                                        \
@@ -132,15 +141,28 @@ static DTableDesc HUF_getDTableDesc(const HUF_DTable* table)
     return dtd;
 }
 
-#if ZSTD_ENABLE_ASM_X86_64_BMI2
-
-static size_t HUF_initDStream(BYTE const* ip) {
+static size_t HUF_initFastDStream(BYTE const* ip) {
     BYTE const lastByte = ip[7];
     size_t const bitsConsumed = lastByte ? 8 - ZSTD_highbit32(lastByte) : 0;
     size_t const value = MEM_readLEST(ip) | 1;
     assert(bitsConsumed <= 8);
+    assert(sizeof(size_t) == 8);
     return value << bitsConsumed;
 }
+
+
+/**
+ * The input/output arguments to the Huffman fast decoding loop:
+ *
+ * ip [in/out] - The input pointers, must be updated to reflect what is consumed.
+ * op [in/out] - The output pointers, must be updated to reflect what is written.
+ * bits [in/out] - The bitstream containers, must be updated to reflect the current state.
+ * dt [in] - The decoding table.
+ * ilimit [in] - The input limit, stop when any input pointer is below ilimit.
+ * oend [in] - The end of the output stream. op[3] must not cross oend.
+ * iend [in] - The end of each input stream. ip[i] may cross iend[i],
+ *             as long as it is above ilimit, but that indicates corruption.
+ */
 typedef struct {
     BYTE const* ip[4];
     BYTE* op[4];
@@ -149,15 +171,17 @@ typedef struct {
     BYTE const* ilimit;
     BYTE* oend;
     BYTE const* iend[4];
-} HUF_DecompressAsmArgs;
+} HUF_DecompressFastArgs;
+
+typedef void (*HUF_DecompressFastLoopFn)(HUF_DecompressFastArgs*);
 
 /**
- * Initializes args for the asm decoding loop.
- * @returns 0 on success
- *          1 if the fallback implementation should be used.
+ * Initializes args for the fast decoding loop.
+ * @returns 1 on success
+ *          0 if the fallback implementation should be used.
  *          Or an error code on failure.
  */
-static size_t HUF_DecompressAsmArgs_init(HUF_DecompressAsmArgs* args, void* dst, size_t dstSize, void const* src, size_t srcSize, const HUF_DTable* DTable)
+static size_t HUF_DecompressFastArgs_init(HUF_DecompressFastArgs* args, void* dst, size_t dstSize, void const* src, size_t srcSize, const HUF_DTable* DTable)
 {
     void const* dt = DTable + 1;
     U32 const dtLog = HUF_getDTableDesc(DTable).tableLog;
@@ -166,9 +190,11 @@ static size_t HUF_DecompressAsmArgs_init(HUF_DecompressAsmArgs* args, void* dst,
 
     BYTE* const oend = (BYTE*)dst + dstSize;
 
-    /* The following condition is false on x32 platform,
-     * but HUF_asm is not compatible with this ABI */
-    if (!(MEM_isLittleEndian() && !MEM_32bits())) return 1;
+    /* The fast decoding loop assumes 64-bit little-endian.
+     * This condition is false on x32.
+     */
+    if (!MEM_isLittleEndian() || MEM_32bits())
+        return 0;
 
     /* strict minimum : jump table + 1 byte per stream */
     if (srcSize < 10)
@@ -179,7 +205,7 @@ static size_t HUF_DecompressAsmArgs_init(HUF_DecompressAsmArgs* args, void* dst,
      * On small inputs we don't have enough data to trigger the fast loop, so use the old decoder.
      */
     if (dtLog != HUF_DECODER_FAST_TABLELOG)
-        return 1;
+        return 0;
 
     /* Read the jump table. */
     {
@@ -193,13 +219,13 @@ static size_t HUF_DecompressAsmArgs_init(HUF_DecompressAsmArgs* args, void* dst,
         args->iend[2] = args->iend[1] + length2;
         args->iend[3] = args->iend[2] + length3;
 
-        /* HUF_initDStream() requires this, and this small of an input
+        /* HUF_initFastDStream() requires this, and this small of an input
          * won't benefit from the ASM loop anyways.
          * length1 must be >= 16 so that ip[0] >= ilimit before the loop
          * starts.
          */
         if (length1 < 16 || length2 < 8 || length3 < 8 || length4 < 8)
-            return 1;
+            return 0;
         if (length4 > srcSize) return ERROR(corruption_detected);   /* overflow */
     }
     /* ip[] contains the position that is currently loaded into bits[]. */
@@ -216,7 +242,7 @@ static size_t HUF_DecompressAsmArgs_init(HUF_DecompressAsmArgs* args, void* dst,
 
     /* No point to call the ASM loop for tiny outputs. */
     if (args->op[3] >= oend)
-        return 1;
+        return 0;
 
     /* bits[] is the bit container.
         * It is read from the MSB down to the LSB.
@@ -225,10 +251,10 @@ static size_t HUF_DecompressAsmArgs_init(HUF_DecompressAsmArgs* args, void* dst,
         * set, so that CountTrailingZeros(bits[]) can be used
         * to count how many bits we've consumed.
         */
-    args->bits[0] = HUF_initDStream(args->ip[0]);
-    args->bits[1] = HUF_initDStream(args->ip[1]);
-    args->bits[2] = HUF_initDStream(args->ip[2]);
-    args->bits[3] = HUF_initDStream(args->ip[3]);
+    args->bits[0] = HUF_initFastDStream(args->ip[0]);
+    args->bits[1] = HUF_initFastDStream(args->ip[1]);
+    args->bits[2] = HUF_initFastDStream(args->ip[2]);
+    args->bits[3] = HUF_initFastDStream(args->ip[3]);
 
     /* If ip[] >= ilimit, it is guaranteed to be safe to
         * reload bits[]. It may be beyond its section, but is
@@ -239,10 +265,10 @@ static size_t HUF_DecompressAsmArgs_init(HUF_DecompressAsmArgs* args, void* dst,
     args->oend = oend;
     args->dt = dt;
 
-    return 0;
+    return 1;
 }
 
-static size_t HUF_initRemainingDStream(BIT_DStream_t* bit, HUF_DecompressAsmArgs const* args, int stream, BYTE* segmentEnd)
+static size_t HUF_initRemainingDStream(BIT_DStream_t* bit, HUF_DecompressFastArgs const* args, int stream, BYTE* segmentEnd)
 {
     /* Validate that we haven't overwritten. */
     if (args->op[stream] > segmentEnd)
@@ -257,7 +283,7 @@ static size_t HUF_initRemainingDStream(BIT_DStream_t* bit, HUF_DecompressAsmArgs
 
     /* Construct the BIT_DStream_t. */
     assert(sizeof(size_t) == 8);
-    bit->bitContainer = MEM_readLE64(args->ip[stream]);
+    bit->bitContainer = MEM_readLEST(args->ip[stream]);
     bit->bitsConsumed = ZSTD_countTrailingZeros64(args->bits[stream]);
     bit->start = (const char*)args->iend[0];
     bit->limitPtr = bit->start + sizeof(size_t);
@@ -265,7 +291,6 @@ static size_t HUF_initRemainingDStream(BIT_DStream_t* bit, HUF_DecompressAsmArgs
 
     return 0;
 }
-#endif
 
 
 #ifndef HUF_FORCE_DECOMPRESS_X2
@@ -655,27 +680,132 @@ size_t HUF_decompress4X1_usingDTable_internal_default(void* dst, size_t dstSize,
 
 #if ZSTD_ENABLE_ASM_X86_64_BMI2
 
-HUF_ASM_DECL void HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop(HUF_DecompressAsmArgs* args) ZSTDLIB_HIDDEN;
+HUF_ASM_DECL void HUF_decompress4X1_usingDTable_internal_fast_asm_loop(HUF_DecompressFastArgs* args) ZSTDLIB_HIDDEN;
 
-static HUF_ASM_X86_64_BMI2_ATTRS
+#endif
+
+static HUF_FAST_BMI2_ATTRS
+void HUF_decompress4X1_usingDTable_internal_fast_c_loop(HUF_DecompressFastArgs* args)
+{
+    U64 bits[4];
+    BYTE const* ip[4];
+    BYTE* op[4];
+    U16 const* const dtable = (U16 const*)args->dt;
+    BYTE* const oend = args->oend;
+    BYTE const* const ilimit = args->ilimit;
+
+    /* Copy the arguments to local variables */
+    ZSTD_memcpy(&bits, &args->bits, sizeof(bits));
+    ZSTD_memcpy(&ip, &args->ip, sizeof(ip));
+    ZSTD_memcpy(&op, &args->op, sizeof(op));
+
+    assert(MEM_isLittleEndian());
+    assert(!MEM_32bits());
+
+    for (;;) {
+        BYTE* olimit;
+        int stream;
+        int symbol;
+
+        /* Assert loop preconditions */
+#ifndef NDEBUG
+        for (stream = 0; stream < 4; ++stream) {
+            assert(op[stream] <= (stream == 3 ? oend : op[stream + 1]));
+            assert(ip[stream] >= ilimit);
+        }
+#endif
+        /* Compute olimit */
+        {
+            /* Each iteration produces 5 output symbols per stream */
+            size_t const oiters = (size_t)(oend - op[3]) / 5;
+            /* Each iteration consumes up to 11 bits * 5 = 55 bits < 7 bytes
+             * per stream.
+             */
+            size_t const iiters = (size_t)(ip[0] - ilimit) / 7;
+            /* We can safely run iters iterations before running bounds checks */
+            size_t const iters = MIN(oiters, iiters);
+            size_t const symbols = iters * 5;
+
+            /* We can simply check that op[3] < olimit, instead of checking all
+             * of our bounds, since we can't hit the other bounds until we've run
+             * iters iterations, which only happens when op[3] == olimit.
+             */
+            olimit = op[3] + symbols;
+
+            /* Exit fast decoding loop once we get close to the end. */
+            if (op[3] + 20 > olimit)
+                break;
+
+            /* Exit the decoding loop if any input pointer has crossed the
+             * previous one. This indicates corruption, and a precondition
+             * to our loop is that ip[i] >= ip[0].
+             */
+            for (stream = 1; stream < 4; ++stream) {
+                if (ip[stream] < ip[stream - 1])
+                    break;
+            }
+        }
+
+#ifndef NDEBUG
+        for (stream = 1; stream < 4; ++stream) {
+            assert(ip[stream] >= ip[stream - 1]);
+        }
+#endif
+
+        do {
+            /* Decode 5 symbols in each of the 4 streams */
+            for (symbol = 0; symbol < 5; ++symbol) {
+                for (stream = 0; stream < 4; ++stream) {
+                    int const index = (int)(bits[stream] >> 53);
+                    int const entry = (int)dtable[index];
+                    bits[stream] <<= (entry & 63);
+                    op[stream][symbol] = (BYTE)((entry >> 8) & 0xFF);
+                }
+            }
+            /* Reload the bitstreams */
+            for (stream = 0; stream < 4; ++stream) {
+                int const ctz = ZSTD_countTrailingZeros64(bits[stream]);
+                int const nbBits = ctz & 7;
+                int const nbBytes = ctz >> 3;
+                op[stream] += 5;
+                ip[stream] -= nbBytes;
+                bits[stream] = MEM_read64(ip[stream]) | 1;
+                bits[stream] <<= nbBits;
+            }
+        } while (op[3] < olimit);
+    }
+
+    /* Save the final values of each of the state variables back to args. */
+    ZSTD_memcpy(&args->bits, &bits, sizeof(bits));
+    ZSTD_memcpy(&args->ip, &ip, sizeof(ip));
+    ZSTD_memcpy(&args->op, &op, sizeof(op));
+}
+
+/**
+ * @returns @p dstSize on success (>= 6)
+ *          0 if the fallback implementation should be used
+ *          An error if an error occurred
+ */
+static HUF_FAST_BMI2_ATTRS
 size_t
-HUF_decompress4X1_usingDTable_internal_bmi2_asm(
+HUF_decompress4X1_usingDTable_internal_fast(
           void* dst,  size_t dstSize,
     const void* cSrc, size_t cSrcSize,
-    const HUF_DTable* DTable)
+    const HUF_DTable* DTable,
+    HUF_DecompressFastLoopFn loopFn)
 {
     void const* dt = DTable + 1;
     const BYTE* const iend = (const BYTE*)cSrc + 6;
     BYTE* const oend = (BYTE*)dst + dstSize;
-    HUF_DecompressAsmArgs args;
-    {   size_t const ret = HUF_DecompressAsmArgs_init(&args, dst, dstSize, cSrc, cSrcSize, DTable);
-        FORWARD_IF_ERROR(ret, "Failed to init asm args");
-        if (ret != 0)
-            return HUF_decompress4X1_usingDTable_internal_bmi2(dst, dstSize, cSrc, cSrcSize, DTable);
+    HUF_DecompressFastArgs args;
+    {   size_t const ret = HUF_DecompressFastArgs_init(&args, dst, dstSize, cSrc, cSrcSize, DTable);
+        FORWARD_IF_ERROR(ret, "Failed to init fast loop args");
+        if (ret == 0)
+            return 0;
     }
 
     assert(args.ip[0] >= args.ilimit);
-    HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop(&args);
+    loopFn(&args);
 
     /* Our loop guarantees that ip[] >= ilimit and that we haven't
     * overwritten any op[].
@@ -705,37 +835,43 @@ HUF_decompress4X1_usingDTable_internal_bmi2_asm(
     }
 
     /* decoded size */
+    assert(dstSize != 0);
     return dstSize;
 }
-#endif /* ZSTD_ENABLE_ASM_X86_64_BMI2 */
-
-typedef size_t (*HUF_decompress_usingDTable_t)(void *dst, size_t dstSize,
-                                               const void *cSrc,
-                                               size_t cSrcSize,
-                                               const HUF_DTable *DTable);
 
 HUF_DGEN(HUF_decompress1X1_usingDTable_internal)
 
 static size_t HUF_decompress4X1_usingDTable_internal(void* dst, size_t dstSize, void const* cSrc,
                     size_t cSrcSize, HUF_DTable const* DTable, int flags)
 {
+    HUF_DecompressUsingDTableFn fallbackFn = HUF_decompress4X1_usingDTable_internal_default;
+    HUF_DecompressFastLoopFn loopFn = HUF_decompress4X1_usingDTable_internal_fast_c_loop;
+
 #if DYNAMIC_BMI2
     if (flags & HUF_flags_bmi2) {
+        fallbackFn = HUF_decompress4X1_usingDTable_internal_bmi2;
 # if ZSTD_ENABLE_ASM_X86_64_BMI2
-        if (!(flags & HUF_flags_disableAsm))
-            return HUF_decompress4X1_usingDTable_internal_bmi2_asm(dst, dstSize, cSrc, cSrcSize, DTable);
+        if (!(flags & HUF_flags_disableAsm)) {
+            loopFn = HUF_decompress4X1_usingDTable_internal_fast_asm_loop;
+        }
 # endif
-        return HUF_decompress4X1_usingDTable_internal_bmi2(dst, dstSize, cSrc, cSrcSize, DTable);
+    } else {
+        return fallbackFn(dst, dstSize, cSrc, cSrcSize, DTable);
     }
-#else
-    (void)flags;
 #endif
 
 #if ZSTD_ENABLE_ASM_X86_64_BMI2 && defined(__BMI2__)
-    if (!(flags & HUF_flags_disableAsm))
-        return HUF_decompress4X1_usingDTable_internal_bmi2_asm(dst, dstSize, cSrc, cSrcSize, DTable);
+    if (!(flags & HUF_flags_disableAsm)) {
+        loopFn = HUF_decompress4X1_usingDTable_internal_fast_asm_loop;
+    }
 #endif
-    return HUF_decompress4X1_usingDTable_internal_default(dst, dstSize, cSrc, cSrcSize, DTable);
+
+    if (!(flags & HUF_flags_disableFast)) {
+        size_t const ret = HUF_decompress4X1_usingDTable_internal_fast(dst, dstSize, cSrc, cSrcSize, DTable, loopFn);
+        if (ret != 0)
+            return ret;
+    }
+    return fallbackFn(dst, dstSize, cSrc, cSrcSize, DTable);
 }
 
 static size_t HUF_decompress4X1_DCtx_wksp(HUF_DTable* dctx, void* dst, size_t dstSize,
@@ -1322,26 +1458,167 @@ size_t HUF_decompress4X2_usingDTable_internal_default(void* dst, size_t dstSize,
 
 #if ZSTD_ENABLE_ASM_X86_64_BMI2
 
-HUF_ASM_DECL void HUF_decompress4X2_usingDTable_internal_bmi2_asm_loop(HUF_DecompressAsmArgs* args) ZSTDLIB_HIDDEN;
+HUF_ASM_DECL void HUF_decompress4X2_usingDTable_internal_fast_asm_loop(HUF_DecompressFastArgs* args) ZSTDLIB_HIDDEN;
 
-static HUF_ASM_X86_64_BMI2_ATTRS size_t
-HUF_decompress4X2_usingDTable_internal_bmi2_asm(
+#endif
+
+static HUF_FAST_BMI2_ATTRS
+void HUF_decompress4X2_usingDTable_internal_fast_c_loop(HUF_DecompressFastArgs* args)
+{
+    U64 bits[4];
+    BYTE const* ip[4];
+    BYTE* op[4];
+    BYTE* oend[4];
+    HUF_DEltX2 const* const dtable = (HUF_DEltX2 const*)args->dt;
+    BYTE const* const ilimit = args->ilimit;
+
+    /* Copy the arguments to local registers. */
+    ZSTD_memcpy(&bits, &args->bits, sizeof(bits));
+    ZSTD_memcpy(&ip, &args->ip, sizeof(ip));
+    ZSTD_memcpy(&op, &args->op, sizeof(op));
+
+    oend[0] = op[1];
+    oend[1] = op[2];
+    oend[2] = op[3];
+    oend[3] = args->oend;
+
+    assert(MEM_isLittleEndian());
+    assert(!MEM_32bits());
+
+    for (;;) {
+        BYTE* olimit;
+        int stream;
+        int symbol;
+
+        /* Assert loop preconditions */
+#ifndef NDEBUG
+        for (stream = 0; stream < 4; ++stream) {
+            assert(op[stream] <= oend[stream]);
+            assert(ip[stream] >= ilimit);
+        }
+#endif
+        /* Compute olimit */
+        {
+            /* Each loop does 5 table lookups for each of the 4 streams.
+             * Each table lookup consumes up to 11 bits of input, and produces
+             * up to 2 bytes of output.
+             */
+            /* We can consume up to 7 bytes of input per iteration per stream.
+             * We also know that each input pointer is >= ip[0]. So we can run
+             * iters loops before running out of input.
+             */
+            size_t iters = (size_t)(ip[0] - ilimit) / 7;
+            /* Each iteration can produce up to 10 bytes of output per stream.
+             * Each output stream my advance at different rates. So take the
+             * minimum number of safe iterations among all the output streams.
+             */
+            for (stream = 0; stream < 4; ++stream) {
+                size_t const oiters = (size_t)(oend[stream] - op[stream]) / 10;
+                iters = MIN(iters, oiters);
+            }
+
+            /* Each iteration produces at least 5 output symbols. So until
+             * op[3] crosses olimit, we know we haven't executed iters
+             * iterations yet. This saves us maintaining an iters counter,
+             * at the expense of computing the remaining # of iterations
+             * more frequently.
+             */
+            olimit = op[3] + (iters * 5);
+
+            /* Exit the fast decoding loop if we are too close to the end. */
+            if (op[3] + 10 > olimit)
+                break;
+
+            /* Exit the decoding loop if any input pointer has crossed the
+             * previous one. This indicates corruption, and a precondition
+             * to our loop is that ip[i] >= ip[0].
+             */
+            for (stream = 1; stream < 4; ++stream) {
+                if (ip[stream] < ip[stream - 1])
+                    break;
+            }
+        }
+
+#ifndef NDEBUG
+        for (stream = 1; stream < 4; ++stream) {
+            assert(ip[stream] >= ip[stream - 1]);
+        }
+#endif
+
+        do {
+            /* Do 5 table lookups for each of the first 3 streams */
+            for (symbol = 0; symbol < 5; ++symbol) {
+                for (stream = 0; stream < 3; ++stream) {
+                    int const index = (int)(bits[stream] >> 53);
+                    HUF_DEltX2 const entry = dtable[index];
+                    MEM_write16(op[stream], entry.sequence);
+                    bits[stream] <<= (entry.nbBits);
+                    op[stream] += (entry.length);
+                }
+            }
+            /* Do 1 table lookup from the final stream */
+            {
+                int const index = (int)(bits[3] >> 53);
+                HUF_DEltX2 const entry = dtable[index];
+                MEM_write16(op[3], entry.sequence);
+                bits[3] <<= (entry.nbBits);
+                op[3] += (entry.length);
+            }
+            /* Do 4 table lookups from the final stream & reload bitstreams */
+            for (stream = 0; stream < 4; ++stream) {
+                /* Do a table lookup from the final stream.
+                 * This is interleaved with the reloading to reduce register
+                 * pressure. This shouldn't be necessary, but compilers can
+                 * struggle with codegen with high register pressure.
+                 */
+                {
+                    int const index = (int)(bits[3] >> 53);
+                    HUF_DEltX2 const entry = dtable[index];
+                    MEM_write16(op[3], entry.sequence);
+                    bits[3] <<= (entry.nbBits);
+                    op[3] += (entry.length);
+                }
+                /* Reload the bistreams. The final bitstream must be reloaded
+                 * after the 5th symbol was decoded.
+                 */
+                {
+                    int const ctz = ZSTD_countTrailingZeros64(bits[stream]);
+                    int const nbBits = ctz & 7;
+                    int const nbBytes = ctz >> 3;
+                    ip[stream] -= nbBytes;
+                    bits[stream] = MEM_read64(ip[stream]) | 1;
+                    bits[stream] <<= nbBits;
+                }
+            }
+        } while (op[3] < olimit);
+    }
+
+    /* Save the final values of each of the state variables back to args. */
+    ZSTD_memcpy(&args->bits, &bits, sizeof(bits));
+    ZSTD_memcpy(&args->ip, &ip, sizeof(ip));
+    ZSTD_memcpy(&args->op, &op, sizeof(op));
+}
+
+
+static HUF_FAST_BMI2_ATTRS size_t
+HUF_decompress4X2_usingDTable_internal_fast(
           void* dst,  size_t dstSize,
     const void* cSrc, size_t cSrcSize,
-    const HUF_DTable* DTable) {
+    const HUF_DTable* DTable,
+    HUF_DecompressFastLoopFn loopFn) {
     void const* dt = DTable + 1;
     const BYTE* const iend = (const BYTE*)cSrc + 6;
     BYTE* const oend = (BYTE*)dst + dstSize;
-    HUF_DecompressAsmArgs args;
+    HUF_DecompressFastArgs args;
     {
-        size_t const ret = HUF_DecompressAsmArgs_init(&args, dst, dstSize, cSrc, cSrcSize, DTable);
+        size_t const ret = HUF_DecompressFastArgs_init(&args, dst, dstSize, cSrc, cSrcSize, DTable);
         FORWARD_IF_ERROR(ret, "Failed to init asm args");
-        if (ret != 0)
-            return HUF_decompress4X2_usingDTable_internal_bmi2(dst, dstSize, cSrc, cSrcSize, DTable);
+        if (ret == 0)
+            return 0;
     }
 
     assert(args.ip[0] >= args.ilimit);
-    HUF_decompress4X2_usingDTable_internal_bmi2_asm_loop(&args);
+    loopFn(&args);
 
     /* note : op4 already verified within main loop */
     assert(args.ip[0] >= iend);
@@ -1372,28 +1649,38 @@ HUF_decompress4X2_usingDTable_internal_bmi2_asm(
     /* decoded size */
     return dstSize;
 }
-#endif /* ZSTD_ENABLE_ASM_X86_64_BMI2 */
 
 static size_t HUF_decompress4X2_usingDTable_internal(void* dst, size_t dstSize, void const* cSrc,
                     size_t cSrcSize, HUF_DTable const* DTable, int flags)
 {
+    HUF_DecompressUsingDTableFn fallbackFn = HUF_decompress4X2_usingDTable_internal_default;
+    HUF_DecompressFastLoopFn loopFn = HUF_decompress4X2_usingDTable_internal_fast_c_loop;
+
 #if DYNAMIC_BMI2
     if (flags & HUF_flags_bmi2) {
+        fallbackFn = HUF_decompress4X2_usingDTable_internal_bmi2;
 # if ZSTD_ENABLE_ASM_X86_64_BMI2
-        if (!(flags & HUF_flags_disableAsm))
-            return HUF_decompress4X2_usingDTable_internal_bmi2_asm(dst, dstSize, cSrc, cSrcSize, DTable);
+        if (!(flags & HUF_flags_disableAsm)) {
+            loopFn = HUF_decompress4X2_usingDTable_internal_fast_asm_loop;
+        }
 # endif
-        return HUF_decompress4X2_usingDTable_internal_bmi2(dst, dstSize, cSrc, cSrcSize, DTable);
+    } else {
+        return fallbackFn(dst, dstSize, cSrc, cSrcSize, DTable);
     }
-#else
-    (void)flags;
 #endif
 
 #if ZSTD_ENABLE_ASM_X86_64_BMI2 && defined(__BMI2__)
-    if (!(flags & HUF_flags_disableAsm))
-        return HUF_decompress4X2_usingDTable_internal_bmi2_asm(dst, dstSize, cSrc, cSrcSize, DTable);
+    if (!(flags & HUF_flags_disableAsm)) {
+        loopFn = HUF_decompress4X2_usingDTable_internal_fast_asm_loop;
+    }
 #endif
-    return HUF_decompress4X2_usingDTable_internal_default(dst, dstSize, cSrc, cSrcSize, DTable);
+
+    if (!(flags & HUF_flags_disableFast)) {
+        size_t const ret = HUF_decompress4X2_usingDTable_internal_fast(dst, dstSize, cSrc, cSrcSize, DTable, loopFn);
+        if (ret != 0)
+            return ret;
+    }
+    return fallbackFn(dst, dstSize, cSrc, cSrcSize, DTable);
 }
 
 HUF_DGEN(HUF_decompress1X2_usingDTable_internal)

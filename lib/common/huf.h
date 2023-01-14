@@ -107,7 +107,12 @@ typedef enum {
      * If set: Don't use assembly implementations
      * If unset: Allow using assembly implementations
      */
-    HUF_flags_disableAsm = (1 << 4)
+    HUF_flags_disableAsm = (1 << 4),
+    /**
+     * If set: Don't use the fast decoding loop, always use the fallback decoding loop.
+     * If unset: Use the fast decoding loop when possible.
+     */
+    HUF_flags_disableFast = (1 << 5)
 } HUF_flags_e;
 
 

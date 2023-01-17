@@ -228,7 +228,7 @@ struct ZSTD_matchState_t {
     U32 rowHashLog;                          /* For row-based matchfinder: Hashlog based on nb of rows in the hashTable.*/
     U16* tagTable;                           /* For row-based matchFinder: A row-based table containing the hashes and head index. */
     U32 hashCache[ZSTD_ROW_HASH_CACHE_SIZE]; /* For row-based matchFinder: a cache of hashes to improve speed */
-    U32 hashSalt;
+    U64 hashSalt;
 
     U32* hashTable;
     U32* hashTable3;
@@ -795,24 +795,25 @@ static size_t ZSTD_hash4Ptr(const void* ptr, U32 h) { return ZSTD_hash4(MEM_read
 static size_t ZSTD_hash4PtrS(const void* ptr, U32 h, U32 s) { return ZSTD_hash4(MEM_readLE32(ptr), h, s); }
 
 static const U64 prime5bytes = 889523592379ULL;
-static size_t ZSTD_hash5(U64 u, U32 h, U32 s) { assert(h <= 64); return (size_t)((((u  << (64-40)) * prime5bytes) ^ s) >> (64-h)) ; }
+static size_t ZSTD_hash5(U64 u, U32 h, U64 s) { assert(h <= 64); return (size_t)((((u  << (64-40)) * prime5bytes) ^ s) >> (64-h)) ; }
 static size_t ZSTD_hash5Ptr(const void* p, U32 h) { return ZSTD_hash5(MEM_readLE64(p), h, 0); }
-static size_t ZSTD_hash5PtrS(const void* p, U32 h, U32 s) { return ZSTD_hash5(MEM_readLE64(p), h, s); }
+static size_t ZSTD_hash5PtrS(const void* p, U32 h, U64 s) { return ZSTD_hash5(MEM_readLE64(p), h, s); }
 
 static const U64 prime6bytes = 227718039650203ULL;
-static size_t ZSTD_hash6(U64 u, U32 h, U32 s) { assert(h <= 64); return (size_t)((((u  << (64-48)) * prime6bytes) ^ s) >> (64-h)) ; }
+static size_t ZSTD_hash6(U64 u, U32 h, U64 s) { assert(h <= 64); return (size_t)((((u  << (64-48)) * prime6bytes) ^ s) >> (64-h)) ; }
 static size_t ZSTD_hash6Ptr(const void* p, U32 h) { return ZSTD_hash6(MEM_readLE64(p), h, 0); }
-static size_t ZSTD_hash6PtrS(const void* p, U32 h, U32 s) { return ZSTD_hash6(MEM_readLE64(p), h, s); }
+static size_t ZSTD_hash6PtrS(const void* p, U32 h, U64 s) { return ZSTD_hash6(MEM_readLE64(p), h, s); }
 
 static const U64 prime7bytes = 58295818150454627ULL;
-static size_t ZSTD_hash7(U64 u, U32 h, U32 s) { assert(h <= 64); return (size_t)((((u  << (64-56)) * prime7bytes) ^ s) >> (64-h)) ; }
+static size_t ZSTD_hash7(U64 u, U32 h, U64 s) { assert(h <= 64); return (size_t)((((u  << (64-56)) * prime7bytes) ^ s) >> (64-h)) ; }
 static size_t ZSTD_hash7Ptr(const void* p, U32 h) { return ZSTD_hash7(MEM_readLE64(p), h, 0); }
-static size_t ZSTD_hash7PtrS(const void* p, U32 h, U32 s) { return ZSTD_hash7(MEM_readLE64(p), h, s); }
+static size_t ZSTD_hash7PtrS(const void* p, U32 h, U64 s) { return ZSTD_hash7(MEM_readLE64(p), h, s); }
 
 static const U64 prime8bytes = 0xCF1BBCDCB7A56463ULL;
-static size_t ZSTD_hash8(U64 u, U32 h, U32 s) { assert(h <= 64); return (size_t)((((u) * prime8bytes)  ^ s) >> (64-h)) ; }
+static size_t ZSTD_hash8(U64 u, U32 h, U64 s) { assert(h <= 64); return (size_t)((((u) * prime8bytes)  ^ s) >> (64-h)) ; }
 static size_t ZSTD_hash8Ptr(const void* p, U32 h) { return ZSTD_hash8(MEM_readLE64(p), h, 0); }
-static size_t ZSTD_hash8PtrS(const void* p, U32 h, U32 s) { return ZSTD_hash8(MEM_readLE64(p), h, s); }
+static size_t ZSTD_hash8PtrS(const void* p, U32 h, U64 s) { return ZSTD_hash8(MEM_readLE64(p), h, s); }
+
 
 MEM_STATIC FORCE_INLINE_ATTR
 size_t ZSTD_hashPtr(const void* p, U32 hBits, U32 mls)
@@ -833,7 +834,7 @@ size_t ZSTD_hashPtr(const void* p, U32 hBits, U32 mls)
 }
 
 MEM_STATIC FORCE_INLINE_ATTR
-size_t ZSTD_hashPtrSalted(const void* p, U32 hBits, U32 mls, const U32 hashSalt) {
+size_t ZSTD_hashPtrSalted(const void* p, U32 hBits, U32 mls, const U64 hashSalt) {
     /* Although some of these hashes do support hBits up to 64, some do not.
      * To be on the safe side, always avoid hBits > 32. */
     assert(hBits <= 32);
@@ -841,7 +842,7 @@ size_t ZSTD_hashPtrSalted(const void* p, U32 hBits, U32 mls, const U32 hashSalt)
     switch(mls)
     {
         default:
-        case 4: return ZSTD_hash4PtrS(p, hBits, hashSalt);
+        case 4: return ZSTD_hash4PtrS(p, hBits, (U32)hashSalt);
         case 5: return ZSTD_hash5PtrS(p, hBits, hashSalt);
         case 6: return ZSTD_hash6PtrS(p, hBits, hashSalt);
         case 7: return ZSTD_hash7PtrS(p, hBits, hashSalt);

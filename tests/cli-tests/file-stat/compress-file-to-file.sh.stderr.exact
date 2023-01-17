@@ -30,5 +30,13 @@ Trace:FileStat: > UTIL_getFileSize(file)
 Trace:FileStat:  > UTIL_stat(file)
 Trace:FileStat:  < 1
 Trace:FileStat: < 65537
-Trace:FileStat: > UTIL_utime(file.zst)
+Trace:FileStat: > UTIL_setFileStat(file.zst)
+Trace:FileStat:  > UTIL_stat(file.zst)
+Trace:FileStat:  < 1
+Trace:FileStat:  > UTIL_utime(file.zst)
+Trace:FileStat:  < 0
+Trace:FileStat:  > UTIL_chmod(file.zst, 420)
+Trace:FileStat:   > chmod
+Trace:FileStat:   < 0
+Trace:FileStat:  < 0
 Trace:FileStat: < 0

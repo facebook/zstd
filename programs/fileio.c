@@ -114,11 +114,15 @@ char const* FIO_lzmaVersion(void)
 #define FNSPACE 30
 
 /* Default file permissions 0666 (modulated by umask) */
+/* Temporary restricted file permissions are used when we're going to
+ * chmod/chown at the end of the operation. */
 #if !defined(_WIN32)
 /* These macros aren't defined on windows. */
 #define DEFAULT_FILE_PERMISSIONS (S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH)
+#define TEMPORARY_FILE_PERMISSIONS (S_IRUSR|S_IWUSR)
 #else
 #define DEFAULT_FILE_PERMISSIONS (0666)
+#define TEMPORARY_FILE_PERMISSIONS (0600)
 #endif
 
 /*-************************************
@@ -1632,22 +1636,22 @@ static int FIO_compressFilename_dstFile(FIO_ctx_t* const fCtx,
 {
     int closeDstFile = 0;
     int result;
-    int transferMTime = 0;
+    int transferStat = 0;
     FILE *dstFile;
 
     assert(AIO_ReadPool_getFile(ress.readCtx) != NULL);
     if (AIO_WritePool_getFile(ress.writeCtx) == NULL) {
-        int dstFilePermissions = DEFAULT_FILE_PERMISSIONS;
+        int dstFileInitialPermissions = DEFAULT_FILE_PERMISSIONS;
         if ( strcmp (srcFileName, stdinmark)
           && strcmp (dstFileName, stdoutmark)
           && UTIL_isRegularFileStat(srcFileStat) ) {
-            dstFilePermissions = srcFileStat->st_mode;
-            transferMTime = 1;
+            transferStat = 1;
+            dstFileInitialPermissions = TEMPORARY_FILE_PERMISSIONS;
         }
 
         closeDstFile = 1;
         DISPLAYLEVEL(6, "FIO_compressFilename_dstFile: opening dst: %s \n", dstFileName);
-        dstFile = FIO_openDstFile(fCtx, prefs, srcFileName, dstFileName, dstFilePermissions);
+        dstFile = FIO_openDstFile(fCtx, prefs, srcFileName, dstFileName, dstFileInitialPermissions);
         if (dstFile==NULL) return 1;  /* could not open dstFileName */
         AIO_WritePool_setFile(ress.writeCtx, dstFile);
         /* Must only be added after FIO_openDstFile() succeeds.
@@ -1667,8 +1671,8 @@ static int FIO_compressFilename_dstFile(FIO_ctx_t* const fCtx,
             DISPLAYLEVEL(1, "zstd: %s: %s \n", dstFileName, strerror(errno));
             result=1;
         }
-        if (transferMTime) {
-            UTIL_utime(dstFileName, srcFileStat);
+        if (transferStat) {
+            UTIL_setFileStat(dstFileName, srcFileStat);
         }
         if ( (result != 0)  /* operation failure */
           && strcmp(dstFileName, stdoutmark)  /* special case : don't remove() stdout */
@@ -2479,9 +2483,7 @@ static int FIO_decompressDstFile(FIO_ctx_t* const fCtx,
 {
     int result;
     int releaseDstFile = 0;
-    int transferMTime = 0;
-
-    (void)srcFileStat;
+    int transferStat = 0;
 
     if ((AIO_WritePool_getFile(ress.writeCtx) == NULL) && (prefs->testMode == 0)) {
         FILE *dstFile;
@@ -2489,8 +2491,8 @@ static int FIO_decompressDstFile(FIO_ctx_t* const fCtx,
         if ( strcmp(srcFileName, stdinmark)   /* special case : don't transfer permissions from stdin */
           && strcmp(dstFileName, stdoutmark)
           && UTIL_isRegularFileStat(srcFileStat) ) {
-            dstFilePermissions = srcFileStat->st_mode;
-            transferMTime = 1;
+            transferStat = 1;
+            dstFilePermissions = TEMPORARY_FILE_PERMISSIONS;
         }
 
         releaseDstFile = 1;
@@ -2515,8 +2517,8 @@ static int FIO_decompressDstFile(FIO_ctx_t* const fCtx,
             result = 1;
         }
 
-        if (transferMTime) {
-            UTIL_utime(dstFileName, srcFileStat);
+        if (transferStat) {
+            UTIL_setFileStat(dstFileName, srcFileStat);
         }
 
         if ( (result != 0)  /* operation failure */

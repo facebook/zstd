@@ -562,18 +562,8 @@ if [ "$isWindows" = false ] ; then
     zstd -f -d tmp1.zst -o tmp1.out
     assertFilePermissions tmp1.out 400
 
-    rm -f tmp1.zst tmp1.out
-
     umask 0666
     chmod 0666 tmp1 tmp2
-
-    println "test : respect umask when copying permissions in file -> file compression "
-    zstd -f tmp1 -o tmp1.zst
-    assertFilePermissions tmp1.zst 0
-    println "test : respect umask when copying permissions in file -> file decompression "
-    chmod 0666 tmp1.zst
-    zstd -f -d tmp1.zst -o tmp1.out
-    assertFilePermissions tmp1.out 0
 
     rm -f tmp1.zst tmp1.out
 

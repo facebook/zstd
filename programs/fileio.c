@@ -1626,6 +1626,7 @@ static int FIO_compressFilename_dstFile(FIO_ctx_t* const fCtx,
                                         cRess_t ress,
                                         const char* dstFileName,
                                         const char* srcFileName,
+                                        const stat_t* srcFileStat,
                                         int compressionLevel)
 {
     int closeDstFile = 0;
@@ -1633,6 +1634,9 @@ static int FIO_compressFilename_dstFile(FIO_ctx_t* const fCtx,
     stat_t statbuf;
     int transferMTime = 0;
     FILE *dstFile;
+
+    (void)srcFileStat;
+
     assert(AIO_ReadPool_getFile(ress.readCtx) != NULL);
     if (AIO_WritePool_getFile(ress.writeCtx) == NULL) {
         int dstFilePermissions = DEFAULT_FILE_PERMISSIONS;
@@ -1737,7 +1741,10 @@ FIO_compressFilename_srcFile(FIO_ctx_t* const fCtx,
     if (srcFile == NULL) return 1;   /* srcFile could not be opened */
 
     AIO_ReadPool_setFile(ress.readCtx, srcFile);
-    result = FIO_compressFilename_dstFile(fCtx, prefs, ress, dstFileName, srcFileName, compressionLevel);
+    result = FIO_compressFilename_dstFile(
+            fCtx, prefs, ress,
+            dstFileName, srcFileName,
+            &srcFileStat, compressionLevel);
     AIO_ReadPool_closeFile(ress.readCtx);
 
     if ( prefs->removeSrcFile   /* --rm */
@@ -2462,12 +2469,16 @@ static int FIO_decompressFrames(FIO_ctx_t* const fCtx,
 static int FIO_decompressDstFile(FIO_ctx_t* const fCtx,
                                  FIO_prefs_t* const prefs,
                                  dRess_t ress,
-                                 const char* dstFileName, const char* srcFileName)
+                                 const char* dstFileName,
+                                 const char* srcFileName,
+                                 const stat_t* srcFileStat)
 {
     int result;
     stat_t statbuf;
     int releaseDstFile = 0;
     int transferMTime = 0;
+
+    (void)srcFileStat;
 
     if ((AIO_WritePool_getFile(ress.writeCtx) == NULL) && (prefs->testMode == 0)) {
         FILE *dstFile;
@@ -2537,7 +2548,7 @@ static int FIO_decompressSrcFile(FIO_ctx_t* const fCtx, FIO_prefs_t* const prefs
     if (srcFile==NULL) return 1;
     AIO_ReadPool_setFile(ress.readCtx, srcFile);
 
-    result = FIO_decompressDstFile(fCtx, prefs, ress, dstFileName, srcFileName);
+    result = FIO_decompressDstFile(fCtx, prefs, ress, dstFileName, srcFileName, &srcFileStat);
 
     AIO_ReadPool_setFile(ress.readCtx, NULL);
 

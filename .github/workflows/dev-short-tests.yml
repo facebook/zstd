@@ -384,6 +384,7 @@ jobs:
   mingw-short-test:
     runs-on: windows-latest
     strategy:
+      fail-fast: false  # 'false' means Don't stop matrix workflows even if some matrix failed.
       matrix:
         include: [
           { compiler: gcc, msystem: MINGW32, cflags: "-Werror"},
@@ -401,18 +402,18 @@ jobs:
         install: make diffutils
         update: true
     # Based on https://ariya.io/2020/07/on-github-actions-with-msys2
-    - name: install mingw gcc
+    - name: install mingw gcc i686
       if: ${{ (matrix.msystem == 'MINGW32') && (matrix.compiler == 'gcc') }}
       run: pacman --noconfirm -S mingw-w64-i686-gcc
-    - name: install mingw gcc
+    - name: install mingw gcc x86_64
       if: ${{ (matrix.msystem == 'MINGW64') && (matrix.compiler == 'gcc') }}
       run: pacman --noconfirm -S mingw-w64-x86_64-gcc
-    - name: install mingw clang x86_64
-      if: ${{ (matrix.msystem == 'MINGW64') && (matrix.compiler == 'clang') }}
-      run: pacman --noconfirm -S mingw-w64-x86_64-clang
     - name: install mingw clang i686
       if: ${{ (matrix.msystem == 'MINGW32') && (matrix.compiler == 'clang') }}
       run: pacman --noconfirm -S mingw-w64-i686-clang
+    - name: install mingw clang x86_64
+      if: ${{ (matrix.msystem == 'MINGW64') && (matrix.compiler == 'clang') }}
+      run: pacman --noconfirm -S mingw-w64-x86_64-clang
     - name: run mingw tests
       run: |
         make -v
@@ -421,7 +422,7 @@ jobs:
         CFLAGS="${{ matrix.cflags }}" make -j allzstd
         echo "Testing $CC ${{ matrix.msystem }}"
         make clean
-        make check
+        MSYS="" make check
 
   visual-runtime-tests:
     runs-on: windows-latest

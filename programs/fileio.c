@@ -1631,20 +1631,16 @@ static int FIO_compressFilename_dstFile(FIO_ctx_t* const fCtx,
 {
     int closeDstFile = 0;
     int result;
-    stat_t statbuf;
     int transferMTime = 0;
     FILE *dstFile;
-
-    (void)srcFileStat;
 
     assert(AIO_ReadPool_getFile(ress.readCtx) != NULL);
     if (AIO_WritePool_getFile(ress.writeCtx) == NULL) {
         int dstFilePermissions = DEFAULT_FILE_PERMISSIONS;
         if ( strcmp (srcFileName, stdinmark)
           && strcmp (dstFileName, stdoutmark)
-          && UTIL_stat(srcFileName, &statbuf)
-          && UTIL_isRegularFileStat(&statbuf) ) {
-            dstFilePermissions = statbuf.st_mode;
+          && UTIL_isRegularFileStat(srcFileStat) ) {
+            dstFilePermissions = srcFileStat->st_mode;
             transferMTime = 1;
         }
 
@@ -1671,7 +1667,7 @@ static int FIO_compressFilename_dstFile(FIO_ctx_t* const fCtx,
             result=1;
         }
         if (transferMTime) {
-            UTIL_utime(dstFileName, &statbuf);
+            UTIL_utime(dstFileName, srcFileStat);
         }
         if ( (result != 0)  /* operation failure */
           && strcmp(dstFileName, stdoutmark)  /* special case : don't remove() stdout */
@@ -2474,7 +2470,6 @@ static int FIO_decompressDstFile(FIO_ctx_t* const fCtx,
                                  const stat_t* srcFileStat)
 {
     int result;
-    stat_t statbuf;
     int releaseDstFile = 0;
     int transferMTime = 0;
 
@@ -2485,9 +2480,8 @@ static int FIO_decompressDstFile(FIO_ctx_t* const fCtx,
         int dstFilePermissions = DEFAULT_FILE_PERMISSIONS;
         if ( strcmp(srcFileName, stdinmark)   /* special case : don't transfer permissions from stdin */
           && strcmp(dstFileName, stdoutmark)
-          && UTIL_stat(srcFileName, &statbuf)
-          && UTIL_isRegularFileStat(&statbuf) ) {
-            dstFilePermissions = statbuf.st_mode;
+          && UTIL_isRegularFileStat(srcFileStat) ) {
+            dstFilePermissions = srcFileStat->st_mode;
             transferMTime = 1;
         }
 
@@ -2514,7 +2508,7 @@ static int FIO_decompressDstFile(FIO_ctx_t* const fCtx,
         }
 
         if (transferMTime) {
-            UTIL_utime(dstFileName, &statbuf);
+            UTIL_utime(dstFileName, srcFileStat);
         }
 
         if ( (result != 0)  /* operation failure */

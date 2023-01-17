@@ -662,23 +662,23 @@ FIO_openDstFile(FIO_ctx_t* fCtx, FIO_prefs_t* const prefs,
  * @return : loaded size
  *  if fileName==NULL, returns 0 and a NULL pointer
  */
-static size_t FIO_createDictBuffer(void** bufferPtr, const char* fileName, FIO_prefs_t* const prefs)
+static size_t FIO_createDictBuffer(void** bufferPtr, const char* fileName, FIO_prefs_t* const prefs, stat_t* dictFileStat)
 {
     FILE* fileHandle;
     U64 fileSize;
-    stat_t statbuf;
 
     assert(bufferPtr != NULL);
+    assert(dictFileStat != NULL);
     *bufferPtr = NULL;
     if (fileName == NULL) return 0;
 
     DISPLAYLEVEL(4,"Loading %s as dictionary \n", fileName);
 
-    if (!UTIL_stat(fileName, &statbuf)) {
+    if (!UTIL_stat(fileName, dictFileStat)) {
         EXM_THROW(31, "Stat failed on dictionary file %s: %s", fileName, strerror(errno));
     }
 
-    if (!UTIL_isRegularFileStat(&statbuf)) {
+    if (!UTIL_isRegularFileStat(dictFileStat)) {
         EXM_THROW(32, "Dictionary %s must be a regular file.", fileName);
     }
 
@@ -688,7 +688,7 @@ static size_t FIO_createDictBuffer(void** bufferPtr, const char* fileName, FIO_p
         EXM_THROW(33, "Couldn't open dictionary %s: %s", fileName, strerror(errno));
     }
 
-    fileSize = UTIL_getFileSizeStat(&statbuf);
+    fileSize = UTIL_getFileSizeStat(dictFileStat);
     {
         size_t const dictSizeMax = prefs->patchFromMode ? prefs->memLimit : DICTSIZE_MAX;
         if (fileSize >  dictSizeMax) {
@@ -869,6 +869,7 @@ typedef struct {
     void* dictBuffer;
     size_t dictBufferSize;
     const char* dictFileName;
+    stat_t dictFileStat;
     ZSTD_CStream* cctx;
     WritePoolCtx_t *writeCtx;
     ReadPoolCtx_t *readCtx;
@@ -927,7 +928,7 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
         unsigned long long const ssSize = (unsigned long long)prefs->streamSrcSize;
         FIO_adjustParamsForPatchFromMode(prefs, &comprParams, UTIL_getFileSize(dictFileName), ssSize > 0 ? ssSize : maxSrcFileSize, cLevel);
     }
-    ress.dictBufferSize = FIO_createDictBuffer(&ress.dictBuffer, dictFileName, prefs);   /* works with dictFileName==NULL */
+    ress.dictBufferSize = FIO_createDictBuffer(&ress.dictBuffer, dictFileName, prefs, &ress.dictFileStat);   /* works with dictFileName==NULL */
 
     ress.writeCtx = AIO_WritePool_create(prefs, ZSTD_CStreamOutSize());
     ress.readCtx = AIO_ReadPool_create(prefs, ZSTD_CStreamInSize());
@@ -1712,16 +1713,22 @@ FIO_compressFilename_srcFile(FIO_ctx_t* const fCtx,
     stat_t srcFileStat;
     DISPLAYLEVEL(6, "FIO_compressFilename_srcFile: %s \n", srcFileName);
 
-    /* ensure src is not a directory */
-    if (UTIL_isDirectory(srcFileName)) {
-        DISPLAYLEVEL(1, "zstd: %s is a directory -- ignored \n", srcFileName);
-        return 1;
-    }
+    if (strcmp(srcFileName, stdinmark)) {
+        if (UTIL_stat(srcFileName, &srcFileStat)) {
+            /* failure to stat at all is handled during opening */
 
-    /* ensure src is not the same as dict (if present) */
-    if (ress.dictFileName != NULL && UTIL_isSameFile(srcFileName, ress.dictFileName)) {
-        DISPLAYLEVEL(1, "zstd: cannot use %s as an input file and dictionary \n", srcFileName);
-        return 1;
+            /* ensure src is not a directory */
+            if (UTIL_isDirectoryStat(&srcFileStat)) {
+                DISPLAYLEVEL(1, "zstd: %s is a directory -- ignored \n", srcFileName);
+                return 1;
+            }
+
+            /* ensure src is not the same as dict (if present) */
+            if (ress.dictFileName != NULL && UTIL_isSameFileStat(srcFileName, ress.dictFileName, &srcFileStat, &ress.dictFileStat)) {
+                DISPLAYLEVEL(1, "zstd: cannot use %s as an input file and dictionary \n", srcFileName);
+                return 1;
+            }
+        }
     }
 
     /* Check if "srcFile" is compressed. Only done if --exclude-compressed flag is used
@@ -1998,7 +2005,8 @@ static dRess_t FIO_createDResources(FIO_prefs_t* const prefs, const char* dictFi
 
     /* dictionary */
     {   void* dictBuffer;
-        size_t const dictBufferSize = FIO_createDictBuffer(&dictBuffer, dictFileName, prefs);
+        stat_t statbuf;
+        size_t const dictBufferSize = FIO_createDictBuffer(&dictBuffer, dictFileName, prefs, &statbuf);
         CHECK( ZSTD_DCtx_reset(ress.dctx, ZSTD_reset_session_only) );
         CHECK( ZSTD_DCtx_loadDictionary(ress.dctx, dictBuffer, dictBufferSize) );
         free(dictBuffer);

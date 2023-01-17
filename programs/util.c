@@ -272,11 +272,15 @@ int UTIL_isDirectory(const char* infilename)
 
 int UTIL_isDirectoryStat(const stat_t* statbuf)
 {
+    int ret;
+    UTIL_TRACE_CALL("UTIL_isDirectoryStat()");
 #if defined(_MSC_VER)
-    return (statbuf->st_mode & _S_IFDIR) != 0;
+    ret = (statbuf->st_mode & _S_IFDIR) != 0;
 #else
-    return S_ISDIR(statbuf->st_mode) != 0;
+    ret = S_ISDIR(statbuf->st_mode) != 0;
 #endif
+    UTIL_TRACE_RET(ret);
+    return ret;
 }
 
 int UTIL_compareStr(const void *p1, const void *p2) {
@@ -299,8 +303,32 @@ int UTIL_isSameFile(const char* fName1, const char* fName2)
         stat_t file2Stat;
         ret =  UTIL_stat(fName1, &file1Stat)
             && UTIL_stat(fName2, &file2Stat)
-            && (file1Stat.st_dev == file2Stat.st_dev)
-            && (file1Stat.st_ino == file2Stat.st_ino);
+            && UTIL_isSameFileStat(fName1, fName2, &file1Stat, &file2Stat);
+    }
+#endif
+    UTIL_TRACE_RET(ret);
+    return ret;
+}
+
+int UTIL_isSameFileStat(
+        const char* fName1, const char* fName2,
+        const stat_t* file1Stat, const stat_t* file2Stat)
+{
+    int ret;
+    assert(fName1 != NULL); assert(fName2 != NULL);
+    UTIL_TRACE_CALL("UTIL_isSameFileStat(%s, %s)", fName1, fName2);
+#if defined(_MSC_VER) || defined(_WIN32)
+    /* note : Visual does not support file identification by inode.
+     *        inode does not work on Windows, even with a posix layer, like msys2.
+     *        The following work-around is limited to detecting exact name repetition only,
+     *        aka `filename` is considered different from `subdir/../filename` */
+    (void)file1Stat;
+    (void)file2Stat;
+    ret = !strcmp(fName1, fName2);
+#else
+    {
+        ret =  (file1Stat->st_dev == file2Stat->st_dev)
+            && (file1Stat->st_ino == file2Stat->st_ino);
     }
 #endif
     UTIL_TRACE_RET(ret);

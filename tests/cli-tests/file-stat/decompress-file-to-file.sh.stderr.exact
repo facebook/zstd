@@ -7,6 +7,8 @@ Trace:FileStat: < 0
 Trace:FileStat: > UTIL_isDirectory(file.zst)
 Trace:FileStat:  > UTIL_stat(file.zst)
 Trace:FileStat:  < 1
+Trace:FileStat:  > UTIL_isDirectoryStat()
+Trace:FileStat:  < 0
 Trace:FileStat: < 0
 Trace:FileStat: > UTIL_stat(file.zst)
 Trace:FileStat: < 1

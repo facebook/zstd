@@ -171,6 +171,7 @@ int UTIL_chmod(char const* filename, const stat_t* statbuf, mode_t permissions);
 int UTIL_isRegularFile(const char* infilename);
 int UTIL_isDirectory(const char* infilename);
 int UTIL_isSameFile(const char* file1, const char* file2);
+int UTIL_isSameFileStat(const char* file1, const char* file2, const stat_t* file1Stat, const stat_t* file2Stat);
 int UTIL_isCompressedFile(const char* infilename, const char *extensionList[]);
 int UTIL_isLink(const char* infilename);
 int UTIL_isFIFO(const char* infilename);

@@ -531,26 +531,26 @@ static int FIO_removeFile(const char* path)
 /** FIO_openSrcFile() :
  *  condition : `srcFileName` must be non-NULL. `prefs` may be NULL.
  * @result : FILE* to `srcFileName`, or NULL if it fails */
-static FILE* FIO_openSrcFile(const FIO_prefs_t* const prefs, const char* srcFileName)
+static FILE* FIO_openSrcFile(const FIO_prefs_t* const prefs, const char* srcFileName, stat_t* statbuf)
 {
-    stat_t statbuf;
     int allowBlockDevices = prefs != NULL ? prefs->allowBlockDevices : 0;
     assert(srcFileName != NULL);
+    assert(statbuf != NULL);
     if (!strcmp (srcFileName, stdinmark)) {
         DISPLAYLEVEL(4,"Using stdin for input \n");
         SET_BINARY_MODE(stdin);
         return stdin;
     }
 
-    if (!UTIL_stat(srcFileName, &statbuf)) {
+    if (!UTIL_stat(srcFileName, statbuf)) {
         DISPLAYLEVEL(1, "zstd: can't stat %s : %s -- ignored \n",
                         srcFileName, strerror(errno));
         return NULL;
     }
 
-    if (!UTIL_isRegularFileStat(&statbuf)
-     && !UTIL_isFIFOStat(&statbuf)
-     && !(allowBlockDevices && UTIL_isBlockDevStat(&statbuf))
+    if (!UTIL_isRegularFileStat(statbuf)
+     && !UTIL_isFIFOStat(statbuf)
+     && !(allowBlockDevices && UTIL_isBlockDevStat(statbuf))
     ) {
         DISPLAYLEVEL(1, "zstd: %s is not a regular file -- ignored \n",
                         srcFileName);
@@ -1709,6 +1709,7 @@ FIO_compressFilename_srcFile(FIO_ctx_t* const fCtx,
 {
     int result;
     FILE* srcFile;
+    stat_t srcFileStat;
     DISPLAYLEVEL(6, "FIO_compressFilename_srcFile: %s \n", srcFileName);
 
     /* ensure src is not a directory */
@@ -1732,7 +1733,7 @@ FIO_compressFilename_srcFile(FIO_ctx_t* const fCtx,
         return 0;
     }
 
-    srcFile = FIO_openSrcFile(prefs, srcFileName);
+    srcFile = FIO_openSrcFile(prefs, srcFileName, &srcFileStat);
     if (srcFile == NULL) return 1;   /* srcFile could not be opened */
 
     AIO_ReadPool_setFile(ress.readCtx, srcFile);
@@ -2524,6 +2525,7 @@ static int FIO_decompressDstFile(FIO_ctx_t* const fCtx,
 static int FIO_decompressSrcFile(FIO_ctx_t* const fCtx, FIO_prefs_t* const prefs, dRess_t ress, const char* dstFileName, const char* srcFileName)
 {
     FILE* srcFile;
+    stat_t srcFileStat;
     int result;
 
     if (UTIL_isDirectory(srcFileName)) {
@@ -2531,7 +2533,7 @@ static int FIO_decompressSrcFile(FIO_ctx_t* const fCtx, FIO_prefs_t* const prefs
         return 1;
     }
 
-    srcFile = FIO_openSrcFile(prefs, srcFileName);
+    srcFile = FIO_openSrcFile(prefs, srcFileName, &srcFileStat);
     if (srcFile==NULL) return 1;
     AIO_ReadPool_setFile(ress.readCtx, srcFile);
 
@@ -2899,10 +2901,11 @@ static InfoError
 getFileInfo_fileConfirmed(fileInfo_t* info, const char* inFileName)
 {
     InfoError status;
-    FILE* const srcFile = FIO_openSrcFile(NULL, inFileName);
+    stat_t srcFileStat;
+    FILE* const srcFile = FIO_openSrcFile(NULL, inFileName, &srcFileStat);
     ERROR_IF(srcFile == NULL, info_file_error, "Error: could not open source file %s", inFileName);
 
-    info->compressedSize = UTIL_getFileSize(inFileName);
+    info->compressedSize = UTIL_getFileSizeStat(&srcFileStat);
     status = FIO_analyzeFrames(info, srcFile);
 
     fclose(srcFile);

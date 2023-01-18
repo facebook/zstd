@@ -35,7 +35,7 @@ Trace:FileStat:  > UTIL_stat(file.zst)
 Trace:FileStat:  < 1
 Trace:FileStat:  > UTIL_utime(file.zst)
 Trace:FileStat:  < 0
-Trace:FileStat:  > UTIL_chmod(file.zst, 418)
+Trace:FileStat:  > UTIL_chmod(file.zst, 0642)
 Trace:FileStat:   > chmod
 Trace:FileStat:   < 0
 Trace:FileStat:  < 0

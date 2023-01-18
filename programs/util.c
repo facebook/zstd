@@ -185,7 +185,7 @@ int UTIL_isRegularFileStat(const stat_t* statbuf)
 int UTIL_chmod(char const* filename, const stat_t* statbuf, mode_t permissions)
 {
     stat_t localStatBuf;
-    UTIL_TRACE_CALL("UTIL_chmod(%s, %u)", filename, (unsigned)permissions);
+    UTIL_TRACE_CALL("UTIL_chmod(%s, %#4o)", filename, (unsigned)permissions);
     if (statbuf == NULL) {
         if (!UTIL_stat(filename, &localStatBuf)) {
             UTIL_TRACE_RET(0);

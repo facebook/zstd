@@ -860,6 +860,24 @@ static int FIO_removeMultiFilesWarning(FIO_ctx_t* const fCtx, const FIO_prefs_t*
     return error;
 }
 
+static ZSTD_inBuffer setInBuffer(const void* buf, size_t s, size_t pos)
+{
+    ZSTD_inBuffer i;
+    i.src = buf;
+    i.size = s;
+    i.pos = pos;
+    return i;
+}
+
+static ZSTD_outBuffer setOutBuffer(void* buf, size_t s, size_t pos)
+{
+    ZSTD_outBuffer o;
+    o.dst = buf;
+    o.size = s;
+    o.pos = pos;
+    return o;
+}
+
 #ifndef ZSTD_NOCOMPRESS
 
 /* **********************************************************************
@@ -1278,7 +1296,6 @@ FIO_compressLz4Frame(cRess_t* ress,
 }
 #endif
 
-
 static unsigned long long
 FIO_compressZstdFrame(FIO_ctx_t* const fCtx,
                       FIO_prefs_t* const prefs,
@@ -1342,7 +1359,7 @@ FIO_compressZstdFrame(FIO_ctx_t* const fCtx,
         size_t stillToFlush;
         /* Fill input Buffer */
         size_t const inSize = AIO_ReadPool_fillBuffer(ress.readCtx, ZSTD_CStreamInSize());
-        ZSTD_inBuffer inBuff = { ress.readCtx->srcBuffer, ress.readCtx->srcBufferLoaded, 0 };
+        ZSTD_inBuffer inBuff = setInBuffer( ress.readCtx->srcBuffer, ress.readCtx->srcBufferLoaded, 0 );
         DISPLAYLEVEL(6, "fread %u bytes from source \n", (unsigned)inSize);
         *readsize += inSize;
 
@@ -1354,7 +1371,7 @@ FIO_compressZstdFrame(FIO_ctx_t* const fCtx,
             || (directive == ZSTD_e_end && stillToFlush != 0) ) {
 
             size_t const oldIPos = inBuff.pos;
-            ZSTD_outBuffer outBuff= { writeJob->buffer, writeJob->bufferSize, 0 };
+            ZSTD_outBuffer outBuff = setOutBuffer( writeJob->buffer, writeJob->bufferSize, 0 );
             size_t const toFlushNow = ZSTD_toFlushNow(ress.cctx);
             CHECK_V(stillToFlush, ZSTD_compressStream2(ress.cctx, &outBuff, &inBuff, directive));
             AIO_ReadPool_consumeBytes(ress.readCtx, inBuff.pos - oldIPos);
@@ -2094,8 +2111,8 @@ FIO_decompressZstdFrame(FIO_ctx_t* const fCtx, dRess_t* ress,
 
     /* Main decompression Loop */
     while (1) {
-        ZSTD_inBuffer  inBuff = { ress->readCtx->srcBuffer, ress->readCtx->srcBufferLoaded, 0 };
-        ZSTD_outBuffer outBuff= { writeJob->buffer, writeJob->bufferSize, 0 };
+        ZSTD_inBuffer  inBuff = setInBuffer( ress->readCtx->srcBuffer, ress->readCtx->srcBufferLoaded, 0 );
+        ZSTD_outBuffer outBuff= setOutBuffer( writeJob->buffer, writeJob->bufferSize, 0 );
         size_t const readSizeHint = ZSTD_decompressStream(ress->dctx, &outBuff, &inBuff);
         UTIL_HumanReadableSize_t const hrs = UTIL_makeHumanReadableSize(alreadyDecoded+frameSize);
         if (ZSTD_isError(readSizeHint)) {
@@ -2758,7 +2775,8 @@ FIO_decompressMultipleFilenames(FIO_ctx_t* const fCtx,
 
     if (FIO_shouldDisplayMultipleFileSummary(fCtx)) {
         DISPLAY_PROGRESS("\r%79s\r", "");
-        DISPLAY_SUMMARY("%d files decompressed : %6zu bytes total \n", fCtx->nbFilesProcessed, fCtx->totalBytesOutput);
+        DISPLAY_SUMMARY("%d files decompressed : %6llu bytes total \n",
+            fCtx->nbFilesProcessed, (unsigned long long)fCtx->totalBytesOutput);
     }
 
     FIO_freeDResources(ress);
@@ -2787,7 +2805,7 @@ typedef enum {
   info_frame_error=1,
   info_not_zstd=2,
   info_file_error=3,
-  info_truncated_input=4,
+  info_truncated_input=4
 } InfoError;
 
 #define ERROR_IF(c,n,...) {             \

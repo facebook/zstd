@@ -271,7 +271,9 @@ static int isQueueFull(POOL_ctx const* ctx) {
 static void
 POOL_add_internal(POOL_ctx* ctx, POOL_function function, void *opaque)
 {
-    POOL_job const job = {function, opaque};
+    POOL_job job;
+    job.function = function;
+    job.opaque = opaque;
     assert(ctx != NULL);
     if (ctx->shutdown) return;
 

@@ -59,7 +59,6 @@
 #include "../common/mem.h"         /* low level memory routines */
 #define FSE_STATIC_LINKING_ONLY
 #include "../common/fse.h"
-#define HUF_STATIC_LINKING_ONLY
 #include "../common/huf.h"
 #include "../common/xxhash.h" /* XXH64_reset, XXH64_update, XXH64_digest, XXH64 */
 #include "../common/zstd_internal.h"  /* blockProperties_t */
@@ -1436,13 +1435,13 @@ ZSTD_loadDEntropy(ZSTD_entropyDTables_t* entropy,
         size_t const workspaceSize = sizeof(entropy->LLTable) + sizeof(entropy->OFTable) + sizeof(entropy->MLTable);
 #ifdef HUF_FORCE_DECOMPRESS_X1
         /* in minimal huffman, we always use X1 variants */
-        size_t const hSize = HUF_readDTableX1_wksp(entropy->hufTable,
+        size_t const hSize = HUF_readDTableX1_wksp_bmi2(entropy->hufTable,
                                                 dictPtr, dictEnd - dictPtr,
-                                                workspace, workspaceSize);
+                                                workspace, workspaceSize, /* bmi2 */ 0);
 #else
-        size_t const hSize = HUF_readDTableX2_wksp(entropy->hufTable,
+        size_t const hSize = HUF_readDTableX2_wksp_bmi2(entropy->hufTable,
                                                 dictPtr, (size_t)(dictEnd - dictPtr),
-                                                workspace, workspaceSize);
+                                                workspace, workspaceSize, /* bmi2 */ 0);
 #endif
         RETURN_ERROR_IF(HUF_isError(hSize), dictionary_corrupted, "");
         dictPtr += hSize;

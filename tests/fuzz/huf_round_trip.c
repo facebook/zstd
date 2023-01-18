@@ -13,8 +13,6 @@
  * compares the result with the original, and calls abort() on corruption.
  */
 
-#define HUF_STATIC_LINKING_ONLY
-
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -98,7 +96,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     if (symbols == 0) {
         FUZZ_ZASSERT(HUF_readDTableX1_wksp_bmi2(dt, cBuf, tableSize, wksp, wkspSize, bmi2));
     } else {
-        size_t const ret = HUF_readDTableX2_wksp(dt, cBuf, tableSize, wksp, wkspSize);
+        size_t const ret = HUF_readDTableX2_wksp_bmi2(dt, cBuf, tableSize, wksp, wkspSize, bmi2);
         if (ERR_getErrorCode(ret) == ZSTD_error_tableLog_tooLarge) {
             FUZZ_ZASSERT(HUF_readDTableX1_wksp_bmi2(dt, cBuf, tableSize, wksp, wkspSize, bmi2));
         } else {

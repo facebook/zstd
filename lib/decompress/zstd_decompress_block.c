@@ -20,7 +20,6 @@
 #include "../common/mem.h"         /* low level memory routines */
 #define FSE_STATIC_LINKING_ONLY
 #include "../common/fse.h"
-#define HUF_STATIC_LINKING_ONLY
 #include "../common/huf.h"
 #include "../common/zstd_internal.h"
 #include "zstd_decompress_internal.h"   /* ZSTD_DCtx */
@@ -193,10 +192,10 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 } else {
                     if (singleStream) {
 #if defined(HUF_FORCE_DECOMPRESS_X2)
-                        hufSuccess = HUF_decompress1X_DCtx_wksp(
+                        hufSuccess = HUF_decompress1X_DCtx_wksp_bmi2(
                             dctx->entropy.hufTable, dctx->litBuffer, litSize,
                             istart+lhSize, litCSize, dctx->workspace,
-                            sizeof(dctx->workspace));
+                            sizeof(dctx->workspace), ZSTD_DCtx_get_bmi2(dctx));
 #else
                         hufSuccess = HUF_decompress1X1_DCtx_wksp_bmi2(
                             dctx->entropy.hufTable, dctx->litBuffer, litSize,

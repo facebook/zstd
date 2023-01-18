@@ -19,7 +19,6 @@
 #include "error_private.h"       /* ERR_*, ERROR */
 #define FSE_STATIC_LINKING_ONLY  /* FSE_MIN_TABLELOG */
 #include "fse.h"
-#define HUF_STATIC_LINKING_ONLY  /* HUF_TABLELOG_ABSOLUTEMAX */
 #include "huf.h"
 #include "bits.h"                /* ZSDT_highbit32, ZSTD_countTrailingZeros32 */
 

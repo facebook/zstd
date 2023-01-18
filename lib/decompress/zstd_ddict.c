@@ -19,7 +19,6 @@
 #include "../common/mem.h"         /* low level memory routines */
 #define FSE_STATIC_LINKING_ONLY
 #include "../common/fse.h"
-#define HUF_STATIC_LINKING_ONLY
 #include "../common/huf.h"
 #include "zstd_decompress_internal.h"
 #include "zstd_ddict.h"

@@ -2852,7 +2852,7 @@ ZSTDLIB_STATIC_API size_t ZSTD_insertBlock    (ZSTD_DCtx* dctx, const void* bloc
  * COMPRESSION WILL FAIL if ZSTD_c_nbWorkers > 0 and an external matchfinder is registered.
  * Multi-threading across compressions is fine: simply create one CCtx per thread.
  *
- * Long-term, we plan to overcome both limitations. There is no technical blocker to
+ * Long-term, we plan to overcome all three limitations. There is no technical blocker to
  * overcoming them. It is purely a question of engineering effort.
  */
 

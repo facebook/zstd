@@ -249,11 +249,23 @@ int UTIL_setFileStat(const char *filename, const stat_t *statbuf)
     /* set access and modification times */
     res += UTIL_utime(filename, statbuf);
 
+    /* Mimic gzip's behavior:
+     *
+     * "Change the group first, then the permissions, then the owner.
+     * That way, the permissions will be correct on systems that allow
+     * users to give away files, without introducing a security hole.
+     * Security depends on permissions not containing the setuid or
+     * setgid bits." */
+
 #if !defined(_WIN32)
-    res += chown(filename, statbuf->st_uid, statbuf->st_gid);  /* Copy ownership */
+    res += chown(filename, -1, statbuf->st_gid);  /* Apply group ownership */
 #endif
 
-    res += UTIL_chmod(filename, &curStatBuf, statbuf->st_mode & 07777);  /* Copy file permissions */
+    res += UTIL_chmod(filename, &curStatBuf, statbuf->st_mode & 0777);  /* Copy file permissions */
+
+#if !defined(_WIN32)
+    res += chown(filename, statbuf->st_uid, -1);  /* Apply user ownership */
+#endif
 
     errno = 0;
     UTIL_TRACE_RET(-res);

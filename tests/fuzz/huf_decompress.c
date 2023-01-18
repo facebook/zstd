@@ -13,8 +13,6 @@
  * compares the result with the original, and calls abort() on corruption.
  */
 
-#define HUF_STATIC_LINKING_ONLY
-
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>

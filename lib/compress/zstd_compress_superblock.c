@@ -54,8 +54,6 @@ ZSTD_compressSubBlock_literal(const HUF_CElt* hufTable,
     symbolEncodingType_e hType = writeEntropy ? hufMetadata->hType : set_repeat;
     size_t cLitSize = 0;
 
-    (void)bmi2; /* TODO bmi2... */
-
     DEBUGLOG(5, "ZSTD_compressSubBlock_literal (litSize=%zu, lhSize=%zu, writeEntropy=%d)", litSize, lhSize, writeEntropy);
 
     *entropyWritten = 0;
@@ -77,9 +75,8 @@ ZSTD_compressSubBlock_literal(const HUF_CElt* hufTable,
         DEBUGLOG(5, "ZSTD_compressSubBlock_literal (hSize=%zu)", hufMetadata->hufDesSize);
     }
 
-    /* TODO bmi2 */
-    {   const size_t cSize = singleStream ? HUF_compress1X_usingCTable(op, oend-op, literals, litSize, hufTable)
-                                          : HUF_compress4X_usingCTable(op, oend-op, literals, litSize, hufTable);
+    {   const size_t cSize = singleStream ? HUF_compress1X_usingCTable_bmi2(op, oend-op, literals, litSize, hufTable, bmi2)
+                                          : HUF_compress4X_usingCTable_bmi2(op, oend-op, literals, litSize, hufTable, bmi2);
         op += cSize;
         cLitSize += cSize;
         if (cSize == 0 || ERR_isError(cSize)) {

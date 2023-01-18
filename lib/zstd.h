@@ -2825,8 +2825,8 @@ ZSTDLIB_STATIC_API size_t ZSTD_insertBlock    (ZSTD_DCtx* dctx, const void* bloc
  * externalMatchState.
  *
  * *** LIMITATIONS ***
- * External matchfinders are compatible with all zstd compression APIs. There are
- * only two limitations.
+ * External matchfinders are compatible with all zstd compression APIs which respect
+ * advanced parameters. However, there are three limitations:
  *
  * First, the ZSTD_c_enableLongDistanceMatching cParam is not supported.
  * COMPRESSION WILL FAIL if it is enabled and the user tries to compress with an
@@ -2847,6 +2847,10 @@ ZSTDLIB_STATIC_API size_t ZSTD_insertBlock    (ZSTD_DCtx* dctx, const void* bloc
  *   - Stream history is not supported. All compression APIs, including streaming
  *     APIs, work with the external matchfinder, but the external matchfinder won't
  *     receive any history from the previous block. Each block is an independent chunk.
+ *
+ * Third, multi-threading within a single compression is not supported. In other words,
+ * COMPRESSION WILL FAIL if ZSTD_c_nbWorkers > 0 and an external matchfinder is registered.
+ * Multi-threading across compressions is fine: simply create one CCtx per thread.
  *
  * Long-term, we plan to overcome both limitations. There is no technical blocker to
  * overcoming them. It is purely a question of engineering effort.
@@ -2870,6 +2874,17 @@ typedef size_t ZSTD_externalMatchFinder_F (
  * responsible for managing its lifetime. This parameter is sticky across
  * compressions. It will remain set until the user explicitly resets compression
  * parameters.
+ *
+ * External matchfinder registration is considered to be an "advanced parameter",
+ * part of the "advanced API". This means it will only have an effect on
+ * compression APIs which respect advanced parameters, such as compress2() and
+ * compressStream(). Older compression APIs such as compressCCtx(), which predate
+ * the introduction of "advanced parameters", will ignore any external matchfinder
+ * setting.
+ *
+ * The external matchfinder can be "cleared" by registering a NULL external
+ * matchfinder function pointer. This removes all limitations described above in
+ * the "LIMITATIONS" section of the API docs.
  *
  * The user is strongly encouraged to read the full API documentation (above)
  * before calling this function. */

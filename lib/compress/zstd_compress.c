@@ -1571,7 +1571,7 @@ static size_t ZSTD_estimateCCtxSize_usingCCtxParams_internal(
 
     size_t const maxNbExternalSeq = ZSTD_sequenceBound(blockSize);
     size_t const externalSeqSpace = useExternalMatchFinder
-        ? ZSTD_cwksp_alloc_size(maxNbExternalSeq * sizeof(ZSTD_Sequence))
+        ? ZSTD_cwksp_aligned_alloc_size(maxNbExternalSeq * sizeof(ZSTD_Sequence))
         : 0;
 
     size_t const neededSpace =
@@ -3128,7 +3128,6 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
             ZSTD_blockCompressor const blockCompressor = ZSTD_selectBlockCompressor(zc->appliedParams.cParams.strategy,
                                                                                     zc->appliedParams.useRowMatchFinder,
                                                                                     dictMode);
-            assert(zc->externalMatchCtx.mFinder == NULL);
             ms->ldmSeqStore = NULL;
             lastLLSize = blockCompressor(ms, &zc->seqStore, zc->blockState.nextCBlock->rep, src, srcSize);
         }
@@ -5914,6 +5913,13 @@ static size_t ZSTD_CCtx_init_compressStream2(ZSTD_CCtx* cctx,
     params.validateSequences = ZSTD_resolveExternalSequenceValidation(params.validateSequences);
 
 #ifdef ZSTD_MULTITHREAD
+    /* If external matchfinder is enabled, make sure to fail before checking job size (for consistency) */
+    RETURN_ERROR_IF(
+        params.useExternalMatchFinder == 1 && params.nbWorkers >= 1,
+        parameter_combination_unsupported,
+        "External matchfinder isn't supported with nbWorkers >= 1"
+    );
+
     if ((cctx->pledgedSrcSizePlusOne-1) <= ZSTDMT_JOBSIZE_MIN) {
         params.nbWorkers = 0; /* do not invoke multi-threading when src size is too small */
     }
@@ -6742,14 +6748,19 @@ void ZSTD_registerExternalMatchFinder(
     ZSTD_CCtx* zc, void* mState,
     ZSTD_externalMatchFinder_F* mFinder
 ) {
-    ZSTD_externalMatchCtx emctx = {
-        mState,
-        mFinder,
+    if (mFinder != NULL) {
+        ZSTD_externalMatchCtx emctx = {
+            mState,
+            mFinder,
 
-        /* seqBuffer is allocated later (from the cwskp) */
-        NULL, /* seqBuffer */
-        0 /* seqBufferCapacity */
-    };
-    zc->externalMatchCtx = emctx;
-    zc->requestedParams.useExternalMatchFinder = 1;
+            /* seqBuffer is allocated later (from the cwskp) */
+            NULL, /* seqBuffer */
+            0 /* seqBufferCapacity */
+        };
+        zc->externalMatchCtx = emctx;
+        zc->requestedParams.useExternalMatchFinder = 1;
+    } else {
+        ZSTD_memset(&zc->externalMatchCtx, 0, sizeof(zc->externalMatchCtx));
+        zc->requestedParams.useExternalMatchFinder = 0;
+    }
 }

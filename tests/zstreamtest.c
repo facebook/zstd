@@ -1846,15 +1846,11 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
 
         CHECK(dstBuf == NULL || checkBuf == NULL, "allocation failed");
 
-        ZSTD_CCtx_reset(zc, ZSTD_reset_session_and_parameters);
+        CHECK_Z(ZSTD_CCtx_reset(zc, ZSTD_reset_session_and_parameters));
 
         /* Reference external matchfinder outside the test loop to
          * check that the reference is preserved across compressions */
-        ZSTD_registerExternalMatchFinder(
-            zc,
-            &externalMatchState,
-            zstreamExternalMatchFinder
-        );
+        ZSTD_registerExternalMatchFinder(zc, &externalMatchState, zstreamExternalMatchFinder);
 
         for (enableFallback = 0; enableFallback < 1; enableFallback++) {
             size_t testCaseId;
@@ -1916,10 +1912,55 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
         }
 
         /* Test that reset clears the external matchfinder */
-        ZSTD_CCtx_reset(zc, ZSTD_reset_session_and_parameters);
+        CHECK_Z(ZSTD_CCtx_reset(zc, ZSTD_reset_session_and_parameters));
         externalMatchState = EMF_BIG_ERROR; /* ensure zstd will fail if the matchfinder wasn't cleared */
         CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_enableMatchFinderFallback, 0));
         CHECK_Z(ZSTD_compress2(zc, dstBuf, dstBufSize, CNBuffer, CNBufferSize));
+
+        /* Test that registering mFinder == NULL clears the external matchfinder */
+        ZSTD_CCtx_reset(zc, ZSTD_reset_session_and_parameters);
+        ZSTD_registerExternalMatchFinder(zc, &externalMatchState, zstreamExternalMatchFinder);
+        externalMatchState = EMF_BIG_ERROR; /* ensure zstd will fail if the matchfinder wasn't cleared */
+        CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_enableMatchFinderFallback, 0));
+        ZSTD_registerExternalMatchFinder(zc, NULL, NULL); /* clear the external matchfinder */
+        CHECK_Z(ZSTD_compress2(zc, dstBuf, dstBufSize, CNBuffer, CNBufferSize));
+
+        /* Test that external matchfinder doesn't interact with older APIs */
+        ZSTD_CCtx_reset(zc, ZSTD_reset_session_and_parameters);
+        ZSTD_registerExternalMatchFinder(zc, &externalMatchState, zstreamExternalMatchFinder);
+        externalMatchState = EMF_BIG_ERROR; /* ensure zstd will fail if the matchfinder is used */
+        CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_enableMatchFinderFallback, 0));
+        CHECK_Z(ZSTD_compressCCtx(zc, dstBuf, dstBufSize, CNBuffer, CNBufferSize, 3));
+
+        /* Test that compression returns the correct error with LDM */
+        CHECK_Z(ZSTD_CCtx_reset(zc, ZSTD_reset_session_and_parameters));
+        {
+            size_t res;
+            ZSTD_registerExternalMatchFinder(zc, &externalMatchState, zstreamExternalMatchFinder);
+            CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_enableLongDistanceMatching, ZSTD_ps_enable));
+            res = ZSTD_compress2(zc, dstBuf, dstBufSize, CNBuffer, CNBufferSize);
+            CHECK(!ZSTD_isError(res), "EMF: Should have raised an error!");
+            CHECK(
+                ZSTD_getErrorCode(res) != ZSTD_error_parameter_combination_unsupported,
+                "EMF: Wrong error code: %s", ZSTD_getErrorName(res)
+            );
+        }
+
+#ifdef ZSTD_MULTITHREAD
+        /* Test that compression returns the correct error with nbWorkers > 0 */
+        CHECK_Z(ZSTD_CCtx_reset(zc, ZSTD_reset_session_and_parameters));
+        {
+            size_t res;
+            ZSTD_registerExternalMatchFinder(zc, &externalMatchState, zstreamExternalMatchFinder);
+            CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_nbWorkers, 1));
+            res = ZSTD_compress2(zc, dstBuf, dstBufSize, CNBuffer, CNBufferSize);
+            CHECK(!ZSTD_isError(res), "EMF: Should have raised an error!");
+            CHECK(
+                ZSTD_getErrorCode(res) != ZSTD_error_parameter_combination_unsupported,
+                "EMF: Wrong error code: %s", ZSTD_getErrorName(res)
+            );
+        }
+#endif
 
         free(dstBuf);
         free(checkBuf);

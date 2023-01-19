@@ -557,12 +557,12 @@ static size_t writeLiteralsBlockCompressed(U32* seed, frame_t* frame, size_t con
         do {
             compressedSize =
                     sizeFormat == 0
-                            ? HUF_compress1X_usingCTable_bmi2(
+                            ? HUF_compress1X_usingCTable(
                                       op, opend - op, LITERAL_BUFFER, litSize,
-                                      frame->stats.hufTable, /* bmi2 */ 0)
-                            : HUF_compress4X_usingCTable_bmi2(
+                                      frame->stats.hufTable, /* flags */ 0)
+                            : HUF_compress4X_usingCTable(
                                       op, opend - op, LITERAL_BUFFER, litSize,
-                                      frame->stats.hufTable, /* bmi2 */ 0);
+                                      frame->stats.hufTable, /* flags */ 0);
             CHECKERR(compressedSize);
             /* this only occurs when it could not compress or similar */
         } while (compressedSize <= 0);

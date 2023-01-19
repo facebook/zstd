@@ -75,8 +75,9 @@ ZSTD_compressSubBlock_literal(const HUF_CElt* hufTable,
         DEBUGLOG(5, "ZSTD_compressSubBlock_literal (hSize=%zu)", hufMetadata->hufDesSize);
     }
 
-    {   const size_t cSize = singleStream ? HUF_compress1X_usingCTable_bmi2(op, oend-op, literals, litSize, hufTable, bmi2)
-                                          : HUF_compress4X_usingCTable_bmi2(op, oend-op, literals, litSize, hufTable, bmi2);
+    {   int const flags = bmi2 ? HUF_flags_bmi2 : 0;
+        const size_t cSize = singleStream ? HUF_compress1X_usingCTable(op, oend-op, literals, litSize, hufTable, flags)
+                                          : HUF_compress4X_usingCTable(op, oend-op, literals, litSize, hufTable, flags);
         op += cSize;
         cLitSize += cSize;
         if (cSize == 0 || ERR_isError(cSize)) {

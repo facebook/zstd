@@ -2172,6 +2172,8 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         }
 
         DEBUGLOG(3, "wksp: finished allocating, %zd bytes remain available", ZSTD_cwksp_available_space(ws));
+        DEBUGLOG(1, "wksp: cwksp_used = %zd, neededSpace = %zd, diff = %d, resizeWorkspace=%u", ZSTD_cwksp_used(ws), neededSpace,
+                 neededSpace - ZSTD_cwksp_used(ws), resizeWorkspace); // TODO: DON'T MERGE THIS
         assert(ZSTD_cwksp_estimated_space_within_bounds(ws, neededSpace, resizeWorkspace));
 
         zc->initialized = 1;

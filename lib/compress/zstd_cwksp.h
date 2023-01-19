@@ -377,7 +377,7 @@ MEM_STATIC void* ZSTD_cwksp_reserve_aligned_init_once(ZSTD_cwksp* ws, size_t byt
     void* ptr = ZSTD_cwksp_reserve_internal(ws, ZSTD_cwksp_align(bytes, ZSTD_CWKSP_ALIGNMENT_BYTES),
                                             ZSTD_cwksp_alloc_aligned_init_once);
     assert(((size_t)ptr & (ZSTD_CWKSP_ALIGNMENT_BYTES-1))== 0);
-    if(ptr < ws->initOnceStart) {
+    if(ptr && ptr < ws->initOnceStart) {
         ZSTD_memset(ptr, 0, (U8*)ws->initOnceStart - (U8*)ptr);
         ws->initOnceStart = ptr;
     }

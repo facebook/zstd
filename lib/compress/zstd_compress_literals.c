@@ -160,9 +160,13 @@ size_t ZSTD_compressLiterals (
 
     RETURN_ERROR_IF(dstCapacity < lhSize+1, dstSize_tooSmall, "not enough space for compression");
     {   HUF_repeat repeat = prevHuf->repeatMode;
-        int const preferRepeat = (strategy < ZSTD_lazy) ? srcSize <= 1024 : 0;
-        HUF_depth_mode const depthMode = (strategy >= HUF_OPTIMAL_DEPTH_THRESHOLD) ? HUF_depth_optimal : HUF_depth_fast;
-        typedef size_t (*huf_compress_f)(void*, size_t, const void*, size_t, unsigned, unsigned, void*, size_t, HUF_CElt*, HUF_repeat*, int, int, int, HUF_depth_mode);
+        int const flags = 0
+            | (bmi2 ? HUF_flags_bmi2 : 0)
+            | (strategy < ZSTD_lazy && srcSize <= 1024 ? HUF_flags_preferRepeat : 0)
+            | (strategy >= HUF_OPTIMAL_DEPTH_THRESHOLD ? HUF_flags_optimalDepth : 0)
+            | (suspectUncompressible ? HUF_flags_suspectUncompressible : 0);
+
+        typedef size_t (*huf_compress_f)(void*, size_t, const void*, size_t, unsigned, unsigned, void*, size_t, HUF_CElt*, HUF_repeat*, int);
         huf_compress_f huf_compress;
         if (repeat == HUF_repeat_valid && lhSize == 3) singleStream = 1;
         huf_compress = singleStream ? HUF_compress1X_repeat : HUF_compress4X_repeat;
@@ -171,8 +175,7 @@ size_t ZSTD_compressLiterals (
                                 HUF_SYMBOLVALUE_MAX, LitHufLog,
                                 entropyWorkspace, entropyWorkspaceSize,
                                 (HUF_CElt*)nextHuf->CTable,
-                                &repeat, preferRepeat,
-                                bmi2, suspectUncompressible, depthMode);
+                                &repeat, flags);
         DEBUGLOG(5, "%zu literals compressed into %zu bytes (before header)", srcSize, cLitSize);
         if (repeat != HUF_repeat_none) {
             /* reused the existing table */

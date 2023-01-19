@@ -25,7 +25,7 @@
 #define HAS_SECURE_RANDOM
 #include <sys/random.h>
 static size_t getSecureRandom(void *buf, size_t buflen) {
-    return getrandom(buf, buflen, GRND_NONBLOCK) != buflen;
+    return getrandom(buf, buflen, GRND_NONBLOCK) != (ssize_t) buflen;
 }
 
 #else

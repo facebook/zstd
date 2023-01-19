@@ -2121,7 +2121,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         /* ZSTD_wildcopy() is used to copy into the literals buffer,
          * so we have to oversize the buffer by WILDCOPY_OVERLENGTH bytes.
          */
-        zc->seqStore.litStart = ZSTD_cwksp_reserve_aligned(ws, blockSize + WILDCOPY_OVERLENGTH);
+        zc->seqStore.litStart = (BYTE*)ZSTD_cwksp_reserve_aligned(ws, blockSize + WILDCOPY_OVERLENGTH);
         zc->seqStore.maxNbLit = blockSize;
 
         /* buffers */
@@ -2137,16 +2137,16 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             size_t const numBuckets =
                   ((size_t)1) << (params->ldmParams.hashLog -
                                   params->ldmParams.bucketSizeLog);
-            zc->ldmState.bucketOffsets = ZSTD_cwksp_reserve_aligned(ws, numBuckets);
+            zc->ldmState.bucketOffsets = (BYTE*)ZSTD_cwksp_reserve_aligned(ws, numBuckets);
             ZSTD_memset(zc->ldmState.bucketOffsets, 0, numBuckets);
         }
 
         /* sequences storage */
         ZSTD_referenceExternalSequences(zc, NULL, 0);
         zc->seqStore.maxNbSeq = maxNbSeq;
-        zc->seqStore.llCode = ZSTD_cwksp_reserve_aligned(ws, maxNbSeq * sizeof(BYTE));
-        zc->seqStore.mlCode = ZSTD_cwksp_reserve_aligned(ws, maxNbSeq * sizeof(BYTE));
-        zc->seqStore.ofCode = ZSTD_cwksp_reserve_aligned(ws, maxNbSeq * sizeof(BYTE));
+        zc->seqStore.llCode = (BYTE*)ZSTD_cwksp_reserve_aligned(ws, maxNbSeq * sizeof(BYTE));
+        zc->seqStore.mlCode = (BYTE*)ZSTD_cwksp_reserve_aligned(ws, maxNbSeq * sizeof(BYTE));
+        zc->seqStore.ofCode = (BYTE*)ZSTD_cwksp_reserve_aligned(ws, maxNbSeq * sizeof(BYTE));
         zc->seqStore.sequencesStart = (seqDef*)ZSTD_cwksp_reserve_aligned(ws, maxNbSeq * sizeof(seqDef));
 
 

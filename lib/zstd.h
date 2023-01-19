@@ -479,6 +479,7 @@ typedef enum {
      * ZSTD_c_useRowMatchFinder
      * ZSTD_c_prefetchCDictTables
      * ZSTD_c_enableMatchFinderFallback
+     * ZSTD_c_maxBlockSize
      * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
      * note : never ever use experimentalParam? names directly;
      *        also, the enums values themselves are unstable and can still change.
@@ -499,7 +500,8 @@ typedef enum {
      ZSTD_c_experimentalParam14=1011,
      ZSTD_c_experimentalParam15=1012,
      ZSTD_c_experimentalParam16=1013,
-     ZSTD_c_experimentalParam17=1014
+     ZSTD_c_experimentalParam17=1014,
+     ZSTD_c_experimentalParam18=1015
 } ZSTD_cParameter;
 
 typedef struct {
@@ -1200,6 +1202,7 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 #define ZSTD_TARGETLENGTH_MIN     0   /* note : comparing this constant to an unsigned results in a tautological test */
 #define ZSTD_STRATEGY_MIN        ZSTD_fast
 #define ZSTD_STRATEGY_MAX        ZSTD_btultra2
+#define ZSTD_BLOCKSIZE_MAX_MIN (1 << 10) /* The minimum valid max blocksize. Maximum blocksizes smaller than this make compressBound() inaccurate. */
 
 
 #define ZSTD_OVERLAPLOG_MIN       0
@@ -2111,6 +2114,18 @@ ZSTDLIB_STATIC_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const vo
  * The user is strongly encouraged to read the full external matchfinder API
  * documentation (below) before setting this parameter. */
 #define ZSTD_c_enableMatchFinderFallback ZSTD_c_experimentalParam17
+
+/*  ZSTD_c_maxBlockSize
+ *  Allowed values are between 1KB and ZSTD_BLOCKSIZE_MAX (128KB).
+ *  The default is ZSTD_BLOCKSIZE_MAX, and setting to 0 will set to the default.
+ *
+ *  This parameter can be used to set an upper bound on the blocksize
+ *  that overrides the default ZSTD_BLOCKSIZE_MAX. It cannot be used to set upper
+ *  bounds greater than ZSTD_BLOCKSIZE_MAX or bounds lower than 1KB (will make
+ *  compressBound() innacurate). Only currently meant to be used for testing.
+ *
+ */
+#define ZSTD_c_maxBlockSize ZSTD_c_experimentalParam18
 
 /*! ZSTD_CCtx_getParameter() :
  *  Get the requested compression parameter value, selected by enum ZSTD_cParameter,

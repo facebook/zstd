@@ -355,6 +355,9 @@ struct ZSTD_CCtx_params_s {
      * Users can't set this externally.
      * It is set internally in ZSTD_registerExternalMatchFinder(). */
     int useExternalMatchFinder;
+
+    /* Adjust the max block size*/
+    size_t maxBlockSize;
 };  /* typedef'd to ZSTD_CCtx_params within "zstd.h" */
 
 #define COMPRESS_SEQUENCES_WORKSPACE_SIZE (sizeof(unsigned) * (MaxSeq + 2))

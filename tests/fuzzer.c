@@ -1780,6 +1780,94 @@ static int basicUnitTests(U32 const seed, double compressibility)
                 if (!ZSTD_isError(r)) goto _output_error;
             }
             DISPLAYLEVEL(3, "OK \n");
+
+            DISPLAYLEVEL(3, "test%3i : test estimation functions with default cctx params : ", testNb++);
+            {
+                // Test ZSTD_estimateCCtxSize_usingCCtxParams
+                {
+                    ZSTD_CCtx_params* params = ZSTD_createCCtxParams();
+                    size_t const cctxSizeDefault = ZSTD_estimateCCtxSize_usingCCtxParams(params);
+                    staticCCtx = ZSTD_initStaticCCtx(staticCCtxBuffer, cctxSizeDefault);
+                    CHECK_VAR(cSize, ZSTD_compressCCtx(staticCCtx,
+                                    compressedBuffer, compressedBufferSize,
+                                    CNBuffer, CNBuffSize, 3));
+
+                    {
+                        size_t const r = ZSTD_decompressDCtx(staticDCtx,
+                                                    decodedBuffer, CNBuffSize,
+                                                    compressedBuffer, cSize);
+                                                                        if (r != CNBuffSize) goto _output_error;
+                        if (memcmp(decodedBuffer, CNBuffer, CNBuffSize)) goto _output_error;
+                    }
+                    ZSTD_freeCCtxParams(params);
+                }
+
+                // Test ZSTD_estimateCStreamSize_usingCCtxParams
+                  {
+                    ZSTD_CCtx_params* params = ZSTD_createCCtxParams();
+                    size_t const cctxSizeDefault = ZSTD_estimateCStreamSize_usingCCtxParams(params);
+                    staticCCtx = ZSTD_initStaticCCtx(staticCCtxBuffer, cctxSizeDefault);
+                    CHECK_VAR(cSize, ZSTD_compressCCtx(staticCCtx,
+                                    compressedBuffer, compressedBufferSize,
+                                    CNBuffer, CNBuffSize, 3) );
+
+                    {
+                        size_t const r = ZSTD_decompressDCtx(staticDCtx,
+                                                    decodedBuffer, CNBuffSize,
+                                                    compressedBuffer, cSize);
+                                                                        if (r != CNBuffSize) goto _output_error;
+                        if (memcmp(decodedBuffer, CNBuffer, CNBuffSize)) goto _output_error;
+                    }
+                    ZSTD_freeCCtxParams(params);
+                }
+            }
+            DISPLAYLEVEL(3, "OK \n");
+
+            DISPLAYLEVEL(3, "test%3i : test estimation functions with maxBlockSize = 0 : ", testNb++);
+            {
+                // Test ZSTD_estimateCCtxSize_usingCCtxParams
+                {
+                    ZSTD_CCtx_params* params = ZSTD_createCCtxParams();
+                    size_t cctxSizeDefault;
+                    CHECK_Z(ZSTD_CCtxParams_setParameter(params, ZSTD_c_maxBlockSize, 0));
+                    cctxSizeDefault = ZSTD_estimateCCtxSize_usingCCtxParams(params);
+                    staticCCtx = ZSTD_initStaticCCtx(staticCCtxBuffer, cctxSizeDefault);
+                    CHECK_VAR(cSize, ZSTD_compressCCtx(staticCCtx,
+                                    compressedBuffer, compressedBufferSize,
+                                    CNBuffer, CNBuffSize, 3) );
+
+                    {
+                        size_t const r = ZSTD_decompressDCtx(staticDCtx,
+                                                    decodedBuffer, CNBuffSize,
+                                                    compressedBuffer, cSize);
+                                                                        if (r != CNBuffSize) goto _output_error;
+                        if (memcmp(decodedBuffer, CNBuffer, CNBuffSize)) goto _output_error;
+                    }
+                    ZSTD_freeCCtxParams(params);
+                }
+
+                // Test ZSTD_estimateCStreamSize_usingCCtxParams
+                  {
+                    ZSTD_CCtx_params* params = ZSTD_createCCtxParams();
+                    size_t cctxSizeDefault;
+                    CHECK_Z(ZSTD_CCtxParams_setParameter(params, ZSTD_c_maxBlockSize, 0));
+                    cctxSizeDefault = ZSTD_estimateCStreamSize_usingCCtxParams(params);
+                    staticCCtx = ZSTD_initStaticCCtx(staticCCtxBuffer, cctxSizeDefault);
+                    CHECK_VAR(cSize, ZSTD_compressCCtx(staticCCtx,
+                                    compressedBuffer, compressedBufferSize,
+                                    CNBuffer, CNBuffSize, 3) );
+
+                    {
+                        size_t const r = ZSTD_decompressDCtx(staticDCtx,
+                                                    decodedBuffer, CNBuffSize,
+                                                    compressedBuffer, cSize);
+                                                                        if (r != CNBuffSize) goto _output_error;
+                        if (memcmp(decodedBuffer, CNBuffer, CNBuffSize)) goto _output_error;
+                    }
+                    ZSTD_freeCCtxParams(params);
+                }
+            }
+            DISPLAYLEVEL(3, "OK \n");
         }
         free(staticCCtxBuffer);
         free(staticDCtxBuffer);

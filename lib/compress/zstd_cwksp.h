@@ -44,7 +44,7 @@ extern "C" {
 ***************************************/
 typedef enum {
     ZSTD_cwksp_alloc_objects,
-    ZSTD_cwksp_alloc_buffers,
+    ZSTD_cwksp_alloc_aligned_init_once,
     ZSTD_cwksp_alloc_aligned
 } ZSTD_cwksp_alloc_phase_e;
 
@@ -98,8 +98,8 @@ typedef enum {
  *
  * Workspace Layout:
  *
- * [                        ... workspace ...                         ]
- * [objects][tables ... ->] free space [<- ... aligned][<- ... buffers]
+ * [                        ... workspace ...                           ]
+ * [objects][tables ... ->] free space [<- ... aligned][<- ... init once]
  *
  * The various objects that live in the workspace are divided into the
  * following categories, and are allocated separately:
@@ -123,13 +123,19 @@ typedef enum {
  *   uint32_t arrays, all of whose values are between 0 and (nextSrc - base).
  *   Their sizes depend on the cparams. These tables are 64-byte aligned.
  *
- * - Aligned: these buffers are used for various purposes that require 4 byte
- *   alignment, but don't require any initialization before they're used. These
- *   buffers are each aligned to 64 bytes.
+ * - Init once: these buffers require to be initialized at least once before
+ *   use. They should be used when we want to skip memory initialization
+ *   while not triggering memory checkers (like Valgrind) when reading from
+ *   from this memory without writing to it first.
+ *   These buffers should be used carefully as they might contain data
+ *   from previous compressions.
+ *   Buffers are aligned to 64 bytes.
  *
- * - Buffers: these buffers are used for various purposes that don't require
- *   any alignment or initialization before they're used. This means they can
- *   be moved around at no cost for a new compression.
+ * - Aligned: these buffers don't require any initialization before they're
+ *   used. The user of the buffer should make sure they write into a buffer
+ *   location before reading from it.
+ *   Buffers are aligned to 64 bytes.
+ *
  *
  * Allocating Memory:
  *
@@ -137,8 +143,8 @@ typedef enum {
  * correctly packed into the workspace buffer. That order is:
  *
  * 1. Objects
- * 2. Buffers
- * 3. Aligned/Tables
+ * 2. Aligned / Tables
+ * 3. Init once / Tables
  *
  * Attempts to reserve objects of different types out of order will fail.
  */
@@ -150,6 +156,7 @@ typedef struct {
     void* tableEnd;
     void* tableValidEnd;
     void* allocStart;
+    void* initOnceStart;
 
     BYTE allocFailed;
     int workspaceOversizedDuration;
@@ -281,15 +288,12 @@ ZSTD_cwksp_internal_advance_phase(ZSTD_cwksp* ws, ZSTD_cwksp_alloc_phase_e phase
 {
     assert(phase >= ws->phase);
     if (phase > ws->phase) {
-        /* Going from allocating objects to allocating buffers */
-        if (ws->phase < ZSTD_cwksp_alloc_buffers &&
-                phase >= ZSTD_cwksp_alloc_buffers) {
+        /* Going from allocating objects to allocating aligned / tables */
+        if (ws->phase < ZSTD_cwksp_alloc_aligned_init_once &&
+                phase >= ZSTD_cwksp_alloc_aligned_init_once) {
             ws->tableValidEnd = ws->objectEnd;
-        }
+            ws->initOnceStart = ws->workspaceEnd;
 
-        /* Going from allocating buffers to allocating aligneds/tables */
-        if (ws->phase < ZSTD_cwksp_alloc_aligned &&
-                phase >= ZSTD_cwksp_alloc_aligned) {
             {   /* Align the start of the "aligned" to 64 bytes. Use [1, 64] bytes. */
                 size_t const bytesToAlign =
                     ZSTD_CWKSP_ALIGNMENT_BYTES - ZSTD_cwksp_bytes_to_align_ptr(ws->allocStart, ZSTD_CWKSP_ALIGNMENT_BYTES);
@@ -358,12 +362,26 @@ ZSTD_cwksp_reserve_internal(ZSTD_cwksp* ws, size_t bytes, ZSTD_cwksp_alloc_phase
     return alloc;
 }
 
+
 /**
- * Reserves and returns unaligned memory.
+ * Reserves and returns memory sized on and aligned on ZSTD_CWKSP_ALIGNMENT_BYTES (64 bytes).
+ * This memory has been initialized at least once in the past.
+ * This doesn't mean it has been initialized this time, and it might contain data from previous
+ * operations.
+ * The main usage is for algorithms that might need read access into uninitialized memory.
+ * The algorithm must maintain safety under these conditions and must make sure it doesn't
+ * leak any of the past data (directly or in side channels).
  */
-MEM_STATIC BYTE* ZSTD_cwksp_reserve_buffer(ZSTD_cwksp* ws, size_t bytes)
+MEM_STATIC void* ZSTD_cwksp_reserve_aligned_init_once(ZSTD_cwksp* ws, size_t bytes)
 {
-    return (BYTE*)ZSTD_cwksp_reserve_internal(ws, bytes, ZSTD_cwksp_alloc_buffers);
+    void* ptr = ZSTD_cwksp_reserve_internal(ws, ZSTD_cwksp_align(bytes, ZSTD_CWKSP_ALIGNMENT_BYTES),
+                                            ZSTD_cwksp_alloc_aligned_init_once);
+    assert(((size_t)ptr & (ZSTD_CWKSP_ALIGNMENT_BYTES-1))== 0);
+    if(ptr < ws->initOnceStart) {
+        ZSTD_memset(ptr, 0, (U8*)ws->initOnceStart - (U8*)ptr);
+        ws->initOnceStart = ptr;
+    }
+    return ptr;
 }
 
 /**
@@ -384,14 +402,19 @@ MEM_STATIC void* ZSTD_cwksp_reserve_aligned(ZSTD_cwksp* ws, size_t bytes)
  */
 MEM_STATIC void* ZSTD_cwksp_reserve_table(ZSTD_cwksp* ws, size_t bytes)
 {
-    const ZSTD_cwksp_alloc_phase_e phase = ZSTD_cwksp_alloc_aligned;
+    const ZSTD_cwksp_alloc_phase_e phase = ZSTD_cwksp_alloc_aligned_init_once;
     void* alloc;
     void* end;
     void* top;
 
-    if (ZSTD_isError(ZSTD_cwksp_internal_advance_phase(ws, phase))) {
-        return NULL;
+    // We can only start allocating tables after we are done reserving space for objects at the
+    // start of the workspace
+    if(ws->phase < phase) {
+        if (ZSTD_isError(ZSTD_cwksp_internal_advance_phase(ws, phase))) {
+            return NULL;
+        }
     }
+
     alloc = ws->tableEnd;
     end = (BYTE *)alloc + bytes;
     top = ws->allocStart;
@@ -560,8 +583,8 @@ MEM_STATIC void ZSTD_cwksp_clear(ZSTD_cwksp* ws) {
     ws->tableEnd = ws->objectEnd;
     ws->allocStart = ws->workspaceEnd;
     ws->allocFailed = 0;
-    if (ws->phase > ZSTD_cwksp_alloc_buffers) {
-        ws->phase = ZSTD_cwksp_alloc_buffers;
+    if (ws->phase > ZSTD_cwksp_alloc_aligned_init_once) {
+        ws->phase = ZSTD_cwksp_alloc_aligned_init_once;
     }
     ZSTD_cwksp_assert_internal_consistency(ws);
 }
@@ -639,7 +662,7 @@ MEM_STATIC int ZSTD_cwksp_estimated_space_within_bounds(const ZSTD_cwksp* const 
         /* Due to alignment, when reusing a workspace, we can actually consume 63 fewer or more bytes
          * than estimatedSpace. See the comments in zstd_cwksp.h for details.
          */
-        return (ZSTD_cwksp_used(ws) >= estimatedSpace - 63) && (ZSTD_cwksp_used(ws) <= estimatedSpace + 63);
+        return (ZSTD_cwksp_used(ws) >= estimatedSpace - 64) && (ZSTD_cwksp_used(ws) <= estimatedSpace + 64);
     }
 }
 

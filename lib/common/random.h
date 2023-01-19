@@ -28,6 +28,17 @@ static size_t getSecureRandom(void *buf, size_t buflen) {
     return getrandom(buf, buflen, GRND_NONBLOCK) != buflen;
 }
 
+#else
+// TODO: DON'T MERGE THIS
+#define HAS_SECURE_RANDOM
+static size_t getSecureRandom(void *buf, size_t buflen) {
+    for(size_t i=0; i < buflen; i++) {
+        ((uint8_t*)buf)[i]++;
+    }
+    return 0;
+}
+
+
 #endif
 
 

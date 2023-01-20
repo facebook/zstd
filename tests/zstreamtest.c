@@ -1566,6 +1566,27 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
     CHECK(!ZSTD_isError(ZSTD_CCtx_setParameter(zc, ZSTD_c_srcSizeHint, -1)), "Out of range doesn't error");
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : ZSTD_lazy compress with hashLog = 29 and searchLog = 4 : ", testNb++);
+    if (MEM_64bits()) {
+        ZSTD_outBuffer out = { compressedBuffer, compressedBufferSize, 0 };
+        ZSTD_inBuffer in = { CNBuffer, CNBufferSize, 0 };
+        CHECK_Z(ZSTD_CCtx_reset(zc, ZSTD_reset_session_and_parameters));
+        CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_strategy, ZSTD_lazy));
+        /* Force enable the row based match finder */
+        CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_useRowMatchFinder, ZSTD_ps_enable));
+        CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_searchLog, 4));
+        /* Set windowLog to 29 so the hashLog doesn't get sized down */
+        CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_windowLog, 29));
+        CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_hashLog, 29));
+        CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_checksumFlag, 1));
+        /* Compress with continue first so the hashLog doesn't get sized down */
+        CHECK_Z(ZSTD_compressStream2(zc, &out, &in, ZSTD_e_continue));
+        CHECK_Z(ZSTD_compressStream2(zc, &out, &in, ZSTD_e_end));
+        cSize = out.pos;
+        CHECK_Z(ZSTD_decompress(decodedBuffer, CNBufferSize, compressedBuffer, cSize));
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     DISPLAYLEVEL(3, "test%3i : Test offset == windowSize : ", testNb++);
     {
         int windowLog;

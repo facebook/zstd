@@ -47,6 +47,15 @@ jobs:
         APT_PACKAGES="gcc-multilib" make apt-install
         CFLAGS="-mx32 -O1 -fstack-protector" make check V=1
 
+  build-c89:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
+    - name: ensure zstd can be build with c89/c90 compilers (+ long long support + variadic macros)
+      run: |
+        make c89build V=1
+
+
   gcc-7-libzstd:
     runs-on: ubuntu-latest
     steps:

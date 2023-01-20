@@ -2592,6 +2592,27 @@ static int basicUnitTests(U32 const seed, double compressibility)
         }
         DISPLAYLEVEL(3, "OK \n");
 
+        DISPLAYLEVEL(3, "test%3d : bufferless api with cdict : ", testNb++);
+        {   ZSTD_CDict* const cdict = ZSTD_createCDict(dictBuffer, dictSize, 1);
+            ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+            ZSTD_frameParameters const fParams = { 0, 1, 0 };
+            size_t cBlockSize;
+            cSize = 0;
+            CHECK_Z(ZSTD_compressBegin_usingCDict_advanced(cctx, cdict, fParams, ZSTD_CONTENTSIZE_UNKNOWN));
+            cBlockSize = ZSTD_compressContinue(cctx, (char*)compressedBuffer + cSize, compressedBufferSize - cSize, CNBuffer, 1000);
+            CHECK_Z(cBlockSize);
+            cSize += cBlockSize;
+            cBlockSize = ZSTD_compressEnd(cctx, (char*)compressedBuffer + cSize, compressedBufferSize - cSize, (char const*)CNBuffer + 2000, 1000);
+            CHECK_Z(cBlockSize);
+            cSize += cBlockSize;
+
+            CHECK_Z(ZSTD_decompress_usingDict(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize, dictBuffer, dictSize));
+
+            ZSTD_freeCDict(cdict);
+            ZSTD_freeDCtx(dctx);
+        }
+        DISPLAYLEVEL(3, "OK \n");
+
         DISPLAYLEVEL(3, "test%3i : Building cdict w/ ZSTD_dct_fullDict on a good dictionary : ", testNb++);
         {   ZSTD_compressionParameters const cParams = ZSTD_getCParams(1, CNBuffSize, dictSize);
             ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dictBuffer, dictSize, ZSTD_dlm_byRef, ZSTD_dct_fullDict, cParams, ZSTD_defaultCMem);

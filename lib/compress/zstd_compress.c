@@ -1412,7 +1412,8 @@ static ZSTD_compressionParameters
 ZSTD_adjustCParams_internal(ZSTD_compressionParameters cPar,
                             unsigned long long srcSize,
                             size_t dictSize,
-                            ZSTD_cParamMode_e mode)
+                            ZSTD_cParamMode_e mode,
+                            ZSTD_paramSwitch_e useRowMatchFinder)
 {
     const U64 minSrcSize = 513; /* (1<<9) + 1 */
     const U64 maxWindowResize = 1ULL << (ZSTD_WINDOWLOG_MAX-1);
@@ -1465,10 +1466,39 @@ ZSTD_adjustCParams_internal(ZSTD_compressionParameters cPar,
     if (cPar.windowLog < ZSTD_WINDOWLOG_ABSOLUTEMIN)
         cPar.windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;  /* minimum wlog required for valid frame header */
 
+    /* We can't use more than 32 bits of hash in total, so that means that we require:
+     * (hashLog + 8) <= 32 && (chainLog + 8) <= 32
+     */
     if (mode == ZSTD_cpm_createCDict && ZSTD_CDictIndicesAreTagged(&cPar)) {
         U32 const maxShortCacheHashLog = 32 - ZSTD_SHORT_CACHE_TAG_BITS;
         if (cPar.hashLog > maxShortCacheHashLog) {
             cPar.hashLog = maxShortCacheHashLog;
+        }
+        if (cPar.chainLog > maxShortCacheHashLog) {
+            cPar.chainLog = maxShortCacheHashLog;
+        }
+    }
+
+
+    /* At this point, we aren't 100% sure if we are using the row match finder.
+     * Unless it is explicitly disabled, conservatively assume that it is enabled.
+     * In this case it will only be disabled for small sources, so shrinking the
+     * hash log a little bit shouldn't result in any ratio loss.
+     */
+    if (useRowMatchFinder == ZSTD_ps_auto)
+        useRowMatchFinder = ZSTD_ps_enable;
+
+    /* We can't hash more than 32-bits in total. So that means that we require:
+     * (hashLog - rowLog + 8) <= 32
+     */
+    if (ZSTD_rowMatchFinderUsed(cPar.strategy, useRowMatchFinder)) {
+        /* Switch to 32-entry rows if searchLog is 5 (or more) */
+        U32 const rowLog = BOUNDED(4, cPar.searchLog, 6);
+        U32 const maxRowHashLog = 32 - ZSTD_ROW_HASH_TAG_BITS;
+        U32 const maxHashLog = maxRowHashLog + rowLog;
+        assert(cPar.hashLog >= rowLog);
+        if (cPar.hashLog > maxHashLog) {
+            cPar.hashLog = maxHashLog;
         }
     }
 
@@ -1482,7 +1512,7 @@ ZSTD_adjustCParams(ZSTD_compressionParameters cPar,
 {
     cPar = ZSTD_clampCParams(cPar);   /* resulting cPar is necessarily valid (all parameters within range) */
     if (srcSize == 0) srcSize = ZSTD_CONTENTSIZE_UNKNOWN;
-    return ZSTD_adjustCParams_internal(cPar, srcSize, dictSize, ZSTD_cpm_unknown);
+    return ZSTD_adjustCParams_internal(cPar, srcSize, dictSize, ZSTD_cpm_unknown, ZSTD_ps_auto);
 }
 
 static ZSTD_compressionParameters ZSTD_getCParams_internal(int compressionLevel, unsigned long long srcSizeHint, size_t dictSize, ZSTD_cParamMode_e mode);
@@ -1513,7 +1543,7 @@ ZSTD_compressionParameters ZSTD_getCParamsFromCCtxParams(
     ZSTD_overrideCParams(&cParams, &CCtxParams->cParams);
     assert(!ZSTD_checkCParams(cParams));
     /* srcSizeHint == 0 means 0 */
-    return ZSTD_adjustCParams_internal(cParams, srcSizeHint, dictSize, mode);
+    return ZSTD_adjustCParams_internal(cParams, srcSizeHint, dictSize, mode, CCtxParams->useRowMatchFinder);
 }
 
 static size_t
@@ -2185,7 +2215,8 @@ ZSTD_resetCCtx_byAttachingCDict(ZSTD_CCtx* cctx,
         }
 
         params.cParams = ZSTD_adjustCParams_internal(adjusted_cdict_cParams, pledgedSrcSize,
-                                                     cdict->dictContentSize, ZSTD_cpm_attachDict);
+                                                     cdict->dictContentSize, ZSTD_cpm_attachDict,
+                                                     params.useRowMatchFinder);
         params.cParams.windowLog = windowLog;
         params.useRowMatchFinder = cdict->useRowMatchFinder;    /* cdict overrides */
         FORWARD_IF_ERROR(ZSTD_resetCCtx_internal(cctx, &params, pledgedSrcSize,
@@ -6740,7 +6771,7 @@ static ZSTD_compressionParameters ZSTD_getCParams_internal(int compressionLevel,
             cp.targetLength = (unsigned)(-clampedCompressionLevel);
         }
         /* refine parameters based on srcSize & dictSize */
-        return ZSTD_adjustCParams_internal(cp, srcSizeHint, dictSize, mode);
+        return ZSTD_adjustCParams_internal(cp, srcSizeHint, dictSize, mode, ZSTD_ps_auto);
     }
 }
 

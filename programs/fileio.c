@@ -114,11 +114,15 @@ char const* FIO_lzmaVersion(void)
 #define FNSPACE 30
 
 /* Default file permissions 0666 (modulated by umask) */
+/* Temporary restricted file permissions are used when we're going to
+ * chmod/chown at the end of the operation. */
 #if !defined(_WIN32)
 /* These macros aren't defined on windows. */
 #define DEFAULT_FILE_PERMISSIONS (S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH)
+#define TEMPORARY_FILE_PERMISSIONS (S_IRUSR|S_IWUSR)
 #else
 #define DEFAULT_FILE_PERMISSIONS (0666)
+#define TEMPORARY_FILE_PERMISSIONS (0600)
 #endif
 
 /*-************************************
@@ -531,26 +535,26 @@ static int FIO_removeFile(const char* path)
 /** FIO_openSrcFile() :
  *  condition : `srcFileName` must be non-NULL. `prefs` may be NULL.
  * @result : FILE* to `srcFileName`, or NULL if it fails */
-static FILE* FIO_openSrcFile(const FIO_prefs_t* const prefs, const char* srcFileName)
+static FILE* FIO_openSrcFile(const FIO_prefs_t* const prefs, const char* srcFileName, stat_t* statbuf)
 {
-    stat_t statbuf;
     int allowBlockDevices = prefs != NULL ? prefs->allowBlockDevices : 0;
     assert(srcFileName != NULL);
+    assert(statbuf != NULL);
     if (!strcmp (srcFileName, stdinmark)) {
         DISPLAYLEVEL(4,"Using stdin for input \n");
         SET_BINARY_MODE(stdin);
         return stdin;
     }
 
-    if (!UTIL_stat(srcFileName, &statbuf)) {
+    if (!UTIL_stat(srcFileName, statbuf)) {
         DISPLAYLEVEL(1, "zstd: can't stat %s : %s -- ignored \n",
                         srcFileName, strerror(errno));
         return NULL;
     }
 
-    if (!UTIL_isRegularFileStat(&statbuf)
-     && !UTIL_isFIFOStat(&statbuf)
-     && !(allowBlockDevices && UTIL_isBlockDevStat(&statbuf))
+    if (!UTIL_isRegularFileStat(statbuf)
+     && !UTIL_isFIFOStat(statbuf)
+     && !(allowBlockDevices && UTIL_isBlockDevStat(statbuf))
     ) {
         DISPLAYLEVEL(1, "zstd: %s is not a regular file -- ignored \n",
                         srcFileName);
@@ -662,23 +666,23 @@ FIO_openDstFile(FIO_ctx_t* fCtx, FIO_prefs_t* const prefs,
  * @return : loaded size
  *  if fileName==NULL, returns 0 and a NULL pointer
  */
-static size_t FIO_createDictBuffer(void** bufferPtr, const char* fileName, FIO_prefs_t* const prefs)
+static size_t FIO_createDictBuffer(void** bufferPtr, const char* fileName, FIO_prefs_t* const prefs, stat_t* dictFileStat)
 {
     FILE* fileHandle;
     U64 fileSize;
-    stat_t statbuf;
 
     assert(bufferPtr != NULL);
+    assert(dictFileStat != NULL);
     *bufferPtr = NULL;
     if (fileName == NULL) return 0;
 
     DISPLAYLEVEL(4,"Loading %s as dictionary \n", fileName);
 
-    if (!UTIL_stat(fileName, &statbuf)) {
+    if (!UTIL_stat(fileName, dictFileStat)) {
         EXM_THROW(31, "Stat failed on dictionary file %s: %s", fileName, strerror(errno));
     }
 
-    if (!UTIL_isRegularFileStat(&statbuf)) {
+    if (!UTIL_isRegularFileStat(dictFileStat)) {
         EXM_THROW(32, "Dictionary %s must be a regular file.", fileName);
     }
 
@@ -688,7 +692,7 @@ static size_t FIO_createDictBuffer(void** bufferPtr, const char* fileName, FIO_p
         EXM_THROW(33, "Couldn't open dictionary %s: %s", fileName, strerror(errno));
     }
 
-    fileSize = UTIL_getFileSizeStat(&statbuf);
+    fileSize = UTIL_getFileSizeStat(dictFileStat);
     {
         size_t const dictSizeMax = prefs->patchFromMode ? prefs->memLimit : DICTSIZE_MAX;
         if (fileSize >  dictSizeMax) {
@@ -887,6 +891,7 @@ typedef struct {
     void* dictBuffer;
     size_t dictBufferSize;
     const char* dictFileName;
+    stat_t dictFileStat;
     ZSTD_CStream* cctx;
     WritePoolCtx_t *writeCtx;
     ReadPoolCtx_t *readCtx;
@@ -945,7 +950,7 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
         unsigned long long const ssSize = (unsigned long long)prefs->streamSrcSize;
         FIO_adjustParamsForPatchFromMode(prefs, &comprParams, UTIL_getFileSize(dictFileName), ssSize > 0 ? ssSize : maxSrcFileSize, cLevel);
     }
-    ress.dictBufferSize = FIO_createDictBuffer(&ress.dictBuffer, dictFileName, prefs);   /* works with dictFileName==NULL */
+    ress.dictBufferSize = FIO_createDictBuffer(&ress.dictBuffer, dictFileName, prefs, &ress.dictFileStat);   /* works with dictFileName==NULL */
 
     ress.writeCtx = AIO_WritePool_create(prefs, ZSTD_CStreamOutSize());
     ress.readCtx = AIO_ReadPool_create(prefs, ZSTD_CStreamInSize());
@@ -1643,27 +1648,27 @@ static int FIO_compressFilename_dstFile(FIO_ctx_t* const fCtx,
                                         cRess_t ress,
                                         const char* dstFileName,
                                         const char* srcFileName,
+                                        const stat_t* srcFileStat,
                                         int compressionLevel)
 {
     int closeDstFile = 0;
     int result;
-    stat_t statbuf;
-    int transferMTime = 0;
+    int transferStat = 0;
     FILE *dstFile;
+
     assert(AIO_ReadPool_getFile(ress.readCtx) != NULL);
     if (AIO_WritePool_getFile(ress.writeCtx) == NULL) {
-        int dstFilePermissions = DEFAULT_FILE_PERMISSIONS;
+        int dstFileInitialPermissions = DEFAULT_FILE_PERMISSIONS;
         if ( strcmp (srcFileName, stdinmark)
           && strcmp (dstFileName, stdoutmark)
-          && UTIL_stat(srcFileName, &statbuf)
-          && UTIL_isRegularFileStat(&statbuf) ) {
-            dstFilePermissions = statbuf.st_mode;
-            transferMTime = 1;
+          && UTIL_isRegularFileStat(srcFileStat) ) {
+            transferStat = 1;
+            dstFileInitialPermissions = TEMPORARY_FILE_PERMISSIONS;
         }
 
         closeDstFile = 1;
         DISPLAYLEVEL(6, "FIO_compressFilename_dstFile: opening dst: %s \n", dstFileName);
-        dstFile = FIO_openDstFile(fCtx, prefs, srcFileName, dstFileName, dstFilePermissions);
+        dstFile = FIO_openDstFile(fCtx, prefs, srcFileName, dstFileName, dstFileInitialPermissions);
         if (dstFile==NULL) return 1;  /* could not open dstFileName */
         AIO_WritePool_setFile(ress.writeCtx, dstFile);
         /* Must only be added after FIO_openDstFile() succeeds.
@@ -1683,8 +1688,8 @@ static int FIO_compressFilename_dstFile(FIO_ctx_t* const fCtx,
             DISPLAYLEVEL(1, "zstd: %s: %s \n", dstFileName, strerror(errno));
             result=1;
         }
-        if (transferMTime) {
-            UTIL_utime(dstFileName, &statbuf);
+        if (transferStat) {
+            UTIL_setFileStat(dstFileName, srcFileStat);
         }
         if ( (result != 0)  /* operation failure */
           && strcmp(dstFileName, stdoutmark)  /* special case : don't remove() stdout */
@@ -1726,18 +1731,25 @@ FIO_compressFilename_srcFile(FIO_ctx_t* const fCtx,
 {
     int result;
     FILE* srcFile;
+    stat_t srcFileStat;
     DISPLAYLEVEL(6, "FIO_compressFilename_srcFile: %s \n", srcFileName);
 
-    /* ensure src is not a directory */
-    if (UTIL_isDirectory(srcFileName)) {
-        DISPLAYLEVEL(1, "zstd: %s is a directory -- ignored \n", srcFileName);
-        return 1;
-    }
+    if (strcmp(srcFileName, stdinmark)) {
+        if (UTIL_stat(srcFileName, &srcFileStat)) {
+            /* failure to stat at all is handled during opening */
 
-    /* ensure src is not the same as dict (if present) */
-    if (ress.dictFileName != NULL && UTIL_isSameFile(srcFileName, ress.dictFileName)) {
-        DISPLAYLEVEL(1, "zstd: cannot use %s as an input file and dictionary \n", srcFileName);
-        return 1;
+            /* ensure src is not a directory */
+            if (UTIL_isDirectoryStat(&srcFileStat)) {
+                DISPLAYLEVEL(1, "zstd: %s is a directory -- ignored \n", srcFileName);
+                return 1;
+            }
+
+            /* ensure src is not the same as dict (if present) */
+            if (ress.dictFileName != NULL && UTIL_isSameFileStat(srcFileName, ress.dictFileName, &srcFileStat, &ress.dictFileStat)) {
+                DISPLAYLEVEL(1, "zstd: cannot use %s as an input file and dictionary \n", srcFileName);
+                return 1;
+            }
+        }
     }
 
     /* Check if "srcFile" is compressed. Only done if --exclude-compressed flag is used
@@ -1749,11 +1761,14 @@ FIO_compressFilename_srcFile(FIO_ctx_t* const fCtx,
         return 0;
     }
 
-    srcFile = FIO_openSrcFile(prefs, srcFileName);
+    srcFile = FIO_openSrcFile(prefs, srcFileName, &srcFileStat);
     if (srcFile == NULL) return 1;   /* srcFile could not be opened */
 
     AIO_ReadPool_setFile(ress.readCtx, srcFile);
-    result = FIO_compressFilename_dstFile(fCtx, prefs, ress, dstFileName, srcFileName, compressionLevel);
+    result = FIO_compressFilename_dstFile(
+            fCtx, prefs, ress,
+            dstFileName, srcFileName,
+            &srcFileStat, compressionLevel);
     AIO_ReadPool_closeFile(ress.readCtx);
 
     if ( prefs->removeSrcFile   /* --rm */
@@ -2011,7 +2026,8 @@ static dRess_t FIO_createDResources(FIO_prefs_t* const prefs, const char* dictFi
 
     /* dictionary */
     {   void* dictBuffer;
-        size_t const dictBufferSize = FIO_createDictBuffer(&dictBuffer, dictFileName, prefs);
+        stat_t statbuf;
+        size_t const dictBufferSize = FIO_createDictBuffer(&dictBuffer, dictFileName, prefs, &statbuf);
         CHECK( ZSTD_DCtx_reset(ress.dctx, ZSTD_reset_session_only) );
         CHECK( ZSTD_DCtx_loadDictionary(ress.dctx, dictBuffer, dictBufferSize) );
         free(dictBuffer);
@@ -2478,22 +2494,22 @@ static int FIO_decompressFrames(FIO_ctx_t* const fCtx,
 static int FIO_decompressDstFile(FIO_ctx_t* const fCtx,
                                  FIO_prefs_t* const prefs,
                                  dRess_t ress,
-                                 const char* dstFileName, const char* srcFileName)
+                                 const char* dstFileName,
+                                 const char* srcFileName,
+                                 const stat_t* srcFileStat)
 {
     int result;
-    stat_t statbuf;
     int releaseDstFile = 0;
-    int transferMTime = 0;
+    int transferStat = 0;
 
     if ((AIO_WritePool_getFile(ress.writeCtx) == NULL) && (prefs->testMode == 0)) {
         FILE *dstFile;
         int dstFilePermissions = DEFAULT_FILE_PERMISSIONS;
         if ( strcmp(srcFileName, stdinmark)   /* special case : don't transfer permissions from stdin */
           && strcmp(dstFileName, stdoutmark)
-          && UTIL_stat(srcFileName, &statbuf)
-          && UTIL_isRegularFileStat(&statbuf) ) {
-            dstFilePermissions = statbuf.st_mode;
-            transferMTime = 1;
+          && UTIL_isRegularFileStat(srcFileStat) ) {
+            transferStat = 1;
+            dstFilePermissions = TEMPORARY_FILE_PERMISSIONS;
         }
 
         releaseDstFile = 1;
@@ -2518,8 +2534,8 @@ static int FIO_decompressDstFile(FIO_ctx_t* const fCtx,
             result = 1;
         }
 
-        if (transferMTime) {
-            UTIL_utime(dstFileName, &statbuf);
+        if (transferStat) {
+            UTIL_setFileStat(dstFileName, srcFileStat);
         }
 
         if ( (result != 0)  /* operation failure */
@@ -2541,6 +2557,7 @@ static int FIO_decompressDstFile(FIO_ctx_t* const fCtx,
 static int FIO_decompressSrcFile(FIO_ctx_t* const fCtx, FIO_prefs_t* const prefs, dRess_t ress, const char* dstFileName, const char* srcFileName)
 {
     FILE* srcFile;
+    stat_t srcFileStat;
     int result;
 
     if (UTIL_isDirectory(srcFileName)) {
@@ -2548,11 +2565,11 @@ static int FIO_decompressSrcFile(FIO_ctx_t* const fCtx, FIO_prefs_t* const prefs
         return 1;
     }
 
-    srcFile = FIO_openSrcFile(prefs, srcFileName);
+    srcFile = FIO_openSrcFile(prefs, srcFileName, &srcFileStat);
     if (srcFile==NULL) return 1;
     AIO_ReadPool_setFile(ress.readCtx, srcFile);
 
-    result = FIO_decompressDstFile(fCtx, prefs, ress, dstFileName, srcFileName);
+    result = FIO_decompressDstFile(fCtx, prefs, ress, dstFileName, srcFileName, &srcFileStat);
 
     AIO_ReadPool_setFile(ress.readCtx, NULL);
 
@@ -2917,10 +2934,11 @@ static InfoError
 getFileInfo_fileConfirmed(fileInfo_t* info, const char* inFileName)
 {
     InfoError status;
-    FILE* const srcFile = FIO_openSrcFile(NULL, inFileName);
+    stat_t srcFileStat;
+    FILE* const srcFile = FIO_openSrcFile(NULL, inFileName, &srcFileStat);
     ERROR_IF(srcFile == NULL, info_file_error, "Error: could not open source file %s", inFileName);
 
-    info->compressedSize = UTIL_getFileSize(inFileName);
+    info->compressedSize = UTIL_getFileSizeStat(&srcFileStat);
     status = FIO_analyzeFrames(info, srcFile);
 
     fclose(srcFile);

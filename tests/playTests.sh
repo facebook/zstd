@@ -388,6 +388,14 @@ zstd -f --rm tmp
 test ! -f tmp  # tmp should no longer be present
 zstd -f -d --rm tmp.zst
 test ! -f tmp.zst   # tmp.zst should no longer be present
+println "test: --rm is disabled when output is stdout"
+test -f tmp
+zstd --rm tmp -c > $INTOVOID
+test -f tmp # tmp shall still be there
+zstd -f --rm tmp -c > $INTOVOID
+test -f tmp # tmp shall still be there
+zstd -f tmp -c > $INTOVOID --rm
+test -f tmp # tmp shall still be there
 println "test : should quietly not remove non-regular file"
 println hello > tmp
 zstd tmp -f -o "$DEVDEVICE" 2>tmplog > "$INTOVOID"
@@ -450,8 +458,6 @@ cp tmp_rm3.zst tmp_rm4.zst
 echo 'Y' | zstd -d tmp_rm3.zst tmp_rm4.zst -v -o tmp_rm_out --rm
 test ! -f tmp_rm3.zst
 test ! -f tmp_rm4.zst
-echo 'yes' | zstd tmp_rm_out tmp_rm3 -c --rm && die "compressing multiple files to stdout with --rm should fail unless -f is specified"
-echo 'yes' | zstd tmp_rm_out tmp_rm3 -c --rm -v && die "compressing multiple files to stdout with --rm should fail unless -f is specified"
 println gooder > tmpexists1
 zstd tmpexists1 tmpexists -c --rm -f > $INTOVOID
 

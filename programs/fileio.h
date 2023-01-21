@@ -86,7 +86,7 @@ void FIO_setLdmMinMatch(FIO_prefs_t* const prefs, int ldmMinMatch);
 void FIO_setMemLimit(FIO_prefs_t* const prefs, unsigned memLimit);
 void FIO_setNbWorkers(FIO_prefs_t* const prefs, int nbWorkers);
 void FIO_setOverlapLog(FIO_prefs_t* const prefs, int overlapLog);
-void FIO_setRemoveSrcFile(FIO_prefs_t* const prefs, unsigned flag);
+void FIO_setRemoveSrcFile(FIO_prefs_t* const prefs, int flag);
 void FIO_setSparseWrite(FIO_prefs_t* const prefs, int sparse);  /**< 0: no sparse; 1: disable on stdout; 2: always enabled */
 void FIO_setRsyncable(FIO_prefs_t* const prefs, int rsyncable);
 void FIO_setStreamSrcSize(FIO_prefs_t* const prefs, size_t streamSrcSize);

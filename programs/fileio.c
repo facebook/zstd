@@ -362,7 +362,7 @@ void FIO_setDictIDFlag(FIO_prefs_t* const prefs, int dictIDFlag) { prefs->dictID
 
 void FIO_setChecksumFlag(FIO_prefs_t* const prefs, int checksumFlag) { prefs->checksumFlag = checksumFlag; }
 
-void FIO_setRemoveSrcFile(FIO_prefs_t* const prefs, unsigned flag) { prefs->removeSrcFile = (flag>0); }
+void FIO_setRemoveSrcFile(FIO_prefs_t* const prefs, int flag) { prefs->removeSrcFile = (flag!=0); }
 
 void FIO_setMemLimit(FIO_prefs_t* const prefs, unsigned memLimit) { prefs->memLimit = memLimit; }
 
@@ -833,7 +833,7 @@ static void FIO_adjustMemLimitForPatchFromMode(FIO_prefs_t* const prefs,
  *         If -q is specified with --rm, zstd will abort pre-emptively
  *         If neither flag is specified, zstd will prompt the user for confirmation to proceed.
  * If --rm is not specified, then zstd will print a warning to the user (which can be silenced with -q).
- * However, if the output is stdout, we will always abort rather than displaying the warning prompt.
+ *         Note : --rm in combination with stdout is not allowed.
  */
 static int FIO_removeMultiFilesWarning(FIO_ctx_t* const fCtx, const FIO_prefs_t* const prefs, const char* outFileName, int displayLevelCutoff)
 {
@@ -850,14 +850,10 @@ static int FIO_removeMultiFilesWarning(FIO_ctx_t* const fCtx, const FIO_prefs_t*
             } else {
                 DISPLAYLEVEL(2, "zstd: WARNING: all input files will be processed and concatenated into a single output file: %s \n", outFileName);
             }
-            DISPLAYLEVEL(2, "The concatenated output CANNOT regenerate the original directory tree. \n")
+            DISPLAYLEVEL(2, "The concatenated output CANNOT regenerate original file names nor directory structure. \n")
             if (prefs->removeSrcFile) {
-                if (fCtx->hasStdoutOutput) {
-                    DISPLAYLEVEL(1, "Aborting. Use -f if you really want to delete the files and output to stdout\n");
-                    error = 1;
-                } else {
-                    error = g_display_prefs.displayLevel > displayLevelCutoff && UTIL_requireUserConfirmation("This is a destructive operation. Proceed? (y/n): ", "Aborting...", "yY", fCtx->hasStdinInput);
-                }
+                assert(fCtx->hasStdoutOutput == 0); /* not possible : never erase source files when output == stdout */
+                error = (g_display_prefs.displayLevel > displayLevelCutoff) && UTIL_requireUserConfirmation("This is a destructive operation. Proceed? (y/n): ", "Aborting...", "yY", fCtx->hasStdinInput);
             }
         }
     }

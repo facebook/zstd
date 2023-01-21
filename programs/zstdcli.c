@@ -850,7 +850,8 @@ int main(int argCount, const char* argv[])
         defaultLogicalCores = 0,
         showDefaultCParams = 0,
         ultra=0,
-        contentSize=1;
+        contentSize=1,
+        removeSrcFile=0;
     unsigned nbWorkers = 0;
     double compressibility = 0.5;
     unsigned bench_nbSeconds = 3;   /* would be better if this value was synchronized from bench */
@@ -909,17 +910,17 @@ int main(int argCount, const char* argv[])
     if (exeNameMatch(programName, ZSTD_CAT)) { operation=zom_decompress; FIO_overwriteMode(prefs); forceStdout=1; followLinks=1; FIO_setPassThroughFlag(prefs, 1); outFileName=stdoutmark; g_displayLevel=1; }     /* supports multiple formats */
     if (exeNameMatch(programName, ZSTD_ZCAT)) { operation=zom_decompress; FIO_overwriteMode(prefs); forceStdout=1; followLinks=1; FIO_setPassThroughFlag(prefs, 1); outFileName=stdoutmark; g_displayLevel=1; }    /* behave like zcat, also supports multiple formats */
     if (exeNameMatch(programName, ZSTD_GZ)) {   /* behave like gzip */
-        suffix = GZ_EXTENSION; FIO_setCompressionType(prefs, FIO_gzipCompression); FIO_setRemoveSrcFile(prefs, 1);
+        suffix = GZ_EXTENSION; FIO_setCompressionType(prefs, FIO_gzipCompression); removeSrcFile=1;
         dictCLevel = cLevel = 6;  /* gzip default is -6 */
     }
-    if (exeNameMatch(programName, ZSTD_GUNZIP)) { operation=zom_decompress; FIO_setRemoveSrcFile(prefs, 1); }                                                     /* behave like gunzip, also supports multiple formats */
+    if (exeNameMatch(programName, ZSTD_GUNZIP)) { operation=zom_decompress; removeSrcFile=1; }                                                     /* behave like gunzip, also supports multiple formats */
     if (exeNameMatch(programName, ZSTD_GZCAT)) { operation=zom_decompress; FIO_overwriteMode(prefs); forceStdout=1; followLinks=1; FIO_setPassThroughFlag(prefs, 1); outFileName=stdoutmark; g_displayLevel=1; }   /* behave like gzcat, also supports multiple formats */
-    if (exeNameMatch(programName, ZSTD_LZMA)) { suffix = LZMA_EXTENSION; FIO_setCompressionType(prefs, FIO_lzmaCompression); FIO_setRemoveSrcFile(prefs, 1); }    /* behave like lzma */
-    if (exeNameMatch(programName, ZSTD_UNLZMA)) { operation=zom_decompress; FIO_setCompressionType(prefs, FIO_lzmaCompression); FIO_setRemoveSrcFile(prefs, 1); } /* behave like unlzma, also supports multiple formats */
-    if (exeNameMatch(programName, ZSTD_XZ)) { suffix = XZ_EXTENSION; FIO_setCompressionType(prefs, FIO_xzCompression); FIO_setRemoveSrcFile(prefs, 1); }          /* behave like xz */
-    if (exeNameMatch(programName, ZSTD_UNXZ)) { operation=zom_decompress; FIO_setCompressionType(prefs, FIO_xzCompression); FIO_setRemoveSrcFile(prefs, 1); }     /* behave like unxz, also supports multiple formats */
-    if (exeNameMatch(programName, ZSTD_LZ4)) { suffix = LZ4_EXTENSION; FIO_setCompressionType(prefs, FIO_lz4Compression); }                                       /* behave like lz4 */
-    if (exeNameMatch(programName, ZSTD_UNLZ4)) { operation=zom_decompress; FIO_setCompressionType(prefs, FIO_lz4Compression); }                                   /* behave like unlz4, also supports multiple formats */
+    if (exeNameMatch(programName, ZSTD_LZMA)) { suffix = LZMA_EXTENSION; FIO_setCompressionType(prefs, FIO_lzmaCompression); removeSrcFile=1; }    /* behave like lzma */
+    if (exeNameMatch(programName, ZSTD_UNLZMA)) { operation=zom_decompress; FIO_setCompressionType(prefs, FIO_lzmaCompression); removeSrcFile=1; } /* behave like unlzma, also supports multiple formats */
+    if (exeNameMatch(programName, ZSTD_XZ)) { suffix = XZ_EXTENSION; FIO_setCompressionType(prefs, FIO_xzCompression); removeSrcFile=1; }          /* behave like xz */
+    if (exeNameMatch(programName, ZSTD_UNXZ)) { operation=zom_decompress; FIO_setCompressionType(prefs, FIO_xzCompression); removeSrcFile=1; }     /* behave like unxz, also supports multiple formats */
+    if (exeNameMatch(programName, ZSTD_LZ4)) { suffix = LZ4_EXTENSION; FIO_setCompressionType(prefs, FIO_lz4Compression); }                        /* behave like lz4 */
+    if (exeNameMatch(programName, ZSTD_UNLZ4)) { operation=zom_decompress; FIO_setCompressionType(prefs, FIO_lz4Compression); }                    /* behave like unlz4, also supports multiple formats */
     memset(&compressionParams, 0, sizeof(compressionParams));
 
     /* init crash handler */
@@ -956,7 +957,7 @@ int main(int argCount, const char* argv[])
                 if (!strcmp(argument, "--help")) { usage_advanced(programName); CLEAN_RETURN(0); }
                 if (!strcmp(argument, "--verbose")) { g_displayLevel++; continue; }
                 if (!strcmp(argument, "--quiet")) { g_displayLevel--; continue; }
-                if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; FIO_setRemoveSrcFile(prefs, 0); g_displayLevel-=(g_displayLevel==2); continue; }
+                if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; removeSrcFile=0; continue; }
                 if (!strcmp(argument, "--ultra")) { ultra=1; continue; }
                 if (!strcmp(argument, "--check")) { FIO_setChecksumFlag(prefs, 2); continue; }
                 if (!strcmp(argument, "--no-check")) { FIO_setChecksumFlag(prefs, 0); continue; }
@@ -969,8 +970,8 @@ int main(int argCount, const char* argv[])
                 if (!strcmp(argument, "--no-asyncio")) { FIO_setAsyncIOFlag(prefs, 0); continue;}
                 if (!strcmp(argument, "--train")) { operation=zom_train; if (outFileName==NULL) outFileName=g_defaultDictName; continue; }
                 if (!strcmp(argument, "--no-dictID")) { FIO_setDictIDFlag(prefs, 0); continue; }
-                if (!strcmp(argument, "--keep")) { FIO_setRemoveSrcFile(prefs, 0); continue; }
-                if (!strcmp(argument, "--rm")) { FIO_setRemoveSrcFile(prefs, 1); continue; }
+                if (!strcmp(argument, "--keep")) { removeSrcFile=0; continue; }
+                if (!strcmp(argument, "--rm")) { removeSrcFile=1; continue; }
                 if (!strcmp(argument, "--priority=rt")) { setRealTimePrio = 1; continue; }
                 if (!strcmp(argument, "--show-default-cparams")) { showDefaultCParams = 1; continue; }
                 if (!strcmp(argument, "--content-size")) { contentSize = 1; continue; }
@@ -1167,7 +1168,7 @@ int main(int argCount, const char* argv[])
                         operation=zom_decompress; argument++; break;
 
                     /* Force stdout, even if stdout==console */
-                case 'c': forceStdout=1; outFileName=stdoutmark; FIO_setRemoveSrcFile(prefs, 0); argument++; break;
+                case 'c': forceStdout=1; outFileName=stdoutmark; removeSrcFile=0; argument++; break;
 
                     /* do not store filename - gzip compatibility - nothing to do */
                 case 'n': argument++; break;
@@ -1185,7 +1186,7 @@ int main(int argCount, const char* argv[])
                 case 'q': g_displayLevel--; argument++; break;
 
                     /* keep source file (default) */
-                case 'k': FIO_setRemoveSrcFile(prefs, 0); argument++; break;
+                case 'k': removeSrcFile=0; argument++; break;
 
                     /* Checksum */
                 case 'C': FIO_setChecksumFlag(prefs, 2); argument++; break;
@@ -1434,7 +1435,7 @@ int main(int argCount, const char* argv[])
     }
 
 #ifndef ZSTD_NODECOMPRESS
-    if (operation==zom_test) { FIO_setTestMode(prefs, 1); outFileName=nulmark; FIO_setRemoveSrcFile(prefs, 0); }  /* test mode */
+    if (operation==zom_test) { FIO_setTestMode(prefs, 1); outFileName=nulmark; removeSrcFile=0; }  /* test mode */
 #endif
 
     /* No input filename ==> use stdin and stdout */
@@ -1496,8 +1497,14 @@ int main(int argCount, const char* argv[])
 
     /* No status message in pipe mode (stdin - stdout) */
     hasStdout = outFileName && !strcmp(outFileName,stdoutmark);
-
     if ((hasStdout || !UTIL_isConsole(stderr)) && (g_displayLevel==2)) g_displayLevel=1;
+
+    /* don't remove source files when output is stdout */;
+    if (hasStdout && removeSrcFile) {
+        DISPLAYLEVEL(3, "Note: src files are not removed when output is stdout \n");
+        removeSrcFile = 0;
+    }
+    FIO_setRemoveSrcFile(prefs, removeSrcFile);
 
     /* IO Stream/File */
     FIO_setHasStdoutOutput(fCtx, hasStdout);

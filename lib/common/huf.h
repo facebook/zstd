@@ -107,7 +107,7 @@ typedef enum {
      * If set: Don't use assembly implementations
      * If unset: Allow using assembly implementations
      */
-    HUF_flags_disableAsm = (1 << 4),
+    HUF_flags_disableAsm = (1 << 4)
 } HUF_flags_e;
 
 

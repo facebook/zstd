@@ -535,6 +535,29 @@ jobs:
       run: |
         make clangbuild
 
+  clang-pgo:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
+    - name: Build PGO Zstd with Clang
+      env:
+        CC: clang-14
+        LLVM_PROFDATA: llvm-profdata-14
+      run: |
+        make -C programs zstd-pgo
+        ./programs/zstd -b
+
+  gcc-pgo:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
+    - name: Build PGO Zstd with GCC
+      env:
+        CC: gcc
+      run: |
+        make -C programs zstd-pgo
+        ./programs/zstd -b
+
 
 # For reference : icc tests
 # icc tests are currently failing on Github Actions, likely to issues during installation stage

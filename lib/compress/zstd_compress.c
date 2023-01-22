@@ -1559,7 +1559,7 @@ ZSTD_sizeof_matchState(const ZSTD_compressionParameters* const cParams,
     size_t const hSize = ((size_t)1) << cParams->hashLog;
     U32    const hashLog3 = (forCCtx && cParams->minMatch==3) ? MIN(ZSTD_HASHLOG3_MAX, cParams->windowLog) : 0;
     size_t const h3Size = hashLog3 ? ((size_t)1) << hashLog3 : 0;
-    /* We don't use ZSTD_cwksp_aligned_alloc_size() here because the tables aren't
+    /* We don't use ZSTD_cwksp_alloc_size() here because the tables aren't
      * surrounded by redzones in ASAN. */
     size_t const tableSpace = chainSize * sizeof(U32)
                             + hSize * sizeof(U32)
@@ -1612,8 +1612,8 @@ static size_t ZSTD_estimateCCtxSize_usingCCtxParams_internal(
     size_t const tokenSpace = ZSTD_cwksp_aligned_alloc_size(WILDCOPY_OVERLENGTH + blockSize)
                             + ZSTD_cwksp_aligned_alloc_size(maxNbSeq * sizeof(seqDef))
                             + 3 * ZSTD_cwksp_aligned_alloc_size(maxNbSeq * sizeof(BYTE));
-    size_t const entropySpace = ZSTD_cwksp_aligned_alloc_size(ENTROPY_WORKSPACE_SIZE);
-    size_t const blockStateSpace = 2 * ZSTD_cwksp_aligned_alloc_size(sizeof(ZSTD_compressedBlockState_t));
+    size_t const entropySpace = ZSTD_cwksp_alloc_size(ENTROPY_WORKSPACE_SIZE);
+    size_t const blockStateSpace = 2 * ZSTD_cwksp_alloc_size(sizeof(ZSTD_compressedBlockState_t));
     size_t const matchStateSize = ZSTD_sizeof_matchState(cParams, useRowMatchFinder, /* enableDedicatedDictSearch */ 0, /* forCCtx */ 1);
 
     size_t const ldmSpace = ZSTD_ldm_getTableSize(*ldmParams);
@@ -1632,18 +1632,11 @@ static size_t ZSTD_estimateCCtxSize_usingCCtxParams_internal(
         ? ZSTD_cwksp_aligned_alloc_size(maxNbExternalSeq * sizeof(ZSTD_Sequence))
         : 0;
 
-    size_t const neededSpace =
-        cctxSpace +
-        entropySpace +
-        blockStateSpace +
-        ldmSpace +
-        ldmSeqSpace +
-        matchStateSize +
-        tokenSpace +
-        bufferSpace +
-        externalSeqSpace;
+    size_t const objectsSpace = cctxSpace + entropySpace + blockStateSpace;
+    size_t const tableSpace = ldmSpace + matchStateSize;
+    size_t const alignedSpace = tokenSpace + bufferSpace +  externalSeqSpace + ldmSeqSpace;
 
-    DEBUGLOG(5, "estimate workspace : %u", (U32)neededSpace);
+    size_t const neededSpace = objectsSpace + tableSpace + alignedSpace;
     return neededSpace;
 }
 
@@ -1919,8 +1912,8 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
             if(forWho == ZSTD_resetTarget_CCtx) {
                 size_t randomGenerated = getSecureRandom(&ms->hashSalt, sizeof(ms->hashSalt));
                 if (!randomGenerated) {
-                    // We've successfully generated secure random, so we don't need to explicitly memset
-                    // and can use memory that has been initialized at least once in the past
+                    /* We've successfully generated secure random, so we don't need to explicitly memset
+                     * and can use memory that has been initialized at least once in the past */
                     needTagTableInit = 0;
                     ms->tagTable = (U16*)ZSTD_cwksp_reserve_aligned_init_once(ws, tagTableSize);
                 }
@@ -2172,8 +2165,6 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         }
 
         DEBUGLOG(3, "wksp: finished allocating, %zd bytes remain available", ZSTD_cwksp_available_space(ws));
-        DEBUGLOG(1, "wksp: cwksp_used = %zd, neededSpace = %zd, diff = %d, resizeWorkspace=%u", ZSTD_cwksp_used(ws), neededSpace,
-                 neededSpace - ZSTD_cwksp_used(ws), resizeWorkspace); // TODO: DON'T MERGE THIS
         assert(ZSTD_cwksp_estimated_space_within_bounds(ws, neededSpace, resizeWorkspace));
 
         zc->initialized = 1;
@@ -5165,7 +5156,7 @@ size_t ZSTD_estimateCDictSize_advanced(
 {
     DEBUGLOG(5, "sizeof(ZSTD_CDict) : %u", (unsigned)sizeof(ZSTD_CDict));
     return ZSTD_cwksp_alloc_size(sizeof(ZSTD_CDict))
-         + ZSTD_cwksp_aligned_alloc_size(HUF_WORKSPACE_SIZE)
+         + ZSTD_cwksp_alloc_size(HUF_WORKSPACE_SIZE)
          /* enableDedicatedDictSearch == 1 ensures that CDict estimation will not be too small
           * in case we are using DDS with row-hash. */
          + ZSTD_sizeof_matchState(&cParams, ZSTD_resolveRowMatchFinderMode(ZSTD_ps_auto, &cParams),
@@ -5253,7 +5244,7 @@ static ZSTD_CDict* ZSTD_createCDict_advanced_internal(size_t dictSize,
 
     {   size_t const workspaceSize =
             ZSTD_cwksp_alloc_size(sizeof(ZSTD_CDict)) +
-            ZSTD_cwksp_aligned_alloc_size(HUF_WORKSPACE_SIZE) +
+            ZSTD_cwksp_alloc_size(HUF_WORKSPACE_SIZE) +
             ZSTD_sizeof_matchState(&cParams, useRowMatchFinder, enableDedicatedDictSearch, /* forCCtx */ 0) +
             (dictLoadMethod == ZSTD_dlm_byRef ? 0
              : ZSTD_cwksp_aligned_alloc_size(ZSTD_cwksp_align(dictSize, sizeof(void*))));
@@ -5403,10 +5394,10 @@ const ZSTD_CDict* ZSTD_initStaticCDict(
     ZSTD_paramSwitch_e const useRowMatchFinder = ZSTD_resolveRowMatchFinderMode(ZSTD_ps_auto, &cParams);
     /* enableDedicatedDictSearch == 1 ensures matchstate is not too small in case this CDict will be used for DDS + row hash */
     size_t const matchStateSize = ZSTD_sizeof_matchState(&cParams, useRowMatchFinder, /* enableDedicatedDictSearch */ 1, /* forCCtx */ 0);
-    size_t const neededSize = ZSTD_cwksp_aligned_alloc_size(sizeof(ZSTD_CDict))
+    size_t const neededSize = ZSTD_cwksp_alloc_size(sizeof(ZSTD_CDict))
                             + (dictLoadMethod == ZSTD_dlm_byRef ? 0
-                               : ZSTD_cwksp_aligned_alloc_size(ZSTD_cwksp_align(dictSize, sizeof(void*))))
-                            + ZSTD_cwksp_aligned_alloc_size(HUF_WORKSPACE_SIZE)
+                               : ZSTD_cwksp_alloc_size(ZSTD_cwksp_align(dictSize, sizeof(void*))))
+                            + ZSTD_cwksp_alloc_size(HUF_WORKSPACE_SIZE)
                             + matchStateSize;
     ZSTD_CDict* cdict;
     ZSTD_CCtx_params params;

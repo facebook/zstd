@@ -122,4 +122,4 @@ extern UTIL_time_t g_displayClock;
 #if defined (__cplusplus)
 }
 #endif
-#endif //ZSTD_FILEIO_COMMON_H
+#endif /* ZSTD_FILEIO_COMMON_H */

@@ -799,8 +799,6 @@ ZSTDLIB_API size_t ZSTD_CStreamOutSize(void);   /**< recommended size for output
  * This following is a legacy streaming API, available since v1.0+ .
  * It can be replaced by ZSTD_CCtx_reset() and ZSTD_compressStream2().
  * It is redundant, but remains fully supported.
- * Streaming in combination with advanced parameters and dictionary compression
- * can only be used through the new API.
  ******************************************************************************/
 
 /*!
@@ -809,6 +807,9 @@ ZSTDLIB_API size_t ZSTD_CStreamOutSize(void);   /**< recommended size for output
  *     ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
  *     ZSTD_CCtx_refCDict(zcs, NULL); // clear the dictionary (if any)
  *     ZSTD_CCtx_setParameter(zcs, ZSTD_c_compressionLevel, compressionLevel);
+ *
+ * Note that ZSTD_initCStream() clears any previously set dictionary. Use the new API
+ * to compress with a dictionary.
  */
 ZSTDLIB_API size_t ZSTD_initCStream(ZSTD_CStream* zcs, int compressionLevel);
 /*!
@@ -1620,8 +1621,11 @@ ZSTDLIB_API unsigned ZSTD_isSkippableFrame(const void* buffer, size_t size);
  *  and ZSTD_estimateCCtxSize_usingCCtxParams(), which can be used in tandem with ZSTD_CCtxParams_setParameter().
  *  Both can be used to estimate memory using custom compression parameters and arbitrary srcSize limits.
  *
- *  Note 2 : only single-threaded compression is supported.
+ *  Note : only single-threaded compression is supported.
  *  ZSTD_estimateCCtxSize_usingCCtxParams() will return an error code if ZSTD_c_nbWorkers is >= 1.
+ *
+ *  Note 2 : ZSTD_estimateCCtxSize* functions are not compatible with the external matchfinder API at this time.
+ *  Size estimates assume that no external matchfinder is registered.
  */
 ZSTDLIB_STATIC_API size_t ZSTD_estimateCCtxSize(int compressionLevel);
 ZSTDLIB_STATIC_API size_t ZSTD_estimateCCtxSize_usingCParams(ZSTD_compressionParameters cParams);
@@ -1640,7 +1644,12 @@ ZSTDLIB_STATIC_API size_t ZSTD_estimateDCtxSize(void);
  *  or deducted from a valid frame Header, using ZSTD_estimateDStreamSize_fromFrame();
  *  Note : if streaming is init with function ZSTD_init?Stream_usingDict(),
  *         an internal ?Dict will be created, which additional size is not estimated here.
- *         In this case, get total size by adding ZSTD_estimate?DictSize */
+ *         In this case, get total size by adding ZSTD_estimate?DictSize 
+ *  Note 2 : only single-threaded compression is supported.
+ *  ZSTD_estimateCStreamSize_usingCCtxParams() will return an error code if ZSTD_c_nbWorkers is >= 1.
+ *  Note 3 : ZSTD_estimateCStreamSize* functions are not compatible with the external matchfinder API at this time.
+ *  Size estimates assume that no external matchfinder is registered.
+ */
 ZSTDLIB_STATIC_API size_t ZSTD_estimateCStreamSize(int compressionLevel);
 ZSTDLIB_STATIC_API size_t ZSTD_estimateCStreamSize_usingCParams(ZSTD_compressionParameters cParams);
 ZSTDLIB_STATIC_API size_t ZSTD_estimateCStreamSize_usingCCtxParams(const ZSTD_CCtx_params* params);

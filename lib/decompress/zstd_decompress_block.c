@@ -20,7 +20,6 @@
 #include "../common/mem.h"         /* low level memory routines */
 #define FSE_STATIC_LINKING_ONLY
 #include "../common/fse.h"
-#define HUF_STATIC_LINKING_ONLY
 #include "../common/huf.h"
 #include "../common/zstd_internal.h"
 #include "zstd_decompress_internal.h"   /* ZSTD_DCtx */
@@ -142,6 +141,7 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 U32 const lhc = MEM_readLE32(istart);
                 size_t hufSuccess;
                 size_t expectedWriteSize = MIN(ZSTD_BLOCKSIZE_MAX, dstCapacity);
+                int const flags = ZSTD_DCtx_get_bmi2(dctx) ? HUF_flags_bmi2 : 0;
                 switch(lhlCode)
                 {
                 case 0: case 1: default:   /* note : default is impossible, since lhlCode into [0..3] */
@@ -181,14 +181,14 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
 
                 if (litEncType==set_repeat) {
                     if (singleStream) {
-                        hufSuccess = HUF_decompress1X_usingDTable_bmi2(
+                        hufSuccess = HUF_decompress1X_usingDTable(
                             dctx->litBuffer, litSize, istart+lhSize, litCSize,
-                            dctx->HUFptr, ZSTD_DCtx_get_bmi2(dctx));
+                            dctx->HUFptr, flags);
                     } else {
                         assert(litSize >= MIN_LITERALS_FOR_4_STREAMS);
-                        hufSuccess = HUF_decompress4X_usingDTable_bmi2(
+                        hufSuccess = HUF_decompress4X_usingDTable(
                             dctx->litBuffer, litSize, istart+lhSize, litCSize,
-                            dctx->HUFptr, ZSTD_DCtx_get_bmi2(dctx));
+                            dctx->HUFptr, flags);
                     }
                 } else {
                     if (singleStream) {
@@ -196,18 +196,18 @@ size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                         hufSuccess = HUF_decompress1X_DCtx_wksp(
                             dctx->entropy.hufTable, dctx->litBuffer, litSize,
                             istart+lhSize, litCSize, dctx->workspace,
-                            sizeof(dctx->workspace));
+                            sizeof(dctx->workspace), flags);
 #else
-                        hufSuccess = HUF_decompress1X1_DCtx_wksp_bmi2(
+                        hufSuccess = HUF_decompress1X1_DCtx_wksp(
                             dctx->entropy.hufTable, dctx->litBuffer, litSize,
                             istart+lhSize, litCSize, dctx->workspace,
-                            sizeof(dctx->workspace), ZSTD_DCtx_get_bmi2(dctx));
+                            sizeof(dctx->workspace), flags);
 #endif
                     } else {
-                        hufSuccess = HUF_decompress4X_hufOnly_wksp_bmi2(
+                        hufSuccess = HUF_decompress4X_hufOnly_wksp(
                             dctx->entropy.hufTable, dctx->litBuffer, litSize,
                             istart+lhSize, litCSize, dctx->workspace,
-                            sizeof(dctx->workspace), ZSTD_DCtx_get_bmi2(dctx));
+                            sizeof(dctx->workspace), flags);
                     }
                 }
                 if (dctx->litBufferLocation == ZSTD_split)

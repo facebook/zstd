@@ -460,7 +460,7 @@ static size_t writeHufHeader(U32* seed, HUF_CElt* hufTable, void* dst, size_t ds
     }
 
     /* Write table description header */
-    {   size_t const hSize = HUF_writeCTable (op, dstSize, hufTable, maxSymbolValue, huffLog);
+    {   size_t const hSize = HUF_writeCTable_wksp (op, dstSize, hufTable, maxSymbolValue, huffLog, WKSP, sizeof(WKSP));
         if (hSize + 12 >= srcSize) return 0;   /* not useful to try compression */
         op += hSize;
     }
@@ -564,10 +564,10 @@ static size_t writeLiteralsBlockCompressed(U32* seed, frame_t* frame, size_t con
                     sizeFormat == 0
                             ? HUF_compress1X_usingCTable(
                                       op, opend - op, LITERAL_BUFFER, litSize,
-                                      frame->stats.hufTable)
+                                      frame->stats.hufTable, /* flags */ 0)
                             : HUF_compress4X_usingCTable(
                                       op, opend - op, LITERAL_BUFFER, litSize,
-                                      frame->stats.hufTable);
+                                      frame->stats.hufTable, /* flags */ 0);
             CHECKERR(compressedSize);
             /* this only occurs when it could not compress or similar */
         } while (compressedSize <= 0);

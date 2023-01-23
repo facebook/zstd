@@ -494,7 +494,7 @@ typedef enum {
                                  * In this mode we take both the source size and the dictionary size
                                  * into account when selecting and adjusting the parameters.
                                  */
-    ZSTD_cpm_unknown = 3,       /* ZSTD_getCParams, ZSTD_getParams, ZSTD_adjustParams.
+    ZSTD_cpm_unknown = 3        /* ZSTD_getCParams, ZSTD_getParams, ZSTD_adjustParams.
                                  * We don't know what these parameters are for. We default to the legacy
                                  * behavior of taking both the source size and the dict size into account
                                  * when selecting and adjusting parameters.
@@ -1172,10 +1172,15 @@ ZSTD_checkDictValidity(const ZSTD_window_t* window,
                     (unsigned)blockEndIdx, (unsigned)maxDist, (unsigned)loadedDictEnd);
         assert(blockEndIdx >= loadedDictEnd);
 
-        if (blockEndIdx > loadedDictEnd + maxDist) {
+        if (blockEndIdx > loadedDictEnd + maxDist || loadedDictEnd != window->dictLimit) {
             /* On reaching window size, dictionaries are invalidated.
              * For simplification, if window size is reached anywhere within next block,
              * the dictionary is invalidated for the full block.
+             *
+             * We also have to invalidate the dictionary if ZSTD_window_update() has detected
+             * non-contiguous segments, which means that loadedDictEnd != window->dictLimit.
+             * loadedDictEnd may be 0, if forceWindow is true, but in that case we never use
+             * dictMatchState, so setting it to NULL is not a problem.
              */
             DEBUGLOG(6, "invalidating dictionary for current block (distance > windowSize)");
             *loadedDictEndPtr = 0;

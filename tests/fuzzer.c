@@ -2592,6 +2592,27 @@ static int basicUnitTests(U32 const seed, double compressibility)
         }
         DISPLAYLEVEL(3, "OK \n");
 
+        DISPLAYLEVEL(3, "test%3d : bufferless api with cdict : ", testNb++);
+        {   ZSTD_CDict* const cdict = ZSTD_createCDict(dictBuffer, dictSize, 1);
+            ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+            ZSTD_frameParameters const fParams = { 0, 1, 0 };
+            size_t cBlockSize;
+            cSize = 0;
+            CHECK_Z(ZSTD_compressBegin_usingCDict_advanced(cctx, cdict, fParams, ZSTD_CONTENTSIZE_UNKNOWN));
+            cBlockSize = ZSTD_compressContinue(cctx, (char*)compressedBuffer + cSize, compressedBufferSize - cSize, CNBuffer, 1000);
+            CHECK_Z(cBlockSize);
+            cSize += cBlockSize;
+            cBlockSize = ZSTD_compressEnd(cctx, (char*)compressedBuffer + cSize, compressedBufferSize - cSize, (char const*)CNBuffer + 2000, 1000);
+            CHECK_Z(cBlockSize);
+            cSize += cBlockSize;
+
+            CHECK_Z(ZSTD_decompress_usingDict(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize, dictBuffer, dictSize));
+
+            ZSTD_freeCDict(cdict);
+            ZSTD_freeDCtx(dctx);
+        }
+        DISPLAYLEVEL(3, "OK \n");
+
         DISPLAYLEVEL(3, "test%3i : Building cdict w/ ZSTD_dct_fullDict on a good dictionary : ", testNb++);
         {   ZSTD_compressionParameters const cParams = ZSTD_getCParams(1, CNBuffSize, dictSize);
             ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dictBuffer, dictSize, ZSTD_dlm_byRef, ZSTD_dct_fullDict, cParams, ZSTD_defaultCMem);
@@ -2829,6 +2850,90 @@ static int basicUnitTests(U32 const seed, double compressibility)
             ret = ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize);
             if (!ZSTD_isError(ret)) goto _output_error;
             ZSTD_freeDCtx(dctx);
+        }
+        DISPLAYLEVEL(3, "OK \n");
+
+        DISPLAYLEVEL(3, "test%3i : ZSTD_fast attach dictionary with hashLog = 25 and chainLog = 25 : ", testNb++);
+        {
+            ZSTD_CCtx_params* cctxParams = ZSTD_createCCtxParams();
+            ZSTD_customMem customMem = {NULL, NULL, NULL};
+            ZSTD_DCtx* dctx = ZSTD_createDCtx();
+            ZSTD_CDict* cdict;
+            CHECK_Z(ZSTD_CCtxParams_setParameter(cctxParams, ZSTD_c_strategy, ZSTD_fast));
+            /* Set windowLog to 25 so hash/chain logs don't get sized down */
+            CHECK_Z(ZSTD_CCtxParams_setParameter(cctxParams, ZSTD_c_windowLog, 25));
+            CHECK_Z(ZSTD_CCtxParams_setParameter(cctxParams, ZSTD_c_hashLog, 25));
+            CHECK_Z(ZSTD_CCtxParams_setParameter(cctxParams, ZSTD_c_chainLog, 25));
+            /* Set srcSizeHint to 2^25 so hash/chain logs don't get sized down */
+            CHECK_Z(ZSTD_CCtxParams_setParameter(cctxParams, ZSTD_c_srcSizeHint, 1u << 25));
+            cdict = ZSTD_createCDict_advanced2(dictBuffer, dictSize, ZSTD_dlm_byRef, ZSTD_dct_auto, cctxParams, customMem);
+            CHECK_Z(ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_forceAttachDict, ZSTD_dictForceAttach));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1));
+            CHECK_Z(ZSTD_CCtx_refCDict(cctx, cdict));
+            cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize);
+            CHECK_Z(cSize);
+            CHECK_Z(ZSTD_decompress_usingDict(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize, dictBuffer, dictSize));
+            ZSTD_freeCDict(cdict);
+            ZSTD_freeDCtx(dctx);
+            ZSTD_freeCCtxParams(cctxParams);
+        }
+        DISPLAYLEVEL(3, "OK \n");
+
+        DISPLAYLEVEL(3, "test%3i : ZSTD_dfast attach dictionary with hashLog = 25 and chainLog = 25 : ", testNb++);
+        {
+            ZSTD_CCtx_params* cctxParams = ZSTD_createCCtxParams();
+            ZSTD_customMem customMem = {NULL, NULL, NULL};
+            ZSTD_DCtx* dctx = ZSTD_createDCtx();
+            ZSTD_CDict* cdict;
+            CHECK_Z(ZSTD_CCtxParams_setParameter(cctxParams, ZSTD_c_strategy, ZSTD_dfast));
+            /* Set windowLog to 25 so hash/chain logs don't get sized down */
+            CHECK_Z(ZSTD_CCtxParams_setParameter(cctxParams, ZSTD_c_windowLog, 25));
+            CHECK_Z(ZSTD_CCtxParams_setParameter(cctxParams, ZSTD_c_hashLog, 25));
+            CHECK_Z(ZSTD_CCtxParams_setParameter(cctxParams, ZSTD_c_chainLog, 25));
+            /* Set srcSizeHint to 2^25 so hash/chain logs don't get sized down */
+            CHECK_Z(ZSTD_CCtxParams_setParameter(cctxParams, ZSTD_c_srcSizeHint, 1u << 25));
+            cdict = ZSTD_createCDict_advanced2(dictBuffer, dictSize, ZSTD_dlm_byRef, ZSTD_dct_auto, cctxParams, customMem);
+            CHECK_Z(ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_forceAttachDict, ZSTD_dictForceAttach));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1));
+            CHECK_Z(ZSTD_CCtx_refCDict(cctx, cdict));
+            cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize);
+            CHECK_Z(cSize);
+            CHECK_Z(ZSTD_decompress_usingDict(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize, dictBuffer, dictSize));
+            ZSTD_freeCDict(cdict);
+            ZSTD_freeDCtx(dctx);
+            ZSTD_freeCCtxParams(cctxParams);
+        }
+        DISPLAYLEVEL(3, "OK \n");
+
+        DISPLAYLEVEL(3, "test%3i : ZSTD_lazy attach dictionary with hashLog = 29 and searchLog = 4 : ", testNb++);
+        if (MEM_64bits()) {
+            ZSTD_CCtx_params* cctxParams = ZSTD_createCCtxParams();
+            ZSTD_customMem customMem = {NULL, NULL, NULL};
+            ZSTD_DCtx* dctx = ZSTD_createDCtx();
+            ZSTD_CDict* cdict;
+            CHECK_Z(ZSTD_CCtxParams_setParameter(cctxParams, ZSTD_c_strategy, ZSTD_lazy));
+            /* Force enable row based match finder, and disable dedicated dict search. */
+            CHECK_Z(ZSTD_CCtxParams_setParameter(cctxParams, ZSTD_c_useRowMatchFinder, ZSTD_ps_enable));
+            CHECK_Z(ZSTD_CCtxParams_setParameter(cctxParams, ZSTD_c_enableDedicatedDictSearch, 0));
+            CHECK_Z(ZSTD_CCtxParams_setParameter(cctxParams, ZSTD_c_searchLog, 4));
+            /* Set windowLog to 29 so hash/chain logs don't get sized down */
+            CHECK_Z(ZSTD_CCtxParams_setParameter(cctxParams, ZSTD_c_windowLog, 29));
+            CHECK_Z(ZSTD_CCtxParams_setParameter(cctxParams, ZSTD_c_hashLog, 29));
+            /* Set srcSizeHint to 2^29 so hash/chain logs don't get sized down */
+            CHECK_Z(ZSTD_CCtxParams_setParameter(cctxParams, ZSTD_c_srcSizeHint, 1u << 29));
+            cdict = ZSTD_createCDict_advanced2(dictBuffer, dictSize, ZSTD_dlm_byRef, ZSTD_dct_auto, cctxParams, customMem);
+            CHECK_Z(ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_forceAttachDict, ZSTD_dictForceAttach));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1));
+            CHECK_Z(ZSTD_CCtx_refCDict(cctx, cdict));
+            cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize);
+            CHECK_Z(cSize);
+            CHECK_Z(ZSTD_decompress_usingDict(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize, dictBuffer, dictSize));
+            ZSTD_freeCDict(cdict);
+            ZSTD_freeDCtx(dctx);
+            ZSTD_freeCCtxParams(cctxParams);
         }
         DISPLAYLEVEL(3, "OK \n");
 

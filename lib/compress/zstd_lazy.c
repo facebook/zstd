@@ -759,7 +759,6 @@ size_t ZSTD_HcFindBestMatch(
 ***********************************/
 /* Constants for row-based hash */
 #define ZSTD_ROW_HASH_TAG_OFFSET 16     /* byte offset of hashes in the match state's tagTable from the beginning of a row */
-#define ZSTD_ROW_HASH_TAG_BITS 8        /* nb bits to use for the tag */
 #define ZSTD_ROW_HASH_TAG_MASK ((1u << ZSTD_ROW_HASH_TAG_BITS) - 1)
 #define ZSTD_ROW_HASH_MAX_ENTRIES 64    /* absolute maximum number of entries per row, for all configurations */
 

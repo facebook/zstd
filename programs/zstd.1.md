@@ -241,8 +241,10 @@ the last one takes effect.
     occur when the output destination is stdout and the force (`-f`) option is
     set.
 * `--rm`:
-    remove source file(s) after successful compression or decompression. If used in combination with
-    `-o`, will trigger a confirmation prompt (which can be silenced with `-f`), as this is a destructive operation.
+    remove source file(s) after successful compression or decompression.
+    This command is silently ignored if output is `stdout`.
+    If used in combination with `-o`,
+    triggers a confirmation prompt (which can be silenced with `-f`), as this is a destructive operation.
 * `-k`, `--keep`:
     keep source file(s) after successful compression or decompression.
     This is the default behavior.

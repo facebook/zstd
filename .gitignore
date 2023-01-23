@@ -26,7 +26,6 @@ tmp*
 *.zstd
 dictionary.
 dictionary
-sequence_fuzz_dictionary
 NUL
 
 # Build artefacts

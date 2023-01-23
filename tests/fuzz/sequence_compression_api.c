@@ -22,7 +22,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-#include <sys/mman.h>
 #include "fuzz_helpers.h"
 #include "zstd_helpers.h"
 #include "fuzz_data_producer.h"
@@ -72,26 +71,6 @@ static char* generatePseudoRandomString(char* str, size_t size, FUZZ_dataProduce
         }
     }
     return str;
-}
-
-/*
- * Create large dictionary file
- */
-static void generateDictFile(size_t size, FUZZ_dataProducer_t* producer) {
-    char c;
-    FILE *dictFile;
-    const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJK1234567890!@#$^&*()_";
-    uint32_t seed = FUZZ_dataProducer_uint32(producer);
-
-    dictFile = fopen(ZSTD_FUZZ_DICT_FILE, "w");
-    FUZZ_ASSERT(dictFile);
-
-    while (size) {
-      c = FUZZ_RDG_rand(&seed) % (int) (sizeof charset - 1);
-      fputc(c, dictFile);
-      size--;
-    }
-    fclose(dictFile);
 }
 
 /* Returns size of source buffer */
@@ -165,7 +144,7 @@ static size_t generateRandomSequences(FUZZ_dataProducer_t* producer,
                                       size_t literalsSizeLimit, size_t dictSize,
                                       size_t windowLog, ZSTD_sequenceFormat_e mode)
 {
-    const uint32_t repCode = 0;  /* Not used by sequence ingestion api */
+    const uint32_t repCode = 0;  /* not used by sequence ingestion api */
     size_t windowSize = 1ULL << windowLog;
     size_t blockSizeMax = MIN(ZSTD_BLOCKSIZE_MAX, windowSize);
     uint32_t matchLengthMax = ZSTD_FUZZ_MATCHLENGTH_MAXSIZE;
@@ -175,12 +154,12 @@ static size_t generateRandomSequences(FUZZ_dataProducer_t* producer,
     uint32_t blockSize = 0;
 
     if (mode == ZSTD_sf_explicitBlockDelimiters) {
-        /* Ensure that no sequence can be larger than one block */
+        /* ensure that no sequence can be larger than one block */
         literalsSizeLimit = MIN(literalsSizeLimit, blockSizeMax/2);
         matchLengthMax = MIN(matchLengthMax, blockSizeMax/2);
     }
 
-    while ( nbSeqGenerated < ZSTD_FUZZ_MAX_NBSEQ - 3 /* Extra room for explicit delimiters */
+    while ( nbSeqGenerated < ZSTD_FUZZ_MAX_NBSEQ - 3 /* extra room for explicit delimiters */
          && bytesGenerated < ZSTD_FUZZ_GENERATED_SRC_MAXSIZE
          && !FUZZ_dataProducer_empty(producer)) {
         uint32_t matchLength;
@@ -331,17 +310,13 @@ int LLVMFuzzerTestOneInput(const uint8_t* src, size_t size)
     }
 
     if (!dictBuffer) { /* Generate global dictionary buffer */
-        FILE* dictFile;
         ZSTD_compressionParameters cParams;
 
-        /* Generate a large dictionary file and mmap to buffer */
-        generateDictFile(ZSTD_FUZZ_GENERATED_DICT_MAXSIZE, producer);
-        dictFile = fopen(ZSTD_FUZZ_DICT_FILE, "r");
-        dictBuffer = mmap(NULL, ZSTD_FUZZ_GENERATED_DICT_MAXSIZE, PROT_READ, MAP_PRIVATE, fileno(dictFile), 0);
+        /* Generate a large dictionary buffer */
+        dictBuffer = calloc(ZSTD_FUZZ_GENERATED_DICT_MAXSIZE, 1);
         FUZZ_ASSERT(dictBuffer);
-        fclose(dictFile);
 
-        /* Create global cdict and ddict*/
+        /* Create global cdict and ddict */
         cParams = ZSTD_getCParams(1, ZSTD_FUZZ_GENERATED_SRC_MAXSIZE, ZSTD_FUZZ_GENERATED_DICT_MAXSIZE);
         cParams.minMatch = ZSTD_MINMATCH_MIN;
         cParams.hashLog = ZSTD_HASHLOG_MIN;

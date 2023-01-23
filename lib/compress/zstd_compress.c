@@ -6166,10 +6166,10 @@ ZSTD_validateSequence(U32 offCode, U32 matchLength, U32 minMatch,
      * window size. After output surpasses windowSize, we're limited to windowSize offsets again.
      */
     size_t const offsetBound = posInSrc > windowSize ? (size_t)windowSize : posInSrc + (size_t)dictSize;
-    RETURN_ERROR_IF(offCode > OFFSET_TO_OFFBASE(offsetBound), corruption_detected, "Offset too large!");
-    RETURN_ERROR_IF(matchLength < MINMATCH, corruption_detected, "Matchlength too small");
+    size_t const matchLenLowerBound = (minMatch == 3 || useExternalMatchFinder) ? 3 : 4;
+    RETURN_ERROR_IF(offCode > OFFSET_TO_OFFBASE(offsetBound), invalid_external_sequences, "Offset too large!");
     /* Validate maxNbSeq is large enough for the given matchLength and minMatch */
-    RETURN_ERROR_IF(!useExternalMatchFinder && minMatch >= 4 && matchLength < 4, corruption_detected, "Matchlength too small for the minMatch");
+    RETURN_ERROR_IF(matchLength < matchLenLowerBound, invalid_external_sequences, "Matchlength too small for the minMatch");
     return 0;
 }
 
@@ -6226,7 +6226,7 @@ ZSTD_copySequencesToSeqStoreExplicitBlockDelim(ZSTD_CCtx* cctx,
                                                 cctx->appliedParams.cParams.windowLog, dictSize, cctx->appliedParams.useExternalMatchFinder),
                                                 "Sequence validation failed");
         }
-        RETURN_ERROR_IF(idx - seqPos->idx >= cctx->seqStore.maxNbSeq, memory_allocation,
+        RETURN_ERROR_IF(idx - seqPos->idx >= cctx->seqStore.maxNbSeq, invalid_external_sequences,
                         "Not enough memory allocated. Try adjusting ZSTD_c_minMatch.");
         ZSTD_storeSeq(&cctx->seqStore, litLength, ip, iend, offBase, matchLength);
         ip += matchLength + litLength;
@@ -6339,7 +6339,7 @@ ZSTD_copySequencesToSeqStoreNoBlockDelim(ZSTD_CCtx* cctx, ZSTD_sequencePosition*
                                                    "Sequence validation failed");
         }
         DEBUGLOG(6, "Storing sequence: (of: %u, ml: %u, ll: %u)", offBase, matchLength, litLength);
-        RETURN_ERROR_IF(idx - seqPos->idx >= cctx->seqStore.maxNbSeq, memory_allocation,
+        RETURN_ERROR_IF(idx - seqPos->idx >= cctx->seqStore.maxNbSeq, invalid_external_sequences,
                         "Not enough memory allocated. Try adjusting ZSTD_c_minMatch.");
         ZSTD_storeSeq(&cctx->seqStore, litLength, ip, iend, offBase, matchLength);
         ip += matchLength + litLength;

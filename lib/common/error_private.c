@@ -53,6 +53,7 @@ const char* ERR_getErrorString(ERR_enum code)
     case PREFIX(dstBuffer_wrong): return "Destination buffer is wrong";
     case PREFIX(srcBuffer_wrong): return "Source buffer is wrong";
     case PREFIX(externalMatchFinder_failed): return "External matchfinder returned an error code";
+    case PREFIX(invalid_external_sequences): return "External sequences are not valid";
     case PREFIX(maxCode):
     default: return notErrorCode;
     }

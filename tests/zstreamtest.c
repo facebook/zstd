@@ -2097,6 +2097,7 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
                                    src, srcSize);
 
             CHECK(!ZSTD_isError(cSize), "Should throw an error"); /* maxNbSeq is too small and an assert will fail */
+            CHECK(ZSTD_getErrorCode(cSize) != ZSTD_error_invalid_external_sequences, "Wrong error code: %s", ZSTD_getErrorName(cSize)); /* fails sequence validation */
 
             ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
 
@@ -2110,6 +2111,7 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
                                    src, srcSize);
 
             CHECK(!ZSTD_isError(cSize), "Should throw an error"); /* maxNbSeq is too small and an assert will fail */
+            CHECK(ZSTD_getErrorCode(cSize) != ZSTD_error_invalid_external_sequences, "Wrong error code: %s", ZSTD_getErrorName(cSize)); /* fails sequence validation */
 
             free(sequences);
         }
@@ -2143,6 +2145,21 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
                                    src, srcSize);
 
             CHECK(!ZSTD_isError(cSize), "Should throw an error"); /* maxNbSeq is too small and an assert will fail */
+            CHECK(ZSTD_getErrorCode(cSize) != ZSTD_error_invalid_external_sequences, "Wrong error code: %s", ZSTD_getErrorName(cSize)); /* fails sequence validation */
+
+            ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
+
+            /* Test without sequence validation */
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_minMatch, 5));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_blockDelimiters, ZSTD_sf_explicitBlockDelimiters));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_validateSequences, 0));
+
+            cSize = ZSTD_compressSequences(cctx, dst, dstSize,
+                                   sequences, kNbSequences,
+                                   src, srcSize);
+
+            CHECK(!ZSTD_isError(cSize), "Should throw an error"); /* maxNbSeq is too small and an assert will fail */
+            CHECK(ZSTD_getErrorCode(cSize) != ZSTD_error_invalid_external_sequences, "Wrong error code: %s", ZSTD_getErrorName(cSize)); /* fails sequence validation */
 
             free(sequences);
         }

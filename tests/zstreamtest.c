@@ -2087,6 +2087,107 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    /* Test Sequence Validation */
+    DISPLAYLEVEL(3, "test%3i : Testing sequence validation: ", testNb++);
+    {
+        ZSTD_CCtx* cctx = ZSTD_createCCtx();
+
+        /* Test minMatch >= 4, matchLength < 4 */
+        {
+            size_t srcSize = 11;
+            void* const src = CNBuffer;
+            size_t dstSize = ZSTD_compressBound(srcSize);
+            void* const dst = compressedBuffer;
+            size_t const kNbSequences = 4;
+            ZSTD_Sequence* sequences = malloc(sizeof(ZSTD_Sequence) * kNbSequences);
+
+            memset(src, 'x', srcSize);
+
+            sequences[0] = (ZSTD_Sequence) {1, 1, 3, 0};
+            sequences[1] = (ZSTD_Sequence) {1, 0, 3, 0};
+            sequences[2] = (ZSTD_Sequence) {1, 0, 3, 0};
+            sequences[3] = (ZSTD_Sequence) {0, 1, 0, 0};
+
+            /* Test with sequence validation */
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_minMatch, 5));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_blockDelimiters, ZSTD_sf_explicitBlockDelimiters));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_validateSequences, 1));
+
+            cSize = ZSTD_compressSequences(cctx, dst, dstSize,
+                                   sequences, kNbSequences,
+                                   src, srcSize);
+
+            CHECK(!ZSTD_isError(cSize), "Should throw an error"); /* maxNbSeq is too small and an assert will fail */
+            CHECK(ZSTD_getErrorCode(cSize) != ZSTD_error_externalSequences_invalid, "Wrong error code: %s", ZSTD_getErrorName(cSize)); /* fails sequence validation */
+
+            ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
+
+            /* Test without sequence validation */
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_minMatch, 5));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_blockDelimiters, ZSTD_sf_explicitBlockDelimiters));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_validateSequences, 0));
+
+            cSize = ZSTD_compressSequences(cctx, dst, dstSize,
+                                   sequences, kNbSequences,
+                                   src, srcSize);
+
+            CHECK(!ZSTD_isError(cSize), "Should throw an error"); /* maxNbSeq is too small and an assert will fail */
+            CHECK(ZSTD_getErrorCode(cSize) != ZSTD_error_externalSequences_invalid, "Wrong error code: %s", ZSTD_getErrorName(cSize)); /* fails sequence validation */
+
+            free(sequences);
+        }
+
+        ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
+
+        { /* Test case with two additional sequences */
+            size_t srcSize = 19;
+            void* const src = CNBuffer;
+            size_t dstSize = ZSTD_compressBound(srcSize);
+            void* const dst = compressedBuffer;
+            size_t const kNbSequences = 7;
+            ZSTD_Sequence* sequences = malloc(sizeof(ZSTD_Sequence) * kNbSequences);
+
+            memset(src, 'x', srcSize);
+
+            sequences[0] = (ZSTD_Sequence) {1, 1, 3, 0};
+            sequences[1] = (ZSTD_Sequence) {1, 0, 3, 0};
+            sequences[2] = (ZSTD_Sequence) {1, 0, 3, 0};
+            sequences[3] = (ZSTD_Sequence) {1, 0, 3, 0};
+            sequences[4] = (ZSTD_Sequence) {1, 0, 3, 0};
+            sequences[5] = (ZSTD_Sequence) {1, 0, 3, 0};
+            sequences[6] = (ZSTD_Sequence) {0, 0, 0, 0};
+
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_minMatch, 5));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_blockDelimiters, ZSTD_sf_explicitBlockDelimiters));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_validateSequences, 1));
+
+            cSize = ZSTD_compressSequences(cctx, dst, dstSize,
+                                   sequences, kNbSequences,
+                                   src, srcSize);
+
+            CHECK(!ZSTD_isError(cSize), "Should throw an error"); /* maxNbSeq is too small and an assert will fail */
+            CHECK(ZSTD_getErrorCode(cSize) != ZSTD_error_externalSequences_invalid, "Wrong error code: %s", ZSTD_getErrorName(cSize)); /* fails sequence validation */
+
+            ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
+
+            /* Test without sequence validation */
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_minMatch, 5));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_blockDelimiters, ZSTD_sf_explicitBlockDelimiters));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_validateSequences, 0));
+
+            cSize = ZSTD_compressSequences(cctx, dst, dstSize,
+                                   sequences, kNbSequences,
+                                   src, srcSize);
+
+            CHECK(!ZSTD_isError(cSize), "Should throw an error"); /* maxNbSeq is too small and an assert will fail */
+            CHECK(ZSTD_getErrorCode(cSize) != ZSTD_error_externalSequences_invalid, "Wrong error code: %s", ZSTD_getErrorName(cSize)); /* fails sequence validation */
+
+            free(sequences);
+        }
+        ZSTD_freeCCtx(cctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
 _end:
     FUZ_freeDictionary(dictionary);
     ZSTD_freeCStream(zc);

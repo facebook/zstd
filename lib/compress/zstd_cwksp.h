@@ -556,8 +556,10 @@ MEM_STATIC void ZSTD_cwksp_clear(ZSTD_cwksp* ws) {
      * without initialization (objects, valid tables area and init once
      * memory). */
     {
-        size_t size = (BYTE*)ws->initOnceStart - (BYTE*)ws->tableValidEnd;
-        __msan_poison(ws->tableValidEnd, size);
+        if((BYTE*)ws->tableValidEnd < (BYTE*)ws->initOnceStart) {
+            size_t size = (BYTE*)ws->initOnceStart - (BYTE*)ws->tableValidEnd;
+            __msan_poison(ws->tableValidEnd, size);
+        }
     }
 #endif
 

@@ -517,9 +517,9 @@ size_t ZSTD_seekable_decompress(ZSTD_seekable* zs, void* dst, size_t len, unsign
             size_t forwardProgress;
             if (zs->decompressedOffset < offset) {
                 /* dummy decompressions until we get to the target offset */
-                outTmp = (ZSTD_outBuffer){zs->outBuff, MIN(SEEKABLE_BUFF_SIZE, offset - zs->decompressedOffset), 0};
+                outTmp = (ZSTD_outBuffer){zs->outBuff, (size_t) (MIN(SEEKABLE_BUFF_SIZE, offset - zs->decompressedOffset)), 0};
             } else {
-                outTmp = (ZSTD_outBuffer){dst, len, zs->decompressedOffset - offset};
+                outTmp = (ZSTD_outBuffer){dst, len, (size_t) (zs->decompressedOffset - offset)};
             }
 
             prevOutPos = outTmp.pos;

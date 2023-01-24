@@ -85,6 +85,18 @@ def get_git_tags():
     return tags
 
 
+def dict_ok(tag, dict_name, sample):
+    if not os.path.isfile(dict_name):
+        return False
+    try:
+        cmd = ['./zstd.' + tag, '-D', dict_name]
+        with open(sample, "rb") as i:
+            subprocess.check_call(cmd, stdin=i, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return True
+    except:
+        return False
+
+
 def create_dict(tag, dict_source_path, fallback_tag=None):
     dict_name = 'dict.' + tag
     if not os.path.isfile(dict_name):
@@ -96,7 +108,7 @@ def create_dict(tag, dict_source_path, fallback_tag=None):
             result = execute('./dictBuilder.' + tag + ' ' + ' '.join(files) + ' -o ' + dict_name, print_output=False, param_shell=True)
         else:
             result = execute('./zstd.' + tag + ' -f --train ' + ' '.join(files) + ' -o ' + dict_name, print_output=False, param_shell=True)
-        if result == 0 and os.path.isfile(dict_name):
+        if result == 0 and dict_ok(tag, dict_name, files[0]):
             print(dict_name + ' created')
         elif fallback_tag is not None:
             fallback_dict_name = 'dict.' + fallback_tag

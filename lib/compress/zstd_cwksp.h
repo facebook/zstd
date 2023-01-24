@@ -573,6 +573,7 @@ MEM_STATIC void ZSTD_cwksp_clear(ZSTD_cwksp* ws) {
 
     ws->tableEnd = ws->objectEnd;
     ws->allocStart = (void*)((size_t)ws->workspaceEnd & ~(ZSTD_CWKSP_ALIGNMENT_BYTES-1));
+    ws->initOnceStart = ws->workspaceEnd;
     ws->allocFailed = 0;
     if (ws->phase > ZSTD_cwksp_alloc_aligned_init_once) {
         ws->phase = ZSTD_cwksp_alloc_aligned_init_once;

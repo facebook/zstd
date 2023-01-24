@@ -26,6 +26,7 @@
 
 /* Direct access to internal compression functions is required */
 #include "compress/zstd_compress.c" /* ZSTD_resetSeqStore, ZSTD_storeSeq, *_TO_OFFBASE, HIST_countFast_wksp, HIST_isError */
+#include "decompress/zstd_decompress_block.h" /* ZSTD_decompressBlock_deprecated */
 
 #define XXH_STATIC_LINKING_ONLY
 #include "xxhash.h"     /* XXH64 */
@@ -1434,7 +1435,7 @@ static size_t testDecodeWithDict(U32 seed, genType_e genType)
                 ZSTD_freeDCtx(dctx);
                 goto dictTestCleanup;
             }
-            ret = ZSTD_decompressBlock(dctx, DECOMPRESSED_BUFFER, MAX_DECOMPRESSED_SIZE,
+            ret = ZSTD_decompressBlock_deprecated(dctx, DECOMPRESSED_BUFFER, MAX_DECOMPRESSED_SIZE,
                                        fr.dataStart, (BYTE*)fr.data - (BYTE*)fr.dataStart);
         }
         ZSTD_freeDCtx(dctx);
@@ -1461,7 +1462,7 @@ static size_t testDecodeRawBlock(frame_t* fr)
     size_t ret = ZSTD_decompressBegin(dctx);
     if (ZSTD_isError(ret)) return ret;
 
-    ret = ZSTD_decompressBlock(
+    ret = ZSTD_decompressBlock_deprecated(
             dctx,
             DECOMPRESSED_BUFFER, MAX_DECOMPRESSED_SIZE,
             fr->dataStart, (BYTE*)fr->data - (BYTE*)fr->dataStart);

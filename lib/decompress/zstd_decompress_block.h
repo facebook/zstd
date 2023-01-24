@@ -64,5 +64,10 @@ void ZSTD_buildFSETable(ZSTD_seqSymbol* dt,
                    unsigned tableLog, void* wksp, size_t wkspSize,
                    int bmi2);
 
+/* Internal definition of ZSTD_decompressBlock() to avoid deprecation warnings. */
+size_t ZSTD_decompressBlock_deprecated(ZSTD_DCtx* dctx,
+                            void* dst, size_t dstCapacity,
+                      const void* src, size_t srcSize);
+
 
 #endif /* ZSTD_DEC_BLOCK_H */

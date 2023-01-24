@@ -1475,4 +1475,24 @@ ZSTD_copySequencesToSeqStoreNoBlockDelim(ZSTD_CCtx* cctx, ZSTD_sequencePosition*
                                    const ZSTD_Sequence* const inSeqs, size_t inSeqsSize,
                                    const void* src, size_t blockSize, ZSTD_paramSwitch_e externalRepSearch);
 
+
+/* ===============================================================
+ * Deprecated definitions that are still used internally to avoid
+ * deprecation warnings. These functions are exactly equivalent to
+ * their public variants, but avoid the deprecation warnings.
+ * =============================================================== */
+
+size_t ZSTD_compressBegin_usingCDict_deprecated(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict);
+
+size_t ZSTD_compressContinue_public(ZSTD_CCtx* cctx,
+                                    void* dst, size_t dstCapacity,
+                              const void* src, size_t srcSize);
+
+size_t ZSTD_compressEnd_public(ZSTD_CCtx* cctx,
+                               void* dst, size_t dstCapacity,
+                         const void* src, size_t srcSize);
+
+size_t ZSTD_compressBlock_deprecated(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
+
+
 #endif /* ZSTD_COMPRESS_H */

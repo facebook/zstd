@@ -2,6 +2,8 @@ Trace:FileStat: > UTIL_isLink(file)
 Trace:FileStat: < 0
 Trace:FileStat: > UTIL_isConsole(1)
 Trace:FileStat: < 0
+Trace:FileStat: > UTIL_isConsole(2)
+Trace:FileStat: < 0
 Trace:FileStat: > UTIL_getFileSize(file)
 Trace:FileStat:  > UTIL_stat(file)
 Trace:FileStat:  < 1

@@ -339,7 +339,7 @@ static const char* lastNameFromPath(const char* path)
 
 static void errorOut(const char* msg)
 {
-    DISPLAY("%s \n", msg); exit(1);
+    DISPLAYLEVEL(1, "%s \n", msg); exit(1);
 }
 
 /*! readU32FromCharChecked() :
@@ -786,13 +786,13 @@ static unsigned init_nbThreads(void) {
     } else {                      \
         argNb++;                  \
         if (argNb >= argCount) {  \
-            DISPLAY("error: missing command argument \n"); \
+            DISPLAYLEVEL(1, "error: missing command argument \n"); \
             CLEAN_RETURN(1);      \
         }                         \
         ptr = argv[argNb];        \
         assert(ptr != NULL);      \
         if (ptr[0]=='-') {        \
-            DISPLAY("error: command cannot be separated from its argument by another command \n"); \
+            DISPLAYLEVEL(1, "error: command cannot be separated from its argument by another command \n"); \
             CLEAN_RETURN(1);      \
 }   }   }
 
@@ -859,6 +859,7 @@ int main(int argCount, const char* argv[])
 
     FIO_prefs_t* const prefs = FIO_createPreferences();
     FIO_ctx_t* const fCtx = FIO_createContext();
+    FIO_progressSetting_e progress = FIO_ps_auto;
     zstd_operation_mode operation = zom_compress;
     ZSTD_compressionParameters compressionParams;
     int cLevel = init_cLevel();
@@ -898,7 +899,7 @@ int main(int argCount, const char* argv[])
     (void)recursive; (void)cLevelLast;    /* not used when ZSTD_NOBENCH set */
     (void)memLimit;
     assert(argCount >= 1);
-    if ((filenames==NULL) || (file_of_names==NULL)) { DISPLAY("zstd: allocation error \n"); exit(1); }
+    if ((filenames==NULL) || (file_of_names==NULL)) { DISPLAYLEVEL(1, "zstd: allocation error \n"); exit(1); }
     programName = lastNameFromPath(programName);
 #ifdef ZSTD_MULTITHREAD
     nbWorkers = init_nbThreads();
@@ -999,8 +1000,8 @@ int main(int argCount, const char* argv[])
                 if (!strcmp(argument, "--rsyncable")) { rsyncable = 1; continue; }
                 if (!strcmp(argument, "--compress-literals")) { literalCompressionMode = ZSTD_ps_enable; continue; }
                 if (!strcmp(argument, "--no-compress-literals")) { literalCompressionMode = ZSTD_ps_disable; continue; }
-                if (!strcmp(argument, "--no-progress")) { FIO_setProgressSetting(FIO_ps_never); continue; }
-                if (!strcmp(argument, "--progress")) { FIO_setProgressSetting(FIO_ps_always); continue; }
+                if (!strcmp(argument, "--no-progress")) { progress = FIO_ps_never; continue; }
+                if (!strcmp(argument, "--progress")) { progress = FIO_ps_always; continue; }
                 if (!strcmp(argument, "--exclude-compressed")) { FIO_setExcludeCompressedFile(prefs, 1); continue; }
                 if (!strcmp(argument, "--fake-stdin-is-console")) { UTIL_fakeStdinIsConsole(); continue; }
                 if (!strcmp(argument, "--fake-stdout-is-console")) { UTIL_fakeStdoutIsConsole(); continue; }
@@ -1057,7 +1058,7 @@ int main(int argCount, const char* argv[])
                 if (longCommandWArg(&argument, "--output-dir-flat")) {
                     NEXT_FIELD(outDirName);
                     if (strlen(outDirName) == 0) {
-                        DISPLAY("error: output dir cannot be empty string (did you mean to pass '.' instead?)\n");
+                        DISPLAYLEVEL(1, "error: output dir cannot be empty string (did you mean to pass '.' instead?)\n");
                         CLEAN_RETURN(1);
                     }
                     continue;
@@ -1073,7 +1074,7 @@ int main(int argCount, const char* argv[])
                 if (longCommandWArg(&argument, "--output-dir-mirror")) {
                     NEXT_FIELD(outMirroredDirName);
                     if (strlen(outMirroredDirName) == 0) {
-                        DISPLAY("error: output dir cannot be empty string (did you mean to pass '.' instead?)\n");
+                        DISPLAYLEVEL(1, "error: output dir cannot be empty string (did you mean to pass '.' instead?)\n");
                         CLEAN_RETURN(1);
                     }
                     continue;
@@ -1349,7 +1350,7 @@ int main(int argCount, const char* argv[])
         int const ret = FIO_listMultipleFiles((unsigned)filenames->tableSize, filenames->fileNames, g_displayLevel);
         CLEAN_RETURN(ret);
 #else
-        DISPLAY("file information is not supported \n");
+        DISPLAYLEVEL(1, "file information is not supported \n");
         CLEAN_RETURN(1);
 #endif
     }
@@ -1480,24 +1481,29 @@ int main(int argCount, const char* argv[])
 
     if (showDefaultCParams) {
         if (operation == zom_decompress) {
-            DISPLAY("error : can't use --show-default-cparams in decompression mode \n");
+            DISPLAYLEVEL(1, "error : can't use --show-default-cparams in decompression mode \n");
             CLEAN_RETURN(1);
         }
     }
 
     if (dictFileName != NULL && patchFromDictFileName != NULL) {
-        DISPLAY("error : can't use -D and --patch-from=# at the same time \n");
+        DISPLAYLEVEL(1, "error : can't use -D and --patch-from=# at the same time \n");
         CLEAN_RETURN(1);
     }
 
     if (patchFromDictFileName != NULL && filenames->tableSize > 1) {
-        DISPLAY("error : can't use --patch-from=# on multiple files \n");
+        DISPLAYLEVEL(1, "error : can't use --patch-from=# on multiple files \n");
         CLEAN_RETURN(1);
     }
 
-    /* No status message in pipe mode (stdin - stdout) */
+    /* No status message by default when output is stdout */
     hasStdout = outFileName && !strcmp(outFileName,stdoutmark);
-    if ((hasStdout || !UTIL_isConsole(stderr)) && (g_displayLevel==2)) g_displayLevel=1;
+    if (hasStdout && (g_displayLevel==2)) g_displayLevel=1;
+
+    /* when stderr is not the console, do not pollute it with status updates
+     * Note : the below code actually also silence more stuff, including completion report. */
+    if (!UTIL_isConsole(stderr) && (g_displayLevel==2)) g_displayLevel=1;
+    FIO_setProgressSetting(progress);
 
     /* don't remove source files when output is stdout */;
     if (hasStdout && removeSrcFile) {
@@ -1569,7 +1575,7 @@ int main(int argCount, const char* argv[])
             operationResult = FIO_compressMultipleFilenames(fCtx, prefs, filenames->fileNames, outMirroredDirName, outDirName, outFileName, suffix, dictFileName, cLevel, compressionParams);
 #else
         (void)contentSize; (void)suffix; (void)adapt; (void)rsyncable; (void)ultra; (void)cLevel; (void)ldmFlag; (void)literalCompressionMode; (void)targetCBlockSize; (void)streamSrcSize; (void)srcSizeHint; (void)ZSTD_strategyMap; (void)useRowMatchFinder; /* not used when ZSTD_NOCOMPRESS set */
-        DISPLAY("Compression not supported \n");
+        DISPLAYLEVEL(1, "Compression not supported \n");
 #endif
     } else {  /* decompression or test */
 #ifndef ZSTD_NODECOMPRESS
@@ -1579,7 +1585,7 @@ int main(int argCount, const char* argv[])
             operationResult = FIO_decompressMultipleFilenames(fCtx, prefs, filenames->fileNames, outMirroredDirName, outDirName, outFileName, dictFileName);
         }
 #else
-        DISPLAY("Decompression not supported \n");
+        DISPLAYLEVEL(1, "Decompression not supported \n");
 #endif
     }
 

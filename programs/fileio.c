@@ -612,7 +612,7 @@ FIO_openDstFile(FIO_ctx_t* fCtx, FIO_prefs_t* const prefs,
         if (!prefs->overwrite) {
             if (g_display_prefs.displayLevel <= 1) {
                 /* No interaction possible */
-                DISPLAY("zstd: %s already exists; not overwritten  \n",
+                DISPLAYLEVEL(1, "zstd: %s already exists; not overwritten  \n",
                         dstFileName);
                 return NULL;
             }
@@ -723,7 +723,7 @@ int FIO_checkFilenameCollisions(const char** filenameTable, unsigned nbFiles) {
 
     filenameTableSorted = (const char**) malloc(sizeof(char*) * nbFiles);
     if (!filenameTableSorted) {
-        DISPLAY("Unable to malloc new str array, not checking for name collisions\n");
+        DISPLAYLEVEL(1, "Allocation error during filename collision checking \n");
         return 1;
     }
 
@@ -740,7 +740,7 @@ int FIO_checkFilenameCollisions(const char** filenameTable, unsigned nbFiles) {
     prevElem = filenameTableSorted[0];
     for (u = 1; u < nbFiles; ++u) {
         if (strcmp(prevElem, filenameTableSorted[u]) == 0) {
-            DISPLAY("WARNING: Two files have same filename: %s\n", prevElem);
+            DISPLAYLEVEL(2, "WARNING: Two files have same filename: %s\n", prevElem);
         }
         prevElem = filenameTableSorted[u];
     }
@@ -823,41 +823,59 @@ static void FIO_adjustMemLimitForPatchFromMode(FIO_prefs_t* const prefs,
     FIO_setMemLimit(prefs, (unsigned)maxSize);
 }
 
-/* FIO_removeMultiFilesWarning() :
+/* FIO_multiFilesConcatWarning() :
+ * This function handles logic when processing multiple files with -o or -c, displaying the appropriate warnings/prompts.
  * Returns 1 if the console should abort, 0 if console should proceed.
- * This function handles logic when processing multiple files with -o, displaying the appropriate warnings/prompts.
  *
- * If -f is specified, or there is just 1 file, zstd will always proceed as usual.
- * If --rm is specified, there will be a prompt asking for user confirmation.
- *         If -f is specified with --rm, zstd will proceed as usual
- *         If -q is specified with --rm, zstd will abort pre-emptively
- *         If neither flag is specified, zstd will prompt the user for confirmation to proceed.
- * If --rm is not specified, then zstd will print a warning to the user (which can be silenced with -q).
- *         Note : --rm in combination with stdout is not allowed.
+ * If output is stdout or test mode is active, check that `--rm` disabled.
+ *
+ * If there is just 1 file to process, zstd will proceed as usual.
+ * If each file get processed into its own separate destination file, proceed as usual.
+ *
+ * When multiple files are processed into a single output,
+ * display a warning message, then disable --rm if it's set.
+ *
+ * If -f is specified or if output is stdout, just proceed.
+ * If output is set with -o, prompt for confirmation.
  */
-static int FIO_removeMultiFilesWarning(FIO_ctx_t* const fCtx, const FIO_prefs_t* const prefs, const char* outFileName, int displayLevelCutoff)
+static int FIO_multiFilesConcatWarning(const FIO_ctx_t* fCtx, FIO_prefs_t* prefs, const char* outFileName, int displayLevelCutoff)
 {
-    int error = 0;
-    if (fCtx->nbFilesTotal > 1 && !prefs->overwrite) {
-        if (g_display_prefs.displayLevel <= displayLevelCutoff) {
-            if (prefs->removeSrcFile) {
-                DISPLAYLEVEL(1, "zstd: Aborting... not deleting files and processing into dst: %s\n", outFileName);
-                error =  1;
-            }
-        } else {
-            if (!strcmp(outFileName, stdoutmark)) {
-                DISPLAYLEVEL(2, "zstd: WARNING: all input files will be processed and concatenated into stdout. \n");
-            } else {
-                DISPLAYLEVEL(2, "zstd: WARNING: all input files will be processed and concatenated into a single output file: %s \n", outFileName);
-            }
-            DISPLAYLEVEL(2, "The concatenated output CANNOT regenerate original file names nor directory structure. \n")
-            if (prefs->removeSrcFile) {
-                assert(fCtx->hasStdoutOutput == 0); /* not possible : never erase source files when output == stdout */
-                error = (g_display_prefs.displayLevel > displayLevelCutoff) && UTIL_requireUserConfirmation("This is a destructive operation. Proceed? (y/n): ", "Aborting...", "yY", fCtx->hasStdinInput);
-            }
-        }
+    if (fCtx->hasStdoutOutput) assert(prefs->removeSrcFile == 0);
+    if (prefs->testMode) {
+        assert(prefs->removeSrcFile == 0);
+        return 0;
     }
-    return error;
+
+    if (fCtx->nbFilesTotal == 1) return 0;
+    assert(fCtx->nbFilesTotal > 1);
+
+    if (!outFileName) return 0;
+
+    if (fCtx->hasStdoutOutput) {
+        DISPLAYLEVEL(2, "zstd: WARNING: all input files will be processed and concatenated into stdout. \n");
+    } else {
+        DISPLAYLEVEL(2, "zstd: WARNING: all input files will be processed and concatenated into a single output file: %s \n", outFileName);
+    }
+    DISPLAYLEVEL(2, "The concatenated output CANNOT regenerate original file names nor directory structure. \n")
+
+    /* multi-input into single output : --rm is not allowed */
+    if (prefs->removeSrcFile) {
+        DISPLAYLEVEL(2, "Since it's a destructive operation, input files will not be removed. \n");
+        prefs->removeSrcFile = 0;
+    }
+
+    if (fCtx->hasStdoutOutput) return 0;
+    if (prefs->overwrite) return 0;
+
+    /* multiple files concatenated into single destination file using -o without -f */
+    if (g_display_prefs.displayLevel <= displayLevelCutoff) {
+        /* quiet mode => no prompt => fail automatically */
+        DISPLAYLEVEL(1, "Concatenating multiple processed inputs into a single output loses file metadata. \n");
+        DISPLAYLEVEL(1, "Aborting. \n");
+        return 1;
+    }
+    /* normal mode => prompt */
+    return UTIL_requireUserConfirmation("Proceed? (y/n): ", "Aborting...", "yY", fCtx->hasStdinInput);
 }
 
 static ZSTD_inBuffer setInBuffer(const void* buf, size_t s, size_t pos)
@@ -1767,9 +1785,9 @@ FIO_compressFilename_srcFile(FIO_ctx_t* const fCtx,
             &srcFileStat, compressionLevel);
     AIO_ReadPool_closeFile(ress.readCtx);
 
-    if ( prefs->removeSrcFile   /* --rm */
-      && result == 0       /* success */
-      && strcmp(srcFileName, stdinmark)   /* exception : don't erase stdin */
+    if ( prefs->removeSrcFile  /* --rm */
+      && result == 0           /* success */
+      && strcmp(srcFileName, stdinmark)  /* exception : don't erase stdin */
       ) {
         /* We must clear the handler, since after this point calling it would
          * delete both the source and destination files.
@@ -1791,7 +1809,8 @@ checked_index(const char* options[], size_t length, size_t index) {
 
 #define INDEX(options, index) checked_index((options), sizeof(options)  / sizeof(char*), (size_t)(index))
 
-void FIO_displayCompressionParameters(const FIO_prefs_t* prefs) {
+void FIO_displayCompressionParameters(const FIO_prefs_t* prefs)
+{
     static const char* formatOptions[5] = {ZSTD_EXTENSION, GZ_EXTENSION, XZ_EXTENSION,
                                            LZMA_EXTENSION, LZ4_EXTENSION};
     static const char* sparseOptions[3] = {" --no-sparse", "", " --sparse"};
@@ -1920,7 +1939,7 @@ int FIO_compressMultipleFilenames(FIO_ctx_t* const fCtx,
     assert(outFileName != NULL || suffix != NULL);
     if (outFileName != NULL) {   /* output into a single destination (stdout typically) */
         FILE *dstFile;
-        if (FIO_removeMultiFilesWarning(fCtx, prefs, outFileName, 1 /* displayLevelCutoff */)) {
+        if (FIO_multiFilesConcatWarning(fCtx, prefs, outFileName, 1 /* displayLevelCutoff */)) {
             FIO_freeCResources(&ress);
             return 1;
         }
@@ -2742,7 +2761,7 @@ FIO_decompressMultipleFilenames(FIO_ctx_t* const fCtx,
     dRess_t ress = FIO_createDResources(prefs, dictFileName);
 
     if (outFileName) {
-        if (FIO_removeMultiFilesWarning(fCtx, prefs, outFileName, 1 /* displayLevelCutoff */)) {
+        if (FIO_multiFilesConcatWarning(fCtx, prefs, outFileName, 1 /* displayLevelCutoff */)) {
             FIO_freeDResources(ress);
             return 1;
         }

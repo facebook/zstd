@@ -2,6 +2,8 @@ Trace:FileStat: > UTIL_isLink(file.zst)
 Trace:FileStat: < 0
 Trace:FileStat: > UTIL_isConsole(1)
 Trace:FileStat: < 0
+Trace:FileStat: > UTIL_isConsole(2)
+Trace:FileStat: < 0
 Trace:FileStat: > UTIL_isDirectory(file.zst)
 Trace:FileStat:  > UTIL_stat(file.zst)
 Trace:FileStat:  < 1

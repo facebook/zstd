@@ -41,8 +41,6 @@ static ZSTD_DDict* ddict = NULL;
 #define ZSTD_FUZZ_MATCHLENGTH_MAXSIZE (1 << 18) /* Allow up to 256KB matches */
 #define ZSTD_FUZZ_GENERATED_DICT_MAXSIZE (1 << ZSTD_WINDOWLOG_MAX_32) /* Allow up to 1 << ZSTD_WINDOWLOG_MAX_32 dictionary */
 #define ZSTD_FUZZ_MAX_NBSEQ (1 << 17) /* Maximum of 128K sequences */
-#define ZSTD_FUZZ_DICT_FILE "sequence_fuzz_dictionary"
-
 
 /* Deterministic random number generator */
 #define FUZZ_RDG_rotl32(x,r) ((x << r) | (x >> (32 - r)))

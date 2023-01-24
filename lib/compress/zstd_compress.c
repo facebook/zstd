@@ -1926,17 +1926,6 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
                 }
                 ms->hashSalt = 0;
             }
-#if ZSTD_MEMORY_SANITIZER
-            else {
-                /* The rowHash algorithm has the ability to work with uninitialized tag space.
-                 * It doesn't matter if the tag space is initially correct or not,
-                 * at worst it will incorrectly "hint" at a match position
-                 * which is then properly filtered out by indices analysis.
-                 * There is also no requirement to start the series of tag from position "0".
-                 * */
-                __msan_unpoison(ms->tagTable, tagTableSize);
-            }
-#endif
         }
         {   /* Switch to 32-entry rows if searchLog is 5 (or more) */
             U32 const rowLog = BOUNDED(4, cParams->searchLog, 6);
@@ -2340,10 +2329,11 @@ static size_t ZSTD_resetCCtx_byCopyingCDict(ZSTD_CCtx* cctx,
         }
         /* copy tag table */
         if (ZSTD_rowMatchFinderUsed(cdict_cParams->strategy, cdict->useRowMatchFinder)) {
-            size_t const tagTableSize = hSize*sizeof(U16);
+            size_t const tagTableSize = hSize * sizeof(U16);
             ZSTD_memcpy(cctx->blockState.matchState.tagTable,
-                cdict->matchState.tagTable,
-                tagTableSize);
+                        cdict->matchState.tagTable,
+                        tagTableSize);
+            cctx->blockState.matchState.hashSalt = cdict->matchState.hashSalt;
         }
     }
 

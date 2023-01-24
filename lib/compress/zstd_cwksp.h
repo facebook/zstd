@@ -552,10 +552,11 @@ MEM_STATIC void ZSTD_cwksp_clear(ZSTD_cwksp* ws) {
 #if ZSTD_MEMORY_SANITIZER && !defined (ZSTD_MSAN_DONT_POISON_WORKSPACE)
     /* To validate that the context re-use logic is sound, and that we don't
      * access stuff that this compression hasn't initialized, we re-"poison"
-     * the workspace (or at least the non-static, non-table parts of it)
-     * every time we start a new compression. */
+     * the workspace except for the areas in which we expect memory re-use
+     * without initialization (objects, valid tables area and init once
+     * memory). */
     {
-        size_t size = (BYTE*)ws->workspaceEnd - (BYTE*)ws->tableValidEnd;
+        size_t size = (BYTE*)ws->initOnceStart - (BYTE*)ws->tableValidEnd;
         __msan_poison(ws->tableValidEnd, size);
     }
 #endif
@@ -573,7 +574,6 @@ MEM_STATIC void ZSTD_cwksp_clear(ZSTD_cwksp* ws) {
 
     ws->tableEnd = ws->objectEnd;
     ws->allocStart = (void*)((size_t)ws->workspaceEnd & ~(ZSTD_CWKSP_ALIGNMENT_BYTES-1));
-    ws->initOnceStart = ws->workspaceEnd;
     ws->allocFailed = 0;
     if (ws->phase > ZSTD_cwksp_alloc_aligned_init_once) {
         ws->phase = ZSTD_cwksp_alloc_aligned_init_once;

@@ -2238,7 +2238,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                 int const isSkipFrame = ZSTD_isSkipFrame(zds);
                 size_t loadedSize;
                 /* At this point we shouldn't be decompressing a block that we can stream. */
-                assert(neededInSize == ZSTD_nextSrcSizeToDecompressWithInputSize(zds, iend - ip));
+                assert(neededInSize == ZSTD_nextSrcSizeToDecompressWithInputSize(zds, (size_t)(iend - ip)));
                 if (isSkipFrame) {
                     loadedSize = MIN(toLoad, (size_t)(iend-ip));
                 } else {
@@ -2298,8 +2298,8 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
     if ((ip==istart) && (op==ostart)) {  /* no forward progress */
         zds->noForwardProgress ++;
         if (zds->noForwardProgress >= ZSTD_NO_FORWARD_PROGRESS_MAX) {
-            RETURN_ERROR_IF(op==oend, dstSize_tooSmall, "");
-            RETURN_ERROR_IF(ip==iend, srcSize_wrong, "");
+            RETURN_ERROR_IF(op==oend, noForwardProgress_destFull, "");
+            RETURN_ERROR_IF(ip==iend, noForwardProgress_inputEmpty, "");
             assert(0);
         }
     } else {

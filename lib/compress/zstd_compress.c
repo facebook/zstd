@@ -1914,7 +1914,7 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
                  * we could generate 256 bit of secure random and roll it using a cryptographic
                  * hash function. This optimization could lend some performance wins for very
                  * small inputs. */
-                size_t randomGenerated = getSecureRandom(&ms->hashSalt, sizeof(ms->hashSalt));
+                size_t randomGenerated = getSecureRandom(&ms->randomState, &ms->hashSalt, sizeof(ms->hashSalt));
                 if (!randomGenerated) {
                     /* We've successfully generated secure random, so we don't need to explicitly memset
                      * and can use memory that has been initialized at least once in the past */

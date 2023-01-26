@@ -19,6 +19,7 @@
 *  Dependencies
 ***************************************/
 #include "../common/zstd_internal.h"
+#include "../common/random.h"
 #include "zstd_cwksp.h"
 #ifdef ZSTD_MULTITHREAD
 #  include "zstdmt_compress.h"
@@ -229,6 +230,9 @@ struct ZSTD_matchState_t {
     U16* tagTable;                           /* For row-based matchFinder: A row-based table containing the hashes and head index. */
     U32 hashCache[ZSTD_ROW_HASH_CACHE_SIZE]; /* For row-based matchFinder: a cache of hashes to improve speed */
     U64 hashSalt;
+#ifdef HAS_SECURE_RANDOM
+    ZSTD_random_state_t randomState;
+#endif
 
     U32* hashTable;
     U32* hashTable3;

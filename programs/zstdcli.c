@@ -838,7 +838,6 @@ int main(int argCount, const char* argv[])
         ldmFlag = 0,
         main_pause = 0,
         adapt = 0,
-        useRowMatchFinder = 0,
         adaptMin = MINCLEVEL,
         adaptMax = MAXCLEVEL,
         rsyncable = 0,
@@ -852,6 +851,7 @@ int main(int argCount, const char* argv[])
         ultra=0,
         contentSize=1,
         removeSrcFile=0;
+    ZSTD_paramSwitch_e useRowMatchFinder = ZSTD_ps_auto;
     unsigned nbWorkers = 0;
     double compressibility = 0.5;
     unsigned bench_nbSeconds = 3;   /* would be better if this value was synchronized from bench */
@@ -977,8 +977,8 @@ int main(int argCount, const char* argv[])
                 if (!strcmp(argument, "--content-size")) { contentSize = 1; continue; }
                 if (!strcmp(argument, "--no-content-size")) { contentSize = 0; continue; }
                 if (!strcmp(argument, "--adapt")) { adapt = 1; continue; }
-                if (!strcmp(argument, "--no-row-match-finder")) { useRowMatchFinder = 1; continue; }
-                if (!strcmp(argument, "--row-match-finder")) { useRowMatchFinder = 2; continue; }
+                if (!strcmp(argument, "--no-row-match-finder")) { useRowMatchFinder = ZSTD_ps_disable; continue; }
+                if (!strcmp(argument, "--row-match-finder")) { useRowMatchFinder = ZSTD_ps_enable; continue; }
                 if (longCommandWArg(&argument, "--adapt=")) { adapt = 1; if (!parseAdaptParameters(argument, &adaptMin, &adaptMax)) { badusage(programName); CLEAN_RETURN(1); } continue; }
                 if (!strcmp(argument, "--single-thread")) { nbWorkers = 0; singleThread = 1; continue; }
                 if (!strcmp(argument, "--format=zstd")) { suffix = ZSTD_EXTENSION; FIO_setCompressionType(prefs, FIO_zstdCompression); continue; }

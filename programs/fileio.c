@@ -840,9 +840,21 @@ static void FIO_adjustMemLimitForPatchFromMode(FIO_prefs_t* const prefs,
  */
 static int FIO_multiFilesConcatWarning(const FIO_ctx_t* fCtx, FIO_prefs_t* prefs, const char* outFileName, int displayLevelCutoff)
 {
-    if (fCtx->hasStdoutOutput) assert(prefs->removeSrcFile == 0);
+    if (fCtx->hasStdoutOutput) {
+        if (prefs->removeSrcFile)
+            /* this should not happen ; hard fail, to protect user's data
+             * note: this should rather be an assert(), but we want to be certain that user's data will not be wiped out in case it nonetheless happen */
+            EXM_THROW(43, "It's not allowed to remove input files when processed output is piped to stdout. "
+                "This scenario is not supposed to be possible. "
+                "This is a programming error. File an issue for it to be fixed.");
+    }
     if (prefs->testMode) {
-        assert(prefs->removeSrcFile == 0);
+        if (prefs->removeSrcFile)
+            /* this should not happen ; hard fail, to protect user's data
+             * note: this should rather be an assert(), but we want to be certain that user's data will not be wiped out in case it nonetheless happen */
+            EXM_THROW(43, "Test mode shall not remove input files! "
+                 "This scenario is not supposed to be possible. "
+                 "This is a programming error. File an issue for it to be fixed.");
         return 0;
     }
 

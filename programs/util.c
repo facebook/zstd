@@ -121,7 +121,7 @@ int UTIL_requireUserConfirmation(const char* prompt, const char* abortMsg,
     ch = getchar();
     result = 0;
     if (strchr(acceptableLetters, ch) == NULL) {
-        UTIL_DISPLAY("%s", abortMsg);
+        UTIL_DISPLAY("%s \n", abortMsg);
         result = 1;
     }
     /* flush the rest */

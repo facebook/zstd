@@ -2,6 +2,8 @@ Trace:FileStat: > UTIL_isConsole(0)
 Trace:FileStat: < 0
 Trace:FileStat: > UTIL_isConsole(1)
 Trace:FileStat: < 0
+Trace:FileStat: > UTIL_isConsole(2)
+Trace:FileStat: < 0
 Trace:FileStat: > UTIL_isDirectory(/*stdin*\)
 Trace:FileStat:  > UTIL_stat(/*stdin*\)
 Trace:FileStat:  < 0

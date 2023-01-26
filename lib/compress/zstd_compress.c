@@ -1910,6 +1910,10 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
             int needTagTableInit = 1;
 #ifdef HAS_SECURE_RANDOM
             if(forWho == ZSTD_resetTarget_CCtx) {
+                /* TODO: We might not need to generate secure random everytime. For example,
+                 * we could generate 256 bit of secure random and roll it using a cryptographic
+                 * hash function. This optimization could lend some performance wins for very
+                 * small inputs. */
                 size_t randomGenerated = getSecureRandom(&ms->hashSalt, sizeof(ms->hashSalt));
                 if (!randomGenerated) {
                     /* We've successfully generated secure random, so we don't need to explicitly memset

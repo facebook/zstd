@@ -11,6 +11,8 @@
 #ifndef ZSTD_RANDOM_H
 #define ZSTD_RANDOM_H
 
+#include "mem.h"
+
 /*
  * Portability helpers for secure random, exposes the following:
  * - `HAS_SECURE_RANDOM` a macro that determines if secure random API is available on
@@ -24,9 +26,10 @@
 
 #define HAS_SECURE_RANDOM
 #include <sys/random.h>
-static size_t getSecureRandom(void *buf, size_t buflen) {
+MEM_STATIC size_t getSecureRandom(void *buf, size_t buflen) {
     return getrandom(buf, buflen, GRND_NONBLOCK) != (ssize_t) buflen;
 }
+
 
 #endif
 

@@ -742,7 +742,7 @@ void HUF_decompress4X1_usingDTable_internal_fast_c_loop(HUF_DecompressFastArgs* 
              */
             for (stream = 1; stream < 4; ++stream) {
                 if (ip[stream] < ip[stream - 1])
-                    break;
+                    goto _out;
             }
         }
 
@@ -774,6 +774,8 @@ void HUF_decompress4X1_usingDTable_internal_fast_c_loop(HUF_DecompressFastArgs* 
             }
         } while (op[3] < olimit);
     }
+
+_out:
 
     /* Save the final values of each of the state variables back to args. */
     ZSTD_memcpy(&args->bits, &bits, sizeof(bits));
@@ -1535,7 +1537,7 @@ void HUF_decompress4X2_usingDTable_internal_fast_c_loop(HUF_DecompressFastArgs* 
              */
             for (stream = 1; stream < 4; ++stream) {
                 if (ip[stream] < ip[stream - 1])
-                    break;
+                    goto _out;
             }
         }
 
@@ -1592,6 +1594,8 @@ void HUF_decompress4X2_usingDTable_internal_fast_c_loop(HUF_DecompressFastArgs* 
             }
         } while (op[3] < olimit);
     }
+
+_out:
 
     /* Save the final values of each of the state variables back to args. */
     ZSTD_memcpy(&args->bits, &bits, sizeof(bits));

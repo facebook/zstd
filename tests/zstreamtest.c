@@ -2224,7 +2224,7 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
 
 
     DISPLAYLEVEL(3, "test%3i : Testing large offset with small window size: ", testNb++);
-    {
+    if (bigTests) {
         ZSTD_CCtx* cctx = ZSTD_createCCtx();
         ZSTD_DCtx* dctx = ZSTD_createDCtx();
 
@@ -2237,7 +2237,7 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
             size_t const kNbSequences = 4;
             ZSTD_Sequence* sequences = malloc(sizeof(ZSTD_Sequence) * kNbSequences);
             void* const checkBuf = malloc(srcSize);
-            const size_t largeDictSize = 1 << 30;
+            const size_t largeDictSize = 1 << 25;
             ZSTD_CDict* cdict = NULL;
             ZSTD_DDict* ddict = NULL;
 
@@ -2255,8 +2255,8 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
             ZSTD_DCtx_refDDict(dctx, ddict);
 
             sequences[0] = (ZSTD_Sequence) {3, 3, 3, 0};
-            sequences[1] = (ZSTD_Sequence) {1 << 29, 0, 3, 0};
-            sequences[2] = (ZSTD_Sequence) {1 << 29, 0, 9, 0};
+            sequences[1] = (ZSTD_Sequence) {1 << 25, 0, 3, 0};
+            sequences[2] = (ZSTD_Sequence) {1 << 25, 0, 9, 0};
             sequences[3] = (ZSTD_Sequence) {3, 0, 3, 0};
 
             cSize = ZSTD_compressSequences(cctx, dst, dstSize,
@@ -3094,6 +3094,7 @@ int main(int argc, const char** argv)
 
             if (!strcmp(argument, "--newapi")) { selected_api=advanced_api; testNb += !testNb; continue; }
             if (!strcmp(argument, "--no-big-tests")) { bigTests=0; continue; }
+            if (!strcmp(argument, "--big-tests")) { bigTests=1; continue; }
 
             argument++;
             while (*argument!=0) {

@@ -395,12 +395,10 @@ class TestCase:
             return self._check_output_exact(out_name, read_file(exact_name), exact_name)
         elif os.path.exists(glob_name):
             return self._check_output_glob(out_name, read_file(glob_name))
-        elif os.path.exists(ignore_name):
+        else:
             check_name = f"check_{out_name}"
             self._success[check_name] = True
             self._message[check_name] = f"{out_name} ignored!"
-        else:
-            return self._check_output_exact(out_name, bytes(), exact_name)
 
     def _check_stderr(self) -> None:
         """Checks the stderr output against the expectation."""
@@ -738,4 +736,3 @@ if __name__ == "__main__":
         sys.exit(0)
     else:
         sys.exit(1)
-

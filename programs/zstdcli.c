@@ -1500,9 +1500,8 @@ int main(int argCount, const char* argv[])
     hasStdout = outFileName && !strcmp(outFileName,stdoutmark);
     if (hasStdout && (g_displayLevel==2)) g_displayLevel=1;
 
-    /* when stderr is not the console, do not pollute it with status updates
-     * Note : the below code actually also silence more stuff, including completion report. */
-    if (!UTIL_isConsole(stderr) && (g_displayLevel==2)) g_displayLevel=1;
+    /* when stderr is not the console, do not pollute it with progress updates (unless requested) */
+    if (!UTIL_isConsole(stderr) && (progress!=FIO_ps_always)) progress=FIO_ps_never;
     FIO_setProgressSetting(progress);
 
     /* don't remove source files when output is stdout */;

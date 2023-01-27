@@ -2576,7 +2576,9 @@ int ZSTD_seqToCodes(const seqStore_t* seqStorePtr)
         llCodeTable[u] = (BYTE)ZSTD_LLcode(llv);
         ofCodeTable[u] = (BYTE)ofCode;
         mlCodeTable[u] = (BYTE)ZSTD_MLcode(mlv);
-        longOffsets |= (ofCode >= STREAM_ACCUMULATOR_MIN);
+        assert(!(MEM_64bits() && ofCode >= STREAM_ACCUMULATOR_MIN));
+        if (MEM_32bits() && ofCode >= STREAM_ACCUMULATOR_MIN)
+            longOffsets = 1;
     }
     if (seqStorePtr->longLengthType==ZSTD_llt_literalLength)
         llCodeTable[seqStorePtr->longLengthPos] = MaxLL;

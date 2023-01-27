@@ -299,7 +299,6 @@ typedef struct {
     BYTE*  ofCode;
     size_t maxNbSeq;
     size_t maxNbLit;
-    BYTE* longOffsets;
 
     /* longLengthPos and longLengthType to allow us to represent either a single litLength or matchLength
      * in the seqStore that has a value larger than U16 (if it exists). To do so, we increment
@@ -347,7 +346,7 @@ typedef struct {
 } ZSTD_frameSizeInfo;   /* decompress & legacy */
 
 const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx);   /* compress & dictBuilder */
-void ZSTD_seqToCodes(const seqStore_t* seqStorePtr);   /* compress, dictBuilder, decodeCorpus (shouldn't get its definition from here) */
+int ZSTD_seqToCodes(const seqStore_t* seqStorePtr);   /* compress, dictBuilder, decodeCorpus (shouldn't get its definition from here) */
 
 /* custom memory allocation functions */
 void* ZSTD_customMalloc(size_t size, ZSTD_customMem customMem);

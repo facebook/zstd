@@ -1610,8 +1610,7 @@ static size_t ZSTD_estimateCCtxSize_usingCCtxParams_internal(
     size_t const maxNbSeq = ZSTD_maxNbSeq(blockSize, cParams->minMatch, useExternalMatchFinder);
     size_t const tokenSpace = ZSTD_cwksp_alloc_size(WILDCOPY_OVERLENGTH + blockSize)
                             + ZSTD_cwksp_aligned_alloc_size(maxNbSeq * sizeof(seqDef))
-                            + 3 * ZSTD_cwksp_alloc_size(maxNbSeq * sizeof(BYTE))
-                            + ZSTD_cwksp_alloc_size(sizeof(BYTE)); /* longOffsets */
+                            + 3 * ZSTD_cwksp_alloc_size(maxNbSeq * sizeof(BYTE));
     size_t const entropySpace = ZSTD_cwksp_alloc_size(ENTROPY_WORKSPACE_SIZE);
     size_t const blockStateSpace = 2 * ZSTD_cwksp_alloc_size(sizeof(ZSTD_compressedBlockState_t));
     size_t const matchStateSize = ZSTD_sizeof_matchState(cParams, useRowMatchFinder, /* enableDedicatedDictSearch */ 0, /* forCCtx */ 1);
@@ -2110,8 +2109,6 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         zc->seqStore.llCode = ZSTD_cwksp_reserve_buffer(ws, maxNbSeq * sizeof(BYTE));
         zc->seqStore.mlCode = ZSTD_cwksp_reserve_buffer(ws, maxNbSeq * sizeof(BYTE));
         zc->seqStore.ofCode = ZSTD_cwksp_reserve_buffer(ws, maxNbSeq * sizeof(BYTE));
-        zc->seqStore.longOffsets = ZSTD_cwksp_reserve_buffer(ws, sizeof(BYTE));
-        zc->seqStore.longOffsets[0] = 0;
         zc->seqStore.sequencesStart = (seqDef*)ZSTD_cwksp_reserve_aligned(ws, maxNbSeq * sizeof(seqDef));
 
         FORWARD_IF_ERROR(ZSTD_reset_matchState(
@@ -2562,16 +2559,15 @@ static void ZSTD_reduceIndex (ZSTD_matchState_t* ms, ZSTD_CCtx_params const* par
 
 /* See doc/zstd_compression_format.md for detailed format description */
 
-void ZSTD_seqToCodes(const seqStore_t* seqStorePtr)
+int ZSTD_seqToCodes(const seqStore_t* seqStorePtr)
 {
     const seqDef* const sequences = seqStorePtr->sequencesStart;
     BYTE* const llCodeTable = seqStorePtr->llCode;
     BYTE* const ofCodeTable = seqStorePtr->ofCode;
     BYTE* const mlCodeTable = seqStorePtr->mlCode;
-    BYTE* const longOffsetsFlag = seqStorePtr->longOffsets;
     U32 const nbSeq = (U32)(seqStorePtr->sequences - seqStorePtr->sequencesStart);
     U32 u;
-    BYTE longOffsets = 0;
+    int longOffsets = 0;
     assert(nbSeq <= seqStorePtr->maxNbSeq);
     for (u=0; u<nbSeq; u++) {
         U32 const llv = sequences[u].litLength;
@@ -2582,11 +2578,11 @@ void ZSTD_seqToCodes(const seqStore_t* seqStorePtr)
         mlCodeTable[u] = (BYTE)ZSTD_MLcode(mlv);
         longOffsets |= (ofCode >= STREAM_ACCUMULATOR_MIN);
     }
-    longOffsetsFlag[0] = longOffsets;
     if (seqStorePtr->longLengthType==ZSTD_llt_literalLength)
         llCodeTable[seqStorePtr->longLengthPos] = MaxLL;
     if (seqStorePtr->longLengthType==ZSTD_llt_matchLength)
         mlCodeTable[seqStorePtr->longLengthPos] = MaxML;
+    return longOffsets;
 }
 
 /* ZSTD_useTargetCBlockSize():
@@ -2620,6 +2616,7 @@ typedef struct {
     U32 MLtype;
     size_t size;
     size_t lastCountSize; /* Accounts for bug in 1.3.4. More detail in ZSTD_entropyCompressSeqStore_internal() */
+    int longOffsets;
 } ZSTD_symbolEncodingTypeStats_t;
 
 /* ZSTD_buildSequencesStatistics():
@@ -2650,7 +2647,7 @@ ZSTD_buildSequencesStatistics(
 
     stats.lastCountSize = 0;
     /* convert length/distances into codes */
-    ZSTD_seqToCodes(seqStorePtr);
+    stats.longOffsets = ZSTD_seqToCodes(seqStorePtr);
     assert(op <= oend);
     assert(nbSeq != 0); /* ZSTD_selectEncodingType() divides by nbSeq */
     /* build CTable for Literal Lengths */
@@ -2774,11 +2771,11 @@ ZSTD_entropyCompressSeqStore_internal(
     const BYTE* const ofCodeTable = seqStorePtr->ofCode;
     const BYTE* const llCodeTable = seqStorePtr->llCode;
     const BYTE* const mlCodeTable = seqStorePtr->mlCode;
-    const BYTE* const longOffsetsFlag = seqStorePtr->longOffsets;
     BYTE* const ostart = (BYTE*)dst;
     BYTE* const oend = ostart + dstCapacity;
     BYTE* op = ostart;
     size_t lastCountSize;
+    int longOffsets = 0;
 
     entropyWorkspace = count + (MaxSeq + 1);
     entropyWkspSize -= (MaxSeq + 1) * sizeof(*count);
@@ -2840,10 +2837,10 @@ ZSTD_entropyCompressSeqStore_internal(
         *seqHead = (BYTE)((stats.LLtype<<6) + (stats.Offtype<<4) + (stats.MLtype<<2));
         lastCountSize = stats.lastCountSize;
         op += stats.size;
+        longOffsets = stats.longOffsets;
     }
 
-    {   const BYTE longOffsets = longOffsetsFlag[0];
-        size_t const bitstreamSize = ZSTD_encodeSequences(
+    {   size_t const bitstreamSize = ZSTD_encodeSequences(
                                         op, (size_t)(oend - op),
                                         CTable_MatchLength, mlCodeTable,
                                         CTable_OffsetBits, ofCodeTable,
@@ -3485,7 +3482,7 @@ ZSTD_buildBlockEntropyStats_literals(void* const src, size_t srcSize,
 static ZSTD_symbolEncodingTypeStats_t
 ZSTD_buildDummySequencesStatistics(ZSTD_fseCTables_t* nextEntropy)
 {
-    ZSTD_symbolEncodingTypeStats_t stats = {set_basic, set_basic, set_basic, 0, 0};
+    ZSTD_symbolEncodingTypeStats_t stats = {set_basic, set_basic, set_basic, 0, 0, 0};
     nextEntropy->litlength_repeatMode = FSE_repeat_none;
     nextEntropy->offcode_repeatMode = FSE_repeat_none;
     nextEntropy->matchlength_repeatMode = FSE_repeat_none;

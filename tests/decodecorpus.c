@@ -186,6 +186,7 @@ BYTE SEQUENCE_LITERAL_BUFFER[ZSTD_BLOCKSIZE_MAX]; /* storeSeq expects a place to
 BYTE SEQUENCE_LLCODE[ZSTD_BLOCKSIZE_MAX];
 BYTE SEQUENCE_MLCODE[ZSTD_BLOCKSIZE_MAX];
 BYTE SEQUENCE_OFCODE[ZSTD_BLOCKSIZE_MAX];
+BYTE SEQUENCE_LONGOFFSETS[1];
 
 U64 WKSP[HUF_WORKSPACE_SIZE_U64];
 
@@ -634,6 +635,7 @@ static inline void initSeqStore(seqStore_t *seqStore) {
     seqStore->llCode = SEQUENCE_LLCODE;
     seqStore->mlCode = SEQUENCE_MLCODE;
     seqStore->ofCode = SEQUENCE_OFCODE;
+    seqStore->longOffsets = SEQUENCE_LONGOFFSETS;
 
     ZSTD_resetSeqStore(seqStore);
 }

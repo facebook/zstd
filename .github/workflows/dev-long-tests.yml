@@ -74,7 +74,7 @@ jobs:
       run: |
         sudo apt-get -qqq update
         make libc6install
-        CC=clang make -C tests test-zstream32 FUZZERFLAGS="--big-tests"
+        CC=clang make -C tests test-zstream32 FUZZER_FLAGS="--big-tests"
 
   # lasts ~23mn
   gcc-8-asan-ubsan-testzstd:

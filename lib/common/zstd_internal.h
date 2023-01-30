@@ -346,7 +346,7 @@ typedef struct {
 } ZSTD_frameSizeInfo;   /* decompress & legacy */
 
 const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx);   /* compress & dictBuilder */
-void ZSTD_seqToCodes(const seqStore_t* seqStorePtr);   /* compress, dictBuilder, decodeCorpus (shouldn't get its definition from here) */
+int ZSTD_seqToCodes(const seqStore_t* seqStorePtr);   /* compress, dictBuilder, decodeCorpus (shouldn't get its definition from here) */
 
 /* custom memory allocation functions */
 void* ZSTD_customMalloc(size_t size, ZSTD_customMem customMem);

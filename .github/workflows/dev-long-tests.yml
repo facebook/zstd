@@ -65,6 +65,17 @@ jobs:
     - name: thread sanitizer fuzztest
       run: CC=clang make tsan-fuzztest
 
+
+  big-tests-zstreamtest32:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
+    - name: zstream tests in 32bit mode, with big tests
+      run: |
+        sudo apt-get -qqq update
+        make libc6install
+        CC=clang make -C tests test-zstream32 FUZZER_FLAGS="--big-tests"
+
   # lasts ~23mn
   gcc-8-asan-ubsan-testzstd:
     runs-on: ubuntu-latest

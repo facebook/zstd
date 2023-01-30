@@ -2222,6 +2222,66 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+
+    DISPLAYLEVEL(3, "test%3i : Testing large offset with small window size: ", testNb++);
+    {
+        ZSTD_CCtx* cctx = ZSTD_createCCtx();
+        ZSTD_DCtx* dctx = ZSTD_createDCtx();
+
+        /* Test large offset, small window size*/
+        {
+            size_t srcSize = 21;
+            void* const src = CNBuffer;
+            size_t dstSize = ZSTD_compressBound(srcSize);
+            void* const dst = compressedBuffer;
+            size_t const kNbSequences = 4;
+            ZSTD_Sequence* sequences = malloc(sizeof(ZSTD_Sequence) * kNbSequences);
+            void* const checkBuf = malloc(srcSize);
+            const size_t largeDictSize = 1 << 25;
+            ZSTD_CDict* cdict = NULL;
+            ZSTD_DDict* ddict = NULL;
+
+            /* Generate large dictionary */
+            void* dictBuffer = calloc(largeDictSize, 1);
+            ZSTD_compressionParameters cParams = ZSTD_getCParams(1, srcSize, largeDictSize);
+            cParams.minMatch = ZSTD_MINMATCH_MIN;
+            cParams.hashLog = ZSTD_HASHLOG_MIN;
+            cParams.chainLog = ZSTD_CHAINLOG_MIN;
+
+            cdict = ZSTD_createCDict_advanced(dictBuffer, largeDictSize, ZSTD_dlm_byRef, ZSTD_dct_rawContent, cParams, ZSTD_defaultCMem);
+            ddict = ZSTD_createDDict_advanced(dictBuffer, largeDictSize, ZSTD_dlm_byRef, ZSTD_dct_rawContent, ZSTD_defaultCMem);
+
+            ZSTD_CCtx_refCDict(cctx, cdict);
+            ZSTD_DCtx_refDDict(dctx, ddict);
+
+            sequences[0] = (ZSTD_Sequence) {3, 3, 3, 0};
+            sequences[1] = (ZSTD_Sequence) {1 << 25, 0, 3, 0};
+            sequences[2] = (ZSTD_Sequence) {1 << 25, 0, 9, 0};
+            sequences[3] = (ZSTD_Sequence) {3, 0, 3, 0};
+
+            cSize = ZSTD_compressSequences(cctx, dst, dstSize,
+                                   sequences, kNbSequences,
+                                   src, srcSize);
+
+            CHECK(ZSTD_isError(cSize), "Should not throw an error");
+
+            {
+                size_t dSize = ZSTD_decompressDCtx(dctx, checkBuf, srcSize, dst, cSize);
+                CHECK(ZSTD_isError(dSize), "Should not throw an error");
+                CHECK(memcmp(src, checkBuf, srcSize) != 0, "Corruption!");
+            }
+
+            free(sequences);
+            free(checkBuf);
+            free(dictBuffer);
+            ZSTD_freeCDict(cdict);
+            ZSTD_freeDDict(ddict);
+        }
+        ZSTD_freeCCtx(cctx);
+        ZSTD_freeDCtx(dctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
 _end:
     FUZ_freeDictionary(dictionary);
     ZSTD_freeCStream(zc);
@@ -3034,6 +3094,7 @@ int main(int argc, const char** argv)
 
             if (!strcmp(argument, "--newapi")) { selected_api=advanced_api; testNb += !testNb; continue; }
             if (!strcmp(argument, "--no-big-tests")) { bigTests=0; continue; }
+            if (!strcmp(argument, "--big-tests")) { bigTests=1; continue; }
 
             argument++;
             while (*argument!=0) {

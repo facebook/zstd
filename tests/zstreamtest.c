@@ -1873,48 +1873,63 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
          * check that the reference is preserved across compressions */
         ZSTD_registerExternalMatchFinder(zc, &externalMatchState, zstreamExternalMatchFinder);
 
-        for (enableFallback = 0; enableFallback < 1; enableFallback++) {
+        for (enableFallback = 0; enableFallback <= 1; enableFallback++) {
             size_t testCaseId;
+            size_t const numTestCases = 9;
 
-            EMF_testCase const EMF_successCases[] = {
+            EMF_testCase const testCases[] = {
                 EMF_ONE_BIG_SEQ,
                 EMF_LOTS_OF_SEQS,
-            };
-            size_t const EMF_numSuccessCases = 2;
-
-            EMF_testCase const EMF_failureCases[] = {
                 EMF_ZERO_SEQS,
                 EMF_BIG_ERROR,
                 EMF_SMALL_ERROR,
+                EMF_INVALID_OFFSET,
+                EMF_INVALID_MATCHLEN,
+                EMF_INVALID_LITLEN,
+                EMF_INVALID_LAST_LITS
             };
-            size_t const EMF_numFailureCases = 3;
 
-            /* Test external matchfinder success scenarios */
-            for (testCaseId = 0; testCaseId < EMF_numSuccessCases; testCaseId++) {
+            ZSTD_ErrorCode const errorCodes[] = {
+                ZSTD_error_no_error,
+                ZSTD_error_no_error,
+                ZSTD_error_externalMatchFinder_failed,
+                ZSTD_error_externalMatchFinder_failed,
+                ZSTD_error_externalMatchFinder_failed,
+                ZSTD_error_externalSequences_invalid,
+                ZSTD_error_externalSequences_invalid,
+                ZSTD_error_externalSequences_invalid,
+                ZSTD_error_externalSequences_invalid
+            };
+
+            for (testCaseId = 0; testCaseId < numTestCases; testCaseId++) {
                 size_t res;
-                externalMatchState = EMF_successCases[testCaseId];
+                int const compressionShouldSucceed = (
+                    (errorCodes[testCaseId] == ZSTD_error_no_error) ||
+                    (enableFallback && errorCodes[testCaseId] == ZSTD_error_externalMatchFinder_failed)
+                );
+                externalMatchState = testCases[testCaseId];
+
                 ZSTD_CCtx_reset(zc, ZSTD_reset_session_only);
+
+                /* Note: if DEBUGLEVEL >= 1, validateSequences will resolve to 1 internally. */
+                CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_validateSequences, 0));
+                if (testCases[testCaseId] == EMF_INVALID_OFFSET) {
+                    /* Invalid offsets don't currently fail compression when sequence validation is disabled.
+                     * We need to explicitly turn it on to pass tests when DEBUGLEVEL=0. */
+                    CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_validateSequences, 1));
+                }
+
                 CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_enableMatchFinderFallback, enableFallback));
                 res = ZSTD_compress2(zc, dstBuf, dstBufSize, CNBuffer, CNBufferSize);
-                CHECK(ZSTD_isError(res), "EMF: Compression error: %s", ZSTD_getErrorName(res));
-                CHECK_Z(ZSTD_decompress(checkBuf, checkBufSize, dstBuf, res));
-                CHECK(memcmp(CNBuffer, checkBuf, CNBufferSize) != 0, "EMF: Corruption!");
-            }
 
-            /* Test external matchfinder failure scenarios */
-            for (testCaseId = 0; testCaseId < EMF_numFailureCases; testCaseId++) {
-                size_t res;
-                externalMatchState = EMF_failureCases[testCaseId];
-                ZSTD_CCtx_reset(zc, ZSTD_reset_session_only);
-                CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_enableMatchFinderFallback, enableFallback));
-                res = ZSTD_compress2(zc, dstBuf, dstBufSize, CNBuffer, CNBufferSize);
-                if (enableFallback) {
+                if (compressionShouldSucceed) {
+                    CHECK(ZSTD_isError(res), "EMF: Compression error: %s", ZSTD_getErrorName(res));
                     CHECK_Z(ZSTD_decompress(checkBuf, checkBufSize, dstBuf, res));
                     CHECK(memcmp(CNBuffer, checkBuf, CNBufferSize) != 0, "EMF: Corruption!");
                 } else {
                     CHECK(!ZSTD_isError(res), "EMF: Should have raised an error!");
                     CHECK(
-                        ZSTD_getErrorCode(res) != ZSTD_error_externalMatchFinder_failed,
+                        ZSTD_getErrorCode(res) != errorCodes[testCaseId],
                         "EMF: Wrong error code: %s", ZSTD_getErrorName(res)
                     );
                 }

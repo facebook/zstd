@@ -28,6 +28,18 @@ jobs:
     - name: make test
       run: make test
 
+  make-test-nodebug:
+    runs-on: ubuntu-latest
+    env:
+      DEVNULLRIGHTS: 1
+      READFROMBLOCKDEVICE: 1
+    steps:
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
+    - name: make test with DEBUGLEVEL=0
+      run: |
+        export DEBUGLEVEL=0
+        make test
+
   # lasts ~26mn
   make-test-osx:
     runs-on: macos-latest

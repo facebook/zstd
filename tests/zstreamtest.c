@@ -2224,7 +2224,7 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
 
 
     DISPLAYLEVEL(3, "test%3i : Testing large offset with small window size: ", testNb++);
-    if (bigTests) {
+    {
         ZSTD_CCtx* cctx = ZSTD_createCCtx();
         ZSTD_DCtx* dctx = ZSTD_createDCtx();
 

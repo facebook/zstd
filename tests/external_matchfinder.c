@@ -108,6 +108,29 @@ size_t zstreamExternalMatchFinder(
                 compressionLevel,
                 windowSize
             );
+        case EMF_INVALID_OFFSET:
+            outSeqs[0].offset = 1 << 20;
+            outSeqs[0].matchLength = 4;
+            outSeqs[0].litLength = (U32)(srcSize - 4);
+            return 1;
+        case EMF_INVALID_MATCHLEN:
+            outSeqs[0].offset = 1;
+            outSeqs[0].matchLength = (U32)(srcSize);
+            outSeqs[0].litLength = 1;
+            return 1;
+        case EMF_INVALID_LITLEN:
+            outSeqs[0].offset = 0;
+            outSeqs[0].matchLength = 0;
+            outSeqs[0].litLength = (U32)(srcSize + 1);
+            return 1;
+        case EMF_INVALID_LAST_LITS:
+            outSeqs[0].offset = 1;
+            outSeqs[0].matchLength = 1;
+            outSeqs[0].litLength = 1;
+            outSeqs[1].offset = 0;
+            outSeqs[1].matchLength = 0;
+            outSeqs[1].litLength = (U32)(srcSize - 1);
+            return 2;
         case EMF_SMALL_ERROR:
             return outSeqsCapacity + 1;
         case EMF_BIG_ERROR:

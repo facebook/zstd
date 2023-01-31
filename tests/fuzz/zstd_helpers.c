@@ -128,6 +128,7 @@ void FUZZ_setRandomParameters(ZSTD_CCtx *cctx, size_t srcSize, FUZZ_dataProducer
     setRand(cctx, ZSTD_c_deterministicRefPrefix, 0, 1, producer);
     setRand(cctx, ZSTD_c_prefetchCDictTables, 0, 2, producer);
     setRand(cctx, ZSTD_c_maxBlockSize, ZSTD_BLOCKSIZE_MAX_MIN, ZSTD_BLOCKSIZE_MAX, producer);
+    setRand(cctx, ZSTD_c_validateSequences, 0, 1, producer);
     if (FUZZ_dataProducer_uint32Range(producer, 0, 1) == 0) {
       setRand(cctx, ZSTD_c_srcSizeHint, ZSTD_SRCSIZEHINT_MIN, 2 * srcSize, producer);
     }

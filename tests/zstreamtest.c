@@ -1903,22 +1903,20 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
 
             for (testCaseId = 0; testCaseId < numTestCases; testCaseId++) {
                 size_t res;
+
                 int const compressionShouldSucceed = (
                     (errorCodes[testCaseId] == ZSTD_error_no_error) ||
                     (enableFallback && errorCodes[testCaseId] == ZSTD_error_externalMatchFinder_failed)
                 );
+
+                int const testWithSequenceValidation = (
+                    testCases[testCaseId] == EMF_INVALID_OFFSET
+                );
+
                 externalMatchState = testCases[testCaseId];
 
                 ZSTD_CCtx_reset(zc, ZSTD_reset_session_only);
-
-                /* Note: if DEBUGLEVEL >= 1, validateSequences will resolve to 1 internally. */
-                CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_validateSequences, 0));
-                if (testCases[testCaseId] == EMF_INVALID_OFFSET) {
-                    /* Invalid offsets don't currently fail compression when sequence validation is disabled.
-                     * We need to explicitly turn it on to pass tests when DEBUGLEVEL=0. */
-                    CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_validateSequences, 1));
-                }
-
+                CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_validateSequences, testWithSequenceValidation));
                 CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_enableMatchFinderFallback, enableFallback));
                 res = ZSTD_compress2(zc, dstBuf, dstBufSize, CNBuffer, CNBufferSize);
 

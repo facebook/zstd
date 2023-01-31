@@ -277,14 +277,8 @@ static ZSTD_paramSwitch_e ZSTD_resolveEnableLdm(ZSTD_paramSwitch_e mode,
     return (cParams->strategy >= ZSTD_btopt && cParams->windowLog >= 27) ? ZSTD_ps_enable : ZSTD_ps_disable;
 }
 
-/* Enables validation for external sequences in debug builds. */
 static int ZSTD_resolveExternalSequenceValidation(int mode) {
-#if defined(DEBUGLEVEL) && (DEBUGLEVEL>=1)
-    (void)mode;
-    return 1;
-#else
     return mode;
-#endif
 }
 
 /* Resolves maxBlockSize to the default if no value is present. */
@@ -3042,6 +3036,23 @@ static size_t ZSTD_postProcessExternalMatchFinderResult(
     }
 }
 
+/* ZSTD_fastSequenceLengthSum() :
+ * Returns sum(litLen) + sum(matchLen) + lastLits for *seqBuf*.
+ * Similar to another function in zstd_compress.c (determine_blockSize),
+ * except it doesn't check for a block delimiter to end summation.
+ * Removing the early exit allows the compiler to auto-vectorize (https://godbolt.org/z/cY1cajz9P).
+ * This function can be deleted and replaced by determine_blockSize after we resolve issue #3456. */
+static size_t ZSTD_fastSequenceLengthSum(ZSTD_Sequence* seqBuf, size_t seqBufSize) {
+    size_t matchLenSum, litLenSum, i;
+    matchLenSum = 0;
+    litLenSum = 0;
+    for (i = 0; i < seqBufSize; i++) {
+        litLenSum += seqBuf[i].litLength;
+        matchLenSum += seqBuf[i].matchLength;
+    }
+    return litLenSum + matchLenSum;
+}
+
 typedef enum { ZSTDbss_compress, ZSTDbss_noCompress } ZSTD_buildSeqStore_e;
 
 static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
@@ -3159,19 +3170,13 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
                 /* Return early if there is no error, since we don't need to worry about last literals */
                 if (!ZSTD_isError(nbPostProcessedSeqs)) {
                     ZSTD_sequencePosition seqPos = {0,0,0};
-                    size_t externalBlockSize = ZSTD_inferBlockSizeFromExternalSequences(
-                                                   ZSTD_sf_explicitBlockDelimiters,
-                                                   srcSize, srcSize,
-                                                   zc->externalMatchCtx.seqBuffer, nbPostProcessedSeqs,
-                                                   seqPos
-                                               );
-                    FORWARD_IF_ERROR(externalBlockSize, "Block size inferred from external sequences is too large!");
-                    assert(externalBlockSize <= srcSize);  /* enforced by ZSTD_inferBlockSizeFromExternalSequences() */
+                    size_t const seqLenSum = ZSTD_fastSequenceLengthSum(zc->externalMatchCtx.seqBuffer, nbPostProcessedSeqs);
+                    RETURN_ERROR_IF(seqLenSum > srcSize, externalSequences_invalid, "External sequences imply too large a block!");
                     FORWARD_IF_ERROR(
                         ZSTD_copySequencesToSeqStoreExplicitBlockDelim(
                             zc, &seqPos,
                             zc->externalMatchCtx.seqBuffer, nbPostProcessedSeqs,
-                            src, externalBlockSize
+                            src, srcSize
                         ),
                         "Failed to copy external sequences to seqStore!"
                     );
@@ -6272,7 +6277,8 @@ ZSTD_copySequencesToSeqStoreExplicitBlockDelim(ZSTD_CCtx* cctx,
         ZSTD_updateRep(updatedRepcodes.rep, offBase, ll0);
 
         DEBUGLOG(6, "Storing sequence: (of: %u, ml: %u, ll: %u)", offBase, matchLength, litLength);
-        if (cctx->appliedParams.validateSequences) {
+        if (cctx->appliedParams.validateSequences)
+        {
             seqPos->posInSrc += litLength + matchLength;
             FORWARD_IF_ERROR(ZSTD_validateSequence(offBase, matchLength, cctx->appliedParams.cParams.minMatch, seqPos->posInSrc,
                                                 cctx->appliedParams.cParams.windowLog, dictSize, cctx->appliedParams.useExternalMatchFinder),
@@ -6466,12 +6472,11 @@ static size_t blockSize_noDelimiter(size_t blockSize, size_t remaining)
     return lastBlock ? remaining : blockSize;
 }
 
-size_t ZSTD_inferBlockSizeFromExternalSequences(ZSTD_sequenceFormat_e mode,
-                                                size_t blockSize, size_t remaining,
-                                                const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
-                                                ZSTD_sequencePosition seqPos)
+static size_t determine_blockSize(ZSTD_sequenceFormat_e mode,
+                           size_t blockSize, size_t remaining,
+                     const ZSTD_Sequence* inSeqs, size_t inSeqsSize, ZSTD_sequencePosition seqPos)
 {
-    DEBUGLOG(6, "ZSTD_inferBlockSizeFromExternalSequences : remainingSize = %zu", remaining);
+    DEBUGLOG(6, "determine_blockSize: remainingSize = %zu", remaining);
     if (mode == ZSTD_sf_noBlockDelimiters)
         return blockSize_noDelimiter(blockSize, remaining);
     {   size_t const explicitBlockSize = blockSize_explicitDelimiter(inSeqs, inSeqsSize, seqPos);
@@ -6518,9 +6523,9 @@ ZSTD_compressSequences_internal(ZSTD_CCtx* cctx,
         size_t compressedSeqsSize;
         size_t cBlockSize;
         size_t additionalByteAdjustment;
-        size_t blockSize = ZSTD_inferBlockSizeFromExternalSequences(cctx->appliedParams.blockDelimiters,
-                                                                    cctx->blockSize, remaining,
-                                                                    inSeqs, inSeqsSize, seqPos);
+        size_t blockSize = determine_blockSize(cctx->appliedParams.blockDelimiters,
+                                        cctx->blockSize, remaining,
+                                        inSeqs, inSeqsSize, seqPos);
         U32 const lastBlock = (blockSize == remaining);
         FORWARD_IF_ERROR(blockSize, "Error while trying to determine block size");
         assert(blockSize <= remaining);

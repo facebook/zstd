@@ -1472,15 +1472,4 @@ ZSTD_copySequencesToSeqStoreNoBlockDelim(ZSTD_CCtx* cctx, ZSTD_sequencePosition*
                                    const ZSTD_Sequence* const inSeqs, size_t inSeqsSize,
                                    const void* src, size_t blockSize);
 
-/* If *mode* is ZSTD_sf_explicitBlockDelimiters, calculate
- *     inferred_block_size = sum(litLen) + sum(matchLen) + lastLiterals
- * for external sequences. Will return an error code if
- *     inferred_block_size > min(*blockSize*, *remaining*)
- *
- * If *mode* is ZSTD_sf_noBlockDelimiters, return a "target" block size. */
-size_t ZSTD_inferBlockSizeFromExternalSequences(ZSTD_sequenceFormat_e mode,
-                                                size_t blockSize, size_t remaining,
-                                                const ZSTD_Sequence* inSeqs, size_t inSeqsSize,
-                                                ZSTD_sequencePosition seqPos);
-
 #endif /* ZSTD_COMPRESS_H */

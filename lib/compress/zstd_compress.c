@@ -3042,7 +3042,7 @@ static size_t ZSTD_postProcessExternalMatchFinderResult(
  * except it doesn't check for a block delimiter to end summation.
  * Removing the early exit allows the compiler to auto-vectorize (https://godbolt.org/z/cY1cajz9P).
  * This function can be deleted and replaced by determine_blockSize after we resolve issue #3456. */
-static size_t ZSTD_fastSequenceLengthSum(ZSTD_Sequence* seqBuf, size_t seqBufSize) {
+static size_t ZSTD_fastSequenceLengthSum(ZSTD_Sequence const* seqBuf, size_t seqBufSize) {
     size_t matchLenSum, litLenSum, i;
     matchLenSum = 0;
     litLenSum = 0;

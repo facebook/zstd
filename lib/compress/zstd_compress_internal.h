@@ -358,6 +358,9 @@ struct ZSTD_CCtx_params_s {
 
     /* Adjust the max block size*/
     size_t maxBlockSize;
+
+    /* Controls repcode search in external sequence parsing */
+    ZSTD_paramSwitch_e searchForExternalRepcodes;
 };  /* typedef'd to ZSTD_CCtx_params within "zstd.h" */
 
 #define COMPRESS_SEQUENCES_WORKSPACE_SIZE (sizeof(unsigned) * (MaxSeq + 2))
@@ -1453,7 +1456,7 @@ size_t
 ZSTD_copySequencesToSeqStoreExplicitBlockDelim(ZSTD_CCtx* cctx,
                                               ZSTD_sequencePosition* seqPos,
                                         const ZSTD_Sequence* const inSeqs, size_t inSeqsSize,
-                                        const void* src, size_t blockSize);
+                                        const void* src, size_t blockSize, ZSTD_paramSwitch_e externalRepSearch);
 
 /* Returns the number of bytes to move the current read position back by.
  * Only non-zero if we ended up splitting a sequence.
@@ -1470,6 +1473,6 @@ ZSTD_copySequencesToSeqStoreExplicitBlockDelim(ZSTD_CCtx* cctx,
 size_t
 ZSTD_copySequencesToSeqStoreNoBlockDelim(ZSTD_CCtx* cctx, ZSTD_sequencePosition* seqPos,
                                    const ZSTD_Sequence* const inSeqs, size_t inSeqsSize,
-                                   const void* src, size_t blockSize);
+                                   const void* src, size_t blockSize, ZSTD_paramSwitch_e externalRepSearch);
 
 #endif /* ZSTD_COMPRESS_H */

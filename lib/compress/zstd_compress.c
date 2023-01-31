@@ -6277,8 +6277,7 @@ ZSTD_copySequencesToSeqStoreExplicitBlockDelim(ZSTD_CCtx* cctx,
         ZSTD_updateRep(updatedRepcodes.rep, offBase, ll0);
 
         DEBUGLOG(6, "Storing sequence: (of: %u, ml: %u, ll: %u)", offBase, matchLength, litLength);
-        if (cctx->appliedParams.validateSequences)
-        {
+        if (cctx->appliedParams.validateSequences) {
             seqPos->posInSrc += litLength + matchLength;
             FORWARD_IF_ERROR(ZSTD_validateSequence(offBase, matchLength, cctx->appliedParams.cParams.minMatch, seqPos->posInSrc,
                                                 cctx->appliedParams.cParams.windowLog, dictSize, cctx->appliedParams.useExternalMatchFinder),
@@ -6476,7 +6475,7 @@ static size_t determine_blockSize(ZSTD_sequenceFormat_e mode,
                            size_t blockSize, size_t remaining,
                      const ZSTD_Sequence* inSeqs, size_t inSeqsSize, ZSTD_sequencePosition seqPos)
 {
-    DEBUGLOG(6, "determine_blockSize: remainingSize = %zu", remaining);
+    DEBUGLOG(6, "determine_blockSize : remainingSize = %zu", remaining);
     if (mode == ZSTD_sf_noBlockDelimiters)
         return blockSize_noDelimiter(blockSize, remaining);
     {   size_t const explicitBlockSize = blockSize_explicitDelimiter(inSeqs, inSeqsSize, seqPos);

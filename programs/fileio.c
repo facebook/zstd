@@ -1758,6 +1758,7 @@ FIO_compressFilename_srcFile(FIO_ctx_t* const fCtx,
     int result;
     FILE* srcFile;
     stat_t srcFileStat;
+    U64 fileSize = UTIL_FILESIZE_UNKNOWN;
     DISPLAYLEVEL(6, "FIO_compressFilename_srcFile: %s \n", srcFileName);
 
     if (strcmp(srcFileName, stdinmark)) {
@@ -1789,6 +1790,17 @@ FIO_compressFilename_srcFile(FIO_ctx_t* const fCtx,
 
     srcFile = FIO_openSrcFile(prefs, srcFileName, &srcFileStat);
     if (srcFile == NULL) return 1;   /* srcFile could not be opened */
+
+    /* Don't use AsyncIO for small files */
+    if (strcmp(srcFileName, stdinmark)) /* Stdin doesn't have stats */
+        fileSize = UTIL_getFileSizeStat(&srcFileStat);
+    if(fileSize != UTIL_FILESIZE_UNKNOWN && fileSize < ZSTD_BLOCKSIZE_MAX * 3) {
+        AIO_ReadPool_setAsync(ress.readCtx, 0);
+        AIO_WritePool_setAsync(ress.writeCtx, 0);
+    } else {
+        AIO_ReadPool_setAsync(ress.readCtx, 1);
+        AIO_WritePool_setAsync(ress.writeCtx, 1);
+    }
 
     AIO_ReadPool_setFile(ress.readCtx, srcFile);
     result = FIO_compressFilename_dstFile(
@@ -2586,6 +2598,7 @@ static int FIO_decompressSrcFile(FIO_ctx_t* const fCtx, FIO_prefs_t* const prefs
     FILE* srcFile;
     stat_t srcFileStat;
     int result;
+    U64 fileSize = UTIL_FILESIZE_UNKNOWN;
 
     if (UTIL_isDirectory(srcFileName)) {
         DISPLAYLEVEL(1, "zstd: %s is a directory -- ignored \n", srcFileName);
@@ -2594,13 +2607,18 @@ static int FIO_decompressSrcFile(FIO_ctx_t* const fCtx, FIO_prefs_t* const prefs
 
     srcFile = FIO_openSrcFile(prefs, srcFileName, &srcFileStat);
     if (srcFile==NULL) return 1;
-    if(UTIL_getFileSizeStat(&srcFileStat) < ZSTD_BLOCKSIZE_MAX * 3) {
+
+    /* Don't use AsyncIO for small files */
+    if (strcmp(srcFileName, stdinmark)) /* Stdin doesn't have stats */
+        fileSize = UTIL_getFileSizeStat(&srcFileStat);
+    if(fileSize != UTIL_FILESIZE_UNKNOWN && fileSize < ZSTD_BLOCKSIZE_MAX * 3) {
         AIO_ReadPool_setAsync(ress.readCtx, 0);
         AIO_WritePool_setAsync(ress.writeCtx, 0);
     } else {
         AIO_ReadPool_setAsync(ress.readCtx, 1);
         AIO_WritePool_setAsync(ress.writeCtx, 1);
     }
+
     AIO_ReadPool_setFile(ress.readCtx, srcFile);
 
     result = FIO_decompressDstFile(fCtx, prefs, ress, dstFileName, srcFileName, &srcFileStat);

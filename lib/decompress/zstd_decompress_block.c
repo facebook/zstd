@@ -2008,24 +2008,29 @@ typedef struct {
  *           as well as the maximum number additional bits required.
  */
 static ZSTD_OffsetInfo
-ZSTD_getOffsetInfo(const ZSTD_seqSymbol* offTable)
+ZSTD_getOffsetInfo(const ZSTD_seqSymbol* offTable, int nbSeq)
 {
-    const void* ptr = offTable;
-    U32 const tableLog = ((const ZSTD_seqSymbol_header*)ptr)[0].tableLog;
-    const ZSTD_seqSymbol* table = offTable + 1;
-    U32 const max = 1 << tableLog;
-    U32 u;
     ZSTD_OffsetInfo info = {0, 0};
-    DEBUGLOG(5, "ZSTD_getLongOffsetsShare: (tableLog=%u)", tableLog);
+    /* If nbSeq == 0, then the offTable is uninitialized, but we have
+     * no sequences, so both values should be 0.
+     */
+    if (nbSeq != 0) {
+        const void* ptr = offTable;
+        U32 const tableLog = ((const ZSTD_seqSymbol_header*)ptr)[0].tableLog;
+        const ZSTD_seqSymbol* table = offTable + 1;
+        U32 const max = 1 << tableLog;
+        U32 u;
+        DEBUGLOG(5, "ZSTD_getLongOffsetsShare: (tableLog=%u)", tableLog);
 
-    assert(max <= (1 << OffFSELog));  /* max not too large */
-    for (u=0; u<max; u++) {
-        info.maxNbAdditionalBits = MAX(info.maxNbAdditionalBits, table[u].nbAdditionalBits);
-        if (table[u].nbAdditionalBits > 22) info.longOffsetShare += 1;
+        assert(max <= (1 << OffFSELog));  /* max not too large */
+        for (u=0; u<max; u++) {
+            info.maxNbAdditionalBits = MAX(info.maxNbAdditionalBits, table[u].nbAdditionalBits);
+            if (table[u].nbAdditionalBits > 22) info.longOffsetShare += 1;
+        }
+
+        assert(tableLog <= OffFSELog);
+        info.longOffsetShare <<= (OffFSELog - tableLog);  /* scale to OffFSELog */
     }
-
-    assert(tableLog <= OffFSELog);
-    info.longOffsetShare <<= (OffFSELog - tableLog);  /* scale to OffFSELog */
 
     return info;
 }
@@ -2126,7 +2131,7 @@ ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
          * NOTE: could probably use a larger nbSeq limit
          */
         if (isLongOffset || (!usePrefetchDecoder && (totalHistorySize > (1u << 24)) && (nbSeq > 8))) {
-            ZSTD_OffsetInfo const info = ZSTD_getOffsetInfo(dctx->OFTptr);
+            ZSTD_OffsetInfo const info = ZSTD_getOffsetInfo(dctx->OFTptr, nbSeq);
             if (isLongOffset && info.maxNbAdditionalBits <= STREAM_ACCUMULATOR_MIN) {
                 /* If isLongOffset, but the maximum number of additional bits that we see in our table is small
                  * enough, then we know it is impossible to have too long an offset in this block, so we can

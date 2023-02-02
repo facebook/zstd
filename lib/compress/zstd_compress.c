@@ -6335,6 +6335,7 @@ ZSTD_copySequencesToSeqStoreExplicitBlockDelim(ZSTD_CCtx* cctx,
     }
 
     /* If we skipped repcode search while parsing, we need to update repcodes now */
+    assert(externalRepSearch != ZSTD_ps_auto);
     assert(idx >= startIdx);
     if (externalRepSearch == ZSTD_ps_disable && idx != startIdx) {
         U32* const rep = updatedRepcodes.rep;

@@ -1170,7 +1170,7 @@ ZSTD_updateFseStateWithDInfo(ZSTD_fseState* DStatePtr, BIT_DStream_t* bitD, U16 
 }
 
 /* We need to add at most (ZSTD_WINDOWLOG_MAX_32 - 1) bits to read the maximum
- * offset bits. But we can only read at most (STREAM_ACCUMULATOR_MIN_32 - 1)
+ * offset bits. But we can only read at most STREAM_ACCUMULATOR_MIN_32
  * bits before reloading. This value is the maximum number of bytes we read
  * after reloading when we are decoding long offsets.
  */
@@ -1986,34 +1986,74 @@ ZSTD_decompressSequencesLong(ZSTD_DCtx* dctx,
 #endif /* ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT */
 
 
+/**
+ * @returns The total size of the history referencable by zstd, including
+ * both the prefix and the extDict. At @p op any offset larger than this
+ * is invalid.
+ */
+static size_t ZSTD_totalHistorySize(BYTE* op, BYTE const* virtualStart)
+{
+    return (size_t)(op - virtualStart);
+}
 
-#if !defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT) && \
-    !defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG)
-/* ZSTD_getLongOffsetsShare() :
+typedef struct {
+    unsigned longOffsetShare;
+    unsigned maxNbAdditionalBits;
+} ZSTD_OffsetInfo;
+
+/* ZSTD_getOffsetInfo() :
  * condition : offTable must be valid
  * @return : "share" of long offsets (arbitrarily defined as > (1<<23))
- *           compared to maximum possible of (1<<OffFSELog) */
-static unsigned
-ZSTD_getLongOffsetsShare(const ZSTD_seqSymbol* offTable)
+ *           compared to maximum possible of (1<<OffFSELog),
+ *           as well as the maximum number additional bits required.
+ */
+static ZSTD_OffsetInfo
+ZSTD_getOffsetInfo(const ZSTD_seqSymbol* offTable)
 {
     const void* ptr = offTable;
     U32 const tableLog = ((const ZSTD_seqSymbol_header*)ptr)[0].tableLog;
     const ZSTD_seqSymbol* table = offTable + 1;
     U32 const max = 1 << tableLog;
-    U32 u, total = 0;
+    U32 u;
+    ZSTD_OffsetInfo info = {0, 0};
     DEBUGLOG(5, "ZSTD_getLongOffsetsShare: (tableLog=%u)", tableLog);
 
     assert(max <= (1 << OffFSELog));  /* max not too large */
     for (u=0; u<max; u++) {
-        if (table[u].nbAdditionalBits > 22) total += 1;
+        info.maxNbAdditionalBits = MAX(info.maxNbAdditionalBits, table[u].nbAdditionalBits);
+        if (table[u].nbAdditionalBits > 22) info.longOffsetShare += 1;
     }
 
     assert(tableLog <= OffFSELog);
-    total <<= (OffFSELog - tableLog);  /* scale to OffFSELog */
+    info.longOffsetShare <<= (OffFSELog - tableLog);  /* scale to OffFSELog */
 
-    return total;
+    return info;
 }
-#endif
+
+/**
+ * @returns The maximum offset we can decode in one read of our bitstream, without
+ * reloading more bits in the middle of the offset bits read. Any offsets larger
+ * than this must use the long offset decoder.
+ */
+static size_t ZSTD_maxShortOffset(void)
+{
+    if (MEM_64bits()) {
+        /* We can decode any offset without reloading bits.
+         * This might change if the max window size grows.
+         */
+        ZSTD_STATIC_ASSERT(ZSTD_WINDOWLOG_MAX <= 31);
+        return (size_t)-1;
+    } else {
+        /* The maximum offBase is (1 << (STREAM_ACCUMULATOR_MIN + 1)) - 1.
+         * This offBase would require STREAM_ACCUMULATOR_MIN extra bits.
+         * Then we have to subtract ZSTD_REP_NUM to get the maximum possible offset.
+         */
+        size_t const maxOffbase = ((size_t)1 << (STREAM_ACCUMULATOR_MIN + 1)) - 1;
+        size_t const maxOffset = maxOffbase - ZSTD_REP_NUM;
+        assert(ZSTD_highbit32((U32)maxOffbase) == STREAM_ACCUMULATOR_MIN);
+        return maxOffset;
+    }
+}
 
 size_t
 ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
@@ -2021,13 +2061,6 @@ ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
                         const void* src, size_t srcSize, const int frame, const streaming_operation streaming)
 {   /* blockType == blockCompressed */
     const BYTE* ip = (const BYTE*)src;
-    /* isLongOffset must be true if there are long offsets.
-     * Offsets are long if they are larger than 2^STREAM_ACCUMULATOR_MIN.
-     * We don't expect that to be the case in 64-bit mode.
-     * In block mode, window size is not known, so we have to be conservative.
-     * (note: it could possibly be evaluated from current-lowLimit)
-     */
-    ZSTD_longOffset_e const isLongOffset = (ZSTD_longOffset_e)(MEM_32bits() && (!frame || (dctx->fParams.windowSize > (1ULL << STREAM_ACCUMULATOR_MIN))));
     DEBUGLOG(5, "ZSTD_decompressBlock_internal (size : %u)", (U32)srcSize);
 
     /* Note : the wording of the specification
@@ -2050,6 +2083,23 @@ ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
 
     /* Build Decoding Tables */
     {
+        /* Compute the maximum block size, which must also work when !frame and fParams are unset.
+         * Additionally, take the min with dstCapacity to ensure that the totalHistorySize fits in a size_t.
+         */
+        size_t const blockSizeMax = MIN(dstCapacity, (frame ? dctx->fParams.blockSizeMax : ZSTD_BLOCKSIZE_MAX));
+        size_t const totalHistorySize = ZSTD_totalHistorySize((BYTE*)dst + blockSizeMax, (BYTE const*)dctx->virtualStart);
+        /* isLongOffset must be true if there are long offsets.
+         * Offsets are long if they are larger than ZSTD_maxShortOffset().
+         * We don't expect that to be the case in 64-bit mode.
+         *
+         * We check here to see if our history is large enough to allow long offsets.
+         * If it isn't, then we can't possible have (valid) long offsets. If the offset
+         * is invalid, then it is okay to read it incorrectly.
+         *
+         * If isLongOffsets is true, then we will later check our decoding table to see
+         * if it is even possible to generate long offsets.
+         */
+        ZSTD_longOffset_e isLongOffset = (ZSTD_longOffset_e)(MEM_32bits() && (totalHistorySize > ZSTD_maxShortOffset()));
         /* These macros control at build-time which decompressor implementation
          * we use. If neither is defined, we do some inspection and dispatch at
          * runtime.
@@ -2057,6 +2107,11 @@ ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
 #if !defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT) && \
     !defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG)
         int usePrefetchDecoder = dctx->ddictIsCold;
+#else
+        /* Set to 1 to avoid computing offset info if we don't need to.
+         * Otherwise this value is ignored.
+         */
+        int usePrefetchDecoder = 1;
 #endif
         int nbSeq;
         size_t const seqHSize = ZSTD_decodeSeqHeaders(dctx, &nbSeq, ip, srcSize);
@@ -2066,26 +2121,38 @@ ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
 
         RETURN_ERROR_IF(dst == NULL && nbSeq > 0, dstSize_tooSmall, "NULL not handled");
 
-#if !defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT) && \
-    !defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG)
-        if ( !usePrefetchDecoder
-          && (!frame || (dctx->fParams.windowSize > (1<<24)))
-          && (nbSeq>ADVANCED_SEQS) ) {  /* could probably use a larger nbSeq limit */
-            U32 const shareLongOffsets = ZSTD_getLongOffsetsShare(dctx->OFTptr);
-            U32 const minShare = MEM_64bits() ? 7 : 20; /* heuristic values, correspond to 2.73% and 7.81% */
-            usePrefetchDecoder = (shareLongOffsets >= minShare);
+        /* If we could potentially have long offsets, or we might want to use the prefetch decoder,
+         * compute information about the share of long offsets, and the maximum nbAdditionalBits.
+         * NOTE: could probably use a larger nbSeq limit
+         */
+        if (isLongOffset || (!usePrefetchDecoder && (totalHistorySize > (1u << 24)) && (nbSeq > 8))) {
+            ZSTD_OffsetInfo const info = ZSTD_getOffsetInfo(dctx->OFTptr);
+            if (isLongOffset && info.maxNbAdditionalBits <= STREAM_ACCUMULATOR_MIN) {
+                /* If isLongOffset, but the maximum number of additional bits that we see in our table is small
+                 * enough, then we know it is impossible to have too long an offset in this block, so we can
+                 * use the regular offset decoder.
+                 */
+                isLongOffset = ZSTD_lo_isRegularOffset;
+            }
+            if (!usePrefetchDecoder) {
+                U32 const minShare = MEM_64bits() ? 7 : 20; /* heuristic values, correspond to 2.73% and 7.81% */
+                usePrefetchDecoder = (info.longOffsetShare >= minShare);
+            }
         }
-#endif
 
         dctx->ddictIsCold = 0;
 
 #if !defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT) && \
     !defined(ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG)
-        if (usePrefetchDecoder)
+        if (usePrefetchDecoder) {
+#else
+        (void)usePrefetchDecoder;
+        {
 #endif
 #ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT
             return ZSTD_decompressSequencesLong(dctx, dst, dstCapacity, ip, srcSize, nbSeq, isLongOffset, frame);
 #endif
+        }
 
 #ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG
         /* else */

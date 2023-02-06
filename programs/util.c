@@ -295,9 +295,6 @@ int UTIL_setFDStat(const int fd, const char *filename, const stat_t *statbuf)
         return -1;
     }
 
-    /* set access and modification times */
-    res += UTIL_utime(filename, statbuf);
-
     /* Mimic gzip's behavior:
      *
      * "Change the group first, then the permissions, then the owner.

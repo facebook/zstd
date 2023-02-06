@@ -1681,6 +1681,7 @@ static int FIO_compressFilename_dstFile(FIO_ctx_t* const fCtx,
     int result;
     int transferStat = 0;
     FILE *dstFile;
+    int dstFd = -1;
 
     assert(AIO_ReadPool_getFile(ress.readCtx) != NULL);
     if (AIO_WritePool_getFile(ress.writeCtx) == NULL) {
@@ -1696,6 +1697,7 @@ static int FIO_compressFilename_dstFile(FIO_ctx_t* const fCtx,
         DISPLAYLEVEL(6, "FIO_compressFilename_dstFile: opening dst: %s \n", dstFileName);
         dstFile = FIO_openDstFile(fCtx, prefs, srcFileName, dstFileName, dstFileInitialPermissions);
         if (dstFile==NULL) return 1;  /* could not open dstFileName */
+        dstFd = fileno(dstFile);
         AIO_WritePool_setFile(ress.writeCtx, dstFile);
         /* Must only be added after FIO_openDstFile() succeeds.
          * Otherwise we may delete the destination file if it already exists,
@@ -1709,14 +1711,20 @@ static int FIO_compressFilename_dstFile(FIO_ctx_t* const fCtx,
     if (closeDstFile) {
         clearHandler();
 
+        if (transferStat) {
+            UTIL_setFDStat(dstFd, dstFileName, srcFileStat);
+        }
+
         DISPLAYLEVEL(6, "FIO_compressFilename_dstFile: closing dst: %s \n", dstFileName);
         if (AIO_WritePool_closeFile(ress.writeCtx)) { /* error closing file */
             DISPLAYLEVEL(1, "zstd: %s: %s \n", dstFileName, strerror(errno));
             result=1;
         }
+
         if (transferStat) {
-            UTIL_setFileStat(dstFileName, srcFileStat);
+            UTIL_utime(dstFileName, srcFileStat);
         }
+
         if ( (result != 0)  /* operation failure */
           && strcmp(dstFileName, stdoutmark)  /* special case : don't remove() stdout */
           ) {
@@ -2540,6 +2548,7 @@ static int FIO_decompressDstFile(FIO_ctx_t* const fCtx,
     int result;
     int releaseDstFile = 0;
     int transferStat = 0;
+    int dstFd = 0;
 
     if ((AIO_WritePool_getFile(ress.writeCtx) == NULL) && (prefs->testMode == 0)) {
         FILE *dstFile;
@@ -2555,6 +2564,7 @@ static int FIO_decompressDstFile(FIO_ctx_t* const fCtx,
 
         dstFile = FIO_openDstFile(fCtx, prefs, srcFileName, dstFileName, dstFilePermissions);
         if (dstFile==NULL) return 1;
+        dstFd = fileno(dstFile);
         AIO_WritePool_setFile(ress.writeCtx, dstFile);
 
         /* Must only be added after FIO_openDstFile() succeeds.
@@ -2568,13 +2578,18 @@ static int FIO_decompressDstFile(FIO_ctx_t* const fCtx,
 
     if (releaseDstFile) {
         clearHandler();
+
+        if (transferStat) {
+            UTIL_setFDStat(dstFd, dstFileName, srcFileStat);
+        }
+
         if (AIO_WritePool_closeFile(ress.writeCtx)) {
             DISPLAYLEVEL(1, "zstd: %s: %s \n", dstFileName, strerror(errno));
             result = 1;
         }
 
         if (transferStat) {
-            UTIL_setFileStat(dstFileName, srcFileStat);
+            UTIL_utime(dstFileName, srcFileStat);
         }
 
         if ( (result != 0)  /* operation failure */

@@ -1735,6 +1735,7 @@ static size_t ZSTD_execSequence(BYTE* op,
 
     if (endMatch > oend) return ERROR(dstSize_tooSmall);   /* overwrite beyond dst buffer */
     if (litEnd > litLimit) return ERROR(corruption_detected);   /* overRead beyond lit buffer */
+    if (sequence.matchLength > (size_t)(*litPtr-op)) return ERROR(dstSize_tooSmall);  /* overwrite literal segment */
 
     /* copy Literals */
     ZSTD_memmove(op, *litPtr, sequence.litLength);   /* note : v0.1 seems to allow scenarios where output or input are close to end of buffer */

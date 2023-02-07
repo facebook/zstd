@@ -451,7 +451,7 @@ BMK_benchMemAdvancedNoAlloc(
                 BMK_runOutcome_t const cOutcome = BMK_benchTimedFn( timeStateCompress, cbp);
 
                 if (!BMK_isSuccessful_runOutcome(cOutcome)) {
-                    return BMK_benchOutcome_error();
+                    RETURN_ERROR(30, BMK_benchOutcome_t, "compression error");
                 }
 
                 {   BMK_runTime_t const cResult = BMK_extract_runTime(cOutcome);

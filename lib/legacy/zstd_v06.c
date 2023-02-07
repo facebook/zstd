@@ -3329,7 +3329,6 @@ static size_t ZSTDv06_execSequence(BYTE* op,
     if (sequence.litLength > (size_t)(litLimit - *litPtr)) return ERROR(corruption_detected);
     /* Now we know there are no overflow in literal nor match lengths, can use pointer checks */
     if (oLitEnd > oend_8) return ERROR(dstSize_tooSmall);
-    if (sequence.offset > (U32)(oLitEnd - base)) return ERROR(corruption_detected);
 
     if (oMatchEnd > oend) return ERROR(dstSize_tooSmall);   /* overwrite beyond dst buffer */
     if (iLitEnd > litLimit) return ERROR(corruption_detected);   /* overRead beyond lit buffer */

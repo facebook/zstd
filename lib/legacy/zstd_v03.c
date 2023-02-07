@@ -2710,7 +2710,7 @@ static size_t ZSTD_execSequence(BYTE* op,
 
     if (seqLength > (size_t)(oend - op)) return ERROR(dstSize_tooSmall);
     if (sequence.litLength > (size_t)(litLimit - *litPtr)) return ERROR(corruption_detected);
-    /* Now we know there are no overflow in literal nor match lengths, can use the pointer check */
+    /* Now we know there are no overflow in literal nor match lengths, can use pointer checks */
     if (oLitEnd > oend_8) return ERROR(dstSize_tooSmall);
     if (sequence.offset > (U32)(oLitEnd - base)) return ERROR(corruption_detected);
 

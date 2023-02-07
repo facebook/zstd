@@ -1370,7 +1370,7 @@ int main(int argCount, const char* argv[])
         benchParams.ldmFlag = ldmFlag;
         benchParams.ldmMinMatch = (int)g_ldmMinMatch;
         benchParams.ldmHashLog = (int)g_ldmHashLog;
-        benchParams.useRowMatchFinder = useRowMatchFinder;
+        benchParams.useRowMatchFinder = (int)useRowMatchFinder;
         if (g_ldmBucketSizeLog != LDM_PARAM_DEFAULT) {
             benchParams.ldmBucketSizeLog = (int)g_ldmBucketSizeLog;
         }
@@ -1391,15 +1391,18 @@ int main(int argCount, const char* argv[])
                     int c;
                     DISPLAYLEVEL(3, "Benchmarking %s \n", filenames->fileNames[i]);
                     for(c = cLevel; c <= cLevelLast; c++) {
-                        BMK_benchFilesAdvanced(&filenames->fileNames[i], 1, dictFileName, c, &compressionParams, g_displayLevel, &benchParams);
+                        BMK_benchOutcome_t const bo = BMK_benchFilesAdvanced(&filenames->fileNames[i], 1, dictFileName, c, &compressionParams, g_displayLevel, &benchParams);
+                        if (!BMK_isSuccessful_benchOutcome(bo)) return 1;
                 }   }
             } else {
                 for(; cLevel <= cLevelLast; cLevel++) {
-                    BMK_benchFilesAdvanced(filenames->fileNames, (unsigned)filenames->tableSize, dictFileName, cLevel, &compressionParams, g_displayLevel, &benchParams);
+                    BMK_benchOutcome_t const bo = BMK_benchFilesAdvanced(filenames->fileNames, (unsigned)filenames->tableSize, dictFileName, cLevel, &compressionParams, g_displayLevel, &benchParams);
+                    if (!BMK_isSuccessful_benchOutcome(bo)) return 1;
             }   }
         } else {
             for(; cLevel <= cLevelLast; cLevel++) {
-                BMK_syntheticTest(cLevel, compressibility, &compressionParams, g_displayLevel, &benchParams);
+                BMK_benchOutcome_t const bo = BMK_syntheticTest(cLevel, compressibility, &compressionParams, g_displayLevel, &benchParams);
+                if (!BMK_isSuccessful_benchOutcome(bo)) return 1;
         }   }
 
 #else
@@ -1545,7 +1548,7 @@ int main(int argCount, const char* argv[])
         if (g_ldmBucketSizeLog != LDM_PARAM_DEFAULT) FIO_setLdmBucketSizeLog(prefs, (int)g_ldmBucketSizeLog);
         if (g_ldmHashRateLog != LDM_PARAM_DEFAULT) FIO_setLdmHashRateLog(prefs, (int)g_ldmHashRateLog);
         FIO_setAdaptiveMode(prefs, adapt);
-        FIO_setUseRowMatchFinder(prefs, useRowMatchFinder);
+        FIO_setUseRowMatchFinder(prefs, (int)useRowMatchFinder);
         FIO_setAdaptMin(prefs, adaptMin);
         FIO_setAdaptMax(prefs, adaptMax);
         FIO_setRsyncable(prefs, rsyncable);

@@ -3322,13 +3322,19 @@ static size_t ZSTDv06_execSequence(BYTE* op,
     const BYTE* const iLitEnd = *litPtr + sequence.litLength;
     const BYTE* match = oLitEnd - sequence.offset;
 
-    /* check */
-    if (oLitEnd > oend_8) return ERROR(dstSize_tooSmall);   /* last match must start at a minimum distance of 8 from oend */
+    /* checks */
+    size_t const seqLength = sequence.litLength + sequence.matchLength;
+
+    if (seqLength > (size_t)(oend - op)) return ERROR(dstSize_tooSmall);
+    if (sequence.litLength > (size_t)(litLimit - *litPtr)) return ERROR(corruption_detected);
+    /* Now we know there are no overflow in literal nor match lengths, can use pointer checks */
+    if (oLitEnd > oend_8) return ERROR(dstSize_tooSmall);
+
     if (oMatchEnd > oend) return ERROR(dstSize_tooSmall);   /* overwrite beyond dst buffer */
-    if (iLitEnd > litLimit) return ERROR(corruption_detected);   /* over-read beyond lit buffer */
+    if (iLitEnd > litLimit) return ERROR(corruption_detected);   /* overRead beyond lit buffer */
 
     /* copy Literals */
-    ZSTDv06_wildcopy(op, *litPtr, sequence.litLength);   /* note : oLitEnd <= oend-8 : no risk of overwrite beyond oend */
+    ZSTDv06_wildcopy(op, *litPtr, (ptrdiff_t)sequence.litLength);   /* note : oLitEnd <= oend-8 : no risk of overwrite beyond oend */
     op = oLitEnd;
     *litPtr = iLitEnd;   /* update for next sequence */
 

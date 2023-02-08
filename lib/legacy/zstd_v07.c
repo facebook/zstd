@@ -3552,11 +3552,14 @@ size_t ZSTDv07_execSequence(BYTE* op,
     const BYTE* match = oLitEnd - sequence.offset;
 
     /* check */
-    if ((oLitEnd>oend_w) | (oMatchEnd>oend)) return ERROR(dstSize_tooSmall); /* last match must start at a minimum distance of WILDCOPY_OVERLENGTH from oend */
-    if (iLitEnd > litLimit) return ERROR(corruption_detected);   /* over-read beyond lit buffer */
+    assert(oend >= op);
+    if (sequence.litLength + WILDCOPY_OVERLENGTH > (size_t)(oend - op)) return ERROR(dstSize_tooSmall);
+    if (sequenceLength > (size_t)(oend - op)) return ERROR(dstSize_tooSmall);
+    assert(litLimit >= *litPtr);
+    if (sequence.litLength > (size_t)(litLimit - *litPtr)) return ERROR(corruption_detected);;
 
     /* copy Literals */
-    ZSTDv07_wildcopy(op, *litPtr, sequence.litLength);   /* note : since oLitEnd <= oend-WILDCOPY_OVERLENGTH, no risk of overwrite beyond oend */
+    ZSTDv07_wildcopy(op, *litPtr, (ptrdiff_t)sequence.litLength);   /* note : since oLitEnd <= oend-WILDCOPY_OVERLENGTH, no risk of overwrite beyond oend */
     op = oLitEnd;
     *litPtr = iLitEnd;   /* update for next sequence */
 
@@ -3570,7 +3573,7 @@ size_t ZSTDv07_execSequence(BYTE* op,
             return sequenceLength;
         }
         /* span extDict & currentPrefixSegment */
-        {   size_t const length1 = dictEnd - match;
+        {   size_t const length1 = (size_t)(dictEnd - match);
             memmove(oLitEnd, match, length1);
             op = oLitEnd + length1;
             sequence.matchLength -= length1;

@@ -16,8 +16,8 @@ static U32 const HLOG = 10;
 static U32 const MLS = 4;
 static U32 const BADIDX = 0xffffffff;
 
-size_t simpleExternalMatchFinder(
-  void* externalMatchState,
+size_t simpleSequenceProducer(
+  void* sequenceProducerState,
   ZSTD_Sequence* outSeqs, size_t outSeqsCapacity,
   const void* src, size_t srcSize,
   const void* dict, size_t dictSize,
@@ -31,7 +31,7 @@ size_t simpleExternalMatchFinder(
     size_t seqCount = 0;
     U32 hashTable[HSIZE];
 
-    (void)externalMatchState;
+    (void)sequenceProducerState;
     (void)dict;
     (void)dictSize;
     (void)outSeqsCapacity;

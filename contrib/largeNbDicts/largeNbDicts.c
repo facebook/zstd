@@ -985,7 +985,7 @@ int usage(const char* exeName)
     DISPLAY ("-#          : use compression level # (default: %u) \n", CLEVEL_DEFAULT);
     DISPLAY ("-D #        : use # as a dictionary (default: create one) \n");
     DISPLAY ("-i#         : nb benchmark rounds (default: %u) \n", BENCH_TIME_DEFAULT_S);
-    DISPLAY ("-p#         : print speed for all rounds 0=fastest 1=median (default: 0)");
+    DISPLAY ("-p#         : print speed for all rounds 0=fastest 1=median (default: 0) \n");
     DISPLAY ("--nbBlocks=#: use # blocks for bench (default: one per file) \n");
     DISPLAY ("--nbDicts=# : create # dictionaries for bench (default: one per block) \n");
     DISPLAY ("-h          : help (this text) \n");

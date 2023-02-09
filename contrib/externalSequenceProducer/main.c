@@ -16,7 +16,7 @@
 #define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
 #include "zstd_errors.h"
-#include "matchfinder.h" // simpleSequenceProducer
+#include "sequence_producer.h" // simpleSequenceProducer
 
 #define CHECK(res)                                      \
 do {                                                    \
@@ -28,7 +28,7 @@ do {                                                    \
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
-        printf("Usage: exampleMatchfinder <file>\n");
+        printf("Usage: externalSequenceProducer <file>\n");
         return 1;
     }
 

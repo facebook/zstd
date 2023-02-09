@@ -2824,8 +2824,8 @@ ZSTDLIB_STATIC_API size_t ZSTD_insertBlock    (ZSTD_DCtx* dctx, const void* bloc
  * of the input, to offer better speed / ratio, or could leverage hardware
  * acceleration not available within libzstd itself.
  *
- * See contrib/sequenceProducer for an example program employing the Block-Level
- * Sequence Producer API.
+ * See contrib/externalSequenceProducer for an example program employing the
+ * Block-Level Sequence Producer API.
  *
  * *** USAGE ***
  * The user is responsible for implementing a function of type

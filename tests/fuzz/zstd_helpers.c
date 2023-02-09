@@ -17,7 +17,7 @@
 #include "fuzz_helpers.h"
 #include "zstd.h"
 #include "zdict.h"
-#include "matchfinder.h"
+#include "sequence_producer.h"
 
 const int kMinClevel = -3;
 const int kMaxClevel = 19;

@@ -23,11 +23,11 @@ DEBUGFLAGS= -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
             -Wredundant-decls
 CFLAGS  += $(DEBUGFLAGS) $(MOREFLAGS)
 
-default: externalMatchfinder
+default: externalSequenceProducer
 
-all: externalMatchfinder
+all: externalSequenceProducer
 
-externalMatchfinder: matchfinder.c main.c $(LIBZSTD)
+externalSequenceProducer: sequence_producer.c main.c $(LIBZSTD)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@
 
 .PHONY: $(LIBZSTD)
@@ -37,4 +37,4 @@ $(LIBZSTD):
 clean:
 	$(RM) *.o
 	$(MAKE) -C $(LIBDIR) clean > /dev/null
-	$(RM) externalMatchfinder
+	$(RM) externalSequenceProducer

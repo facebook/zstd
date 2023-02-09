@@ -9,7 +9,7 @@
  */
 
 #include "zstd_compress_internal.h"
-#include "matchfinder.h"
+#include "sequence_producer.h"
 
 #define HSIZE 1024
 static U32 const HLOG = 10;

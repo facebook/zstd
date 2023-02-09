@@ -2869,11 +2869,11 @@ ZSTDLIB_STATIC_API size_t ZSTD_insertBlock    (ZSTD_DCtx* dctx, const void* bloc
  * written to outSeqs must be a valid parse of the src buffer. Data corruption may
  * occur if the parse is not valid. A parse is defined to be valid if the
  * following conditions hold:
- *   - The sum of matchLengths and literalLengths is equal to srcSize.
+ *   - The sum of matchLengths and literalLengths must equal srcSize.
  *   - All sequences in the parse, except for the final sequence, must have
  *     matchLength >= ZSTD_MINMATCH_MIN. The final sequence must have
  *     matchLength >= ZSTD_MINMATCH_MIN or matchLength == 0.
- *   - All offsets respect the windowSize parameter as specified in
+ *   - All offsets must respect the windowSize parameter as specified in
  *     doc/zstd_compression_format.md.
  *   - If the final sequence has matchLength == 0, it must also have offset == 0.
  *

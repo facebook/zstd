@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-present, Yann Collet, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -856,7 +856,7 @@ int bench(const char **fileNameTable, unsigned nbFiles, const char *dictionary,
     CONTROL(cTotalSizeNoDict != 0);
     DISPLAYLEVEL(3, "compressing at level %u without dictionary : Ratio=%.2f  (%u bytes) \n",
                     clevel,
-                    (double)totalSrcSlicesSize / cTotalSizeNoDict, (unsigned)cTotalSizeNoDict);
+                    (double)totalSrcSlicesSize / (double)cTotalSizeNoDict, (unsigned)cTotalSizeNoDict);
 
     size_t* const cSizes = malloc(nbBlocks * sizeof(size_t));
     CONTROL(cSizes != NULL);
@@ -865,7 +865,7 @@ int bench(const char **fileNameTable, unsigned nbFiles, const char *dictionary,
     CONTROL(cTotalSize != 0);
     DISPLAYLEVEL(3, "compressed using a %u bytes dictionary : Ratio=%.2f  (%u bytes) \n",
                     (unsigned)dictBuffer.size,
-                    (double)totalSrcSlicesSize / cTotalSize, (unsigned)cTotalSize);
+                    (double)totalSrcSlicesSize / (double)cTotalSize, (unsigned)cTotalSize);
 
     /* now dstSlices contain the real compressed size of each block, instead of the maximum capacity */
     shrinkSizes(dstSlices, cSizes);
@@ -985,7 +985,7 @@ int usage(const char* exeName)
     DISPLAY ("-#          : use compression level # (default: %u) \n", CLEVEL_DEFAULT);
     DISPLAY ("-D #        : use # as a dictionary (default: create one) \n");
     DISPLAY ("-i#         : nb benchmark rounds (default: %u) \n", BENCH_TIME_DEFAULT_S);
-    DISPLAY ("-p#         : print speed for all rounds 0=fastest 1=median (default: 0)");
+    DISPLAY ("-p#         : print speed for all rounds 0=fastest 1=median (default: 0) \n");
     DISPLAY ("--nbBlocks=#: use # blocks for bench (default: one per file) \n");
     DISPLAY ("--nbDicts=# : create # dictionaries for bench (default: one per block) \n");
     DISPLAY ("-h          : help (this text) \n");

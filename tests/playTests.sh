@@ -387,7 +387,29 @@ println "\n===>  file removal"
 zstd -f --rm tmp
 test ! -f tmp  # tmp should no longer be present
 zstd -f -d --rm tmp.zst
-test ! -f tmp.zst   # tmp.zst should no longer be present
+test ! -f tmp.zst  # tmp.zst should no longer be present
+println "test: --rm is disabled when output is stdout"
+test -f tmp
+zstd --rm tmp -c > $INTOVOID
+test -f tmp # tmp shall still be there
+zstd -f --rm tmp -c > $INTOVOID
+test -f tmp # tmp shall still be there
+zstd -f tmp -c > $INTOVOID --rm
+test -f tmp # tmp shall still be there
+println "test: --rm is disabled when multiple inputs are concatenated into a single output"
+cp tmp tmp2
+zstd --rm tmp tmp2 -c > $INTOVOID
+test -f tmp
+test -f tmp2
+rm -f tmp3.zst
+echo 'y' | zstd -v tmp tmp2 -o tmp3.zst --rm # prompt for confirmation
+test -f tmp
+test -f tmp2
+zstd -f tmp tmp2 -o tmp3.zst --rm # just warns, no prompt
+test -f tmp
+test -f tmp2
+zstd -q tmp tmp2 -o tmp3.zst --rm && die "should refuse to concatenate"
+
 println "test : should quietly not remove non-regular file"
 println hello > tmp
 zstd tmp -f -o "$DEVDEVICE" 2>tmplog > "$INTOVOID"
@@ -429,36 +451,35 @@ println hello > tmp1
 println world > tmp2
 zstd tmp1 tmp2 -o "$INTOVOID" -f
 zstd tmp1 tmp2 -c | zstd -t
-zstd tmp1 tmp2 -o tmp.zst
+echo 'y' | zstd -v tmp1 tmp2 -o tmp.zst
 test ! -f tmp1.zst
 test ! -f tmp2.zst
 zstd tmp1 tmp2
 zstd -t tmp1.zst tmp2.zst
 zstd -dc tmp1.zst tmp2.zst
 zstd tmp1.zst tmp2.zst -o "$INTOVOID" -f
-zstd -d tmp1.zst tmp2.zst -o tmp
+echo 'y' | zstd -v -d tmp1.zst tmp2.zst -o tmp
 touch tmpexists
 zstd tmp1 tmp2 -f -o tmpexists
 zstd tmp1 tmp2 -q -o tmpexists && die "should have refused to overwrite"
 println gooder > tmp_rm1
 println boi > tmp_rm2
 println worldly > tmp_rm3
-echo 'y' | zstd tmp_rm1 tmp_rm2 -v -o tmp_rm3.zst --rm     # tests the warning prompt for --rm with multiple inputs into once source
-test ! -f tmp_rm1
-test ! -f tmp_rm2
+echo 'y' | zstd -v tmp_rm1 tmp_rm2 -v -o tmp_rm3.zst
+test -f tmp_rm1
+test -f tmp_rm2
 cp tmp_rm3.zst tmp_rm4.zst
-echo 'Y' | zstd -d tmp_rm3.zst tmp_rm4.zst -v -o tmp_rm_out --rm
-test ! -f tmp_rm3.zst
-test ! -f tmp_rm4.zst
-echo 'yes' | zstd tmp_rm_out tmp_rm3 -c --rm && die "compressing multiple files to stdout with --rm should fail unless -f is specified"
-echo 'yes' | zstd tmp_rm_out tmp_rm3 -c --rm -v && die "compressing multiple files to stdout with --rm should fail unless -f is specified"
+echo 'Y' | zstd -v -d tmp_rm3.zst tmp_rm4.zst -v -o tmp_rm_out --rm
+test -f tmp_rm3.zst
+test -f tmp_rm4.zst
 println gooder > tmpexists1
 zstd tmpexists1 tmpexists -c --rm -f > $INTOVOID
-
 # Bug: PR #972
 if [ "$?" -eq 139 ]; then
   die "should not have segfaulted"
 fi
+test -f tmpexists1
+test -f tmpexists
 println "\n===>  multiple files and shell completion "
 datagen -s1        > tmp1 2> $INTOVOID
 datagen -s2 -g100K > tmp2 2> $INTOVOID
@@ -562,18 +583,8 @@ if [ "$isWindows" = false ] ; then
     zstd -f -d tmp1.zst -o tmp1.out
     assertFilePermissions tmp1.out 400
 
-    rm -f tmp1.zst tmp1.out
-
     umask 0666
     chmod 0666 tmp1 tmp2
-
-    println "test : respect umask when copying permissions in file -> file compression "
-    zstd -f tmp1 -o tmp1.zst
-    assertFilePermissions tmp1.zst 0
-    println "test : respect umask when copying permissions in file -> file decompression "
-    chmod 0666 tmp1.zst
-    zstd -f -d tmp1.zst -o tmp1.out
-    assertFilePermissions tmp1.out 0
 
     rm -f tmp1.zst tmp1.out
 
@@ -1176,6 +1187,10 @@ zstd -t tmp3 && die "bad file not detected !"   # detects 0-sized files as bad
 println "test --rm and --test combined "
 zstd -t --rm tmp1.zst
 test -f tmp1.zst   # check file is still present
+cp tmp1.zst tmp2.zst
+zstd -t tmp1.zst tmp2.zst --rm
+test -f tmp1.zst   # check file is still present
+test -f tmp2.zst   # check file is still present
 split -b16384 tmp1.zst tmpSplit.
 zstd -t tmpSplit.* && die "bad file not detected !"
 datagen | zstd -c | zstd -t
@@ -1202,7 +1217,15 @@ zstd -rqi0b1e2 tmp1
 println "benchmark decompression only"
 zstd -f tmp1
 zstd -b -d -i0 tmp1.zst
+println "benchmark can fail - decompression on invalid data"
+zstd -b -d -i0 tmp1 && die "invalid .zst data => benchmark should have failed"
 
+GZIPMODE=1
+zstd --format=gzip -V || GZIPMODE=0
+if [ $GZIPMODE -eq 1 ]; then
+    println "benchmark mode is only compatible with zstd"
+    zstd --format=gzip -b tmp1 && die "-b should be incompatible with gzip format!"
+fi
 
 println "\n===>  zstd compatibility tests "
 

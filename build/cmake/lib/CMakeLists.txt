@@ -1,5 +1,5 @@
 # ################################################################
-# Copyright (c) 2015-present, Yann Collet, Facebook, Inc.
+# Copyright (c) Meta Platforms, Inc. and affiliates.
 # All rights reserved.
 #
 # This source code is licensed under both the BSD-style license (found in the
@@ -76,6 +76,12 @@ if (MSVC)
     set(MSVC_RESOURCE_DIR ${ZSTD_SOURCE_DIR}/build/VS2010/libzstd-dll)
     set(PlatformDependResources ${MSVC_RESOURCE_DIR}/libzstd-dll.rc)
 endif ()
+
+# Explicitly set the language to C for all files, including ASM files.
+# Our assembly expects to be compiled by a C compiler, and is only enabled for
+# __GNUC__ compatible compilers. Otherwise all the ASM code is disabled by
+# macros.
+set_source_files_properties(${Sources} PROPERTIES LANGUAGE C)
 
 # Split project to static and shared libraries build
 set(library_targets)

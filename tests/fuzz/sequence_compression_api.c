@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -32,10 +32,14 @@ static void* literalsBuffer = NULL;
 static void* generatedSrc = NULL;
 static ZSTD_Sequence* generatedSequences = NULL;
 
+static void* dictBuffer = NULL;
+static ZSTD_CDict* cdict = NULL;
+static ZSTD_DDict* ddict = NULL;
+
 #define ZSTD_FUZZ_GENERATED_SRC_MAXSIZE (1 << 20) /* Allow up to 1MB generated data */
+#define ZSTD_FUZZ_GENERATED_LITERALS_SIZE (1 << 20) /* Fixed size 1MB literals buffer */
 #define ZSTD_FUZZ_MATCHLENGTH_MAXSIZE (1 << 18) /* Allow up to 256KB matches */
-#define ZSTD_FUZZ_GENERATED_DICT_MAXSIZE (1 << 18) /* Allow up to a 256KB dict */
-#define ZSTD_FUZZ_GENERATED_LITERALS_SIZE (1 << 18) /* Fixed size 256KB literals buffer */
+#define ZSTD_FUZZ_GENERATED_DICT_MAXSIZE (1 << ZSTD_WINDOWLOG_MAX_32) /* Allow up to 1 << ZSTD_WINDOWLOG_MAX_32 dictionary */
 #define ZSTD_FUZZ_MAX_NBSEQ (1 << 17) /* Maximum of 128K sequences */
 
 /* Deterministic random number generator */
@@ -55,9 +59,9 @@ static uint32_t FUZZ_RDG_rand(uint32_t* src)
 /* Make a pseudorandom string - this simple function exists to avoid
  * taking a dependency on datagen.h to have RDG_genBuffer().
  */
-static char* generatePseudoRandomString(char* str, size_t size) {
+static char* generatePseudoRandomString(char* str, size_t size, FUZZ_dataProducer_t* producer) {
     const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJK1234567890!@#$^&*()_";
-    uint32_t seed = 0;
+    uint32_t seed = FUZZ_dataProducer_uint32(producer);
     if (size) {
         for (size_t n = 0; n < size; n++) {
             int key = FUZZ_RDG_rand(&seed) % (int) (sizeof charset - 1);
@@ -100,14 +104,14 @@ static size_t decodeSequences(void* dst, size_t nbSequences,
             size_t j = 0;
             size_t k = 0;
             if (dictSize != 0) {
-                if (generatedSequences[i].offset > bytesWritten) {
-                    /* Offset goes into the dictionary */
-                    size_t offsetFromEndOfDict = generatedSequences[i].offset - bytesWritten;
-                    for (; k < offsetFromEndOfDict && k < matchLength; ++k) {
-                        op[k] = dictPtr[dictSize - offsetFromEndOfDict + k];
+                if (generatedSequences[i].offset > bytesWritten) { /* Offset goes into the dictionary */
+                    size_t dictOffset = generatedSequences[i].offset - bytesWritten;
+                    size_t matchInDict = MIN(matchLength, dictOffset);
+                    for (; k < matchInDict; ++k) {
+                        op[k] = dictPtr[dictSize - dictOffset + k];
                     }
-                    matchLength -= k;
-                    op += k;
+                    matchLength -= matchInDict;
+                    op += matchInDict;
                 }
             }
             for (; j < matchLength; ++j) {
@@ -139,8 +143,8 @@ static size_t generateRandomSequences(FUZZ_dataProducer_t* producer,
                                       size_t windowLog, ZSTD_sequenceFormat_e mode)
 {
     const uint32_t repCode = 0;  /* not used by sequence ingestion api */
-    const uint32_t windowSize = 1 << windowLog;
-    const uint32_t blockSizeMax = MIN(128 << 10, 1 << windowLog);
+    size_t windowSize = 1ULL << windowLog;
+    size_t blockSizeMax = MIN(ZSTD_BLOCKSIZE_MAX, windowSize);
     uint32_t matchLengthMax = ZSTD_FUZZ_MATCHLENGTH_MAXSIZE;
     uint32_t bytesGenerated = 0;
     uint32_t nbSeqGenerated = 0;
@@ -210,38 +214,31 @@ static size_t generateRandomSequences(FUZZ_dataProducer_t* producer,
             }
             generatedSequences[nbSeqGenerated++] = seq;
             isFirstSequence = 0;
-    }   }
+        }
+    }
+
     if (mode == ZSTD_sf_explicitBlockDelimiters) {
         /* always end sequences with a block delimiter */
         const ZSTD_Sequence endBlock = {0, 0, 0, 0};
         assert(nbSeqGenerated < ZSTD_FUZZ_MAX_NBSEQ);
         generatedSequences[nbSeqGenerated++] = endBlock;
     }
-
     return nbSeqGenerated;
 }
 
 static size_t roundTripTest(void* result, size_t resultCapacity,
                             void* compressed, size_t compressedCapacity,
                             const void* src, size_t srcSize,
-                            const void* dict, size_t dictSize,
                             const ZSTD_Sequence* seqs, size_t seqSize,
-                            int wLog, int cLevel, unsigned hasDict,
+                            unsigned hasDict,
                             ZSTD_sequenceFormat_e mode)
 {
     size_t cSize;
     size_t dSize;
 
-    ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
-    ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 0);
-    ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, cLevel);
-    ZSTD_CCtx_setParameter(cctx, ZSTD_c_windowLog, wLog);
-    ZSTD_CCtx_setParameter(cctx, ZSTD_c_minMatch, ZSTD_MINMATCH_MIN);
-    ZSTD_CCtx_setParameter(cctx, ZSTD_c_validateSequences, 1);
-    ZSTD_CCtx_setParameter(cctx, ZSTD_c_blockDelimiters, mode);
     if (hasDict) {
-        FUZZ_ZASSERT(ZSTD_CCtx_loadDictionary(cctx, dict, dictSize));
-        FUZZ_ZASSERT(ZSTD_DCtx_loadDictionary(dctx, dict, dictSize));
+        FUZZ_ZASSERT(ZSTD_CCtx_refCDict(cctx, cdict));
+        FUZZ_ZASSERT(ZSTD_DCtx_refDDict(dctx, ddict));
     }
 
     cSize = ZSTD_compressSequences(cctx, compressed, compressedCapacity,
@@ -272,7 +269,6 @@ int LLVMFuzzerTestOneInput(const uint8_t* src, size_t size)
     size_t cBufSize;
     size_t generatedSrcSize;
     size_t nbSequences;
-    void* dictBuffer = NULL;
     size_t dictSize = 0;
     unsigned hasDict;
     unsigned wLog;
@@ -281,23 +277,62 @@ int LLVMFuzzerTestOneInput(const uint8_t* src, size_t size)
 
     FUZZ_dataProducer_t* const producer = FUZZ_dataProducer_create(src, size);
     FUZZ_ASSERT(producer);
-    if (literalsBuffer == NULL) {
+
+    if (!cctx) {
+        cctx = ZSTD_createCCtx();
+        FUZZ_ASSERT(cctx);
+    }
+    if (!dctx) {
+        dctx = ZSTD_createDCtx();
+        FUZZ_ASSERT(dctx);
+    }
+
+    /* Generate window log first so we don't generate offsets too large */
+    wLog = FUZZ_dataProducer_uint32Range(producer, ZSTD_WINDOWLOG_MIN, ZSTD_WINDOWLOG_MAX);
+    cLevel = FUZZ_dataProducer_int32Range(producer, -3, 22);
+    mode = (ZSTD_sequenceFormat_e)FUZZ_dataProducer_int32Range(producer, 0, 1);
+
+    ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
+    ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 0);
+    ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, cLevel);
+    ZSTD_CCtx_setParameter(cctx, ZSTD_c_windowLog, wLog);
+    ZSTD_CCtx_setParameter(cctx, ZSTD_c_minMatch, ZSTD_MINMATCH_MIN);
+    ZSTD_CCtx_setParameter(cctx, ZSTD_c_validateSequences, 1);
+    ZSTD_CCtx_setParameter(cctx, ZSTD_c_blockDelimiters, mode);
+    ZSTD_CCtx_setParameter(cctx, ZSTD_c_forceAttachDict, ZSTD_dictForceAttach);
+
+    if (!literalsBuffer) {
         literalsBuffer = FUZZ_malloc(ZSTD_FUZZ_GENERATED_LITERALS_SIZE);
         FUZZ_ASSERT(literalsBuffer);
-        literalsBuffer = generatePseudoRandomString(literalsBuffer, ZSTD_FUZZ_GENERATED_LITERALS_SIZE);
+        literalsBuffer = generatePseudoRandomString(literalsBuffer, ZSTD_FUZZ_GENERATED_LITERALS_SIZE, producer);
     }
+
+    if (!dictBuffer) { /* Generate global dictionary buffer */
+        ZSTD_compressionParameters cParams;
+
+        /* Generate a large dictionary buffer */
+        dictBuffer = calloc(ZSTD_FUZZ_GENERATED_DICT_MAXSIZE, 1);
+        FUZZ_ASSERT(dictBuffer);
+
+        /* Create global cdict and ddict */
+        cParams = ZSTD_getCParams(1, ZSTD_FUZZ_GENERATED_SRC_MAXSIZE, ZSTD_FUZZ_GENERATED_DICT_MAXSIZE);
+        cParams.minMatch = ZSTD_MINMATCH_MIN;
+        cParams.hashLog = ZSTD_HASHLOG_MIN;
+        cParams.chainLog = ZSTD_CHAINLOG_MIN;
+
+        cdict = ZSTD_createCDict_advanced(dictBuffer, ZSTD_FUZZ_GENERATED_DICT_MAXSIZE, ZSTD_dlm_byRef, ZSTD_dct_rawContent, cParams, ZSTD_defaultCMem);
+        ddict = ZSTD_createDDict_advanced(dictBuffer, ZSTD_FUZZ_GENERATED_DICT_MAXSIZE, ZSTD_dlm_byRef, ZSTD_dct_rawContent, ZSTD_defaultCMem);
+        FUZZ_ASSERT(cdict);
+        FUZZ_ASSERT(ddict);
+    }
+
+    FUZZ_ASSERT(cdict);
+    FUZZ_ASSERT(ddict);
 
     hasDict = FUZZ_dataProducer_uint32Range(producer, 0, 1);
     if (hasDict) {
-        dictSize = FUZZ_dataProducer_uint32Range(producer, 1, ZSTD_FUZZ_GENERATED_DICT_MAXSIZE);
-        dictBuffer = FUZZ_malloc(dictSize);
-        FUZZ_ASSERT(dictBuffer);
-        dictBuffer = generatePseudoRandomString(dictBuffer, dictSize);
+        dictSize = ZSTD_FUZZ_GENERATED_DICT_MAXSIZE;
     }
-    /* Generate window log first so we don't generate offsets too large */
-    wLog = FUZZ_dataProducer_uint32Range(producer, ZSTD_WINDOWLOG_MIN, ZSTD_WINDOWLOG_MAX_32);
-    cLevel = FUZZ_dataProducer_int32Range(producer, -3, 22);
-    mode = (ZSTD_sequenceFormat_e)FUZZ_dataProducer_int32Range(producer, 0, 1);
 
     if (!generatedSequences) {
         generatedSequences = FUZZ_malloc(sizeof(ZSTD_Sequence)*ZSTD_FUZZ_MAX_NBSEQ);
@@ -305,8 +340,10 @@ int LLVMFuzzerTestOneInput(const uint8_t* src, size_t size)
     if (!generatedSrc) {
         generatedSrc = FUZZ_malloc(ZSTD_FUZZ_GENERATED_SRC_MAXSIZE);
     }
+
     nbSequences = generateRandomSequences(producer, ZSTD_FUZZ_GENERATED_LITERALS_SIZE, dictSize, wLog, mode);
     generatedSrcSize = decodeSequences(generatedSrc, nbSequences, ZSTD_FUZZ_GENERATED_LITERALS_SIZE, dictBuffer, dictSize, mode);
+
     /* Note : in explicit block delimiters mode,
      * the fuzzer might generate a lot of small blocks.
      * In which case, the final compressed size might be > ZSTD_compressBound().
@@ -318,30 +355,17 @@ int LLVMFuzzerTestOneInput(const uint8_t* src, size_t size)
     rBufSize = generatedSrcSize;
     rBuf = FUZZ_malloc(rBufSize);
 
-    if (!cctx) {
-        cctx = ZSTD_createCCtx();
-        FUZZ_ASSERT(cctx);
-    }
-    if (!dctx) {
-        dctx = ZSTD_createDCtx();
-        FUZZ_ASSERT(dctx);
-    }
-
     {   const size_t result = roundTripTest(rBuf, rBufSize,
                                         cBuf, cBufSize,
                                         generatedSrc, generatedSrcSize,
-                                        dictBuffer, dictSize,
                                         generatedSequences, nbSequences,
-                                        (int)wLog, cLevel, hasDict, mode);
+                                        hasDict, mode);
         FUZZ_ASSERT(result <= generatedSrcSize);  /* can be 0 when no round-trip */
     }
 
     free(rBuf);
     free(cBuf);
     FUZZ_dataProducer_free(producer);
-    if (hasDict) {
-        free(dictBuffer);
-    }
 #ifndef STATEFUL_FUZZING
     ZSTD_freeCCtx(cctx); cctx = NULL;
     ZSTD_freeDCtx(dctx); dctx = NULL;

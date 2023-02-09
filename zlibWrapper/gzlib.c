@@ -3,7 +3,7 @@
 
 /* gzlib.c -- zlib functions common to reading and writing gzip files
  * Copyright (C) 2004-2017 Mark Adler
- * For conditions of distribution and use, see http://www.zlib.net/zlib_license.html
+ * For conditions of distribution and use, see https://www.zlib.net/zlib_license.html
  */
 
 #include "gzguts.h"

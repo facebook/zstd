@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -38,15 +38,23 @@ extern FIO_display_prefs_t g_display_prefs;
 extern UTIL_time_t g_displayClock;
 
 #define REFRESH_RATE  ((U64)(SEC_TO_MICRO / 6))
-#define READY_FOR_UPDATE() ((g_display_prefs.progressSetting != FIO_ps_never) && UTIL_clockSpanMicro(g_displayClock) > REFRESH_RATE)
+#define READY_FOR_UPDATE() (UTIL_clockSpanMicro(g_displayClock) > REFRESH_RATE || g_display_prefs.displayLevel >= 4)
 #define DELAY_NEXT_UPDATE() { g_displayClock = UTIL_getTime(); }
 #define DISPLAYUPDATE(l, ...) {                              \
         if (g_display_prefs.displayLevel>=l && (g_display_prefs.progressSetting != FIO_ps_never)) { \
-            if (READY_FOR_UPDATE() || (g_display_prefs.displayLevel>=4)) { \
+            if (READY_FOR_UPDATE()) { \
                 DELAY_NEXT_UPDATE();                         \
                 DISPLAY(__VA_ARGS__);                        \
                 if (g_display_prefs.displayLevel>=4) fflush(stderr);       \
     }   }   }
+
+#define SHOULD_DISPLAY_SUMMARY() \
+    (g_display_prefs.displayLevel >= 2 || g_display_prefs.progressSetting == FIO_ps_always)
+#define SHOULD_DISPLAY_PROGRESS()                       \
+    (g_display_prefs.progressSetting != FIO_ps_never && SHOULD_DISPLAY_SUMMARY())
+#define DISPLAY_PROGRESS(...) { if (SHOULD_DISPLAY_PROGRESS()) { DISPLAYLEVEL(1, __VA_ARGS__); }}
+#define DISPLAYUPDATE_PROGRESS(...) { if (SHOULD_DISPLAY_PROGRESS()) { DISPLAYUPDATE(1, __VA_ARGS__); }}
+#define DISPLAY_SUMMARY(...) { if (SHOULD_DISPLAY_SUMMARY()) { DISPLAYLEVEL(1, __VA_ARGS__); } }
 
 #undef MIN  /* in case it would be already defined */
 #define MIN(a,b)    ((a) < (b) ? (a) : (b))
@@ -114,4 +122,4 @@ extern UTIL_time_t g_displayClock;
 #if defined (__cplusplus)
 }
 #endif
-#endif //ZSTD_FILEIO_COMMON_H
+#endif /* ZSTD_FILEIO_COMMON_H */

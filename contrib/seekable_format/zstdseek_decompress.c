@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-present, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -38,7 +38,7 @@
       * note: it's better to use unistd.h's _POSIX_VERSION whenever possible */
 #    define PLATFORM_POSIX_VERSION 200112L
 
-/* try to determine posix version through official unistd.h's _POSIX_VERSION (http://pubs.opengroup.org/onlinepubs/7908799/xsh/unistd.h.html).
+/* try to determine posix version through official unistd.h's _POSIX_VERSION (https://pubs.opengroup.org/onlinepubs/7908799/xsh/unistd.h.html).
  * note : there is no simple way to know in advance if <unistd.h> is present or not on target system,
  * Posix specification mandates its presence and its content, but target system must respect this spec.
  * It's necessary to _not_ #include <unistd.h> whenever target OS is not unix-like
@@ -517,9 +517,9 @@ size_t ZSTD_seekable_decompress(ZSTD_seekable* zs, void* dst, size_t len, unsign
             size_t forwardProgress;
             if (zs->decompressedOffset < offset) {
                 /* dummy decompressions until we get to the target offset */
-                outTmp = (ZSTD_outBuffer){zs->outBuff, MIN(SEEKABLE_BUFF_SIZE, offset - zs->decompressedOffset), 0};
+                outTmp = (ZSTD_outBuffer){zs->outBuff, (size_t) (MIN(SEEKABLE_BUFF_SIZE, offset - zs->decompressedOffset)), 0};
             } else {
-                outTmp = (ZSTD_outBuffer){dst, len, zs->decompressedOffset - offset};
+                outTmp = (ZSTD_outBuffer){dst, len, (size_t) (zs->decompressedOffset - offset)};
             }
 
             prevOutPos = outTmp.pos;

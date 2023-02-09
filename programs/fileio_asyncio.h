@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -7,6 +7,17 @@
  * in the COPYING file in the root directory of this source tree).
  * You may select, at your option, one of the above-listed licenses.
  */
+
+ /*
+  * FileIO AsyncIO exposes read/write IO pools that allow doing IO asynchronously.
+  * Current implementation relies on having one thread that reads and one that
+  * writes.
+  * Each IO pool supports up to `MAX_IO_JOBS` that can be enqueued for work, but
+  * are performed serially by the appropriate worker thread.
+  * Most systems exposes better primitives to perform asynchronous IO, such as
+  * io_uring on newer linux systems. The API is built in such a way that in the
+  * future we could replace the threads with better solutions when available.
+  */
 
 #ifndef ZSTD_FILEIO_ASYNCIO_H
 #define ZSTD_FILEIO_ASYNCIO_H
@@ -27,6 +38,7 @@ extern "C" {
 typedef struct {
     /* These struct fields should be set only on creation and not changed afterwards */
     POOL_ctx* threadPool;
+    int threadPoolActive;
     int totalIoJobs;
     const FIO_prefs_t* prefs;
     POOL_function poolFunction;
@@ -136,6 +148,11 @@ WritePoolCtx_t* AIO_WritePool_create(const FIO_prefs_t* prefs, size_t bufferSize
  * Frees and releases a writePool and its resources. Closes destination file. */
 void AIO_WritePool_free(WritePoolCtx_t* ctx);
 
+/* AIO_WritePool_setAsync:
+ * Allows (de)activating async mode, to be used when the expected overhead
+ * of asyncio costs more than the expected gains. */
+void AIO_WritePool_setAsync(WritePoolCtx_t* ctx, int async);
+
 /* AIO_ReadPool_create:
  * Allocates and sets and a new readPool including its included jobs.
  * bufferSize should be set to the maximal buffer we want to read at a time, will also be used
@@ -145,6 +162,11 @@ ReadPoolCtx_t* AIO_ReadPool_create(const FIO_prefs_t* prefs, size_t bufferSize);
 /* AIO_ReadPool_free:
  * Frees and releases a readPool and its resources. Closes source file. */
 void AIO_ReadPool_free(ReadPoolCtx_t* ctx);
+
+/* AIO_ReadPool_setAsync:
+ * Allows (de)activating async mode, to be used when the expected overhead
+ * of asyncio costs more than the expected gains. */
+void AIO_ReadPool_setAsync(ReadPoolCtx_t* ctx, int async);
 
 /* AIO_ReadPool_consumeBytes:
  * Consumes byes from srcBuffer's beginning and updates srcBufferLoaded accordingly. */

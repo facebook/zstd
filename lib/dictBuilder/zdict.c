@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Yann Collet, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -44,7 +44,6 @@
 #ifndef ZDICT_STATIC_LINKING_ONLY
 #  define ZDICT_STATIC_LINKING_ONLY
 #endif
-#define HUF_STATIC_LINKING_ONLY
 
 #include "../common/mem.h"           /* read */
 #include "../common/fse.h"           /* FSE_normalizeCount, FSE_writeNCount */
@@ -373,7 +372,7 @@ static U32 ZDICT_tryMerge(dictItem* table, dictItem elt, U32 eltNbToSkip, const 
             elt = table[u];
             /* sort : improve rank */
             while ((u>1) && (table[u-1].savings < elt.savings))
-            table[u] = table[u-1], u--;
+                table[u] = table[u-1], u--;
             table[u] = elt;
             return u;
     }   }
@@ -524,7 +523,7 @@ static size_t ZDICT_trainBuffer_legacy(dictItem* dictList, U32 dictListSize,
             if (solution.length==0) { cursor++; continue; }
             ZDICT_insertDictItem(dictList, dictListSize, solution, buffer);
             cursor += solution.length;
-            DISPLAYUPDATE(2, "\r%4.2f %% \r", (double)cursor / bufferSize * 100);
+            DISPLAYUPDATE(2, "\r%4.2f %% \r", (double)cursor / (double)bufferSize * 100.0);
     }   }
 
 _cleanup:
@@ -676,6 +675,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     size_t const totalSrcSize = ZDICT_totalSampleSize(fileSizes, nbFiles);
     size_t const averageSampleSize = totalSrcSize / (nbFiles + !nbFiles);
     BYTE* dstPtr = (BYTE*)dstBuffer;
+    U32 wksp[HUF_CTABLE_WORKSPACE_SIZE_U32];
 
     /* init */
     DEBUGLOG(4, "ZDICT_analyzeEntropy");
@@ -716,7 +716,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     }   }
 
     /* analyze, build stats, starting with literals */
-    {   size_t maxNbBits = HUF_buildCTable (hufTable, countLit, 255, huffLog);
+    {   size_t maxNbBits = HUF_buildCTable_wksp(hufTable, countLit, 255, huffLog, wksp, sizeof(wksp));
         if (HUF_isError(maxNbBits)) {
             eSize = maxNbBits;
             DISPLAYLEVEL(1, " HUF_buildCTable error \n");
@@ -725,7 +725,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
         if (maxNbBits==8) {  /* not compressible : will fail on HUF_writeCTable() */
             DISPLAYLEVEL(2, "warning : pathological dataset : literals are not compressible : samples are noisy or too regular \n");
             ZDICT_flatLit(countLit);  /* replace distribution by a fake "mostly flat but still compressible" distribution, that HUF_writeCTable() can encode */
-            maxNbBits = HUF_buildCTable (hufTable, countLit, 255, huffLog);
+            maxNbBits = HUF_buildCTable_wksp(hufTable, countLit, 255, huffLog, wksp, sizeof(wksp));
             assert(maxNbBits==9);
         }
         huffLog = (U32)maxNbBits;
@@ -766,7 +766,7 @@ static size_t ZDICT_analyzeEntropy(void*  dstBuffer, size_t maxDstSize,
     llLog = (U32)errorCode;
 
     /* write result to buffer */
-    {   size_t const hhSize = HUF_writeCTable(dstPtr, maxDstSize, hufTable, 255, huffLog);
+    {   size_t const hhSize = HUF_writeCTable_wksp(dstPtr, maxDstSize, hufTable, 255, huffLog, wksp, sizeof(wksp));
         if (HUF_isError(hhSize)) {
             eSize = hhSize;
             DISPLAYLEVEL(1, "HUF_writeCTable error \n");

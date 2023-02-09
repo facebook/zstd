@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -12,8 +12,6 @@
  * This fuzz target performs a zstd round-trip test (compress & decompress),
  * compares the result with the original, and calls abort() on corruption.
  */
-
-#define HUF_STATIC_LINKING_ONLY
 
 #include <stddef.h>
 #include <stdlib.h>
@@ -46,7 +44,13 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     /* Select random parameters: #streams, X1 or X2 decoding, bmi2 */
     int const streams = FUZZ_dataProducer_int32Range(producer, 0, 1);
     int const symbols = FUZZ_dataProducer_int32Range(producer, 0, 1);
-    int const bmi2 = ZSTD_cpuid_bmi2(ZSTD_cpuid()) && FUZZ_dataProducer_int32Range(producer, 0, 1);
+    int const flags = 0
+        | (ZSTD_cpuid_bmi2(ZSTD_cpuid()) && FUZZ_dataProducer_int32Range(producer, 0, 1) ? HUF_flags_bmi2 : 0)
+        | (FUZZ_dataProducer_int32Range(producer, 0, 1) ? HUF_flags_optimalDepth : 0)
+        | (FUZZ_dataProducer_int32Range(producer, 0, 1) ? HUF_flags_preferRepeat : 0)
+        | (FUZZ_dataProducer_int32Range(producer, 0, 1) ? HUF_flags_suspectUncompressible : 0)
+        | (FUZZ_dataProducer_int32Range(producer, 0, 1) ? HUF_flags_disableAsm : 0)
+        | (FUZZ_dataProducer_int32Range(producer, 0, 1) ? HUF_flags_disableFast : 0);
     /* Select a random cBufSize - it may be too small */
     size_t const cBufSize = FUZZ_dataProducer_uint32Range(producer, 0, 4 * size);
     /* Select a random tableLog - we'll adjust it up later */
@@ -83,9 +87,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     HUF_DTable* dt = (HUF_DTable*)FUZZ_malloc(HUF_DTABLE_SIZE(tableLog) * sizeof(HUF_DTable));
     dt[0] = tableLog * 0x01000001;
 
-    HUF_depth_mode depthMode = rand() & 1 ? HUF_depth_fast : HUF_depth_optimal;
-
-    tableLog = HUF_optimalTableLog(tableLog, size, maxSymbol, wksp, wkspSize, ct, count, depthMode);
+    tableLog = HUF_optimalTableLog(tableLog, size, maxSymbol, wksp, wkspSize, ct, count, flags);
     FUZZ_ASSERT(tableLog <= 12);
     tableLog = HUF_buildCTable_wksp(ct, count, maxSymbol, tableLog, wksp, wkspSize);
     FUZZ_ZASSERT(tableLog);
@@ -96,11 +98,11 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     }
     FUZZ_ZASSERT(tableSize);
     if (symbols == 0) {
-        FUZZ_ZASSERT(HUF_readDTableX1_wksp_bmi2(dt, cBuf, tableSize, wksp, wkspSize, bmi2));
+        FUZZ_ZASSERT(HUF_readDTableX1_wksp(dt, cBuf, tableSize, wksp, wkspSize, flags));
     } else {
-        size_t const ret = HUF_readDTableX2_wksp(dt, cBuf, tableSize, wksp, wkspSize);
+        size_t const ret = HUF_readDTableX2_wksp(dt, cBuf, tableSize, wksp, wkspSize, flags);
         if (ERR_getErrorCode(ret) == ZSTD_error_tableLog_tooLarge) {
-            FUZZ_ZASSERT(HUF_readDTableX1_wksp_bmi2(dt, cBuf, tableSize, wksp, wkspSize, bmi2));
+            FUZZ_ZASSERT(HUF_readDTableX1_wksp(dt, cBuf, tableSize, wksp, wkspSize, flags));
         } else {
             FUZZ_ZASSERT(ret);
         }
@@ -109,15 +111,15 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     size_t cSize;
     size_t rSize;
     if (streams == 0) {
-        cSize = HUF_compress1X_usingCTable_bmi2(cBuf, cBufSize, src, size, ct, bmi2);
+        cSize = HUF_compress1X_usingCTable(cBuf, cBufSize, src, size, ct, flags);
         FUZZ_ZASSERT(cSize);
         if (cSize != 0)
-            rSize = HUF_decompress1X_usingDTable_bmi2(rBuf, size, cBuf, cSize, dt, bmi2);
+            rSize = HUF_decompress1X_usingDTable(rBuf, size, cBuf, cSize, dt, flags);
     } else {
-        cSize = HUF_compress4X_usingCTable_bmi2(cBuf, cBufSize, src, size, ct, bmi2);
+        cSize = HUF_compress4X_usingCTable(cBuf, cBufSize, src, size, ct, flags);
         FUZZ_ZASSERT(cSize);
         if (cSize != 0)
-            rSize = HUF_decompress4X_usingDTable_bmi2(rBuf, size, cBuf, cSize, dt, bmi2);
+            rSize = HUF_decompress4X_usingDTable(rBuf, size, cBuf, cSize, dt, flags);
     }
     if (cSize != 0) {
         FUZZ_ZASSERT(rSize);

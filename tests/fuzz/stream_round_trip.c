@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -166,6 +166,24 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
         FUZZ_ZASSERT(rSize);
         FUZZ_ASSERT_MSG(rSize == size, "Incorrect regenerated size");
         FUZZ_ASSERT_MSG(!FUZZ_memcmp(src, rBuf, size), "Corruption!");
+
+        /* Test in-place decompression (note the macro doesn't work in this case) */
+        {
+            size_t const margin = ZSTD_decompressionMargin(cBuf, cSize);
+            size_t const outputSize = size + margin;
+            char* const output = (char*)FUZZ_malloc(outputSize);
+            char* const input = output + outputSize - cSize;
+            size_t dSize;
+            FUZZ_ASSERT(outputSize >= cSize);
+            memcpy(input, cBuf, cSize);
+
+            dSize = ZSTD_decompressDCtx(dctx, output, outputSize, input, cSize);
+            FUZZ_ZASSERT(dSize);
+            FUZZ_ASSERT_MSG(dSize == size, "Incorrect regenerated size");
+            FUZZ_ASSERT_MSG(!FUZZ_memcmp(src, output, size), "Corruption!");
+
+            free(output);
+        }
     }
 
     FUZZ_dataProducer_free(producer);

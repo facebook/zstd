@@ -8,7 +8,7 @@ Zstandard's format is stable and documented in [RFC8878](https://datatracker.iet
 This repository represents the reference implementation, provided as an open-source dual [BSD](LICENSE) and [GPLv2](COPYING) licensed **C** library,
 and a command line utility producing and decoding `.zst`, `.gz`, `.xz` and `.lz4` files.
 Should your project require another programming language,
-a list of known ports and bindings is provided on [Zstandard homepage](http://www.zstd.net/#other-languages).
+a list of known ports and bindings is provided on [Zstandard homepage](https://facebook.github.io/zstd/#other-languages).
 
 **Development branch status:**
 
@@ -39,7 +39,7 @@ compiled with [gcc] 9.3.0,
 on the [Silesia compression corpus].
 
 [lzbench]: https://github.com/inikep/lzbench
-[Silesia compression corpus]: http://sun.aei.polsl.pl/~sdeor/index.php?page=silesia
+[Silesia compression corpus]: https://sun.aei.polsl.pl//~sdeor/index.php?page=silesia
 [gcc]: https://gcc.gnu.org/
 
 | Compressor name         | Ratio | Compression| Decompress.|
@@ -56,8 +56,8 @@ on the [Silesia compression corpus].
 | lzf 3.6 -1              | 2.077 |   410 MB/s |   830 MB/s |
 | snappy 1.1.9            | 2.073 |   550 MB/s |  1750 MB/s |
 
-[zlib]: http://www.zlib.net/
-[lz4]: http://www.lz4.org/
+[zlib]: https://www.zlib.net/
+[lz4]: https://lz4.github.io/lz4/
 
 The negative compression levels, specified with `--fast=#`,
 offer faster compression and decompression speed
@@ -141,6 +141,10 @@ Other available options include:
 
 The `Makefile` follows the [GNU Standard Makefile conventions](https://www.gnu.org/prep/standards/html_node/Makefile-Conventions.html),
 allowing staged install, standard flags, directory variables and command variables.
+
+For advanced use cases, specialized compilation flags which control binary generation
+are documented in [`lib/README.md`](lib/README.md#modular-build) for the `libzstd` library
+and in [`programs/README.md`](programs/README.md#compilation-variables) for the `zstd` CLI.
 
 ### cmake
 

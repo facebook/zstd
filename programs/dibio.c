@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Yann Collet, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -274,21 +274,20 @@ static fileStats DiB_fileStats(const char** fileNamesTable, int nbFiles, size_t 
     int n;
     memset(&fs, 0, sizeof(fs));
 
-    // We assume that if chunking is requested, the chunk size is < SAMPLESIZE_MAX
+    /* We assume that if chunking is requested, the chunk size is < SAMPLESIZE_MAX */
     assert( chunkSize <= SAMPLESIZE_MAX );
 
     for (n=0; n<nbFiles; n++) {
       S64 const fileSize = DiB_getFileSize(fileNamesTable[n]);
-      // TODO: is there a minimum sample size? What if the file is 1-byte?
+      /* TODO: is there a minimum sample size? What if the file is 1-byte? */
       if (fileSize == 0) {
         DISPLAYLEVEL(3, "Sample file '%s' has zero size, skipping...\n", fileNamesTable[n]);
         continue;
       }
 
       /* the case where we are breaking up files in sample chunks */
-      if (chunkSize > 0)
-      {
-        // TODO: is there a minimum sample size? Can we have a 1-byte sample?
+      if (chunkSize > 0) {
+        /* TODO: is there a minimum sample size? Can we have a 1-byte sample? */
         fs.nbSamples += (int)((fileSize + chunkSize-1) / chunkSize);
         fs.totalSizeToLoad += fileSize;
       }

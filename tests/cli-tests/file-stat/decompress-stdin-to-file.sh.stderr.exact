@@ -1,0 +1,20 @@
+Trace:FileStat: > UTIL_isConsole(0)
+Trace:FileStat: < 0
+Trace:FileStat: > UTIL_isConsole(2)
+Trace:FileStat: < 0
+Trace:FileStat: > UTIL_isDirectory(/*stdin*\)
+Trace:FileStat:  > UTIL_stat(/*stdin*\)
+Trace:FileStat:  < 0
+Trace:FileStat: < 0
+Trace:FileStat: > UTIL_isSameFile(/*stdin*\, file)
+Trace:FileStat:  > UTIL_stat(/*stdin*\)
+Trace:FileStat:  < 0
+Trace:FileStat: < 0
+Trace:FileStat: > UTIL_isRegularFile(file)
+Trace:FileStat:  > UTIL_stat(file)
+Trace:FileStat:  < 0
+Trace:FileStat: < 0
+Trace:FileStat: > UTIL_isRegularFile(file)
+Trace:FileStat:  > UTIL_stat(file)
+Trace:FileStat:  < 1
+Trace:FileStat: < 1

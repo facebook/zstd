@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Yann Collet, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -173,7 +173,7 @@ static void POOL_join(POOL_ctx* ctx) {
     /* Join all of the threads */
     {   size_t i;
         for (i = 0; i < ctx->threadCapacity; ++i) {
-            ZSTD_pthread_join(ctx->threads[i], NULL);  /* note : could fail */
+            ZSTD_pthread_join(ctx->threads[i]);  /* note : could fail */
     }   }
 }
 
@@ -271,7 +271,9 @@ static int isQueueFull(POOL_ctx const* ctx) {
 static void
 POOL_add_internal(POOL_ctx* ctx, POOL_function function, void *opaque)
 {
-    POOL_job const job = {function, opaque};
+    POOL_job job;
+    job.function = function;
+    job.opaque = opaque;
     assert(ctx != NULL);
     if (ctx->shutdown) return;
 

@@ -1,9 +1,9 @@
 /*
  *  xxHash - Fast Hash algorithm
- *  Copyright (c) Yann Collet, Facebook, Inc.
+ *  Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  *  You can contact the author at :
- *  - xxHash homepage: http://www.xxhash.com
+ *  - xxHash homepage: https://cyan4973.github.io/xxHash/
  *  - xxHash source repository : https://github.com/Cyan4973/xxHash
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -1314,7 +1314,7 @@ XXH3_128bits_reset_withSecretandSeed(XXH3_state_t* statePtr,
  *   care, as what works on one compiler/platform/optimization level may cause
  *   another to read garbage data or even crash.
  *
- * See http://fastcompression.blogspot.com/2015/08/accessing-unaligned-memory.html for details.
+ * See https://fastcompression.blogspot.com/2015/08/accessing-unaligned-memory.html for details.
  *
  * Prefer these methods in priority order (0 > 3 > 1 > 2)
  */
@@ -1655,7 +1655,7 @@ static xxh_u32 XXH_read32(const void* ptr)
 
 /*
  * Portable and safe solution. Generally efficient.
- * see: http://fastcompression.blogspot.com/2015/08/accessing-unaligned-memory.html
+ * see: https://fastcompression.blogspot.com/2015/08/accessing-unaligned-memory.html
  */
 static xxh_u32 XXH_read32(const void* memPtr)
 {
@@ -2296,7 +2296,7 @@ static xxh_u64 XXH_read64(const void* ptr)
 
 /*
  * Portable and safe solution. Generally efficient.
- * see: http://fastcompression.blogspot.com/2015/08/accessing-unaligned-memory.html
+ * see: https://fastcompression.blogspot.com/2015/08/accessing-unaligned-memory.html
  */
 static xxh_u64 XXH_read64(const void* memPtr)
 {

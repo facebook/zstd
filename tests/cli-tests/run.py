@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # ################################################################
-# Copyright (c) Facebook, Inc.
+# Copyright (c) Meta Platforms, Inc. and affiliates.
 # All rights reserved.
 #
 # This source code is licensed under both the BSD-style license (found in the
@@ -209,6 +209,7 @@ class Options:
         preserve: bool,
         scratch_dir: str,
         test_dir: str,
+        set_exact_output: bool,
     ) -> None:
         self.env = env
         self.timeout = timeout
@@ -216,6 +217,7 @@ class Options:
         self.preserve = preserve
         self.scratch_dir = scratch_dir
         self.test_dir = test_dir
+        self.set_exact_output = set_exact_output
 
 
 class TestCase:
@@ -335,7 +337,7 @@ class TestCase:
             self._test_stdin.close()
             self._test_stdin = None
 
-    def _check_output_exact(self, out_name: str, expected: bytes) -> None:
+    def _check_output_exact(self, out_name: str, expected: bytes, exact_name: str) -> None:
         """
         Check the output named :out_name: for an exact match against the :expected: content.
         Saves the success and message.
@@ -348,6 +350,10 @@ class TestCase:
         else:
             self._success[check_name] = False
             self._message[check_name] = f"{out_name} does not match!\n> diff expected actual\n{diff(expected, actual)}"
+
+            if self._opts.set_exact_output:
+                with open(exact_name, "wb") as f:
+                    f.write(actual)
 
     def _check_output_glob(self, out_name: str, expected: bytes) -> None:
         """
@@ -386,15 +392,13 @@ class TestCase:
         ignore_name = f"{self._test_file}.{out_name}.ignore"
 
         if os.path.exists(exact_name):
-            return self._check_output_exact(out_name, read_file(exact_name))
+            return self._check_output_exact(out_name, read_file(exact_name), exact_name)
         elif os.path.exists(glob_name):
             return self._check_output_glob(out_name, read_file(glob_name))
-        elif os.path.exists(ignore_name):
+        else:
             check_name = f"check_{out_name}"
             self._success[check_name] = True
             self._message[check_name] = f"{out_name} ignored!"
-        else:
-            return self._check_output_exact(out_name, bytes())
 
     def _check_stderr(self) -> None:
         """Checks the stderr output against the expectation."""
@@ -679,6 +683,11 @@ if __name__ == "__main__":
         )
     )
     parser.add_argument(
+        "--set-exact-output",
+        action="store_true",
+        help="Set stderr.exact and stdout.exact for all failing tests, unless .ignore or .glob already exists"
+    )
+    parser.add_argument(
         "tests",
         nargs="*",
         help="Run only these test cases. Can either be paths or test names relative to TEST_DIR/"
@@ -714,6 +723,7 @@ if __name__ == "__main__":
         preserve=args.preserve,
         test_dir=args.test_dir,
         scratch_dir=scratch_dir,
+        set_exact_output=args.set_exact_output,
     )
 
     if len(args.tests) == 0:
@@ -726,4 +736,3 @@ if __name__ == "__main__":
         sys.exit(0)
     else:
         sys.exit(1)
-

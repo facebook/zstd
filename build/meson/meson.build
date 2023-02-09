@@ -26,7 +26,7 @@ project('zstd',
   version: run_command(
     find_program('GetZstdLibraryVersion.py'), '../../lib/zstd.h',
     check: true).stdout().strip(),
-  meson_version: '>=0.48.0')
+  meson_version: '>=0.50.0')
 
 cc = meson.get_compiler('c')
 cxx = meson.get_compiler('cpp')
@@ -104,8 +104,10 @@ use_lz4 = lz4_dep.found()
 
 add_project_arguments('-DXXH_NAMESPACE=ZSTD_', language: ['c'])
 
+pzstd_warning_flags = []
 if [compiler_gcc, compiler_clang].contains(cc_id)
   common_warning_flags = [ '-Wundef', '-Wshadow', '-Wcast-align', '-Wcast-qual' ]
+  pzstd_warning_flags = ['-Wno-shadow', '-Wno-deprecated-declarations']
   if cc_id == compiler_clang
     common_warning_flags += ['-Wconversion', '-Wno-sign-conversion', '-Wdocumentation']
   endif

@@ -276,7 +276,7 @@ compression speed (for lower levels) with minimal change in compression ratio.
 
 The below table illustrates this on the [Silesia compression corpus].
 
-[Silesia compression corpus]: http://sun.aei.polsl.pl/~sdeor/index.php?page=silesia
+[Silesia compression corpus]: https://sun.aei.polsl.pl//~sdeor/index.php?page=silesia
 
 | Method | Compression ratio | Compression speed | Decompression speed  |
 |:-------|------------------:|------------------:|---------------------:|

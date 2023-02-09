@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Yann Collet, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -54,8 +54,6 @@ ZSTD_compressSubBlock_literal(const HUF_CElt* hufTable,
     symbolEncodingType_e hType = writeEntropy ? hufMetadata->hType : set_repeat;
     size_t cLitSize = 0;
 
-    (void)bmi2; /* TODO bmi2... */
-
     DEBUGLOG(5, "ZSTD_compressSubBlock_literal (litSize=%zu, lhSize=%zu, writeEntropy=%d)", litSize, lhSize, writeEntropy);
 
     *entropyWritten = 0;
@@ -77,9 +75,9 @@ ZSTD_compressSubBlock_literal(const HUF_CElt* hufTable,
         DEBUGLOG(5, "ZSTD_compressSubBlock_literal (hSize=%zu)", hufMetadata->hufDesSize);
     }
 
-    /* TODO bmi2 */
-    {   const size_t cSize = singleStream ? HUF_compress1X_usingCTable(op, oend-op, literals, litSize, hufTable)
-                                          : HUF_compress4X_usingCTable(op, oend-op, literals, litSize, hufTable);
+    {   int const flags = bmi2 ? HUF_flags_bmi2 : 0;
+        const size_t cSize = singleStream ? HUF_compress1X_usingCTable(op, oend-op, literals, litSize, hufTable, flags)
+                                          : HUF_compress4X_usingCTable(op, oend-op, literals, litSize, hufTable, flags);
         op += cSize;
         cLitSize += cSize;
         if (cSize == 0 || ERR_isError(cSize)) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -30,14 +30,14 @@
  * TODO: Support Windows calling convention.
  */
 
-ZSTD_HIDE_ASM_FUNCTION(HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop)
-ZSTD_HIDE_ASM_FUNCTION(HUF_decompress4X2_usingDTable_internal_bmi2_asm_loop)
-ZSTD_HIDE_ASM_FUNCTION(_HUF_decompress4X2_usingDTable_internal_bmi2_asm_loop)
-ZSTD_HIDE_ASM_FUNCTION(_HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop)
-.global HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop
-.global HUF_decompress4X2_usingDTable_internal_bmi2_asm_loop
-.global _HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop
-.global _HUF_decompress4X2_usingDTable_internal_bmi2_asm_loop
+ZSTD_HIDE_ASM_FUNCTION(HUF_decompress4X1_usingDTable_internal_fast_asm_loop)
+ZSTD_HIDE_ASM_FUNCTION(HUF_decompress4X2_usingDTable_internal_fast_asm_loop)
+ZSTD_HIDE_ASM_FUNCTION(_HUF_decompress4X2_usingDTable_internal_fast_asm_loop)
+ZSTD_HIDE_ASM_FUNCTION(_HUF_decompress4X1_usingDTable_internal_fast_asm_loop)
+.global HUF_decompress4X1_usingDTable_internal_fast_asm_loop
+.global HUF_decompress4X2_usingDTable_internal_fast_asm_loop
+.global _HUF_decompress4X1_usingDTable_internal_fast_asm_loop
+.global _HUF_decompress4X2_usingDTable_internal_fast_asm_loop
 .text
 
 /* Sets up register mappings for clarity.
@@ -95,8 +95,9 @@ ZSTD_HIDE_ASM_FUNCTION(_HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop)
 /* Define both _HUF_* & HUF_* symbols because MacOS
  * C symbols are prefixed with '_' & Linux symbols aren't.
  */
-_HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop:
-HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop:
+_HUF_decompress4X1_usingDTable_internal_fast_asm_loop:
+HUF_decompress4X1_usingDTable_internal_fast_asm_loop:
+    ZSTD_CET_ENDBRANCH
     /* Save all registers - even if they are callee saved for simplicity. */
     push %rax
     push %rbx
@@ -350,8 +351,9 @@ HUF_decompress4X1_usingDTable_internal_bmi2_asm_loop:
     pop %rax
     ret
 
-_HUF_decompress4X2_usingDTable_internal_bmi2_asm_loop:
-HUF_decompress4X2_usingDTable_internal_bmi2_asm_loop:
+_HUF_decompress4X2_usingDTable_internal_fast_asm_loop:
+HUF_decompress4X2_usingDTable_internal_fast_asm_loop:
+    ZSTD_CET_ENDBRANCH
     /* Save all registers - even if they are callee saved for simplicity. */
     push %rax
     push %rbx

@@ -161,6 +161,13 @@ The file structure is designed to make this selection manually achievable for an
   `ZSTD_DCtx` decompression contexts,
   but might also result in a small decompression speed cost.
 
+- The C compiler macros `ZSTDLIB_VISIBLE`, `ZSTDERRORLIB_VISIBLE` and `ZDICTLIB_VISIBLE`
+  can be overridden to control the visibility of zstd's API. Additionally,
+  `ZSTDLIB_STATIC_API` and `ZDICTLIB_STATIC_API` can be overridden to control the visibility
+  of zstd's static API. Specifically, it can be set to `ZSTDLIB_HIDDEN` to hide the symbols
+  from the shared library. These macros default to `ZSTDLIB_VISIBILITY`,
+  `ZSTDERRORLIB_VSIBILITY`, and `ZDICTLIB_VISIBILITY` if unset, for backwards compatibility
+  with the old macro names.
 
 #### Windows : using MinGW+MSYS to create DLL
 

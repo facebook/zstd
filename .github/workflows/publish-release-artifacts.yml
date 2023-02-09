@@ -5,8 +5,7 @@ on:
     types:
       - published
 
-permissions:
-  contents: read
+permissions: read-all
 
 jobs:
   publish-release-artifacts:

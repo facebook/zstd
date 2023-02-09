@@ -384,7 +384,7 @@ size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);  </b>/* accept NULL pointer */<b>
      * ZSTD_c_useBlockSplitter
      * ZSTD_c_useRowMatchFinder
      * ZSTD_c_prefetchCDictTables
-     * ZSTD_c_enableMatchFinderFallback
+     * ZSTD_c_enableSeqProducerFallback
      * ZSTD_c_maxBlockSize
      * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
      * note : never ever use experimentalParam? names directly;
@@ -407,7 +407,8 @@ size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);  </b>/* accept NULL pointer */<b>
      ZSTD_c_experimentalParam15=1012,
      ZSTD_c_experimentalParam16=1013,
      ZSTD_c_experimentalParam17=1014,
-     ZSTD_c_experimentalParam18=1015
+     ZSTD_c_experimentalParam18=1015,
+     ZSTD_c_experimentalParam19=1016
 } ZSTD_cParameter;
 </b></pre><BR>
 <pre><b>typedef struct {
@@ -470,7 +471,7 @@ size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);  </b>/* accept NULL pointer */<b>
                   They will be used to compress next frame.
                   Resetting session never fails.
   - The parameters : changes all parameters back to "default".
-                  This also removes any reference to any dictionary or external matchfinder.
+                  This also removes any reference to any dictionary or external sequence producer.
                   Parameters can only be changed between 2 sessions (i.e. no compression is currently ongoing)
                   otherwise the reset fails, and function returns an error value (which can be tested using ZSTD_isError())
   - Both : similar to resetting the session, followed by resetting parameters.
@@ -1377,8 +1378,8 @@ ZSTDLIB_STATIC_API size_t ZSTD_estimateDCtxSize(void);
   Note : only single-threaded compression is supported.
   ZSTD_estimateCCtxSize_usingCCtxParams() will return an error code if ZSTD_c_nbWorkers is >= 1.
 
-  Note 2 : ZSTD_estimateCCtxSize* functions are not compatible with the external matchfinder API at this time.
-  Size estimates assume that no external matchfinder is registered.
+  Note 2 : ZSTD_estimateCCtxSize* functions are not compatible with the Block-Level Sequence Producer API at this time.
+  Size estimates assume that no external sequence producer is registered.
  
 </p></pre><BR>
 
@@ -1401,8 +1402,8 @@ ZSTDLIB_STATIC_API size_t ZSTD_estimateDStreamSize_fromFrame(const void* src, si
          In this case, get total size by adding ZSTD_estimate?DictSize
   Note 2 : only single-threaded compression is supported.
   ZSTD_estimateCStreamSize_usingCCtxParams() will return an error code if ZSTD_c_nbWorkers is >= 1.
-  Note 3 : ZSTD_estimateCStreamSize* functions are not compatible with the external matchfinder API at this time.
-  Size estimates assume that no external matchfinder is registered.
+  Note 3 : ZSTD_estimateCStreamSize* functions are not compatible with the Block-Level Sequence Producer API at this time.
+  Size estimates assume that no external sequence producer is registered.
  
 </p></pre><BR>
 
@@ -2051,31 +2052,29 @@ ZSTDLIB_STATIC_API size_t ZSTD_decompressBlock(ZSTD_DCtx* dctx, void* dst, size_
 ZSTDLIB_STATIC_API size_t ZSTD_insertBlock    (ZSTD_DCtx* dctx, const void* blockStart, size_t blockSize);  </b>/**< insert uncompressed block into `dctx` history. Useful for multi-blocks decompression. */<b>
 </pre></b><BR>
 <pre><b>ZSTDLIB_STATIC_API void
-ZSTD_registerExternalMatchFinder(
+ZSTD_registerSequenceProducer(
   ZSTD_CCtx* cctx,
-  void* externalMatchState,
-  ZSTD_externalMatchFinder_F* externalMatchFinder
+  void* sequenceProducerState,
+  ZSTD_sequenceProducer_F* sequenceProducer
 );
-</b><p> Instruct zstd to use an external matchfinder function.
+</b><p> Instruct zstd to use a block-level external sequence producer function.
 
- The externalMatchState must be initialized by the caller, and the caller is
+ The sequenceProducerState must be initialized by the caller, and the caller is
  responsible for managing its lifetime. This parameter is sticky across
  compressions. It will remain set until the user explicitly resets compression
  parameters.
 
- External matchfinder registration is considered to be an "advanced parameter",
- part of the "advanced API". This means it will only have an effect on
- compression APIs which respect advanced parameters, such as compress2() and
- compressStream(). Older compression APIs such as compressCCtx(), which predate
- the introduction of "advanced parameters", will ignore any external matchfinder
- setting.
+ Sequence producer registration is considered to be an "advanced parameter",
+ part of the "advanced API". This means it will only have an effect on compression
+ APIs which respect advanced parameters, such as compress2() and compressStream2().
+ Older compression APIs such as compressCCtx(), which predate the introduction of
+ "advanced parameters", will ignore any external sequence producer setting.
 
- The external matchfinder can be "cleared" by registering a NULL external
- matchfinder function pointer. This removes all limitations described above in
- the "LIMITATIONS" section of the API docs.
+ The sequence producer can be "cleared" by registering a NULL function pointer. This
+ removes all limitations described above in the "LIMITATIONS" section of the API docs.
 
- The user is strongly encouraged to read the full API documentation (above)
- before calling this function. 
+ The user is strongly encouraged to read the full API documentation (above) before
+ calling this function. 
 </p></pre><BR>
 
 </html>

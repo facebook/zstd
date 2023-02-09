@@ -3034,14 +3034,14 @@ static size_t ZSTD_postProcessSequenceProducerResult(
     RETURN_ERROR_IF(
         nbExternalSeqs > outSeqsCapacity,
         sequenceProducer_failed,
-        "External matchfinder returned error code %lu",
+        "External sequence producer returned error code %lu",
         (unsigned long)nbExternalSeqs
     );
 
     RETURN_ERROR_IF(
         nbExternalSeqs == 0 && srcSize > 0,
         sequenceProducer_failed,
-        "External matchfinder produced zero sequences for a non-empty src buffer!"
+        "Got zero sequences from external sequence producer for a non-empty src buffer!"
     );
 
     if (srcSize == 0) {
@@ -3141,7 +3141,7 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
             RETURN_ERROR_IF(
                 zc->appliedParams.useSequenceProducer,
                 parameter_combination_unsupported,
-                "Long-distance matching with external matchfinder enabled is not currently supported."
+                "Long-distance matching with external sequence producer enabled is not currently supported."
             );
 
             /* Updates ldmSeqStore.pos */
@@ -3160,7 +3160,7 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
             RETURN_ERROR_IF(
                 zc->appliedParams.useSequenceProducer,
                 parameter_combination_unsupported,
-                "Long-distance matching with external matchfinder enabled is not currently supported."
+                "Long-distance matching with external sequence producer enabled is not currently supported."
             );
 
             ldmSeqStore.seq = zc->ldmSequences;
@@ -3217,7 +3217,7 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
                         "Failed to copy external sequences to seqStore!"
                     );
                     ms->ldmSeqStore = NULL;
-                    DEBUGLOG(5, "Copied %lu sequences from external matchfinder to internal seqStore.", (unsigned long)nbExternalSeqs);
+                    DEBUGLOG(5, "Copied %lu sequences from external sequence producer to internal seqStore.", (unsigned long)nbExternalSeqs);
                     return ZSTDbss_compress;
                 }
 
@@ -3233,7 +3233,7 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
                     ms->ldmSeqStore = NULL;
                     DEBUGLOG(
                         5,
-                        "External matchfinder returned error code %lu. Falling back to internal matchfinder.",
+                        "External sequence producer returned error code %lu. Falling back to internal parser.",
                         (unsigned long)nbExternalSeqs
                     );
                     lastLLSize = blockCompressor(ms, &zc->seqStore, zc->blockState.nextCBlock->rep, src, srcSize);
@@ -6035,7 +6035,7 @@ static size_t ZSTD_CCtx_init_compressStream2(ZSTD_CCtx* cctx,
     RETURN_ERROR_IF(
         params.useSequenceProducer == 1 && params.nbWorkers >= 1,
         parameter_combination_unsupported,
-        "External matchfinder isn't supported with nbWorkers >= 1"
+        "External sequence producer isn't supported with nbWorkers >= 1"
     );
 
     if ((cctx->pledgedSrcSizePlusOne-1) <= ZSTDMT_JOBSIZE_MIN) {

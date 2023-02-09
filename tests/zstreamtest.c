@@ -40,7 +40,7 @@
 #include "seqgen.h"
 #include "util.h"
 #include "timefn.h"       /* UTIL_time_t, UTIL_clockSpanMicro, UTIL_getTime */
-#include "external_matchfinder.h"   /* zstreamExternalMatchFinder, EMF_testCase */
+#include "external_matchfinder.h"   /* zstreamSequenceProducer, EMF_testCase */
 
 /*-************************************
  *  Constants
@@ -1856,14 +1856,14 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
     }
     DISPLAYLEVEL(3, "OK \n");
 
-    DISPLAYLEVEL(3, "test%3i : External matchfinder API: ", testNb++);
+    DISPLAYLEVEL(3, "test%3i : Block-Level External Sequence Producer API: ", testNb++);
     {
         size_t const dstBufSize = ZSTD_compressBound(CNBufferSize);
         BYTE* const dstBuf = (BYTE*)malloc(ZSTD_compressBound(dstBufSize));
         size_t const checkBufSize = CNBufferSize;
         BYTE* const checkBuf = (BYTE*)malloc(checkBufSize);
         int enableFallback;
-        EMF_testCase externalMatchState;
+        EMF_testCase sequenceProducerState;
 
         CHECK(dstBuf == NULL || checkBuf == NULL, "allocation failed");
 
@@ -1871,7 +1871,7 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
 
         /* Reference external matchfinder outside the test loop to
          * check that the reference is preserved across compressions */
-        ZSTD_registerExternalMatchFinder(zc, &externalMatchState, zstreamExternalMatchFinder);
+        ZSTD_registerSequenceProducer(zc, &sequenceProducerState, zstreamSequenceProducer);
 
         for (enableFallback = 0; enableFallback <= 1; enableFallback++) {
             size_t testCaseId;
@@ -1892,9 +1892,9 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
             ZSTD_ErrorCode const errorCodes[] = {
                 ZSTD_error_no_error,
                 ZSTD_error_no_error,
-                ZSTD_error_externalMatchFinder_failed,
-                ZSTD_error_externalMatchFinder_failed,
-                ZSTD_error_externalMatchFinder_failed,
+                ZSTD_error_sequenceProducer_failed,
+                ZSTD_error_sequenceProducer_failed,
+                ZSTD_error_sequenceProducer_failed,
                 ZSTD_error_externalSequences_invalid,
                 ZSTD_error_externalSequences_invalid,
                 ZSTD_error_externalSequences_invalid,
@@ -1906,18 +1906,18 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
 
                 int const compressionShouldSucceed = (
                     (errorCodes[testCaseId] == ZSTD_error_no_error) ||
-                    (enableFallback && errorCodes[testCaseId] == ZSTD_error_externalMatchFinder_failed)
+                    (enableFallback && errorCodes[testCaseId] == ZSTD_error_sequenceProducer_failed)
                 );
 
                 int const testWithSequenceValidation = (
                     testCases[testCaseId] == EMF_INVALID_OFFSET
                 );
 
-                externalMatchState = testCases[testCaseId];
+                sequenceProducerState = testCases[testCaseId];
 
                 ZSTD_CCtx_reset(zc, ZSTD_reset_session_only);
                 CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_validateSequences, testWithSequenceValidation));
-                CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_enableMatchFinderFallback, enableFallback));
+                CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_enableSeqProducerFallback, enableFallback));
                 res = ZSTD_compress2(zc, dstBuf, dstBufSize, CNBuffer, CNBufferSize);
 
                 if (compressionShouldSucceed) {
@@ -1936,9 +1936,9 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
             /* Test compression with external matchfinder + empty src buffer */
             {
                 size_t res;
-                externalMatchState = EMF_ZERO_SEQS;
+                sequenceProducerState = EMF_ZERO_SEQS;
                 ZSTD_CCtx_reset(zc, ZSTD_reset_session_only);
-                CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_enableMatchFinderFallback, enableFallback));
+                CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_enableSeqProducerFallback, enableFallback));
                 res = ZSTD_compress2(zc, dstBuf, dstBufSize, CNBuffer, 0);
                 CHECK(ZSTD_isError(res), "EMF: Compression error: %s", ZSTD_getErrorName(res));
                 CHECK(ZSTD_decompress(checkBuf, checkBufSize, dstBuf, res) != 0, "EMF: Empty src round trip failed!");
@@ -1947,30 +1947,30 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
 
         /* Test that reset clears the external matchfinder */
         CHECK_Z(ZSTD_CCtx_reset(zc, ZSTD_reset_session_and_parameters));
-        externalMatchState = EMF_BIG_ERROR; /* ensure zstd will fail if the matchfinder wasn't cleared */
-        CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_enableMatchFinderFallback, 0));
+        sequenceProducerState = EMF_BIG_ERROR; /* ensure zstd will fail if the matchfinder wasn't cleared */
+        CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_enableSeqProducerFallback, 0));
         CHECK_Z(ZSTD_compress2(zc, dstBuf, dstBufSize, CNBuffer, CNBufferSize));
 
         /* Test that registering mFinder == NULL clears the external matchfinder */
         ZSTD_CCtx_reset(zc, ZSTD_reset_session_and_parameters);
-        ZSTD_registerExternalMatchFinder(zc, &externalMatchState, zstreamExternalMatchFinder);
-        externalMatchState = EMF_BIG_ERROR; /* ensure zstd will fail if the matchfinder wasn't cleared */
-        CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_enableMatchFinderFallback, 0));
-        ZSTD_registerExternalMatchFinder(zc, NULL, NULL); /* clear the external matchfinder */
+        ZSTD_registerSequenceProducer(zc, &sequenceProducerState, zstreamSequenceProducer);
+        sequenceProducerState = EMF_BIG_ERROR; /* ensure zstd will fail if the matchfinder wasn't cleared */
+        CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_enableSeqProducerFallback, 0));
+        ZSTD_registerSequenceProducer(zc, NULL, NULL); /* clear the external matchfinder */
         CHECK_Z(ZSTD_compress2(zc, dstBuf, dstBufSize, CNBuffer, CNBufferSize));
 
         /* Test that external matchfinder doesn't interact with older APIs */
         ZSTD_CCtx_reset(zc, ZSTD_reset_session_and_parameters);
-        ZSTD_registerExternalMatchFinder(zc, &externalMatchState, zstreamExternalMatchFinder);
-        externalMatchState = EMF_BIG_ERROR; /* ensure zstd will fail if the matchfinder is used */
-        CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_enableMatchFinderFallback, 0));
+        ZSTD_registerSequenceProducer(zc, &sequenceProducerState, zstreamSequenceProducer);
+        sequenceProducerState = EMF_BIG_ERROR; /* ensure zstd will fail if the matchfinder is used */
+        CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_enableSeqProducerFallback, 0));
         CHECK_Z(ZSTD_compressCCtx(zc, dstBuf, dstBufSize, CNBuffer, CNBufferSize, 3));
 
         /* Test that compression returns the correct error with LDM */
         CHECK_Z(ZSTD_CCtx_reset(zc, ZSTD_reset_session_and_parameters));
         {
             size_t res;
-            ZSTD_registerExternalMatchFinder(zc, &externalMatchState, zstreamExternalMatchFinder);
+            ZSTD_registerSequenceProducer(zc, &sequenceProducerState, zstreamSequenceProducer);
             CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_enableLongDistanceMatching, ZSTD_ps_enable));
             res = ZSTD_compress2(zc, dstBuf, dstBufSize, CNBuffer, CNBufferSize);
             CHECK(!ZSTD_isError(res), "EMF: Should have raised an error!");
@@ -1985,7 +1985,7 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
         CHECK_Z(ZSTD_CCtx_reset(zc, ZSTD_reset_session_and_parameters));
         {
             size_t res;
-            ZSTD_registerExternalMatchFinder(zc, &externalMatchState, zstreamExternalMatchFinder);
+            ZSTD_registerSequenceProducer(zc, &sequenceProducerState, zstreamSequenceProducer);
             CHECK_Z(ZSTD_CCtx_setParameter(zc, ZSTD_c_nbWorkers, 1));
             res = ZSTD_compress2(zc, dstBuf, dstBufSize, CNBuffer, CNBufferSize);
             CHECK(!ZSTD_isError(res), "EMF: Should have raised an error!");

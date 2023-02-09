@@ -17,8 +17,8 @@ static U32 const HLOG = 10;
 static U32 const MLS = 4;
 static U32 const BADIDX = 0xffffffff;
 
-static size_t simpleExternalMatchFinder(
-  void* externalMatchState,
+static size_t simpleSequenceProducer(
+  void* sequenceProducerState,
   ZSTD_Sequence* outSeqs, size_t outSeqsCapacity,
   const void* src, size_t srcSize,
   const void* dict, size_t dictSize,
@@ -32,7 +32,7 @@ static size_t simpleExternalMatchFinder(
     size_t seqCount = 0;
     U32 hashTable[HSIZE];
 
-    (void)externalMatchState;
+    (void)sequenceProducerState;
     (void)dict;
     (void)dictSize;
     (void)outSeqsCapacity;
@@ -80,15 +80,15 @@ static size_t simpleExternalMatchFinder(
     return seqCount;
 }
 
-size_t zstreamExternalMatchFinder(
-  void* externalMatchState,
+size_t zstreamSequenceProducer(
+  void* sequenceProducerState,
   ZSTD_Sequence* outSeqs, size_t outSeqsCapacity,
   const void* src, size_t srcSize,
   const void* dict, size_t dictSize,
   int compressionLevel,
   size_t windowSize
 ) {
-    EMF_testCase const testCase = *((EMF_testCase*)externalMatchState);
+    EMF_testCase const testCase = *((EMF_testCase*)sequenceProducerState);
     memset(outSeqs, 0, outSeqsCapacity);
 
     switch (testCase) {
@@ -100,8 +100,8 @@ size_t zstreamExternalMatchFinder(
             outSeqs[0].litLength = (U32)(srcSize);
             return 1;
          case EMF_LOTS_OF_SEQS:
-            return simpleExternalMatchFinder(
-                externalMatchState,
+            return simpleSequenceProducer(
+                sequenceProducerState,
                 outSeqs, outSeqsCapacity,
                 src, srcSize,
                 dict, dictSize,
@@ -135,6 +135,6 @@ size_t zstreamExternalMatchFinder(
             return outSeqsCapacity + 1;
         case EMF_BIG_ERROR:
         default:
-            return ZSTD_EXTERNAL_MATCHFINDER_ERROR;
+            return ZSTD_SEQUENCE_PRODUCER_ERROR;
     }
 }

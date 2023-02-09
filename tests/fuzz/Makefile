@@ -35,8 +35,8 @@ PRGDIR = ../../programs
 CONTRIBDIR = ../../contrib
 
 # TODO(embg) make it possible to plug in an arbitrary matchfinder as a .o file
-MATCHFINDER_DIR = $(CONTRIBDIR)/externalMatchfinder
-MATCHFINDER_SRC = $(MATCHFINDER_DIR)/matchfinder.c
+MATCHFINDER_DIR = $(CONTRIBDIR)/externalSequenceProducer
+MATCHFINDER_SRC = $(MATCHFINDER_DIR)/sequence_producer.c
 
 FUZZ_CPPFLAGS := -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(ZSTDDIR)/compress \
 	-I$(ZSTDDIR)/dictBuilder -I$(ZSTDDIR)/deprecated -I$(ZSTDDIR)/legacy \

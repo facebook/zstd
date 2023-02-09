@@ -353,8 +353,8 @@ struct ZSTD_CCtx_params_s {
 
     /* Indicates whether an external matchfinder has been referenced.
      * Users can't set this externally.
-     * It is set internally in ZSTD_registerExternalMatchFinder(). */
-    int useExternalMatchFinder;
+     * It is set internally in ZSTD_registerSequenceProducer(). */
+    int useSequenceProducer;
 
     /* Adjust the max block size*/
     size_t maxBlockSize;
@@ -395,7 +395,7 @@ typedef struct {
 /* Context for block-level external matchfinder API */
 typedef struct {
   void* mState;
-  ZSTD_externalMatchFinder_F* mFinder;
+  ZSTD_sequenceProducer_F* mFinder;
   ZSTD_Sequence* seqBuffer;
   size_t seqBufferCapacity;
 } ZSTD_externalMatchCtx;

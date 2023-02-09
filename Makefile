@@ -123,7 +123,7 @@ contrib: lib
 	$(MAKE) -C contrib/seekable_format/examples all
 	$(MAKE) -C contrib/seekable_format/tests test
 	$(MAKE) -C contrib/largeNbDicts all
-	$(MAKE) -C contrib/externalMatchfinder all
+	$(MAKE) -C contrib/externalSequenceProducer all
 	cd build/single_file_libs/ ; ./build_decoder_test.sh
 	cd build/single_file_libs/ ; ./build_library_test.sh
 
@@ -143,7 +143,7 @@ clean:
 	$(Q)$(MAKE) -C contrib/seekable_format/examples $@ > $(VOID)
 	$(Q)$(MAKE) -C contrib/seekable_format/tests $@ > $(VOID)
 	$(Q)$(MAKE) -C contrib/largeNbDicts $@ > $(VOID)
-	$(Q)$(MAKE) -C contrib/externalMatchfinder $@ > $(VOID)
+	$(Q)$(MAKE) -C contrib/externalSequenceProducer $@ > $(VOID)
 	$(Q)$(RM) zstd$(EXT) zstdmt$(EXT) tmp*
 	$(Q)$(RM) -r lz4
 	@echo Cleaning completed

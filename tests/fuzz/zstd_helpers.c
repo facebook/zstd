@@ -17,7 +17,7 @@
 #include "fuzz_helpers.h"
 #include "zstd.h"
 #include "zdict.h"
-#include "matchfinder.h"
+#include "sequence_producer.h"
 
 const int kMinClevel = -3;
 const int kMaxClevel = 19;
@@ -71,13 +71,13 @@ ZSTD_parameters FUZZ_randomParams(size_t srcSize, FUZZ_dataProducer_t *producer)
     return params;
 }
 
-static void setExternalMatchFinderParams(ZSTD_CCtx *cctx, FUZZ_dataProducer_t *producer) {
-    ZSTD_registerExternalMatchFinder(
+static void setSequenceProducerParams(ZSTD_CCtx *cctx, FUZZ_dataProducer_t *producer) {
+    ZSTD_registerSequenceProducer(
         cctx,
         NULL,
-        simpleExternalMatchFinder
+        simpleSequenceProducer
     );
-    setRand(cctx, ZSTD_c_enableMatchFinderFallback, 0, 1, producer);
+    setRand(cctx, ZSTD_c_enableSeqProducerFallback, 0, 1, producer);
     FUZZ_ZASSERT(ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 0));
     FUZZ_ZASSERT(ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, ZSTD_ps_disable));
 }
@@ -138,9 +138,9 @@ void FUZZ_setRandomParameters(ZSTD_CCtx *cctx, size_t srcSize, FUZZ_dataProducer
     }
 
     if (FUZZ_dataProducer_uint32Range(producer, 0, 10) == 1) {
-        setExternalMatchFinderParams(cctx, producer);
+        setSequenceProducerParams(cctx, producer);
     } else {
-        ZSTD_registerExternalMatchFinder(cctx, NULL, NULL);
+        ZSTD_registerSequenceProducer(cctx, NULL, NULL);
     }
 }
 

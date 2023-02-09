@@ -2870,10 +2870,12 @@ ZSTDLIB_STATIC_API size_t ZSTD_insertBlock    (ZSTD_DCtx* dctx, const void* bloc
  * occur if the parse is not valid. A parse is defined to be valid if the
  * following conditions hold:
  *   - The sum of matchLengths and literalLengths is equal to srcSize.
- *   - All sequences in the parse have matchLength != 0, except for the final
- *     sequence. matchLength is not constrained for the final sequence.
+ *   - All sequences in the parse, except for the final sequence, must have
+ *     matchLength >= ZSTD_MINMATCH_MIN. The final sequence must have
+ *     matchLength >= ZSTD_MINMATCH_MIN or matchLength == 0.
  *   - All offsets respect the windowSize parameter as specified in
  *     doc/zstd_compression_format.md.
+ *   - If the final sequence has matchLength == 0, it must also have offset == 0.
  *
  * zstd will only validate these conditions (and fail compression if they do not
  * hold) if the ZSTD_c_validateSequences cParam is enabled. Note that sequence

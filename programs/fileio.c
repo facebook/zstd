@@ -716,7 +716,7 @@ static size_t FIO_createDictBuffer(void** bufferPtr, const char* fileName, FIO_p
     return (size_t)fileSize;
 }
 
-/*! FIO_createDictBuffer() :
+/*! FIO_createDictBufferMMap() :
  *  creates a buffer, pointed by `*bufferPtr` using mmap,
  *  loads entire `filename` content into it.
  * @return : loaded size

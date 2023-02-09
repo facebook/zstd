@@ -191,13 +191,15 @@ The output binary will be in `buck-out/gen/programs/`.
 
 ## Testing
 
-You can run quick local smoke tests by executing the `playTest.sh` script from the `src/tests` directory.
-Two env variables `$ZSTD_BIN` and `$DATAGEN_BIN` are needed for the test script to locate the zstd and datagen binary.
-For information on CI testing, please refer to TESTING.md
+You can run quick local smoke tests by running `make check`.
+If you can't use `make`, execute the `playTest.sh` script from the `src/tests` directory.
+Two env variables `$ZSTD_BIN` and `$DATAGEN_BIN` are needed for the test script to locate the `zstd` and `datagen` binary.
+For information on CI testing, please refer to `TESTING.md`.
 
 ## Status
 
-Zstandard is currently deployed within Facebook. It is used continuously to compress large amounts of data in multiple formats and use cases.
+Zstandard is currently deployed within Facebook and many other large cloud infrastructures.
+It is run continuously to compress large amounts of data in multiple formats and use cases.
 Zstandard is considered safe for production environments.
 
 ## License

@@ -24,6 +24,8 @@
 #include "mem.h"
 #include "debug.h"                 /* assert, DEBUGLOG, RAWLOG, g_debuglevel */
 #include "error_private.h"
+#define ZSTD_DEPS_NEED_MALLOC
+#include "zstd_deps.h"   /* ZSTD_malloc, ZSTD_calloc, ZSTD_free, ZSTD_memset */
 #define ZSTD_STATIC_LINKING_ONLY
 #include "../zstd.h"
 #define FSE_STATIC_LINKING_ONLY
@@ -351,9 +353,34 @@ const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx);   /* compress & dictBu
 int ZSTD_seqToCodes(const seqStore_t* seqStorePtr);   /* compress, dictBuilder, decodeCorpus (shouldn't get its definition from here) */
 
 /* custom memory allocation functions */
-void* ZSTD_customMalloc(size_t size, ZSTD_customMem customMem);
-void* ZSTD_customCalloc(size_t size, ZSTD_customMem customMem);
-void ZSTD_customFree(void* ptr, ZSTD_customMem customMem);
+MEM_STATIC void* ZSTD_customMalloc(size_t size, ZSTD_customMem customMem)
+{
+    if (customMem.customAlloc)
+        return customMem.customAlloc(customMem.opaque, size);
+    return ZSTD_malloc(size);
+}
+
+MEM_STATIC void* ZSTD_customCalloc(size_t size, ZSTD_customMem customMem)
+{
+    if (customMem.customAlloc) {
+        /* calloc implemented as malloc+memset;
+         * not as efficient as calloc, but next best guess for custom malloc */
+        void* const ptr = customMem.customAlloc(customMem.opaque, size);
+        ZSTD_memset(ptr, 0, size);
+        return ptr;
+    }
+    return ZSTD_calloc(1, size);
+}
+
+MEM_STATIC void ZSTD_customFree(void* ptr, ZSTD_customMem customMem)
+{
+    if (ptr!=NULL) {
+        if (customMem.customFree)
+            customMem.customFree(customMem.opaque, ptr);
+        else
+            ZSTD_free(ptr);
+    }
+}
 
 
 /* ZSTD_invalidateRepCodes() :

@@ -257,6 +257,7 @@ jobs:
 
   msbuild-visual-studio:
     strategy:
+      fail-fast: false  # 'false' means Don't stop matrix workflows even if some matrix failed.
       matrix:
         include: [
           { name: "VS 2022 x64 Debug", platform: x64, configuration: Debug, toolset: v143, runner: "windows-2022", arch: "" },

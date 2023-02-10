@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Yann Collet, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -13,7 +13,7 @@
 *  Tuning parameters
 ****************************************/
 #ifndef BMK_TIMETEST_DEFAULT_S   /* default minimum time per test */
-#define BMK_TIMETEST_DEFAULT_S 3
+# define BMK_TIMETEST_DEFAULT_S 3
 #endif
 
 
@@ -327,26 +327,31 @@ BMK_benchMemAdvancedNoAlloc(
     /* init */
     memset(&benchResult, 0, sizeof(benchResult));
     if (strlen(displayName)>17) displayName += strlen(displayName) - 17;   /* display last 17 characters */
-    if (adv->mode == BMK_decodeOnly) {  /* benchmark only decompression : source must be already compressed */
+    if (adv->mode == BMK_decodeOnly) {
+        /* benchmark only decompression : source must be already compressed */
         const char* srcPtr = (const char*)srcBuffer;
         U64 totalDSize64 = 0;
         U32 fileNb;
         for (fileNb=0; fileNb<nbFiles; fileNb++) {
             U64 const fSize64 = ZSTD_findDecompressedSize(srcPtr, fileSizes[fileNb]);
-            if (fSize64==0) RETURN_ERROR(32, BMK_benchOutcome_t, "Impossible to determine original size ");
+            if (fSize64 == ZSTD_CONTENTSIZE_UNKNOWN) {
+                RETURN_ERROR(32, BMK_benchOutcome_t, "Decompressed size cannot be determined: cannot benchmark");
+            }
+            if (fSize64 == ZSTD_CONTENTSIZE_ERROR) {
+                RETURN_ERROR(32, BMK_benchOutcome_t, "Error while trying to assess decompressed size: data may be invalid");
+            }
             totalDSize64 += fSize64;
             srcPtr += fileSizes[fileNb];
         }
         {   size_t const decodedSize = (size_t)totalDSize64;
             assert((U64)decodedSize == totalDSize64);   /* check overflow */
             free(*resultBufferPtr);
+            if (totalDSize64 > decodedSize) {  /* size_t overflow */
+                RETURN_ERROR(32, BMK_benchOutcome_t, "decompressed size is too large for local system");
+            }
             *resultBufferPtr = malloc(decodedSize);
             if (!(*resultBufferPtr)) {
-                RETURN_ERROR(33, BMK_benchOutcome_t, "not enough memory");
-            }
-            if (totalDSize64 > decodedSize) {  /* size_t overflow */
-                free(*resultBufferPtr);
-                RETURN_ERROR(32, BMK_benchOutcome_t, "original size is too large");
+                RETURN_ERROR(33, BMK_benchOutcome_t, "allocation error: not enough memory");
             }
             cSize = srcSize;
             srcSize = decodedSize;
@@ -385,6 +390,10 @@ BMK_benchMemAdvancedNoAlloc(
         memcpy(compressedBuffer, srcBuffer, loadedCompressedSize);
     } else {
         RDG_genBuffer(compressedBuffer, maxCompressedSize, 0.10, 0.50, 1);
+    }
+
+    if (!UTIL_support_MT_measurements() && adv->nbWorkers > 1) {
+        OUTPUTLEVEL(2, "Warning : time measurements may be incorrect in multithreading mode... \n")
     }
 
     /* Bench */
@@ -442,7 +451,7 @@ BMK_benchMemAdvancedNoAlloc(
                 BMK_runOutcome_t const cOutcome = BMK_benchTimedFn( timeStateCompress, cbp);
 
                 if (!BMK_isSuccessful_runOutcome(cOutcome)) {
-                    return BMK_benchOutcome_error();
+                    RETURN_ERROR(30, BMK_benchOutcome_t, "compression error");
                 }
 
                 {   BMK_runTime_t const cResult = BMK_extract_runTime(cOutcome);
@@ -470,7 +479,7 @@ BMK_benchMemAdvancedNoAlloc(
                 BMK_runOutcome_t const dOutcome = BMK_benchTimedFn(timeStateDecompress, dbp);
 
                 if(!BMK_isSuccessful_runOutcome(dOutcome)) {
-                    return BMK_benchOutcome_error();
+                    RETURN_ERROR(30, BMK_benchOutcome_t, "decompression error");
                 }
 
                 {   BMK_runTime_t const dResult = BMK_extract_runTime(dOutcome);
@@ -594,7 +603,7 @@ BMK_benchOutcome_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
 
     void* resultBuffer = srcSize ? malloc(srcSize) : NULL;
 
-    int allocationincomplete = !srcPtrs || !srcSizes || !cPtrs ||
+    int const allocationincomplete = !srcPtrs || !srcSizes || !cPtrs ||
         !cSizes || !cCapacities || !resPtrs || !resSizes ||
         !timeStateCompress || !timeStateDecompress ||
         !cctx || !dctx ||

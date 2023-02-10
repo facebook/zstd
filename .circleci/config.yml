@@ -7,8 +7,6 @@ jobs:
     #       preinstalled to reduce installation time.
     docker:
       - image: fbopensource/zstd-circleci-primary:0.0.1
-    # TODO: Re-enable aarch64 build:
-    #       make aarch64build     && make clean
     steps:
       - checkout
       - run:
@@ -36,6 +34,7 @@ jobs:
             make ppc64build V=1; make clean
             make ppcbuild   V=1; make clean
             make armbuild   V=1; make clean
+            make aarch64build V=1; make clean
             make -C tests test-legacy test-longmatch; make clean
             make -C lib libzstd-nomt; make clean
   # This step should only be run in a cron job

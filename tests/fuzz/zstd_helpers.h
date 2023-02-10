@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -17,6 +17,7 @@
 #define ZSTD_STATIC_LINKING_ONLY
 
 #include "zstd.h"
+#include "zstd_errors.h"
 #include "fuzz_data_producer.h"
 #include <stdint.h>
 

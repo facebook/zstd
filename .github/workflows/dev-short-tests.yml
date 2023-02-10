@@ -14,21 +14,21 @@ jobs:
   linux-kernel:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
     - name: linux kernel, library + build + test
       run: make -C contrib/linux-kernel test CFLAGS="-Werror -Wunused-const-variable -Wunused-but-set-variable"
 
   benchmarking:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
     - name: make benchmarking
       run: make benchmarking
 
   check-32bit: # designed to catch https://github.com/facebook/zstd/issues/2428
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
     - name: make check on 32-bit
       run: |
         sudo apt update
@@ -38,7 +38,7 @@ jobs:
   check-x32:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
     - name: make check on x32 ABI # https://en.wikipedia.org/wiki/X32_ABI
       env:
         CHECK_CONSTRAINED_MEM: true
@@ -47,12 +47,23 @@ jobs:
         APT_PACKAGES="gcc-multilib" make apt-install
         CFLAGS="-mx32 -O1 -fstack-protector" make check V=1
 
+  build-c89:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
+    - name: ensure zstd can be build with c89/c90 compilers (+ long long support + variadic macros)
+      run: |
+        make c89build V=1
+
+
   gcc-7-libzstd:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
     - name: gcc-7 + libzstdmt compilation
+      # See https://askubuntu.com/a/1428822
       run: |
+        echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu focal main universe" | sudo tee -a /etc/apt/sources.list
         sudo apt-get -qqq update
         make gcc7install
         CC=gcc-7 CFLAGS=-Werror make -j all
@@ -65,7 +76,7 @@ jobs:
   cmake-build-and-test-check:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
     - name: cmake build and test check
       run: |
         FUZZERTEST=-T1mn ZSTREAM_TESTTIME=-T1mn make cmakebuild
@@ -76,7 +87,7 @@ jobs:
   cpp-gnu90-c99-compatibility:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
     - name: C++, gnu90 and c99 compatibility
       run: |
         make cxxtest
@@ -90,7 +101,7 @@ jobs:
   mingw-cross-compilation:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
     - name: mingw cross-compilation
       run: |
         # sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix; (doesn't work)
@@ -101,7 +112,7 @@ jobs:
   armbuild:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
     - name: ARM Build Test
       run: |
         sudo apt-get -qqq update
@@ -111,7 +122,7 @@ jobs:
   bourne-shell:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
     - name: Bourne shell compatibility (shellcheck)
       run: |
         wget https://github.com/koalaman/shellcheck/releases/download/v0.7.1/shellcheck-v0.7.1.linux.x86_64.tar.xz
@@ -121,18 +132,18 @@ jobs:
   zlib-wrapper:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
     - name: zlib wrapper test
       run: |
         sudo apt-get -qqq update
         make valgrindinstall
         make -C zlibWrapper test
-        make -C zlibWrapper valgrindTest
+        make -C zlibWrapper test-valgrind
 
   lz4-threadpool-libs:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
     - name: LZ4, thread pool, and libs build testslib wrapper test
       run: |
         make lz4install
@@ -146,7 +157,7 @@ jobs:
   gcc-make-tests-32bit:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
     - name: Make all, 32bit mode
       run: |
         sudo apt-get -qqq update
@@ -156,9 +167,11 @@ jobs:
   gcc-8-make:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
       - name: gcc-8 build
+        # See https://askubuntu.com/a/1428822
         run: |
+          echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu focal main universe" | sudo tee -a /etc/apt/sources.list
           sudo apt-get -qqq update
           make gcc8install
           CC=gcc-8 CFLAGS="-Werror" make -j all
@@ -166,7 +179,7 @@ jobs:
   implicit-fall-through:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
       - name: -Wimplicit-fallthrough build
         run: |
           make clean
@@ -174,20 +187,65 @@ jobs:
           make clean
           CC=clang MOREFLAGS="-Werror -Wimplicit-fallthrough -O0" make -C lib -j libzstd.a ZSTD_LEGACY_SUPPORT=0
 
-  cmake-visual-2019:
+  meson-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
+      - name: Install packages
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install build-essential python3-pip ninja-build liblz4-dev
+          pip install --pre meson
+      - name: Build with Meson
+        run: |
+          meson setup \
+            --buildtype=debugoptimized \
+            -Db_lundef=false \
+            -Dauto_features=enabled \
+            -Dbin_programs=true \
+            -Dbin_tests=true \
+            -Dbin_contrib=true \
+            -Ddefault_library=both \
+            build/meson builddir
+          ninja -C builddir/
+          meson test -C builddir/ --print-errorlogs
+          meson install -C builddir --destdir staging/
+
+  meson-windows:
     runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
+      - name: Install packages
+        run: pip install --pre meson
+      - name: Initialize the MSVC dev command prompt
+        uses: ilammy/msvc-dev-cmd@cec98b9d092141f74527d0afa6feb2af698cfe89
+      - name: Configure with Meson
+        run: |
+          meson setup build/meson/ builddir -Dbin_tests=true -Dbin_programs=true -Dbin_contrib=true
+      - name: Build with Meson
+        run: |
+          ninja -C builddir/
+      - name: Test with Meson
+        run: |
+          meson test -C builddir/ --print-errorlogs
+      - name: Install with Meson
+        run: |
+          meson install -C builddir --destdir staging/
+
+  cmake-visual-2022:
     strategy:
       matrix:
         include:
-          - generator: "Visual Studio 16 2019"
+          - generator: "Visual Studio 17 2022"
             flags: "-A x64"
-          - generator: "Visual Studio 16 2019"
+          - generator: "Visual Studio 17 2022"
             flags: "-A Win32"
           - generator: "MinGW Makefiles"
+    runs-on: windows-2022
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
     - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v1.0.2
+      uses: microsoft/setup-msbuild@v1.3
     - name: Build
       working-directory: ${{env.GITHUB_WORKSPACE}}
       run: |
@@ -197,44 +255,47 @@ jobs:
         cmake.exe -G "${{matrix.generator}}" ${{matrix.flags}} ..
         cmake.exe --build .
 
-  visual-2019:
-    runs-on: windows-latest
+  msbuild-visual-studio:
     strategy:
       matrix:
-        platform: [x64, Win32]
-        configuration: [Debug, Release]
+        include: [
+          { name: "VS 2022 x64 Debug", platform: x64, configuration: Debug, toolset: v143, runner: "windows-2022"},
+          { name: "VS 2022 Win32 Debug", platform: Win32, configuration: Debug, toolset: v143, runner: "windows-2022"},
+          { name: "VS 2022 x64 Release", platform: x64, configuration: Release, toolset: v143, runner: "windows-2022"},
+          { name: "VS 2022 Win32 Release", platform: Win32, configuration: Release, toolset: v143, runner: "windows-2022"},
+          { name: "VS 2019 x64 Release", platform: Win32, configuration: Release, toolset: v142, runner: "windows-2019"},
+          { name: "VS 2019 Win32 Release", platform: x64, configuration: Release, toolset: v142, runner: "windows-2019"},
+        ]
+    runs-on: ${{matrix.runner}}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
     - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v1.0.2
+      uses: microsoft/setup-msbuild@v1.3
     - name: Build
       working-directory: ${{env.GITHUB_WORKSPACE}}
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
       run: >
-        msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v142
+        msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=${{matrix.toolset}}
         /t:Clean,Build /p:Platform=${{matrix.platform}} /p:Configuration=${{matrix.configuration}}
 
-  visual-2015:
-    # only GH actions windows-2016 contains VS 2015
-    runs-on: windows-2016
-    strategy:
-      matrix:
-        platform: [x64, Win32]
-        configuration: [Debug, Release]
+  # This tests that we don't accidently grow the size too much.
+  # If the size grows intentionally, you can raise these numbers.
+  # But we do need to think about binary size, since it is a concern.
+  libzstd-size:
+    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v1.0.2
-    - name: Build
-      working-directory: ${{env.GITHUB_WORKSPACE}}
-      run: >
-        msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=v140
-        /t:Clean,Build /p:Platform=${{matrix.platform}} /p:Configuration=${{matrix.configuration}}
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
+    - name: libzstd size test
+      run: |
+        make clean && make -j -C lib libzstd && ./tests/check_size.py lib/libzstd.so 1100000
+        make clean && make -j -C lib libzstd ZSTD_LIB_COMPRESSION=0 ZSTD_LIB_DICTBUILDER=0 && ./tests/check_size.py lib/libzstd.so 400000
+        make clean && make -j -C lib libzstd ZSTD_LIB_MINIFY=1 && ./tests/check_size.py lib/libzstd.so 300000
+        make clean && make -j -C lib libzstd ZSTD_LIB_MINIFY=1 ZSTD_LIB_COMPRESSION=0 ZSTD_LIB_DICTBUILDER=0 && ./tests/check_size.py lib/libzstd.so 80000
 
   minimal-decompressor-macros:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
     - name: minimal decompressor macros
       run: |
         make clean && make -j all ZSTD_LIB_MINIFY=1 MOREFLAGS="-Werror"
@@ -249,7 +310,7 @@ jobs:
   dynamic-bmi2:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
     - name: dynamic bmi2 tests
       run: |
         make clean && make -j check MOREFLAGS="-O0 -Werror -mbmi2"
@@ -261,7 +322,7 @@ jobs:
   test-variants:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
     - name: make all variants & validate
       run: |
         make -j -C programs allVariants MOREFLAGS=-O0
@@ -270,7 +331,7 @@ jobs:
 
   qemu-consistency:
     name: QEMU ${{ matrix.name }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       fail-fast: false  # 'false' means Don't stop matrix workflows even if some matrix failed.
       matrix:
@@ -287,7 +348,7 @@ jobs:
       XCC: ${{ matrix.xcc }}
       XEMU: ${{ matrix.xemu }}
     steps:
-    - uses: actions/checkout@v2 # https://github.com/actions/checkout
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
     - name: apt update & install
       run: |
         sudo apt-get update
@@ -332,39 +393,45 @@ jobs:
   mingw-short-test:
     runs-on: windows-latest
     strategy:
-      fail-fast: false
+      fail-fast: false  # 'false' means Don't stop matrix workflows even if some matrix failed.
       matrix:
         include: [
-          { compiler: gcc, platform: x64, script: "CFLAGS=-Werror make -j allzstd DEBUGLEVEL=2"},
-          { compiler: gcc, platform: x86, script: "CFLAGS=-Werror make -j allzstd"},
-          { compiler: clang, platform: x64, script: "CFLAGS='--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion' make -j allzstd V=1"},
+          { compiler: gcc, msystem: MINGW32, cflags: "-Werror"},
+          { compiler: gcc, msystem: MINGW64, cflags: "-Werror"},
+          { compiler: clang, msystem: MINGW64, cflags: "--target=x86_64-w64-mingw32 -Werror -Wconversion -Wno-sign-conversion -Wno-unused-command-line-argument"},
         ]
+    defaults:
+      run:
+        shell: msys2 {0}
     steps:
-    - uses: actions/checkout@v2
-    - name: Mingw short test
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
+    - uses: msys2/setup-msys2@v2
+      with:
+        msystem: ${{ matrix.msystem }}
+        install: make diffutils
+        update: true
+    # Based on https://ariya.io/2020/07/on-github-actions-with-msys2
+    - name: install mingw gcc i686
+      if: ${{ (matrix.msystem == 'MINGW32') && (matrix.compiler == 'gcc') }}
+      run: pacman --noconfirm -S mingw-w64-i686-gcc
+    - name: install mingw gcc x86_64
+      if: ${{ (matrix.msystem == 'MINGW64') && (matrix.compiler == 'gcc') }}
+      run: pacman --noconfirm -S mingw-w64-x86_64-gcc
+    - name: install mingw clang i686
+      if: ${{ (matrix.msystem == 'MINGW32') && (matrix.compiler == 'clang') }}
+      run: pacman --noconfirm -S mingw-w64-i686-clang
+    - name: install mingw clang x86_64
+      if: ${{ (matrix.msystem == 'MINGW64') && (matrix.compiler == 'clang') }}
+      run: pacman --noconfirm -S mingw-w64-x86_64-clang
+    - name: run mingw tests
       run: |
-        ECHO "Building ${{matrix.compiler}} ${{matrix.platform}}"
-        $env:PATH_ORIGINAL = $env:PATH
-        $env:PATH_MINGW32 = "C:\msys64\mingw32\bin"
-        $env:PATH_MINGW64 = "C:\msys64\mingw64\bin"
-        COPY C:\msys64\usr\bin\make.exe C:\msys64\mingw32\bin\make.exe
-        COPY C:\msys64\usr\bin\make.exe C:\msys64\mingw64\bin\make.exe
-        IF ("${{matrix.platform}}" -eq "x64")
-        {
-            $env:PATH = $env:PATH_MINGW64 + ";" + $env:PATH_ORIGINAL
-        }
-        ELSEIF ("${{matrix.platform}}" -eq "x86")
-        {
-            $env:PATH = $env:PATH_MINGW32 + ";" + $env:PATH_ORIGINAL
-        }
         make -v
-        sh -c "${{matrix.compiler}} -v"
-        $env:CC = "${{matrix.compiler}}"
-        sh -c "${{matrix.script}}"
-        ECHO "Testing ${{matrix.compiler}} ${{matrix.platform}}"
+        export CC=${{ matrix.compiler }}
+        $CC --version
+        CFLAGS="${{ matrix.cflags }}" make -j allzstd
+        echo "Testing $CC ${{ matrix.msystem }}"
         make clean
-        make check
-
+        MSYS="" make check
 
   visual-runtime-tests:
     runs-on: windows-latest
@@ -373,9 +440,9 @@ jobs:
         platform: [x64, Win32]
         configuration: [Release]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
     - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@v1.0.2
+      uses: microsoft/setup-msbuild@v1.3
     - name: Build and run tests
       working-directory: ${{env.GITHUB_WORKSPACE}}
       env:
@@ -387,20 +454,109 @@ jobs:
         COPY build\VS2010\bin\${{matrix.platform}}_${{matrix.configuration}}\*.exe tests\
         CD tests
         sh -e playTests.sh
-        DIR
         .\fuzzer.exe -T2m
 
-# This test currently fails on Github Actions specifically.
-# Possible reason : TTY emulation.
-# Note that the same test works fine locally and on travisCI.
-# This will have to be fixed before transferring the test to GA.
-#  versions-compatibility:
-#    runs-on: ubuntu-latest
-#    steps:
-#    - uses: actions/checkout@v2
-#    - name: Versions Compatibility Test
-#      run: |
-#        make -C tests versionsTest
+  # Following instructions at: https://github.com/marketplace/actions/install-cygwin-action
+  cygwin-tests:
+    runs-on: windows-latest
+    steps:
+    - run: git config --global core.autocrlf input
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
+    - uses: cygwin/cygwin-install-action@f5e0f048310c425e84bc789f493a828c6dc80a25 # tag=master
+      with:
+        platform: x86_64
+        packages: >-
+          autoconf,
+          automake,
+          gcc-g++,
+          make,
+          mingw64-x86_64-gcc-g++,
+          patch,
+          perl
+    - name: cygwin tests
+      shell: C:\cygwin\bin\bash.exe --noprofile --norc -eo pipefail '{0}'
+      run: >-
+        export PATH=/usr/bin:$(cygpath ${SYSTEMROOT})/system32 &&
+        export CFLAGS="-Werror -O1" &&
+        ls &&
+        make -j allzstd &&
+        make -C tests fuzzer &&
+        ./tests/fuzzer.exe -v -T1m
+
+  intel-cet-compatibility:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
+    - name: Build Zstd
+      run: |
+        make -j zstd V=1
+        readelf -n zstd
+    - name: Get Intel SDE
+      run: |
+        curl -LO https://downloadmirror.intel.com/684899/sde-external-9.0.0-2021-11-07-lin.tar.xz
+        tar xJvf sde-external-9.0.0-2021-11-07-lin.tar.xz
+    - name: Configure Permissions
+      run: |
+        echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
+    - name: Run Under SDE
+      run: |
+        sde-external-9.0.0-2021-11-07-lin/sde -cet -cet-raise 0 -cet-endbr-exe -cet-stderr -cet-abort -- ./zstd -b3
+
+  pkg-config:
+    runs-on: ubuntu-latest
+    container:
+      image: debian:testing
+    steps:
+      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
+      - name: Install dependencies
+        run: |
+          apt -y update
+          apt -y install --no-install-recommends gcc libc6-dev make pkg-config
+      - name: Build and install
+        run: make -C lib install
+      - name: Test pkg-config
+        run: |
+          cc -Wall -Wextra -Wpedantic -Werror -o simple examples/simple_compression.c $(pkg-config --cflags --libs libzstd)
+          ./simple LICENSE
+
+  versions-compatibility:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
+    - name: Versions Compatibility Test
+      run: |
+        make -C tests versionsTest
+
+  clangbuild:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
+    - name: make clangbuild
+      run: |
+        make clangbuild
+
+  clang-pgo:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
+    - name: Build PGO Zstd with Clang
+      env:
+        CC: clang-14
+        LLVM_PROFDATA: llvm-profdata-14
+      run: |
+        make -C programs zstd-pgo
+        ./programs/zstd -b
+
+  gcc-pgo:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
+    - name: Build PGO Zstd with GCC
+      env:
+        CC: gcc
+      run: |
+        make -C programs zstd-pgo
+        ./programs/zstd -b
 
 
 # For reference : icc tests
@@ -421,7 +577,7 @@ jobs:
 #        sudo add-apt-repository "deb https://apt.repos.intel.com/oneapi all main"
 #        sudo apt-get update
 #        sudo apt-get install -y intel-basekit intel-hpckit
-#    - uses: actions/checkout@v2
+#    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
 #    - name: make check
 #      run: |
 #        make CC=/opt/intel/oneapi/compiler/latest/linux/bin/intel64/icc check

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -9,7 +9,7 @@
  */
 
 /**
- * This fuzz target attempts to comprss the fuzzed data with the simple
+ * This fuzz target attempts to compress the fuzzed data with the simple
  * compression function with an output buffer that may be too small to
  * ensure that the compressor never crashes.
  */

@@ -1,6 +1,6 @@
 # ################################################################
 # zstd - Makefile
-# Copyright (C) Yann Collet 2014-present
+# Copyright (c) Meta Platforms, Inc. and affiliates.
 # All rights reserved.
 #
 # BSD license
@@ -27,7 +27,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # You can contact the author at :
-#  - zstd homepage : http://www.zstd.net/
+#  - zstd homepage : https://facebook.github.io/zstd/
 # ################################################################
 
 project(tests)
@@ -57,7 +57,9 @@ target_link_libraries(datagen libzstd_static)
 # fullbench
 #
 add_executable(fullbench ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/timefn.c ${PROGRAMS_DIR}/benchfn.c ${PROGRAMS_DIR}/benchzstd.c ${TESTS_DIR}/fullbench.c)
-set_property(TARGET fullbench APPEND PROPERTY COMPILE_OPTIONS "-Wno-deprecated-declarations")
+if (NOT MSVC)
+    target_compile_options(fullbench PRIVATE "-Wno-deprecated-declarations")
+endif()
 target_link_libraries(fullbench libzstd_static)
 add_test(NAME fullbench COMMAND fullbench ${ZSTD_FULLBENCH_FLAGS})
 
@@ -65,7 +67,9 @@ add_test(NAME fullbench COMMAND fullbench ${ZSTD_FULLBENCH_FLAGS})
 # fuzzer
 #
 add_executable(fuzzer ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/timefn.c ${TESTS_DIR}/fuzzer.c)
-set_property(TARGET fuzzer APPEND PROPERTY COMPILE_OPTIONS "-Wno-deprecated-declarations")
+if (NOT MSVC)
+    target_compile_options(fuzzer PRIVATE "-Wno-deprecated-declarations")
+endif()
 target_link_libraries(fuzzer libzstd_static)
 AddTestFlagsOption(ZSTD_FUZZER_FLAGS "$ENV{FUZZERTEST} $ENV{FUZZER_FLAGS}"
     "Semicolon-separated list of flags to pass to the fuzzer test (see `fuzzer -h` for usage)")
@@ -77,8 +81,10 @@ add_test(NAME fuzzer COMMAND fuzzer ${ZSTD_FUZZER_FLAGS})
 #
 # zstreamtest
 #
-add_executable(zstreamtest ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/timefn.c ${TESTS_DIR}/seqgen.c ${TESTS_DIR}/zstreamtest.c)
-set_property(TARGET zstreamtest APPEND PROPERTY COMPILE_OPTIONS "-Wno-deprecated-declarations")
+add_executable(zstreamtest ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/timefn.c ${TESTS_DIR}/seqgen.c ${TESTS_DIR}/zstreamtest.c ${TESTS_DIR}/external_matchfinder.c)
+if (NOT MSVC)
+    target_compile_options(zstreamtest PRIVATE "-Wno-deprecated-declarations")
+endif()
 target_link_libraries(zstreamtest libzstd_static)
 AddTestFlagsOption(ZSTD_ZSTREAM_FLAGS "$ENV{ZSTREAM_TESTTIME} $ENV{FUZZER_FLAGS}"
     "Semicolon-separated list of flags to pass to the zstreamtest test (see `zstreamtest -h` for usage)")
@@ -90,13 +96,14 @@ add_test(NAME zstreamtest COMMAND zstreamtest ${ZSTD_ZSTREAM_FLAGS})
 AddTestFlagsOption(ZSTD_PLAYTESTS_FLAGS "$ENV{PLAYTESTS_FLAGS}"
     "Semicolon-separated list of flags to pass to the playTests.sh test")
 add_test(NAME playTests COMMAND sh -c "\"${TESTS_DIR}/playTests.sh\" ${ZSTD_PLAYTESTS_FLAGS}")
-if (ZSTD_BUILD_PROGRAMS)
+find_program(UNAME uname) # Run script only in unix shell environments
+if (ZSTD_BUILD_PROGRAMS AND UNAME)
     set_property(TEST playTests APPEND PROPERTY ENVIRONMENT
         "ZSTD_BIN=$<TARGET_FILE:zstd>"
         "DATAGEN_BIN=$<TARGET_FILE:datagen>"
         )
 else()
-    message(STATUS "Disabling playTests.sh test because ZSTD_BUILD_PROGRAMS is not enabled")
+    message(STATUS "Disabling playTests.sh test because requirements not met")
     set_tests_properties(playTests PROPERTIES DISABLED YES)
 endif()
 

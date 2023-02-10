@@ -1,5 +1,5 @@
 # ################################################################
-# Copyright (c) 2015-2021, Yann Collet, Facebook, Inc.
+# Copyright (c) Meta Platforms, Inc. and affiliates.
 # All rights reserved.
 #
 # This source code is licensed under both the BSD-style license (found in the
@@ -123,6 +123,7 @@ contrib: lib
 	$(MAKE) -C contrib/seekable_format/examples all
 	$(MAKE) -C contrib/seekable_format/tests test
 	$(MAKE) -C contrib/largeNbDicts all
+	$(MAKE) -C contrib/externalSequenceProducer all
 	cd build/single_file_libs/ ; ./build_decoder_test.sh
 	cd build/single_file_libs/ ; ./build_library_test.sh
 
@@ -142,6 +143,7 @@ clean:
 	$(Q)$(MAKE) -C contrib/seekable_format/examples $@ > $(VOID)
 	$(Q)$(MAKE) -C contrib/seekable_format/tests $@ > $(VOID)
 	$(Q)$(MAKE) -C contrib/largeNbDicts $@ > $(VOID)
+	$(Q)$(MAKE) -C contrib/externalSequenceProducer $@ > $(VOID)
 	$(Q)$(RM) zstd$(EXT) zstdmt$(EXT) tmp*
 	$(Q)$(RM) -r lz4
 	@echo Cleaning completed
@@ -157,7 +159,7 @@ MKDIR ?= mkdir -p
 
 HAVE_COLORNEVER = $(shell echo a | egrep --color=never a > /dev/null 2> /dev/null && echo 1 || echo 0)
 EGREP_OPTIONS ?=
-ifeq ($HAVE_COLORNEVER, 1)
+ifeq ($(HAVE_COLORNEVER), 1)
 EGREP_OPTIONS += --color=never
 endif
 EGREP = egrep $(EGREP_OPTIONS)
@@ -334,6 +336,8 @@ tsan-%: clean
 
 .PHONY: apt-install
 apt-install:
+	# TODO: uncomment once issue 3011 is resolved and remove hack from Github Actions .yml
+	# sudo apt-get update
 	sudo apt-get -yq --no-install-suggests --no-install-recommends --force-yes install $(APT_PACKAGES)
 
 .PHONY: apt-add-repo
@@ -400,7 +404,7 @@ cmakebuild:
 
 c89build: clean
 	$(CC) -v
-	CFLAGS="-std=c89 -Werror -O0" $(MAKE) allmost  # will fail, due to missing support for `long long`
+	CFLAGS="-std=c89 -Werror -Wno-attributes -Wpedantic -Wno-long-long -Wno-variadic-macros -O0" $(MAKE) lib zstd
 
 gnu90build: clean
 	$(CC) -v

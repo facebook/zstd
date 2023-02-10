@@ -1,7 +1,8 @@
 include(CheckCXXCompilerFlag)
 include(CheckCCompilerFlag)
+include(CheckLinkerFlag)
 
-function(EnableCompilerFlag _flag _C _CXX)
+function(EnableCompilerFlag _flag _C _CXX _LD)
     string(REGEX REPLACE "\\+" "PLUS" varname "${_flag}")
     string(REGEX REPLACE "[^A-Za-z0-9]+" "_" varname "${varname}")
     string(REGEX REPLACE "^_+" "" varname "${varname}")
@@ -18,43 +19,58 @@ function(EnableCompilerFlag _flag _C _CXX)
             set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${_flag}" PARENT_SCOPE)
         endif ()
     endif ()
+    if (_LD)
+        CHECK_LINKER_FLAG(C ${_flag} LD_FLAG_${varname})
+        if (LD_FLAG_${varname})
+            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${_flag}" PARENT_SCOPE)
+            set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${_flag}" PARENT_SCOPE)
+        endif ()
+    endif ()
 endfunction()
 
 macro(ADD_ZSTD_COMPILATION_FLAGS)
     if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" OR MINGW) #Not only UNIX but also WIN32 for MinGW
-        #Set c++11 by default
-        EnableCompilerFlag("-std=c++11" false true)
-        #Set c99 by default
-        EnableCompilerFlag("-std=c99" true false)
+        # It's possible to select the exact standard used for compilation.
+        # It's not necessary, but can be employed for specific purposes.
+        # Note that zstd source code is compatible with both C++98 and above
+        # and C-gnu90 (c90 + long long + variadic macros ) and above
+        # EnableCompilerFlag("-std=c++11" false true) # Set C++ compilation to c++11 standard
+        # EnableCompilerFlag("-std=c99" true false)   # Set C compiation to c99 standard
         if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND MSVC)
             # clang-cl normally maps -Wall to -Weverything.
-            EnableCompilerFlag("/clang:-Wall" true true)
+            EnableCompilerFlag("/clang:-Wall" true true false)
         else ()
-            EnableCompilerFlag("-Wall" true true)
+            EnableCompilerFlag("-Wall" true true false)
         endif ()
-        EnableCompilerFlag("-Wextra" true true)
-        EnableCompilerFlag("-Wundef" true true)
-        EnableCompilerFlag("-Wshadow" true true)
-        EnableCompilerFlag("-Wcast-align" true true)
-        EnableCompilerFlag("-Wcast-qual" true true)
-        EnableCompilerFlag("-Wstrict-prototypes" true false)
+        EnableCompilerFlag("-Wextra" true true false)
+        EnableCompilerFlag("-Wundef" true true false)
+        EnableCompilerFlag("-Wshadow" true true false)
+        EnableCompilerFlag("-Wcast-align" true true false)
+        EnableCompilerFlag("-Wcast-qual" true true false)
+        EnableCompilerFlag("-Wstrict-prototypes" true false false)
         # Enable asserts in Debug mode
         if (CMAKE_BUILD_TYPE MATCHES "Debug")
-            EnableCompilerFlag("-DDEBUGLEVEL=1" true true)
+            EnableCompilerFlag("-DDEBUGLEVEL=1" true true false)
         endif ()
+        # Add noexecstack flags
+        # LDFLAGS
+        EnableCompilerFlag("-z noexecstack" false false true)
+        # CFLAGS & CXXFLAGS
+        EnableCompilerFlag("-Qunused-arguments" true true false)
+        EnableCompilerFlag("-Wa,--noexecstack" true true false)
     elseif (MSVC) # Add specific compilation flags for Windows Visual
 
         set(ACTIVATE_MULTITHREADED_COMPILATION "ON" CACHE BOOL "activate multi-threaded compilation (/MP flag)")
         if (CMAKE_GENERATOR MATCHES "Visual Studio" AND ACTIVATE_MULTITHREADED_COMPILATION)
-            EnableCompilerFlag("/MP" true true)
+            EnableCompilerFlag("/MP" true true false)
         endif ()
-        
+
         # UNICODE SUPPORT
-        EnableCompilerFlag("/D_UNICODE" true true)
-        EnableCompilerFlag("/DUNICODE" true true)
+        EnableCompilerFlag("/D_UNICODE" true true false)
+        EnableCompilerFlag("/DUNICODE" true true false)
         # Enable asserts in Debug mode
         if (CMAKE_BUILD_TYPE MATCHES "Debug")
-            EnableCompilerFlag("/DDEBUGLEVEL=1" true true)
+            EnableCompilerFlag("/DDEBUGLEVEL=1" true true false)
         endif ()
     endif ()
 

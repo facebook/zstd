@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Yann Collet, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -348,7 +348,9 @@ ZSTD_cwksp_reserve_internal(ZSTD_cwksp* ws, size_t bytes, ZSTD_cwksp_alloc_phase
     if (alloc) {
         alloc = (BYTE *)alloc + ZSTD_CWKSP_ASAN_REDZONE_SIZE;
         if (ws->isStatic == ZSTD_cwksp_dynamic_alloc) {
-            __asan_unpoison_memory_region(alloc, bytes);
+            /* We need to keep the redzone poisoned while unpoisoning the bytes that
+             * are actually allocated. */
+            __asan_unpoison_memory_region(alloc, bytes - 2 * ZSTD_CWKSP_ASAN_REDZONE_SIZE);
         }
     }
 #endif
@@ -499,7 +501,7 @@ MEM_STATIC void ZSTD_cwksp_clean_tables(ZSTD_cwksp* ws) {
     assert(ws->tableValidEnd >= ws->objectEnd);
     assert(ws->tableValidEnd <= ws->allocStart);
     if (ws->tableValidEnd < ws->tableEnd) {
-        ZSTD_memset(ws->tableValidEnd, 0, (BYTE*)ws->tableEnd - (BYTE*)ws->tableValidEnd);
+        ZSTD_memset(ws->tableValidEnd, 0, (size_t)((BYTE*)ws->tableEnd - (BYTE*)ws->tableValidEnd));
     }
     ZSTD_cwksp_mark_tables_clean(ws);
 }

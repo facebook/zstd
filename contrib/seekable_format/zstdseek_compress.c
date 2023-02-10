@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-present, Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -350,7 +350,7 @@ size_t ZSTD_seekable_writeSeekTable(ZSTD_frameLog* fl, ZSTD_outBuffer* output)
 
 size_t ZSTD_seekable_endStream(ZSTD_seekable_CStream* zcs, ZSTD_outBuffer* output)
 {
-    if (!zcs->writingSeekTable && zcs->frameDSize) {
+    if (!zcs->writingSeekTable) {
         const size_t endFrame = ZSTD_seekable_endFrame(zcs, output);
         if (ZSTD_isError(endFrame)) return endFrame;
         /* return an accurate size hint */

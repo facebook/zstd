@@ -2,9 +2,8 @@ task:
   name: FreeBSD (shortest)
   freebsd_instance:
     matrix:
+      image_family: freebsd-13-0
       image_family: freebsd-12-2
-      # The stable 11.3 image causes "Agent is not responding" so use a snapshot
-      image_family: freebsd-11-3-snap
   install_script: pkg install -y gmake coreutils
   script: |
     MOREFLAGS="-Werror" gmake -j all

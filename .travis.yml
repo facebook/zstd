@@ -92,8 +92,8 @@ matrix:
         - make -C tests versionsTest
 
     # meson dedicated test
-    - name: Xenial (Meson + clang)    # ~15mn
-      dist: bionic
+    - name: Focal (Meson + clang)    # ~15mn
+      dist: focal
       language: cpp
       compiler: clang
       install:
@@ -102,7 +102,7 @@ matrix:
           travis_retry curl -o ~/ninja.zip -L 'https://github.com/ninja-build/ninja/releases/download/v1.9.0/ninja-linux.zip' &&
           unzip ~/ninja.zip -d ~/.local/bin
         - |
-          travis_retry curl -o ~/get-pip.py -L 'https://bootstrap.pypa.io/get-pip.py' &&
+          travis_retry curl -o ~/get-pip.py -L 'https://bootstrap.pypa.io/pip/3.6/get-pip.py' &&
           python3 ~/get-pip.py --user &&
           pip3 install --user meson
       script:

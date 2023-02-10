@@ -278,14 +278,14 @@ jobs:
       if: ${{ matrix.arch == '' }}
       run: >
         msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=${{matrix.toolset}}
-        /t:Clean,Build /p:Platform=${{matrix.platform}} /p:Configuration=${{matrix.configuration}}
+        /t:Clean,Build /p:Platform=${{matrix.platform}} /p:Configuration=${{matrix.configuration}} /warnaserror
     - name: Build ${{matrix.name}}
       working-directory: ${{env.GITHUB_WORKSPACE}}
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
       if: ${{ matrix.arch != '' }}
       run: >
         msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=${{matrix.toolset}}
-        /t:Clean,Build /p:Platform=${{matrix.platform}} /p:Configuration=${{matrix.configuration}}
+        /t:Clean,Build /p:Platform=${{matrix.platform}} /p:Configuration=${{matrix.configuration}} /warnaserror
         /p:InstructionSet=${{matrix.arch}}
 
   # This tests that we don't accidently grow the size too much.

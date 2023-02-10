@@ -1,4 +1,4 @@
-name: release-artifacts
+name: windows-artifacts
 
 on:
   push:
@@ -12,7 +12,7 @@ jobs:
     runs-on: windows-latest
     defaults:
       run:
-        shell: msys2 {0}
+        shell: mingw64 {0}
     steps:
     - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
     - uses: msys2/setup-msys2@v2

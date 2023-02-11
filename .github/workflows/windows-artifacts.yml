@@ -12,7 +12,7 @@ jobs:
     runs-on: windows-latest
     defaults:
       run:
-        shell: mingw64 {0}
+        shell: msys2 {0}
     steps:
     - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
     - uses: msys2/setup-msys2@v2
@@ -23,7 +23,7 @@ jobs:
     - name: display versions
       run: |
         make -v
-        gcc -v
+        cc -v
 
     - name: Building zlib to static link
       run: |
@@ -37,30 +37,9 @@ jobs:
     - name: Create artifacts
       run: |
         ./lib/dll/example/build_package.bat
-        make clean
-        mkdir -p bin/
-        make -j -C programs zstd DEBUGFLAGS=
-        cp programs/zstd.exe bin/zstd.exe
-        git clone --depth 1 --branch release https://github.com/facebook/zstd zstd_release
-        cd zstd_release
-        git archive --format=tar release -o zstd-src.tar
-        ../programs/zstd -19 zstd-src.tar
-        sha256sum zstd-src.tar.zst > zstd-src.tar.zst.sha256.sig
-        cd ../bin/
+        cd bin/
         7z a -tzip -mx9 zstd-win-release-win64.zip *
         cd ..
-
-    - name: Publish zstd-src.tar.zst Artifact
-      uses: actions/upload-artifact@v3
-      with:
-        path: ${{ github.workspace }}/zstd_release/zstd-src.tar.zst
-        name: zstd-src.tar.zst
-
-    - name: Publish zstd-src.tar.zst signature
-      uses: actions/upload-artifact@v3
-      with:
-        path: ${{ github.workspace }}/zstd_release/zstd-src.tar.zst.sha256.sig
-        name: zstd-src.tar.zst.sha256.sig
 
     - name: Publish zstd-win-release-win64.zip
       uses: actions/upload-artifact@v3

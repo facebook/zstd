@@ -1173,8 +1173,8 @@ FIO_compressLzmaFrame(cRess_t* ress,
     }
 
     writeJob =AIO_WritePool_acquireJob(ress->writeCtx);
-    strm.next_out = (Bytef*)writeJob->buffer;
-    strm.avail_out = (uInt)writeJob->bufferSize;
+    strm.next_out = (BYTE*)writeJob->buffer;
+    strm.avail_out = writeJob->bufferSize;
     strm.next_in = 0;
     strm.avail_in = 0;
 
@@ -1201,7 +1201,7 @@ FIO_compressLzmaFrame(cRess_t* ress,
                 writeJob->usedBufferSize = compBytes;
                 AIO_WritePool_enqueueAndReacquireWriteJob(&writeJob);
                 outFileSize += compBytes;
-                strm.next_out = (Bytef*)writeJob->buffer;
+                strm.next_out = (BYTE*)writeJob->buffer;
                 strm.avail_out = writeJob->bufferSize;
         }   }
         if (srcFileSize == UTIL_FILESIZE_UNKNOWN)
@@ -2316,8 +2316,8 @@ FIO_decompressLzmaFrame(dRess_t* ress,
     }
 
     writeJob = AIO_WritePool_acquireJob(ress->writeCtx);
-    strm.next_out = (Bytef*)writeJob->buffer;
-    strm.avail_out = (uInt)writeJob->bufferSize;
+    strm.next_out = (BYTE*)writeJob->buffer;
+    strm.avail_out = writeJob->bufferSize;
     strm.next_in = (BYTE const*)ress->readCtx->srcBuffer;
     strm.avail_in = ress->readCtx->srcBufferLoaded;
 
@@ -2345,7 +2345,7 @@ FIO_decompressLzmaFrame(dRess_t* ress,
                 writeJob->usedBufferSize = decompBytes;
                 AIO_WritePool_enqueueAndReacquireWriteJob(&writeJob);
                 outFileSize += decompBytes;
-                strm.next_out = (Bytef*)writeJob->buffer;
+                strm.next_out = (BYTE*)writeJob->buffer;
                 strm.avail_out = writeJob->bufferSize;
         }   }
         if (ret == LZMA_STREAM_END) break;

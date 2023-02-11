@@ -257,26 +257,37 @@ jobs:
 
   msbuild-visual-studio:
     strategy:
+      fail-fast: false  # 'false' means Don't stop matrix workflows even if some matrix failed.
       matrix:
         include: [
-          { name: "VS 2022 x64 Debug", platform: x64, configuration: Debug, toolset: v143, runner: "windows-2022"},
-          { name: "VS 2022 Win32 Debug", platform: Win32, configuration: Debug, toolset: v143, runner: "windows-2022"},
-          { name: "VS 2022 x64 Release", platform: x64, configuration: Release, toolset: v143, runner: "windows-2022"},
-          { name: "VS 2022 Win32 Release", platform: Win32, configuration: Release, toolset: v143, runner: "windows-2022"},
-          { name: "VS 2019 x64 Release", platform: Win32, configuration: Release, toolset: v142, runner: "windows-2019"},
-          { name: "VS 2019 Win32 Release", platform: x64, configuration: Release, toolset: v142, runner: "windows-2019"},
+          { name: "VS 2022 x64 Debug", platform: x64, configuration: Debug, toolset: v143, runner: "windows-2022", arch: "" },
+          { name: "VS 2022 Win32 Debug", platform: Win32, configuration: Debug, toolset: v143, runner: "windows-2022", arch: "" },
+          { name: "VS 2022 x64 Release", platform: x64, configuration: Release, toolset: v143, runner: "windows-2022", arch: ""},
+          { name: "VS 2022 Win32 Release", platform: Win32, configuration: Release, toolset: v143, runner: "windows-2022", arch: ""},
+          { name: "VS 2019 x64 Release", platform: Win32, configuration: Release, toolset: v142, runner: "windows-2019", arch: ""},
+          { name: "VS 2019 Win32 Release", platform: x64, configuration: Release, toolset: v142, runner: "windows-2019", arch: ""},
+          { name: "VS 2022 x64 Release AVX2", platform: x64, configuration: Release, toolset: v143, runner: "windows-2022", arch: "AdvancedVectorExtensions2" },
         ]
     runs-on: ${{matrix.runner}}
     steps:
     - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v1.3
-    - name: Build
+    - name: Build ${{matrix.name}}
       working-directory: ${{env.GITHUB_WORKSPACE}}
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
+      if: ${{ matrix.arch == '' }}
       run: >
         msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=${{matrix.toolset}}
-        /t:Clean,Build /p:Platform=${{matrix.platform}} /p:Configuration=${{matrix.configuration}}
+        /t:Clean,Build /p:Platform=${{matrix.platform}} /p:Configuration=${{matrix.configuration}} /warnaserror
+    - name: Build ${{matrix.name}}
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
+      if: ${{ matrix.arch != '' }}
+      run: >
+        msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=${{matrix.toolset}}
+        /t:Clean,Build /p:Platform=${{matrix.platform}} /p:Configuration=${{matrix.configuration}} /warnaserror
+        /p:InstructionSet=${{matrix.arch}}
 
   # This tests that we don't accidently grow the size too much.
   # If the size grows intentionally, you can raise these numbers.

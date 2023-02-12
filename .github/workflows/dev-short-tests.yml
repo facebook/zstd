@@ -55,6 +55,14 @@ jobs:
       run: |
         make c89build V=1
 
+  build-zstd-dll:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
+    - name: build zstd bin against a dynamic lib (debuglevel for more dependencies)
+      run: |
+        make -C lib lib-mt-release 
+        DEBUGLEVEL=2 make -C programs zstd-dll
 
   gcc-7-libzstd:
     runs-on: ubuntu-latest
@@ -338,7 +346,6 @@ jobs:
       run: |
         make -j -C programs allVariants MOREFLAGS=-O0
         ./tests/test-variants.sh
-
 
   qemu-consistency:
     name: QEMU ${{ matrix.name }}

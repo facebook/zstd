@@ -41,10 +41,6 @@
 #  include <io.h>
 #endif
 
-#if (PLATFORM_POSIX_VERSION > 0)
-#  include <sys/mman.h>
-#endif
-
 #include "fileio.h"
 #include "fileio_asyncio.h"
 #include "fileio_common.h"
@@ -716,12 +712,18 @@ static size_t FIO_createDictBuffer(void** bufferPtr, const char* fileName, FIO_p
     return (size_t)fileSize;
 }
 
-/*! FIO_createDictBufferMMap() :
- *  creates a buffer, pointed by `*bufferPtr` using mmap,
- *  loads entire `filename` content into it.
- * @return : loaded size
- *  if fileName==NULL, returns 0 and a NULL pointer
- */
+#if (PLATFORM_POSIX_VERSION > 0)
+#include <sys/mman.h>
+static void* FIO_mmap(size_t fileSize, int fileHandle)
+{
+    return mmap
+    (NULL, (size_t)fileSize, PROT_READ, MAP_PRIVATE, fileHandle, 0);
+}
+static int FIO_munmap(void* buffer, size_t bufferSize)
+{
+    return munmap(buffer, bufferSize);
+}
+/* We might want to also do mapping for windows */
 static size_t FIO_createDictBufferMMap(void** bufferPtr, const char* fileName, FIO_prefs_t* const prefs, stat_t* dictFileStat)
 {
     int fileHandle;
@@ -749,7 +751,6 @@ static size_t FIO_createDictBufferMMap(void** bufferPtr, const char* fileName, F
     }
 
     fileSize = UTIL_getFileSizeStat(dictFileStat);
-
     {
         size_t const dictSizeMax = prefs->patchFromMode ? prefs->memLimit : DICTSIZE_MAX;
         if (fileSize >  dictSizeMax) {
@@ -758,11 +759,24 @@ static size_t FIO_createDictBufferMMap(void** bufferPtr, const char* fileName, F
         }
     }
 
-    *bufferPtr = mmap(NULL, (size_t)fileSize, PROT_READ, MAP_PRIVATE, fileHandle, 0);
+    *bufferPtr = FIO_mmap((size_t)fileSize, fileHandle);
 
     close(fileHandle);
     return (size_t)fileSize;
 }
+static void FIO_munmapDictBuffer(void* dictBuffer, size_t dictBufferSize) {
+    FIO_munmap(dictBuffer, dictBufferSize);
+}
+#else
+static size_t FIO_createDictBufferMMap(void** bufferPtr, const char* fileName, FIO_prefs_t* const prefs, stat_t* dictFileStat)
+{
+   return FIO_createDictBuffer(bufferPtr, fileName, prefs, dictFileStat);
+}
+static void FIO_munmapDictBuffer(void* dictBuffer, size_t dictBufferSize) {
+   (void)dictBufferSize;
+   free(dictBuffer);
+}
+#endif
 
 
 
@@ -1014,14 +1028,12 @@ static void FIO_adjustParamsForPatchFromMode(FIO_prefs_t* const prefs,
 static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
                                     const char* dictFileName, unsigned long long const maxSrcFileSize,
                                     int cLevel, ZSTD_compressionParameters comprParams) {
-    U64 const dictSize = UTIL_getFileSize(dictFileName);
-    int const mmapDict = prefs->patchFromMode && PLATFORM_POSIX_VERSION < 1 && dictSize > prefs->memLimit;
+    int mmapDict = 0;
     cRess_t ress;
     memset(&ress, 0, sizeof(ress));
 
     DISPLAYLEVEL(6, "FIO_createCResources \n");
     ress.cctx = ZSTD_createCCtx();
-    ress.mmapDict = mmapDict;
     if (ress.cctx == NULL)
         EXM_THROW(30, "allocation error (%s): can't create ZSTD_CCtx",
                     strerror(errno));
@@ -1029,11 +1041,15 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
     /* need to update memLimit before calling createDictBuffer
      * because of memLimit check inside it */
     if (prefs->patchFromMode) {
+        U64 const dictSize = UTIL_getFileSize(dictFileName);
         unsigned long long const ssSize = (unsigned long long)prefs->streamSrcSize;
+        mmapDict = dictSize > prefs->memLimit;
         FIO_adjustParamsForPatchFromMode(prefs, &comprParams, dictSize, ssSize > 0 ? ssSize : maxSrcFileSize, cLevel);
     }
 
-    if (!mmapDict) {
+    ress.mmapDict = mmapDict;
+
+    if (!ress.mmapDict) {
         ress.dictBufferSize = FIO_createDictBuffer(&ress.dictBuffer, dictFileName, prefs, &ress.dictFileStat);   /* works with dictFileName==NULL */
     } else {
         ress.dictBufferSize = FIO_createDictBufferMMap(&ress.dictBuffer, dictFileName, prefs, &ress.dictFileStat);
@@ -1095,7 +1111,7 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
     if (prefs->patchFromMode) {
         CHECK( ZSTD_CCtx_refPrefix(ress.cctx, ress.dictBuffer, ress.dictBufferSize) );
     } else {
-        CHECK( ZSTD_CCtx_loadDictionary(ress.cctx, ress.dictBuffer, ress.dictBufferSize) );
+        CHECK( ZSTD_CCtx_loadDictionary_byReference(ress.cctx, ress.dictBuffer, ress.dictBufferSize) );
     }
 
     return ress;
@@ -1106,7 +1122,7 @@ static void FIO_freeCResources(const cRess_t* const ress)
     if (!ress->mmapDict) {
         free(ress->dictBuffer);
     } else {
-        munmap(ress->dictBuffer, ress->dictBufferSize);
+        FIO_munmapDictBuffer(ress->dictBuffer, ress->dictBufferSize);
     }
     AIO_WritePool_free(ress->writeCtx);
     AIO_ReadPool_free(ress->readCtx);
@@ -2108,22 +2124,28 @@ int FIO_compressMultipleFilenames(FIO_ctx_t* const fCtx,
  *  Decompression
  ***************************************************************************/
 typedef struct {
+    void* dictBuffer;
+    size_t dictBufferSize;
     ZSTD_DStream* dctx;
     WritePoolCtx_t *writeCtx;
     ReadPoolCtx_t *readCtx;
+    int mmapDict;
 } dRess_t;
 
 static dRess_t FIO_createDResources(FIO_prefs_t* const prefs, const char* dictFileName)
 {
-    U64 const dictSize = UTIL_getFileSize(dictFileName);
-    int const mmapDict = prefs->patchFromMode && PLATFORM_POSIX_VERSION < 1 && dictSize > prefs->memLimit;
+    int mmapDict = 0;
     dRess_t ress;
     memset(&ress, 0, sizeof(ress));
 
-    if (prefs->patchFromMode)
+    if (prefs->patchFromMode){
+        U64 const dictSize = UTIL_getFileSize(dictFileName);
+        mmapDict = dictSize > prefs->memLimit;
         FIO_adjustMemLimitForPatchFromMode(prefs, dictSize, 0 /* just use the dict size */);
+    }
 
     /* Allocation */
+    ress.mmapDict = mmapDict;
     ress.dctx = ZSTD_createDStream();
     if (ress.dctx==NULL)
         EXM_THROW(60, "Error: %s : can't create ZSTD_DStream", strerror(errno));
@@ -2131,23 +2153,19 @@ static dRess_t FIO_createDResources(FIO_prefs_t* const prefs, const char* dictFi
     CHECK( ZSTD_DCtx_setParameter(ress.dctx, ZSTD_d_forceIgnoreChecksum, !prefs->checksumFlag));
 
     /* dictionary */
-    {   void* dictBuffer;
-        stat_t statbuf;
-        size_t dictBufferSize;
-
+    {   stat_t statbuf;
         if (!mmapDict) {
-            dictBufferSize = FIO_createDictBuffer(&dictBuffer, dictFileName, prefs, &statbuf);
+            ress.dictBufferSize = FIO_createDictBuffer(&ress.dictBuffer, dictFileName, prefs, &statbuf);
         } else {
-            dictBufferSize = FIO_createDictBufferMMap(&dictBuffer, dictFileName, prefs, &statbuf);
+            ress.dictBufferSize = FIO_createDictBufferMMap(&ress.dictBuffer, dictFileName, prefs, &statbuf);
         }
 
-        CHECK( ZSTD_DCtx_reset(ress.dctx, ZSTD_reset_session_only) );
-        CHECK( ZSTD_DCtx_loadDictionary(ress.dctx, dictBuffer, dictBufferSize) );
+        CHECK(ZSTD_DCtx_reset(ress.dctx, ZSTD_reset_session_only) );
 
-        if (!mmapDict) {
-            free(dictBuffer);
+        if (prefs->patchFromMode){
+            CHECK(ZSTD_DCtx_refPrefix(ress.dctx, ress.dictBuffer, ress.dictBufferSize));
         } else {
-            munmap(dictBuffer, dictBufferSize);
+            CHECK(ZSTD_DCtx_loadDictionary_byReference(ress.dctx, ress.dictBuffer, ress.dictBufferSize));
         }
     }
 
@@ -2159,6 +2177,11 @@ static dRess_t FIO_createDResources(FIO_prefs_t* const prefs, const char* dictFi
 
 static void FIO_freeDResources(dRess_t ress)
 {
+    if (!ress.mmapDict) {
+        free(ress.dictBuffer);
+    } else {
+        FIO_munmapDictBuffer(ress.dictBuffer, ress.dictBufferSize);
+    }
     CHECK( ZSTD_freeDStream(ress.dctx) );
     AIO_WritePool_free(ress.writeCtx);
     AIO_ReadPool_free(ress.readCtx);

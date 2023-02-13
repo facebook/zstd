@@ -660,7 +660,23 @@ FIO_openDstFile(FIO_ctx_t* fCtx, FIO_prefs_t* const prefs,
     }
 }
 
-/*! FIO_createDictBuffer() :
+
+/* FIO_getDictFileStat() :
+ */
+static void FIO_getDictFileStat(const char* fileName, stat_t* dictFileStat) {
+    assert(dictFileStat != NULL);
+    if (fileName == NULL) return;
+
+    if (!UTIL_stat(fileName, dictFileStat)) {
+        EXM_THROW(31, "Stat failed on dictionary file %s: %s", fileName, strerror(errno));
+    }
+
+    if (!UTIL_isRegularFileStat(dictFileStat)) {
+        EXM_THROW(32, "Dictionary %s must be a regular file.", fileName);
+    }
+}
+
+/*  FIO_createDictBuffer() :
  *  creates a buffer, pointed by `*bufferPtr`,
  *  loads `filename` content into it, up to DICTSIZE_MAX bytes.
  * @return : loaded size
@@ -677,14 +693,6 @@ static size_t FIO_createDictBuffer(void** bufferPtr, const char* fileName, FIO_p
     if (fileName == NULL) return 0;
 
     DISPLAYLEVEL(4,"Loading %s as dictionary \n", fileName);
-
-    if (!UTIL_stat(fileName, dictFileStat)) {
-        EXM_THROW(31, "Stat failed on dictionary file %s: %s", fileName, strerror(errno));
-    }
-
-    if (!UTIL_isRegularFileStat(dictFileStat)) {
-        EXM_THROW(32, "Dictionary %s must be a regular file.", fileName);
-    }
 
     fileHandle = fopen(fileName, "rb");
 
@@ -735,14 +743,6 @@ static size_t FIO_createDictBufferMMap(void** bufferPtr, const char* fileName, F
     if (fileName == NULL) return 0;
 
     DISPLAYLEVEL(4,"Loading %s as dictionary \n", fileName);
-
-     if (!UTIL_stat(fileName, dictFileStat)) {
-        EXM_THROW(31, "Stat failed on dictionary file %s: %s", fileName, strerror(errno));
-    }
-
-    if (!UTIL_isRegularFileStat(dictFileStat)) {
-        EXM_THROW(32, "Dictionary %s must be a regular file.", fileName);
-    }
 
     fileHandle = open(fileName, O_RDONLY);
 
@@ -1038,10 +1038,12 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
         EXM_THROW(30, "allocation error (%s): can't create ZSTD_CCtx",
                     strerror(errno));
 
+    FIO_getDictFileStat(dictFileName, &ress.dictFileStat);
+
     /* need to update memLimit before calling createDictBuffer
      * because of memLimit check inside it */
     if (prefs->patchFromMode) {
-        U64 const dictSize = UTIL_getFileSize(dictFileName);
+        U64 const dictSize = UTIL_getFileSizeStat(&ress.dictFileStat);
         unsigned long long const ssSize = (unsigned long long)prefs->streamSrcSize;
         mmapDict = dictSize > prefs->memLimit;
         FIO_adjustParamsForPatchFromMode(prefs, &comprParams, dictSize, ssSize > 0 ? ssSize : maxSrcFileSize, cLevel);
@@ -2135,11 +2137,14 @@ typedef struct {
 static dRess_t FIO_createDResources(FIO_prefs_t* const prefs, const char* dictFileName)
 {
     int mmapDict = 0;
+    stat_t statbuf;
     dRess_t ress;
     memset(&ress, 0, sizeof(ress));
 
+    FIO_getDictFileStat(dictFileName, &statbuf);
+
     if (prefs->patchFromMode){
-        U64 const dictSize = UTIL_getFileSize(dictFileName);
+        U64 const dictSize = UTIL_getFileSizeStat(&statbuf);
         mmapDict = dictSize > prefs->memLimit;
         FIO_adjustMemLimitForPatchFromMode(prefs, dictSize, 0 /* just use the dict size */);
     }
@@ -2153,8 +2158,7 @@ static dRess_t FIO_createDResources(FIO_prefs_t* const prefs, const char* dictFi
     CHECK( ZSTD_DCtx_setParameter(ress.dctx, ZSTD_d_forceIgnoreChecksum, !prefs->checksumFlag));
 
     /* dictionary */
-    {   stat_t statbuf;
-        if (!mmapDict) {
+    {   if (!mmapDict) {
             ress.dictBufferSize = FIO_createDictBuffer(&ress.dictBuffer, dictFileName, prefs, &statbuf);
         } else {
             ress.dictBufferSize = FIO_createDictBufferMMap(&ress.dictBuffer, dictFileName, prefs, &statbuf);
@@ -2171,7 +2175,6 @@ static dRess_t FIO_createDResources(FIO_prefs_t* const prefs, const char* dictFi
 
     ress.writeCtx = AIO_WritePool_create(prefs, ZSTD_DStreamOutSize());
     ress.readCtx = AIO_ReadPool_create(prefs, ZSTD_DStreamInSize());
-
     return ress;
 }
 

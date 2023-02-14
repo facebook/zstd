@@ -485,6 +485,11 @@ void FIO_setPassThroughFlag(FIO_prefs_t* const prefs, int value) {
     prefs->passThrough = (value != 0);
 }
 
+void FIO_setMMapDict(FIO_prefs_t* const prefs, int value)
+{
+    prefs->mmapDict = value;
+}
+
 /* FIO_ctx_t functions */
 
 void FIO_setHasStdoutOutput(FIO_ctx_t* const fCtx, int value) {
@@ -1028,7 +1033,7 @@ static void FIO_adjustParamsForPatchFromMode(FIO_prefs_t* const prefs,
 static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
                                     const char* dictFileName, unsigned long long const maxSrcFileSize,
                                     int cLevel, ZSTD_compressionParameters comprParams) {
-    int mmapDict = 0;
+    int mmapDict = prefs->mmapDict;
     cRess_t ress;
     memset(&ress, 0, sizeof(ress));
 
@@ -1045,7 +1050,7 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
     if (prefs->patchFromMode) {
         U64 const dictSize = UTIL_getFileSizeStat(&ress.dictFileStat);
         unsigned long long const ssSize = (unsigned long long)prefs->streamSrcSize;
-        mmapDict = dictSize > prefs->memLimit;
+        mmapDict |= dictSize > prefs->memLimit;
         FIO_adjustParamsForPatchFromMode(prefs, &comprParams, dictSize, ssSize > 0 ? ssSize : maxSrcFileSize, cLevel);
     }
 
@@ -2136,7 +2141,7 @@ typedef struct {
 
 static dRess_t FIO_createDResources(FIO_prefs_t* const prefs, const char* dictFileName)
 {
-    int mmapDict = 0;
+    int mmapDict = prefs->mmapDict;
     stat_t statbuf;
     dRess_t ress;
     memset(&ress, 0, sizeof(ress));
@@ -2145,7 +2150,7 @@ static dRess_t FIO_createDResources(FIO_prefs_t* const prefs, const char* dictFi
 
     if (prefs->patchFromMode){
         U64 const dictSize = UTIL_getFileSizeStat(&statbuf);
-        mmapDict = dictSize > prefs->memLimit;
+        mmapDict |= dictSize > prefs->memLimit;
         FIO_adjustMemLimitForPatchFromMode(prefs, dictSize, 0 /* just use the dict size */);
     }
 

@@ -69,6 +69,7 @@ typedef struct FIO_prefs_s {
     int contentSize;
     int allowBlockDevices;
     int passThrough;
+    int mmapDict;
 } FIO_prefs_t;
 
 #endif /* FILEIO_TYPES_HEADER */

@@ -10,6 +10,8 @@ on:
   pull_request:
     branches: [ dev, release, actionsTest ]
 
+permissions: read-all
+
 jobs:
   linux-kernel:
     runs-on: ubuntu-latest

@@ -5,8 +5,7 @@ on:
     types:
       - published
 
-permissions:
-  contents: read
+permissions: read-all
 
 jobs:
   publish-release-artifacts:
@@ -68,7 +67,7 @@ jobs:
           fi
 
       - name: Publish
-        uses: skx/github-action-publish-binaries@release-2.0
+        uses: skx/github-action-publish-binaries@b9ca5643b2f1d7371a6cba7f35333f1461bbc703 # tag=release-2.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:

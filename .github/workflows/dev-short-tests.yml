@@ -186,6 +186,25 @@ jobs:
           make gcc8install
           CC=gcc-8 CFLAGS="-Werror" make -j all
 
+  make-external-compressors:
+    strategy:
+      matrix:
+        include:
+          - name: "no external compressors"
+            flags: "HAVE_ZLIB=0 HAVE_LZ4=0 HAVE_LZMA=0"
+          - name: "only zlib"
+            flags: "HAVE_ZLIB=1 HAVE_LZ4=0 HAVE_LZMA=0"
+          - name: "only lz4"
+            flags: "HAVE_ZLIB=0 HAVE_LZ4=1 HAVE_LZMA=0"
+          - name: "only lzma"
+            flags: "HAVE_ZLIB=0 HAVE_LZ4=0 HAVE_LZMA=1"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
+      - name: Build with ${{matrix.name}}
+        run: ${{matrix.flags}} make zstd
+
+
   implicit-fall-through:
     runs-on: ubuntu-latest
     steps:

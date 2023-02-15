@@ -38,6 +38,20 @@ jobs:
     - name: OS-X test
       run: make test # make -c lib all doesn't work because of the fact that it's not a tty
 
+  # lasts ~24mn
+  make-test-32bit:
+    runs-on: ubuntu-latest
+    env:
+      DEVNULLRIGHTS: 1
+      READFROMBLOCKDEVICE: 1
+    steps:
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
+    - name: make test
+      run: |
+        sudo apt-get -qqq update
+        make libc6install
+        CFLAGS="-m32" make test
+
   no-intrinsics-fuzztest:
     runs-on: ubuntu-latest
     steps:

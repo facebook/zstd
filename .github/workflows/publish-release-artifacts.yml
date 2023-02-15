@@ -10,8 +10,7 @@ permissions: read-all
 jobs:
   publish-release-artifacts:
     permissions:
-      contents: read # to fetch code (actions/checkout)
-      actions: write # to attach binaries to release artifacts (skx/github-action-publish-binaries)
+      contents: write # to fetch code and upload artifacts
 
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')

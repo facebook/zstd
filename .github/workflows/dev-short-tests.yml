@@ -318,7 +318,7 @@ jobs:
         /t:Clean,Build /p:Platform=${{matrix.platform}} /p:Configuration=${{matrix.configuration}} /warnaserror
         /p:InstructionSet=${{matrix.arch}}
 
-  # This tests that we don't accidently grow the size too much.
+  # This tests that we don't accidentally grow the size too much.
   # If the size grows intentionally, you can raise these numbers.
   # But we do need to think about binary size, since it is a concern.
   libzstd-size:

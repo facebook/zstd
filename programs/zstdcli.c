@@ -165,7 +165,7 @@ static void usage(FILE* f, const char* programName)
 #endif
     DISPLAY_F(f, "  -D DICT                       Use DICT as the dictionary for compression or decompression.\n\n");
     DISPLAY_F(f, "  -f, --force                   Disable input and output checks. Allows overwriting existing files,\n");
-    DISPLAY_F(f, "                                receiving input from the console, printing ouput to STDOUT, and\n");
+    DISPLAY_F(f, "                                receiving input from the console, printing output to STDOUT, and\n");
     DISPLAY_F(f, "                                operating on links, block devices, etc. Unrecognized formats will be\n");
     DISPLAY_F(f, "                                passed-through through as-is.\n\n");
 

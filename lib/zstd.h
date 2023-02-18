@@ -2134,7 +2134,7 @@ ZSTDLIB_STATIC_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const vo
  * This parameter can be used to set an upper bound on the blocksize
  * that overrides the default ZSTD_BLOCKSIZE_MAX. It cannot be used to set upper
  * bounds greater than ZSTD_BLOCKSIZE_MAX or bounds lower than 1KB (will make
- * compressBound() innacurate). Only currently meant to be used for testing.
+ * compressBound() inaccurate). Only currently meant to be used for testing.
  *
  */
 #define ZSTD_c_maxBlockSize ZSTD_c_experimentalParam18

@@ -88,7 +88,7 @@ UTIL_time_t UTIL_getTime(void)
 /* C11 requires support of timespec_get().
  * However, FreeBSD 11 claims C11 compliance while lacking timespec_get().
  * Double confirm timespec_get() support by checking the definition of TIME_UTC.
- * However, some versions of Android manage to simultanously define TIME_UTC
+ * However, some versions of Android manage to simultaneously define TIME_UTC
  * and lack timespec_get() support... */
 #elif (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L) /* C11 */) \
     && defined(TIME_UTC) && !defined(__ANDROID__)

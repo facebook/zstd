@@ -1987,7 +1987,7 @@ ZSTD_decompressSequencesLong(ZSTD_DCtx* dctx,
 
 
 /**
- * @returns The total size of the history referencable by zstd, including
+ * @returns The total size of the history referenceable by zstd, including
  * both the prefix and the extDict. At @p op any offset larger than this
  * is invalid.
  */

@@ -81,21 +81,13 @@ BMK_benchResult_t BMK_extract_benchResult(BMK_benchOutcome_t outcome);
  *      2 : + result + interaction + warnings;
  *      3 : + information;
  *      4 : + debug
- * @return:
- *      a variant, which expresses either an error, or a valid result.
- *      Use BMK_isSuccessful_benchOutcome() to check if function was successful.
- *      If yes, extract the valid result with BMK_extract_benchResult(),
- *      it will contain :
- *          .cSpeed: compression speed in bytes per second,
- *          .dSpeed: decompression speed in bytes per second,
- *          .cSize : compressed size, in bytes
- *          .cMem  : memory budget required for the compression context
+ * @return: 0 on success, !0 on error
  */
-BMK_benchOutcome_t
-BMK_benchFiles( const char* const * fileNamesTable, unsigned nbFiles,
-                const char* dictFileName,
-                int cLevel, const ZSTD_compressionParameters* compressionParams,
-                int displayLevel);
+int BMK_benchFiles(
+            const char* const * fileNamesTable, unsigned nbFiles,
+            const char* dictFileName,
+            int cLevel, const ZSTD_compressionParameters* compressionParams,
+            int displayLevel);
 
 
 typedef enum {
@@ -126,8 +118,7 @@ BMK_advancedParams_t BMK_initAdvancedParams(void);
 /*! BMK_benchFilesAdvanced():
  *  Same as BMK_benchFiles(),
  *  with more controls, provided through advancedParams_t structure */
-BMK_benchOutcome_t
-BMK_benchFilesAdvanced(
+int BMK_benchFilesAdvanced(
                const char* const * fileNamesTable, unsigned nbFiles,
                const char* dictFileName,
                int cLevel, const ZSTD_compressionParameters* compressionParams,

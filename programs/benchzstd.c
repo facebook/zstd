@@ -794,7 +794,7 @@ static int BMK_loadFiles(void* buffer, size_t bufferSize,
     return 0;
 }
 
-BMK_benchOutcome_t BMK_benchFilesAdvanced(
+int BMK_benchFilesAdvanced(
                         const char* const * fileNamesTable, unsigned nbFiles,
                         const char* dictFileName, int cLevel,
                         const ZSTD_compressionParameters* compressionParams,
@@ -809,19 +809,25 @@ BMK_benchOutcome_t BMK_benchFilesAdvanced(
     U64 const totalSizeToLoad = UTIL_getTotalFileSize(fileNamesTable, nbFiles);
 
     if (!nbFiles) {
-        RETURN_ERROR(14, BMK_benchOutcome_t, "No Files to Benchmark");
+        DISPLAYLEVEL(1, "No Files to Benchmark");
+        return 13;
     }
 
     if (cLevel > ZSTD_maxCLevel()) {
-        RETURN_ERROR(15, BMK_benchOutcome_t, "Invalid Compression Level");
+        DISPLAYLEVEL(1, "Invalid Compression Level");
+        return 14;
     }
 
     if (totalSizeToLoad == UTIL_FILESIZE_UNKNOWN) {
-        RETURN_ERROR(9, BMK_benchOutcome_t, "Error loading files");
+        DISPLAYLEVEL(1, "Error loading files");
+        return 15;
     }
 
     fileSizes = (size_t*)calloc(nbFiles, sizeof(size_t));
-    if (!fileSizes) RETURN_ERROR(12, BMK_benchOutcome_t, "not enough memory for fileSizes");
+    if (!fileSizes) {
+        DISPLAYLEVEL(1, "not enough memory for fileSizes");
+        return 16;
+    }
 
     /* Load dictionary */
     if (dictFileName != NULL) {
@@ -829,18 +835,21 @@ BMK_benchOutcome_t BMK_benchFilesAdvanced(
         if (dictFileSize == UTIL_FILESIZE_UNKNOWN) {
             DISPLAYLEVEL(1, "error loading %s : %s \n", dictFileName, strerror(errno));
             free(fileSizes);
-            RETURN_ERROR(9, BMK_benchOutcome_t, "benchmark aborted");
+            DISPLAYLEVEL(1, "benchmark aborted");
+            return 17;
         }
         if (dictFileSize > 64 MB) {
             free(fileSizes);
-            RETURN_ERROR(10, BMK_benchOutcome_t, "dictionary file %s too large", dictFileName);
+            DISPLAYLEVEL(1, "dictionary file %s too large", dictFileName);
+            return 18;
         }
         dictBufferSize = (size_t)dictFileSize;
         dictBuffer = malloc(dictBufferSize);
         if (dictBuffer==NULL) {
             free(fileSizes);
-            RETURN_ERROR(11, BMK_benchOutcome_t, "not enough memory for dictionary (%u bytes)",
+            DISPLAYLEVEL(1, "not enough memory for dictionary (%u bytes)",
                             (unsigned)dictBufferSize);
+            return 19;
         }
 
         {   int const errorCode = BMK_loadFiles(dictBuffer, dictBufferSize,
@@ -862,7 +871,8 @@ BMK_benchOutcome_t BMK_benchFilesAdvanced(
     if (!srcBuffer) {
         free(dictBuffer);
         free(fileSizes);
-        RETURN_ERROR(12, BMK_benchOutcome_t, "not enough memory");
+        DISPLAYLEVEL(1, "not enough memory for srcBuffer");
+        return 20;
     }
 
     /* Load input buffer */
@@ -890,12 +900,11 @@ _cleanUp:
     free(srcBuffer);
     free(dictBuffer);
     free(fileSizes);
-    return res;
+    return !BMK_isSuccessful_benchOutcome(res);
 }
 
 
-BMK_benchOutcome_t BMK_benchFiles(
-                    const char* const * fileNamesTable, unsigned nbFiles,
+int BMK_benchFiles(const char* const * fileNamesTable, unsigned nbFiles,
                     const char* dictFileName,
                     int cLevel, const ZSTD_compressionParameters* compressionParams,
                     int displayLevel)

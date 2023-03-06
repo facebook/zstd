@@ -37,7 +37,7 @@
 
 #include "fileio.h"   /* stdinmark, stdoutmark, ZSTD_EXTENSION */
 #ifndef ZSTD_NOBENCH
-#  include "benchzstd.h"  /* BMK_benchFiles */
+#  include "benchzstd.h"  /* BMK_benchFilesAdvanced */
 #endif
 #ifndef ZSTD_NODICT
 #  include "dibio.h"  /* ZDICT_cover_params_t, DiB_trainFromFiles() */

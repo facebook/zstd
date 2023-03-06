@@ -26,7 +26,7 @@
 #include "datagen.h"     /* RDG_genBuffer */
 #include "xxhash.h"
 
-#include "zstd_zlibwrapper.h"
+#include "../zstd_zlibwrapper.h"
 
 
 
@@ -109,17 +109,17 @@ static unsigned g_nbIterations = NBLOOPS;
 static size_t g_blockSize = 0;
 int g_additionalParam = 0;
 
-void BMK_setNotificationLevel(unsigned level) { g_displayLevel=level; }
+static void BMK_setNotificationLevel(unsigned level) { g_displayLevel=level; }
 
-void BMK_setAdditionalParam(int additionalParam) { g_additionalParam=additionalParam; }
+static void BMK_setAdditionalParam(int additionalParam) { g_additionalParam=additionalParam; }
 
-void BMK_SetNbIterations(unsigned nbLoops)
+static void BMK_SetNbIterations(unsigned nbLoops)
 {
     g_nbIterations = nbLoops;
     DISPLAYLEVEL(3, "- test >= %u seconds per compression / decompression -\n", g_nbIterations);
 }
 
-void BMK_SetBlockSize(size_t blockSize)
+static void BMK_SetBlockSize(size_t blockSize)
 {
     g_blockSize = blockSize;
     DISPLAYLEVEL(2, "using blocks of size %u KB \n", (unsigned)(blockSize>>10));
@@ -798,7 +798,7 @@ static void BMK_syntheticTest(int cLevel, int cLevelLast, double compressibility
 }
 
 
-int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,
+static int BMK_benchFiles(const char** fileNamesTable, unsigned nbFiles,
                    const char* dictFileName, int cLevel, int cLevelLast)
 {
     double const compressibility = (double)g_compressibilityDefault / 100;

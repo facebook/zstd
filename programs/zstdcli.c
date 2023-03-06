@@ -1401,8 +1401,8 @@ int main(int argCount, const char* argv[])
             }   }
         } else {
             for(; cLevel <= cLevelLast; cLevel++) {
-                BMK_benchOutcome_t const bo = BMK_syntheticTest(cLevel, compressibility, &compressionParams, g_displayLevel, &benchParams);
-                if (!BMK_isSuccessful_benchOutcome(bo)) return 1;
+                if ( BMK_syntheticTest(cLevel, compressibility, &compressionParams, g_displayLevel, &benchParams) )
+                    return 1;
         }   }
 
 #else

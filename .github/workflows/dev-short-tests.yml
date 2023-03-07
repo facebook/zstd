@@ -10,6 +10,8 @@ on:
   pull_request:
     branches: [ dev, release, actionsTest ]
 
+permissions: read-all
+
 jobs:
   linux-kernel:
     runs-on: ubuntu-latest
@@ -55,6 +57,14 @@ jobs:
       run: |
         make c89build V=1
 
+  build-zstd-dll:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
+    - name: build zstd bin against a dynamic lib (debuglevel for more dependencies)
+      run: |
+        make -C lib lib-mt-release 
+        DEBUGLEVEL=2 make -C programs zstd-dll
 
   gcc-7-libzstd:
     runs-on: ubuntu-latest
@@ -176,6 +186,25 @@ jobs:
           make gcc8install
           CC=gcc-8 CFLAGS="-Werror" make -j all
 
+  make-external-compressors:
+    strategy:
+      matrix:
+        include:
+          - name: "no external compressors"
+            flags: "HAVE_ZLIB=0 HAVE_LZ4=0 HAVE_LZMA=0"
+          - name: "only zlib"
+            flags: "HAVE_ZLIB=1 HAVE_LZ4=0 HAVE_LZMA=0"
+          - name: "only lz4"
+            flags: "HAVE_ZLIB=0 HAVE_LZ4=1 HAVE_LZMA=0"
+          - name: "only lzma"
+            flags: "HAVE_ZLIB=0 HAVE_LZ4=0 HAVE_LZMA=1"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
+      - name: Build with ${{matrix.name}}
+        run: ${{matrix.flags}} make zstd
+
+
   implicit-fall-through:
     runs-on: ubuntu-latest
     steps:
@@ -218,7 +247,7 @@ jobs:
       - name: Install packages
         run: pip install --pre meson
       - name: Initialize the MSVC dev command prompt
-        uses: ilammy/msvc-dev-cmd@7315a94840631165970262a99c72cfb48a65d25d
+        uses: ilammy/msvc-dev-cmd@cec98b9d092141f74527d0afa6feb2af698cfe89
       - name: Configure with Meson
         run: |
           meson setup build/meson/ builddir -Dbin_tests=true -Dbin_programs=true -Dbin_contrib=true
@@ -257,28 +286,39 @@ jobs:
 
   msbuild-visual-studio:
     strategy:
+      fail-fast: false  # 'false' means Don't stop matrix workflows even if some matrix failed.
       matrix:
         include: [
-          { name: "VS 2022 x64 Debug", platform: x64, configuration: Debug, toolset: v143, runner: "windows-2022"},
-          { name: "VS 2022 Win32 Debug", platform: Win32, configuration: Debug, toolset: v143, runner: "windows-2022"},
-          { name: "VS 2022 x64 Release", platform: x64, configuration: Release, toolset: v143, runner: "windows-2022"},
-          { name: "VS 2022 Win32 Release", platform: Win32, configuration: Release, toolset: v143, runner: "windows-2022"},
-          { name: "VS 2019 x64 Release", platform: Win32, configuration: Release, toolset: v142, runner: "windows-2019"},
-          { name: "VS 2019 Win32 Release", platform: x64, configuration: Release, toolset: v142, runner: "windows-2019"},
+          { name: "VS 2022 x64 Debug", platform: x64, configuration: Debug, toolset: v143, runner: "windows-2022", arch: "" },
+          { name: "VS 2022 Win32 Debug", platform: Win32, configuration: Debug, toolset: v143, runner: "windows-2022", arch: "" },
+          { name: "VS 2022 x64 Release", platform: x64, configuration: Release, toolset: v143, runner: "windows-2022", arch: ""},
+          { name: "VS 2022 Win32 Release", platform: Win32, configuration: Release, toolset: v143, runner: "windows-2022", arch: ""},
+          { name: "VS 2019 x64 Release", platform: Win32, configuration: Release, toolset: v142, runner: "windows-2019", arch: ""},
+          { name: "VS 2019 Win32 Release", platform: x64, configuration: Release, toolset: v142, runner: "windows-2019", arch: ""},
+          { name: "VS 2022 x64 Release AVX2", platform: x64, configuration: Release, toolset: v143, runner: "windows-2022", arch: "AdvancedVectorExtensions2" },
         ]
     runs-on: ${{matrix.runner}}
     steps:
     - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v1.3
-    - name: Build
+    - name: Build ${{matrix.name}}
       working-directory: ${{env.GITHUB_WORKSPACE}}
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
+      if: ${{ matrix.arch == '' }}
       run: >
         msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=${{matrix.toolset}}
-        /t:Clean,Build /p:Platform=${{matrix.platform}} /p:Configuration=${{matrix.configuration}}
+        /t:Clean,Build /p:Platform=${{matrix.platform}} /p:Configuration=${{matrix.configuration}} /warnaserror
+    - name: Build ${{matrix.name}}
+      working-directory: ${{env.GITHUB_WORKSPACE}}
+      # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
+      if: ${{ matrix.arch != '' }}
+      run: >
+        msbuild "build\VS2010\zstd.sln" /m /verbosity:minimal /property:PlatformToolset=${{matrix.toolset}}
+        /t:Clean,Build /p:Platform=${{matrix.platform}} /p:Configuration=${{matrix.configuration}} /warnaserror
+        /p:InstructionSet=${{matrix.arch}}
 
-  # This tests that we don't accidently grow the size too much.
+  # This tests that we don't accidentally grow the size too much.
   # If the size grows intentionally, you can raise these numbers.
   # But we do need to think about binary size, since it is a concern.
   libzstd-size:
@@ -327,7 +367,6 @@ jobs:
       run: |
         make -j -C programs allVariants MOREFLAGS=-O0
         ./tests/test-variants.sh
-
 
   qemu-consistency:
     name: QEMU ${{ matrix.name }}

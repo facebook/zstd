@@ -225,7 +225,7 @@ zstd-noxz : zstd
 .PHONY: zstd-dll
 zstd-dll : LDFLAGS+= -L$(LIBZSTD)
 zstd-dll : LDLIBS += -lzstd
-zstd-dll : ZSTDLIB_LOCAL_SRC = xxhash.c
+zstd-dll : ZSTDLIB_LOCAL_SRC = xxhash.c pool.c threading.c
 zstd-dll : zstd
 
 

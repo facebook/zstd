@@ -113,6 +113,8 @@ typedef enum { set_basic, set_rle, set_compressed, set_repeat } symbolEncodingTy
 #define LLFSELog    9
 #define OffFSELog   8
 #define MaxFSELog  MAX(MAX(MLFSELog, LLFSELog), OffFSELog)
+#define MaxMLBits 16
+#define MaxLLBits 16
 
 #define ZSTD_MAX_HUF_HEADER_SIZE 128 /* header + <= 127 byte tree description */
 /* Each table cannot take more than #symbols * FSELog bits */
@@ -346,12 +348,7 @@ typedef struct {
 } ZSTD_frameSizeInfo;   /* decompress & legacy */
 
 const seqStore_t* ZSTD_getSeqStore(const ZSTD_CCtx* ctx);   /* compress & dictBuilder */
-void ZSTD_seqToCodes(const seqStore_t* seqStorePtr);   /* compress, dictBuilder, decodeCorpus (shouldn't get its definition from here) */
-
-/* custom memory allocation functions */
-void* ZSTD_customMalloc(size_t size, ZSTD_customMem customMem);
-void* ZSTD_customCalloc(size_t size, ZSTD_customMem customMem);
-void ZSTD_customFree(void* ptr, ZSTD_customMem customMem);
+int ZSTD_seqToCodes(const seqStore_t* seqStorePtr);   /* compress, dictBuilder, decodeCorpus (shouldn't get its definition from here) */
 
 
 /* ZSTD_invalidateRepCodes() :

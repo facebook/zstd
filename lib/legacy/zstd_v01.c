@@ -1720,20 +1720,26 @@ static size_t ZSTD_execSequence(BYTE* op,
     static const int dec32table[] = {0, 1, 2, 1, 4, 4, 4, 4};   /* added */
     static const int dec64table[] = {8, 8, 8, 7, 8, 9,10,11};   /* subtracted */
     const BYTE* const ostart = op;
+    BYTE* const oLitEnd = op + sequence.litLength;
     const size_t litLength = sequence.litLength;
     BYTE* const endMatch = op + litLength + sequence.matchLength;    /* risk : address space overflow (32-bits) */
     const BYTE* const litEnd = *litPtr + litLength;
 
-    /* check */
+    /* checks */
+    size_t const seqLength = sequence.litLength + sequence.matchLength;
+
+    if (seqLength > (size_t)(oend - op)) return ERROR(dstSize_tooSmall);
+    if (sequence.litLength > (size_t)(litLimit - *litPtr)) return ERROR(corruption_detected);
+    /* Now we know there are no overflow in literal nor match lengths, can use pointer checks */
+    if (sequence.offset > (U32)(oLitEnd - base)) return ERROR(corruption_detected);
+
     if (endMatch > oend) return ERROR(dstSize_tooSmall);   /* overwrite beyond dst buffer */
-    if (litEnd > litLimit) return ERROR(corruption_detected);
-    if (sequence.matchLength > (size_t)(*litPtr-op))  return ERROR(dstSize_tooSmall);    /* overwrite literal segment */
+    if (litEnd > litLimit) return ERROR(corruption_detected);   /* overRead beyond lit buffer */
+    if (sequence.matchLength > (size_t)(*litPtr-op)) return ERROR(dstSize_tooSmall);  /* overwrite literal segment */
 
     /* copy Literals */
-    if (((size_t)(*litPtr - op) < 8) || ((size_t)(oend-litEnd) < 8) || (op+litLength > oend-8))
-        memmove(op, *litPtr, litLength);   /* overwrite risk */
-    else
-        ZSTD_wildcopy(op, *litPtr, litLength);
+    ZSTD_memmove(op, *litPtr, sequence.litLength);   /* note : v0.1 seems to allow scenarios where output or input are close to end of buffer */
+
     op += litLength;
     *litPtr = litEnd;   /* update for next sequence */
 

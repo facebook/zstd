@@ -358,11 +358,14 @@ struct ZSTD_CCtx_params_s {
 
     /* Indicates whether an external matchfinder has been referenced.
      * Users can't set this externally.
-     * It is set internally in ZSTD_registerExternalMatchFinder(). */
-    int useExternalMatchFinder;
+     * It is set internally in ZSTD_registerSequenceProducer(). */
+    int useSequenceProducer;
 
     /* Adjust the max block size*/
     size_t maxBlockSize;
+
+    /* Controls repcode search in external sequence parsing */
+    ZSTD_paramSwitch_e searchForExternalRepcodes;
 };  /* typedef'd to ZSTD_CCtx_params within "zstd.h" */
 
 #define COMPRESS_SEQUENCES_WORKSPACE_SIZE (sizeof(unsigned) * (MaxSeq + 2))
@@ -397,7 +400,7 @@ typedef struct {
 /* Context for block-level external matchfinder API */
 typedef struct {
   void* mState;
-  ZSTD_externalMatchFinder_F* mFinder;
+  ZSTD_sequenceProducer_F* mFinder;
   ZSTD_Sequence* seqBuffer;
   size_t seqBufferCapacity;
 } ZSTD_externalMatchCtx;
@@ -1483,7 +1486,7 @@ size_t
 ZSTD_copySequencesToSeqStoreExplicitBlockDelim(ZSTD_CCtx* cctx,
                                               ZSTD_sequencePosition* seqPos,
                                         const ZSTD_Sequence* const inSeqs, size_t inSeqsSize,
-                                        const void* src, size_t blockSize);
+                                        const void* src, size_t blockSize, ZSTD_paramSwitch_e externalRepSearch);
 
 /* Returns the number of bytes to move the current read position back by.
  * Only non-zero if we ended up splitting a sequence.
@@ -1500,6 +1503,6 @@ ZSTD_copySequencesToSeqStoreExplicitBlockDelim(ZSTD_CCtx* cctx,
 size_t
 ZSTD_copySequencesToSeqStoreNoBlockDelim(ZSTD_CCtx* cctx, ZSTD_sequencePosition* seqPos,
                                    const ZSTD_Sequence* const inSeqs, size_t inSeqsSize,
-                                   const void* src, size_t blockSize);
+                                   const void* src, size_t blockSize, ZSTD_paramSwitch_e externalRepSearch);
 
 #endif /* ZSTD_COMPRESS_H */

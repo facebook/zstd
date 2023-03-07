@@ -132,7 +132,7 @@ endif
 
 subdir('lib')
 
-if bin_programs
+if bin_programs or bin_tests
   subdir('programs')
 endif
 

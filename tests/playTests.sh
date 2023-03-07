@@ -1217,7 +1217,15 @@ zstd -rqi0b1e2 tmp1
 println "benchmark decompression only"
 zstd -f tmp1
 zstd -b -d -i0 tmp1.zst
+println "benchmark can fail - decompression on invalid data"
+zstd -b -d -i0 tmp1 && die "invalid .zst data => benchmark should have failed"
 
+GZIPMODE=1
+zstd --format=gzip -V || GZIPMODE=0
+if [ $GZIPMODE -eq 1 ]; then
+    println "benchmark mode is only compatible with zstd"
+    zstd --format=gzip -b tmp1 && die "-b should be incompatible with gzip format!"
+fi
 
 println "\n===>  zstd compatibility tests "
 

@@ -1173,8 +1173,8 @@ FIO_compressLzmaFrame(cRess_t* ress,
     }
 
     writeJob =AIO_WritePool_acquireJob(ress->writeCtx);
-    strm.next_out = (Bytef*)writeJob->buffer;
-    strm.avail_out = (uInt)writeJob->bufferSize;
+    strm.next_out = (BYTE*)writeJob->buffer;
+    strm.avail_out = writeJob->bufferSize;
     strm.next_in = 0;
     strm.avail_in = 0;
 
@@ -1201,7 +1201,7 @@ FIO_compressLzmaFrame(cRess_t* ress,
                 writeJob->usedBufferSize = compBytes;
                 AIO_WritePool_enqueueAndReacquireWriteJob(&writeJob);
                 outFileSize += compBytes;
-                strm.next_out = (Bytef*)writeJob->buffer;
+                strm.next_out = (BYTE*)writeJob->buffer;
                 strm.avail_out = writeJob->bufferSize;
         }   }
         if (srcFileSize == UTIL_FILESIZE_UNKNOWN)
@@ -1681,6 +1681,7 @@ static int FIO_compressFilename_dstFile(FIO_ctx_t* const fCtx,
     int result;
     int transferStat = 0;
     FILE *dstFile;
+    int dstFd = -1;
 
     assert(AIO_ReadPool_getFile(ress.readCtx) != NULL);
     if (AIO_WritePool_getFile(ress.writeCtx) == NULL) {
@@ -1696,6 +1697,7 @@ static int FIO_compressFilename_dstFile(FIO_ctx_t* const fCtx,
         DISPLAYLEVEL(6, "FIO_compressFilename_dstFile: opening dst: %s \n", dstFileName);
         dstFile = FIO_openDstFile(fCtx, prefs, srcFileName, dstFileName, dstFileInitialPermissions);
         if (dstFile==NULL) return 1;  /* could not open dstFileName */
+        dstFd = fileno(dstFile);
         AIO_WritePool_setFile(ress.writeCtx, dstFile);
         /* Must only be added after FIO_openDstFile() succeeds.
          * Otherwise we may delete the destination file if it already exists,
@@ -1709,14 +1711,20 @@ static int FIO_compressFilename_dstFile(FIO_ctx_t* const fCtx,
     if (closeDstFile) {
         clearHandler();
 
+        if (transferStat) {
+            UTIL_setFDStat(dstFd, dstFileName, srcFileStat);
+        }
+
         DISPLAYLEVEL(6, "FIO_compressFilename_dstFile: closing dst: %s \n", dstFileName);
         if (AIO_WritePool_closeFile(ress.writeCtx)) { /* error closing file */
             DISPLAYLEVEL(1, "zstd: %s: %s \n", dstFileName, strerror(errno));
             result=1;
         }
+
         if (transferStat) {
-            UTIL_setFileStat(dstFileName, srcFileStat);
+            UTIL_utime(dstFileName, srcFileStat);
         }
+
         if ( (result != 0)  /* operation failure */
           && strcmp(dstFileName, stdoutmark)  /* special case : don't remove() stdout */
           ) {
@@ -1758,6 +1766,7 @@ FIO_compressFilename_srcFile(FIO_ctx_t* const fCtx,
     int result;
     FILE* srcFile;
     stat_t srcFileStat;
+    U64 fileSize = UTIL_FILESIZE_UNKNOWN;
     DISPLAYLEVEL(6, "FIO_compressFilename_srcFile: %s \n", srcFileName);
 
     if (strcmp(srcFileName, stdinmark)) {
@@ -1789,6 +1798,17 @@ FIO_compressFilename_srcFile(FIO_ctx_t* const fCtx,
 
     srcFile = FIO_openSrcFile(prefs, srcFileName, &srcFileStat);
     if (srcFile == NULL) return 1;   /* srcFile could not be opened */
+
+    /* Don't use AsyncIO for small files */
+    if (strcmp(srcFileName, stdinmark)) /* Stdin doesn't have stats */
+        fileSize = UTIL_getFileSizeStat(&srcFileStat);
+    if(fileSize != UTIL_FILESIZE_UNKNOWN && fileSize < ZSTD_BLOCKSIZE_MAX * 3) {
+        AIO_ReadPool_setAsync(ress.readCtx, 0);
+        AIO_WritePool_setAsync(ress.writeCtx, 0);
+    } else {
+        AIO_ReadPool_setAsync(ress.readCtx, 1);
+        AIO_WritePool_setAsync(ress.writeCtx, 1);
+    }
 
     AIO_ReadPool_setFile(ress.readCtx, srcFile);
     result = FIO_compressFilename_dstFile(
@@ -2304,8 +2324,8 @@ FIO_decompressLzmaFrame(dRess_t* ress,
     }
 
     writeJob = AIO_WritePool_acquireJob(ress->writeCtx);
-    strm.next_out = (Bytef*)writeJob->buffer;
-    strm.avail_out = (uInt)writeJob->bufferSize;
+    strm.next_out = (BYTE*)writeJob->buffer;
+    strm.avail_out = writeJob->bufferSize;
     strm.next_in = (BYTE const*)ress->readCtx->srcBuffer;
     strm.avail_in = ress->readCtx->srcBufferLoaded;
 
@@ -2333,7 +2353,7 @@ FIO_decompressLzmaFrame(dRess_t* ress,
                 writeJob->usedBufferSize = decompBytes;
                 AIO_WritePool_enqueueAndReacquireWriteJob(&writeJob);
                 outFileSize += decompBytes;
-                strm.next_out = (Bytef*)writeJob->buffer;
+                strm.next_out = (BYTE*)writeJob->buffer;
                 strm.avail_out = writeJob->bufferSize;
         }   }
         if (ret == LZMA_STREAM_END) break;
@@ -2528,6 +2548,7 @@ static int FIO_decompressDstFile(FIO_ctx_t* const fCtx,
     int result;
     int releaseDstFile = 0;
     int transferStat = 0;
+    int dstFd = 0;
 
     if ((AIO_WritePool_getFile(ress.writeCtx) == NULL) && (prefs->testMode == 0)) {
         FILE *dstFile;
@@ -2543,6 +2564,7 @@ static int FIO_decompressDstFile(FIO_ctx_t* const fCtx,
 
         dstFile = FIO_openDstFile(fCtx, prefs, srcFileName, dstFileName, dstFilePermissions);
         if (dstFile==NULL) return 1;
+        dstFd = fileno(dstFile);
         AIO_WritePool_setFile(ress.writeCtx, dstFile);
 
         /* Must only be added after FIO_openDstFile() succeeds.
@@ -2556,13 +2578,18 @@ static int FIO_decompressDstFile(FIO_ctx_t* const fCtx,
 
     if (releaseDstFile) {
         clearHandler();
+
+        if (transferStat) {
+            UTIL_setFDStat(dstFd, dstFileName, srcFileStat);
+        }
+
         if (AIO_WritePool_closeFile(ress.writeCtx)) {
             DISPLAYLEVEL(1, "zstd: %s: %s \n", dstFileName, strerror(errno));
             result = 1;
         }
 
         if (transferStat) {
-            UTIL_setFileStat(dstFileName, srcFileStat);
+            UTIL_utime(dstFileName, srcFileStat);
         }
 
         if ( (result != 0)  /* operation failure */
@@ -2586,6 +2613,7 @@ static int FIO_decompressSrcFile(FIO_ctx_t* const fCtx, FIO_prefs_t* const prefs
     FILE* srcFile;
     stat_t srcFileStat;
     int result;
+    U64 fileSize = UTIL_FILESIZE_UNKNOWN;
 
     if (UTIL_isDirectory(srcFileName)) {
         DISPLAYLEVEL(1, "zstd: %s is a directory -- ignored \n", srcFileName);
@@ -2594,6 +2622,18 @@ static int FIO_decompressSrcFile(FIO_ctx_t* const fCtx, FIO_prefs_t* const prefs
 
     srcFile = FIO_openSrcFile(prefs, srcFileName, &srcFileStat);
     if (srcFile==NULL) return 1;
+
+    /* Don't use AsyncIO for small files */
+    if (strcmp(srcFileName, stdinmark)) /* Stdin doesn't have stats */
+        fileSize = UTIL_getFileSizeStat(&srcFileStat);
+    if(fileSize != UTIL_FILESIZE_UNKNOWN && fileSize < ZSTD_BLOCKSIZE_MAX * 3) {
+        AIO_ReadPool_setAsync(ress.readCtx, 0);
+        AIO_WritePool_setAsync(ress.writeCtx, 0);
+    } else {
+        AIO_ReadPool_setAsync(ress.readCtx, 1);
+        AIO_WritePool_setAsync(ress.writeCtx, 1);
+    }
+
     AIO_ReadPool_setFile(ress.readCtx, srcFile);
 
     result = FIO_decompressDstFile(fCtx, prefs, ress, dstFileName, srcFileName, &srcFileStat);

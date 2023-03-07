@@ -1286,6 +1286,73 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : Check block splitter with 64K literal length : ", testNb++);
+    {   ZSTD_CCtx* cctx = ZSTD_createCCtx();
+        size_t const srcSize = 256 * 1024;
+        U32 const compressibleLenU32 = 32 * 1024 / 4;
+        U32 const blockSizeU32 = 128 * 1024 / 4;
+        U32 const litLenU32 = 64 * 1024 / 4;
+        U32* data = (U32*)malloc(srcSize);
+        size_t dSize;
+
+        if (data == NULL || cctx == NULL) goto _output_error;
+
+        /* Generate data without any matches */
+        RDG_genBuffer(data, srcSize, 0.0, 0.01, 2654435761U);
+        /* Generate 32K of compressible data */
+        RDG_genBuffer(data, compressibleLenU32 * 4, 0.5, 0.5, 0xcafebabe);
+
+        /* Add a match of offset=12, length=8 at idx=16, 32, 48, 64  */
+        data[compressibleLenU32 + 0] = 0xFFFFFFFF;
+        data[compressibleLenU32 + 1] = 0xEEEEEEEE;
+        data[compressibleLenU32 + 4] = 0xFFFFFFFF;
+        data[compressibleLenU32 + 5] = 0xEEEEEEEE;
+
+        /* Add a match of offset=16, length=8 at idx=64K + 64.
+         * This generates a sequence with llen=64K, and repeat code 1.
+         * The block splitter thought this was ll0, and corrupted the
+         * repeat offset history.
+         */
+        data[compressibleLenU32 + litLenU32 + 2 + 0] = 0xDDDDDDDD;
+        data[compressibleLenU32 + litLenU32 + 2 + 1] = 0xCCCCCCCC;
+        data[compressibleLenU32 + litLenU32 + 2 + 4] = 0xDDDDDDDD;
+        data[compressibleLenU32 + litLenU32 + 2 + 5] = 0xCCCCCCCC;
+
+        /* Add a match of offset=16, length=8 at idx=128K + 16.
+         * This should generate a sequence with repeat code = 1.
+         * But the block splitters mistake caused zstd to generate
+         * repeat code = 2, corrupting the data.
+         */
+        data[blockSizeU32] = 0xBBBBBBBB;
+        data[blockSizeU32 + 1] = 0xAAAAAAAA;
+        data[blockSizeU32 + 4] = 0xBBBBBBBB;
+        data[blockSizeU32 + 5] = 0xAAAAAAAA;
+
+        /* Generate a golden file from this data in case datagen changes and
+         * doesn't generate the exact same data. We will also test this golden file.
+         */
+        if (0) {
+            FILE* f = fopen("golden-compression/PR-3517-block-splitter-corruption-test", "wb");
+            fwrite(data, 1, srcSize, f);
+            fclose(f);
+        }
+
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, 19));
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_minMatch, 7));
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_useBlockSplitter, ZSTD_ps_enable));
+
+        cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, data, srcSize);
+        CHECK_Z(cSize);
+        dSize = ZSTD_decompress(decodedBuffer, CNBuffSize, compressedBuffer, cSize);
+        CHECK_Z(dSize);
+        CHECK_EQ(dSize, srcSize);
+        CHECK(!memcmp(decodedBuffer, data, srcSize));
+
+        free(data);
+        ZSTD_freeCCtx(cctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     DISPLAYLEVEL(3, "test%3d: superblock uncompressible data, too many nocompress superblocks : ", testNb++);
     {
         ZSTD_CCtx* const cctx = ZSTD_createCCtx();

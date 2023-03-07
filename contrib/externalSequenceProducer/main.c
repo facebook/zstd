@@ -16,7 +16,7 @@
 #define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
 #include "zstd_errors.h"
-#include "matchfinder.h" // simpleExternalMatchFinder
+#include "sequence_producer.h" // simpleSequenceProducer
 
 #define CHECK(res)                                      \
 do {                                                    \
@@ -28,23 +28,23 @@ do {                                                    \
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
-        printf("Usage: exampleMatchfinder <file>\n");
+        printf("Usage: externalSequenceProducer <file>\n");
         return 1;
     }
 
     ZSTD_CCtx* const zc = ZSTD_createCCtx();
 
-    int simpleExternalMatchState = 0xdeadbeef;
+    int simpleSequenceProducerState = 0xdeadbeef;
 
     // Here is the crucial bit of code!
-    ZSTD_registerExternalMatchFinder(
+    ZSTD_registerSequenceProducer(
         zc,
-        &simpleExternalMatchState,
-        simpleExternalMatchFinder
+        &simpleSequenceProducerState,
+        simpleSequenceProducer
     );
 
     {
-        size_t const res = ZSTD_CCtx_setParameter(zc, ZSTD_c_enableMatchFinderFallback, 1);
+        size_t const res = ZSTD_CCtx_setParameter(zc, ZSTD_c_enableSeqProducerFallback, 1);
         CHECK(res);
     }
 

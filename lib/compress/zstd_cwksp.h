@@ -14,6 +14,7 @@
 /*-*************************************
 *  Dependencies
 ***************************************/
+#include "../common/allocations.h"  /* ZSTD_customMalloc, ZSTD_customFree */
 #include "../common/zstd_internal.h"
 #include "../common/portability_macros.h"
 

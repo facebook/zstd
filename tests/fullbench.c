@@ -774,7 +774,9 @@ static int benchFiles(U32 benchNb,
             } else {
                 for (benchNb=0; benchNb<100; benchNb++) {
                     benchMem(benchNb, origBuff, benchedSize, cLevel, cparams);
-            }   }
+                }
+                benchNb = 0;
+            }
 
             free(origBuff);
     }   }

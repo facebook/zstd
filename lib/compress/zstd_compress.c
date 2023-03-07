@@ -1630,9 +1630,9 @@ static size_t ZSTD_estimateCCtxSize_usingCCtxParams_internal(
     size_t const windowSize = (size_t) BOUNDED(1ULL, 1ULL << cParams->windowLog, pledgedSrcSize);
     size_t const blockSize = MIN(ZSTD_resolveMaxBlockSize(maxBlockSize), windowSize);
     size_t const maxNbSeq = ZSTD_maxNbSeq(blockSize, cParams->minMatch, useSequenceProducer);
-    size_t const tokenSpace = ZSTD_cwksp_aligned_alloc_size(WILDCOPY_OVERLENGTH + blockSize)
+    size_t const tokenSpace = ZSTD_cwksp_alloc_size(WILDCOPY_OVERLENGTH + blockSize)
                             + ZSTD_cwksp_aligned_alloc_size(maxNbSeq * sizeof(seqDef))
-                            + 3 * ZSTD_cwksp_aligned_alloc_size(maxNbSeq * sizeof(BYTE));
+                            + 3 * ZSTD_cwksp_alloc_size(maxNbSeq * sizeof(BYTE));
     size_t const entropySpace = ZSTD_cwksp_alloc_size(ENTROPY_WORKSPACE_SIZE);
     size_t const blockStateSpace = 2 * ZSTD_cwksp_alloc_size(sizeof(ZSTD_compressedBlockState_t));
     size_t const matchStateSize = ZSTD_sizeof_matchState(cParams, useRowMatchFinder, /* enableDedicatedDictSearch */ 0, /* forCCtx */ 1);
@@ -1643,21 +1643,28 @@ static size_t ZSTD_estimateCCtxSize_usingCCtxParams_internal(
         ZSTD_cwksp_aligned_alloc_size(maxNbLdmSeq * sizeof(rawSeq)) : 0;
 
 
-    size_t const bufferSpace = ZSTD_cwksp_aligned_alloc_size(buffInSize)
-                             + ZSTD_cwksp_aligned_alloc_size(buffOutSize);
+    size_t const bufferSpace = ZSTD_cwksp_alloc_size(buffInSize)
+                             + ZSTD_cwksp_alloc_size(buffOutSize);
 
-    size_t const cctxSpace = isStatic ? ZSTD_cwksp_aligned_alloc_size(sizeof(ZSTD_CCtx)) : 0;
+    size_t const cctxSpace = isStatic ? ZSTD_cwksp_alloc_size(sizeof(ZSTD_CCtx)) : 0;
 
     size_t const maxNbExternalSeq = ZSTD_sequenceBound(blockSize);
     size_t const externalSeqSpace = useSequenceProducer
         ? ZSTD_cwksp_aligned_alloc_size(maxNbExternalSeq * sizeof(ZSTD_Sequence))
         : 0;
 
-    size_t const objectsSpace = cctxSpace + entropySpace + blockStateSpace;
-    size_t const tableSpace = ldmSpace + matchStateSize;
-    size_t const alignedSpace = tokenSpace + bufferSpace +  externalSeqSpace + ldmSeqSpace;
+    size_t const neededSpace =
+        cctxSpace +
+        entropySpace +
+        blockStateSpace +
+        ldmSpace +
+        ldmSeqSpace +
+        matchStateSize +
+        tokenSpace +
+        bufferSpace +
+        externalSeqSpace;
 
-    size_t const neededSpace = objectsSpace + tableSpace + alignedSpace;
+    DEBUGLOG(5, "estimate workspace : %u", (U32)neededSpace);
     return neededSpace;
 }
 
@@ -2102,37 +2109,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                 needsIndexReset,
                 ZSTD_resetTarget_CCtx), "");
 
-        /* ZSTD_wildcopy() is used to copy into the literals buffer,
-         * so we have to oversize the buffer by WILDCOPY_OVERLENGTH bytes.
-         */
-        zc->seqStore.litStart = (BYTE*)ZSTD_cwksp_reserve_aligned(ws, blockSize + WILDCOPY_OVERLENGTH);
-        zc->seqStore.maxNbLit = blockSize;
-
-        /* buffers */
-        zc->bufferedPolicy = zbuff;
-        zc->inBuffSize = buffInSize;
-        zc->inBuff = (char*)ZSTD_cwksp_reserve_aligned(ws, buffInSize);
-        zc->outBuffSize = buffOutSize;
-        zc->outBuff = (char*)ZSTD_cwksp_reserve_aligned(ws, buffOutSize);
-
-        /* ldm bucketOffsets table */
-        if (params->ldmParams.enableLdm == ZSTD_ps_enable) {
-            /* TODO: avoid memset? */
-            size_t const numBuckets =
-                  ((size_t)1) << (params->ldmParams.hashLog -
-                                  params->ldmParams.bucketSizeLog);
-            zc->ldmState.bucketOffsets = (BYTE*)ZSTD_cwksp_reserve_aligned(ws, numBuckets);
-            ZSTD_memset(zc->ldmState.bucketOffsets, 0, numBuckets);
-        }
-
-        /* sequences storage */
-        ZSTD_referenceExternalSequences(zc, NULL, 0);
-        zc->seqStore.maxNbSeq = maxNbSeq;
-        zc->seqStore.llCode = (BYTE*)ZSTD_cwksp_reserve_aligned(ws, maxNbSeq * sizeof(BYTE));
-        zc->seqStore.mlCode = (BYTE*)ZSTD_cwksp_reserve_aligned(ws, maxNbSeq * sizeof(BYTE));
-        zc->seqStore.ofCode = (BYTE*)ZSTD_cwksp_reserve_aligned(ws, maxNbSeq * sizeof(BYTE));
         zc->seqStore.sequencesStart = (seqDef*)ZSTD_cwksp_reserve_aligned(ws, maxNbSeq * sizeof(seqDef));
-
 
         /* ldm hash table */
         if (params->ldmParams.enableLdm == ZSTD_ps_enable) {
@@ -2155,8 +2132,39 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                 (ZSTD_Sequence*)ZSTD_cwksp_reserve_aligned(ws, maxNbExternalSeq * sizeof(ZSTD_Sequence));
         }
 
+        /* buffers */
+
+        /* ZSTD_wildcopy() is used to copy into the literals buffer,
+         * so we have to oversize the buffer by WILDCOPY_OVERLENGTH bytes.
+         */
+        zc->seqStore.litStart = ZSTD_cwksp_reserve_buffer(ws, blockSize + WILDCOPY_OVERLENGTH);
+        zc->seqStore.maxNbLit = blockSize;
+
+        zc->bufferedPolicy = zbuff;
+        zc->inBuffSize = buffInSize;
+        zc->inBuff = (char*)ZSTD_cwksp_reserve_buffer(ws, buffInSize);
+        zc->outBuffSize = buffOutSize;
+        zc->outBuff = (char*)ZSTD_cwksp_reserve_buffer(ws, buffOutSize);
+
+        /* ldm bucketOffsets table */
+        if (params->ldmParams.enableLdm == ZSTD_ps_enable) {
+            /* TODO: avoid memset? */
+            size_t const numBuckets =
+                  ((size_t)1) << (params->ldmParams.hashLog -
+                                  params->ldmParams.bucketSizeLog);
+            zc->ldmState.bucketOffsets = ZSTD_cwksp_reserve_buffer(ws, numBuckets);
+            ZSTD_memset(zc->ldmState.bucketOffsets, 0, numBuckets);
+        }
+
+        /* sequences storage */
+        ZSTD_referenceExternalSequences(zc, NULL, 0);
+        zc->seqStore.maxNbSeq = maxNbSeq;
+        zc->seqStore.llCode = ZSTD_cwksp_reserve_buffer(ws, maxNbSeq * sizeof(BYTE));
+        zc->seqStore.mlCode = ZSTD_cwksp_reserve_buffer(ws, maxNbSeq * sizeof(BYTE));
+        zc->seqStore.ofCode = ZSTD_cwksp_reserve_buffer(ws, maxNbSeq * sizeof(BYTE));
+
         DEBUGLOG(3, "wksp: finished allocating, %zd bytes remain available", ZSTD_cwksp_available_space(ws));
-        assert(ZSTD_cwksp_estimated_space_within_bounds(ws, neededSpace, resizeWorkspace));
+        assert(ZSTD_cwksp_estimated_space_within_bounds(ws, neededSpace));
 
         zc->initialized = 1;
 
@@ -5187,7 +5195,7 @@ size_t ZSTD_estimateCDictSize_advanced(
          + ZSTD_sizeof_matchState(&cParams, ZSTD_resolveRowMatchFinderMode(ZSTD_ps_auto, &cParams),
                                   /* enableDedicatedDictSearch */ 1, /* forCCtx */ 0)
          + (dictLoadMethod == ZSTD_dlm_byRef ? 0
-            : ZSTD_cwksp_aligned_alloc_size(ZSTD_cwksp_align(dictSize, sizeof(void *))));
+            : ZSTD_cwksp_alloc_size(ZSTD_cwksp_align(dictSize, sizeof(void *))));
 }
 
 size_t ZSTD_estimateCDictSize(size_t dictSize, int compressionLevel)
@@ -5272,7 +5280,7 @@ static ZSTD_CDict* ZSTD_createCDict_advanced_internal(size_t dictSize,
             ZSTD_cwksp_alloc_size(HUF_WORKSPACE_SIZE) +
             ZSTD_sizeof_matchState(&cParams, useRowMatchFinder, enableDedicatedDictSearch, /* forCCtx */ 0) +
             (dictLoadMethod == ZSTD_dlm_byRef ? 0
-             : ZSTD_cwksp_aligned_alloc_size(ZSTD_cwksp_align(dictSize, sizeof(void*))));
+             : ZSTD_cwksp_alloc_size(ZSTD_cwksp_align(dictSize, sizeof(void*))));
         void* const workspace = ZSTD_customMalloc(workspaceSize, customMem);
         ZSTD_cwksp ws;
         ZSTD_CDict* cdict;

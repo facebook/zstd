@@ -1650,6 +1650,133 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3d : ZSTD_CCtx_setCParams() : ", testNb++);
+    {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        int value;
+        ZSTD_compressionParameters cparams = ZSTD_getCParams(1, 0, 0);
+        cparams.strategy = -1;
+        /* Set invalid cParams == no change. */
+        CHECK(ZSTD_isError(ZSTD_CCtx_setCParams(cctx, cparams)));
+
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_windowLog, &value));
+        CHECK_EQ(value, 0);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_chainLog, &value));
+        CHECK_EQ(value, 0);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_hashLog, &value));
+        CHECK_EQ(value, 0);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_searchLog, &value));
+        CHECK_EQ(value, 0);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_minMatch, &value));
+        CHECK_EQ(value, 0);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_targetLength, &value));
+        CHECK_EQ(value, 0);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_strategy, &value));
+        CHECK_EQ(value, 0);
+
+        cparams = ZSTD_getCParams(12, 0, 0);
+        CHECK_Z(ZSTD_CCtx_setCParams(cctx, cparams));
+
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_windowLog, &value));
+        CHECK_EQ(value, (int)cparams.windowLog);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_chainLog, &value));
+        CHECK_EQ(value, (int)cparams.chainLog);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_hashLog, &value));
+        CHECK_EQ(value, (int)cparams.hashLog);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_searchLog, &value));
+        CHECK_EQ(value, (int)cparams.searchLog);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_minMatch, &value));
+        CHECK_EQ(value, (int)cparams.minMatch);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_targetLength, &value));
+        CHECK_EQ(value, (int)cparams.targetLength);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_strategy, &value));
+        CHECK_EQ(value, (int)cparams.strategy);
+
+        ZSTD_freeCCtx(cctx);
+    }
+
+    DISPLAYLEVEL(3, "test%3d : ZSTD_CCtx_setFParams() : ", testNb++);
+    {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        int value;
+        ZSTD_frameParameters fparams = {0, 1, 1};
+
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_contentSizeFlag, &value));
+        CHECK_EQ(value, 1);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_checksumFlag, &value));
+        CHECK_EQ(value, 0);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_dictIDFlag, &value));
+        CHECK_EQ(value, 1);
+
+        CHECK_Z(ZSTD_CCtx_setFParams(cctx, fparams));
+
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_contentSizeFlag, &value));
+        CHECK_EQ(value, fparams.contentSizeFlag);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_checksumFlag, &value));
+        CHECK_EQ(value, fparams.checksumFlag);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_dictIDFlag, &value));
+        CHECK_EQ(value, !fparams.noDictIDFlag);
+
+        ZSTD_freeCCtx(cctx);
+    }
+
+    DISPLAYLEVEL(3, "test%3d : ZSTD_CCtx_setCarams() : ", testNb++);
+    {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        int value;
+        ZSTD_parameters params = ZSTD_getParams(1, 0, 0);
+        params.cParams.strategy = -1;
+        /* Set invalid params == no change. */
+        CHECK(ZSTD_isError(ZSTD_CCtx_setParams(cctx, params)));
+
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_windowLog, &value));
+        CHECK_EQ(value, 0);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_chainLog, &value));
+        CHECK_EQ(value, 0);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_hashLog, &value));
+        CHECK_EQ(value, 0);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_searchLog, &value));
+        CHECK_EQ(value, 0);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_minMatch, &value));
+        CHECK_EQ(value, 0);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_targetLength, &value));
+        CHECK_EQ(value, 0);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_strategy, &value));
+        CHECK_EQ(value, 0);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_contentSizeFlag, &value));
+        CHECK_EQ(value, 1);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_checksumFlag, &value));
+        CHECK_EQ(value, 0);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_dictIDFlag, &value));
+        CHECK_EQ(value, 1);
+
+        params = ZSTD_getParams(12, 0, 0);
+        params.fParams.contentSizeFlag = 0;
+        params.fParams.checksumFlag = 1;
+        params.fParams.noDictIDFlag = 1;
+        CHECK_Z(ZSTD_CCtx_setParams(cctx, params));
+
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_windowLog, &value));
+        CHECK_EQ(value, (int)params.cParams.windowLog);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_chainLog, &value));
+        CHECK_EQ(value, (int)params.cParams.chainLog);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_hashLog, &value));
+        CHECK_EQ(value, (int)params.cParams.hashLog);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_searchLog, &value));
+        CHECK_EQ(value, (int)params.cParams.searchLog);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_minMatch, &value));
+        CHECK_EQ(value, (int)params.cParams.minMatch);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_targetLength, &value));
+        CHECK_EQ(value, (int)params.cParams.targetLength);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_strategy, &value));
+        CHECK_EQ(value, (int)params.cParams.strategy);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_contentSizeFlag, &value));
+        CHECK_EQ(value, params.fParams.contentSizeFlag);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_checksumFlag, &value));
+        CHECK_EQ(value, params.fParams.checksumFlag);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_dictIDFlag, &value));
+        CHECK_EQ(value, !params.fParams.noDictIDFlag);
+
+        ZSTD_freeCCtx(cctx);
+    }
+
     DISPLAYLEVEL(3, "test%3d : ldm conditionally enabled by default doesn't change cctx params: ", testNb++);
     {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         ZSTD_outBuffer out = {NULL, 0, 0};

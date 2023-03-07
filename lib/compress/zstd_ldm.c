@@ -157,8 +157,8 @@ size_t ZSTD_ldm_getTableSize(ldmParams_t params)
     size_t const ldmHSize = ((size_t)1) << params.hashLog;
     size_t const ldmBucketSizeLog = MIN(params.bucketSizeLog, params.hashLog);
     size_t const ldmBucketSize = ((size_t)1) << (params.hashLog - ldmBucketSizeLog);
-    size_t const totalSize = ZSTD_cwksp_aligned_alloc_size(ldmBucketSize)
-                           + ZSTD_cwksp_aligned_alloc_size(ldmHSize * sizeof(ldmEntry_t));
+    size_t const totalSize = ZSTD_cwksp_alloc_size(ldmBucketSize)
+                           + ZSTD_cwksp_alloc_size(ldmHSize * sizeof(ldmEntry_t));
     return params.enableLdm == ZSTD_ps_enable ? totalSize : 0;
 }
 

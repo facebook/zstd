@@ -851,8 +851,8 @@ int main(int argCount, const char* argv[])
         showDefaultCParams = 0,
         ultra=0,
         contentSize=1,
-        removeSrcFile=0,
-        mmapDict=0;
+        removeSrcFile=0;
+    ZSTD_paramSwitch_e mmapDict=ZSTD_ps_auto;
     ZSTD_paramSwitch_e useRowMatchFinder = ZSTD_ps_auto;
     FIO_compressionType_t cType = FIO_zstdCompression;
     unsigned nbWorkers = 0;
@@ -986,7 +986,8 @@ int main(int argCount, const char* argv[])
                 if (longCommandWArg(&argument, "--adapt=")) { adapt = 1; if (!parseAdaptParameters(argument, &adaptMin, &adaptMax)) { badusage(programName); CLEAN_RETURN(1); } continue; }
                 if (!strcmp(argument, "--single-thread")) { nbWorkers = 0; singleThread = 1; continue; }
                 if (!strcmp(argument, "--format=zstd")) { suffix = ZSTD_EXTENSION; cType = FIO_zstdCompression; continue; }
-                if (!strcmp(argument, "--mmap-dict")) { mmapDict = 1; continue; }
+                if (!strcmp(argument, "--mmap-dict")) { mmapDict = ZSTD_ps_enable; continue; }
+                if (!strcmp(argument, "--no-mmap-dict")) { mmapDict = ZSTD_ps_disable; continue; }
 #ifdef ZSTD_GZCOMPRESS
                 if (!strcmp(argument, "--format=gzip")) { suffix = GZ_EXTENSION; cType = FIO_gzipCompression; continue; }
                 if (exeNameMatch(programName, ZSTD_GZ)) {     /* behave like gzip */

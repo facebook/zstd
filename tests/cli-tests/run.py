@@ -535,7 +535,8 @@ class TestSuite:
             subprocess.run(
                 args=[script],
                 stdin=subprocess.DEVNULL,
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 cwd=cwd,
                 env=env,
                 check=True,

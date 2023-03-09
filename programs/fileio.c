@@ -785,6 +785,8 @@ static void FIO_freeDict(const FIO_Dict_t* dict) {
         free(dict->dictBuffer);
     } else if (dict->dictBufferType == FIO_mmapDict)  {
         FIO_munmap(dict->dictBuffer, dict->dictBufferSize);
+    } else {
+        assert(0); /* Should not reach this case */
     }
 }
 
@@ -2758,6 +2760,8 @@ int FIO_decompressFilename(FIO_ctx_t* const fCtx, FIO_prefs_t* const prefs,
     dRess_t const ress = FIO_createDResources(prefs, dictFileName);
 
     int const decodingError = FIO_decompressSrcFile(fCtx, prefs, ress, dstFileName, srcFileName);
+
+
 
     FIO_freeDResources(ress);
     return decodingError;

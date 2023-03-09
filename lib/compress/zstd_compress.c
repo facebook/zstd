@@ -27,7 +27,7 @@
 #include "zstd_opt.h"
 #include "zstd_ldm.h"
 #include "zstd_compress_superblock.h"
-#include  "../common/bits.h"      /* ZSTD_highbit32 */
+#include  "../common/bits.h"      /* ZSTD_highbit32, ZSTD_rotateRight_U64 */
 
 /* ***************************************************************
 *  Tuning parameters
@@ -1884,6 +1884,19 @@ typedef enum {
     ZSTD_resetTarget_CCtx
 } ZSTD_resetTarget_e;
 
+/* Mixes bits in a 64 bits in a value, based on XXH3_rrmxmx */
+static U64 ZSTD_bitmix(U64 val, U64 len) {
+    val ^= ZSTD_rotateRight_U64(val, 49) ^ ZSTD_rotateRight_U64(val, 24);
+    val *= 0x9FB21C651E98DF25ULL;
+    val ^= (val >> 35) + len ;
+    val *= 0x9FB21C651E98DF25ULL;
+    return val ^ (val >> 28);
+}
+
+/* Mixes in the hashSalt and hashSaltEntropy to create a new hashSalt */
+static void ZSTD_advanceHashSalt(ZSTD_matchState_t* ms) {
+    ms->hashSalt = ZSTD_bitmix(ms->hashSalt, 8) ^ ZSTD_bitmix((U64) ms->hashSaltEntropy, 4);
+}
 
 static size_t
 ZSTD_reset_matchState(ZSTD_matchState_t* ms,
@@ -1939,8 +1952,7 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
          * 0 when we reset a Cdict */
         if(forWho == ZSTD_resetTarget_CCtx) {
             ms->tagTable = (U16 *) ZSTD_cwksp_reserve_aligned_init_once(ws, tagTableSize);
-            ms->hashSalt = (U64) ZSTD_hashPtr(&ms->hashSalt, 32, sizeof(ms->hashSalt)) << 32 |
-                           ZSTD_hashPtr(&ms->hashSaltEntropy, 32, sizeof(ms->hashSaltEntropy));
+            ZSTD_advanceHashSalt(ms);
         } else {
             /* When we are not salting we want to always memset the memory */
             ms->tagTable = (U16 *) ZSTD_cwksp_reserve_aligned(ws, tagTableSize);

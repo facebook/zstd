@@ -774,31 +774,6 @@ MEM_STATIC U32 ZSTD_VecMask_next(ZSTD_VecMask val) {
     return ZSTD_countTrailingZeros64(val);
 }
 
-/* ZSTD_rotateRight_*():
- * Rotates a bitfield to the right by "count" bits.
- * https://en.wikipedia.org/w/index.php?title=Circular_shift&oldid=991635599#Implementing_circular_shifts
- */
-FORCE_INLINE_TEMPLATE
-U64 ZSTD_rotateRight_U64(U64 const value, U32 count) {
-    assert(count < 64);
-    count &= 0x3F; /* for fickle pattern recognition */
-    return (value >> count) | (U64)(value << ((0U - count) & 0x3F));
-}
-
-FORCE_INLINE_TEMPLATE
-U32 ZSTD_rotateRight_U32(U32 const value, U32 count) {
-    assert(count < 32);
-    count &= 0x1F; /* for fickle pattern recognition */
-    return (value >> count) | (U32)(value << ((0U - count) & 0x1F));
-}
-
-FORCE_INLINE_TEMPLATE
-U16 ZSTD_rotateRight_U16(U16 const value, U32 count) {
-    assert(count < 16);
-    count &= 0x0F; /* for fickle pattern recognition */
-    return (value >> count) | (U16)(value << ((0U - count) & 0x0F));
-}
-
 /* ZSTD_row_nextIndex():
  * Returns the next index to insert at within a tagTable row, and updates the "head"
  * value to reflect the update. Essentially cycles backwards from [0, {entries per row})
@@ -891,6 +866,7 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_update_internalImpl(ZSTD_matchState_t* ms,
     U32* const hashTable = ms->hashTable;
     U16* const tagTable = ms->tagTable;
     U32 const hashLog = ms->rowHashLog;
+    U32 hashSaltEntropyCollected = 0;
     const BYTE* const base = ms->window.base;
 
     DEBUGLOG(6, "ZSTD_row_update_internalImpl(): updateStartIdx=%u, updateEndIdx=%u", updateStartIdx, updateEndIdx);
@@ -906,8 +882,9 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_update_internalImpl(ZSTD_matchState_t* ms,
         assert(hash == ZSTD_hashPtrSalted(base + updateStartIdx, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls, ms->hashSalt));
         ((BYTE*)tagRow)[pos + ZSTD_ROW_HASH_TAG_OFFSET] = hash & ZSTD_ROW_HASH_TAG_MASK;
         row[pos] = updateStartIdx;
-        ms->hashSaltEntropy += hash;
+        hashSaltEntropyCollected = hash;
     }
+    ms->hashSaltEntropy += hashSaltEntropyCollected; /* collect salt entropy */
 }
 
 /* ZSTD_row_update_internal():

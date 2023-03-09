@@ -1935,12 +1935,15 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
     if (ZSTD_rowMatchFinderUsed(cParams->strategy, useRowMatchFinder)) {
         /* Row match finder needs an additional table of hashes ("tags") */
         size_t const tagTableSize = hSize * sizeof(U16);
-        ms->tagTable = (U16 *) ZSTD_cwksp_reserve_aligned_init_once(ws, tagTableSize);
         /* We want to generate a new salt in case we reset a Cctx, but we always want to use
          * 0 when we reset a Cdict */
         if(forWho == ZSTD_resetTarget_CCtx) {
+            ms->tagTable = (U16 *) ZSTD_cwksp_reserve_aligned_init_once(ws, tagTableSize);
             ms->hashSalt = ms->hashSalt * 6364136223846793005 + 1; /* based on MUSL rand */
         } else {
+            /* When we are not salting we want to always memset the memory */
+            ms->tagTable = (U16 *) ZSTD_cwksp_reserve_aligned(ws, tagTableSize);
+            ZSTD_memset(ms->tagTable, 0, tagTableSize);
             ms->hashSalt = 0;
         }
         {   /* Switch to 32-entry rows if searchLog is 5 (or more) */

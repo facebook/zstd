@@ -1939,7 +1939,8 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
          * 0 when we reset a Cdict */
         if(forWho == ZSTD_resetTarget_CCtx) {
             ms->tagTable = (U16 *) ZSTD_cwksp_reserve_aligned_init_once(ws, tagTableSize);
-            ms->hashSalt = ms->hashSalt * 6364136223846793005 + 1; /* based on MUSL rand */
+            ms->hashSalt = (U64) ZSTD_hashPtr(&ms->hashSalt, 32, sizeof(ms->hashSalt)) << 32 |
+                           ZSTD_hashPtr(&ms->hashSaltEntropy, 32, sizeof(ms->hashSaltEntropy));
         } else {
             /* When we are not salting we want to always memset the memory */
             ms->tagTable = (U16 *) ZSTD_cwksp_reserve_aligned(ws, tagTableSize);

@@ -228,7 +228,8 @@ struct ZSTD_matchState_t {
     U32 rowHashLog;                          /* For row-based matchfinder: Hashlog based on nb of rows in the hashTable.*/
     U16* tagTable;                           /* For row-based matchFinder: A row-based table containing the hashes and head index. */
     U32 hashCache[ZSTD_ROW_HASH_CACHE_SIZE]; /* For row-based matchFinder: a cache of hashes to improve speed */
-    U64 hashSalt;
+    U64 hashSalt;                            /* For row-based matchFinder: salts the hash for re-use of tag table */
+    U32 hashSaltEntropy;                     /* For row-based matchFinder: collects entropy for salt generation */
 
     U32* hashTable;
     U32* hashTable3;
@@ -845,7 +846,7 @@ size_t ZSTD_hashPtrSalted(const void* p, U32 hBits, U32 mls, const U64 hashSalt)
     switch(mls)
     {
         default:
-        case 4: return ZSTD_hash4PtrS(p, hBits, (U32)(hashSalt >> 32));
+        case 4: return ZSTD_hash4PtrS(p, hBits, (U32)hashSalt);
         case 5: return ZSTD_hash5PtrS(p, hBits, hashSalt);
         case 6: return ZSTD_hash6PtrS(p, hBits, hashSalt);
         case 7: return ZSTD_hash7PtrS(p, hBits, hashSalt);

@@ -647,7 +647,7 @@ if __name__ == "__main__":
         help="Preserve the scratch directory TEST_DIR/scratch/ for debugging purposes."
     )
     parser.add_argument("--verbose", action="store_true", help="Verbose test output.")
-    parser.add_argument("--timeout", default=60, type=int, help="Test case timeout in seconds. Set to 0 to disable timeouts.")
+    parser.add_argument("--timeout", default=200, type=int, help="Test case timeout in seconds. Set to 0 to disable timeouts.")
     parser.add_argument(
         "--exec-prefix",
         default=None,

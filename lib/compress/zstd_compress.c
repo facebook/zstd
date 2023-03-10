@@ -4669,7 +4669,8 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
             ip = iend - maxDictSize;
             src = ip;
             srcSize = maxDictSize;
-    }   }
+        }
+    }
 
     if (srcSize > ZSTD_CHUNKSIZE_MAX) {
         /* We must have cleared our windows when our source is this large. */
@@ -4678,21 +4679,30 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
     }
 
     DEBUGLOG(4, "ZSTD_loadDictionaryContent(): useRowMatchFinder=%d", (int)params->useRowMatchFinder);
+
+    if (loadLdmDict) { /* Load the entire dict into LDM matchfinders. */
+        ZSTD_window_update(&ls->window, src, srcSize, /* forceNonContiguous */ 0);
+        ls->loadedDictEnd = params->forceWindow ? 0 : (U32)(iend - ls->window.base);
+        ZSTD_ldm_fillHashTable(ls, ip, iend, &params->ldmParams);
+    }
+
+    /* If the dict is larger than we can reasonably index in our tables, only load the suffix. */
+    {   U32 maxDictSize = 4 * (1U << MAX(params->cParams.hashLog, params->cParams.chainLog));
+
+        if (srcSize > maxDictSize) {
+            ip = iend - maxDictSize;
+            src = ip;
+            srcSize = maxDictSize;
+        }
+    }
+
     ZSTD_window_update(&ms->window, src, srcSize, /* forceNonContiguous */ 0);
     ms->loadedDictEnd = params->forceWindow ? 0 : (U32)(iend - ms->window.base);
     ms->forceNonContiguous = params->deterministicRefPrefix;
 
-    if (loadLdmDict) {
-        ZSTD_window_update(&ls->window, src, srcSize, /* forceNonContiguous */ 0);
-        ls->loadedDictEnd = params->forceWindow ? 0 : (U32)(iend - ls->window.base);
-    }
-
     if (srcSize <= HASH_READ_SIZE) return 0;
 
     ZSTD_overflowCorrectIfNeeded(ms, ws, params, ip, iend);
-
-    if (loadLdmDict)
-        ZSTD_ldm_fillHashTable(ls, ip, iend, &params->ldmParams);
 
     switch(params->cParams.strategy)
     {

@@ -15,8 +15,8 @@ extern "C" {
 
 #define ZSTD_SEEKABLE_MAXFRAMES 0x8000000U
 
-/* Limit the maximum size to avoid any potential issues storing the compressed size */
-#define ZSTD_SEEKABLE_MAX_FRAME_DECOMPRESSED_SIZE 0x80000000U
+/* Limit maximum size to avoid potential issues storing the compressed size */
+#define ZSTD_SEEKABLE_MAX_FRAME_DECOMPRESSED_SIZE 0x40000000U
 
 /*-****************************************************************************
 *  Seekable Format

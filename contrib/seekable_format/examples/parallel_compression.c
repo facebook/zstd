@@ -25,7 +25,7 @@
 
 #include "pool.h"      // use zstd thread pool for demo
 
-#include "zstd_seekable.h"
+#include "../zstd_seekable.h"
 
 static void* malloc_orDie(size_t size)
 {

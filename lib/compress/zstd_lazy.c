@@ -12,6 +12,8 @@
 #include "zstd_lazy.h"
 #include "../common/bits.h" /* ZSTD_countTrailingZeros64 */
 
+#define kLazySkippingStep 8
+
 
 /*-*************************************
 *  Binary Tree search
@@ -618,7 +620,7 @@ size_t ZSTD_dedicatedDictSearch_lazy_search(size_t* offsetPtr, size_t ml, U32 nb
 FORCE_INLINE_TEMPLATE U32 ZSTD_insertAndFindFirstIndex_internal(
                         ZSTD_matchState_t* ms,
                         const ZSTD_compressionParameters* const cParams,
-                        const BYTE* ip, U32 const mls)
+                        const BYTE* ip, U32 const mls, U32 const lazySkipping)
 {
     U32* const hashTable  = ms->hashTable;
     const U32 hashLog = cParams->hashLog;
@@ -633,6 +635,9 @@ FORCE_INLINE_TEMPLATE U32 ZSTD_insertAndFindFirstIndex_internal(
         NEXT_IN_CHAIN(idx, chainMask) = hashTable[h];
         hashTable[h] = idx;
         idx++;
+        /* Stop inserting every position when in the lazy skipping mode. */
+        if (lazySkipping)
+            break;
     }
 
     ms->nextToUpdate = target;
@@ -641,7 +646,7 @@ FORCE_INLINE_TEMPLATE U32 ZSTD_insertAndFindFirstIndex_internal(
 
 U32 ZSTD_insertAndFindFirstIndex(ZSTD_matchState_t* ms, const BYTE* ip) {
     const ZSTD_compressionParameters* const cParams = &ms->cParams;
-    return ZSTD_insertAndFindFirstIndex_internal(ms, cParams, ip, ms->cParams.minMatch);
+    return ZSTD_insertAndFindFirstIndex_internal(ms, cParams, ip, ms->cParams.minMatch, /* lazySkipping*/ 0);
 }
 
 /* inlining is important to hardwire a hot branch (template emulation) */
@@ -685,7 +690,7 @@ size_t ZSTD_HcFindBestMatch(
     }
 
     /* HC4 match finder */
-    matchIndex = ZSTD_insertAndFindFirstIndex_internal(ms, cParams, ip, mls);
+    matchIndex = ZSTD_insertAndFindFirstIndex_internal(ms, cParams, ip, mls, ms->lazySkipping);
 
     for ( ; (matchIndex>=lowLimit) & (nbAttempts>0) ; nbAttempts--) {
         size_t currentMl=0;
@@ -866,7 +871,6 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_update_internalImpl(ZSTD_matchState_t* ms,
     U32* const hashTable = ms->hashTable;
     BYTE* const tagTable = ms->tagTable;
     U32 const hashLog = ms->rowHashLog;
-    U32 hashSaltEntropyCollected = 0;
     const BYTE* const base = ms->window.base;
 
     DEBUGLOG(6, "ZSTD_row_update_internalImpl(): updateStartIdx=%u, updateEndIdx=%u", updateStartIdx, updateEndIdx);
@@ -881,9 +885,7 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_update_internalImpl(ZSTD_matchState_t* ms,
         assert(hash == ZSTD_hashPtrSalted(base + updateStartIdx, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls, ms->hashSalt));
         tagRow[pos] = hash & ZSTD_ROW_HASH_TAG_MASK;
         row[pos] = updateStartIdx;
-        hashSaltEntropyCollected = hash;
     }
-    ms->hashSaltEntropy += hashSaltEntropyCollected; /* collect salt entropy */
 }
 
 /* ZSTD_row_update_internal():
@@ -1144,6 +1146,7 @@ size_t ZSTD_RowFindBestMatch(
     const U64 hashSalt = ms->hashSalt;
     U32 nbAttempts = 1U << cappedSearchLog;
     size_t ml=4-1;
+    U32 hash;
 
     /* DMS/DDS variables that may be referenced laster */
     const ZSTD_matchState_t* const dms = ms->dictMatchState;
@@ -1177,9 +1180,19 @@ size_t ZSTD_RowFindBestMatch(
     }
 
     /* Update the hashTable and tagTable up to (but not including) ip */
-    ZSTD_row_update_internal(ms, ip, mls, rowLog, rowMask, 1 /* useCache */);
+    if (!ms->lazySkipping) {
+        ZSTD_row_update_internal(ms, ip, mls, rowLog, rowMask, 1 /* useCache */);
+        hash = ZSTD_row_nextCachedHash(hashCache, hashTable, tagTable, base, curr, hashLog, rowLog, mls, hashSalt);
+    } else {
+        /* Stop inserting every position when in the lazy skipping mode.
+         * The hash cache is also not kept up to date in this mode.
+         */
+        hash = (U32)ZSTD_hashPtrSalted(ip, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls, hashSalt);
+        ms->nextToUpdate = curr;
+    }
+    ms->hashSaltEntropy += hash; /* collect salt entropy */
+
     {   /* Get the hash for ip, compute the appropriate row */
-        U32 const hash = ZSTD_row_nextCachedHash(hashCache, hashTable, tagTable, base, curr, hashLog, rowLog, mls, hashSalt);
         U32 const relRow = (hash >> ZSTD_ROW_HASH_TAG_BITS) << rowLog;
         U32 const tag = hash & ZSTD_ROW_HASH_TAG_MASK;
         U32* const row = hashTable + relRow;
@@ -1527,10 +1540,11 @@ ZSTD_compressBlock_lazy_generic(
         assert(offset_2 <= dictAndPrefixLength);
     }
 
+    /* Reset the lazy skipping state */
+    ms->lazySkipping = 0;
+
     if (searchMethod == search_rowHash) {
-        ZSTD_row_fillHashCache(ms, base, rowLog,
-                            MIN(ms->cParams.minMatch, 6 /* mls caps out at 6 */),
-                            ms->nextToUpdate, ilimit);
+        ZSTD_row_fillHashCache(ms, base, rowLog, mls, ms->nextToUpdate, ilimit);
     }
 
     /* Match Loop */
@@ -1574,7 +1588,16 @@ ZSTD_compressBlock_lazy_generic(
         }
 
         if (matchLength < 4) {
-            ip += ((ip-anchor) >> kSearchStrength) + 1;   /* jump faster over incompressible sections */
+            size_t const step = ((size_t)(ip-anchor) >> kSearchStrength) + 1;   /* jump faster over incompressible sections */;
+            ip += step;
+            /* Enter the lazy skipping mode once we are skipping more than 8 bytes at a time.
+             * In this mode we stop inserting every position into our tables, and only insert
+             * positions that we search, which is one in step positions.
+             * The exact cutoff is flexible, I've just chosen a number that is reasonably high,
+             * so we minimize the compression ratio loss in "normal" scenarios. This mode gets
+             * triggered once we've gone 2KB without finding any matches.
+             */
+            ms->lazySkipping = step > kLazySkippingStep;
             continue;
         }
 
@@ -1677,6 +1700,13 @@ _storeSequence:
         {   size_t const litLength = (size_t)(start - anchor);
             ZSTD_storeSeq(seqStore, litLength, anchor, iend, (U32)offBase, matchLength);
             anchor = ip = start + matchLength;
+        }
+        if (ms->lazySkipping) {
+            /* We've found a match, disable lazy skipping mode, and refill the hash cache. */
+            if (searchMethod == search_rowHash) {
+                ZSTD_row_fillHashCache(ms, base, rowLog, mls, ms->nextToUpdate, ilimit);
+            }
+            ms->lazySkipping = 0;
         }
 
         /* check immediate repcode */
@@ -1895,12 +1925,13 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
 
     DEBUGLOG(5, "ZSTD_compressBlock_lazy_extDict_generic (searchFunc=%u)", (U32)searchMethod);
 
+    /* Reset the lazy skipping state */
+    ms->lazySkipping = 0;
+
     /* init */
     ip += (ip == prefixStart);
     if (searchMethod == search_rowHash) {
-        ZSTD_row_fillHashCache(ms, base, rowLog,
-                               MIN(ms->cParams.minMatch, 6 /* mls caps out at 6 */),
-                               ms->nextToUpdate, ilimit);
+        ZSTD_row_fillHashCache(ms, base, rowLog, mls, ms->nextToUpdate, ilimit);
     }
 
     /* Match Loop */
@@ -1938,7 +1969,16 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
         }
 
         if (matchLength < 4) {
-            ip += ((ip-anchor) >> kSearchStrength) + 1;   /* jump faster over incompressible sections */
+            size_t const step = ((size_t)(ip-anchor) >> kSearchStrength);
+            ip += step + 1;   /* jump faster over incompressible sections */
+            /* Enter the lazy skipping mode once we are skipping more than 8 bytes at a time.
+             * In this mode we stop inserting every position into our tables, and only insert
+             * positions that we search, which is one in step positions.
+             * The exact cutoff is flexible, I've just chosen a number that is reasonably high,
+             * so we minimize the compression ratio loss in "normal" scenarios. This mode gets
+             * triggered once we've gone 2KB without finding any matches.
+             */
+            ms->lazySkipping = step > kLazySkippingStep;
             continue;
         }
 
@@ -2023,6 +2063,13 @@ _storeSequence:
         {   size_t const litLength = (size_t)(start - anchor);
             ZSTD_storeSeq(seqStore, litLength, anchor, iend, (U32)offBase, matchLength);
             anchor = ip = start + matchLength;
+        }
+        if (ms->lazySkipping) {
+            /* We've found a match, disable lazy skipping mode, and refill the hash cache. */
+            if (searchMethod == search_rowHash) {
+                ZSTD_row_fillHashCache(ms, base, rowLog, mls, ms->nextToUpdate, ilimit);
+            }
+            ms->lazySkipping = 0;
         }
 
         /* check immediate repcode */

@@ -249,6 +249,13 @@ struct ZSTD_matchState_t {
      * This behavior is controlled from the cctx ms.
      * This parameter has no effect in the cdict ms. */
     int prefetchCDictTables;
+
+    /* When == 0, lazy match finders insert every position.
+     * When != 0, lazy match finders only insert positions they search.
+     * This allows them to skip much faster over incompressible data,
+     * at a small cost to compression ratio.
+     */
+    int lazySkipping;
 };
 
 typedef struct {

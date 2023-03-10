@@ -758,7 +758,6 @@ size_t ZSTD_HcFindBestMatch(
 * (SIMD) Row-based matchfinder
 ***********************************/
 /* Constants for row-based hash */
-#define ZSTD_ROW_HASH_TAG_OFFSET 16     /* byte offset of hashes in the match state's tagTable from the beginning of a row */
 #define ZSTD_ROW_HASH_TAG_MASK ((1u << ZSTD_ROW_HASH_TAG_BITS) - 1)
 #define ZSTD_ROW_HASH_MAX_ENTRIES 64    /* absolute maximum number of entries per row, for all configurations */
 
@@ -801,12 +800,13 @@ U16 ZSTD_rotateRight_U16(U16 const value, U32 count) {
 
 /* ZSTD_row_nextIndex():
  * Returns the next index to insert at within a tagTable row, and updates the "head"
- * value to reflect the update. Essentially cycles backwards from [0, {entries per row})
+ * value to reflect the update. Essentially cycles backwards from [1, {entries per row})
  */
 FORCE_INLINE_TEMPLATE U32 ZSTD_row_nextIndex(BYTE* const tagRow, U32 const rowMask) {
-  U32 const next = (*tagRow - 1) & rowMask;
-  *tagRow = (BYTE)next;
-  return next;
+    U32 next = (*tagRow-1) & rowMask;
+    next += (next == 0) ? rowMask : 0; /* skip first position */
+    *tagRow = (BYTE)next;
+    return next;
 }
 
 /* ZSTD_isAligned():
@@ -820,7 +820,7 @@ MEM_STATIC int ZSTD_isAligned(void const* ptr, size_t align) {
 /* ZSTD_row_prefetch():
  * Performs prefetching for the hashTable and tagTable at a given row.
  */
-FORCE_INLINE_TEMPLATE void ZSTD_row_prefetch(U32 const* hashTable, U16 const* tagTable, U32 const relRow, U32 const rowLog) {
+FORCE_INLINE_TEMPLATE void ZSTD_row_prefetch(U32 const* hashTable, BYTE const* tagTable, U32 const relRow, U32 const rowLog) {
     PREFETCH_L1(hashTable + relRow);
     if (rowLog >= 5) {
         PREFETCH_L1(hashTable + relRow + 16);
@@ -844,7 +844,7 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_fillHashCache(ZSTD_matchState_t* ms, const B
                                    U32 idx, const BYTE* const iLimit)
 {
     U32 const* const hashTable = ms->hashTable;
-    U16 const* const tagTable = ms->tagTable;
+    BYTE const* const tagTable = ms->tagTable;
     U32 const hashLog = ms->rowHashLog;
     U32 const maxElemsToPrefetch = (base + idx) > iLimit ? 0 : (U32)(iLimit - (base + idx) + 1);
     U32 const lim = idx + MIN(ZSTD_ROW_HASH_CACHE_SIZE, maxElemsToPrefetch);
@@ -866,7 +866,7 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_fillHashCache(ZSTD_matchState_t* ms, const B
  * base + idx + ZSTD_ROW_HASH_CACHE_SIZE. Also prefetches the appropriate rows from hashTable and tagTable.
  */
 FORCE_INLINE_TEMPLATE U32 ZSTD_row_nextCachedHash(U32* cache, U32 const* hashTable,
-                                                  U16 const* tagTable, BYTE const* base,
+                                                  BYTE const* tagTable, BYTE const* base,
                                                   U32 idx, U32 const hashLog,
                                                   U32 const rowLog, U32 const mls)
 {
@@ -888,7 +888,7 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_update_internalImpl(ZSTD_matchState_t* ms,
                                                         U32 const rowMask, U32 const useCache)
 {
     U32* const hashTable = ms->hashTable;
-    U16* const tagTable = ms->tagTable;
+    BYTE* const tagTable = ms->tagTable;
     U32 const hashLog = ms->rowHashLog;
     const BYTE* const base = ms->window.base;
 
@@ -898,12 +898,11 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_update_internalImpl(ZSTD_matchState_t* ms,
                                   : (U32)ZSTD_hashPtr(base + updateStartIdx, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls);
         U32 const relRow = (hash >> ZSTD_ROW_HASH_TAG_BITS) << rowLog;
         U32* const row = hashTable + relRow;
-        BYTE* tagRow = (BYTE*)(tagTable + relRow);  /* Though tagTable is laid out as a table of U16, each tag is only 1 byte.
-                                                       Explicit cast allows us to get exact desired position within each row */
+        BYTE* tagRow = tagTable + relRow;
         U32 const pos = ZSTD_row_nextIndex(tagRow, rowMask);
 
         assert(hash == ZSTD_hashPtr(base + updateStartIdx, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls));
-        ((BYTE*)tagRow)[pos + ZSTD_ROW_HASH_TAG_OFFSET] = hash & ZSTD_ROW_HASH_TAG_MASK;
+        tagRow[pos] = hash & ZSTD_ROW_HASH_TAG_MASK;
         row[pos] = updateStartIdx;
     }
 }
@@ -1059,7 +1058,7 @@ ZSTD_row_getNEONMask(const U32 rowEntries, const BYTE* const src, const BYTE tag
 FORCE_INLINE_TEMPLATE ZSTD_VecMask
 ZSTD_row_getMatchMask(const BYTE* const tagRow, const BYTE tag, const U32 headGrouped, const U32 rowEntries)
 {
-    const BYTE* const src = tagRow + ZSTD_ROW_HASH_TAG_OFFSET;
+    const BYTE* const src = tagRow;
     assert((rowEntries == 16) || (rowEntries == 32) || rowEntries == 64);
     assert(rowEntries <= ZSTD_ROW_HASH_MAX_ENTRIES);
     assert(ZSTD_row_matchMaskGroupWidth(rowEntries) * rowEntries <= sizeof(ZSTD_VecMask) * 8);
@@ -1144,7 +1143,7 @@ size_t ZSTD_RowFindBestMatch(
                         const U32 rowLog)
 {
     U32* const hashTable = ms->hashTable;
-    U16* const tagTable = ms->tagTable;
+    BYTE* const tagTable = ms->tagTable;
     U32* const hashCache = ms->hashCache;
     const U32 hashLog = ms->rowHashLog;
     const ZSTD_compressionParameters* const cParams = &ms->cParams;
@@ -1188,7 +1187,7 @@ size_t ZSTD_RowFindBestMatch(
     if (dictMode == ZSTD_dictMatchState) {
         /* Prefetch DMS rows */
         U32* const dmsHashTable = dms->hashTable;
-        U16* const dmsTagTable = dms->tagTable;
+        BYTE* const dmsTagTable = dms->tagTable;
         U32 const dmsHash = (U32)ZSTD_hashPtr(ip, dms->rowHashLog + ZSTD_ROW_HASH_TAG_BITS, mls);
         U32 const dmsRelRow = (dmsHash >> ZSTD_ROW_HASH_TAG_BITS) << rowLog;
         dmsTag = dmsHash & ZSTD_ROW_HASH_TAG_MASK;
@@ -1230,7 +1229,7 @@ size_t ZSTD_RowFindBestMatch(
            in ZSTD_row_update_internal() at the next search. */
         {
             U32 const pos = ZSTD_row_nextIndex(tagRow, rowMask);
-            tagRow[pos + ZSTD_ROW_HASH_TAG_OFFSET] = (BYTE)tag;
+            tagRow[pos] = (BYTE)tag;
             row[pos] = ms->nextToUpdate++;
         }
 

@@ -1211,9 +1211,10 @@ size_t ZSTD_RowFindBestMatch(
         ZSTD_VecMask matches = ZSTD_row_getMatchMask(tagRow, (BYTE)tag, headGrouped, rowEntries);
 
         /* Cycle through the matches and prefetch */
-        for (; (matches > 0) && (nbAttempts > 0); --nbAttempts, matches &= (matches - 1)) {
+        for (; (matches > 0) && (nbAttempts > 0); matches &= (matches - 1)) {
             U32 const matchPos = ((headGrouped + ZSTD_VecMask_next(matches)) / groupWidth) & rowMask;
             U32 const matchIndex = row[matchPos];
+            if(matchPos == 0) continue;
             assert(numMatches < rowEntries);
             if (matchIndex < lowLimit)
                 break;
@@ -1223,6 +1224,7 @@ size_t ZSTD_RowFindBestMatch(
                 PREFETCH_L1(dictBase + matchIndex);
             }
             matchBuffer[numMatches++] = matchIndex;
+            --nbAttempts;
         }
 
         /* Speed opt: insert current byte into hashtable too. This allows us to avoid one iteration of the loop
@@ -1280,13 +1282,15 @@ size_t ZSTD_RowFindBestMatch(
             size_t currMatch = 0;
             ZSTD_VecMask matches = ZSTD_row_getMatchMask(dmsTagRow, (BYTE)dmsTag, headGrouped, rowEntries);
 
-            for (; (matches > 0) && (nbAttempts > 0); --nbAttempts, matches &= (matches - 1)) {
+            for (; (matches > 0) && (nbAttempts > 0); matches &= (matches - 1)) {
                 U32 const matchPos = ((headGrouped + ZSTD_VecMask_next(matches)) / groupWidth) & rowMask;
                 U32 const matchIndex = dmsRow[matchPos];
+                if(matchPos == 0) continue;
                 if (matchIndex < dmsLowestIndex)
                     break;
                 PREFETCH_L1(dmsBase + matchIndex);
                 matchBuffer[numMatches++] = matchIndex;
+                --nbAttempts;
             }
 
             /* Return the longest match */

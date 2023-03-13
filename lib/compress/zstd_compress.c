@@ -1955,6 +1955,17 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
         ZSTD_cwksp_clean_tables(ws);
     }
 
+    if (ZSTD_rowMatchFinderUsed(cParams->strategy, useRowMatchFinder)) {
+        /* Row match finder needs an additional table of hashes ("tags") */
+        size_t const tagTableSize = hSize;
+        ms->tagTable = (BYTE*) ZSTD_cwksp_reserve_aligned_init_once(ws, tagTableSize);
+        {   /* Switch to 32-entry rows if searchLog is 5 (or more) */
+            U32 const rowLog = BOUNDED(4, cParams->searchLog, 6);
+            assert(cParams->hashLog >= rowLog);
+            ms->rowHashLog = cParams->hashLog - rowLog;
+        }
+    }
+
     /* opt parser space */
     if ((forWho == ZSTD_resetTarget_CCtx) && (cParams->strategy >= ZSTD_btopt)) {
         DEBUGLOG(4, "reserving optimal parser space");
@@ -1964,19 +1975,6 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
         ms->opt.offCodeFreq = (unsigned*)ZSTD_cwksp_reserve_aligned(ws, (MaxOff+1) * sizeof(unsigned));
         ms->opt.matchTable = (ZSTD_match_t*)ZSTD_cwksp_reserve_aligned(ws, (ZSTD_OPT_NUM+1) * sizeof(ZSTD_match_t));
         ms->opt.priceTable = (ZSTD_optimal_t*)ZSTD_cwksp_reserve_aligned(ws, (ZSTD_OPT_NUM+1) * sizeof(ZSTD_optimal_t));
-    }
-
-    if (ZSTD_rowMatchFinderUsed(cParams->strategy, useRowMatchFinder)) {
-        {   /* Row match finder needs an additional table of hashes ("tags") */
-            size_t const tagTableSize = hSize;
-            ms->tagTable = (BYTE*)ZSTD_cwksp_reserve_aligned(ws, tagTableSize);
-            if (ms->tagTable) ZSTD_memset(ms->tagTable, 0, tagTableSize);
-        }
-        {   /* Switch to 32-entry rows if searchLog is 5 (or more) */
-            U32 const rowLog = BOUNDED(4, cParams->searchLog, 6);
-            assert(cParams->hashLog >= rowLog);
-            ms->rowHashLog = cParams->hashLog - rowLog;
-        }
     }
 
     ms->cParams = *cParams;
@@ -2125,45 +2123,16 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
 
         ZSTD_reset_compressedBlockState(zc->blockState.prevCBlock);
 
-        /* ZSTD_wildcopy() is used to copy into the literals buffer,
-         * so we have to oversize the buffer by WILDCOPY_OVERLENGTH bytes.
-         */
-        zc->seqStore.litStart = ZSTD_cwksp_reserve_buffer(ws, blockSize + WILDCOPY_OVERLENGTH);
-        zc->seqStore.maxNbLit = blockSize;
-
-        /* buffers */
-        zc->bufferedPolicy = zbuff;
-        zc->inBuffSize = buffInSize;
-        zc->inBuff = (char*)ZSTD_cwksp_reserve_buffer(ws, buffInSize);
-        zc->outBuffSize = buffOutSize;
-        zc->outBuff = (char*)ZSTD_cwksp_reserve_buffer(ws, buffOutSize);
-
-        /* ldm bucketOffsets table */
-        if (params->ldmParams.enableLdm == ZSTD_ps_enable) {
-            /* TODO: avoid memset? */
-            size_t const numBuckets =
-                  ((size_t)1) << (params->ldmParams.hashLog -
-                                  params->ldmParams.bucketSizeLog);
-            zc->ldmState.bucketOffsets = ZSTD_cwksp_reserve_buffer(ws, numBuckets);
-            ZSTD_memset(zc->ldmState.bucketOffsets, 0, numBuckets);
-        }
-
-        /* sequences storage */
-        ZSTD_referenceExternalSequences(zc, NULL, 0);
-        zc->seqStore.maxNbSeq = maxNbSeq;
-        zc->seqStore.llCode = ZSTD_cwksp_reserve_buffer(ws, maxNbSeq * sizeof(BYTE));
-        zc->seqStore.mlCode = ZSTD_cwksp_reserve_buffer(ws, maxNbSeq * sizeof(BYTE));
-        zc->seqStore.ofCode = ZSTD_cwksp_reserve_buffer(ws, maxNbSeq * sizeof(BYTE));
-        zc->seqStore.sequencesStart = (seqDef*)ZSTD_cwksp_reserve_aligned(ws, maxNbSeq * sizeof(seqDef));
-
         FORWARD_IF_ERROR(ZSTD_reset_matchState(
-            &zc->blockState.matchState,
-            ws,
-            &params->cParams,
-            params->useRowMatchFinder,
-            crp,
-            needsIndexReset,
-            ZSTD_resetTarget_CCtx), "");
+                &zc->blockState.matchState,
+                ws,
+                &params->cParams,
+                params->useRowMatchFinder,
+                crp,
+                needsIndexReset,
+                ZSTD_resetTarget_CCtx), "");
+
+        zc->seqStore.sequencesStart = (seqDef*)ZSTD_cwksp_reserve_aligned(ws, maxNbSeq * sizeof(seqDef));
 
         /* ldm hash table */
         if (params->ldmParams.enableLdm == ZSTD_ps_enable) {
@@ -2186,8 +2155,39 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                 (ZSTD_Sequence*)ZSTD_cwksp_reserve_aligned(ws, maxNbExternalSeq * sizeof(ZSTD_Sequence));
         }
 
+        /* buffers */
+
+        /* ZSTD_wildcopy() is used to copy into the literals buffer,
+         * so we have to oversize the buffer by WILDCOPY_OVERLENGTH bytes.
+         */
+        zc->seqStore.litStart = ZSTD_cwksp_reserve_buffer(ws, blockSize + WILDCOPY_OVERLENGTH);
+        zc->seqStore.maxNbLit = blockSize;
+
+        zc->bufferedPolicy = zbuff;
+        zc->inBuffSize = buffInSize;
+        zc->inBuff = (char*)ZSTD_cwksp_reserve_buffer(ws, buffInSize);
+        zc->outBuffSize = buffOutSize;
+        zc->outBuff = (char*)ZSTD_cwksp_reserve_buffer(ws, buffOutSize);
+
+        /* ldm bucketOffsets table */
+        if (params->ldmParams.enableLdm == ZSTD_ps_enable) {
+            /* TODO: avoid memset? */
+            size_t const numBuckets =
+                  ((size_t)1) << (params->ldmParams.hashLog -
+                                  params->ldmParams.bucketSizeLog);
+            zc->ldmState.bucketOffsets = ZSTD_cwksp_reserve_buffer(ws, numBuckets);
+            ZSTD_memset(zc->ldmState.bucketOffsets, 0, numBuckets);
+        }
+
+        /* sequences storage */
+        ZSTD_referenceExternalSequences(zc, NULL, 0);
+        zc->seqStore.maxNbSeq = maxNbSeq;
+        zc->seqStore.llCode = ZSTD_cwksp_reserve_buffer(ws, maxNbSeq * sizeof(BYTE));
+        zc->seqStore.mlCode = ZSTD_cwksp_reserve_buffer(ws, maxNbSeq * sizeof(BYTE));
+        zc->seqStore.ofCode = ZSTD_cwksp_reserve_buffer(ws, maxNbSeq * sizeof(BYTE));
+
         DEBUGLOG(3, "wksp: finished allocating, %zd bytes remain available", ZSTD_cwksp_available_space(ws));
-        assert(ZSTD_cwksp_estimated_space_within_bounds(ws, neededSpace, resizeWorkspace));
+        assert(ZSTD_cwksp_estimated_space_within_bounds(ws, neededSpace));
 
         zc->initialized = 1;
 

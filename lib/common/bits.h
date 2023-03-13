@@ -176,21 +176,21 @@ MEM_STATIC unsigned ZSTD_highbit32(U32 val)   /* compress, dictBuilder, decodeCo
  * Rotates a bitfield to the right by "count" bits.
  * https://en.wikipedia.org/w/index.php?title=Circular_shift&oldid=991635599#Implementing_circular_shifts
  */
-FORCE_INLINE_TEMPLATE
+MEM_STATIC
 U64 ZSTD_rotateRight_U64(U64 const value, U32 count) {
     assert(count < 64);
     count &= 0x3F; /* for fickle pattern recognition */
     return (value >> count) | (U64)(value << ((0U - count) & 0x3F));
 }
 
-FORCE_INLINE_TEMPLATE
+MEM_STATIC
 U32 ZSTD_rotateRight_U32(U32 const value, U32 count) {
     assert(count < 32);
     count &= 0x1F; /* for fickle pattern recognition */
     return (value >> count) | (U32)(value << ((0U - count) & 0x1F));
 }
 
-FORCE_INLINE_TEMPLATE
+MEM_STATIC
 U16 ZSTD_rotateRight_U16(U16 const value, U32 count) {
     assert(count < 16);
     count &= 0x0F; /* for fickle pattern recognition */

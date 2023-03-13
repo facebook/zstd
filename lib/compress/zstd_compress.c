@@ -1978,7 +1978,7 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
             ZSTD_advanceHashSalt(ms);
         } else {
             /* When we are not salting we want to always memset the memory */
-            ms->tagTable = (U16 *) ZSTD_cwksp_reserve_aligned(ws, tagTableSize);
+            ms->tagTable = (BYTE*) ZSTD_cwksp_reserve_aligned(ws, tagTableSize);
             ZSTD_memset(ms->tagTable, 0, tagTableSize);
             ms->hashSalt = 0;
         }

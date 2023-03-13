@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <assert.h>
 
-#include "zstd_seekable.h"
+#include "../zstd_seekable.h"
 
 /* Basic unit tests for zstd seekable format */
 int main(int argc, const char** argv)

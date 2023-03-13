@@ -1178,16 +1178,39 @@ size_t ZSTD_CCtx_setParametersUsingCCtxParams(
 
 size_t ZSTD_CCtx_setCParams(ZSTD_CCtx* cctx, ZSTD_compressionParameters cparams)
 {
+    ZSTD_STATIC_ASSERT(sizeof(cparams) == 7 * 4 /* all params are listed below */);
     DEBUGLOG(4, "ZSTD_CCtx_setCParams");
-    assert(cctx != NULL);
-    if (cctx->streamStage != zcss_init) {
-        /* All parameters in @cparams are allowed to be updated during MT compression.
-         * This must be signaled, so that MT compression picks up the changes */
-        cctx->cParamsChanged = 1;
-    }
-    /* only update if parameters are valid */
+    /* only update if all parameters are valid */
     FORWARD_IF_ERROR(ZSTD_checkCParams(cparams), "");
-    cctx->requestedParams.cParams = cparams;
+    FORWARD_IF_ERROR(ZSTD_CCtx_setParameter(cctx, ZSTD_c_windowLog, cparams.windowLog), "");
+    FORWARD_IF_ERROR(ZSTD_CCtx_setParameter(cctx, ZSTD_c_chainLog, cparams.chainLog), "");
+    FORWARD_IF_ERROR(ZSTD_CCtx_setParameter(cctx, ZSTD_c_hashLog, cparams.hashLog), "");
+    FORWARD_IF_ERROR(ZSTD_CCtx_setParameter(cctx, ZSTD_c_searchLog, cparams.searchLog), "");
+    FORWARD_IF_ERROR(ZSTD_CCtx_setParameter(cctx, ZSTD_c_minMatch, cparams.minMatch), "");
+    FORWARD_IF_ERROR(ZSTD_CCtx_setParameter(cctx, ZSTD_c_targetLength, cparams.targetLength), "");
+    FORWARD_IF_ERROR(ZSTD_CCtx_setParameter(cctx, ZSTD_c_strategy, cparams.strategy), "");
+    return 0;
+}
+
+size_t ZSTD_CCtx_setFParams(ZSTD_CCtx* cctx, ZSTD_frameParameters fparams)
+{
+    ZSTD_STATIC_ASSERT(sizeof(fparams) == 3 * 4 /* all params are listed below */);
+    DEBUGLOG(4, "ZSTD_CCtx_setFParams");
+    FORWARD_IF_ERROR(ZSTD_CCtx_setParameter(cctx, ZSTD_c_contentSizeFlag, fparams.contentSizeFlag != 0), "");
+    FORWARD_IF_ERROR(ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, fparams.checksumFlag != 0), "");
+    FORWARD_IF_ERROR(ZSTD_CCtx_setParameter(cctx, ZSTD_c_dictIDFlag, fparams.noDictIDFlag == 0), "");
+    return 0;
+}
+
+size_t ZSTD_CCtx_setParams(ZSTD_CCtx* cctx, ZSTD_parameters params)
+{
+    DEBUGLOG(4, "ZSTD_CCtx_setParams");
+    /* First check cParams, because we want to update all or none. */
+    FORWARD_IF_ERROR(ZSTD_checkCParams(params.cParams), "");
+    /* Next set fParams, because this could fail if the cctx isn't in init stage. */
+    FORWARD_IF_ERROR(ZSTD_CCtx_setFParams(cctx, params.fParams), "");
+    /* Finally set cParams, which should succeed. */
+    FORWARD_IF_ERROR(ZSTD_CCtx_setCParams(cctx, params.cParams), "");
     return 0;
 }
 
@@ -1593,7 +1616,7 @@ ZSTD_sizeof_matchState(const ZSTD_compressionParameters* const cParams,
       + ZSTD_cwksp_aligned_alloc_size((ZSTD_OPT_NUM+1) * sizeof(ZSTD_match_t))
       + ZSTD_cwksp_aligned_alloc_size((ZSTD_OPT_NUM+1) * sizeof(ZSTD_optimal_t));
     size_t const lazyAdditionalSpace = ZSTD_rowMatchFinderUsed(cParams->strategy, useRowMatchFinder)
-                                            ? ZSTD_cwksp_aligned_alloc_size(hSize*sizeof(U16))
+                                            ? ZSTD_cwksp_aligned_alloc_size(hSize)
                                             : 0;
     size_t const optSpace = (forCCtx && (cParams->strategy >= ZSTD_btopt))
                                 ? optPotentialSpace
@@ -1947,11 +1970,11 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
 
     if (ZSTD_rowMatchFinderUsed(cParams->strategy, useRowMatchFinder)) {
         /* Row match finder needs an additional table of hashes ("tags") */
-        size_t const tagTableSize = hSize * sizeof(U16);
+        size_t const tagTableSize = hSize;
         /* We want to generate a new salt in case we reset a Cctx, but we always want to use
          * 0 when we reset a Cdict */
         if(forWho == ZSTD_resetTarget_CCtx) {
-            ms->tagTable = (U16 *) ZSTD_cwksp_reserve_aligned_init_once(ws, tagTableSize);
+            ms->tagTable = (BYTE*) ZSTD_cwksp_reserve_aligned_init_once(ws, tagTableSize);
             ZSTD_advanceHashSalt(ms);
         } else {
             /* When we are not salting we want to always memset the memory */
@@ -2362,7 +2385,7 @@ static size_t ZSTD_resetCCtx_byCopyingCDict(ZSTD_CCtx* cctx,
         }
         /* copy tag table */
         if (ZSTD_rowMatchFinderUsed(cdict_cParams->strategy, cdict->useRowMatchFinder)) {
-            size_t const tagTableSize = hSize*sizeof(U16);
+            size_t const tagTableSize = hSize;
             ZSTD_memcpy(cctx->blockState.matchState.tagTable,
                         cdict->matchState.tagTable,
                         tagTableSize);
@@ -4714,7 +4737,7 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
         } else {
             assert(params->useRowMatchFinder != ZSTD_ps_auto);
             if (params->useRowMatchFinder == ZSTD_ps_enable) {
-                size_t const tagTableSize = ((size_t)1 << params->cParams.hashLog) * sizeof(U16);
+                size_t const tagTableSize = ((size_t)1 << params->cParams.hashLog);
                 ZSTD_memset(ms->tagTable, 0, tagTableSize);
                 ZSTD_row_update(ms, iend-HASH_READ_SIZE);
                 DEBUGLOG(4, "Using row-based hash table for lazy dict");
@@ -5477,6 +5500,7 @@ const ZSTD_CDict* ZSTD_initStaticCDict(
     params.cParams = cParams;
     params.useRowMatchFinder = useRowMatchFinder;
     cdict->useRowMatchFinder = useRowMatchFinder;
+    cdict->compressionLevel = ZSTD_NO_CLEVEL;
 
     if (ZSTD_isError( ZSTD_initCDict_internal(cdict,
                                               dict, dictSize,

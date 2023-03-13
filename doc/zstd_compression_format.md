@@ -16,7 +16,7 @@ Distribution of this document is unlimited.
 
 ### Version
 
-0.3.8 (2023-02-18)
+0.3.9 (2023-03-08)
 
 
 Introduction
@@ -534,15 +534,20 @@ __`Size_Format` for `Compressed_Literals_Block` and `Treeless_Literals_Block`__ 
 Both `Compressed_Size` and `Regenerated_Size` fields follow __little-endian__ convention.
 Note: `Compressed_Size` __includes__ the size of the Huffman Tree description
 _when_ it is present.
+Note 2: `Compressed_Size` can never be `==0`.
+Even in single-stream scenario, assuming an empty content, it must be `>=1`,
+since it contains at least the final end bit flag.
+In 4-streams scenario, a valid `Compressed_Size` is necessarily `>= 10`
+(6 bytes for the jump table, + 4x1 bytes for the 4 streams).
 
-4 streams is superior to 1 stream in decompression speed,
+4 streams is faster than 1 stream in decompression speed,
 by exploiting instruction level parallelism.
 But it's also more expensive,
 costing on average ~7.3 bytes more than the 1 stream mode, mostly from the jump table.
 
 In general, use the 4 streams mode when there are more literals to decode,
 to favor higher decompression speeds.
-Beyond 1KB, the 4 streams mode is compulsory anyway.
+Note that beyond >1KB of literals, the 4 streams mode is compulsory.
 
 Note that a minimum of 6 bytes is required for the 4 streams mode.
 That's a technical minimum, but it's not recommended to employ the 4 streams mode
@@ -577,10 +582,10 @@ it must be used to determine where streams begin.
 ### Jump Table
 The Jump Table is only present when there are 4 Huffman-coded streams.
 
-Reminder : Huffman compressed data consists of either 1 or 4 Huffman-coded streams.
+Reminder : Huffman compressed data consists of either 1 or 4 streams.
 
 If only one stream is present, it is a single bitstream occupying the entire
-remaining portion of the literals block, encoded as described within
+remaining portion of the literals block, encoded as described in
 [Huffman-Coded Streams](#huffman-coded-streams).
 
 If there are four streams, `Literals_Section_Header` only provided
@@ -591,17 +596,18 @@ except for the last stream which may be up to 3 bytes smaller,
 to reach a total decompressed size as specified in `Regenerated_Size`.
 
 The compressed size of each stream is provided explicitly in the Jump Table.
-Jump Table is 6 bytes long, and consist of three 2-byte __little-endian__ fields,
+Jump Table is 6 bytes long, and consists of three 2-byte __little-endian__ fields,
 describing the compressed sizes of the first three streams.
-`Stream4_Size` is computed from total `Total_Streams_Size` minus sizes of other streams.
+`Stream4_Size` is computed from `Total_Streams_Size` minus sizes of other streams:
 
 `Stream4_Size = Total_Streams_Size - 6 - Stream1_Size - Stream2_Size - Stream3_Size`.
 
-Note: if `Stream1_Size + Stream2_Size + Stream3_Size > Total_Streams_Size`,
+`Stream4_Size` is necessarily `>= 1`. Therefore,
+if `Total_Streams_Size < Stream1_Size + Stream2_Size + Stream3_Size + 6 + 1`,
 data is considered corrupted.
 
 Each of these 4 bitstreams is then decoded independently as a Huffman-Coded stream,
-as described at [Huffman-Coded Streams](#huffman-coded-streams)
+as described in [Huffman-Coded Streams](#huffman-coded-streams)
 
 
 Sequences Section
@@ -1691,6 +1697,7 @@ or at least provide a meaningful error code explaining for which reason it canno
 
 Version changes
 ---------------
+- 0.3.9 : clarifications for Huffman-compressed literal sizes.
 - 0.3.8 : clarifications for Huffman Blocks and Huffman Tree descriptions.
 - 0.3.7 : clarifications for Repeat_Offsets, matching RFC8878
 - 0.3.6 : clarifications for Dictionary_ID

@@ -29,7 +29,7 @@
 
 #include "pool.h"      // use zstd thread pool for demo
 
-#include "zstd_seekable.h"
+#include "../zstd_seekable.h"
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 

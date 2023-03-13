@@ -186,6 +186,16 @@ jobs:
     - name: MSan + Regression Test
       run: make -j msanregressiontest
 
+  clang-msan-fuzz-unoptimized:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
+      - name: clang + MSan + Fuzz Test
+        run: |
+          sudo apt-get -qqq update
+          sudo apt-get install clang
+          CC=clang MOREFLAGS="-O0" make clean msan-fuzztest
+
   clang-msan-fuzz:
     runs-on: ubuntu-latest
     steps:
@@ -237,7 +247,7 @@ jobs:
         shell: msys2 {0}
     steps:
     - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
-    - uses: msys2/setup-msys2@v2
+    - uses: msys2/setup-msys2@5beef6d11f48bba68b9eb503e3adc60b23c0cc36 # tag=v2
       with:
         msystem: MINGW64
         install: make

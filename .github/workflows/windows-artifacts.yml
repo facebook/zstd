@@ -15,7 +15,7 @@ jobs:
         shell: msys2 {0}
     steps:
     - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
-    - uses: msys2/setup-msys2@v2
+    - uses: msys2/setup-msys2@5beef6d11f48bba68b9eb503e3adc60b23c0cc36 # tag=v2
       with:
         msystem: MINGW64
         install: make zlib git p7zip mingw-w64-x86_64-gcc
@@ -42,7 +42,7 @@ jobs:
         cd ..
 
     - name: Publish zstd-win-release-win64.zip
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # tag=v3
       with:
         path: ${{ github.workspace }}/bin/zstd-win-release-win64.zip
         name: zstd-win-release-win64.zip

@@ -148,7 +148,8 @@ ZSTDLIB_API const char* ZSTD_versionString(void);
 ***************************************/
 /*! ZSTD_compress() :
  *  Compresses `src` content as a single zstd compressed frame into already allocated `dst`.
- *  Hint : compression runs faster if `dstCapacity` >=  `ZSTD_compressBound(srcSize)`.
+ *  NOTE: Providing `dstCapacity >= ZSTD_compressBound(srcSize)` guarantees that zstd will have
+ *        enough space to successfully compress the data.
  *  @return : compressed size written into `dst` (<= `dstCapacity),
  *            or an error code if it fails (which can be tested using ZSTD_isError()). */
 ZSTDLIB_API size_t ZSTD_compress( void* dst, size_t dstCapacity,
@@ -578,7 +579,8 @@ ZSTDLIB_API size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx, ZSTD_ResetDirective reset);
  *  Should cctx hold data from a previously unfinished frame, everything about it is forgotten.
  *  - Compression parameters are pushed into CCtx before starting compression, using ZSTD_CCtx_set*()
  *  - The function is always blocking, returns when compression is completed.
- *  Hint : compression runs faster if `dstCapacity` >=  `ZSTD_compressBound(srcSize)`.
+ *  NOTE: Providing `dstCapacity >= ZSTD_compressBound(srcSize)` guarantees that zstd will have
+ *        enough space to successfully compress the data, though it is possible it fails for other reasons.
  * @return : compressed size written into `dst` (<= `dstCapacity),
  *           or an error code if it fails (which can be tested using ZSTD_isError()).
  */
@@ -1803,11 +1805,25 @@ ZSTDLIB_STATIC_API size_t ZSTD_checkCParams(ZSTD_compressionParameters params);
 ZSTDLIB_STATIC_API ZSTD_compressionParameters ZSTD_adjustCParams(ZSTD_compressionParameters cPar, unsigned long long srcSize, size_t dictSize);
 
 /*! ZSTD_CCtx_setCParams() :
- *  Set all parameters provided within @cparams into the working @cctx.
+ *  Set all parameters provided within @p cparams into the working @p cctx.
  *  Note : if modifying parameters during compression (MT mode only),
  *         note that changes to the .windowLog parameter will be ignored.
- * @return 0 on success, or an error code (can be checked with ZSTD_isError()) */
+ * @return 0 on success, or an error code (can be checked with ZSTD_isError()).
+ *         On failure, no parameters are updated.
+ */
 ZSTDLIB_STATIC_API size_t ZSTD_CCtx_setCParams(ZSTD_CCtx* cctx, ZSTD_compressionParameters cparams);
+
+/*! ZSTD_CCtx_setFParams() :
+ *  Set all parameters provided within @p fparams into the working @p cctx.
+ * @return 0 on success, or an error code (can be checked with ZSTD_isError()).
+ */
+ZSTDLIB_STATIC_API size_t ZSTD_CCtx_setFParams(ZSTD_CCtx* cctx, ZSTD_frameParameters fparams);
+
+/*! ZSTD_CCtx_setParams() :
+ *  Set all parameters provided within @p params into the working @p cctx.
+ * @return 0 on success, or an error code (can be checked with ZSTD_isError()).
+ */
+ZSTDLIB_STATIC_API size_t ZSTD_CCtx_setParams(ZSTD_CCtx* cctx, ZSTD_parameters params);
 
 /*! ZSTD_compress_advanced() :
  *  Note : this function is now DEPRECATED.
@@ -2452,12 +2468,9 @@ size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs,
                            int compressionLevel);
 
 /*! ZSTD_initCStream_advanced() :
- * This function is DEPRECATED, and is approximately equivalent to:
+ * This function is DEPRECATED, and is equivalent to:
  *     ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
- *     // Pseudocode: Set each zstd parameter and leave the rest as-is.
- *     for ((param, value) : params) {
- *         ZSTD_CCtx_setParameter(zcs, param, value);
- *     }
+ *     ZSTD_CCtx_setParams(zcs, params);
  *     ZSTD_CCtx_setPledgedSrcSize(zcs, pledgedSrcSize);
  *     ZSTD_CCtx_loadDictionary(zcs, dict, dictSize);
  *
@@ -2486,12 +2499,9 @@ ZSTDLIB_STATIC_API
 size_t ZSTD_initCStream_usingCDict(ZSTD_CStream* zcs, const ZSTD_CDict* cdict);
 
 /*! ZSTD_initCStream_usingCDict_advanced() :
- *   This function is DEPRECATED, and is approximately equivalent to:
+ *   This function is DEPRECATED, and is equivalent to:
  *     ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only);
- *     // Pseudocode: Set each zstd frame parameter and leave the rest as-is.
- *     for ((fParam, value) : fParams) {
- *         ZSTD_CCtx_setParameter(zcs, fParam, value);
- *     }
+ *     ZSTD_CCtx_setFParams(zcs, fParams);
  *     ZSTD_CCtx_setPledgedSrcSize(zcs, pledgedSrcSize);
  *     ZSTD_CCtx_refCDict(zcs, cdict);
  *

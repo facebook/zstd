@@ -61,7 +61,7 @@ Alternatively, you can fuzz all targets in parallel, using one core per target:
 ```
 python3 ./fuzz.py list | xargs -P$(python3 ./fuzz.py list | wc -l) -I__ sh -c "python3 ./fuzz.py libfuzzer __ 2>&1 | tee __.log"
 ```
-Either way, to double-check that no crashes were found, run `ls corpora/*crash`. 
+Either way, to double-check that no crashes were found, run `ls corpora/*crash`.
 If any crashes were found, you can use the hashes to reproduce them.
 
 ## LibFuzzer
@@ -113,3 +113,7 @@ CC=clang CXX=clang++ ./fuzz.py build all --enable-asan --enable-ubsan
 CC=clang CXX=clang++ ./fuzz.py build all --enable-msan
 ./fuzz.py regression all
 ```
+
+## Fuzzing a custom sequence producer plugin
+Sequence producer plugin authors can use the zstd fuzzers to stress-test their code.
+See the documentation in `fuzz_third_party_seq_prod.h` for details.

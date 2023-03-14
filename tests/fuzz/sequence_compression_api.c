@@ -25,6 +25,7 @@
 #include "fuzz_helpers.h"
 #include "zstd_helpers.h"
 #include "fuzz_data_producer.h"
+#include "fuzz_third_party_seq_prod.h"
 
 static ZSTD_CCtx* cctx = NULL;
 static ZSTD_DCtx* dctx = NULL;
@@ -263,6 +264,8 @@ static size_t roundTripTest(void* result, size_t resultCapacity,
 
 int LLVMFuzzerTestOneInput(const uint8_t* src, size_t size)
 {
+    FUZZ_SEQ_PROD_SETUP();
+
     void* rBuf;
     size_t rBufSize;
     void* cBuf;
@@ -373,5 +376,6 @@ int LLVMFuzzerTestOneInput(const uint8_t* src, size_t size)
     free(generatedSrc); generatedSrc = NULL;
     free(literalsBuffer); literalsBuffer = NULL;
 #endif
+    FUZZ_SEQ_PROD_TEARDOWN();
     return 0;
 }

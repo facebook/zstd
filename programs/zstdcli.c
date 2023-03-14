@@ -37,7 +37,7 @@
 
 #include "fileio.h"   /* stdinmark, stdoutmark, ZSTD_EXTENSION */
 #ifndef ZSTD_NOBENCH
-#  include "benchzstd.h"  /* BMK_benchFiles */
+#  include "benchzstd.h"  /* BMK_benchFilesAdvanced */
 #endif
 #ifndef ZSTD_NODICT
 #  include "dibio.h"  /* ZDICT_cover_params_t, DiB_trainFromFiles() */
@@ -1395,18 +1395,15 @@ int main(int argCount, const char* argv[])
                     int c;
                     DISPLAYLEVEL(3, "Benchmarking %s \n", filenames->fileNames[i]);
                     for(c = cLevel; c <= cLevelLast; c++) {
-                        BMK_benchOutcome_t const bo = BMK_benchFilesAdvanced(&filenames->fileNames[i], 1, dictFileName, c, &compressionParams, g_displayLevel, &benchParams);
-                        if (!BMK_isSuccessful_benchOutcome(bo)) return 1;
+                        operationResult = BMK_benchFilesAdvanced(&filenames->fileNames[i], 1, dictFileName, c, &compressionParams, g_displayLevel, &benchParams);
                 }   }
             } else {
                 for(; cLevel <= cLevelLast; cLevel++) {
-                    BMK_benchOutcome_t const bo = BMK_benchFilesAdvanced(filenames->fileNames, (unsigned)filenames->tableSize, dictFileName, cLevel, &compressionParams, g_displayLevel, &benchParams);
-                    if (!BMK_isSuccessful_benchOutcome(bo)) return 1;
+                    operationResult = BMK_benchFilesAdvanced(filenames->fileNames, (unsigned)filenames->tableSize, dictFileName, cLevel, &compressionParams, g_displayLevel, &benchParams);
             }   }
         } else {
             for(; cLevel <= cLevelLast; cLevel++) {
-                BMK_benchOutcome_t const bo = BMK_syntheticTest(cLevel, compressibility, &compressionParams, g_displayLevel, &benchParams);
-                if (!BMK_isSuccessful_benchOutcome(bo)) return 1;
+                operationResult = BMK_syntheticTest(cLevel, compressibility, &compressionParams, g_displayLevel, &benchParams);
         }   }
 
 #else

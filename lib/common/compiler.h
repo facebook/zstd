@@ -311,6 +311,10 @@ void __msan_poison(const volatile void *a, size_t size);
 /* Returns the offset of the first (at least partially) poisoned byte in the
    memory range, or -1 if the whole range is good. */
 intptr_t __msan_test_shadow(const volatile void *x, size_t size);
+
+/* Print shadow and origin for the memory range to stderr in a human-readable
+   format. */
+void __msan_print_shadow(const volatile void *x, size_t size);
 #endif
 
 #if ZSTD_ADDRESS_SANITIZER && !defined(ZSTD_ASAN_DONT_POISON_WORKSPACE)

@@ -329,8 +329,8 @@ github,                             level 4 with dict load,             advanced
 github,                             level 5 row 1,                      advanced one pass,                  134584
 github,                             level 5 row 1 with dict dms,        advanced one pass,                  38754
 github,                             level 5 row 1 with dict dds,        advanced one pass,                  38728
-github,                             level 5 row 1 with dict copy,       advanced one pass,                  38759
-github,                             level 5 row 1 with dict load,       advanced one pass,                  41522
+github,                             level 5 row 1 with dict copy,       advanced one pass,                  38755
+github,                             level 5 row 1 with dict load,       advanced one pass,                  41899
 github,                             level 5 row 2,                      advanced one pass,                  135121
 github,                             level 5 row 2 with dict dms,        advanced one pass,                  38938
 github,                             level 5 row 2 with dict dds,        advanced one pass,                  38732
@@ -340,13 +340,13 @@ github,                             level 5,                            advanced
 github,                             level 5 with dict,                  advanced one pass,                  38754
 github,                             level 5 with dict dms,              advanced one pass,                  38754
 github,                             level 5 with dict dds,              advanced one pass,                  38728
-github,                             level 5 with dict copy,             advanced one pass,                  38759
+github,                             level 5 with dict copy,             advanced one pass,                  38755
 github,                             level 5 with dict load,             advanced one pass,                  41248
 github,                             level 6,                            advanced one pass,                  135122
-github,                             level 6 with dict,                  advanced one pass,                  38671
-github,                             level 6 with dict dms,              advanced one pass,                  38671
-github,                             level 6 with dict dds,              advanced one pass,                  38636
-github,                             level 6 with dict copy,             advanced one pass,                  38669
+github,                             level 6 with dict,                  advanced one pass,                  38669
+github,                             level 6 with dict dms,              advanced one pass,                  38669
+github,                             level 6 with dict dds,              advanced one pass,                  38638
+github,                             level 6 with dict copy,             advanced one pass,                  38665
 github,                             level 6 with dict load,             advanced one pass,                  41153
 github,                             level 7 row 1,                      advanced one pass,                  134584
 github,                             level 7 row 1 with dict dms,        advanced one pass,                  38765
@@ -359,16 +359,16 @@ github,                             level 7 row 2 with dict dds,        advanced
 github,                             level 7 row 2 with dict copy,       advanced one pass,                  38834
 github,                             level 7 row 2 with dict load,       advanced one pass,                  41153
 github,                             level 7,                            advanced one pass,                  135122
-github,                             level 7 with dict,                  advanced one pass,                  38758
-github,                             level 7 with dict dms,              advanced one pass,                  38758
-github,                             level 7 with dict dds,              advanced one pass,                  38745
-github,                             level 7 with dict copy,             advanced one pass,                  38755
+github,                             level 7 with dict,                  advanced one pass,                  38765
+github,                             level 7 with dict dms,              advanced one pass,                  38765
+github,                             level 7 with dict dds,              advanced one pass,                  38749
+github,                             level 7 with dict copy,             advanced one pass,                  38759
 github,                             level 7 with dict load,             advanced one pass,                  41153
 github,                             level 9,                            advanced one pass,                  135122
 github,                             level 9 with dict,                  advanced one pass,                  39439
 github,                             level 9 with dict dms,              advanced one pass,                  39439
 github,                             level 9 with dict dds,              advanced one pass,                  39393
-github,                             level 9 with dict copy,             advanced one pass,                  39398
+github,                             level 9 with dict copy,             advanced one pass,                  39362
 github,                             level 9 with dict load,             advanced one pass,                  42148
 github,                             level 11 row 1,                     advanced one pass,                  135367
 github,                             level 11 row 1 with dict dms,       advanced one pass,                  39671
@@ -647,8 +647,8 @@ github,                             level 4 with dict load,             advanced
 github,                             level 5 row 1,                      advanced one pass small out,        134584
 github,                             level 5 row 1 with dict dms,        advanced one pass small out,        38754
 github,                             level 5 row 1 with dict dds,        advanced one pass small out,        38728
-github,                             level 5 row 1 with dict copy,       advanced one pass small out,        38759
-github,                             level 5 row 1 with dict load,       advanced one pass small out,        41522
+github,                             level 5 row 1 with dict copy,       advanced one pass small out,        38755
+github,                             level 5 row 1 with dict load,       advanced one pass small out,        41899
 github,                             level 5 row 2,                      advanced one pass small out,        135121
 github,                             level 5 row 2 with dict dms,        advanced one pass small out,        38938
 github,                             level 5 row 2 with dict dds,        advanced one pass small out,        38732
@@ -658,13 +658,13 @@ github,                             level 5,                            advanced
 github,                             level 5 with dict,                  advanced one pass small out,        38754
 github,                             level 5 with dict dms,              advanced one pass small out,        38754
 github,                             level 5 with dict dds,              advanced one pass small out,        38728
-github,                             level 5 with dict copy,             advanced one pass small out,        38759
+github,                             level 5 with dict copy,             advanced one pass small out,        38755
 github,                             level 5 with dict load,             advanced one pass small out,        41248
 github,                             level 6,                            advanced one pass small out,        135122
-github,                             level 6 with dict,                  advanced one pass small out,        38671
-github,                             level 6 with dict dms,              advanced one pass small out,        38671
-github,                             level 6 with dict dds,              advanced one pass small out,        38636
-github,                             level 6 with dict copy,             advanced one pass small out,        38669
+github,                             level 6 with dict,                  advanced one pass small out,        38669
+github,                             level 6 with dict dms,              advanced one pass small out,        38669
+github,                             level 6 with dict dds,              advanced one pass small out,        38638
+github,                             level 6 with dict copy,             advanced one pass small out,        38665
 github,                             level 6 with dict load,             advanced one pass small out,        41153
 github,                             level 7 row 1,                      advanced one pass small out,        134584
 github,                             level 7 row 1 with dict dms,        advanced one pass small out,        38765
@@ -677,16 +677,16 @@ github,                             level 7 row 2 with dict dds,        advanced
 github,                             level 7 row 2 with dict copy,       advanced one pass small out,        38834
 github,                             level 7 row 2 with dict load,       advanced one pass small out,        41153
 github,                             level 7,                            advanced one pass small out,        135122
-github,                             level 7 with dict,                  advanced one pass small out,        38758
-github,                             level 7 with dict dms,              advanced one pass small out,        38758
-github,                             level 7 with dict dds,              advanced one pass small out,        38745
-github,                             level 7 with dict copy,             advanced one pass small out,        38755
+github,                             level 7 with dict,                  advanced one pass small out,        38765
+github,                             level 7 with dict dms,              advanced one pass small out,        38765
+github,                             level 7 with dict dds,              advanced one pass small out,        38749
+github,                             level 7 with dict copy,             advanced one pass small out,        38759
 github,                             level 7 with dict load,             advanced one pass small out,        41153
 github,                             level 9,                            advanced one pass small out,        135122
 github,                             level 9 with dict,                  advanced one pass small out,        39439
 github,                             level 9 with dict dms,              advanced one pass small out,        39439
 github,                             level 9 with dict dds,              advanced one pass small out,        39393
-github,                             level 9 with dict copy,             advanced one pass small out,        39398
+github,                             level 9 with dict copy,             advanced one pass small out,        39362
 github,                             level 9 with dict load,             advanced one pass small out,        42148
 github,                             level 11 row 1,                     advanced one pass small out,        135367
 github,                             level 11 row 1 with dict dms,       advanced one pass small out,        39671
@@ -965,8 +965,8 @@ github,                             level 4 with dict load,             advanced
 github,                             level 5 row 1,                      advanced streaming,                 134584
 github,                             level 5 row 1 with dict dms,        advanced streaming,                 38754
 github,                             level 5 row 1 with dict dds,        advanced streaming,                 38728
-github,                             level 5 row 1 with dict copy,       advanced streaming,                 38759
-github,                             level 5 row 1 with dict load,       advanced streaming,                 41522
+github,                             level 5 row 1 with dict copy,       advanced streaming,                 38755
+github,                             level 5 row 1 with dict load,       advanced streaming,                 41899
 github,                             level 5 row 2,                      advanced streaming,                 135121
 github,                             level 5 row 2 with dict dms,        advanced streaming,                 38938
 github,                             level 5 row 2 with dict dds,        advanced streaming,                 38732
@@ -976,13 +976,13 @@ github,                             level 5,                            advanced
 github,                             level 5 with dict,                  advanced streaming,                 38754
 github,                             level 5 with dict dms,              advanced streaming,                 38754
 github,                             level 5 with dict dds,              advanced streaming,                 38728
-github,                             level 5 with dict copy,             advanced streaming,                 38759
+github,                             level 5 with dict copy,             advanced streaming,                 38755
 github,                             level 5 with dict load,             advanced streaming,                 41248
 github,                             level 6,                            advanced streaming,                 135122
-github,                             level 6 with dict,                  advanced streaming,                 38671
-github,                             level 6 with dict dms,              advanced streaming,                 38671
-github,                             level 6 with dict dds,              advanced streaming,                 38636
-github,                             level 6 with dict copy,             advanced streaming,                 38669
+github,                             level 6 with dict,                  advanced streaming,                 38669
+github,                             level 6 with dict dms,              advanced streaming,                 38669
+github,                             level 6 with dict dds,              advanced streaming,                 38638
+github,                             level 6 with dict copy,             advanced streaming,                 38665
 github,                             level 6 with dict load,             advanced streaming,                 41153
 github,                             level 7 row 1,                      advanced streaming,                 134584
 github,                             level 7 row 1 with dict dms,        advanced streaming,                 38765
@@ -995,16 +995,16 @@ github,                             level 7 row 2 with dict dds,        advanced
 github,                             level 7 row 2 with dict copy,       advanced streaming,                 38834
 github,                             level 7 row 2 with dict load,       advanced streaming,                 41153
 github,                             level 7,                            advanced streaming,                 135122
-github,                             level 7 with dict,                  advanced streaming,                 38758
-github,                             level 7 with dict dms,              advanced streaming,                 38758
-github,                             level 7 with dict dds,              advanced streaming,                 38745
-github,                             level 7 with dict copy,             advanced streaming,                 38755
+github,                             level 7 with dict,                  advanced streaming,                 38765
+github,                             level 7 with dict dms,              advanced streaming,                 38765
+github,                             level 7 with dict dds,              advanced streaming,                 38749
+github,                             level 7 with dict copy,             advanced streaming,                 38759
 github,                             level 7 with dict load,             advanced streaming,                 41153
 github,                             level 9,                            advanced streaming,                 135122
 github,                             level 9 with dict,                  advanced streaming,                 39439
 github,                             level 9 with dict dms,              advanced streaming,                 39439
 github,                             level 9 with dict dds,              advanced streaming,                 39393
-github,                             level 9 with dict copy,             advanced streaming,                 39398
+github,                             level 9 with dict copy,             advanced streaming,                 39362
 github,                             level 9 with dict load,             advanced streaming,                 42148
 github,                             level 11 row 1,                     advanced streaming,                 135367
 github,                             level 11 row 1 with dict dms,       advanced streaming,                 39671

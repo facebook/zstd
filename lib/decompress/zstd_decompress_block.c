@@ -2125,6 +2125,9 @@ ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
         srcSize -= seqHSize;
 
         RETURN_ERROR_IF(dst == NULL && nbSeq > 0, dstSize_tooSmall, "NULL not handled");
+        RETURN_ERROR_IF(dstCapacity == 0 && nbSeq > 0, dstSize_tooSmall, "dstCapacity == 0, but nbSeq is non-zero");
+        RETURN_ERROR_IF(MEM_64bits() && (uptrval)dst + dstCapacity > (uptrval)-1 - (1 << 20), dstSize_tooSmall,
+                "invalid dst");
 
         /* If we could potentially have long offsets, or we might want to use the prefetch decoder,
          * compute information about the share of long offsets, and the maximum nbAdditionalBits.

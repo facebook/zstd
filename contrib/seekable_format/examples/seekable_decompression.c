@@ -16,7 +16,7 @@
 #include <zstd.h>      // presumes zstd library is installed
 #include <zstd_errors.h>
 
-#include "zstd_seekable.h"
+#include "../zstd_seekable.h"
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 

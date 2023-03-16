@@ -4701,6 +4701,7 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
         assert(ZSTD_window_isEmpty(ms->window));
         if (loadLdmDict) assert(ZSTD_window_isEmpty(ls->window));
     }
+    ZSTD_window_update(&ms->window, src, srcSize, /* forceNonContiguous */ 0);
 
     DEBUGLOG(4, "ZSTD_loadDictionaryContent(): useRowMatchFinder=%d", (int)params->useRowMatchFinder);
 
@@ -4712,7 +4713,7 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
 
     /* If the dict is larger than we can reasonably index in our tables, only load the suffix. */
     if (params->cParams.strategy < ZSTD_btultra) {
-        U32 maxDictSize = 8U << MIN(MAX(params->cParams.hashLog, params->cParams.chainLog), 27);
+        U32 maxDictSize = 8U << MIN(MAX(params->cParams.hashLog, params->cParams.chainLog), 28);
         if (srcSize > maxDictSize) {
             ip = iend - maxDictSize;
             src = ip;
@@ -4720,7 +4721,7 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
         }
     }
 
-    ZSTD_window_update(&ms->window, src, srcSize, /* forceNonContiguous */ 0);
+    ms->nextToUpdate = (U32)(ip - ms->window.base);
     ms->loadedDictEnd = params->forceWindow ? 0 : (U32)(iend - ms->window.base);
     ms->forceNonContiguous = params->deterministicRefPrefix;
 

@@ -693,10 +693,11 @@ static void FIO_getDictFileStat(const char* fileName, stat_t* dictFileStat) {
  * @return : loaded size
  *  if fileName==NULL, returns 0 and a NULL pointer
  */
-static size_t FIO_createDictBuffer(void** bufferPtr, const char* fileName, FIO_prefs_t* const prefs, stat_t* dictFileStat)
+static size_t FIO_createDictBuffer(FIO_Dict_t* dict, const char* fileName, FIO_prefs_t* const prefs, stat_t* dictFileStat)
 {
     FILE* fileHandle;
     U64 fileSize;
+    void** bufferPtr = &dict->dictBuffer;
 
     assert(bufferPtr != NULL);
     assert(dictFileStat != NULL);
@@ -733,20 +734,15 @@ static size_t FIO_createDictBuffer(void** bufferPtr, const char* fileName, FIO_p
 
 #if (PLATFORM_POSIX_VERSION > 0)
 #include <sys/mman.h>
-static void* FIO_mmap(size_t fileSize, int fileHandle)
+static int FIO_munmap(const FIO_Dict_t* dict)
 {
-    return mmap
-    (NULL, (size_t)fileSize, PROT_READ, MAP_PRIVATE, fileHandle, 0);
+    return munmap(dict->dictBuffer, dict->dictBufferSize);
 }
-static int FIO_munmap(void* buffer, size_t bufferSize)
-{
-    return munmap(buffer, bufferSize);
-}
-/* We might want to also do mapping for windows */
-static size_t FIO_createDictBufferMMap(void** bufferPtr, const char* fileName, FIO_prefs_t* const prefs, stat_t* dictFileStat)
+static size_t FIO_createDictBufferMMap(FIO_Dict_t* dict, const char* fileName, FIO_prefs_t* const prefs, stat_t* dictFileStat)
 {
     int fileHandle;
     U64 fileSize;
+    void** bufferPtr = &dict->dictBuffer;
 
     assert(bufferPtr != NULL);
     assert(dictFileStat != NULL);
@@ -770,19 +766,65 @@ static size_t FIO_createDictBufferMMap(void** bufferPtr, const char* fileName, F
         }
     }
 
-    *bufferPtr = FIO_mmap((size_t)fileSize, fileHandle);
+    *bufferPtr = mmap(NULL, (size_t)fileSize, PROT_READ, MAP_PRIVATE, fileHandle, 0);
 
     close(fileHandle);
     return (size_t)fileSize;
 }
-#else
-static size_t FIO_createDictBufferMMap(void** bufferPtr, const char* fileName, FIO_prefs_t* const prefs, stat_t* dictFileStat)
+#elif defined(_MSC_VER) || defined(_WIN32)
+#include <windows.h>
+static int FIO_munmap(const FIO_Dict_t* dict)
 {
-   return FIO_createDictBuffer(bufferPtr, fileName, prefs, dictFileStat);
+    UnmapViewOfFile(dict->dictBuffer);
+    return CloseHandle(dict->dictHandle);
 }
-static void FIO_munmap(void* buffer, size_t bufferSize) {
-   (void)bufferSize;
-   free(buffer);
+static size_t FIO_createDictBufferMMap(FIO_Dict_t* dict, const char* fileName, FIO_prefs_t* const prefs, stat_t* dictFileStat)
+{
+    HANDLE fileHandle, mapping;
+    U64 fileSize;
+    void** bufferPtr = &dict->dictBuffer;
+
+    assert(bufferPtr != NULL);
+    assert(dictFileStat != NULL);
+    *bufferPtr = NULL;
+    if (fileName == NULL) return 0;
+
+    DISPLAYLEVEL(4,"Loading %s as dictionary \n", fileName);
+
+    fileHandle = CreateFileA(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_READONLY, NULL);
+
+    if (fileHandle == INVALID_HANDLE_VALUE) {
+        EXM_THROW(33, "Couldn't open dictionary %s: %s", fileName, strerror(errno));
+    }
+
+    fileSize = UTIL_getFileSizeStat(dictFileStat);
+    {
+        size_t const dictSizeMax = prefs->patchFromMode ? prefs->memLimit : DICTSIZE_MAX;
+        if (fileSize >  dictSizeMax) {
+            EXM_THROW(34, "Dictionary file %s is too large (> %u bytes)",
+                            fileName,  (unsigned)dictSizeMax);   /* avoid extreme cases */
+        }
+    }
+
+    mapping = CreateFileMapping(fileHandle, NULL, PAGE_READONLY, 0, 0, NULL);
+	if (mapping == NULL) {
+        EXM_THROW(33, "Couldn't map dictionary %s: %s", fileName, strerror(errno));
+    }
+
+	*bufferPtr = MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, (DWORD)fileSize); /* we can only cast to DWORD here because dictSize <= 2GB */
+	if (*bufferPtr == NULL) {
+		EXM_THROW(33, "Couldn't map dictionary %s: %s", fileName, strerror(errno));
+	}
+    dict->dictHandle = fileHandle;
+    return (size_t)fileSize;
+}
+#else
+static size_t FIO_createDictBufferMMap(FIO_Dict_t* dict, const char* fileName, FIO_prefs_t* const prefs, stat_t* dictFileStat)
+{
+   return FIO_createDictBuffer(dict, fileName, prefs, dictFileStat);
+}
+static void FIO_munmap(const FIO_Dict_t* dict) {
+   free(dict->dictBuffer);
 }
 #endif
 
@@ -790,7 +832,7 @@ static void FIO_freeDict(const FIO_Dict_t* dict) {
     if (dict->dictBufferType == FIO_mallocDict) {
         free(dict->dictBuffer);
     } else if (dict->dictBufferType == FIO_mmapDict)  {
-        FIO_munmap(dict->dictBuffer, dict->dictBufferSize);
+        FIO_munmap(dict);
     } else {
         assert(0); /* Should not reach this case */
     }
@@ -1043,7 +1085,7 @@ static void FIO_adjustParamsForPatchFromMode(FIO_prefs_t* const prefs,
 static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
                                     const char* dictFileName, unsigned long long const maxSrcFileSize,
                                     int cLevel, ZSTD_compressionParameters comprParams) {
-    int useMMap = prefs->mmapDict == ZSTD_ps_enable;
+    int useMMap = prefs->mmapDict == ZSTD_ps_enable || 1;
     int forceNoUseMMap = prefs->mmapDict == ZSTD_ps_disable;
     cRess_t ress;
     memset(&ress, 0, sizeof(ress));
@@ -1068,9 +1110,9 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
     ress.dict.dictBufferType = (useMMap && !forceNoUseMMap) ? FIO_mmapDict : FIO_mallocDict;
 
     if (ress.dict.dictBufferType == FIO_mallocDict) {
-        ress.dict.dictBufferSize = FIO_createDictBuffer(&ress.dict.dictBuffer, dictFileName, prefs, &ress.dictFileStat);   /* works with dictFileName==NULL */
+        ress.dict.dictBufferSize = FIO_createDictBuffer(&ress.dict, dictFileName, prefs, &ress.dictFileStat);   /* works with dictFileName==NULL */
     } else {
-        ress.dict.dictBufferSize = FIO_createDictBufferMMap(&ress.dict.dictBuffer, dictFileName, prefs, &ress.dictFileStat);
+        ress.dict.dictBufferSize = FIO_createDictBufferMMap(&ress.dict, dictFileName, prefs, &ress.dictFileStat);
     }
 
     ress.writeCtx = AIO_WritePool_create(prefs, ZSTD_CStreamOutSize());
@@ -2154,7 +2196,7 @@ typedef struct {
 
 static dRess_t FIO_createDResources(FIO_prefs_t* const prefs, const char* dictFileName)
 {
-    int useMMap = prefs->mmapDict == ZSTD_ps_enable;
+    int useMMap = prefs->mmapDict == ZSTD_ps_enable || 1;
     int forceNoUseMMap = prefs->mmapDict == ZSTD_ps_disable;
     stat_t statbuf;
     dRess_t ress;
@@ -2178,9 +2220,9 @@ static dRess_t FIO_createDResources(FIO_prefs_t* const prefs, const char* dictFi
 
     /* dictionary */
     {   if (ress.dict.dictBufferType == FIO_mallocDict) {
-            ress.dict.dictBufferSize = FIO_createDictBuffer(&ress.dict.dictBuffer, dictFileName, prefs, &statbuf);
+            ress.dict.dictBufferSize = FIO_createDictBuffer(&ress.dict, dictFileName, prefs, &statbuf);
         } else {
-            ress.dict.dictBufferSize = FIO_createDictBufferMMap(&ress.dict.dictBuffer, dictFileName, prefs, &statbuf);
+            ress.dict.dictBufferSize = FIO_createDictBufferMMap(&ress.dict, dictFileName, prefs, &statbuf);
         }
 
         CHECK(ZSTD_DCtx_reset(ress.dctx, ZSTD_reset_session_only) );

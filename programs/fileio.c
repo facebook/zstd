@@ -1085,7 +1085,7 @@ static void FIO_adjustParamsForPatchFromMode(FIO_prefs_t* const prefs,
 static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
                                     const char* dictFileName, unsigned long long const maxSrcFileSize,
                                     int cLevel, ZSTD_compressionParameters comprParams) {
-    int useMMap = prefs->mmapDict == ZSTD_ps_enable || 1;
+    int useMMap = prefs->mmapDict == ZSTD_ps_enable;
     int forceNoUseMMap = prefs->mmapDict == ZSTD_ps_disable;
     cRess_t ress;
     memset(&ress, 0, sizeof(ress));
@@ -2196,7 +2196,7 @@ typedef struct {
 
 static dRess_t FIO_createDResources(FIO_prefs_t* const prefs, const char* dictFileName)
 {
-    int useMMap = prefs->mmapDict == ZSTD_ps_enable || 1;
+    int useMMap = prefs->mmapDict == ZSTD_ps_enable;
     int forceNoUseMMap = prefs->mmapDict == ZSTD_ps_disable;
     stat_t statbuf;
     dRess_t ress;

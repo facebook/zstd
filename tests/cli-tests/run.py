@@ -114,20 +114,12 @@ def pop_line(data: bytes) -> typing.Tuple[typing.Optional[bytes], bytes]:
     if data == b'':
         return (None, data)
 
-    newline_idx = data.find(b"\n")
-    if newline_idx == -1:
-        end_idx = len(data)
-    else:
-        end_idx = newline_idx + 1
+    parts = data.split(NEWLINE, maxsplit=1)
+    line = parts[0] + NEWLINE
+    if len(parts) == 1:
+        return line, b''
 
-    line = data[:end_idx]
-    data = data[end_idx:]
-
-    assert len(line) != 0
-    if not line.endswith(NEWLINE):
-        line += NEWLINE
-
-    return (line, data)
+    return line, parts[1]
 
 
 def glob_line_matches(actual: bytes, expect: bytes) -> bool:

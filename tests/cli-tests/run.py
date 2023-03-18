@@ -109,7 +109,7 @@ def pop_line(data: bytes) -> typing.Tuple[typing.Optional[bytes], bytes]:
     the first line always ends in a :\n:, even if it is the last line and :data:
     doesn't end in :\n:.
     """
-    NEWLINE = b"\n"[0]
+    NEWLINE = b"\n"
 
     if data == b'':
         return (None, data)
@@ -124,7 +124,7 @@ def pop_line(data: bytes) -> typing.Tuple[typing.Optional[bytes], bytes]:
     data = data[end_idx:]
 
     assert len(line) != 0
-    if line[-1] != NEWLINE:
+    if not line.endswith(NEWLINE):
         line += NEWLINE
 
     return (line, data)

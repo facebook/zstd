@@ -162,7 +162,7 @@ To perform a Fat/Universal2 build and install use the following commands:
 ```bash
 cmake -B build-cmake-debug -S build/cmake -G Ninja -DCMAKE_OSX_ARCHITECTURES="x86_64;x86_64h;arm64"
 cd build-cmake-debug
-ninja build
+ninja 
 sudo ninja install
 ```
 

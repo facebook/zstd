@@ -1128,7 +1128,6 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
         FIO_adjustParamsForPatchFromMode(prefs, &comprParams, dictSize, ssSize > 0 ? ssSize : maxSrcFileSize, cLevel);
     }
 
-    useMMap = 1;
     dictBufferType = (useMMap && !forceNoUseMMap) ? FIO_mmapDict : FIO_mallocDict;
     ress.dict.dictBufferSize = FIO_initDict(&ress.dict, dictFileName, prefs, &ress.dictFileStat, dictBufferType);   /* works with dictFileName==NULL */
 
@@ -2235,7 +2234,6 @@ static dRess_t FIO_createDResources(FIO_prefs_t* const prefs, const char* dictFi
     CHECK( ZSTD_DCtx_setParameter(ress.dctx, ZSTD_d_forceIgnoreChecksum, !prefs->checksumFlag));
 
     /* dictionary */
-    useMMap = 1;
     {
         FIO_dictBufferType_t dictBufferType = (useMMap && !forceNoUseMMap) ? FIO_mmapDict : FIO_mallocDict;
         ress.dict.dictBufferSize = FIO_initDict(&ress.dict, dictFileName, prefs, &statbuf, dictBufferType);

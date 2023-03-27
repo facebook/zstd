@@ -687,13 +687,13 @@ static void FIO_getDictFileStat(const char* fileName, stat_t* dictFileStat) {
     }
 }
 
-/*  FIO_createDictBuffer() :
- *  creates a buffer, pointed by `*bufferPtr`,
+/*  FIO_initDictMalloc() :
+ *  allocates a buffer, pointed by `dict->dictBuffer`,
  *  loads `filename` content into it, up to DICTSIZE_MAX bytes.
  * @return : loaded size
  *  if fileName==NULL, returns 0 and a NULL pointer
  */
-static size_t FIO_createDictBuffer(FIO_Dict_t* dict, const char* fileName, FIO_prefs_t* const prefs, stat_t* dictFileStat)
+static size_t FIO_initDictMalloc(FIO_Dict_t* dict, const char* fileName, FIO_prefs_t* const prefs, stat_t* dictFileStat)
 {
     FILE* fileHandle;
     U64 fileSize;
@@ -734,11 +734,13 @@ static size_t FIO_createDictBuffer(FIO_Dict_t* dict, const char* fileName, FIO_p
 
 #if (PLATFORM_POSIX_VERSION > 0)
 #include <sys/mman.h>
-static int FIO_munmap(const FIO_Dict_t* dict)
+static void FIO_munmap(FIO_Dict_t* dict)
 {
-    return munmap(dict->dictBuffer, dict->dictBufferSize);
+    munmap(dict->dictBuffer, dict->dictBufferSize);
+    dict->dictBuffer = NULL;
+    dict->dictBufferSize = 0;
 }
-static size_t FIO_createDictBufferMMap(FIO_Dict_t* dict, const char* fileName, FIO_prefs_t* const prefs, stat_t* dictFileStat)
+static size_t FIO_initDictMMap(FIO_Dict_t* dict, const char* fileName, FIO_prefs_t* const prefs, stat_t* dictFileStat)
 {
     int fileHandle;
     U64 fileSize;
@@ -773,12 +775,14 @@ static size_t FIO_createDictBufferMMap(FIO_Dict_t* dict, const char* fileName, F
 }
 #elif defined(_MSC_VER) || defined(_WIN32)
 #include <windows.h>
-static int FIO_munmap(const FIO_Dict_t* dict)
+static void FIO_munmap(FIO_Dict_t* dict)
 {
     UnmapViewOfFile(dict->dictBuffer);
-    return CloseHandle(dict->dictHandle);
+    CloseHandle(dict->dictHandle);
+    dict->dictBuffer = NULL;
+    dict->dictBufferSize = 0;
 }
-static size_t FIO_createDictBufferMMap(FIO_Dict_t* dict, const char* fileName, FIO_prefs_t* const prefs, stat_t* dictFileStat)
+static size_t FIO_initDictMMap(FIO_Dict_t* dict, const char* fileName, FIO_prefs_t* const prefs, stat_t* dictFileStat)
 {
     HANDLE fileHandle, mapping;
     U64 fileSize;
@@ -819,22 +823,38 @@ static size_t FIO_createDictBufferMMap(FIO_Dict_t* dict, const char* fileName, F
     return (size_t)fileSize;
 }
 #else
-static size_t FIO_createDictBufferMMap(FIO_Dict_t* dict, const char* fileName, FIO_prefs_t* const prefs, stat_t* dictFileStat)
+static size_t FIO_initDictMMap(FIO_Dict_t* dict, const char* fileName, FIO_prefs_t* const prefs, stat_t* dictFileStat)
 {
-   return FIO_createDictBuffer(dict, fileName, prefs, dictFileStat);
+   return FIO_initDictMalloc(dict, fileName, prefs, dictFileStat);
 }
-static void FIO_munmap(const FIO_Dict_t* dict) {
+static void FIO_munmap(FIO_Dict_t* dict) {
    free(dict->dictBuffer);
+   dict->dictBuffer = NULL;
+   dict->dictBufferSize = 0;
 }
 #endif
 
-static void FIO_freeDict(const FIO_Dict_t* dict) {
+static void FIO_freeDict(FIO_Dict_t* dict) {
     if (dict->dictBufferType == FIO_mallocDict) {
         free(dict->dictBuffer);
+        dict->dictBuffer = NULL;
+        dict->dictBufferSize = 0;
     } else if (dict->dictBufferType == FIO_mmapDict)  {
         FIO_munmap(dict);
     } else {
         assert(0); /* Should not reach this case */
+    }
+}
+
+static size_t FIO_initDict(FIO_Dict_t* dict, const char* fileName, FIO_prefs_t* const prefs, stat_t* dictFileStat, FIO_dictBufferType_t dictBufferType) {
+    dict->dictBufferType = dictBufferType;
+    if (dict->dictBufferType == FIO_mallocDict) {
+        return FIO_initDictMalloc(dict, fileName, prefs, dictFileStat);
+    } else if (dict->dictBufferType == FIO_mmapDict)  {
+        return FIO_initDictMMap(dict, fileName, prefs, dictFileStat);
+    } else {
+        assert(0); /* Should not reach this case */
+        return 0;
     }
 }
 
@@ -1087,6 +1107,7 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
                                     int cLevel, ZSTD_compressionParameters comprParams) {
     int useMMap = prefs->mmapDict == ZSTD_ps_enable;
     int forceNoUseMMap = prefs->mmapDict == ZSTD_ps_disable;
+    FIO_dictBufferType_t dictBufferType;
     cRess_t ress;
     memset(&ress, 0, sizeof(ress));
 
@@ -1107,13 +1128,9 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
         FIO_adjustParamsForPatchFromMode(prefs, &comprParams, dictSize, ssSize > 0 ? ssSize : maxSrcFileSize, cLevel);
     }
 
-    ress.dict.dictBufferType = (useMMap && !forceNoUseMMap) ? FIO_mmapDict : FIO_mallocDict;
-
-    if (ress.dict.dictBufferType == FIO_mallocDict) {
-        ress.dict.dictBufferSize = FIO_createDictBuffer(&ress.dict, dictFileName, prefs, &ress.dictFileStat);   /* works with dictFileName==NULL */
-    } else {
-        ress.dict.dictBufferSize = FIO_createDictBufferMMap(&ress.dict, dictFileName, prefs, &ress.dictFileStat);
-    }
+    useMMap = 1;
+    dictBufferType = (useMMap && !forceNoUseMMap) ? FIO_mmapDict : FIO_mallocDict;
+    ress.dict.dictBufferSize = FIO_initDict(&ress.dict, dictFileName, prefs, &ress.dictFileStat, dictBufferType);   /* works with dictFileName==NULL */
 
     ress.writeCtx = AIO_WritePool_create(prefs, ZSTD_CStreamOutSize());
     ress.readCtx = AIO_ReadPool_create(prefs, ZSTD_CStreamInSize());
@@ -1177,7 +1194,7 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
     return ress;
 }
 
-static void FIO_freeCResources(const cRess_t* const ress)
+static void FIO_freeCResources(cRess_t* const ress)
 {
     FIO_freeDict(&(ress->dict));
     AIO_WritePool_free(ress->writeCtx);
@@ -2018,7 +2035,7 @@ int FIO_compressFilename(FIO_ctx_t* const fCtx, FIO_prefs_t* const prefs, const 
                          const char* srcFileName, const char* dictFileName,
                          int compressionLevel, ZSTD_compressionParameters comprParams)
 {
-    cRess_t const ress = FIO_createCResources(prefs, dictFileName, UTIL_getFileSize(srcFileName), compressionLevel, comprParams);
+    cRess_t ress = FIO_createCResources(prefs, dictFileName, UTIL_getFileSize(srcFileName), compressionLevel, comprParams);
     int const result = FIO_compressFilename_srcFile(fCtx, prefs, ress, dstFileName, srcFileName, compressionLevel);
 
 #define DISPLAY_LEVEL_DEFAULT 2
@@ -2211,7 +2228,6 @@ static dRess_t FIO_createDResources(FIO_prefs_t* const prefs, const char* dictFi
     }
 
     /* Allocation */
-    ress.dict.dictBufferType = (useMMap && !forceNoUseMMap) ? FIO_mmapDict : FIO_mallocDict;
     ress.dctx = ZSTD_createDStream();
     if (ress.dctx==NULL)
         EXM_THROW(60, "Error: %s : can't create ZSTD_DStream", strerror(errno));
@@ -2219,11 +2235,10 @@ static dRess_t FIO_createDResources(FIO_prefs_t* const prefs, const char* dictFi
     CHECK( ZSTD_DCtx_setParameter(ress.dctx, ZSTD_d_forceIgnoreChecksum, !prefs->checksumFlag));
 
     /* dictionary */
-    {   if (ress.dict.dictBufferType == FIO_mallocDict) {
-            ress.dict.dictBufferSize = FIO_createDictBuffer(&ress.dict, dictFileName, prefs, &statbuf);
-        } else {
-            ress.dict.dictBufferSize = FIO_createDictBufferMMap(&ress.dict, dictFileName, prefs, &statbuf);
-        }
+    useMMap = 1;
+    {
+        FIO_dictBufferType_t dictBufferType = (useMMap && !forceNoUseMMap) ? FIO_mmapDict : FIO_mallocDict;
+        ress.dict.dictBufferSize = FIO_initDict(&ress.dict, dictFileName, prefs, &statbuf, dictBufferType);
 
         CHECK(ZSTD_DCtx_reset(ress.dctx, ZSTD_reset_session_only) );
 

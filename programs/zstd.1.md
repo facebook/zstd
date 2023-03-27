@@ -177,9 +177,10 @@ the last one takes effect.
         (i.e. 4096), and by setting a large `--zstd=chainLog=`.
 * `--rsyncable`:
     `zstd` will periodically synchronize the compression state to make the
-    compressed file more rsync-friendly. There is a negligible impact to
-    compression ratio, and the faster compression levels will see a small
-    compression speed hit.
+    compressed file more rsync-friendly.
+    There is a negligible impact to compression ratio,
+    and a potential impact to compression speed, perceptible at higher speeds,
+    for example when combining `--rsyncable` with many parallel worker threads.
     This feature does not work with `--single-thread`. You probably don't want
     to use it with long range mode, since it will decrease the effectiveness of
     the synchronization points, but your mileage may vary.

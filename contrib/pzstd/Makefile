@@ -37,10 +37,29 @@ CFLAGS   += -Wno-deprecated-declarations
 PZSTD_INC  = -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(PROGDIR) -I.
 GTEST_INC  = -isystem googletest/googletest/include
 
+# Select newest C++ standard available, minimum C++11
+ifeq ($(shell echo | $(CXX) -x c++ -Werror -std=c++23 -c - -o /dev/null 2>/dev/null && echo 1 || echo 0),1)
+PZSTD_CXX_STD := -std=c++23
+else
+ifeq ($(shell echo | $(CXX) -x c++ -Werror -std=c++20 -c - -o /dev/null 2>/dev/null && echo 1 || echo 0),1)
+PZSTD_CXX_STD := -std=c++20
+else
+ifeq ($(shell echo | $(CXX) -x c++ -Werror -std=c++17 -c - -o /dev/null 2>/dev/null && echo 1 || echo 0),1)
+PZSTD_CXX_STD := -std=c++17
+else
+ifeq ($(shell echo | $(CXX) -x c++ -Werror -std=c++14 -c - -o /dev/null 2>/dev/null && echo 1 || echo 0),1)
+PZSTD_CXX_STD := -std=c++14
+else
+PZSTD_CXX_STD := -std=c++11
+endif
+endif
+endif
+endif
+
 PZSTD_CPPFLAGS  = $(PZSTD_INC)
 PZSTD_CCXXFLAGS =
 PZSTD_CFLAGS    = $(PZSTD_CCXXFLAGS)
-PZSTD_CXXFLAGS  = $(PZSTD_CCXXFLAGS) -std=c++11
+PZSTD_CXXFLAGS  = $(PZSTD_CCXXFLAGS) $(PZSTD_CXX_STD)
 PZSTD_LDFLAGS   =
 EXTRA_FLAGS     =
 ALL_CFLAGS      = $(EXTRA_FLAGS) $(CPPFLAGS) $(PZSTD_CPPFLAGS) $(CFLAGS)   $(PZSTD_CFLAGS)

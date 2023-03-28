@@ -687,13 +687,13 @@ static void FIO_getDictFileStat(const char* fileName, stat_t* dictFileStat) {
     }
 }
 
-/*  FIO_initDictMalloc() :
+/*  FIO_setDictMalloc() :
  *  allocates a buffer, pointed by `dict->dictBuffer`,
  *  loads `filename` content into it, up to DICTSIZE_MAX bytes.
  * @return : loaded size
  *  if fileName==NULL, returns 0 and a NULL pointer
  */
-static size_t FIO_initDictMalloc(FIO_Dict_t* dict, const char* fileName, FIO_prefs_t* const prefs, stat_t* dictFileStat)
+static size_t FIO_setDictBufferMalloc(FIO_Dict_t* dict, const char* fileName, FIO_prefs_t* const prefs, stat_t* dictFileStat)
 {
     FILE* fileHandle;
     U64 fileSize;
@@ -740,7 +740,7 @@ static void FIO_munmap(FIO_Dict_t* dict)
     dict->dictBuffer = NULL;
     dict->dictBufferSize = 0;
 }
-static size_t FIO_initDictMMap(FIO_Dict_t* dict, const char* fileName, FIO_prefs_t* const prefs, stat_t* dictFileStat)
+static size_t FIO_setDictBufferMMap(FIO_Dict_t* dict, const char* fileName, FIO_prefs_t* const prefs, stat_t* dictFileStat)
 {
     int fileHandle;
     U64 fileSize;
@@ -769,6 +769,7 @@ static size_t FIO_initDictMMap(FIO_Dict_t* dict, const char* fileName, FIO_prefs
     }
 
     *bufferPtr = mmap(NULL, (size_t)fileSize, PROT_READ, MAP_PRIVATE, fileHandle, 0);
+    if (*bufferPtr==NULL) EXM_THROW(34, "%s", strerror(errno));
 
     close(fileHandle);
     return (size_t)fileSize;
@@ -782,7 +783,7 @@ static void FIO_munmap(FIO_Dict_t* dict)
     dict->dictBuffer = NULL;
     dict->dictBufferSize = 0;
 }
-static size_t FIO_initDictMMap(FIO_Dict_t* dict, const char* fileName, FIO_prefs_t* const prefs, stat_t* dictFileStat)
+static size_t FIO_setDictBufferMMap(FIO_Dict_t* dict, const char* fileName, FIO_prefs_t* const prefs, stat_t* dictFileStat)
 {
     HANDLE fileHandle, mapping;
     U64 fileSize;
@@ -812,20 +813,19 @@ static size_t FIO_initDictMMap(FIO_Dict_t* dict, const char* fileName, FIO_prefs
 
     mapping = CreateFileMapping(fileHandle, NULL, PAGE_READONLY, 0, 0, NULL);
 	if (mapping == NULL) {
-        EXM_THROW(33, "Couldn't map dictionary %s: %s", fileName, strerror(errno));
+        EXM_THROW(35, "Couldn't map dictionary %s: %s", fileName, strerror(errno));
     }
 
 	*bufferPtr = MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, (DWORD)fileSize); /* we can only cast to DWORD here because dictSize <= 2GB */
-	if (*bufferPtr == NULL) {
-		EXM_THROW(33, "Couldn't map dictionary %s: %s", fileName, strerror(errno));
-	}
+	if (*bufferPtr==NULL) EXM_THROW(36, "%s", strerror(errno));
+
     dict->dictHandle = fileHandle;
     return (size_t)fileSize;
 }
 #else
-static size_t FIO_initDictMMap(FIO_Dict_t* dict, const char* fileName, FIO_prefs_t* const prefs, stat_t* dictFileStat)
+static size_t FIO_setDictBufferMMap(FIO_Dict_t* dict, const char* fileName, FIO_prefs_t* const prefs, stat_t* dictFileStat)
 {
-   return FIO_initDictMalloc(dict, fileName, prefs, dictFileStat);
+   return FIO_setDictBufferMalloc(dict, fileName, prefs, dictFileStat);
 }
 static void FIO_munmap(FIO_Dict_t* dict) {
    free(dict->dictBuffer);
@@ -846,15 +846,14 @@ static void FIO_freeDict(FIO_Dict_t* dict) {
     }
 }
 
-static size_t FIO_initDict(FIO_Dict_t* dict, const char* fileName, FIO_prefs_t* const prefs, stat_t* dictFileStat, FIO_dictBufferType_t dictBufferType) {
+static void FIO_initDict(FIO_Dict_t* dict, const char* fileName, FIO_prefs_t* const prefs, stat_t* dictFileStat, FIO_dictBufferType_t dictBufferType) {
     dict->dictBufferType = dictBufferType;
     if (dict->dictBufferType == FIO_mallocDict) {
-        return FIO_initDictMalloc(dict, fileName, prefs, dictFileStat);
+        dict->dictBufferSize = FIO_setDictBufferMalloc(dict, fileName, prefs, dictFileStat);
     } else if (dict->dictBufferType == FIO_mmapDict)  {
-        return FIO_initDictMMap(dict, fileName, prefs, dictFileStat);
+        dict->dictBufferSize = FIO_setDictBufferMMap(dict, fileName, prefs, dictFileStat);
     } else {
         assert(0); /* Should not reach this case */
-        return 0;
     }
 }
 
@@ -1129,7 +1128,7 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
     }
 
     dictBufferType = (useMMap && !forceNoUseMMap) ? FIO_mmapDict : FIO_mallocDict;
-    ress.dict.dictBufferSize = FIO_initDict(&ress.dict, dictFileName, prefs, &ress.dictFileStat, dictBufferType);   /* works with dictFileName==NULL */
+    FIO_initDict(&ress.dict, dictFileName, prefs, &ress.dictFileStat, dictBufferType);   /* works with dictFileName==NULL */
 
     ress.writeCtx = AIO_WritePool_create(prefs, ZSTD_CStreamOutSize());
     ress.readCtx = AIO_ReadPool_create(prefs, ZSTD_CStreamInSize());
@@ -2236,7 +2235,7 @@ static dRess_t FIO_createDResources(FIO_prefs_t* const prefs, const char* dictFi
     /* dictionary */
     {
         FIO_dictBufferType_t dictBufferType = (useMMap && !forceNoUseMMap) ? FIO_mmapDict : FIO_mallocDict;
-        ress.dict.dictBufferSize = FIO_initDict(&ress.dict, dictFileName, prefs, &statbuf, dictBufferType);
+        FIO_initDict(&ress.dict, dictFileName, prefs, &statbuf, dictBufferType);
 
         CHECK(ZSTD_DCtx_reset(ress.dctx, ZSTD_reset_session_only) );
 

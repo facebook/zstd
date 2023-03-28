@@ -154,6 +154,18 @@ to create `zstd` binary, and `libzstd` dynamic and static libraries.
 
 By default, `CMAKE_BUILD_TYPE` is set to `Release`.
 
+#### Support for Fat (Universal2) Output
+
+`zstd` can be built and installed with support for both Apple Silicon (M1/M2) as well as Intel by using CMake's Universal2 support.  
+To perform a Fat/Universal2 build and install use the following commands:
+
+```bash
+cmake -B build-cmake-debug -S build/cmake -G Ninja -DCMAKE_OSX_ARCHITECTURES="x86_64;x86_64h;arm64"
+cd build-cmake-debug
+ninja 
+sudo ninja install
+```
+
 ### Meson
 
 A Meson project is provided within [`build/meson`](build/meson). Follow

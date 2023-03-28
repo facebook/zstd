@@ -78,6 +78,9 @@ typedef struct {
     void* dictBuffer;
     size_t dictBufferSize;
     FIO_dictBufferType_t dictBufferType;
+#if defined(_MSC_VER) || defined(_WIN32)
+    HANDLE dictHandle;
+#endif
 } FIO_Dict_t;
 
 #endif /* FILEIO_TYPES_HEADER */

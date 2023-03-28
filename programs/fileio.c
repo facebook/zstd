@@ -687,7 +687,7 @@ static void FIO_getDictFileStat(const char* fileName, stat_t* dictFileStat) {
     }
 }
 
-/*  FIO_setDictMalloc() :
+/*  FIO_setDictBufferMalloc() :
  *  allocates a buffer, pointed by `dict->dictBuffer`,
  *  loads `filename` content into it, up to DICTSIZE_MAX bytes.
  * @return : loaded size

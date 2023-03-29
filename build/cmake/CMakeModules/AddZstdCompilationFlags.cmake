@@ -33,7 +33,12 @@ function(EnableCompilerFlag _flag _C _CXX _LD)
         # implement CHECK_LINKER_FLAG() like feature for CMake < 3.18
         # or require CMake >= 3.18 when we need to add a required
         # linker flag in future.
-        if (ZSTD_HAVE_CHECK_LINKER_FLAG)
+        #
+        # We also skip linker flags check for MSVC compilers (which includes
+        # clang-cl) since currently check_linker_flag() doesn't give correct
+        # results for this configuration,
+        # see: https://gitlab.kitware.com/cmake/cmake/-/issues/22023
+        if (ZSTD_HAVE_CHECK_LINKER_FLAG AND NOT MSVC)
             CHECK_LINKER_FLAG(C ${_flag} LD_FLAG_${varname})
         else ()
             set(LD_FLAG_${varname} false)

@@ -277,13 +277,13 @@ jobs:
     steps:
     - name: Build Fuzzers (${{ matrix.sanitizer }})
       id: build
-      uses: google/oss-fuzz/infra/cifuzz/actions/build_fuzzers@master
+      uses: google/oss-fuzz/infra/cifuzz/actions/build_fuzzers@da5095b281de560158d7d6962c2df9a3ac0a6e27 # master
       with:
         oss-fuzz-project-name: 'zstd'
         dry-run: false
         sanitizer: ${{ matrix.sanitizer }}
     - name: Run Fuzzers (${{ matrix.sanitizer }})
-      uses: google/oss-fuzz/infra/cifuzz/actions/run_fuzzers@master
+      uses: google/oss-fuzz/infra/cifuzz/actions/run_fuzzers@da5095b281de560158d7d6962c2df9a3ac0a6e27 # master
       with:
         oss-fuzz-project-name: 'zstd'
         fuzz-seconds: 600

@@ -59,7 +59,6 @@ extern "C" {
   typedef   int32_t S32;
   typedef  uint64_t U64;
   typedef   int64_t S64;
-  typedef uintptr_t uptrval;
 #else
 # include <limits.h>
 #if CHAR_BIT != 8
@@ -82,7 +81,6 @@ extern "C" {
  * limits exist in C99, however, in such case, <stdint.h> is preferred */
   typedef unsigned long long  U64;
   typedef   signed long long  S64;
-  typedef size_t              uptrval;   /* generally true, except OpenVMS-64 */
 #endif
 
 

@@ -1,3 +1,22 @@
+v1.5.5 (Apr 2023)
+fix: fix rare corruption bug affecting the high compression mode, reported by @danlark1 (#3517, @terrelln)
+perf: improve mid-level compression speed (#3529, #3533, #3543, @yoniko and #3552, @terrelln)
+lib: deprecated bufferless block-level API (#3534) by @terrelln
+cli: mmap large dictionaries to save memory, by @daniellerozenblit
+cli: improve speed of --patch-from mode (~+50%) (#3545) by @daniellerozenblit
+cli: improve i/o speed (~+10%) when processing lots of small files (#3479) by @felixhandte
+cli: zstd no longer crashes when requested to write into write-protected directory (#3541) by @felixhandte
+cli: fix decompression into block device using -o (#3584, @Cyan4973) reported by @georgmu
+build: fix zstd CLI compiled with lzma support but not zlib support (#3494) by @Hello71
+build: fix cmake does no longer require 3.18 as minimum version (#3510) by @kou
+build: fix MSVC+ClangCL linking issue (#3569) by @tru
+build: fix zstd-dll, version of zstd CLI that links to the dynamic library (#3496) by @yoniko
+build: fix MSVC warnings (#3495) by @embg
+doc: updated zstd specification to clarify corner cases, by @Cyan4973
+doc: document how to create fat binaries for macos (#3568) by @rickmark
+misc: improve seekable format ingestion speed (~+100%) for very small chunk sizes (#3544) by @Cyan4973
+misc: tests/fullbench can benchmark multiple files (#3516) by @dloidolt
+
 v1.5.4 (Feb 2023)
 perf: +20% faster huffman decompression for targets that can't compile x64 assembly (#3449, @terrelln)
 perf: up to +10% faster streaming compression at levels 1-2 (#3114, @embg)

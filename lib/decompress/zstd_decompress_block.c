@@ -2125,7 +2125,7 @@ ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
         srcSize -= seqHSize;
 
         RETURN_ERROR_IF((dst == NULL || dstCapacity == 0) && nbSeq > 0, dstSize_tooSmall, "NULL not handled");
-        RETURN_ERROR_IF(MEM_64bits() && (size_t)(-1) - (size_t)dst < (size_t)(1 << 20), dstSize_tooSmall,
+        RETURN_ERROR_IF(MEM_64bits() && sizeof(size_t) == sizeof(void*) && (size_t)(-1) - (size_t)dst < (size_t)(1 << 20), dstSize_tooSmall,
                 "invalid dst");
 
         /* If we could potentially have long offsets, or we might want to use the prefetch decoder,

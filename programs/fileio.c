@@ -601,6 +601,10 @@ FIO_openDstFile(FIO_ctx_t* fCtx, FIO_prefs_t* const prefs,
     }
 
     if (prefs->sparseFileSupport == 1) {
+        if (!UTIL_isRegularFile(dstFileName)) {
+            prefs->sparseFileSupport = 0;
+            DISPLAYLEVEL(4, "Sparse File Support is disabled when output is not a file \n");
+        }
         prefs->sparseFileSupport = ZSTD_SPARSE_DEFAULT;
     }
 
@@ -2259,8 +2263,8 @@ static void FIO_freeDResources(dRess_t ress)
     AIO_ReadPool_free(ress.readCtx);
 }
 
-/** FIO_passThrough() : just copy input into output, for compatibility with gzip -df mode
-    @return : 0 (no error) */
+/* FIO_passThrough() : just copy input into output, for compatibility with gzip -df mode
+ * @return : 0 (no error) */
 static int FIO_passThrough(dRess_t *ress)
 {
     size_t const blockSize = MIN(MIN(64 KB, ZSTD_DStreamInSize()), ZSTD_DStreamOutSize());
@@ -2288,7 +2292,8 @@ static int FIO_passThrough(dRess_t *ress)
 static void
 FIO_zstdErrorHelp(const FIO_prefs_t* const prefs,
                   const dRess_t* ress,
-                  size_t err, const char* srcFileName)
+                  size_t err,
+                  const char* srcFileName)
 {
     ZSTD_frameHeader header;
 

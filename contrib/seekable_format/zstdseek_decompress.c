@@ -493,7 +493,7 @@ size_t ZSTD_seekable_decompress(ZSTD_seekable* zs, void* dst, size_t len, unsign
     size_t srcBytesRead = 0;
     do {
         /* check if we can continue from a previous decompress job */
-        if (targetFrame != zs->curFrame || offset != zs->decompressedOffset) {
+        if (targetFrame != zs->curFrame || offset < zs->decompressedOffset) {
             zs->decompressedOffset = zs->seekTable.entries[targetFrame].dOffset;
             zs->curFrame = targetFrame;
 

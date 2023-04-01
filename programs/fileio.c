@@ -581,6 +581,8 @@ FIO_openDstFile(FIO_ctx_t* fCtx, FIO_prefs_t* const prefs,
                 const char* srcFileName, const char* dstFileName,
                 const int mode)
 {
+    int isDstRegFile;
+
     if (prefs->testMode) return NULL;  /* do not open file in test mode */
 
     assert(dstFileName != NULL);
@@ -600,11 +602,16 @@ FIO_openDstFile(FIO_ctx_t* fCtx, FIO_prefs_t* const prefs,
         return NULL;
     }
 
+    isDstRegFile = UTIL_isRegularFile(dstFileName);  /* invoke once */
     if (prefs->sparseFileSupport == 1) {
+        if (!isDstRegFile) {
+            prefs->sparseFileSupport = 0;
+            DISPLAYLEVEL(4, "Sparse File Support is disabled when output is not a file \n");
+        }
         prefs->sparseFileSupport = ZSTD_SPARSE_DEFAULT;
     }
 
-    if (UTIL_isRegularFile(dstFileName)) {
+    if (isDstRegFile) {
         /* Check if destination file already exists */
 #if !defined(_WIN32)
         /* this test does not work on Windows :
@@ -2259,8 +2266,8 @@ static void FIO_freeDResources(dRess_t ress)
     AIO_ReadPool_free(ress.readCtx);
 }
 
-/** FIO_passThrough() : just copy input into output, for compatibility with gzip -df mode
-    @return : 0 (no error) */
+/* FIO_passThrough() : just copy input into output, for compatibility with gzip -df mode
+ * @return : 0 (no error) */
 static int FIO_passThrough(dRess_t *ress)
 {
     size_t const blockSize = MIN(MIN(64 KB, ZSTD_DStreamInSize()), ZSTD_DStreamOutSize());
@@ -2288,7 +2295,8 @@ static int FIO_passThrough(dRess_t *ress)
 static void
 FIO_zstdErrorHelp(const FIO_prefs_t* const prefs,
                   const dRess_t* ress,
-                  size_t err, const char* srcFileName)
+                  size_t err,
+                  const char* srcFileName)
 {
     ZSTD_frameHeader header;
 

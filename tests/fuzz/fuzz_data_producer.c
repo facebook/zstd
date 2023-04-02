@@ -8,6 +8,7 @@
  * You may select, at your option, one of the above-listed licenses.
  */
 
+#include "fuzz_helpers.h"
 #include "fuzz_data_producer.h"
 
 struct FUZZ_dataProducer_s{

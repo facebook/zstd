@@ -72,7 +72,14 @@ zstd = executable('zstd',
   c_args: zstd_c_args,
   dependencies: zstd_deps,
   export_dynamic: export_dynamic_on_windows, # Since Meson 0.45.0
-  install: true)
+  build_by_default: bin_programs,
+  install: bin_programs)
+
+if not bin_programs
+  # we generate rules to build the programs, but don't install anything
+  # so do not continue to installing scripts and manpages
+  subdir_done()
+endif
 
 zstd_frugal_sources = [join_paths(zstd_rootdir, 'programs/zstdcli.c'),
   join_paths(zstd_rootdir, 'programs/timefn.c'),

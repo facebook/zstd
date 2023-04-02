@@ -95,7 +95,7 @@ allnothread: fullbench fuzzer paramgrill datagen decodecorpus
 dll: fuzzer-dll zstreamtest-dll
 
 .PHONY: zstd zstd32 zstd-nolegacy  # only external makefile knows how to build or update them
-zstd zstd32 zstd-nolegacy:
+zstd zstd32 zstd-nolegacy zstd-dll:
 	$(MAKE) -C $(PRGDIR) $@ MOREFLAGS+="$(DEBUGFLAGS)"
 
 .PHONY: libzstd
@@ -328,13 +328,17 @@ test-all: test test32 test-decodecorpus-cli
 test-zstd: ZSTD = $(PRGDIR)/zstd
 test-zstd: zstd
 
+.PHONY: test-zstd-dll
+test-zstd-dll: ZSTD = $(PRGDIR)/zstd
+test-zstd-dll: zstd-dll
+
 test-zstd32: ZSTD = $(PRGDIR)/zstd32
 test-zstd32: zstd32
 
 test-zstd-nolegacy: ZSTD = $(PRGDIR)/zstd-nolegacy
 test-zstd-nolegacy: zstd-nolegacy
 
-test-zstd test-zstd32 test-zstd-nolegacy: datagen
+test-zstd test-zstd32 test-zstd-nolegacy test-zstd-dll: datagen
 	file $(ZSTD)
 	EXE_PREFIX="$(QEMU_SYS)" ZSTD_BIN="$(ZSTD)" DATAGEN_BIN=./datagen ./playTests.sh $(ZSTDRTTEST)
 

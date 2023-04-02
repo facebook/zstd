@@ -24,7 +24,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "fuzz_helpers.h"
 
 /* Struct used for maintaining the state of the data */
 typedef struct FUZZ_dataProducer_s FUZZ_dataProducer_t;

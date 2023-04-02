@@ -106,6 +106,7 @@ void FIO_setContentSize(FIO_prefs_t* const prefs, int value);
 void FIO_displayCompressionParameters(const FIO_prefs_t* prefs);
 void FIO_setAsyncIOFlag(FIO_prefs_t* const prefs, int value);
 void FIO_setPassThroughFlag(FIO_prefs_t* const prefs, int value);
+void FIO_setMMapDict(FIO_prefs_t* const prefs, ZSTD_paramSwitch_e value);
 
 /* FIO_ctx_t functions */
 void FIO_setNbFilesTotal(FIO_ctx_t* const fCtx, int value);

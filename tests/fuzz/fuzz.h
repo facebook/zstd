@@ -31,6 +31,11 @@
  *        This is the canonical flag to enable deterministic builds for fuzzing.
  *        Changes to zstd for fuzzing are gated behind this define.
  *        It is recommended to define this when building zstd for fuzzing.
+ * @param FUZZ_THIRD_PARTY_SEQ_PROD
+ *        This flag allows sequence producer plugin authors to replace the built-in
+ *        default sequence producer with their own code. If you are not a plugin
+ *        author, you should not define this flag. See the docs at
+ *        fuzz_third_party_seq_prod.h for more information.
  */
 
 #ifndef FUZZ_H

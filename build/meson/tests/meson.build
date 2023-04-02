@@ -162,7 +162,7 @@ if host_machine_os != os_windows
       playTests_sh,
       args: opt,
       env: ['ZSTD_BIN=' + zstd.full_path(), 'DATAGEN_BIN=./datagen'],
-      depends: [datagen],
+      depends: [datagen, zstd],
       suite: suite,
       workdir: meson.current_build_dir(),
       timeout: 2800) # Timeout should work on HDD drive

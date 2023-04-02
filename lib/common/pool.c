@@ -10,9 +10,9 @@
 
 
 /* ======   Dependencies   ======= */
+#include "../common/allocations.h"  /* ZSTD_customCalloc, ZSTD_customFree */
 #include "zstd_deps.h" /* size_t */
 #include "debug.h"     /* assert */
-#include "zstd_internal.h"  /* ZSTD_customCalloc, ZSTD_customFree */
 #include "pool.h"
 
 /* ======   Compiler specifics   ====== */

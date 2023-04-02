@@ -37,7 +37,7 @@
 
 #include "fileio.h"   /* stdinmark, stdoutmark, ZSTD_EXTENSION */
 #ifndef ZSTD_NOBENCH
-#  include "benchzstd.h"  /* BMK_benchFiles */
+#  include "benchzstd.h"  /* BMK_benchFilesAdvanced */
 #endif
 #ifndef ZSTD_NODICT
 #  include "dibio.h"  /* ZDICT_cover_params_t, DiB_trainFromFiles() */
@@ -165,7 +165,7 @@ static void usage(FILE* f, const char* programName)
 #endif
     DISPLAY_F(f, "  -D DICT                       Use DICT as the dictionary for compression or decompression.\n\n");
     DISPLAY_F(f, "  -f, --force                   Disable input and output checks. Allows overwriting existing files,\n");
-    DISPLAY_F(f, "                                receiving input from the console, printing ouput to STDOUT, and\n");
+    DISPLAY_F(f, "                                receiving input from the console, printing output to STDOUT, and\n");
     DISPLAY_F(f, "                                operating on links, block devices, etc. Unrecognized formats will be\n");
     DISPLAY_F(f, "                                passed-through through as-is.\n\n");
 
@@ -254,6 +254,7 @@ static void usage_advanced(const char* programName)
 
     DISPLAYOUT("\n");
     DISPLAYOUT("  --format=zstd                 Compress files to the `.zst` format. [Default]\n");
+    DISPLAYOUT("  --mmap-dict                   Memory-map dictionary file rather than mallocing and loading all at once");
 #ifdef ZSTD_GZCOMPRESS
     DISPLAYOUT("  --format=gzip                 Compress files to the `.gz` format.\n");
 #endif
@@ -851,6 +852,7 @@ int main(int argCount, const char* argv[])
         ultra=0,
         contentSize=1,
         removeSrcFile=0;
+    ZSTD_paramSwitch_e mmapDict=ZSTD_ps_auto;
     ZSTD_paramSwitch_e useRowMatchFinder = ZSTD_ps_auto;
     FIO_compressionType_t cType = FIO_zstdCompression;
     unsigned nbWorkers = 0;
@@ -984,6 +986,8 @@ int main(int argCount, const char* argv[])
                 if (longCommandWArg(&argument, "--adapt=")) { adapt = 1; if (!parseAdaptParameters(argument, &adaptMin, &adaptMax)) { badusage(programName); CLEAN_RETURN(1); } continue; }
                 if (!strcmp(argument, "--single-thread")) { nbWorkers = 0; singleThread = 1; continue; }
                 if (!strcmp(argument, "--format=zstd")) { suffix = ZSTD_EXTENSION; cType = FIO_zstdCompression; continue; }
+                if (!strcmp(argument, "--mmap-dict")) { mmapDict = ZSTD_ps_enable; continue; }
+                if (!strcmp(argument, "--no-mmap-dict")) { mmapDict = ZSTD_ps_disable; continue; }
 #ifdef ZSTD_GZCOMPRESS
                 if (!strcmp(argument, "--format=gzip")) { suffix = GZ_EXTENSION; cType = FIO_gzipCompression; continue; }
                 if (exeNameMatch(programName, ZSTD_GZ)) {     /* behave like gzip */
@@ -1391,18 +1395,15 @@ int main(int argCount, const char* argv[])
                     int c;
                     DISPLAYLEVEL(3, "Benchmarking %s \n", filenames->fileNames[i]);
                     for(c = cLevel; c <= cLevelLast; c++) {
-                        BMK_benchOutcome_t const bo = BMK_benchFilesAdvanced(&filenames->fileNames[i], 1, dictFileName, c, &compressionParams, g_displayLevel, &benchParams);
-                        if (!BMK_isSuccessful_benchOutcome(bo)) return 1;
+                        operationResult = BMK_benchFilesAdvanced(&filenames->fileNames[i], 1, dictFileName, c, &compressionParams, g_displayLevel, &benchParams);
                 }   }
             } else {
                 for(; cLevel <= cLevelLast; cLevel++) {
-                    BMK_benchOutcome_t const bo = BMK_benchFilesAdvanced(filenames->fileNames, (unsigned)filenames->tableSize, dictFileName, cLevel, &compressionParams, g_displayLevel, &benchParams);
-                    if (!BMK_isSuccessful_benchOutcome(bo)) return 1;
+                    operationResult = BMK_benchFilesAdvanced(filenames->fileNames, (unsigned)filenames->tableSize, dictFileName, cLevel, &compressionParams, g_displayLevel, &benchParams);
             }   }
         } else {
             for(; cLevel <= cLevelLast; cLevel++) {
-                BMK_benchOutcome_t const bo = BMK_syntheticTest(cLevel, compressibility, &compressionParams, g_displayLevel, &benchParams);
-                if (!BMK_isSuccessful_benchOutcome(bo)) return 1;
+                operationResult = BMK_syntheticTest(cLevel, compressibility, &compressionParams, g_displayLevel, &benchParams);
         }   }
 
 #else
@@ -1526,6 +1527,7 @@ int main(int argCount, const char* argv[])
     FIO_setNotificationLevel(g_displayLevel);
     FIO_setAllowBlockDevices(prefs, allowBlockDevices);
     FIO_setPatchFromMode(prefs, patchFromDictFileName != NULL);
+    FIO_setMMapDict(prefs, mmapDict);
     if (memLimit == 0) {
         if (compressionParams.windowLog == 0) {
             memLimit = (U32)1 << g_defaultMaxWindowLog;

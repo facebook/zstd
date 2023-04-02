@@ -1,6 +1,15 @@
 include(CheckCXXCompilerFlag)
 include(CheckCCompilerFlag)
-include(CheckLinkerFlag)
+# VERSION_GREATER_EQUAL requires CMake 3.7 or later.
+# https://cmake.org/cmake/help/latest/command/if.html#version-greater-equal
+if (CMAKE_VERSION VERSION_LESS 3.18)
+    set(ZSTD_HAVE_CHECK_LINKER_FLAG false)
+else ()
+    set(ZSTD_HAVE_CHECK_LINKER_FLAG true)
+endif ()
+if (ZSTD_HAVE_CHECK_LINKER_FLAG)
+    include(CheckLinkerFlag)
+endif()
 
 function(EnableCompilerFlag _flag _C _CXX _LD)
     string(REGEX REPLACE "\\+" "PLUS" varname "${_flag}")
@@ -20,7 +29,20 @@ function(EnableCompilerFlag _flag _C _CXX _LD)
         endif ()
     endif ()
     if (_LD)
-        CHECK_LINKER_FLAG(C ${_flag} LD_FLAG_${varname})
+        # We never add a linker flag with CMake < 3.18. We will
+        # implement CHECK_LINKER_FLAG() like feature for CMake < 3.18
+        # or require CMake >= 3.18 when we need to add a required
+        # linker flag in future.
+        #
+        # We also skip linker flags check for MSVC compilers (which includes
+        # clang-cl) since currently check_linker_flag() doesn't give correct
+        # results for this configuration,
+        # see: https://gitlab.kitware.com/cmake/cmake/-/issues/22023
+        if (ZSTD_HAVE_CHECK_LINKER_FLAG AND NOT MSVC)
+            CHECK_LINKER_FLAG(C ${_flag} LD_FLAG_${varname})
+        else ()
+            set(LD_FLAG_${varname} false)
+        endif ()
         if (LD_FLAG_${varname})
             set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${_flag}" PARENT_SCOPE)
             set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${_flag}" PARENT_SCOPE)

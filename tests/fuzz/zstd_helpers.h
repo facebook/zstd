@@ -45,6 +45,10 @@ typedef struct {
  */
 FUZZ_dict_t FUZZ_train(void const* src, size_t srcSize, FUZZ_dataProducer_t *producer);
 
+#ifdef FUZZ_THIRD_PARTY_SEQ_PROD
+extern void* FUZZ_seqProdState;
+#endif
+
 #ifdef __cplusplus
 }
 #endif

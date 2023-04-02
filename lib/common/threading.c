@@ -47,7 +47,7 @@ static unsigned __stdcall worker(void *arg)
     void* (*start_routine)(void*);
     void* thread_arg;
 
-    /* Inialized thread_arg and start_routine and signal main thread that we don't need it
+    /* Initialized thread_arg and start_routine and signal main thread that we don't need it
      * to wait any longer.
      */
     {

@@ -1,6 +1,6 @@
 #!/bin/sh
 datagen -g1G > file
-zstd --long=31 -1 --single-thread --no-content-size -f file
+zstd --long=30 -1 --single-thread --no-content-size -f file
 zstd -l -v file.zst
 
 # We want to ignore stderr (its outputting "*** zstd command line interface

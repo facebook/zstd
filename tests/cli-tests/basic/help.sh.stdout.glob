@@ -16,7 +16,7 @@ Options:
   -D DICT                       Use DICT as the dictionary for compression or decompression.
 
   -f, --force                   Disable input and output checks. Allows overwriting existing files,
-                                receiving input from the console, printing ouput to STDOUT, and
+                                receiving input from the console, printing output to STDOUT, and
                                 operating on links, block devices, etc. Unrecognized formats will be
                                 passed-through through as-is.
 

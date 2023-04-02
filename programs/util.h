@@ -126,15 +126,25 @@ int UTIL_requireUserConfirmation(const char* prompt, const char* abortMsg, const
 /**
  * Calls platform's equivalent of stat() on filename and writes info to statbuf.
  * Returns success (1) or failure (0).
+ *
+ * UTIL_fstat() is like UTIL_stat() but takes an optional fd that refers to the
+ * file in question. It turns out that this can be meaningfully faster. If fd is
+ * -1, behaves just like UTIL_stat() (i.e., falls back to using the filename).
  */
 int UTIL_stat(const char* filename, stat_t* statbuf);
+int UTIL_fstat(const int fd, const char* filename, stat_t* statbuf);
 
 /**
  * Instead of getting a file's stats, this updates them with the info in the
  * provided stat_t. Currently sets owner, group, atime, and mtime. Will only
  * update this info for regular files.
+ *
+ * UTIL_setFDStat() also takes an fd, and will preferentially use that to
+ * indicate which file to modify, If fd is -1, it will fall back to using the
+ * filename.
  */
 int UTIL_setFileStat(const char* filename, const stat_t* statbuf);
+int UTIL_setFDStat(const int fd, const char* filename, const stat_t* statbuf);
 
 /**
  * Set atime to now and mtime to the st_mtim in statbuf.
@@ -159,8 +169,11 @@ U64 UTIL_getFileSizeStat(const stat_t* statbuf);
  * Like chmod(), but only modifies regular files. Provided statbuf may be NULL,
  * in which case this function will stat() the file internally, in order to
  * check whether it should be modified.
+ *
+ * If fd is -1, fd is ignored and the filename is used.
  */
 int UTIL_chmod(char const* filename, const stat_t* statbuf, mode_t permissions);
+int UTIL_fchmod(const int fd, char const* filename, const stat_t* statbuf, mode_t permissions);
 
 /*
  * In the absence of a pre-existing stat result on the file in question, these

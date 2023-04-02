@@ -109,25 +109,17 @@ def pop_line(data: bytes) -> typing.Tuple[typing.Optional[bytes], bytes]:
     the first line always ends in a :\n:, even if it is the last line and :data:
     doesn't end in :\n:.
     """
-    NEWLINE = b"\n"[0]
+    NEWLINE = b"\n"
 
     if data == b'':
         return (None, data)
 
-    newline_idx = data.find(b"\n")
-    if newline_idx == -1:
-        end_idx = len(data)
-    else:
-        end_idx = newline_idx + 1
+    parts = data.split(NEWLINE, maxsplit=1)
+    line = parts[0] + NEWLINE
+    if len(parts) == 1:
+        return line, b''
 
-    line = data[:end_idx]
-    data = data[end_idx:]
-
-    assert len(line) != 0
-    if line[-1] != NEWLINE:
-        line += NEWLINE
-
-    return (line, data)
+    return line, parts[1]
 
 
 def glob_line_matches(actual: bytes, expect: bytes) -> bool:
@@ -535,7 +527,8 @@ class TestSuite:
             subprocess.run(
                 args=[script],
                 stdin=subprocess.DEVNULL,
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 cwd=cwd,
                 env=env,
                 check=True,
@@ -647,7 +640,7 @@ if __name__ == "__main__":
         help="Preserve the scratch directory TEST_DIR/scratch/ for debugging purposes."
     )
     parser.add_argument("--verbose", action="store_true", help="Verbose test output.")
-    parser.add_argument("--timeout", default=60, type=int, help="Test case timeout in seconds. Set to 0 to disable timeouts.")
+    parser.add_argument("--timeout", default=200, type=int, help="Test case timeout in seconds. Set to 0 to disable timeouts.")
     parser.add_argument(
         "--exec-prefix",
         default=None,

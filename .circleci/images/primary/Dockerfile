@@ -1,4 +1,4 @@
-FROM circleci/buildpack-deps:focal
+FROM circleci/buildpack-deps@sha256:f6f10c11b7b8ccfd4f4a5b830c3256803604ce61292b60cb22e26b12f62b0e8c
 
 RUN sudo dpkg --add-architecture i386
 RUN sudo apt-get -y -qq update

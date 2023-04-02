@@ -102,6 +102,17 @@ UTIL_STATIC void* UTIL_realloc(void *ptr, size_t size)
     #define chmod _chmod
 #endif
 
+#ifndef ZSTD_HAVE_FCHMOD
+#if PLATFORM_POSIX_VERSION >= 199309L
+#define ZSTD_HAVE_FCHMOD
+#endif
+#endif
+
+#ifndef ZSTD_HAVE_FCHOWN
+#if PLATFORM_POSIX_VERSION >= 200809L
+#define ZSTD_HAVE_FCHOWN
+#endif
+#endif
 
 /*-****************************************
 *  Console log
@@ -147,19 +158,36 @@ void UTIL_traceFileStat(void)
     g_traceFileStat = 1;
 }
 
-int UTIL_stat(const char* filename, stat_t* statbuf)
+int UTIL_fstat(const int fd, const char* filename, stat_t* statbuf)
 {
     int ret;
-    UTIL_TRACE_CALL("UTIL_stat(%s)", filename);
+    UTIL_TRACE_CALL("UTIL_stat(%d, %s)", fd, filename);
 #if defined(_MSC_VER)
-    ret = !_stat64(filename, statbuf);
+    if (fd >= 0) {
+        ret = !_fstat64(fd, statbuf);
+    } else {
+        ret = !_stat64(filename, statbuf);
+    }
 #elif defined(__MINGW32__) && defined (__MSVCRT__)
-    ret = !_stati64(filename, statbuf);
+    if (fd >= 0) {
+        ret = !_fstati64(fd, statbuf);
+    } else {
+        ret = !_stati64(filename, statbuf);
+    }
 #else
-    ret = !stat(filename, statbuf);
+    if (fd >= 0) {
+        ret = !fstat(fd, statbuf);
+    } else {
+        ret = !stat(filename, statbuf);
+    }
 #endif
     UTIL_TRACE_RET(ret);
     return ret;
+}
+
+int UTIL_stat(const char* filename, stat_t* statbuf)
+{
+    return UTIL_fstat(-1, filename, statbuf);
 }
 
 int UTIL_isRegularFile(const char* infilename)
@@ -184,10 +212,15 @@ int UTIL_isRegularFileStat(const stat_t* statbuf)
 /* like chmod, but avoid changing permission of /dev/null */
 int UTIL_chmod(char const* filename, const stat_t* statbuf, mode_t permissions)
 {
+    return UTIL_fchmod(-1, filename, statbuf, permissions);
+}
+
+int UTIL_fchmod(const int fd, char const* filename, const stat_t* statbuf, mode_t permissions)
+{
     stat_t localStatBuf;
     UTIL_TRACE_CALL("UTIL_chmod(%s, %#4o)", filename, (unsigned)permissions);
     if (statbuf == NULL) {
-        if (!UTIL_stat(filename, &localStatBuf)) {
+        if (!UTIL_fstat(fd, filename, &localStatBuf)) {
             UTIL_TRACE_RET(0);
             return 0;
         }
@@ -197,9 +230,20 @@ int UTIL_chmod(char const* filename, const stat_t* statbuf, mode_t permissions)
         UTIL_TRACE_RET(0);
         return 0; /* pretend success, but don't change anything */
     }
-    UTIL_TRACE_CALL("chmod");
+#ifdef ZSTD_HAVE_FCHMOD
+    if (fd >= 0) {
+        int ret;
+        UTIL_TRACE_CALL("fchmod");
+        ret = fchmod(fd, permissions);
+        UTIL_TRACE_RET(ret);
+        UTIL_TRACE_RET(ret);
+        return ret;
+    } else
+#endif
     {
-        int const ret = chmod(filename, permissions);
+        int ret;
+        UTIL_TRACE_CALL("chmod");
+        ret = chmod(filename, permissions);
         UTIL_TRACE_RET(ret);
         UTIL_TRACE_RET(ret);
         return ret;
@@ -237,17 +281,19 @@ int UTIL_utime(const char* filename, const stat_t *statbuf)
 
 int UTIL_setFileStat(const char *filename, const stat_t *statbuf)
 {
+    return UTIL_setFDStat(-1, filename, statbuf);
+}
+
+int UTIL_setFDStat(const int fd, const char *filename, const stat_t *statbuf)
+{
     int res = 0;
     stat_t curStatBuf;
-    UTIL_TRACE_CALL("UTIL_setFileStat(%s)", filename);
+    UTIL_TRACE_CALL("UTIL_setFileStat(%d, %s)", fd, filename);
 
-    if (!UTIL_stat(filename, &curStatBuf) || !UTIL_isRegularFileStat(&curStatBuf)) {
+    if (!UTIL_fstat(fd, filename, &curStatBuf) || !UTIL_isRegularFileStat(&curStatBuf)) {
         UTIL_TRACE_RET(-1);
         return -1;
     }
-
-    /* set access and modification times */
-    res += UTIL_utime(filename, statbuf);
 
     /* Mimic gzip's behavior:
      *
@@ -258,13 +304,27 @@ int UTIL_setFileStat(const char *filename, const stat_t *statbuf)
      * setgid bits." */
 
 #if !defined(_WIN32)
-    res += chown(filename, -1, statbuf->st_gid);  /* Apply group ownership */
+#ifdef ZSTD_HAVE_FCHOWN
+    if (fd >= 0) {
+        res += fchown(fd, -1, statbuf->st_gid);  /* Apply group ownership */
+    } else
+#endif
+    {
+        res += chown(filename, -1, statbuf->st_gid);  /* Apply group ownership */
+    }
 #endif
 
-    res += UTIL_chmod(filename, &curStatBuf, statbuf->st_mode & 0777);  /* Copy file permissions */
+    res += UTIL_fchmod(fd, filename, &curStatBuf, statbuf->st_mode & 0777);  /* Copy file permissions */
 
 #if !defined(_WIN32)
-    res += chown(filename, statbuf->st_uid, -1);  /* Apply user ownership */
+#ifdef ZSTD_HAVE_FCHOWN
+    if (fd >= 0) {
+        res += fchown(fd, statbuf->st_uid, -1);  /* Apply user ownership */
+    } else
+#endif
+    {
+        res += chown(filename, statbuf->st_uid, -1);  /* Apply user ownership */
+    }
 #endif
 
     errno = 0;

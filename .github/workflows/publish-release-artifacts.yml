@@ -5,21 +5,19 @@ on:
     types:
       - published
 
-permissions:
-  contents: read
+permissions: read-all
 
 jobs:
   publish-release-artifacts:
     permissions:
-      contents: read # to fetch code (actions/checkout)
-      actions: write # to attach binaries to release artifacts (skx/github-action-publish-binaries)
+      contents: write # to fetch code and upload artifacts
 
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
 
     steps:
       - name: Checkout
-        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # tag=v3
+        uses: actions/checkout@8f4b7f84864484a7bf31766abe9204da3cbe65b3 # tag=v3
 
       - name: Archive
         env:
@@ -68,7 +66,7 @@ jobs:
           fi
 
       - name: Publish
-        uses: skx/github-action-publish-binaries@release-2.0
+        uses: skx/github-action-publish-binaries@b9ca5643b2f1d7371a6cba7f35333f1461bbc703 # tag=release-2.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:

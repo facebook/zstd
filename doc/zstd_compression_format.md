@@ -16,7 +16,7 @@ Distribution of this document is unlimited.
 
 ### Version
 
-0.3.7 (2020-12-09)
+0.3.9 (2023-03-08)
 
 
 Introduction
@@ -470,6 +470,7 @@ This field uses 2 lowest bits of first byte, describing 4 different block types 
         repeated `Regenerated_Size` times.
 - `Compressed_Literals_Block` - This is a standard Huffman-compressed block,
         starting with a Huffman tree description.
+        In this mode, there are at least 2 different literals represented in the Huffman tree description.
         See details below.
 - `Treeless_Literals_Block` - This is a Huffman-compressed block,
         using Huffman tree _from previous Huffman-compressed literals block_.
@@ -533,15 +534,20 @@ __`Size_Format` for `Compressed_Literals_Block` and `Treeless_Literals_Block`__ 
 Both `Compressed_Size` and `Regenerated_Size` fields follow __little-endian__ convention.
 Note: `Compressed_Size` __includes__ the size of the Huffman Tree description
 _when_ it is present.
+Note 2: `Compressed_Size` can never be `==0`.
+Even in single-stream scenario, assuming an empty content, it must be `>=1`,
+since it contains at least the final end bit flag.
+In 4-streams scenario, a valid `Compressed_Size` is necessarily `>= 10`
+(6 bytes for the jump table, + 4x1 bytes for the 4 streams).
 
-4 streams is superior to 1 stream in decompression speed,
+4 streams is faster than 1 stream in decompression speed,
 by exploiting instruction level parallelism.
 But it's also more expensive,
 costing on average ~7.3 bytes more than the 1 stream mode, mostly from the jump table.
 
 In general, use the 4 streams mode when there are more literals to decode,
 to favor higher decompression speeds.
-Beyond 1KB, the 4 streams mode is compulsory anyway.
+Note that beyond >1KB of literals, the 4 streams mode is compulsory.
 
 Note that a minimum of 6 bytes is required for the 4 streams mode.
 That's a technical minimum, but it's not recommended to employ the 4 streams mode
@@ -566,6 +572,7 @@ or from a dictionary.
 
 ### `Huffman_Tree_Description`
 This section is only present when `Literals_Block_Type` type is `Compressed_Literals_Block` (`2`).
+The tree describes the weights of all literals symbols that can be present in the literals block, at least 2 and up to 256.
 The format of the Huffman tree description can be found at [Huffman Tree description](#huffman-tree-description).
 The size of `Huffman_Tree_Description` is determined during decoding process,
 it must be used to determine where streams begin.
@@ -575,10 +582,10 @@ it must be used to determine where streams begin.
 ### Jump Table
 The Jump Table is only present when there are 4 Huffman-coded streams.
 
-Reminder : Huffman compressed data consists of either 1 or 4 Huffman-coded streams.
+Reminder : Huffman compressed data consists of either 1 or 4 streams.
 
 If only one stream is present, it is a single bitstream occupying the entire
-remaining portion of the literals block, encoded as described within
+remaining portion of the literals block, encoded as described in
 [Huffman-Coded Streams](#huffman-coded-streams).
 
 If there are four streams, `Literals_Section_Header` only provided
@@ -589,17 +596,18 @@ except for the last stream which may be up to 3 bytes smaller,
 to reach a total decompressed size as specified in `Regenerated_Size`.
 
 The compressed size of each stream is provided explicitly in the Jump Table.
-Jump Table is 6 bytes long, and consist of three 2-byte __little-endian__ fields,
+Jump Table is 6 bytes long, and consists of three 2-byte __little-endian__ fields,
 describing the compressed sizes of the first three streams.
-`Stream4_Size` is computed from total `Total_Streams_Size` minus sizes of other streams.
+`Stream4_Size` is computed from `Total_Streams_Size` minus sizes of other streams:
 
 `Stream4_Size = Total_Streams_Size - 6 - Stream1_Size - Stream2_Size - Stream3_Size`.
 
-Note: if `Stream1_Size + Stream2_Size + Stream3_Size > Total_Streams_Size`,
+`Stream4_Size` is necessarily `>= 1`. Therefore,
+if `Total_Streams_Size < Stream1_Size + Stream2_Size + Stream3_Size + 6 + 1`,
 data is considered corrupted.
 
 Each of these 4 bitstreams is then decoded independently as a Huffman-Coded stream,
-as described at [Huffman-Coded Streams](#huffman-coded-streams)
+as described in [Huffman-Coded Streams](#huffman-coded-streams)
 
 
 Sequences Section
@@ -1197,7 +1205,7 @@ Huffman Coding
 --------------
 Zstandard Huffman-coded streams are read backwards,
 similar to the FSE bitstreams.
-Therefore, to find the start of the bitstream, it is therefore to
+Therefore, to find the start of the bitstream, it is required to
 know the offset of the last byte of the Huffman-coded stream.
 
 After writing the last bit containing information, the compressor
@@ -1239,9 +1247,15 @@ Transformation from `Weight` to `Number_of_Bits` follows this formula :
 ```
 Number_of_Bits = Weight ? (Max_Number_of_Bits + 1 - Weight) : 0
 ```
-The last symbol's `Weight` is deduced from previously decoded ones,
-by completing to the nearest power of 2.
-This power of 2 gives `Max_Number_of_Bits`, the depth of the current tree.
+When a literal value is not present, it receives a `Weight` of 0.
+The least frequent symbol receives a `Weight` of 1.
+Consequently, the `Weight` 1 is necessarily present.
+The most frequent symbol receives a `Weight` anywhere between 1 and 11 (max).
+The last symbol's `Weight` is deduced from previously retrieved Weights,
+by completing to the nearest power of 2. It's necessarily non 0.
+If it's not possible to reach a clean power of 2 with a single `Weight` value,
+the Huffman Tree Description is considered invalid.
+This final power of 2 gives `Max_Number_of_Bits`, the depth of the current tree.
 `Max_Number_of_Bits` must be <= 11,
 otherwise the representation is considered corrupted.
 
@@ -1254,7 +1268,7 @@ Let's presume the following Huffman tree must be described :
 
 The tree depth is 4, since its longest elements uses 4 bits
 (longest elements are the one with smallest frequency).
-Value `5` will not be listed, as it can be determined from values for 0-4,
+Literal value `5` will not be listed, as it can be determined from previous values 0-4,
 nor will values above `5` as they are all 0.
 Values from `0` to `4` will be listed using `Weight` instead of `Number_of_Bits`.
 Weight formula is :
@@ -1274,7 +1288,7 @@ The `Weight` of `5` can be determined by advancing to the next power of 2.
 The sum of `2^(Weight-1)` (excluding 0's) is :
 `8 + 4 + 2 + 0 + 1 = 15`.
 Nearest larger power of 2 value is 16.
-Therefore, `Max_Number_of_Bits = 4` and `Weight[5] = 16-15 = 1`.
+Therefore, `Max_Number_of_Bits = 4` and `Weight[5] = log_2(16 - 15) + 1 = 1`.
 
 #### Huffman Tree header
 
@@ -1683,6 +1697,8 @@ or at least provide a meaningful error code explaining for which reason it canno
 
 Version changes
 ---------------
+- 0.3.9 : clarifications for Huffman-compressed literal sizes.
+- 0.3.8 : clarifications for Huffman Blocks and Huffman Tree descriptions.
 - 0.3.7 : clarifications for Repeat_Offsets, matching RFC8878
 - 0.3.6 : clarifications for Dictionary_ID
 - 0.3.5 : clarifications for Block_Maximum_Size

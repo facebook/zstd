@@ -1232,9 +1232,9 @@ static void ZSTD_dedicatedDictSearch_revertCParams(
         ZSTD_compressionParameters* cParams);
 
 /**
- * Initializes the local dict using the requested parameters.
- * NOTE: This does not use the pledged src size, because it may be used for more
- * than one compression.
+ * Initializes the local dictionary using requested parameters.
+ * NOTE: Initialization does not employ the pledged src size,
+ * because the dictionary may be used for multiple compressions.
  */
 static size_t ZSTD_initLocalDict(ZSTD_CCtx* cctx)
 {
@@ -1247,8 +1247,8 @@ static size_t ZSTD_initLocalDict(ZSTD_CCtx* cctx)
         return 0;
     }
     if (dl->cdict != NULL) {
-        assert(cctx->cdict == dl->cdict);
         /* Local dictionary already initialized. */
+        assert(cctx->cdict == dl->cdict);
         return 0;
     }
     assert(dl->dictSize > 0);
@@ -1268,26 +1268,30 @@ static size_t ZSTD_initLocalDict(ZSTD_CCtx* cctx)
 }
 
 size_t ZSTD_CCtx_loadDictionary_advanced(
-        ZSTD_CCtx* cctx, const void* dict, size_t dictSize,
-        ZSTD_dictLoadMethod_e dictLoadMethod, ZSTD_dictContentType_e dictContentType)
+        ZSTD_CCtx* cctx,
+        const void* dict, size_t dictSize,
+        ZSTD_dictLoadMethod_e dictLoadMethod,
+        ZSTD_dictContentType_e dictContentType)
 {
-    RETURN_ERROR_IF(cctx->streamStage != zcss_init, stage_wrong,
-                    "Can't load a dictionary when ctx is not in init stage.");
     DEBUGLOG(4, "ZSTD_CCtx_loadDictionary_advanced (size: %u)", (U32)dictSize);
-    ZSTD_clearAllDicts(cctx);  /* in case one already exists */
-    if (dict == NULL || dictSize == 0)  /* no dictionary mode */
+    RETURN_ERROR_IF(cctx->streamStage != zcss_init, stage_wrong,
+                    "Can't load a dictionary when cctx is not in init stage.");
+    ZSTD_clearAllDicts(cctx);  /* erase any previously set dictionary */
+    if (dict == NULL || dictSize == 0)  /* no dictionary */
         return 0;
     if (dictLoadMethod == ZSTD_dlm_byRef) {
         cctx->localDict.dict = dict;
     } else {
+        /* copy dictionary content inside CCtx to own its lifetime */
         void* dictBuffer;
         RETURN_ERROR_IF(cctx->staticSize, memory_allocation,
-                        "no malloc for static CCtx");
+                        "static CCtx can't allocate for an internal copy of dictionary");
         dictBuffer = ZSTD_customMalloc(dictSize, cctx->customMem);
-        RETURN_ERROR_IF(!dictBuffer, memory_allocation, "NULL pointer!");
+        RETURN_ERROR_IF(dictBuffer==NULL, memory_allocation,
+                        "allocation failed for dictionary content");
         ZSTD_memcpy(dictBuffer, dict, dictSize);
-        cctx->localDict.dictBuffer = dictBuffer;
-        cctx->localDict.dict = dictBuffer;
+        cctx->localDict.dictBuffer = dictBuffer;  /* owned ptr to free */
+        cctx->localDict.dict = dictBuffer;        /* read-only reference */
     }
     cctx->localDict.dictSize = dictSize;
     cctx->localDict.dictContentType = dictContentType;
@@ -1357,7 +1361,7 @@ size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx, ZSTD_ResetDirective reset)
     if ( (reset == ZSTD_reset_parameters)
       || (reset == ZSTD_reset_session_and_parameters) ) {
         RETURN_ERROR_IF(cctx->streamStage != zcss_init, stage_wrong,
-                        "Can't reset parameters only when not in init stage.");
+                        "Reset parameters is only possible during init stage.");
         ZSTD_clearAllDicts(cctx);
         ZSTD_memset(&cctx->externalMatchCtx, 0, sizeof(cctx->externalMatchCtx));
         return ZSTD_CCtxParams_reset(&cctx->requestedParams);

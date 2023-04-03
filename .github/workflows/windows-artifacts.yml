@@ -2,7 +2,10 @@ name: windows-artifacts
 
 on:
   push:
-    branches: [ release, test_artifacts, win_artifacts ]
+    branches: [ test_artifacts, win_artifacts ]
+  release:
+    types:
+      - published
 
 permissions: read-all
 
@@ -37,12 +40,12 @@ jobs:
     - name: Create artifacts
       run: |
         ./lib/dll/example/build_package.bat
-        cd bin/
-        7z a -tzip -mx9 zstd-win-release-win64.zip *
+        mv bin/ zstd-${{ github.ref_name }}-win64/
+        7z a -tzip -mx9 zstd-${{ github.ref_name }}-win64.zip zstd-${{ github.ref_name }}-win64/
         cd ..
 
-    - name: Publish zstd-win-release-win64.zip
+    - name: Publish zstd-$VERSION-win64.zip
       uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # tag=v3
       with:
-        path: ${{ github.workspace }}/bin/zstd-win-release-win64.zip
-        name: zstd-win-release-win64.zip
+        path: ${{ github.workspace }}/zstd-${{ github.ref_name }}-win64.zip
+        name: zstd-${{ github.ref_name }}-win64.zip

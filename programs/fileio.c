@@ -604,11 +604,11 @@ FIO_openDstFile(FIO_ctx_t* fCtx, FIO_prefs_t* const prefs,
 
     isDstRegFile = UTIL_isRegularFile(dstFileName);  /* invoke once */
     if (prefs->sparseFileSupport == 1) {
+        prefs->sparseFileSupport = ZSTD_SPARSE_DEFAULT;
         if (!isDstRegFile) {
             prefs->sparseFileSupport = 0;
             DISPLAYLEVEL(4, "Sparse File Support is disabled when output is not a file \n");
         }
-        prefs->sparseFileSupport = ZSTD_SPARSE_DEFAULT;
     }
 
     if (isDstRegFile) {

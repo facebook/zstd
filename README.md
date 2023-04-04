@@ -13,15 +13,12 @@ a list of known ports and bindings is provided on [Zstandard homepage](https://f
 **Development branch status:**
 
 [![Build Status][travisDevBadge]][travisLink]
-[![Build status][AppveyorDevBadge]][AppveyorLink]
 [![Build status][CircleDevBadge]][CircleLink]
 [![Build status][CirrusDevBadge]][CirrusLink]
 [![Fuzzing Status][OSSFuzzBadge]][OSSFuzzLink]
 
 [travisDevBadge]: https://api.travis-ci.com/facebook/zstd.svg?branch=dev "Continuous Integration test suite"
 [travisLink]: https://travis-ci.com/facebook/zstd
-[AppveyorDevBadge]: https://ci.appveyor.com/api/projects/status/xt38wbdxjk5mrbem/branch/dev?svg=true "Windows test suite"
-[AppveyorLink]: https://ci.appveyor.com/project/YannCollet/zstd-p0yf0
 [CircleDevBadge]: https://circleci.com/gh/facebook/zstd/tree/dev.svg?style=shield "Short test suite"
 [CircleLink]: https://circleci.com/gh/facebook/zstd
 [CirrusDevBadge]: https://api.cirrus-ci.com/github/facebook/zstd.svg?branch=dev
@@ -156,13 +153,13 @@ By default, `CMAKE_BUILD_TYPE` is set to `Release`.
 
 #### Support for Fat (Universal2) Output
 
-`zstd` can be built and installed with support for both Apple Silicon (M1/M2) as well as Intel by using CMake's Universal2 support.  
+`zstd` can be built and installed with support for both Apple Silicon (M1/M2) as well as Intel by using CMake's Universal2 support.
 To perform a Fat/Universal2 build and install use the following commands:
 
 ```bash
 cmake -B build-cmake-debug -S build/cmake -G Ninja -DCMAKE_OSX_ARCHITECTURES="x86_64;x86_64h;arm64"
 cd build-cmake-debug
-ninja 
+ninja
 sudo ninja install
 ```
 

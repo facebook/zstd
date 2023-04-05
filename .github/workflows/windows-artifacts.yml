@@ -49,3 +49,39 @@ jobs:
       with:
         path: ${{ github.workspace }}/zstd-${{ github.ref_name }}-win64.zip
         name: zstd-${{ github.ref_name }}-win64.zip
+
+  windows-32-artifacts:
+    # see https://ariya.io/2020/07/on-github-actions-with-msys2
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+    - uses: actions/checkout@8f4b7f84864484a7bf31766abe9204da3cbe65b3 # tag=v3
+    - uses: msys2/setup-msys2@5beef6d11f48bba68b9eb503e3adc60b23c0cc36 # tag=v2
+      with:
+        msystem: MINGW32
+        install: make zlib git p7zip mingw-w64-i686-gcc
+        update: true
+    - name: display versions
+      run: |
+        make -v
+        cc -v
+    - name: Building zlib to static link
+      run: |
+        git clone --depth 1 --branch v1.2.11 https://github.com/madler/zlib
+        make -C zlib -f win32/Makefile.gcc libz.a
+    - name: Building zstd programs
+      run: |
+        CPPFLAGS=-I../zlib LDFLAGS=../zlib/libz.a make -j allzstd MOREFLAGS=-static V=1
+    - name: Create artifacts
+      run: |
+        ./lib/dll/example/build_package.bat
+        mv bin/ zstd-${{ github.ref_name }}-win32/
+        7z a -tzip -mx9 zstd-${{ github.ref_name }}-win32.zip zstd-${{ github.ref_name }}-win32/
+        cd ..
+    - name: Publish zstd-$VERSION-win32.zip
+      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # tag=v3
+      with:
+        path: ${{ github.workspace }}/zstd-${{ github.ref_name }}-win32.zip
+        name: zstd-${{ github.ref_name }}-win32.zip

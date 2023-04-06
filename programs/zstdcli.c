@@ -254,7 +254,7 @@ static void usage_advanced(const char* programName)
 
     DISPLAYOUT("\n");
     DISPLAYOUT("  --format=zstd                 Compress files to the `.zst` format. [Default]\n");
-    DISPLAYOUT("  --mmap-dict                   Memory-map dictionary file rather than mallocing and loading all at once");
+    DISPLAYOUT("  --[no-]mmap-dict              Memory-map dictionary file rather than mallocing and loading all at once\n");
 #ifdef ZSTD_GZCOMPRESS
     DISPLAYOUT("  --format=gzip                 Compress files to the `.gz` format.\n");
 #endif

@@ -503,7 +503,7 @@ jobs:
     steps:
     - run: git config --global core.autocrlf input
     - uses: actions/checkout@8f4b7f84864484a7bf31766abe9204da3cbe65b3 # tag=v3
-    - uses: cygwin/cygwin-install-action@f5e0f048310c425e84bc789f493a828c6dc80a25 # tag=master
+    - uses: cygwin/cygwin-install-action@006ad0b0946ca6d0a3ea2d4437677fa767392401 # tag=master
       with:
         platform: x86_64
         packages: >-

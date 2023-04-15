@@ -90,6 +90,9 @@ static size_t roundTripTest(void *result, size_t resultCapacity,
             FUZZ_ASSERT(XXH64(compressed, cSize, 0) == hash0);
         }
     }
+    if (FUZZ_dataProducer_uint32Range(producer, 0, 1)) {
+        FUZZ_ZASSERT(ZSTD_DCtx_setParameter(dctx, ZSTD_d_maxBlockSize, maxBlockSize));
+    }
     dSize = ZSTD_decompressDCtx(dctx, result, resultCapacity, compressed, cSize);
     FUZZ_ZASSERT(dSize);
     FUZZ_ASSERT_MSG(dSize == srcSize, "Incorrect regenerated size");

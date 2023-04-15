@@ -722,6 +722,67 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : maxBlockSize = 2KB : ", testNb++);
+    {
+        ZSTD_DCtx* dctx = ZSTD_createDCtx();
+        size_t singlePassSize, streamingSize, streaming2KSize;
+
+        {
+            ZSTD_CCtx* cctx = ZSTD_createCCtx();
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_windowLog, 18));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_contentSizeFlag, 0));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_maxBlockSize, 2048));
+            cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBufferSize);
+            CHECK_Z(cSize);
+            ZSTD_freeCCtx(cctx);
+        }
+
+        CHECK_Z(ZSTD_decompressDCtx(dctx, decodedBuffer, CNBufferSize, compressedBuffer, cSize));
+        singlePassSize = ZSTD_sizeof_DCtx(dctx);
+        CHECK_Z(singlePassSize);
+
+        inBuff.src = compressedBuffer;
+        inBuff.size = cSize;
+
+        outBuff.dst = decodedBuffer;
+        outBuff.size = decodedBufferSize;
+
+        CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_maxBlockSize, 2048));
+        inBuff.pos = 0;
+        outBuff.pos = 0;
+        {
+            size_t const r = ZSTD_decompressStream(dctx, &outBuff, &inBuff);
+            CHECK_Z(r);
+            CHECK(r != 0, "Entire frame must be decompressed");
+        }
+        streaming2KSize = ZSTD_sizeof_DCtx(dctx);
+        CHECK_Z(streaming2KSize);
+        
+        CHECK_Z(ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters));
+        inBuff.pos = 0;
+        outBuff.pos = 0;
+        {
+            size_t const r = ZSTD_decompressStream(dctx, &outBuff, &inBuff);
+            CHECK_Z(r);
+            CHECK(r != 0, "Entire frame must be decompressed");
+        }
+        streamingSize = ZSTD_sizeof_DCtx(dctx);
+        CHECK_Z(streamingSize);
+        
+        CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_maxBlockSize, 1024));
+        inBuff.pos = 0;
+        outBuff.pos = 0;
+        CHECK(!ZSTD_isError(ZSTD_decompressStream(dctx, &outBuff, &inBuff)), "decompression must fail");
+
+        CHECK(streamingSize < singlePassSize + (1 << 18) + 3 * ZSTD_BLOCKSIZE_MAX, "Streaming doesn't use the right amount of memory");
+        CHECK(streamingSize != streaming2KSize + 3 * (ZSTD_BLOCKSIZE_MAX - 2048), "ZSTD_d_blockSizeMax didn't save the right amount of memory");
+        DISPLAYLEVEL(3, "| %zu | %zu | %zu | ", singlePassSize, streaming2KSize, streamingSize);
+
+        ZSTD_freeDCtx(dctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     /* Decompression with ZSTD_d_stableOutBuffer */
     cSize = ZSTD_compress(compressedBuffer, compressedBufferSize, CNBuffer, CNBufferSize, 1);
     CHECK_Z(cSize);
@@ -2845,6 +2906,13 @@ static int fuzzerTests_newAPI(U32 seed, int nbTests, int startTest,
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_c_forceMaxWindow, FUZ_rand(&lseed) & 1, opaqueAPI) );
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_c_deterministicRefPrefix, FUZ_rand(&lseed) & 1, opaqueAPI) );
 
+                /* Set max block size parameters */
+                if (FUZ_rand(&lseed) & 1) {
+                    int maxBlockSize = (int)(FUZ_rand(&lseed) % ZSTD_BLOCKSIZE_MAX);
+                    maxBlockSize = MAX(1024, maxBlockSize);
+                    CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_c_maxBlockSize, maxBlockSize, opaqueAPI) );
+                }
+
                 /* Apply parameters */
                 if (opaqueAPI) {
                     DISPLAYLEVEL(5, "t%u: applying CCtxParams \n", testNb);
@@ -2975,6 +3043,13 @@ static int fuzzerTests_newAPI(U32 seed, int nbTests, int startTest,
         }
         if (FUZ_rand(&lseed) & 1) {
             CHECK_Z(ZSTD_DCtx_setParameter(zd, ZSTD_d_disableHuffmanAssembly, FUZ_rand(&lseed) & 1));
+        }
+        if (FUZ_rand(&lseed) & 1) {
+            int maxBlockSize;
+            CHECK_Z(ZSTD_CCtx_getParameter(zc, ZSTD_c_maxBlockSize, &maxBlockSize));
+            CHECK_Z(ZSTD_DCtx_setParameter(zd, ZSTD_d_maxBlockSize, maxBlockSize));
+        } else {
+            CHECK_Z(ZSTD_DCtx_setParameter(zd, ZSTD_d_maxBlockSize, 0));
         }
         {   size_t decompressionResult = 1;
             ZSTD_inBuffer  inBuff = { cBuffer, cSize, 0 };

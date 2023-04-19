@@ -1467,6 +1467,50 @@ ZSTD_adjustCParams_internal(ZSTD_compressionParameters cPar,
     const U64 maxWindowResize = 1ULL << (ZSTD_WINDOWLOG_MAX-1);
     assert(ZSTD_checkCParams(cPar)==0);
 
+    /* Cascade the selected strategy down to the next-highest one built into
+     * this binary. */
+#ifdef ZSTD_EXCLUDE_BTULTRA2_BLOCK_COMPRESSOR
+    if (cPar.strategy == ZSTD_btultra2) {
+        cPar.strategy = ZSTD_btultra;
+    }
+#endif
+#ifdef ZSTD_EXCLUDE_BTULTRA_BLOCK_COMPRESSOR
+    if (cPar.strategy == ZSTD_btultra) {
+        cPar.strategy = ZSTD_btopt;
+    }
+#endif
+#ifdef ZSTD_EXCLUDE_BTOPT_BLOCK_COMPRESSOR
+    if (cPar.strategy == ZSTD_btopt) {
+        cPar.strategy = ZSTD_btlazy2;
+    }
+#endif
+#ifdef ZSTD_EXCLUDE_BTLAZY2_BLOCK_COMPRESSOR
+    if (cPar.strategy == ZSTD_btlazy2) {
+        cPar.strategy = ZSTD_lazy2;
+    }
+#endif
+#ifdef ZSTD_EXCLUDE_LAZY2_BLOCK_COMPRESSOR
+    if (cPar.strategy == ZSTD_lazy2) {
+        cPar.strategy = ZSTD_lazy;
+    }
+#endif
+#ifdef ZSTD_EXCLUDE_LAZY_BLOCK_COMPRESSOR
+    if (cPar.strategy == ZSTD_lazy) {
+        cPar.strategy = ZSTD_greedy;
+    }
+#endif
+#ifdef ZSTD_EXCLUDE_GREEDY_BLOCK_COMPRESSOR
+    if (cPar.strategy == ZSTD_greedy) {
+        cPar.strategy = ZSTD_dfast;
+    }
+#endif
+#ifdef ZSTD_EXCLUDE_DFAST_BLOCK_COMPRESSOR
+    if (cPar.strategy == ZSTD_dfast) {
+        cPar.strategy = ZSTD_fast;
+        cPar.targetLength = 0;
+    }
+#endif
+
     switch (mode) {
     case ZSTD_cpm_unknown:
     case ZSTD_cpm_noAttachDict:

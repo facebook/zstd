@@ -1399,7 +1399,7 @@ size_t ZSTD_get_decompressed_size(const void *src, const size_t src_len) {
 /******* END OUTPUT SIZE COUNTING *********************************************/
 
 /******* DICTIONARY PARSING ***************************************************/
-dictionary_t* create_dictionary() {
+dictionary_t* create_dictionary(void) {
     dictionary_t* const dict = calloc(1, sizeof(dictionary_t));
     if (!dict) {
         BAD_ALLOC();

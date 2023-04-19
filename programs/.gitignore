@@ -9,6 +9,8 @@ zstd-small
 zstd-nolegacy
 zstd-dictBuilder
 zstd-dll
+zstd_arm64
+zstd_x64
 
 # Object files
 *.o

@@ -197,6 +197,15 @@ uninstall:
 travis-install:
 	$(MAKE) install PREFIX=~/install_test_dir
 
+.PHONY: clangbuild-darwin-fat
+clangbuild-darwin-fat: clean
+	clang -v
+	CXX=clang++ CC=clang CFLAGS="-Werror -Wconversion -Wno-sign-conversion -Wdocumentation -arch arm64" $(MAKE) zstd-release
+	mv programs/zstd programs/zstd_arm64
+	CXX=clang++ CC=clang CFLAGS="-Werror -Wconversion -Wno-sign-conversion -Wdocumentation -arch x86_64" $(MAKE) zstd-release
+	mv programs/zstd programs/zstd_x64
+	lipo -create programs/zstd_x64 programs/zstd_arm64 -output programs/zstd
+
 .PHONY: gcc5build gcc6build gcc7build clangbuild m32build armbuild aarch64build ppcbuild ppc64build
 gcc5build: clean
 	gcc-5 -v

@@ -1469,12 +1469,10 @@ ZSTD_adjustCParams_internal(ZSTD_compressionParameters cPar,
 
     /* Cascade the selected strategy down to the next-highest one built into
      * this binary. */
-#ifdef ZSTD_EXCLUDE_BTULTRA2_BLOCK_COMPRESSOR
+#ifdef ZSTD_EXCLUDE_BTULTRA_BLOCK_COMPRESSOR
     if (cPar.strategy == ZSTD_btultra2) {
         cPar.strategy = ZSTD_btultra;
     }
-#endif
-#ifdef ZSTD_EXCLUDE_BTULTRA_BLOCK_COMPRESSOR
     if (cPar.strategy == ZSTD_btultra) {
         cPar.strategy = ZSTD_btopt;
     }
@@ -3068,12 +3066,9 @@ ZSTD_blockCompressor ZSTD_selectBlockCompressor(ZSTD_strategy strat, ZSTD_paramS
 #endif
 #ifdef ZSTD_EXCLUDE_BTULTRA_BLOCK_COMPRESSOR
           NULL,
-#else
-          ZSTD_compressBlock_btultra,
-#endif
-#ifdef ZSTD_EXCLUDE_BTULTRA2_BLOCK_COMPRESSOR
           NULL
 #else
+          ZSTD_compressBlock_btultra,
           ZSTD_compressBlock_btultra2
 #endif
         },
@@ -5006,8 +5001,7 @@ static size_t ZSTD_loadDictionaryContent(ZSTD_matchState_t* ms,
     case ZSTD_btultra2:
 #if !defined(ZSTD_EXCLUDE_BTLAZY2_BLOCK_COMPRESSOR) \
  || !defined(ZSTD_EXCLUDE_BTOPT_BLOCK_COMPRESSOR) \
- || !defined(ZSTD_EXCLUDE_BTULTRA_BLOCK_COMPRESSOR) \
- || !defined(ZSTD_EXCLUDE_BTULTRA2_BLOCK_COMPRESSOR)
+ || !defined(ZSTD_EXCLUDE_BTULTRA_BLOCK_COMPRESSOR)
         assert(srcSize >= HASH_READ_SIZE);
         ZSTD_updateTree(ms, iend-HASH_READ_SIZE, iend);
 #endif

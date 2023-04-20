@@ -2433,8 +2433,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
  && !defined(ZSTD_EXCLUDE_LAZY2_BLOCK_COMPRESSOR) \
  && !defined(ZSTD_EXCLUDE_BTLAZY2_BLOCK_COMPRESSOR) \
  && !defined(ZSTD_EXCLUDE_BTOPT_BLOCK_COMPRESSOR) \
- && !defined(ZSTD_EXCLUDE_BTULTRA_BLOCK_COMPRESSOR) \
- && !defined(ZSTD_EXCLUDE_BTULTRA2_BLOCK_COMPRESSOR)
+ && !defined(ZSTD_EXCLUDE_BTULTRA_BLOCK_COMPRESSOR)
         /* Note : these tests should be replaced by proper regression tests,
          *         but existing ones do not focus on small data + dictionary + all levels.
          */

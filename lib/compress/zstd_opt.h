@@ -28,14 +28,23 @@ void ZSTD_updateTree(ZSTD_matchState_t* ms, const BYTE* ip, const BYTE* iend);
 size_t ZSTD_compressBlock_btopt(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize);
+#define ZSTD_COMPRESSBLOCK_BTOPT ZSTD_compressBlock_btopt
+#else
+#define ZSTD_COMPRESSBLOCK_BTOPT NULL
 #endif
+
 #ifndef ZSTD_EXCLUDE_BTULTRA_BLOCK_COMPRESSOR
 size_t ZSTD_compressBlock_btultra(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize);
+#define ZSTD_COMPRESSBLOCK_BTULTRA ZSTD_compressBlock_btultra
 size_t ZSTD_compressBlock_btultra2(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize);
+#define ZSTD_COMPRESSBLOCK_BTULTRA2 ZSTD_compressBlock_btultra2
+#else
+#define ZSTD_COMPRESSBLOCK_BTULTRA NULL
+#define ZSTD_COMPRESSBLOCK_BTULTRA2 NULL
 #endif
 
 
@@ -43,22 +52,34 @@ size_t ZSTD_compressBlock_btultra2(
 size_t ZSTD_compressBlock_btopt_dictMatchState(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize);
+#define ZSTD_COMPRESSBLOCK_BTOPT_DICTMATCHSTATE ZSTD_compressBlock_btopt_dictMatchState
+#else
+#define ZSTD_COMPRESSBLOCK_BTOPT_DICTMATCHSTATE NULL
 #endif
 #ifndef ZSTD_EXCLUDE_BTULTRA_BLOCK_COMPRESSOR
 size_t ZSTD_compressBlock_btultra_dictMatchState(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize);
+#define ZSTD_COMPRESSBLOCK_BTULTRA_DICTMATCHSTATE ZSTD_compressBlock_btultra_dictMatchState
+#else
+#define ZSTD_COMPRESSBLOCK_BTULTRA_DICTMATCHSTATE NULL
 #endif
 
 #ifndef ZSTD_EXCLUDE_BTOPT_BLOCK_COMPRESSOR
 size_t ZSTD_compressBlock_btopt_extDict(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize);
+#define ZSTD_COMPRESSBLOCK_BTOPT_EXTDICT ZSTD_compressBlock_btopt_extDict
+#else
+#define ZSTD_COMPRESSBLOCK_BTOPT_EXTDICT NULL
 #endif
 #ifndef ZSTD_EXCLUDE_BTULTRA_BLOCK_COMPRESSOR
 size_t ZSTD_compressBlock_btultra_extDict(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize);
+#define ZSTD_COMPRESSBLOCK_BTULTRA_EXTDICT ZSTD_compressBlock_btultra_extDict
+#else
+#define ZSTD_COMPRESSBLOCK_BTULTRA_EXTDICT NULL
 #endif
 
         /* note : no btultra2 variant for extDict nor dictMatchState,

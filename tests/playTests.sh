@@ -1708,8 +1708,14 @@ zstd --patch-from=tmp_dict -r tmp_dir && die
 rm -rf tmp*
 
 println "\n===> patch-from long mode trigger larger file test"
-datagen -g5000000 > tmp_dict
-datagen -g5000000 > tmp_patch
+if [ "$ZSTD_LIB_EXCLUDE_COMPRESSORS_DFAST_AND_UP" -eq "1" ]; then
+    # if binary tree strategies are excluded, the threshold is different
+    datagen -g10000000 > tmp_dict
+    datagen -g10000000 > tmp_patch
+else
+    datagen -g5000000 > tmp_dict
+    datagen -g5000000 > tmp_patch
+fi
 zstd -15 --patch-from=tmp_dict tmp_patch 2>&1 | grep "long mode automatically triggered"
 rm -rf tmp*
 

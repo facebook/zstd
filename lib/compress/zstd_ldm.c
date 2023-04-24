@@ -676,8 +676,6 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
     /* Input positions */
     BYTE const* ip = istart;
 
-    RETURN_ERROR_IF(blockCompressor == NULL, parameter_combination_unsupported, "Got NULL block compressor!");
-
     DEBUGLOG(5, "ZSTD_ldm_blockCompress: srcSize=%zu", srcSize);
     /* If using opt parser, use LDMs only as candidates rather than always accepting them */
     if (cParams->strategy >= ZSTD_btopt) {

@@ -3344,7 +3344,6 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
                         "External sequence producer returned error code %lu. Falling back to internal parser.",
                         (unsigned long)nbExternalSeqs
                     );
-                    RETURN_ERROR_IF(blockCompressor == NULL, parameter_combination_unsupported, "Got NULL block compressor!");
                     lastLLSize = blockCompressor(ms, &zc->seqStore, zc->blockState.nextCBlock->rep, src, srcSize);
             }   }
         } else {   /* not long range mode and no external matchfinder */
@@ -3353,7 +3352,6 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
                     zc->appliedParams.useRowMatchFinder,
                     dictMode);
             ms->ldmSeqStore = NULL;
-            RETURN_ERROR_IF(blockCompressor == NULL, parameter_combination_unsupported, "Got NULL block compressor!");
             lastLLSize = blockCompressor(ms, &zc->seqStore, zc->blockState.nextCBlock->rep, src, srcSize);
         }
         {   const BYTE* const lastLiterals = (const BYTE*)src + srcSize - lastLLSize;

@@ -123,7 +123,10 @@ The file structure is designed to make this selection manually achievable for an
   strategies. In environments where the higher compression levels aren't used,
   it is possible to exclude all but the fastest strategy with
   `ZSTD_LIB_EXCLUDE_COMPRESSORS_DFAST_AND_UP=1`. (Note that this will change
-  the behavior of the default compression level.)
+  the behavior of the default compression level.) Or if you want to retain the
+  default compressor as well, you can set
+  `ZSTD_LIB_EXCLUDE_COMPRESSORS_GREEDY_AND_UP=1`, at the cost of an additional
+  ~20KB or so.
 
   For squeezing the last ounce of size out, you can also define
   `ZSTD_NO_INLINE`, which disables inlining, and `ZSTD_STRIP_ERROR_STRINGS`,

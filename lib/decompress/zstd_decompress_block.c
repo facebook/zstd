@@ -1287,8 +1287,10 @@ ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets)
                 U32 const ll0 = (llDInfo->baseValue == 0);
                 if (LIKELY((ofBits == 0))) {
                     offset = seqState->prevOffset[ll0];
-                    seqState->prevOffset[1] = seqState->prevOffset[!ll0];
-                    seqState->prevOffset[0] = offset;
+                    if(ll0) {
+                        seqState->prevOffset[1] = seqState->prevOffset[0];
+                        seqState->prevOffset[0] = offset;
+                    }
                 } else {
                     offset = ofBase + ll0 + BIT_readBitsFast(&seqState->DStream, 1);
                     {   size_t temp = (offset==3) ? seqState->prevOffset[0] - 1 : seqState->prevOffset[offset];

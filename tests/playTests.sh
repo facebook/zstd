@@ -1602,22 +1602,24 @@ roundTripTest -g1M -P50 "1 --single-thread --long=29" " --long=28 --memory=512MB
 roundTripTest -g1M -P50 "1 --single-thread --long=29" " --zstd=wlog=28 --memory=512MB"
 
 
-println "\n===>  zstd long distance matching with optimal parser compressed size tests "
-optCSize16=$(datagen -g511K | zstd -16 -c | wc -c)
-longCSize16=$(datagen -g511K | zstd -16 --long -c | wc -c)
-optCSize19=$(datagen -g2M | zstd -19 -c | wc -c)
-longCSize19=$(datagen -g2M | zstd -19 --long -c | wc -c)
-optCSize19wlog23=$(datagen -g2M | zstd -19 -c  --zstd=wlog=23 | wc -c)
-longCSize19wlog23=$(datagen -g2M | zstd -19 -c --long=23 | wc -c)
-if [ "$longCSize16" -gt "$optCSize16" ]; then
-    echo using --long on compression level 16 should not cause compressed size regression
-    exit 1
-elif [ "$longCSize19" -gt "$optCSize19" ]; then
-    echo using --long on compression level 19 should not cause compressed size regression
-    exit 1
-elif [ "$longCSize19wlog23" -gt "$optCSize19wlog23" ]; then
-    echo using --long on compression level 19 with wLog=23 should not cause compressed size regression
-    exit 1
+if [ "$ZSTD_LIB_EXCLUDE_COMPRESSORS_DFAST_AND_UP" -ne "1" ]; then
+    println "\n===>  zstd long distance matching with optimal parser compressed size tests "
+    optCSize16=$(datagen -g511K | zstd -16 -c | wc -c)
+    longCSize16=$(datagen -g511K | zstd -16 --long -c | wc -c)
+    optCSize19=$(datagen -g2M | zstd -19 -c | wc -c)
+    longCSize19=$(datagen -g2M | zstd -19 --long -c | wc -c)
+    optCSize19wlog23=$(datagen -g2M | zstd -19 -c  --zstd=wlog=23 | wc -c)
+    longCSize19wlog23=$(datagen -g2M | zstd -19 -c --long=23 | wc -c)
+    if [ "$longCSize16" -gt "$optCSize16" ]; then
+        echo using --long on compression level 16 should not cause compressed size regression
+        exit 1
+    elif [ "$longCSize19" -gt "$optCSize19" ]; then
+        echo using --long on compression level 19 should not cause compressed size regression
+        exit 1
+    elif [ "$longCSize19wlog23" -gt "$optCSize19wlog23" ]; then
+        echo using --long on compression level 19 with wLog=23 should not cause compressed size regression
+        exit 1
+    fi
 fi
 
 println "\n===>  zstd asyncio tests "
@@ -1708,8 +1710,14 @@ zstd --patch-from=tmp_dict -r tmp_dir && die
 rm -rf tmp*
 
 println "\n===> patch-from long mode trigger larger file test"
-datagen -g5000000 > tmp_dict
-datagen -g5000000 > tmp_patch
+if [ "$ZSTD_LIB_EXCLUDE_COMPRESSORS_DFAST_AND_UP" -eq "1" ]; then
+    # if binary tree strategies are excluded, the threshold is different
+    datagen -g10000000 > tmp_dict
+    datagen -g10000000 > tmp_patch
+else
+    datagen -g5000000 > tmp_dict
+    datagen -g5000000 > tmp_patch
+fi
 zstd -15 --patch-from=tmp_dict tmp_patch 2>&1 | grep "long mode automatically triggered"
 rm -rf tmp*
 

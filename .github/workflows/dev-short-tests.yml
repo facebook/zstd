@@ -348,6 +348,8 @@ jobs:
         make clean && make check MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X2 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG"
         make clean && make -j all MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
         make clean && make check MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
+        make clean && make check ZSTD_LIB_EXCLUDE_COMPRESSORS_DFAST_AND_UP=1 MOREFLAGS="-Werror"
+        make clean && make check ZSTD_LIB_EXCLUDE_COMPRESSORS_GREEDY_AND_UP=1 MOREFLAGS="-Werror"
 
   dynamic-bmi2:
     runs-on: ubuntu-latest

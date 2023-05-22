@@ -11,6 +11,8 @@
 #include "zstd_compress_internal.h"
 #include "zstd_double_fast.h"
 
+#ifndef ZSTD_EXCLUDE_DFAST_BLOCK_COMPRESSOR
+
 static void ZSTD_fillDoubleHashTableForCDict(ZSTD_matchState_t* ms,
                               void const* end, ZSTD_dictTableLoadMethod_e dtlm)
 {
@@ -756,3 +758,5 @@ size_t ZSTD_compressBlock_doubleFast_extDict(
         return ZSTD_compressBlock_doubleFast_extDict_7(ms, seqStore, rep, src, srcSize);
     }
 }
+
+#endif /* ZSTD_EXCLUDE_DFAST_BLOCK_COMPRESSOR */

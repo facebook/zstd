@@ -164,10 +164,19 @@ MEM_STATIC size_t BIT_initCStream(BIT_CStream_t* bitC,
 
 MEM_STATIC FORCE_INLINE_ATTR size_t BIT_getLowerBits(size_t bitContainer, U32 const nbBits)
 {
-#if defined(STATIC_BMI2) && STATIC_BMI2 == 1 && !defined(ZSTD_NO_INTRINSICS)
-    return  _bzhi_u64(bitContainer, nbBits);
-#else
     assert(nbBits < BIT_MASK_SIZE);
+#if STATIC_BMI2 == 1
+#   if (defined(_MSC_VER) && defined(_M_X64)) || \
+       (defined(__GNUC__) && defined(__x86_64__))
+        return _bzhi_u64(bitContainer, nbBits);
+#   elif (defined(_MSC_VER) && defined(_M_IX86)) || \
+         (defined(__GNUC__) && defined(__i386__))
+        return _bzhi_u32(bitContainer, nbBits);
+#   endif
+#elif (defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))) || \
+      (defined(__GNUC__) && (defined(__x86_64__) || defined(__i386__)))
+    return bitContainer & ((((size_t)1) << nbBits) - 1);
+#else
     return bitContainer & BIT_mask[nbBits];
 #endif
 }
@@ -312,8 +321,17 @@ MEM_STATIC FORCE_INLINE_ATTR size_t BIT_getMiddleBits(size_t bitContainer, U32 c
      * such cpus old (pre-Haswell, 2013) and their performance is not of that
      * importance.
      */
-#if defined(__x86_64__) || defined(_M_X86)
-    return (bitContainer >> (start & regMask)) & ((((U64)1) << nbBits) - 1);
+#if STATIC_BMI2 == 1
+#   if (defined(_MSC_VER) && defined(_M_X64)) || \
+       (defined(__GNUC__) && defined(__x86_64__))
+        return _bzhi_u64(bitContainer >> (start & regMask), nbBits);
+#   elif (defined(_MSC_VER) && defined(_M_IX86)) || \
+         (defined(__GNUC__) && defined(__i386__))
+        return _bzhi_u32(bitContainer >> (start & regMask), nbBits);
+#   endif
+#elif (defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))) || \
+      (defined(__GNUC__) && (defined(__x86_64__) || defined(__i386__)))
+    return (bitContainer >> (start & regMask)) & ((((size_t)1) << nbBits) - 1);
 #else
     return (bitContainer >> (start & regMask)) & BIT_mask[nbBits];
 #endif

@@ -112,7 +112,7 @@
 #  define PREFETCH_L1(ptr)  (void)(ptr)  /* disabled */
 #  define PREFETCH_L2(ptr)  (void)(ptr)  /* disabled */
 #else
-#  if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_I86))  /* _mm_prefetch() is not defined outside of x86/x64 */
+#  if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))  /* _mm_prefetch() is not defined outside of x86/x64 */
 #    include <mmintrin.h>   /* https://msdn.microsoft.com/fr-fr/library/84szxsww(v=vs.90).aspx */
 #    define PREFETCH_L1(ptr)  _mm_prefetch((const char*)(ptr), _MM_HINT_T0)
 #    define PREFETCH_L2(ptr)  _mm_prefetch((const char*)(ptr), _MM_HINT_T1)
@@ -181,19 +181,23 @@
 #  pragma warning(disable : 4324)        /* disable: C4324: padded structure */
 #endif
 
-/*Like DYNAMIC_BMI2 but for compile time determination of BMI2 support*/
+/* Like DYNAMIC_BMI2 but for compile time determination of BMI2 support.
+   MSVC does not have a BMI2 specific flag, but every CPU that supports AVX2
+   also supports BMI2. */
 #ifndef STATIC_BMI2
-#  if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_I86))
-#    ifdef __AVX2__  //MSVC does not have a BMI2 specific flag, but every CPU that supports AVX2 also supports BMI2
-#       define STATIC_BMI2 1
+#  if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
+#    ifdef __AVX2__
+#      define STATIC_BMI2 1
 #    endif
-#  elif defined(__BMI2__) && defined(__x86_64__) && defined(__GNUC__)
-#    define STATIC_BMI2 1
+#  elif defined(__GNUC__) && (defined(__x86_64__) || defined(__i386__))
+#    ifdef __BMI2__
+#      define STATIC_BMI2 1
+#    endif
 #  endif
 #endif
 
-#ifndef STATIC_BMI2
-    #define STATIC_BMI2 0
+#if !defined(STATIC_BMI2) || defined(ZSTD_NO_INTRINSICS)
+#  define STATIC_BMI2 0
 #endif
 
 /* compile time determination of SIMD support */

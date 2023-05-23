@@ -18,9 +18,9 @@ import subprocess
 import urllib.request
 
 
-GITHUB_API_PR_URL = "https://api.github.com/repos/facebook/zstd/pulls?state=open"
+GITHUB_API_PR_URL = "https://api.github.com/repos/Magie0/zstd/pulls?state=open"
 GITHUB_URL_TEMPLATE = "https://github.com/{}/zstd"
-RELEASE_BUILD = {"user": "facebook", "branch": "dev", "hash": None}
+RELEASE_BUILD = {"user": "Magie0", "branch": "dev", "hash": None}
 
 # check to see if there are any new PRs every minute
 DEFAULT_MAX_API_CALL_FREQUENCY_SEC = 60

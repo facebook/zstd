@@ -5951,7 +5951,7 @@ static size_t ZSTD_compressStream_generic(ZSTD_CStream* zcs,
     if (zcs->appliedParams.inBufferMode == ZSTD_bm_stable) {
         assert(input->pos >= zcs->stableIn_notConsumed);
         input->pos -= zcs->stableIn_notConsumed;
-        ip -= zcs->stableIn_notConsumed;
+        if (ip) ip -= zcs->stableIn_notConsumed;
         zcs->stableIn_notConsumed = 0;
     }
     if (zcs->appliedParams.inBufferMode == ZSTD_bm_buffered) {

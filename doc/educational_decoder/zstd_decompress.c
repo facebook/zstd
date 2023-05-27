@@ -997,7 +997,8 @@ static void decompress_sequences(frame_context_t *const ctx,
                                  const size_t num_sequences);
 static sequence_command_t decode_sequence(sequence_states_t *const state,
                                           const u8 *const src,
-                                          i64 *const offset);
+                                          i64 *const offset,
+                                          int lastSequence);
 static void decode_seq_table(FSE_dtable *const table, istream_t *const in,
                                const seq_part_t type, const seq_mode_t mode);
 
@@ -1114,7 +1115,7 @@ static void decompress_sequences(frame_context_t *const ctx, istream_t *in,
 
     for (size_t i = 0; i < num_sequences; i++) {
         // Decode sequences one by one
-        sequences[i] = decode_sequence(&states, src, &bit_offset);
+        sequences[i] = decode_sequence(&states, src, &bit_offset, i==num_sequences-1);
     }
 
     if (bit_offset != 0) {
@@ -1125,7 +1126,8 @@ static void decompress_sequences(frame_context_t *const ctx, istream_t *in,
 // Decode a single sequence and update the state
 static sequence_command_t decode_sequence(sequence_states_t *const states,
                                           const u8 *const src,
-                                          i64 *const offset) {
+                                          i64 *const offset,
+                                          int lastSequence) {
     // "Each symbol is a code in its own context, which specifies Baseline and
     // Number_of_Bits to add. Codes are FSE compressed, and interleaved with raw
     // additional bits in the same bitstream."
@@ -1160,7 +1162,7 @@ static sequence_command_t decode_sequence(sequence_states_t *const states,
     // Literals_Length_State is updated, followed by Match_Length_State, and
     // then Offset_State."
     // If the stream is complete don't read bits to update state
-    if (*offset != 0) {
+    if (!lastSequence) {
         FSE_update_state(&states->ll_table, &states->ll_state, src, offset);
         FSE_update_state(&states->ml_table, &states->ml_state, src, offset);
         FSE_update_state(&states->of_table, &states->of_state, src, offset);

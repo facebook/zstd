@@ -706,11 +706,6 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
 
     /* SeqHead */
     nbSeq = *ip++;
-    if (!nbSeq) {
-        *nbSeqPtr=0;
-        RETURN_ERROR_IF(srcSize != 1, srcSize_wrong, "");
-        return 1;
-    }
     if (nbSeq > 0x7F) {
         if (nbSeq == 0xFF) {
             RETURN_ERROR_IF(ip+2 > iend, srcSize_wrong, "");
@@ -722,6 +717,11 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
         }
     }
     *nbSeqPtr = nbSeq;
+
+    if (nbSeq == 0) {
+        /* No sequence : section ends immediately */
+        return (size_t)(ip - istart);
+    }
 
     /* FSE table descriptors */
     RETURN_ERROR_IF(ip+1 > iend, srcSize_wrong, ""); /* minimum possible size: 1 byte for symbol encoding types */

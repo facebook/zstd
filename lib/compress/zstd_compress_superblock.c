@@ -180,7 +180,7 @@ ZSTD_compressSubBlock_sequences(const ZSTD_fseCTables_t* fseTables,
     /* Sequences Header */
     RETURN_ERROR_IF((oend-op) < 3 /*max nbSeq Size*/ + 1 /*seqHead*/,
                     dstSize_tooSmall, "");
-    if (nbSeq < 0x7F)
+    if (nbSeq < 128)
         *op++ = (BYTE)nbSeq;
     else if (nbSeq < LONGNBSEQ)
         op[0] = (BYTE)((nbSeq>>8) + 0x80), op[1] = (BYTE)nbSeq, op+=2;

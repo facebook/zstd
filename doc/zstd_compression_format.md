@@ -655,8 +655,9 @@ Let's call its first byte `byte0`.
             Decompressed content is defined entirely as Literals Section content.
             The FSE tables used in `Repeat_Mode` aren't updated.
 - `if (byte0 < 128)` : `Number_of_Sequences = byte0` . Uses 1 byte.
-- `if (byte0 < 255)` : `Number_of_Sequences = ((byte0-128) << 8) + byte1` . Uses 2 bytes.
-- `if (byte0 == 255)`: `Number_of_Sequences = byte1 + (byte2<<8) + 0x7F00` . Uses 3 bytes.
+- `if (byte0 < 255)` : `Number_of_Sequences = ((byte0 - 0x80) << 8) + byte1`. Uses 2 bytes.
+            Note that the 2 bytes format fully overlaps the 1 byte format.
+- `if (byte0 == 255)`: `Number_of_Sequences = byte1 + (byte2<<8) + 0x7F00`. Uses 3 bytes.
 
 __Symbol compression modes__
 

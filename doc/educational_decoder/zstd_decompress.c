@@ -1018,12 +1018,7 @@ static size_t decode_sequences(frame_context_t *const ctx, istream_t *in,
     // This is a variable size field using between 1 and 3 bytes. Let's call its
     // first byte byte0."
     u8 header = IO_read_bits(in, 8);
-    if (header == 0) {
-        // "There are no sequences. The sequence section stops there.
-        // Regenerated content is defined entirely by literals section."
-        *sequences = NULL;
-        return 0;
-    } else if (header < 128) {
+    if (header < 128) {
         // "Number_of_Sequences = byte0 . Uses 1 byte."
         num_sequences = header;
     } else if (header < 255) {
@@ -1032,6 +1027,12 @@ static size_t decode_sequences(frame_context_t *const ctx, istream_t *in,
     } else {
         // "Number_of_Sequences = byte1 + (byte2<<8) + 0x7F00 . Uses 3 bytes."
         num_sequences = IO_read_bits(in, 16) + 0x7F00;
+    }
+
+    if (num_sequences == 0) {
+        // "There are no sequences. The sequence section stops there."
+        *sequences = NULL;
+        return 0;
     }
 
     *sequences = malloc(num_sequences * sizeof(sequence_command_t));

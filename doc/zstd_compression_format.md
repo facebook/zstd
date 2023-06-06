@@ -16,7 +16,7 @@ Distribution of this document is unlimited.
 
 ### Version
 
-0.3.9 (2023-03-08)
+0.4.0 (2023-06-05)
 
 
 Introduction
@@ -650,14 +650,15 @@ __`Number_of_Sequences`__
 
 This is a variable size field using between 1 and 3 bytes.
 Let's call its first byte `byte0`.
-- `if (byte0 == 0)` : there are no sequences.
-            The sequence section stops there.
-            Decompressed content is defined entirely as Literals Section content.
-            The FSE tables used in `Repeat_Mode` aren't updated.
 - `if (byte0 < 128)` : `Number_of_Sequences = byte0` . Uses 1 byte.
 - `if (byte0 < 255)` : `Number_of_Sequences = ((byte0 - 0x80) << 8) + byte1`. Uses 2 bytes.
             Note that the 2 bytes format fully overlaps the 1 byte format.
 - `if (byte0 == 255)`: `Number_of_Sequences = byte1 + (byte2<<8) + 0x7F00`. Uses 3 bytes.
+
+`if (Number_of_Sequences == 0)` : there are no sequences.
+            The sequence section stops immediately,
+            FSE tables used in `Repeat_Mode` aren't updated.
+            Block's decompressed content is defined solely by the Literals Section content.
 
 __Symbol compression modes__
 
@@ -1698,6 +1699,7 @@ or at least provide a meaningful error code explaining for which reason it canno
 
 Version changes
 ---------------
+- 0.4.0 : fixed imprecise behavior for nbSeq==0, detected by Igor Pavlov
 - 0.3.9 : clarifications for Huffman-compressed literal sizes.
 - 0.3.8 : clarifications for Huffman Blocks and Huffman Tree descriptions.
 - 0.3.7 : clarifications for Repeat_Offsets, matching RFC8878

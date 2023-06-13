@@ -444,6 +444,11 @@ $DIFF -s tmp1 tmp
 touch tmp_empty
 zstd -d -o tmp2 "$TESTDIR/golden-decompression/empty-block.zst"
 $DIFF -s tmp2 tmp_empty
+
+zstd -t "$TESTDIR/golden-decompression/zeroSeq_2B.zst"
+
+zstd -t "$TESTDIR/golden-decompression-errors/zeroSeq_extraneous.zst" && die "invalid Sequences section should have been detected"
+
 rm -f tmp*
 
 println "\n===>  compress multiple files"

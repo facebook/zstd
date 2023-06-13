@@ -720,6 +720,8 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
 
     if (nbSeq == 0) {
         /* No sequence : section ends immediately */
+        RETURN_ERROR_IF(ip != iend, corruption_detected,
+            "extraneous data present in the Sequences section");
         return (size_t)(ip - istart);
     }
 

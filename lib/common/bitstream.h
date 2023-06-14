@@ -375,21 +375,32 @@ MEM_STATIC size_t BIT_readBitsFast(BIT_DStream_t* bitD, unsigned nbBits)
     return value;
 }
 
-/*! BIT_reloadDStreamFast() :
+/*! BIT_reloadDStream_internal() :
  *  Simple variant of BIT_reloadDStream(), with two conditions:
- *  1. bitsConsumed <= sizeof(bitD->bitContainer)*8
- *  2. bitD->ptr >= bitD->limitPtr
- *  These conditions guarantee that bitstream is in a valid state,
- *  and shifting the position of the look window is safe.
+ *  1. bitstream is valid : bitsConsumed <= sizeof(bitD->bitContainer)*8
+ *  2. look window is valid after shifted down : bitD->ptr >= bitD->start
  */
-MEM_STATIC BIT_DStream_status BIT_reloadDStreamFast(BIT_DStream_t* bitD)
+MEM_STATIC BIT_DStream_status BIT_reloadDStream_internal(BIT_DStream_t* bitD)
 {
     assert(bitD->bitsConsumed <= sizeof(bitD->bitContainer)*8);
-    assert(bitD->ptr >= bitD->limitPtr);
     bitD->ptr -= bitD->bitsConsumed >> 3;
+    assert(bitD->ptr >= bitD->start);
     bitD->bitsConsumed &= 7;
     bitD->bitContainer = MEM_readLEST(bitD->ptr);
     return BIT_DStream_unfinished;
+}
+
+/*! BIT_reloadDStreamFast() :
+ *  Similar to BIT_reloadDStream(), but with two differences:
+ *  1. bitsConsumed <= sizeof(bitD->bitContainer)*8 must hold!
+ *  2. Returns BIT_DStream_overflow when bitD->ptr < bitD->limitPtr, at this
+ *     point you must use BIT_reloadDStream() to reload.
+ */
+MEM_STATIC BIT_DStream_status BIT_reloadDStreamFast(BIT_DStream_t* bitD)
+{
+    if (UNLIKELY(bitD->ptr < bitD->limitPtr))
+        return BIT_DStream_overflow;
+    return BIT_reloadDStream_internal(bitD);
 }
 
 /*! BIT_reloadDStream() :
@@ -410,7 +421,7 @@ FORCE_INLINE_TEMPLATE BIT_DStream_status BIT_reloadDStream(BIT_DStream_t* bitD)
     assert(bitD->ptr >= bitD->start);
 
     if (bitD->ptr >= bitD->limitPtr) {
-        return BIT_reloadDStreamFast(bitD);
+        return BIT_reloadDStream_internal(bitD);
     }
     if (bitD->ptr == bitD->start) {
         /* reached end of bitStream => no update */

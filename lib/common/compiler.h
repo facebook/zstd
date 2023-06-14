@@ -81,6 +81,25 @@
 #  define UNUSED_ATTR
 #endif
 
+/* "soft" inline :
+ * The compiler is free to select if it's a good idea to inline or not.
+ * The main objective is to silence compiler warnings
+ * when a defined function in included but not used.
+ *
+ * Note : this macro is prefixed `MEM_` because it used to be provided by `mem.h` unit.
+ * Updating the prefix is probably preferable, but requires a fairly large codemod,
+ * since this name is used everywhere.
+ */
+#if defined(__GNUC__)
+#  define MEM_STATIC static __inline UNUSED_ATTR
+#elif defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)
+#  define MEM_STATIC static inline
+#elif defined(_MSC_VER)
+#  define MEM_STATIC static __inline
+#else
+#  define MEM_STATIC static  /* this version may generate warnings for unused static functions; disable the relevant warning */
+#endif
+
 /* force no inlining */
 #ifdef _MSC_VER
 #  define FORCE_NOINLINE static __declspec(noinline)

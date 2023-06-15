@@ -90,6 +90,7 @@
  * Updating the prefix is probably preferable, but requires a fairly large codemod,
  * since this name is used everywhere.
  */
+#ifndef MEM_STATIC  /* already defined in Linux Kernel mem.h */
 #if defined(__GNUC__)
 #  define MEM_STATIC static __inline UNUSED_ATTR
 #elif defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)
@@ -98,6 +99,7 @@
 #  define MEM_STATIC static __inline
 #else
 #  define MEM_STATIC static  /* this version may generate warnings for unused static functions; disable the relevant warning */
+#endif
 #endif
 
 /* force no inlining */

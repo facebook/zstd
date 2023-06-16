@@ -1532,7 +1532,7 @@ ZSTD_decompressSequences_bodySplitLitBuffer( ZSTD_DCtx* dctx,
     const BYTE* const dictEnd = (const BYTE*) (dctx->dictEnd);
     DEBUGLOG(5, "ZSTD_decompressSequences_bodySplitLitBuffer (%i seqs)", nbSeq);
 
-    /* Regen sequences */
+    /* Literals are split between internal buffer & output buffer */
     if (nbSeq) {
         seqState_t seqState;
         dctx->fseEntropy = 1;
@@ -1551,8 +1551,7 @@ ZSTD_decompressSequences_bodySplitLitBuffer( ZSTD_DCtx* dctx,
                 BIT_DStream_completed < BIT_DStream_overflow);
 
         /* decompress without overrunning litPtr begins */
-        {
-            seq_t sequence = ZSTD_decodeSequence(&seqState, isLongOffset, nbSeq==1);
+        {   seq_t sequence;
             /* Align the decompression loop to 32 + 16 bytes.
                 *
                 * zstd compiled with gcc-9 on an Intel i9-9900k shows 10% decompression
@@ -1614,20 +1613,19 @@ ZSTD_decompressSequences_bodySplitLitBuffer( ZSTD_DCtx* dctx,
 #endif
 
             /* Handle the initial state where litBuffer is currently split between dst and litExtraBuffer */
-            for (; litPtr + sequence.litLength <= dctx->litBufferEnd; ) {
-                size_t const oneSeqSize = ZSTD_execSequenceSplitLitBuffer(op, oend, litPtr + sequence.litLength - WILDCOPY_OVERLENGTH, sequence, &litPtr, litBufferEnd, prefixStart, vBase, dictEnd);
-#if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) && defined(FUZZING_ASSERT_VALID_SEQUENCE)
-                assert(!ZSTD_isError(oneSeqSize));
-                ZSTD_assertValidSequence(dctx, op, oend, sequence, prefixStart, vBase);
-#endif
-                if (UNLIKELY(ZSTD_isError(oneSeqSize)))
-                    return oneSeqSize;
-                DEBUGLOG(6, "regenerated sequence size : %u", (U32)oneSeqSize);
-                op += oneSeqSize;
-                if (UNLIKELY(!--nbSeq))
-                    break;
+            for ( ; nbSeq; nbSeq--) {
                 sequence = ZSTD_decodeSequence(&seqState, isLongOffset, nbSeq==1);
-            }
+                if (litPtr + sequence.litLength > dctx->litBufferEnd) break;
+                {   size_t const oneSeqSize = ZSTD_execSequenceSplitLitBuffer(op, oend, litPtr + sequence.litLength - WILDCOPY_OVERLENGTH, sequence, &litPtr, litBufferEnd, prefixStart, vBase, dictEnd);
+#if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) && defined(FUZZING_ASSERT_VALID_SEQUENCE)
+                    assert(!ZSTD_isError(oneSeqSize));
+                    ZSTD_assertValidSequence(dctx, op, oend, sequence, prefixStart, vBase);
+#endif
+                    if (UNLIKELY(ZSTD_isError(oneSeqSize)))
+                        return oneSeqSize;
+                    DEBUGLOG(6, "regenerated sequence size : %u", (U32)oneSeqSize);
+                    op += oneSeqSize;
+            }   }
             DEBUGLOG(6, "reached: (litPtr + sequence.litLength > dctx->litBufferEnd)");
 
             /* If there are more sequences, they will need to read literals from litExtraBuffer; copy over the remainder from dst and update litPtr and litEnd */
@@ -1657,8 +1655,8 @@ ZSTD_decompressSequences_bodySplitLitBuffer( ZSTD_DCtx* dctx,
             }
         }
 
-        if (nbSeq > 0) /* there is remaining lit from extra buffer */
-        {
+        if (nbSeq > 0) {
+            /* there is remaining lit from extra buffer */
 
 #if defined(__GNUC__) && defined(__x86_64__)
             __asm__(".p2align 6");
@@ -1701,8 +1699,8 @@ ZSTD_decompressSequences_bodySplitLitBuffer( ZSTD_DCtx* dctx,
     }
 
     /* last literal segment */
-    if (dctx->litBufferLocation == ZSTD_split)  /* split hasn't been reached yet, first get dst then copy litExtraBuffer */
-    {
+    if (dctx->litBufferLocation == ZSTD_split) {
+        /* split hasn't been reached yet, first get dst then copy litExtraBuffer */
         size_t const lastLLSize = litBufferEnd - litPtr;
         RETURN_ERROR_IF(lastLLSize > (size_t)(oend - op), dstSize_tooSmall, "");
         if (op != NULL) {
@@ -1713,13 +1711,13 @@ ZSTD_decompressSequences_bodySplitLitBuffer( ZSTD_DCtx* dctx,
         litBufferEnd = dctx->litExtraBuffer + ZSTD_LITBUFFEREXTRASIZE;
         dctx->litBufferLocation = ZSTD_not_in_dst;
     }
+    /* copy last literals from interal buffer */
     {   size_t const lastLLSize = litBufferEnd - litPtr;
         RETURN_ERROR_IF(lastLLSize > (size_t)(oend-op), dstSize_tooSmall, "");
         if (op != NULL) {
             ZSTD_memcpy(op, litPtr, lastLLSize);
             op += lastLLSize;
-        }
-    }
+    }   }
 
     return op-ostart;
 }

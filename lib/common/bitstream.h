@@ -411,7 +411,7 @@ MEM_STATIC BIT_DStream_status BIT_reloadDStreamFast(BIT_DStream_t* bitD)
 FORCE_INLINE_TEMPLATE BIT_DStream_status BIT_reloadDStream(BIT_DStream_t* bitD)
 {
     /* note : once in overflow mode, a bitstream remains in this mode until it's reset */
-    if (bitD->bitsConsumed > (sizeof(bitD->bitContainer)*8)) {
+    if (UNLIKELY(bitD->bitsConsumed > (sizeof(bitD->bitContainer)*8))) {
         static const BitContainerType zeroFilled = 0;
         bitD->ptr = (const char*)&zeroFilled; /* aliasing is allowed for char */
         /* overflow detected, erroneous scenario or end of stream: no update */

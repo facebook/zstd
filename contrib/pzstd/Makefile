@@ -37,11 +37,8 @@ CFLAGS   += -Wno-deprecated-declarations
 PZSTD_INC  = -I$(ZSTDDIR) -I$(ZSTDDIR)/common -I$(PROGDIR) -I.
 GTEST_INC  = -isystem googletest/googletest/include
 
-# If default C++ version is older than C++11, explicitly set C++11, which is the
-# minimum required by the code.
-ifeq ($(shell echo "\043if __cplusplus < 201103L\n\043error\n\043endif" | $(CXX) -x c++ -Werror -c - -o /dev/null 2>/dev/null && echo 1 || echo 0),0)
-PZSTD_CXX_STD := -std=c++11
-endif
+# Set the minimum required by gtest
+PZSTD_CXX_STD := -std=c++14
 
 PZSTD_CPPFLAGS  = $(PZSTD_INC)
 PZSTD_CCXXFLAGS =

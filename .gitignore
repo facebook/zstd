@@ -42,6 +42,7 @@ build-*
 _codelite/
 _zstdbench/
 .clang_complete
+compile_flags.txt
 *.idea
 *.swp
 .DS_Store

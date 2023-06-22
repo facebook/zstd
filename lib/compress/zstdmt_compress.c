@@ -601,11 +601,8 @@ static void ZSTDMT_serialState_update(serialState_t* serialState,
     ZSTD_pthread_mutex_unlock(&serialState->mutex);
 
     if (seqStore.size > 0) {
-        size_t const err = ZSTD_referenceExternalSequences(
-            jobCCtx, seqStore.seq, seqStore.size);
+        ZSTD_referenceExternalSequences(jobCCtx, seqStore.seq, seqStore.size);
         assert(serialState->params.ldmParams.enableLdm == ZSTD_ps_enable);
-        assert(!ZSTD_isError(err));
-        (void)err;
     }
 }
 

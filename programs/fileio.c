@@ -2222,6 +2222,7 @@ static dRess_t FIO_createDResources(FIO_prefs_t* const prefs, const char* dictFi
     int forceNoUseMMap = prefs->mmapDict == ZSTD_ps_disable;
     stat_t statbuf;
     dRess_t ress;
+    memset(&statbuf, 0, sizeof(statbuf));
     memset(&ress, 0, sizeof(ress));
 
     FIO_getDictFileStat(dictFileName, &statbuf);

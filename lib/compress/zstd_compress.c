@@ -5192,8 +5192,9 @@ static size_t ZSTD_writeEpilogue(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity)
     if (cctx->stage != ZSTDcs_ending) {
         /* write one last empty block, make it the "last" block */
         U32 const cBlockHeader24 = 1 /* last block */ + (((U32)bt_raw)<<1) + 0;
-        RETURN_ERROR_IF(dstCapacity<4, dstSize_tooSmall, "no room for epilogue");
-        MEM_writeLE32(op, cBlockHeader24);
+        ZSTD_STATIC_ASSERT(ZSTD_BLOCKHEADERSIZE == 3);
+        RETURN_ERROR_IF(dstCapacity<3, dstSize_tooSmall, "no room for epilogue");
+        MEM_writeLE24(op, cBlockHeader24);
         op += ZSTD_blockHeaderSize;
         dstCapacity -= ZSTD_blockHeaderSize;
     }

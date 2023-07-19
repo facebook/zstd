@@ -171,8 +171,8 @@ who want earlier signal.
 | Cirrus CI | Used for testing on FreeBSD                                                                                | https://github.com/marketplace/cirrus-ci/                                                                                                              | `.cirrus.yml`          |
 | Circle CI | Historically was used to provide faster signal,<br/> but we may be able to migrate these to Github Actions | https://circleci.com/docs/2.0/getting-started/#setting-up-circleci <br> https://youtu.be/Js3hMUsSZ2c <br> https://circleci.com/docs/2.0/enable-checks/ | `.circleci/config.yml` |
 
-Note: the instructions linked above mostly cover how to set up a repository with CI from scratch. 
-The general idea should be the same for setting up CI on your fork of zstd, but you may have to 
+Note: the instructions linked above mostly cover how to set up a repository with CI from scratch.
+The general idea should be the same for setting up CI on your fork of zstd, but you may have to
 follow slightly different steps. In particular, please ignore any instructions related to setting up
 config files (since zstd already has configs for each of these services).
 
@@ -216,7 +216,7 @@ will typically not be stable enough to obtain reliable benchmark results. If you
 hands on a desktop, this is usually a better scenario.
 
 Of course, benchmarking can be done on non-hyper-stable machines as well. You will just have to
-do a little more work to ensure that you are in fact measuring the changes you've made not and
+do a little more work to ensure that you are in fact measuring the changes you've made and not
 noise. Here are some things you can do to make your benchmarks more stable:
 
 1. The most simple thing you can do to drastically improve the stability of your benchmark is

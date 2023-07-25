@@ -340,27 +340,27 @@ test-zstd-nolegacy: zstd-nolegacy
 
 test-zstd test-zstd32 test-zstd-nolegacy test-zstd-dll: datagen
 	file $(ZSTD)
-	EXE_PREFIX="$(QEMU_SYS)" ZSTD_BIN="$(ZSTD)" DATAGEN_BIN=./datagen ./playTests.sh $(ZSTDRTTEST)
+	EXE_PREFIX="$(QEMU_SYS)" EXE_OPTION="$(QEMU_OPTION)" ZSTD_BIN="$(ZSTD)" DATAGEN_BIN=./datagen ./playTests.sh $(ZSTDRTTEST)
 
 .PHONY: test-cli-tests
 test-cli-tests: ZSTD = $(PRGDIR)/zstd
 test-cli-tests: zstd datagen
 	file $(ZSTD)
-	./cli-tests/run.py --exec-prefix="$(QEMU_SYS)" --zstd="$(ZSTD)" --datagen=./datagen
+	./cli-tests/run.py --exec-prefix="$(QEMU_SYS) $(QEMU_OPTION)" --zstd="$(ZSTD)" --datagen=./datagen
 
 .PHONY: test-fullbench
 test-fullbench: fullbench datagen
-	$(QEMU_SYS) ./fullbench -i1
-	$(QEMU_SYS) ./fullbench -i1 -P0
+	$(QEMU_SYS) $(QEMU_OPTION) ./fullbench -i1
+	$(QEMU_SYS) $(QEMU_OPTION) ./fullbench -i1 -P0
 
 .PHONY: test-fullbench32
 test-fullbench32: fullbench32 datagen
-	$(QEMU_SYS) ./fullbench32 -i1
-	$(QEMU_SYS) ./fullbench32 -i1 -P0
+	$(QEMU_SYS) $(QEMU_OPTION) ./fullbench32 -i1
+	$(QEMU_SYS) $(QEMU_OPTION) ./fullbench32 -i1 -P0
 
 .PHONY: test-fuzzer
 test-fuzzer: fuzzer
-	$(QEMU_SYS) ./fuzzer -v $(FUZZERTEST) $(FUZZER_FLAGS)
+	$(QEMU_SYS) $(QEMU_OPTION) ./fuzzer -v $(FUZZERTEST) $(FUZZER_FLAGS)
 
 # Note : this test presumes `fuzzer` will be built
 .PHONY: test-fuzzer-stackmode
@@ -369,30 +369,30 @@ test-fuzzer-stackmode: test-fuzzer
 
 .PHONY: test-fuzzer32
 test-fuzzer32: fuzzer32
-	$(QEMU_SYS) ./fuzzer32 -v $(FUZZERTEST) $(FUZZER_FLAGS)
+	$(QEMU_SYS) $(QEMU_OPTION) ./fuzzer32 -v $(FUZZERTEST) $(FUZZER_FLAGS)
 
 .PHONY: test-zstream
 test-zstream: zstreamtest
-	$(QEMU_SYS) ./zstreamtest -v $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
-	$(QEMU_SYS) ./zstreamtest --newapi -t1 $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
+	$(QEMU_SYS) $(QEMU_OPTION) ./zstreamtest -v $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
+	$(QEMU_SYS) $(QEMU_OPTION) ./zstreamtest --newapi -t1 $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
 
 test-zstream32: zstreamtest32
-	$(QEMU_SYS) ./zstreamtest32 -v $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
+	$(QEMU_SYS) $(QEMU_OPTION) ./zstreamtest32 -v $(ZSTREAM_TESTTIME) $(FUZZER_FLAGS)
 
 test-longmatch: longmatch
-	$(QEMU_SYS) ./longmatch
+	$(QEMU_SYS) $(QEMU_OPTION) ./longmatch
 
 test-bigdict: bigdict
-	$(QEMU_SYS) ./bigdict
+	$(QEMU_SYS) $(QEMU_OPTION) ./bigdict
 
 test-invalidDictionaries: invalidDictionaries
-	$(QEMU_SYS) ./invalidDictionaries
+	$(QEMU_SYS) $(QEMU_OPTION) ./invalidDictionaries
 
 test-legacy: legacy
-	$(QEMU_SYS) ./legacy
+	$(QEMU_SYS) $(QEMU_OPTION) ./legacy
 
 test-decodecorpus: decodecorpus
-	$(QEMU_SYS) ./decodecorpus -t $(DECODECORPUS_TESTTIME)
+	$(QEMU_SYS) $(QEMU_OPTION) ./decodecorpus -t $(DECODECORPUS_TESTTIME)
 
 test-decodecorpus-cli: decodecorpus
 	@echo "\n ---- decodecorpus basic cli tests ----"

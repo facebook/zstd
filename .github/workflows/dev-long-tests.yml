@@ -227,6 +227,16 @@ jobs:
           make arminstall
           make armfuzz
 
+  riscv64fuzz:
+      runs-on: ubuntu-latest
+      steps:
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # tag=v3
+      - name: Qemu RISC-V emulation + Fuzz Test
+        run: |
+          sudo apt-get -qqq update
+          make riscv64install
+          make riscv64fuzz
+
   valgrind-fuzz-test:
     runs-on: ubuntu-latest
     steps:

@@ -35,6 +35,7 @@ jobs:
             make ppcbuild   V=1; make clean
             make armbuild   V=1; make clean
             make aarch64build V=1; make clean
+            make riscv64build V=1; make clean
             make -C tests test-legacy test-longmatch; make clean
             make -C lib libzstd-nomt; make clean
   # This step should only be run in a cron job
@@ -116,8 +117,9 @@ workflows:
   # Valgrind tests
     #- CFLAGS="-O1 -g" make -C zlibWrapper valgrindTest && make clean
     #- make -C tests valgrindTest && make clean
-  # ARM, AArch64, PowerPC, PowerPC64 tests
+  # ARM, AArch64, PowerPC, PowerPC64, RISCV64 tests
     #- make ppctest             && make clean
     #- make ppc64test           && make clean
     #- make armtest             && make clean
     #- make aarch64test         && make clean
+    #- make riscv64test         && make clean

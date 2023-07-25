@@ -206,7 +206,7 @@ clangbuild-darwin-fat: clean
 	mv programs/zstd programs/zstd_x64
 	lipo -create programs/zstd_x64 programs/zstd_arm64 -output programs/zstd
 
-.PHONY: gcc5build gcc6build gcc7build clangbuild m32build armbuild aarch64build ppcbuild ppc64build
+.PHONY: gcc5build gcc6build gcc7build clangbuild m32build armbuild aarch64build ppcbuild ppc64build riscv64build
 gcc5build: clean
 	gcc-5 -v
 	CC=gcc-5 $(MAKE) all MOREFLAGS="-Werror $(MOREFLAGS)"
@@ -239,7 +239,10 @@ ppcbuild: clean
 ppc64build: clean
 	CC=powerpc-linux-gnu-gcc CFLAGS="-m64 -Werror" $(MAKE) -j allzstd
 
-.PHONY: armfuzz aarch64fuzz ppcfuzz ppc64fuzz
+riscv64build: clean
+	CC=riscv64-unknown-linux-gnu-clang AR=llvm-ar CFLAGS="-march=rv64gcv -Werror" $(MAKE) -j allzstd
+
+.PHONY: armfuzz aarch64fuzz ppcfuzz ppc64fuzz riscv64fuzz
 armfuzz: clean
 	CC=arm-linux-gnueabi-gcc QEMU_SYS=qemu-arm-static MOREFLAGS="-static $(MOREFLAGS)" FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)" $(MAKE) -C $(TESTDIR) fuzztest
 
@@ -253,7 +256,10 @@ ppcfuzz: clean
 ppc64fuzz: clean
 	CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc64-static MOREFLAGS="-m64 -static $(MOREFLAGS)" FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)" $(MAKE) -C $(TESTDIR) fuzztest
 
-.PHONY: cxxtest gcc5test gcc6test armtest aarch64test ppctest ppc64test
+riscv64fuzz: clean
+	CC=riscv64-unknown-linux-gnu-clang AR=llvm-ar QEMU_SYS=qemu-riscv64 QEMU_OPTION="-cpu rv64,zba=true,zbb=true,zbc=true,zbs=true,v=true,vlen=512,elen=64,vext_spec=v1.0 -L /opt/riscv/sysroot" MOREFLAGS="-march=rv64gcv -static $(MOREFLAGS)" FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)" $(MAKE) -C $(TESTDIR) fuzztest
+
+.PHONY: cxxtest gcc5test gcc6test armtest aarch64test ppctest ppc64test riscv64test
 cxxtest: CXXFLAGS += -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror
 cxxtest: clean
 	$(MAKE) -C $(PRGDIR) all CC="$(CXX) -Wno-deprecated" CFLAGS="$(CXXFLAGS)"   # adding -Wno-deprecated to avoid clang++ warning on dealing with C files directly
@@ -281,6 +287,10 @@ ppctest: clean
 ppc64test: clean
 	$(MAKE) -C $(TESTDIR) datagen   # use native, faster
 	$(MAKE) -C $(TESTDIR) test CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc64-static ZSTDRTTEST= MOREFLAGS="-m64 -static $(MOREFLAGS)" FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)"
+
+riscv64test: clean
+	$(MAKE) -C $(TESTDIR) datagen   # use native, faster
+	$(MAKE) -C $(TESTDIR) test CC=riscv64-unknown-linux-gnu-clang AR=llvm-ar QEMU_SYS=qemu-riscv64 QEMU_OPTION="-cpu rv64,zba=true,zbb=true,zbc=true,zbs=true,v=true,vlen=512,elen=64,vext_spec=v1.0 -L /opt/riscv/sysroot" ZSTDRTTEST= MOREFLAGS="-march=rv64gcv -Werror -static $(MOREFLAGS)" FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)"
 
 .PHONY: arm-ppc-compilation
 arm-ppc-compilation:
@@ -354,12 +364,21 @@ apt-add-repo:
 	sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
 	sudo apt-get update -y -qq
 
-.PHONY: ppcinstall arminstall valgrindinstall libc6install gcc6install gcc7install gcc8install gpp6install clang38install lz4install
+.PHONY: ppcinstall arminstall riscv64install valgrindinstall libc6install gcc6install gcc7install gcc8install gpp6install clang38install lz4install
 ppcinstall:
 	APT_PACKAGES="qemu-system-ppc qemu-user-static gcc-powerpc-linux-gnu" $(MAKE) apt-install
 
 arminstall:
 	APT_PACKAGES="qemu-system-arm qemu-user-static gcc-arm-linux-gnueabi libc6-dev-armel-cross gcc-aarch64-linux-gnu libc6-dev-arm64-cross" $(MAKE) apt-install
+
+# TODO: Use apt to install prebuilt risc-v toolchain & qemu in the future
+riscv64install:
+	wget https://github.com/riscv-collab/riscv-gnu-toolchain/releases/download/2023.07.05/riscv64-glibc-ubuntu-20.04-llvm-nightly-2023.07.05-nightly.tar.gz
+	sudo tar -C /opt -zxvf riscv64-glibc-ubuntu-20.04-llvm-nightly-2023.07.05-nightly.tar.gz
+	rm riscv64-glibc-ubuntu-20.04-llvm-nightly-2023.07.05-nightly.tar.gz
+	sudo ln -s -f /opt/riscv/bin/clang-16 /usr/bin/riscv64-unknown-linux-gnu-clang
+	sudo ln -s -f /opt/riscv/bin/llvm-ar /usr/bin/llvm-ar
+	sudo ln -s -f /opt/riscv/bin/qemu-riscv64 /usr/bin/qemu-riscv64
 
 valgrindinstall:
 	APT_PACKAGES="valgrind" $(MAKE) apt-install

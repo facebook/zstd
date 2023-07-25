@@ -129,6 +129,16 @@ jobs:
         make arminstall
         make armbuild
 
+  riscv64build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # tag=v3
+    - name: RISC-V Build Test
+      run: |
+        sudo apt-get -qqq update
+        make riscv64install
+        make riscv64build
+
   bourne-shell:
     runs-on: ubuntu-latest
     steps:
@@ -432,6 +442,7 @@ jobs:
       if: ${{ matrix.name == 'M68K' }}
       run: |
         LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
+    # TODO: install risc-v toolchain via apt-get in the future
 
   mingw-short-test:
     runs-on: windows-latest

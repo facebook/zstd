@@ -19,7 +19,7 @@ zstd() {
     if [ -z "$EXE_PREFIX" ]; then
         "$ZSTD_BIN" "$@"
     else
-        "$EXE_PREFIX" "$ZSTD_BIN" "$@"
+        "$EXE_PREFIX" $EXE_OPTION "$ZSTD_BIN" "$@"
     fi
 }
 
@@ -27,7 +27,7 @@ sudoZstd() {
     if [ -z "$EXE_PREFIX" ]; then
         sudo "$ZSTD_BIN" "$@"
     else
-        sudo "$EXE_PREFIX" "$ZSTD_BIN" "$@"
+        sudo "$EXE_PREFIX" $EXE_OPTION "$ZSTD_BIN" "$@"
     fi
 }
 
@@ -175,7 +175,7 @@ fi
 # assertions
 [ -n "$ZSTD_BIN" ] || die "zstd not found at $ZSTD_BIN! \n Please define ZSTD_BIN pointing to the zstd binary. You might also consider rebuilding zstd following the instructions in README.md"
 [ -n "$DATAGEN_BIN" ] || die "datagen not found at $DATAGEN_BIN! \n Please define DATAGEN_BIN pointing to the datagen binary. You might also consider rebuilding zstd tests following the instructions in README.md. "
-println "\nStarting playTests.sh isWindows=$isWindows EXE_PREFIX='$EXE_PREFIX' ZSTD_BIN='$ZSTD_BIN' DATAGEN_BIN='$DATAGEN_BIN'"
+println "\nStarting playTests.sh isWindows=$isWindows EXE_PREFIX='$EXE_PREFIX' EXE_OPTION='$EXE_OPTION' ZSTD_BIN='$ZSTD_BIN' DATAGEN_BIN='$DATAGEN_BIN'"
 
 if echo hello | zstd -v -T2 2>&1 > $INTOVOID | grep -q 'multi-threading is disabled'
 then
@@ -857,18 +857,18 @@ zstd -dc helloworld.zst > result.tmp
 $DIFF helloworld.tmp result.tmp
 println "testing zstdcat symlink"
 ln -sf "$ZSTD_BIN" zstdcat
-$EXE_PREFIX ./zstdcat helloworld.zst > result.tmp
+$EXE_PREFIX $EXE_OPTION ./zstdcat helloworld.zst > result.tmp
 $DIFF helloworld.tmp result.tmp
 ln -s helloworld.zst helloworld.link.zst
-$EXE_PREFIX ./zstdcat helloworld.link.zst > result.tmp
+$EXE_PREFIX $EXE_OPTION ./zstdcat helloworld.link.zst > result.tmp
 $DIFF helloworld.tmp result.tmp
 rm -f zstdcat
 rm -f result.tmp
 println "testing zcat symlink"
 ln -sf "$ZSTD_BIN" zcat
-$EXE_PREFIX ./zcat helloworld.zst > result.tmp
+$EXE_PREFIX $EXE_OPTION ./zcat helloworld.zst > result.tmp
 $DIFF helloworld.tmp result.tmp
-$EXE_PREFIX ./zcat helloworld.link.zst > result.tmp
+$EXE_PREFIX $EXE_OPTION ./zcat helloworld.link.zst > result.tmp
 $DIFF helloworld.tmp result.tmp
 rm -f zcat
 rm -f ./*.tmp ./*.zstd

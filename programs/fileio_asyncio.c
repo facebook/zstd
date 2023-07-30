@@ -551,6 +551,7 @@ ReadPoolCtx_t* AIO_ReadPool_create(const FIO_prefs_t* prefs, size_t bufferSize) 
     AIO_IOPool_init(&ctx->base, prefs, AIO_ReadPool_executeReadJob, bufferSize);
 
     ctx->coalesceBuffer = (U8*) malloc(bufferSize * 2);
+    if(!ctx->coalesceBuffer) EXM_THROW(100, "Allocation error : not enough memory");
     ctx->srcBuffer = ctx->coalesceBuffer;
     ctx->srcBufferLoaded = 0;
     ctx->completedJobsCount = 0;

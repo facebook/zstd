@@ -16,18 +16,18 @@ datagen() {
 }
 
 zstd() {
-    if [ -z "$EXEC_PREFIX" ]; then
+    if [ -z "$EXE_PREFIX" ]; then
         "$ZSTD_BIN" "$@"
     else
-        "$EXEC_PREFIX" "$ZSTD_BIN" "$@"
+        "$EXE_PREFIX" "$ZSTD_BIN" "$@"
     fi
 }
 
 sudoZstd() {
-    if [ -z "$EXEC_PREFIX" ]; then
+    if [ -z "$EXE_PREFIX" ]; then
         sudo "$ZSTD_BIN" "$@"
     else
-        sudo "$EXEC_PREFIX" "$ZSTD_BIN" "$@"
+        sudo "$EXE_PREFIX" "$ZSTD_BIN" "$@"
     fi
 }
 

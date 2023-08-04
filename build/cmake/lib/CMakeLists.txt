@@ -33,9 +33,6 @@ if(NOT ZSTD_BUILD_SHARED AND NOT ZSTD_BUILD_STATIC)
     message(SEND_ERROR "You need to build at least one flavor of libzstd")
 endif()
 
-# Define library directory, where sources and header files are located
-include_directories(${LIBRARY_DIR} ${LIBRARY_DIR}/common)
-
 file(GLOB CommonSources ${LIBRARY_DIR}/common/*.c)
 file(GLOB CompressSources ${LIBRARY_DIR}/compress/*.c)
 file(GLOB DecompressSources ${LIBRARY_DIR}/decompress/*.c)
@@ -119,10 +116,14 @@ macro (add_definition target var)
     endif ()
 endmacro ()
 
+# Define include directories, where header files are located
+set(LIBRARY_INCLUDES "${LIBRARY_DIR} ${LIBRARY_DIR}/common")
+
 # Split project to static and shared libraries build
 set(library_targets)
 if (ZSTD_BUILD_SHARED)
     add_library(libzstd_shared SHARED ${Sources} ${Headers} ${PlatformDependResources})
+    target_include_directories(libzstd_shared PUBLIC $<BUILD_INTERFACE:${LIBRARY_INCLUDES}>)
     list(APPEND library_targets libzstd_shared)
     if (ZSTD_MULTITHREAD_SUPPORT)
         set_property(TARGET libzstd_shared APPEND PROPERTY COMPILE_DEFINITIONS "ZSTD_MULTITHREAD")
@@ -136,6 +137,7 @@ if (ZSTD_BUILD_SHARED)
 endif ()
 if (ZSTD_BUILD_STATIC)
     add_library(libzstd_static STATIC ${Sources} ${Headers})
+    target_include_directories(libzstd_static PUBLIC $<BUILD_INTERFACE:${LIBRARY_INCLUDES}>)
     list(APPEND library_targets libzstd_static)
     if (ZSTD_MULTITHREAD_SUPPORT)
         set_property(TARGET libzstd_static APPEND PROPERTY COMPILE_DEFINITIONS "ZSTD_MULTITHREAD")

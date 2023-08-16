@@ -636,6 +636,15 @@ MEM_STATIC void ZSTD_cwksp_clear(ZSTD_cwksp* ws) {
     ZSTD_cwksp_assert_internal_consistency(ws);
 }
 
+MEM_STATIC size_t ZSTD_cwksp_sizeof(const ZSTD_cwksp* ws) {
+    return (size_t)((BYTE*)ws->workspaceEnd - (BYTE*)ws->workspace);
+}
+
+MEM_STATIC size_t ZSTD_cwksp_used(const ZSTD_cwksp* ws) {
+    return (size_t)((BYTE*)ws->tableEnd - (BYTE*)ws->workspace)
+         + (size_t)((BYTE*)ws->workspaceEnd - (BYTE*)ws->allocStart);
+}
+
 /**
  * The provided workspace takes ownership of the buffer [start, start+size).
  * Any existing values in the workspace are ignored (the previously managed
@@ -667,6 +676,11 @@ MEM_STATIC size_t ZSTD_cwksp_create(ZSTD_cwksp* ws, size_t size, ZSTD_customMem 
 MEM_STATIC void ZSTD_cwksp_free(ZSTD_cwksp* ws, ZSTD_customMem customMem) {
     void *ptr = ws->workspace;
     DEBUGLOG(4, "cwksp: freeing workspace");
+#if ZSTD_MEMORY_SANITIZER && !defined(ZSTD_MSAN_DONT_POISON_WORKSPACE)
+    if (ptr != NULL && customMem.customFree != NULL) {
+        __msan_unpoison(ptr, ZSTD_cwksp_sizeof(ws));
+    }
+#endif
     ZSTD_memset(ws, 0, sizeof(ZSTD_cwksp));
     ZSTD_customFree(ptr, customMem);
 }
@@ -678,15 +692,6 @@ MEM_STATIC void ZSTD_cwksp_free(ZSTD_cwksp* ws, ZSTD_customMem customMem) {
 MEM_STATIC void ZSTD_cwksp_move(ZSTD_cwksp* dst, ZSTD_cwksp* src) {
     *dst = *src;
     ZSTD_memset(src, 0, sizeof(ZSTD_cwksp));
-}
-
-MEM_STATIC size_t ZSTD_cwksp_sizeof(const ZSTD_cwksp* ws) {
-    return (size_t)((BYTE*)ws->workspaceEnd - (BYTE*)ws->workspace);
-}
-
-MEM_STATIC size_t ZSTD_cwksp_used(const ZSTD_cwksp* ws) {
-    return (size_t)((BYTE*)ws->tableEnd - (BYTE*)ws->workspace)
-         + (size_t)((BYTE*)ws->workspaceEnd - (BYTE*)ws->allocStart);
 }
 
 MEM_STATIC int ZSTD_cwksp_reserve_failed(const ZSTD_cwksp* ws) {

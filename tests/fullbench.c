@@ -138,7 +138,14 @@ static size_t local_ZSTD_decompress(const void* src, size_t srcSize,
     return ZSTD_decompress(dst, dstSize, buff2, g_cSize);
 }
 
-static ZSTD_DCtx* g_zdc = NULL;
+static ZSTD_DCtx* g_zdc = NULL; /* will be initialized within benchMem */
+static size_t local_ZSTD_decompressDCtx(const void* src, size_t srcSize,
+                                    void* dst, size_t dstSize,
+                                    void* buff2)
+{
+    (void)src; (void)srcSize;
+    return ZSTD_decompressDCtx(g_zdc, dst, dstSize, buff2, g_cSize);
+}
 
 #ifndef ZSTD_DLL_IMPORT
 
@@ -452,6 +459,9 @@ static int benchMem(unsigned benchNb,
     case 3:
         benchFunction = local_ZSTD_compress_freshCCtx; benchName = "compress_freshCCtx";
         break;
+    case 4:
+        benchFunction = local_ZSTD_decompressDCtx; benchName = "decompressDCtx";
+        break;
 #ifndef ZSTD_DLL_IMPORT
     case 11:
         benchFunction = local_ZSTD_compressContinue; benchName = "compressContinue";
@@ -550,6 +560,9 @@ static int benchMem(unsigned benchNb,
         break;
     case 3:
         payload = &cparams;
+        break;
+    case 4:
+        g_cSize = ZSTD_compress(dstBuff2, dstBuffSize, src, srcSize, cLevel);
         break;
 #ifndef ZSTD_DLL_IMPORT
     case 11:

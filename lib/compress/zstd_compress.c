@@ -4904,11 +4904,10 @@ size_t ZSTD_loadCEntropy(ZSTD_compressedBlockState_t* bs, void* workspace,
 
         /* We only set the loaded table as valid if it contains all non-zero
          * weights. Otherwise, we set it to check */
-        if (!hasZeroWeights)
+        if (!hasZeroWeights && maxSymbolValue == 255)
             bs->entropy.huf.repeatMode = HUF_repeat_valid;
 
         RETURN_ERROR_IF(HUF_isError(hufHeaderSize), dictionary_corrupted, "");
-        RETURN_ERROR_IF(maxSymbolValue < 255, dictionary_corrupted, "");
         dictPtr += hufHeaderSize;
     }
 

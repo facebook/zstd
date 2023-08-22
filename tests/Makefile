@@ -263,7 +263,7 @@ clean:
 # valgrind tests validated only for some posix platforms
 #----------------------------------------------------------------------------------
 UNAME := $(shell uname)
-ifneq (,$(filter $(UNAME),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS AIX))
+ifneq (,$(filter $(UNAME),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS AIX CYGWIN_NT))
 HOST_OS = POSIX
 
 .PHONY: test-valgrind

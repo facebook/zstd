@@ -9,6 +9,7 @@
 # ################################################################
 
 # Ensure the file is not included twice
+# Note : must be included after setting the default target
 ifndef LIBZSTD_MK_INCLUDED
 LIBZSTD_MK_INCLUDED := 1
 
@@ -64,6 +65,7 @@ VOID ?= /dev/null
 NUM_SYMBOL := \#
 
 # define silent mode as default (verbose mode with V=1 or VERBOSE=1)
+# Note : must be defined _after_ the default target
 $(V)$(VERBOSE).SILENT:
 
 # When cross-compiling from linux to windows,

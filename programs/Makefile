@@ -15,8 +15,9 @@
 # zstd-decompress : decompressor-only version of zstd
 # ##########################################################################
 
-.PHONY: default
-default: zstd-release
+# default target (when runing `make` with no argument)
+.PHONY: zstd-release
+zstd-release:
 
 LIBZSTD := ../lib
 

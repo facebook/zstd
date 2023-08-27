@@ -8,6 +8,10 @@
 # You may select, at your option, one of the above-listed licenses.
 # ################################################################
 
+# Ensure the file is not included twice
+ifndef LIBZSTD_MK_INCLUDED
+LIBZSTD_MK_INCLUDED := 1
+
 ##################################################################
 # Input Variables
 ##################################################################
@@ -223,3 +227,5 @@ endif # BUILD_DIR
 ZSTD_SUBDIR := $(LIBZSTD)/common $(LIBZSTD)/compress $(LIBZSTD)/decompress $(LIBZSTD)/dictBuilder $(LIBZSTD)/legacy $(LIBZSTD)/deprecated
 vpath %.c $(ZSTD_SUBDIR)
 vpath %.S $(ZSTD_SUBDIR)
+
+endif # LIBZSTD_MK_INCLUDED

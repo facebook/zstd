@@ -16,12 +16,10 @@
 # ##########################################################################
 
 # default target (when runing `make` with no argument)
-.PHONY: zstd-release
 zstd-release:
 
-LIBZSTD := ../lib
-
-include $(LIBZSTD)/libzstd.mk
+LIBZSTD_MK_DIR = ../lib
+include $(LIBZSTD_MK_DIR)/libzstd.mk
 
 ifeq ($(shell $(CC) -v 2>&1 | $(GREP) -c "gcc version "), 1)
   ALIGN_LOOP = -falign-loops=32
@@ -224,7 +222,7 @@ zstd-noxz : zstd
 
 ## zstd-dll: zstd executable linked to dynamic library libzstd (must have same version)
 .PHONY: zstd-dll
-zstd-dll : LDFLAGS+= -L$(LIBZSTD)
+zstd-dll : LDFLAGS+= -L$(LIB_BINDIR)
 zstd-dll : LDLIBS += -lzstd
 zstd-dll : ZSTDLIB_LOCAL_SRC = xxhash.c pool.c threading.c
 zstd-dll : zstd

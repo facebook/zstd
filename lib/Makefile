@@ -202,15 +202,18 @@ lib : libzstd.a libzstd
 
 # Generate .h dependencies automatically
 
-DEPFLAGS = -MT $@ -MMD -MP -MF
+# -MMD: compiler generates dependency information as a side-effect of compilation, without system headers
+# -MP: adds phony target for each dependency other than main file.
+DEPFLAGS = -MMD -MP
 
-$(ZSTD_DYNLIB_DIR)/%.o : %.c $(ZSTD_DYNLIB_DIR)/%.d | $(ZSTD_DYNLIB_DIR)
+# ensure that ZSTD_DYNLIB_DIR exists prior to generating %.o
+$(ZSTD_DYNLIB_DIR)/%.o : %.c | $(ZSTD_DYNLIB_DIR)
 	@echo CC $@
-	$(COMPILE.c) $(DEPFLAGS) $(ZSTD_DYNLIB_DIR)/$*.d $(OUTPUT_OPTION) $<
+	$(COMPILE.c) $(DEPFLAGS) $(OUTPUT_OPTION) $<
 
-$(ZSTD_STATICLIB_DIR)/%.o : %.c $(ZSTD_STATICLIB_DIR)/%.d | $(ZSTD_STATICLIB_DIR)
+$(ZSTD_STATICLIB_DIR)/%.o : %.c | $(ZSTD_STATICLIB_DIR)
 	@echo CC $@
-	$(COMPILE.c) $(DEPFLAGS) $(ZSTD_STATICLIB_DIR)/$*.d $(OUTPUT_OPTION) $<
+	$(COMPILE.c) $(DEPFLAGS) $(OUTPUT_OPTION) $<
 
 $(ZSTD_DYNLIB_DIR)/%.o : %.S | $(ZSTD_DYNLIB_DIR)
 	@echo AS $@
@@ -220,24 +223,31 @@ $(ZSTD_STATICLIB_DIR)/%.o : %.S | $(ZSTD_STATICLIB_DIR)
 	@echo AS $@
 	$(COMPILE.S) $(OUTPUT_OPTION) $<
 
-MKDIR ?= mkdir
+MKDIR ?= mkdir -p
 $(BUILD_DIR) $(ZSTD_DYNLIB_DIR) $(ZSTD_STATICLIB_DIR):
-	$(MKDIR) -p $@
+	$(MKDIR) $@
 
 DEPFILES := $(ZSTD_DYNLIB_OBJ:.o=.d) $(ZSTD_STATICLIB_OBJ:.o=.d)
 $(DEPFILES):
 
-include $(wildcard $(DEPFILES))
+# The leading '-' means: do not fail is include fails (ex: directory does not exist yet)
+-include $(wildcard $(DEPFILES))
 
 
-# Special case : building library in single-thread mode _and_ without zstdmt_compress.c
-ZSTDMT_FILES = compress/zstdmt_compress.c
-ZSTD_NOMT_FILES = $(filter-out $(ZSTDMT_FILES),$(ZSTD_FILES))
+# Special case : build library in single-thread mode _and_ without zstdmt_compress.c
+# Note : we still need threading.c and pool.c for the dictionary builder,
+# but they will correctly behave single-threaded.
+ZSTDMT_FILES = zstdmt_compress.c
+ZSTD_NOMT_FILES = $(filter-out $(ZSTDMT_FILES),$(notdir $(ZSTD_FILES)))
 libzstd-nomt: CFLAGS += -fPIC -fvisibility=hidden
 libzstd-nomt: LDFLAGS += -shared
 libzstd-nomt: $(ZSTD_NOMT_FILES)
 	@echo compiling single-thread dynamic library $(LIBVER)
 	@echo files : $(ZSTD_NOMT_FILES)
+	@if echo "$(ZSTD_NOMT_FILES)" | tr ' ' '\n' | $(GREP) -q zstdmt; then \
+        echo "Error: Found zstdmt in list."; \
+        exit 1; \
+    fi
 	$(CC) $(FLAGS) $^ $(LDFLAGS) $(SONAME_FLAGS) -o $@
 
 .PHONY: clean

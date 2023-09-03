@@ -89,7 +89,7 @@ extern "C" {
  */
 #  elif !defined(_WIN32) \
      && ( defined(__unix__) || defined(__unix) \
-       || defined(__midipix__) || defined(__VMS) || defined(__HAIKU__) )
+       || defined(_QNX_SOURCE) || defined(__midipix__) || defined(__VMS) || defined(__HAIKU__) )
 
 #    if defined(__linux__) || defined(__linux) || defined(__CYGWIN__)
 #      ifndef _POSIX_C_SOURCE

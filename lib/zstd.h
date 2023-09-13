@@ -1642,19 +1642,23 @@ ZSTDLIB_API unsigned ZSTD_isSkippableFrame(const void* buffer, size_t size);
 /*! ZSTD_estimate*() :
  *  These functions make it possible to estimate memory usage
  *  of a future {D,C}Ctx, before its creation.
+ *  This is useful in combination with ZSTD_initStatic(),
+ *  which makes it possible to employ a static buffer for ZSTD_CCtx* state.
  *
  *  ZSTD_estimateCCtxSize() will provide a memory budget large enough
- *  for any compression level up to selected one.
- *  Note : Unlike ZSTD_estimateCStreamSize*(), this estimate
- *         does not include space for a window buffer.
- *         Therefore, the estimation is only guaranteed for single-shot compressions, not streaming.
+ *  to compress data of any size using one-shot compression ZSTD_compressCCtx() or ZSTD_compress2()
+ *  associated with any compression level up to max specified one.
  *  The estimate will assume the input may be arbitrarily large,
  *  which is the worst case.
  *
+ *  Note that the size estimation is specific for one-shot compression,
+ *  it is not valid for streaming (see ZSTD_estimateCStreamSize*())
+ *  nor other potential ways of using a ZSTD_CCtx* state.
+ *
  *  When srcSize can be bound by a known and rather "small" value,
- *  this fact can be used to provide a tighter estimation
- *  because the CCtx compression context will need less memory.
- *  This tighter estimation can be provided by more advanced functions
+ *  this knowledge can be used to provide a tighter budget estimation
+ *  because the ZSTD_CCtx* state will need less memory for small inputs.
+ *  This tighter estimation can be provided by employing more advanced functions
  *  ZSTD_estimateCCtxSize_usingCParams(), which can be used in tandem with ZSTD_getCParams(),
  *  and ZSTD_estimateCCtxSize_usingCCtxParams(), which can be used in tandem with ZSTD_CCtxParams_setParameter().
  *  Both can be used to estimate memory using custom compression parameters and arbitrary srcSize limits.
@@ -1665,33 +1669,35 @@ ZSTDLIB_API unsigned ZSTD_isSkippableFrame(const void* buffer, size_t size);
  *  Note 2 : ZSTD_estimateCCtxSize* functions are not compatible with the Block-Level Sequence Producer API at this time.
  *  Size estimates assume that no external sequence producer is registered.
  */
-ZSTDLIB_STATIC_API size_t ZSTD_estimateCCtxSize(int compressionLevel);
+ZSTDLIB_STATIC_API size_t ZSTD_estimateCCtxSize(int maxCompressionLevel);
 ZSTDLIB_STATIC_API size_t ZSTD_estimateCCtxSize_usingCParams(ZSTD_compressionParameters cParams);
 ZSTDLIB_STATIC_API size_t ZSTD_estimateCCtxSize_usingCCtxParams(const ZSTD_CCtx_params* params);
 ZSTDLIB_STATIC_API size_t ZSTD_estimateDCtxSize(void);
 
 /*! ZSTD_estimateCStreamSize() :
- *  ZSTD_estimateCStreamSize() will provide a budget large enough for any compression level up to selected one.
- *  It will also consider src size to be arbitrarily "large", which is worst case.
+ *  ZSTD_estimateCStreamSize() will provide a memory budget large enough for streaming compression
+ *  using any compression level up to the max specified one.
+ *  It will also consider src size to be arbitrarily "large", which is a worst case scenario.
  *  If srcSize is known to always be small, ZSTD_estimateCStreamSize_usingCParams() can provide a tighter estimation.
  *  ZSTD_estimateCStreamSize_usingCParams() can be used in tandem with ZSTD_getCParams() to create cParams from compressionLevel.
  *  ZSTD_estimateCStreamSize_usingCCtxParams() can be used in tandem with ZSTD_CCtxParams_setParameter(). Only single-threaded compression is supported. This function will return an error code if ZSTD_c_nbWorkers is >= 1.
  *  Note : CStream size estimation is only correct for single-threaded compression.
- *  ZSTD_DStream memory budget depends on window Size.
+ *  ZSTD_estimateCStreamSize_usingCCtxParams() will return an error code if ZSTD_c_nbWorkers is >= 1.
+ *  Note 2 : ZSTD_estimateCStreamSize* functions are not compatible with the Block-Level Sequence Producer API at this time.
+ *  Size estimates assume that no external sequence producer is registered.
+ *
+ *  ZSTD_DStream memory budget depends on frame's window Size.
  *  This information can be passed manually, using ZSTD_estimateDStreamSize,
  *  or deducted from a valid frame Header, using ZSTD_estimateDStreamSize_fromFrame();
+ *  Any frame requesting a window size larger than max specified one will be rejected.
  *  Note : if streaming is init with function ZSTD_init?Stream_usingDict(),
  *         an internal ?Dict will be created, which additional size is not estimated here.
  *         In this case, get total size by adding ZSTD_estimate?DictSize
- *  Note 2 : only single-threaded compression is supported.
- *  ZSTD_estimateCStreamSize_usingCCtxParams() will return an error code if ZSTD_c_nbWorkers is >= 1.
- *  Note 3 : ZSTD_estimateCStreamSize* functions are not compatible with the Block-Level Sequence Producer API at this time.
- *  Size estimates assume that no external sequence producer is registered.
  */
-ZSTDLIB_STATIC_API size_t ZSTD_estimateCStreamSize(int compressionLevel);
+ZSTDLIB_STATIC_API size_t ZSTD_estimateCStreamSize(int maxCompressionLevel);
 ZSTDLIB_STATIC_API size_t ZSTD_estimateCStreamSize_usingCParams(ZSTD_compressionParameters cParams);
 ZSTDLIB_STATIC_API size_t ZSTD_estimateCStreamSize_usingCCtxParams(const ZSTD_CCtx_params* params);
-ZSTDLIB_STATIC_API size_t ZSTD_estimateDStreamSize(size_t windowSize);
+ZSTDLIB_STATIC_API size_t ZSTD_estimateDStreamSize(size_t maxWindowSize);
 ZSTDLIB_STATIC_API size_t ZSTD_estimateDStreamSize_fromFrame(const void* src, size_t srcSize);
 
 /*! ZSTD_estimate?DictSize() :

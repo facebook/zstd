@@ -619,6 +619,7 @@ typedef enum {
      * ZSTD_d_refMultipleDDicts
      * ZSTD_d_disableHuffmanAssembly
      * ZSTD_d_maxBlockSize
+     * ZSTD_d_disableHuffmanFastCLoops
      * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
      * note : never ever use experimentalParam? names directly
      */
@@ -627,7 +628,8 @@ typedef enum {
      ZSTD_d_experimentalParam3=1002,
      ZSTD_d_experimentalParam4=1003,
      ZSTD_d_experimentalParam5=1004,
-     ZSTD_d_experimentalParam6=1005
+     ZSTD_d_experimentalParam6=1005,
+     ZSTD_d_experimentalParam7=1006,
 
 } ZSTD_dParameter;
 
@@ -2453,6 +2455,18 @@ ZSTDLIB_STATIC_API size_t ZSTD_DCtx_getParameter(ZSTD_DCtx* dctx, ZSTD_dParamete
  * that have block sizes larger than the configured maxBlockSize.
  */
 #define ZSTD_d_maxBlockSize ZSTD_d_experimentalParam6
+
+
+/* ZSTD_d_disableHuffmanFastCLoops
+ * Set to 1 to disable the generic C fast compression loops.
+  * The default value is 0, which allows zstd to use the generic C fast
+  * compression loops.
+  * 
+  * This parameter can be used to disable the generic C fast compression loops
+  * at runtime. If you want to disable them at compile time you can define the
+  * macro ZSTD_DISABLE_FAST_C_LOOP.
+  */
+#define ZSTD_d_disableHuffmanFastCLoops ZSTD_d_experimentalParam7
 
 
 /*! ZSTD_DCtx_setFormat() :

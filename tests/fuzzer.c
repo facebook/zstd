@@ -695,6 +695,17 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : decompress %u bytes with fast C Loops disabled : ", testNb++, (unsigned)CNBuffSize);
+    {
+        ZSTD_DCtx* dctx = ZSTD_createDCtx();
+        size_t r;
+        CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_disableHuffmanFastCLoops, 1));
+        r = ZSTD_decompress(decodedBuffer, CNBuffSize, compressedBuffer, cSize);
+        if (r != CNBuffSize || memcmp(decodedBuffer, CNBuffer, CNBuffSize)) goto _output_error;
+        ZSTD_freeDCtx(dctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     DISPLAYLEVEL(3, "test%3i : check decompressed result : ", testNb++);
     {   size_t u;
         for (u=0; u<CNBuffSize; u++) {

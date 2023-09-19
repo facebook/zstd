@@ -3045,6 +3045,9 @@ static int fuzzerTests_newAPI(U32 seed, int nbTests, int startTest,
             CHECK_Z(ZSTD_DCtx_setParameter(zd, ZSTD_d_disableHuffmanAssembly, FUZ_rand(&lseed) & 1));
         }
         if (FUZ_rand(&lseed) & 1) {
+            CHECK_Z(ZSTD_DCtx_setParameter(zd, ZSTD_d_disableHuffmanFastCLoops, FUZ_rand(&lseed) & 1));
+        }
+        if (FUZ_rand(&lseed) & 1) {
             int maxBlockSize;
             CHECK_Z(ZSTD_CCtx_getParameter(zc, ZSTD_c_maxBlockSize, &maxBlockSize));
             CHECK_Z(ZSTD_DCtx_setParameter(zd, ZSTD_d_maxBlockSize, maxBlockSize));
@@ -3099,6 +3102,9 @@ static int fuzzerTests_newAPI(U32 seed, int nbTests, int startTest,
         }
         if (FUZ_rand(&lseed) & 1) {
             CHECK_Z(ZSTD_DCtx_setParameter(zd_noise, ZSTD_d_disableHuffmanAssembly, FUZ_rand(&lseed) & 1));
+        }
+        if (FUZ_rand(&lseed) & 1) {
+            CHECK_Z(ZSTD_DCtx_setParameter(zd_noise, ZSTD_d_disableHuffmanFastCLoops, FUZ_rand(&lseed) & 1));
         }
         {   ZSTD_inBuffer  inBuff = { cBuffer, cSize, 0 };
             ZSTD_outBuffer outBuff= { dstBuffer, dstBufferSize, 0 };

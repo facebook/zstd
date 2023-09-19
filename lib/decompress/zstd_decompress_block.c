@@ -159,7 +159,8 @@ static size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 size_t expectedWriteSize = MIN(blockSizeMax, dstCapacity);
                 int const flags = 0
                     | (ZSTD_DCtx_get_bmi2(dctx) ? HUF_flags_bmi2 : 0)
-                    | (dctx->disableHufAsm ? HUF_flags_disableAsm : 0);
+                    | (dctx->disableHufAsm ? HUF_flags_disableAsm : 0)
+                    | (dctx->disableHufFastCLoops ? HUF_flags_disableFast : 0);
                 switch(lhlCode)
                 {
                 case 0: case 1: default:   /* note : default is impossible, since lhlCode into [0..3] */

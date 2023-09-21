@@ -1341,6 +1341,7 @@ ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets, c
 }
 
 #ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+#if DEBUGLEVEL >= 1
 MEM_STATIC int ZSTD_dictionaryIsActive(ZSTD_DCtx const* dctx, BYTE const* prefixStart, BYTE const* oLitEnd)
 {
     size_t const windowSize = dctx->fParams.windowSize;
@@ -1355,6 +1356,7 @@ MEM_STATIC int ZSTD_dictionaryIsActive(ZSTD_DCtx const* dctx, BYTE const* prefix
     /* Dictionary is active. */
     return 1;
 }
+#endif
 
 MEM_STATIC void ZSTD_assertValidSequence(
         ZSTD_DCtx const* dctx,

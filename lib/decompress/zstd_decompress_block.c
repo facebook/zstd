@@ -1340,7 +1340,7 @@ ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets, c
     return seq;
 }
 
-#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+#if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION) && defined(FUZZING_ASSERT_VALID_SEQUENCE)
 #if DEBUGLEVEL >= 1
 MEM_STATIC int ZSTD_dictionaryIsActive(ZSTD_DCtx const* dctx, BYTE const* prefixStart, BYTE const* oLitEnd)
 {

@@ -408,8 +408,8 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
     if (inBuff.pos != inBuff.size) goto _output_error;   /* should have read the entire frame */
     DISPLAYLEVEL(3, "OK \n");
 
-    /* Re-use without init */
-    DISPLAYLEVEL(3, "test%3i : decompress again without init (re-use previous settings): ", testNb++);
+    /* Reuse without init */
+    DISPLAYLEVEL(3, "test%3i : decompress again without init (reuse previous settings): ", testNb++);
     outBuff.pos = 0;
     { size_t const remaining = ZSTD_decompressStream(zd, &outBuff, &inBuff2);
       if (remaining != 0) goto _output_error; }  /* should reach end of frame == 0; otherwise, some data left, or an error */
@@ -653,8 +653,8 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
             DISPLAYLEVEL(3, "OK (error detected : %s) \n", ZSTD_getErrorName(r));
     }   }
 
-    /* Compression state re-use scenario */
-    DISPLAYLEVEL(3, "test%3i : context re-use : ", testNb++);
+    /* Compression state reuse scenario */
+    DISPLAYLEVEL(3, "test%3i : context reuse : ", testNb++);
     ZSTD_freeCStream(zc);
     zc = ZSTD_createCStream();
     if (zc==NULL) goto _output_error;   /* memory allocation issue */

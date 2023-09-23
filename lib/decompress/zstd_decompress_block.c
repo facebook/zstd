@@ -1431,7 +1431,7 @@ ZSTD_decompressSequences_bodySplitLitBuffer( ZSTD_DCtx* dctx,
                 BIT_DStream_completed < BIT_DStream_overflow);
 
         /* decompress without overrunning litPtr begins */
-        {   seq_t sequence = {0,0,0};  /* some static analyzer believe that @sequence is not initialized (it necessarily is, since for(;;) loop as at least one interation) */
+        {   seq_t sequence = {0,0,0};  /* some static analyzer believe that @sequence is not initialized (it necessarily is, since for(;;) loop as at least one iteration) */
             /* Align the decompression loop to 32 + 16 bytes.
                 *
                 * zstd compiled with gcc-9 on an Intel i9-9900k shows 10% decompression
@@ -1591,7 +1591,7 @@ ZSTD_decompressSequences_bodySplitLitBuffer( ZSTD_DCtx* dctx,
         litBufferEnd = dctx->litExtraBuffer + ZSTD_LITBUFFEREXTRASIZE;
         dctx->litBufferLocation = ZSTD_not_in_dst;
     }
-    /* copy last literals from interal buffer */
+    /* copy last literals from internal buffer */
     {   size_t const lastLLSize = litBufferEnd - litPtr;
         RETURN_ERROR_IF(lastLLSize > (size_t)(oend-op), dstSize_tooSmall, "");
         if (op != NULL) {

@@ -2606,7 +2606,7 @@ ZSTD_reduceTable_internal (U32* const table, U32 const size, U32 const reducerVa
     assert(size < (1U<<31));   /* can be casted to int */
 
 #if ZSTD_MEMORY_SANITIZER && !defined (ZSTD_MSAN_DONT_POISON_WORKSPACE)
-    /* To validate that the table re-use logic is sound, and that we don't
+    /* To validate that the table reuse logic is sound, and that we don't
      * access table space that we haven't cleaned, we re-"poison" the table
      * space every time we mark it dirty.
      *

@@ -1213,7 +1213,7 @@ static void decode_seq_table(FSE_dtable *const table, istream_t *const in,
         break;
     }
     case seq_repeat:
-        // "Repeat_Mode : re-use distribution table from previous compressed
+        // "Repeat_Mode : reuse distribution table from previous compressed
         // block."
         // Nothing to do here, table will be unchanged
         if (!table->symbols) {

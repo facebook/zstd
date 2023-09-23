@@ -1447,7 +1447,7 @@ size_t HUF_compress1X_repeat (void* dst, size_t dstSize,
 /* HUF_compress4X_repeat():
  * compress input using 4 streams.
  * consider skipping quickly
- * re-use an existing huffman compression table */
+ * reuse an existing huffman compression table */
 size_t HUF_compress4X_repeat (void* dst, size_t dstSize,
                       const void* src, size_t srcSize,
                       unsigned maxSymbolValue, unsigned huffLog,

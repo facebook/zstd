@@ -250,10 +250,10 @@ def build_parser(args):
         action='store_true',
         help='Enable UBSAN')
     parser.add_argument(
-        '--enable-ubsan-pointer-overflow',
+        '--disable-ubsan-pointer-overflow',
         dest='ubsan_pointer_overflow',
-        action='store_true',
-        help='Enable UBSAN pointer overflow check (known failure)')
+        action='store_false',
+        help='Disable UBSAN pointer overflow check (known failure)')
     parser.add_argument(
         '--enable-msan', dest='msan', action='store_true', help='Enable MSAN')
     parser.add_argument(
@@ -383,8 +383,6 @@ def build_parser(args):
         raise RuntimeError('MSAN may not be used with any other sanitizers')
     if args.msan_track_origins and not args.msan:
         raise RuntimeError('--enable-msan-track-origins requires MSAN')
-    if args.ubsan_pointer_overflow and not args.ubsan:
-        raise RuntimeError('--enable-ubsan-pointer-overflow requires UBSAN')
     if args.sanitize_recover and not args.sanitize:
         raise RuntimeError('--enable-sanitize-recover but no sanitizers used')
 

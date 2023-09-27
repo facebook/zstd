@@ -13,7 +13,9 @@
 
 #ifndef ZSTD_EXCLUDE_DFAST_BLOCK_COMPRESSOR
 
-static void ZSTD_fillDoubleHashTableForCDict(ZSTD_matchState_t* ms,
+static
+ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
+void ZSTD_fillDoubleHashTableForCDict(ZSTD_matchState_t* ms,
                               void const* end, ZSTD_dictTableLoadMethod_e dtlm)
 {
     const ZSTD_compressionParameters* const cParams = &ms->cParams;
@@ -49,7 +51,9 @@ static void ZSTD_fillDoubleHashTableForCDict(ZSTD_matchState_t* ms,
     }   }
 }
 
-static void ZSTD_fillDoubleHashTableForCCtx(ZSTD_matchState_t* ms,
+static
+ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
+void ZSTD_fillDoubleHashTableForCCtx(ZSTD_matchState_t* ms,
                               void const* end, ZSTD_dictTableLoadMethod_e dtlm)
 {
     const ZSTD_compressionParameters* const cParams = &ms->cParams;
@@ -97,6 +101,7 @@ void ZSTD_fillDoubleHashTable(ZSTD_matchState_t* ms,
 
 
 FORCE_INLINE_TEMPLATE
+ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
 size_t ZSTD_compressBlock_doubleFast_noDict_generic(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize, U32 const mls /* template */)
@@ -307,6 +312,7 @@ _match_stored:
 
 
 FORCE_INLINE_TEMPLATE
+ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
 size_t ZSTD_compressBlock_doubleFast_dictMatchState_generic(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize,
@@ -591,7 +597,9 @@ size_t ZSTD_compressBlock_doubleFast_dictMatchState(
 }
 
 
-static size_t ZSTD_compressBlock_doubleFast_extDict_generic(
+static
+ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
+size_t ZSTD_compressBlock_doubleFast_extDict_generic(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize,
         U32 const mls /* template */)

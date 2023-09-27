@@ -732,7 +732,7 @@ generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
             }
         } while (((!info.useDict) && (offset > (size_t)((BYTE*)srcPtr - (BYTE*)frame->srcStart))) || offset == 0);
 
-        {   BYTE* const dictEnd = info.dictContent + info.dictContentSize;
+        {   BYTE* const dictEnd = ZSTD_maybeNullPtrAdd(info.dictContent, info.dictContentSize);
             size_t j;
             for (j = 0; j < matchLen; j++) {
                 if ((U32)((BYTE*)srcPtr - (BYTE*)frame->srcStart) < offset) {

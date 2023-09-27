@@ -328,7 +328,7 @@ static void FUZ_decodeSequences(BYTE* dst, ZSTD_Sequence* seqs, size_t seqsSize,
 
         if (seqs[i].offset != 0) {
             for (j = 0; j < seqs[i].matchLength; ++j)
-                dst[j] = dst[j - seqs[i].offset];
+                dst[j] = dst[(ptrdiff_t)(j - seqs[i].offset)];
             dst += seqs[i].matchLength;
             src += seqs[i].matchLength;
             size -= seqs[i].matchLength;
@@ -3684,11 +3684,13 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
         /* Test with block delimiters roundtrip */
         seqsSize = ZSTD_generateSequences(cctx, seqs, srcSize, src, srcSize);
+        CHECK_Z(seqsSize);
         FUZ_decodeSequences(decoded, seqs, seqsSize, src, srcSize, ZSTD_sf_explicitBlockDelimiters);
         assert(!memcmp(CNBuffer, compressedBuffer, srcSize));
 
         /* Test no block delimiters roundtrip */
         seqsSize = ZSTD_mergeBlockDelimiters(seqs, seqsSize);
+        CHECK_Z(seqsSize);
         FUZ_decodeSequences(decoded, seqs, seqsSize, src, srcSize, ZSTD_sf_noBlockDelimiters);
         assert(!memcmp(CNBuffer, compressedBuffer, srcSize));
 

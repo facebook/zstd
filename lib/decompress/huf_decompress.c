@@ -188,7 +188,7 @@ static size_t HUF_DecompressFastArgs_init(HUF_DecompressFastArgs* args, void* ds
 
     const BYTE* const ilimit = (const BYTE*)src + 6 + 8;
 
-    BYTE* const oend = (BYTE*)dst + dstSize;
+    BYTE* const oend = ZSTD_maybeNullPtrAdd((BYTE*)dst, dstSize);
 
     /* The fast decoding loop assumes 64-bit little-endian.
      * This condition is false on x32.
@@ -546,7 +546,7 @@ HUF_decompress1X1_usingDTable_internal_body(
     const HUF_DTable* DTable)
 {
     BYTE* op = (BYTE*)dst;
-    BYTE* const oend = op + dstSize;
+    BYTE* const oend = ZSTD_maybeNullPtrAdd(op, dstSize);
     const void* dtPtr = DTable + 1;
     const HUF_DEltX1* const dt = (const HUF_DEltX1*)dtPtr;
     BIT_DStream_t bitD;
@@ -574,6 +574,7 @@ HUF_decompress4X1_usingDTable_internal_body(
 {
     /* Check */
     if (cSrcSize < 10) return ERROR(corruption_detected);  /* strict minimum : jump table + 1 byte per stream */
+    if (dstSize < 6) return ERROR(corruption_detected);         /* stream 4-split doesn't work */
 
     {   const BYTE* const istart = (const BYTE*) cSrc;
         BYTE* const ostart = (BYTE*) dst;
@@ -609,7 +610,7 @@ HUF_decompress4X1_usingDTable_internal_body(
 
         if (length4 > cSrcSize) return ERROR(corruption_detected);   /* overflow */
         if (opStart4 > oend) return ERROR(corruption_detected);      /* overflow */
-        if (dstSize < 6) return ERROR(corruption_detected);         /* stream 4-split doesn't work */
+        assert(dstSize >= 6); /* validated above */
         CHECK_F( BIT_initDStream(&bitD1, istart1, length1) );
         CHECK_F( BIT_initDStream(&bitD2, istart2, length2) );
         CHECK_F( BIT_initDStream(&bitD3, istart3, length3) );
@@ -798,7 +799,7 @@ HUF_decompress4X1_usingDTable_internal_fast(
 {
     void const* dt = DTable + 1;
     const BYTE* const iend = (const BYTE*)cSrc + 6;
-    BYTE* const oend = (BYTE*)dst + dstSize;
+    BYTE* const oend = ZSTD_maybeNullPtrAdd((BYTE*)dst, dstSize);
     HUF_DecompressFastArgs args;
     {   size_t const ret = HUF_DecompressFastArgs_init(&args, dst, dstSize, cSrc, cSrcSize, DTable);
         FORWARD_IF_ERROR(ret, "Failed to init fast loop args");
@@ -1307,7 +1308,7 @@ HUF_decompress1X2_usingDTable_internal_body(
 
     /* decode */
     {   BYTE* const ostart = (BYTE*) dst;
-        BYTE* const oend = ostart + dstSize;
+        BYTE* const oend = ZSTD_maybeNullPtrAdd(ostart, dstSize);
         const void* const dtPtr = DTable+1;   /* force compiler to not use strict-aliasing */
         const HUF_DEltX2* const dt = (const HUF_DEltX2*)dtPtr;
         DTableDesc const dtd = HUF_getDTableDesc(DTable);
@@ -1332,6 +1333,7 @@ HUF_decompress4X2_usingDTable_internal_body(
     const HUF_DTable* DTable)
 {
     if (cSrcSize < 10) return ERROR(corruption_detected);   /* strict minimum : jump table + 1 byte per stream */
+    if (dstSize < 6) return ERROR(corruption_detected);         /* stream 4-split doesn't work */
 
     {   const BYTE* const istart = (const BYTE*) cSrc;
         BYTE* const ostart = (BYTE*) dst;
@@ -1367,7 +1369,7 @@ HUF_decompress4X2_usingDTable_internal_body(
 
         if (length4 > cSrcSize) return ERROR(corruption_detected);  /* overflow */
         if (opStart4 > oend) return ERROR(corruption_detected);     /* overflow */
-        if (dstSize < 6) return ERROR(corruption_detected);         /* stream 4-split doesn't work */
+        assert(dstSize >= 6 /* validated above */);
         CHECK_F( BIT_initDStream(&bitD1, istart1, length1) );
         CHECK_F( BIT_initDStream(&bitD2, istart2, length2) );
         CHECK_F( BIT_initDStream(&bitD3, istart3, length3) );
@@ -1612,7 +1614,7 @@ HUF_decompress4X2_usingDTable_internal_fast(
     HUF_DecompressFastLoopFn loopFn) {
     void const* dt = DTable + 1;
     const BYTE* const iend = (const BYTE*)cSrc + 6;
-    BYTE* const oend = (BYTE*)dst + dstSize;
+    BYTE* const oend = ZSTD_maybeNullPtrAdd((BYTE*)dst, dstSize);
     HUF_DecompressFastArgs args;
     {
         size_t const ret = HUF_DecompressFastArgs_init(&args, dst, dstSize, cSrc, cSrcSize, DTable);

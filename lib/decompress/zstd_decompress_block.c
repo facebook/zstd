@@ -902,6 +902,7 @@ static void ZSTD_safecopyDstBeforeSrc(BYTE* op, const BYTE* ip, ptrdiff_t length
  * to be optimized for many small sequences, since those fall into ZSTD_execSequence().
  */
 FORCE_NOINLINE
+ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
 size_t ZSTD_execSequenceEnd(BYTE* op,
     BYTE* const oend, seq_t sequence,
     const BYTE** litPtr, const BYTE* const litLimit,
@@ -949,6 +950,7 @@ size_t ZSTD_execSequenceEnd(BYTE* op,
  * This version is intended to be used during instances where the litBuffer is still split.  It is kept separate to avoid performance impact for the good case.
  */
 FORCE_NOINLINE
+ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
 size_t ZSTD_execSequenceEndSplitLitBuffer(BYTE* op,
     BYTE* const oend, const BYTE* const oend_w, seq_t sequence,
     const BYTE** litPtr, const BYTE* const litLimit,
@@ -994,6 +996,7 @@ size_t ZSTD_execSequenceEndSplitLitBuffer(BYTE* op,
 }
 
 HINT_INLINE
+ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
 size_t ZSTD_execSequence(BYTE* op,
     BYTE* const oend, seq_t sequence,
     const BYTE** litPtr, const BYTE* const litLimit,
@@ -1092,6 +1095,7 @@ size_t ZSTD_execSequence(BYTE* op,
 }
 
 HINT_INLINE
+ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
 size_t ZSTD_execSequenceSplitLitBuffer(BYTE* op,
     BYTE* const oend, const BYTE* const oend_w, seq_t sequence,
     const BYTE** litPtr, const BYTE* const litLimit,
@@ -1403,7 +1407,7 @@ ZSTD_decompressSequences_bodySplitLitBuffer( ZSTD_DCtx* dctx,
     const BYTE* ip = (const BYTE*)seqStart;
     const BYTE* const iend = ip + seqSize;
     BYTE* const ostart = (BYTE*)dst;
-    BYTE* const oend = ostart + maxDstSize;
+    BYTE* const oend = ZSTD_maybeNullPtrAdd(ostart, maxDstSize);
     BYTE* op = ostart;
     const BYTE* litPtr = dctx->litPtr;
     const BYTE* litBufferEnd = dctx->litBufferEnd;
@@ -1612,7 +1616,7 @@ ZSTD_decompressSequences_body(ZSTD_DCtx* dctx,
     const BYTE* ip = (const BYTE*)seqStart;
     const BYTE* const iend = ip + seqSize;
     BYTE* const ostart = (BYTE*)dst;
-    BYTE* const oend = dctx->litBufferLocation == ZSTD_not_in_dst ? ostart + maxDstSize : dctx->litBuffer;
+    BYTE* const oend = dctx->litBufferLocation == ZSTD_not_in_dst ? ZSTD_maybeNullPtrAdd(ostart, maxDstSize) : dctx->litBuffer;
     BYTE* op = ostart;
     const BYTE* litPtr = dctx->litPtr;
     const BYTE* const litEnd = litPtr + dctx->litSize;
@@ -1700,14 +1704,16 @@ ZSTD_decompressSequencesSplitLitBuffer_default(ZSTD_DCtx* dctx,
 
 #ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT
 
-FORCE_INLINE_TEMPLATE size_t
-ZSTD_prefetchMatch(size_t prefetchPos, seq_t const sequence,
+FORCE_INLINE_TEMPLATE
+
+size_t ZSTD_prefetchMatch(size_t prefetchPos, seq_t const sequence,
                    const BYTE* const prefixStart, const BYTE* const dictEnd)
 {
     prefetchPos += sequence.litLength;
     {   const BYTE* const matchBase = (sequence.offset > prefetchPos) ? dictEnd : prefixStart;
-        const BYTE* const match = matchBase + prefetchPos - sequence.offset; /* note : this operation can overflow when seq.offset is really too large, which can only happen when input is corrupted.
-                                                                              * No consequence though : memory address is only used for prefetching, not for dereferencing */
+        /* note : this operation can overflow when seq.offset is really too large, which can only happen when input is corrupted.
+         * No consequence though : memory address is only used for prefetching, not for dereferencing */
+        const BYTE* const match = ZSTD_wrappedPtrSub(ZSTD_wrappedPtrAdd(matchBase, prefetchPos), sequence.offset);
         PREFETCH_L1(match); PREFETCH_L1(match+CACHELINE_SIZE);   /* note : it's safe to invoke PREFETCH() on any memory address, including invalid ones */
     }
     return prefetchPos + sequence.matchLength;
@@ -1727,7 +1733,7 @@ ZSTD_decompressSequencesLong_body(
     const BYTE* ip = (const BYTE*)seqStart;
     const BYTE* const iend = ip + seqSize;
     BYTE* const ostart = (BYTE*)dst;
-    BYTE* const oend = dctx->litBufferLocation == ZSTD_in_dst ? dctx->litBuffer : ostart + maxDstSize;
+    BYTE* const oend = dctx->litBufferLocation == ZSTD_in_dst ? dctx->litBuffer : ZSTD_maybeNullPtrAdd(ostart, maxDstSize);
     BYTE* op = ostart;
     const BYTE* litPtr = dctx->litPtr;
     const BYTE* litBufferEnd = dctx->litBufferEnd;
@@ -2088,7 +2094,7 @@ ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
          * Additionally, take the min with dstCapacity to ensure that the totalHistorySize fits in a size_t.
          */
         size_t const blockSizeMax = MIN(dstCapacity, ZSTD_blockSizeMax(dctx));
-        size_t const totalHistorySize = ZSTD_totalHistorySize((BYTE*)dst + blockSizeMax, (BYTE const*)dctx->virtualStart);
+        size_t const totalHistorySize = ZSTD_totalHistorySize(ZSTD_maybeNullPtrAdd((BYTE*)dst, blockSizeMax), (BYTE const*)dctx->virtualStart);
         /* isLongOffset must be true if there are long offsets.
          * Offsets are long if they are larger than ZSTD_maxShortOffset().
          * We don't expect that to be the case in 64-bit mode.
@@ -2168,6 +2174,7 @@ ZSTD_decompressBlock_internal(ZSTD_DCtx* dctx,
 }
 
 
+ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
 void ZSTD_checkContinuity(ZSTD_DCtx* dctx, const void* dst, size_t dstSize)
 {
     if (dst != dctx->previousDstEnd && dstSize > 0) {   /* not contiguous */
@@ -2187,6 +2194,7 @@ size_t ZSTD_decompressBlock_deprecated(ZSTD_DCtx* dctx,
     dctx->isFrameDecompression = 0;
     ZSTD_checkContinuity(dctx, dst, dstCapacity);
     dSize = ZSTD_decompressBlock_internal(dctx, dst, dstCapacity, src, srcSize, not_streaming);
+    FORWARD_IF_ERROR(dSize, "");
     dctx->previousDstEnd = (char*)dst + dSize;
     return dSize;
 }

@@ -322,7 +322,9 @@ static void ZSTD_ldm_limitTableUpdate(ZSTD_matchState_t* ms, const BYTE* anchor)
     }
 }
 
-static size_t ZSTD_ldm_generateSequences_internal(
+static
+ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
+size_t ZSTD_ldm_generateSequences_internal(
         ldmState_t* ldmState, rawSeqStore_t* rawSeqStore,
         ldmParams_t const* params, void const* src, size_t srcSize)
 {

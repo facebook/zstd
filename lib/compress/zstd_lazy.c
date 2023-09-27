@@ -24,8 +24,9 @@
 *  Binary Tree search
 ***************************************/
 
-static void
-ZSTD_updateDUBT(ZSTD_matchState_t* ms,
+static
+ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
+void ZSTD_updateDUBT(ZSTD_matchState_t* ms,
                 const BYTE* ip, const BYTE* iend,
                 U32 mls)
 {
@@ -68,8 +69,9 @@ ZSTD_updateDUBT(ZSTD_matchState_t* ms,
  *  sort one already inserted but unsorted position
  *  assumption : curr >= btlow == (curr - btmask)
  *  doesn't fail */
-static void
-ZSTD_insertDUBT1(const ZSTD_matchState_t* ms,
+static
+ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
+void ZSTD_insertDUBT1(const ZSTD_matchState_t* ms,
                  U32 curr, const BYTE* inputEnd,
                  U32 nbCompares, U32 btLow,
                  const ZSTD_dictMode_e dictMode)
@@ -157,8 +159,9 @@ ZSTD_insertDUBT1(const ZSTD_matchState_t* ms,
 }
 
 
-static size_t
-ZSTD_DUBT_findBetterDictMatch (
+static
+ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
+size_t ZSTD_DUBT_findBetterDictMatch (
         const ZSTD_matchState_t* ms,
         const BYTE* const ip, const BYTE* const iend,
         size_t* offsetPtr,
@@ -235,8 +238,9 @@ ZSTD_DUBT_findBetterDictMatch (
 }
 
 
-static size_t
-ZSTD_DUBT_findBestMatch(ZSTD_matchState_t* ms,
+static
+ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
+size_t ZSTD_DUBT_findBestMatch(ZSTD_matchState_t* ms,
                         const BYTE* const ip, const BYTE* const iend,
                         size_t* offBasePtr,
                         U32 const mls,
@@ -386,8 +390,9 @@ ZSTD_DUBT_findBestMatch(ZSTD_matchState_t* ms,
 
 
 /** ZSTD_BtFindBestMatch() : Tree updater, providing best match */
-FORCE_INLINE_TEMPLATE size_t
-ZSTD_BtFindBestMatch( ZSTD_matchState_t* ms,
+FORCE_INLINE_TEMPLATE
+ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
+size_t ZSTD_BtFindBestMatch( ZSTD_matchState_t* ms,
                 const BYTE* const ip, const BYTE* const iLimit,
                       size_t* offBasePtr,
                 const U32 mls /* template */,
@@ -622,7 +627,9 @@ size_t ZSTD_dedicatedDictSearch_lazy_search(size_t* offsetPtr, size_t ml, U32 nb
 
 /* Update chains up to ip (excluded)
    Assumption : always within prefix (i.e. not within extDict) */
-FORCE_INLINE_TEMPLATE U32 ZSTD_insertAndFindFirstIndex_internal(
+FORCE_INLINE_TEMPLATE
+ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
+U32 ZSTD_insertAndFindFirstIndex_internal(
                         ZSTD_matchState_t* ms,
                         const ZSTD_compressionParameters* const cParams,
                         const BYTE* ip, U32 const mls, U32 const lazySkipping)
@@ -656,6 +663,7 @@ U32 ZSTD_insertAndFindFirstIndex(ZSTD_matchState_t* ms, const BYTE* ip) {
 
 /* inlining is important to hardwire a hot branch (template emulation) */
 FORCE_INLINE_TEMPLATE
+ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
 size_t ZSTD_HcFindBestMatch(
                         ZSTD_matchState_t* ms,
                         const BYTE* const ip, const BYTE* const iLimit,
@@ -824,7 +832,9 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_prefetch(U32 const* hashTable, BYTE const* t
  * Fill up the hash cache starting at idx, prefetching up to ZSTD_ROW_HASH_CACHE_SIZE entries,
  * but not beyond iLimit.
  */
-FORCE_INLINE_TEMPLATE void ZSTD_row_fillHashCache(ZSTD_matchState_t* ms, const BYTE* base,
+FORCE_INLINE_TEMPLATE
+ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
+void ZSTD_row_fillHashCache(ZSTD_matchState_t* ms, const BYTE* base,
                                    U32 const rowLog, U32 const mls,
                                    U32 idx, const BYTE* const iLimit)
 {
@@ -850,7 +860,9 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_fillHashCache(ZSTD_matchState_t* ms, const B
  * Returns the hash of base + idx, and replaces the hash in the hash cache with the byte at
  * base + idx + ZSTD_ROW_HASH_CACHE_SIZE. Also prefetches the appropriate rows from hashTable and tagTable.
  */
-FORCE_INLINE_TEMPLATE U32 ZSTD_row_nextCachedHash(U32* cache, U32 const* hashTable,
+FORCE_INLINE_TEMPLATE
+ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
+U32 ZSTD_row_nextCachedHash(U32* cache, U32 const* hashTable,
                                                   BYTE const* tagTable, BYTE const* base,
                                                   U32 idx, U32 const hashLog,
                                                   U32 const rowLog, U32 const mls,
@@ -868,10 +880,12 @@ FORCE_INLINE_TEMPLATE U32 ZSTD_row_nextCachedHash(U32* cache, U32 const* hashTab
 /* ZSTD_row_update_internalImpl():
  * Updates the hash table with positions starting from updateStartIdx until updateEndIdx.
  */
-FORCE_INLINE_TEMPLATE void ZSTD_row_update_internalImpl(ZSTD_matchState_t* ms,
-                                                        U32 updateStartIdx, U32 const updateEndIdx,
-                                                        U32 const mls, U32 const rowLog,
-                                                        U32 const rowMask, U32 const useCache)
+FORCE_INLINE_TEMPLATE
+ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
+void ZSTD_row_update_internalImpl(ZSTD_matchState_t* ms,
+                                  U32 updateStartIdx, U32 const updateEndIdx,
+                                  U32 const mls, U32 const rowLog,
+                                  U32 const rowMask, U32 const useCache)
 {
     U32* const hashTable = ms->hashTable;
     BYTE* const tagTable = ms->tagTable;
@@ -897,9 +911,11 @@ FORCE_INLINE_TEMPLATE void ZSTD_row_update_internalImpl(ZSTD_matchState_t* ms,
  * Inserts the byte at ip into the appropriate position in the hash table, and updates ms->nextToUpdate.
  * Skips sections of long matches as is necessary.
  */
-FORCE_INLINE_TEMPLATE void ZSTD_row_update_internal(ZSTD_matchState_t* ms, const BYTE* ip,
-                                                    U32 const mls, U32 const rowLog,
-                                                    U32 const rowMask, U32 const useCache)
+FORCE_INLINE_TEMPLATE
+ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
+void ZSTD_row_update_internal(ZSTD_matchState_t* ms, const BYTE* ip,
+                              U32 const mls, U32 const rowLog,
+                              U32 const rowMask, U32 const useCache)
 {
     U32 idx = ms->nextToUpdate;
     const BYTE* const base = ms->window.base;
@@ -1121,6 +1137,7 @@ ZSTD_row_getMatchMask(const BYTE* const tagRow, const BYTE tag, const U32 headGr
  * - Pick the longest match.
  */
 FORCE_INLINE_TEMPLATE
+ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
 size_t ZSTD_RowFindBestMatch(
                         ZSTD_matchState_t* ms,
                         const BYTE* const ip, const BYTE* const iLimit,
@@ -1494,8 +1511,9 @@ FORCE_INLINE_TEMPLATE size_t ZSTD_searchMax(
 *  Common parser - lazy strategy
 *********************************/
 
-FORCE_INLINE_TEMPLATE size_t
-ZSTD_compressBlock_lazy_generic(
+FORCE_INLINE_TEMPLATE
+ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
+size_t ZSTD_compressBlock_lazy_generic(
                         ZSTD_matchState_t* ms, seqStore_t* seqStore,
                         U32 rep[ZSTD_REP_NUM],
                         const void* src, size_t srcSize,
@@ -1915,6 +1933,7 @@ size_t ZSTD_compressBlock_btlazy2_dictMatchState(
  || !defined(ZSTD_EXCLUDE_LAZY2_BLOCK_COMPRESSOR) \
  || !defined(ZSTD_EXCLUDE_BTLAZY2_BLOCK_COMPRESSOR)
 FORCE_INLINE_TEMPLATE
+ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
 size_t ZSTD_compressBlock_lazy_extDict_generic(
                         ZSTD_matchState_t* ms, seqStore_t* seqStore,
                         U32 rep[ZSTD_REP_NUM],

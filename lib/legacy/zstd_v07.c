@@ -24,6 +24,7 @@
 #define HUFv07_STATIC_LINKING_ONLY   /* HUFv07_TABLELOG_ABSOLUTEMAX */
 #define ZSTDv07_STATIC_LINKING_ONLY
 
+#include "../common/compiler.h"
 #include "../common/error_private.h"
 
 
@@ -4006,8 +4007,8 @@ size_t ZSTDv07_decompressContinue(ZSTDv07_DCtx* dctx, void* dst, size_t dstCapac
             }
             dctx->stage = ZSTDds_decodeBlockHeader;
             dctx->expected = ZSTDv07_blockHeaderSize;
-            dctx->previousDstEnd = (char*)dst + rSize;
             if (ZSTDv07_isError(rSize)) return rSize;
+            dctx->previousDstEnd = (char*)dst + rSize;
             if (dctx->fParams.checksumFlag) XXH64_update(&dctx->xxhState, dst, rSize);
             return rSize;
         }

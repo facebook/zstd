@@ -629,7 +629,7 @@ typedef enum {
      ZSTD_d_experimentalParam4=1003,
      ZSTD_d_experimentalParam5=1004,
      ZSTD_d_experimentalParam6=1005,
-     ZSTD_d_experimentalParam7=1006,
+     ZSTD_d_experimentalParam7=1006
 
 } ZSTD_dParameter;
 

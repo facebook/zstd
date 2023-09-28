@@ -853,7 +853,6 @@ static size_t HUF_decompress4X1_usingDTable_internal(void* dst, size_t dstSize, 
     
 #if ZSTD_ENABLE_FAST_C_LOOP
     loopFn = HUF_decompress4X1_usingDTable_internal_fast_c_loop;
-    #warning "ZSTD_ENABLE_FAST_C_LOOP is enabled, this is not recommended for production use"
 #endif
 
 #if DYNAMIC_BMI2

@@ -38,7 +38,7 @@ jobs:
         CFLAGS="-m32 -O1 -fstack-protector" make check V=1
 
   check-x32:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04  # ubuntu-latest == ubuntu-22.04 have issues currently with x32
     steps:
     - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608 # tag=v3
     - name: make check on x32 ABI # https://en.wikipedia.org/wiki/X32_ABI

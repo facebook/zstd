@@ -100,13 +100,13 @@ typedef struct ZSTDMT_bufferPool_s {
     unsigned totalBuffers;
     unsigned nbBuffers;
     ZSTD_customMem cMem;
-    buffer_t bTable[1];   /* variable size */
+    buffer_t bTable[];   /* variable size */
 } ZSTDMT_bufferPool;
 
 static ZSTDMT_bufferPool* ZSTDMT_createBufferPool(unsigned maxNbBuffers, ZSTD_customMem cMem)
 {
     ZSTDMT_bufferPool* const bufPool = (ZSTDMT_bufferPool*)ZSTD_customCalloc(
-        sizeof(ZSTDMT_bufferPool) + (maxNbBuffers-1) * sizeof(buffer_t), cMem);
+        sizeof(ZSTDMT_bufferPool) + maxNbBuffers * sizeof(buffer_t), cMem);
     if (bufPool==NULL) return NULL;
     if (ZSTD_pthread_mutex_init(&bufPool->poolMutex, NULL)) {
         ZSTD_customFree(bufPool, cMem);
@@ -136,7 +136,7 @@ static void ZSTDMT_freeBufferPool(ZSTDMT_bufferPool* bufPool)
 static size_t ZSTDMT_sizeof_bufferPool(ZSTDMT_bufferPool* bufPool)
 {
     size_t const poolSize = sizeof(*bufPool)
-                          + (bufPool->totalBuffers - 1) * sizeof(buffer_t);
+                          + bufPool->totalBuffers * sizeof(buffer_t);
     unsigned u;
     size_t totalBufferSize = 0;
     ZSTD_pthread_mutex_lock(&bufPool->poolMutex);
@@ -350,7 +350,7 @@ typedef struct {
     int totalCCtx;
     int availCCtx;
     ZSTD_customMem cMem;
-    ZSTD_CCtx* cctx[1];   /* variable size */
+    ZSTD_CCtx* cctx[];   /* variable size */
 } ZSTDMT_CCtxPool;
 
 /* note : all CCtx borrowed from the pool should be released back to the pool _before_ freeing the pool */
@@ -369,7 +369,7 @@ static ZSTDMT_CCtxPool* ZSTDMT_createCCtxPool(int nbWorkers,
                                               ZSTD_customMem cMem)
 {
     ZSTDMT_CCtxPool* const cctxPool = (ZSTDMT_CCtxPool*) ZSTD_customCalloc(
-        sizeof(ZSTDMT_CCtxPool) + (nbWorkers-1)*sizeof(ZSTD_CCtx*), cMem);
+        sizeof(ZSTDMT_CCtxPool) + nbWorkers*sizeof(ZSTD_CCtx*), cMem);
     assert(nbWorkers > 0);
     if (!cctxPool) return NULL;
     if (ZSTD_pthread_mutex_init(&cctxPool->poolMutex, NULL)) {
@@ -403,7 +403,7 @@ static size_t ZSTDMT_sizeof_CCtxPool(ZSTDMT_CCtxPool* cctxPool)
     ZSTD_pthread_mutex_lock(&cctxPool->poolMutex);
     {   unsigned const nbWorkers = cctxPool->totalCCtx;
         size_t const poolSize = sizeof(*cctxPool)
-                                + (nbWorkers-1) * sizeof(ZSTD_CCtx*);
+                                + nbWorkers * sizeof(ZSTD_CCtx*);
         unsigned u;
         size_t totalCCtxSize = 0;
         for (u=0; u<nbWorkers; u++) {

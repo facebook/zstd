@@ -199,6 +199,11 @@
 #  include <intrin.h>                    /* For Visual 2005 */
 #  pragma warning(disable : 4100)        /* disable: C4100: unreferenced formal parameter */
 #  pragma warning(disable : 4127)        /* disable: C4127: conditional expression is constant */
+/*
+ * Disable C4200: "nonstandard extension used: zero-sized array in struct/union"
+ * because it warns about standard C99 flexible arrays.
+ */
+#  pragma warning(disable : 4200)
 #  pragma warning(disable : 4204)        /* disable: C4204: non-constant aggregate initializer */
 #  pragma warning(disable : 4214)        /* disable: C4214: non-int bitfields */
 #  pragma warning(disable : 4324)        /* disable: C4324: padded structure */

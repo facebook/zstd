@@ -350,15 +350,16 @@ typedef struct {
     int totalCCtx;
     int availCCtx;
     ZSTD_customMem cMem;
-    ZSTD_CCtx* cctx[1];   /* variable size */
+    ZSTD_CCtx** cctxs;
 } ZSTDMT_CCtxPool;
 
-/* note : all CCtx borrowed from the pool should be released back to the pool _before_ freeing the pool */
+/* note : all CCtx borrowed from the pool must be reverted back to the pool _before_ freeing the pool */
 static void ZSTDMT_freeCCtxPool(ZSTDMT_CCtxPool* pool)
 {
     int cid;
     for (cid=0; cid<pool->totalCCtx; cid++)
-        ZSTD_freeCCtx(pool->cctx[cid]);  /* note : compatible with free on NULL */
+        ZSTD_freeCCtx(pool->cctxs[cid]);  /* note : compatible with free on NULL */
+    ZSTD_customFree(pool->cctxs, pool->cMem);
     ZSTD_pthread_mutex_destroy(&pool->poolMutex);
     ZSTD_customFree(pool, pool->cMem);
 }
@@ -373,14 +374,19 @@ static ZSTDMT_CCtxPool* ZSTDMT_createCCtxPool(int nbWorkers,
     assert(nbWorkers > 0);
     if (!cctxPool) return NULL;
     if (ZSTD_pthread_mutex_init(&cctxPool->poolMutex, NULL)) {
+        ZSTDMT_freeCCtxPool(cctxPool);
+        return NULL;
+    }
+    cctxPool->totalCCtx = nbWorkers;
+    cctxPool->cctxs = (ZSTD_CCtx**)ZSTD_customCalloc(nbWorkers * sizeof(ZSTD_CCtx*), cMem);
+    if (!cctxPool->cctxs) {
         ZSTD_customFree(cctxPool, cMem);
         return NULL;
     }
     cctxPool->cMem = cMem;
-    cctxPool->totalCCtx = nbWorkers;
+    cctxPool->cctxs[0] = ZSTD_createCCtx_advanced(cMem);
+    if (!cctxPool->cctxs[0]) { ZSTDMT_freeCCtxPool(cctxPool); return NULL; }
     cctxPool->availCCtx = 1;   /* at least one cctx for single-thread mode */
-    cctxPool->cctx[0] = ZSTD_createCCtx_advanced(cMem);
-    if (!cctxPool->cctx[0]) { ZSTDMT_freeCCtxPool(cctxPool); return NULL; }
     DEBUGLOG(3, "cctxPool created, with %u workers", nbWorkers);
     return cctxPool;
 }
@@ -404,14 +410,15 @@ static size_t ZSTDMT_sizeof_CCtxPool(ZSTDMT_CCtxPool* cctxPool)
     {   unsigned const nbWorkers = cctxPool->totalCCtx;
         size_t const poolSize = sizeof(*cctxPool)
                                 + (nbWorkers-1) * sizeof(ZSTD_CCtx*);
-        unsigned u;
+        size_t const arraySize = cctxPool->totalCCtx * sizeof(ZSTD_CCtx*);
         size_t totalCCtxSize = 0;
+        unsigned u;
         for (u=0; u<nbWorkers; u++) {
-            totalCCtxSize += ZSTD_sizeof_CCtx(cctxPool->cctx[u]);
+            totalCCtxSize += ZSTD_sizeof_CCtx(cctxPool->cctxs[u]);
         }
         ZSTD_pthread_mutex_unlock(&cctxPool->poolMutex);
         assert(nbWorkers > 0);
-        return poolSize + totalCCtxSize;
+        return poolSize + arraySize + totalCCtxSize;
     }
 }
 
@@ -421,7 +428,7 @@ static ZSTD_CCtx* ZSTDMT_getCCtx(ZSTDMT_CCtxPool* cctxPool)
     ZSTD_pthread_mutex_lock(&cctxPool->poolMutex);
     if (cctxPool->availCCtx) {
         cctxPool->availCCtx--;
-        {   ZSTD_CCtx* const cctx = cctxPool->cctx[cctxPool->availCCtx];
+        {   ZSTD_CCtx* const cctx = cctxPool->cctxs[cctxPool->availCCtx];
             ZSTD_pthread_mutex_unlock(&cctxPool->poolMutex);
             return cctx;
     }   }
@@ -435,7 +442,7 @@ static void ZSTDMT_releaseCCtx(ZSTDMT_CCtxPool* pool, ZSTD_CCtx* cctx)
     if (cctx==NULL) return;   /* compatibility with release on NULL */
     ZSTD_pthread_mutex_lock(&pool->poolMutex);
     if (pool->availCCtx < pool->totalCCtx)
-        pool->cctx[pool->availCCtx++] = cctx;
+        pool->cctxs[pool->availCCtx++] = cctx;
     else {
         /* pool overflow : should not happen, since totalCCtx==nbWorkers */
         DEBUGLOG(4, "CCtx pool overflow : free cctx");

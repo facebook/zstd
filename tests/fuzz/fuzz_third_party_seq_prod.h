@@ -52,7 +52,7 @@ extern "C" {
 size_t FUZZ_seqProdSetup(void);
 
 /* The fuzzer will call this function after each test-case. It should free
- * resources aquired by FUZZ_seqProdSetup() to prevent leaks across test-cases.
+ * resources acquired by FUZZ_seqProdSetup() to prevent leaks across test-cases.
  *
  * The fuzzer will assert() that the return value is zero. To signal an error,
  * please return a non-zero value. */
@@ -72,7 +72,7 @@ size_t FUZZ_seqProdTearDown(void);
 void* FUZZ_createSeqProdState(void);
 
 /* The fuzzer will call this function after each test-case. It should free any
- * resources aquired by FUZZ_createSeqProdState().
+ * resources acquired by FUZZ_createSeqProdState().
  *
  * The fuzzer will assert() that the return value is zero. To signal an error,
  * please return a non-zero value. */

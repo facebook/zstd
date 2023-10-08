@@ -249,7 +249,7 @@ ZSTDLIB_API int         ZSTD_defaultCLevel(void);           /*!< default compres
 /*= Compression context
  *  When compressing many times,
  *  it is recommended to allocate a context just once,
- *  and re-use it for each successive compression operation.
+ *  and reuse it for each successive compression operation.
  *  This will make workload friendlier for system's memory.
  *  Note : re-using context is just a speed / resource optimization.
  *         It doesn't change the compression ratio, which remains identical.
@@ -276,7 +276,7 @@ ZSTDLIB_API size_t ZSTD_compressCCtx(ZSTD_CCtx* cctx,
 /*= Decompression context
  *  When decompressing many times,
  *  it is recommended to allocate a context only once,
- *  and re-use it for each successive compression operation.
+ *  and reuse it for each successive compression operation.
  *  This will make workload friendlier for system's memory.
  *  Use one context per thread for parallel execution. */
 typedef struct ZSTD_DCtx_s ZSTD_DCtx;
@@ -682,14 +682,14 @@ typedef struct ZSTD_outBuffer_s {
 *  A ZSTD_CStream object is required to track streaming operation.
 *  Use ZSTD_createCStream() and ZSTD_freeCStream() to create/release resources.
 *  ZSTD_CStream objects can be reused multiple times on consecutive compression operations.
-*  It is recommended to re-use ZSTD_CStream since it will play nicer with system's memory, by re-using already allocated memory.
+*  It is recommended to reuse ZSTD_CStream since it will play nicer with system's memory, by re-using already allocated memory.
 *
 *  For parallel execution, use one separate ZSTD_CStream per thread.
 *
 *  note : since v1.3.0, ZSTD_CStream and ZSTD_CCtx are the same thing.
 *
 *  Parameters are sticky : when starting a new compression on the same context,
-*  it will re-use the same sticky parameters as previous compression session.
+*  it will reuse the same sticky parameters as previous compression session.
 *  When in doubt, it's recommended to fully initialize the context before usage.
 *  Use ZSTD_CCtx_reset() to reset the context and ZSTD_CCtx_setParameter(),
 *  ZSTD_CCtx_setPledgedSrcSize(), or ZSTD_CCtx_loadDictionary() and friends to
@@ -837,7 +837,7 @@ ZSTDLIB_API size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output);
 *
 *  A ZSTD_DStream object is required to track streaming operations.
 *  Use ZSTD_createDStream() and ZSTD_freeDStream() to create/release resources.
-*  ZSTD_DStream objects can be re-used multiple times.
+*  ZSTD_DStream objects can be reused multiple times.
 *
 *  Use ZSTD_initDStream() to start a new decompression operation.
 * @return : recommended first input size
@@ -1023,7 +1023,7 @@ ZSTDLIB_API unsigned ZSTD_getDictID_fromFrame(const void* src, size_t srcSize);
  *
  * This API allows dictionaries to be used with ZSTD_compress2(),
  * ZSTD_compressStream2(), and ZSTD_decompressDCtx().
- * Dictionaries are sticky, they remain valid when same context is re-used,
+ * Dictionaries are sticky, they remain valid when same context is reused,
  * they only reset when the context is reset
  * with ZSTD_reset_parameters or ZSTD_reset_session_and_parameters.
  * In contrast, Prefixes are single-use.
@@ -2581,7 +2581,7 @@ size_t ZSTD_initCStream_usingCDict_advanced(ZSTD_CStream* zcs,
  *       explicitly specified.
  *
  *  start a new frame, using same parameters from previous frame.
- *  This is typically useful to skip dictionary loading stage, since it will re-use it in-place.
+ *  This is typically useful to skip dictionary loading stage, since it will reuse it in-place.
  *  Note that zcs must be init at least once before using ZSTD_resetCStream().
  *  If pledgedSrcSize is not known at reset time, use macro ZSTD_CONTENTSIZE_UNKNOWN.
  *  If pledgedSrcSize > 0, its value must be correct, as it will be written in header, and controlled at the end.
@@ -2657,7 +2657,7 @@ ZSTDLIB_STATIC_API size_t ZSTD_initDStream_usingDDict(ZSTD_DStream* zds, const Z
  *
  *     ZSTD_DCtx_reset(zds, ZSTD_reset_session_only);
  *
- * re-use decompression parameters from previous init; saves dictionary loading
+ * reuse decompression parameters from previous init; saves dictionary loading
  */
 ZSTD_DEPRECATED("use ZSTD_DCtx_reset, see zstd.h for detailed instructions")
 ZSTDLIB_STATIC_API size_t ZSTD_resetDStream(ZSTD_DStream* zds);
@@ -2844,7 +2844,7 @@ ZSTD_registerSequenceProducer(
 
   A ZSTD_CCtx object is required to track streaming operations.
   Use ZSTD_createCCtx() / ZSTD_freeCCtx() to manage resource.
-  ZSTD_CCtx object can be re-used multiple times within successive compression operations.
+  ZSTD_CCtx object can be reused multiple times within successive compression operations.
 
   Start by initializing a context.
   Use ZSTD_compressBegin(), or ZSTD_compressBegin_usingDict() for dictionary compression.
@@ -2865,7 +2865,7 @@ ZSTD_registerSequenceProducer(
   It's possible to use srcSize==0, in which case, it will write a final empty block to end the frame.
   Without last block mark, frames are considered unfinished (hence corrupted) by compliant decoders.
 
-  `ZSTD_CCtx` object can be re-used (ZSTD_compressBegin()) to compress again.
+  `ZSTD_CCtx` object can be reused (ZSTD_compressBegin()) to compress again.
 */
 
 /*=====   Buffer-less streaming compression functions  =====*/
@@ -2897,7 +2897,7 @@ size_t ZSTD_compressBegin_usingCDict_advanced(ZSTD_CCtx* const cctx, const ZSTD_
 
   A ZSTD_DCtx object is required to track streaming operations.
   Use ZSTD_createDCtx() / ZSTD_freeDCtx() to manage it.
-  A ZSTD_DCtx object can be re-used multiple times.
+  A ZSTD_DCtx object can be reused multiple times.
 
   First typical operation is to retrieve frame parameters, using ZSTD_getFrameHeader().
   Frame header is extracted from the beginning of compressed frame, so providing only the frame's beginning is enough.

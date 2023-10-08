@@ -434,7 +434,7 @@ MEM_STATIC void* ZSTD_cwksp_reserve_aligned(ZSTD_cwksp* ws, size_t bytes)
 
 /**
  * Aligned on 64 bytes. These buffers have the special property that
- * their values remain constrained, allowing us to re-use them without
+ * their values remain constrained, allowing us to reuse them without
  * memset()-ing them.
  */
 MEM_STATIC void* ZSTD_cwksp_reserve_table(ZSTD_cwksp* ws, size_t bytes)
@@ -526,7 +526,7 @@ MEM_STATIC void ZSTD_cwksp_mark_tables_dirty(ZSTD_cwksp* ws)
     DEBUGLOG(4, "cwksp: ZSTD_cwksp_mark_tables_dirty");
 
 #if ZSTD_MEMORY_SANITIZER && !defined (ZSTD_MSAN_DONT_POISON_WORKSPACE)
-    /* To validate that the table re-use logic is sound, and that we don't
+    /* To validate that the table reuse logic is sound, and that we don't
      * access table space that we haven't cleaned, we re-"poison" the table
      * space every time we mark it dirty.
      * Since tableValidEnd space and initOnce space may overlap we don't poison
@@ -603,9 +603,9 @@ MEM_STATIC void ZSTD_cwksp_clear(ZSTD_cwksp* ws) {
     DEBUGLOG(4, "cwksp: clearing!");
 
 #if ZSTD_MEMORY_SANITIZER && !defined (ZSTD_MSAN_DONT_POISON_WORKSPACE)
-    /* To validate that the context re-use logic is sound, and that we don't
+    /* To validate that the context reuse logic is sound, and that we don't
      * access stuff that this compression hasn't initialized, we re-"poison"
-     * the workspace except for the areas in which we expect memory re-use
+     * the workspace except for the areas in which we expect memory reuse
      * without initialization (objects, valid tables area and init once
      * memory). */
     {

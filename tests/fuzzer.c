@@ -376,7 +376,7 @@ static int threadPoolTests(void) {
 
     RDG_genBuffer(CNBuffer, CNBuffSize, 0.5, 0.5, 0);
 
-    DISPLAYLEVEL(3, "thread pool test : threadPool re-use roundtrips: ");
+    DISPLAYLEVEL(3, "thread pool test : threadPool reuse roundtrips: ");
     {
         ZSTD_CCtx* cctx = ZSTD_createCCtx();
         ZSTD_threadPool* pool = ZSTD_createThreadPool(kPoolNumThreads);
@@ -1525,14 +1525,14 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
-    DISPLAYLEVEL(3, "test%3d : re-use CCtx with expanding block size : ", testNb++);
+    DISPLAYLEVEL(3, "test%3d : reuse CCtx with expanding block size : ", testNb++);
     {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         ZSTD_parameters const params = ZSTD_getParams(1, ZSTD_CONTENTSIZE_UNKNOWN, 0);
         assert(params.fParams.contentSizeFlag == 1);  /* block size will be adapted if pledgedSrcSize is enabled */
         CHECK_Z( ZSTD_compressBegin_advanced(cctx, NULL, 0, params, 1 /*pledgedSrcSize*/) );
         CHECK_Z( ZSTD_compressEnd(cctx, compressedBuffer, compressedBufferSize, CNBuffer, 1) ); /* creates a block size of 1 */
 
-        CHECK_Z( ZSTD_compressBegin_advanced(cctx, NULL, 0, params, ZSTD_CONTENTSIZE_UNKNOWN) );  /* re-use same parameters */
+        CHECK_Z( ZSTD_compressBegin_advanced(cctx, NULL, 0, params, ZSTD_CONTENTSIZE_UNKNOWN) );  /* reuse same parameters */
         {   size_t const inSize = 2* 128 KB;
             size_t const outSize = ZSTD_compressBound(inSize);
             CHECK_Z( ZSTD_compressEnd(cctx, compressedBuffer, outSize, CNBuffer, inSize) );
@@ -1827,7 +1827,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         params.cParams.windowLog = ZSTD_WINDOWLOG_MAX;
         for (cnb = 0; cnb < nbCompressions; ++cnb) {
             DISPLAYLEVEL(6, "run %zu / %zu \n", cnb, nbCompressions);
-            CHECK_Z( ZSTD_compressBegin_advanced(cctx, NULL, 0, params, ZSTD_CONTENTSIZE_UNKNOWN) );  /* re-use same parameters */
+            CHECK_Z( ZSTD_compressBegin_advanced(cctx, NULL, 0, params, ZSTD_CONTENTSIZE_UNKNOWN) );  /* reuse same parameters */
             CHECK_Z( ZSTD_compressEnd(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize) );
         }
         ZSTD_freeCCtx(cctx);

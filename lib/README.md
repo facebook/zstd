@@ -88,7 +88,7 @@ The file structure is designed to make this selection manually achievable for an
         For example, advanced API for version `v0.4` is exposed in `lib/legacy/zstd_v04.h` .
 
 - While invoking `make libzstd`, it's possible to define build macros
-        `ZSTD_LIB_COMPRESSION, ZSTD_LIB_DECOMPRESSION`, `ZSTD_LIB_DICTBUILDER`,
+        `ZSTD_LIB_COMPRESSION`, `ZSTD_LIB_DECOMPRESSION`, `ZSTD_LIB_DICTBUILDER`,
         and `ZSTD_LIB_DEPRECATED` as `0` to forgo compilation of the
         corresponding features. This will also disable compilation of all
         dependencies (e.g. `ZSTD_LIB_COMPRESSION=0` will also disable

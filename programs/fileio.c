@@ -527,7 +527,7 @@ static int FIO_removeFile(const char* path)
         DISPLAYLEVEL(2, "zstd: Refusing to remove non-regular file %s\n", path);
         return 0;
     }
-#if defined(_WIN32) || defined(WIN32)
+#if defined(_WIN32)
     /* windows doesn't allow remove read-only files,
      * so try to make it writable first */
     if (!(statbuf.st_mode & _S_IWRITE)) {

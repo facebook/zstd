@@ -141,7 +141,7 @@ extern "C" {
 #elif defined(MSDOS) || defined(OS2)
 #  include <io.h>       /* _isatty */
 #  define IS_CONSOLE(stdStream) _isatty(_fileno(stdStream))
-#elif defined(WIN32) || defined(_WIN32)
+#elif defined(_WIN32)
 #  include <io.h>      /* _isatty */
 #  include <windows.h> /* DeviceIoControl, HANDLE, FSCTL_SET_SPARSE */
 #  include <stdio.h>   /* FILE */
@@ -157,7 +157,7 @@ static __inline int IS_CONSOLE(FILE* stdStream) {
 /******************************
 *  OS-specific IO behaviors
 ******************************/
-#if defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(_WIN32)
+#if defined(MSDOS) || defined(OS2) || defined(_WIN32)
 #  include <fcntl.h>   /* _O_BINARY */
 #  include <io.h>      /* _setmode, _fileno, _get_osfhandle */
 #  if !defined(__DJGPP__)

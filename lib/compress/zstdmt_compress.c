@@ -96,16 +96,37 @@ typedef struct ZSTDMT_bufferPool_s {
     unsigned totalBuffers;
     unsigned nbBuffers;
     ZSTD_customMem cMem;
-    buffer_t bTable[1];   /* variable size */
+    buffer_t* buffers;
 } ZSTDMT_bufferPool;
+
+static void ZSTDMT_freeBufferPool(ZSTDMT_bufferPool* bufPool)
+{
+    unsigned u;
+    DEBUGLOG(3, "ZSTDMT_freeBufferPool (address:%08X)", (U32)(size_t)bufPool);
+    if (!bufPool) return;   /* compatibility with free on NULL */
+    if (bufPool->buffers) {
+        for (u=0; u<bufPool->totalBuffers; u++) {
+            DEBUGLOG(4, "free buffer %2u (address:%08X)", u, (U32)(size_t)bufPool->buffers[u].start);
+            ZSTD_customFree(bufPool->buffers[u].start, bufPool->cMem);
+        }
+        ZSTD_customFree(bufPool->buffers, bufPool->cMem);
+    }
+    ZSTD_pthread_mutex_destroy(&bufPool->poolMutex);
+    ZSTD_customFree(bufPool, bufPool->cMem);
+}
 
 static ZSTDMT_bufferPool* ZSTDMT_createBufferPool(unsigned maxNbBuffers, ZSTD_customMem cMem)
 {
-    ZSTDMT_bufferPool* const bufPool = (ZSTDMT_bufferPool*)ZSTD_customCalloc(
-        sizeof(ZSTDMT_bufferPool) + (maxNbBuffers-1) * sizeof(buffer_t), cMem);
+    ZSTDMT_bufferPool* const bufPool = 
+        (ZSTDMT_bufferPool*)ZSTD_customCalloc(sizeof(ZSTDMT_bufferPool), cMem);
     if (bufPool==NULL) return NULL;
     if (ZSTD_pthread_mutex_init(&bufPool->poolMutex, NULL)) {
         ZSTD_customFree(bufPool, cMem);
+        return NULL;
+    }
+    bufPool->buffers = (buffer_t*)ZSTD_customCalloc(maxNbBuffers * sizeof(buffer_t), cMem);
+    if (bufPool->buffers==NULL) {
+        ZSTDMT_freeBufferPool(bufPool);
         return NULL;
     }
     bufPool->bufferSize = 64 KB;
@@ -115,32 +136,19 @@ static ZSTDMT_bufferPool* ZSTDMT_createBufferPool(unsigned maxNbBuffers, ZSTD_cu
     return bufPool;
 }
 
-static void ZSTDMT_freeBufferPool(ZSTDMT_bufferPool* bufPool)
-{
-    unsigned u;
-    DEBUGLOG(3, "ZSTDMT_freeBufferPool (address:%08X)", (U32)(size_t)bufPool);
-    if (!bufPool) return;   /* compatibility with free on NULL */
-    for (u=0; u<bufPool->totalBuffers; u++) {
-        DEBUGLOG(4, "free buffer %2u (address:%08X)", u, (U32)(size_t)bufPool->bTable[u].start);
-        ZSTD_customFree(bufPool->bTable[u].start, bufPool->cMem);
-    }
-    ZSTD_pthread_mutex_destroy(&bufPool->poolMutex);
-    ZSTD_customFree(bufPool, bufPool->cMem);
-}
-
 /* only works at initialization, not during compression */
 static size_t ZSTDMT_sizeof_bufferPool(ZSTDMT_bufferPool* bufPool)
 {
-    size_t const poolSize = sizeof(*bufPool)
-                          + (bufPool->totalBuffers - 1) * sizeof(buffer_t);
+    size_t const poolSize = sizeof(*bufPool);
+    size_t const arraySize = bufPool->totalBuffers * sizeof(buffer_t);
     unsigned u;
     size_t totalBufferSize = 0;
     ZSTD_pthread_mutex_lock(&bufPool->poolMutex);
     for (u=0; u<bufPool->totalBuffers; u++)
-        totalBufferSize += bufPool->bTable[u].capacity;
+        totalBufferSize += bufPool->buffers[u].capacity;
     ZSTD_pthread_mutex_unlock(&bufPool->poolMutex);
 
-    return poolSize + totalBufferSize;
+    return poolSize + arraySize + totalBufferSize;
 }
 
 /* ZSTDMT_setBufferSize() :
@@ -183,9 +191,9 @@ static buffer_t ZSTDMT_getBuffer(ZSTDMT_bufferPool* bufPool)
     DEBUGLOG(5, "ZSTDMT_getBuffer: bSize = %u", (U32)bufPool->bufferSize);
     ZSTD_pthread_mutex_lock(&bufPool->poolMutex);
     if (bufPool->nbBuffers) {   /* try to use an existing buffer */
-        buffer_t const buf = bufPool->bTable[--(bufPool->nbBuffers)];
+        buffer_t const buf = bufPool->buffers[--(bufPool->nbBuffers)];
         size_t const availBufferSize = buf.capacity;
-        bufPool->bTable[bufPool->nbBuffers] = g_nullBuffer;
+        bufPool->buffers[bufPool->nbBuffers] = g_nullBuffer;
         if ((availBufferSize >= bSize) & ((availBufferSize>>3) <= bSize)) {
             /* large enough, but not too much */
             DEBUGLOG(5, "ZSTDMT_getBuffer: provide buffer %u of size %u",
@@ -246,14 +254,14 @@ static void ZSTDMT_releaseBuffer(ZSTDMT_bufferPool* bufPool, buffer_t buf)
     if (buf.start == NULL) return;   /* compatible with release on NULL */
     ZSTD_pthread_mutex_lock(&bufPool->poolMutex);
     if (bufPool->nbBuffers < bufPool->totalBuffers) {
-        bufPool->bTable[bufPool->nbBuffers++] = buf;  /* stored for later use */
+        bufPool->buffers[bufPool->nbBuffers++] = buf;  /* stored for later use */
         DEBUGLOG(5, "ZSTDMT_releaseBuffer: stored buffer of size %u in slot %u",
                     (U32)buf.capacity, (U32)(bufPool->nbBuffers-1));
         ZSTD_pthread_mutex_unlock(&bufPool->poolMutex);
         return;
     }
     ZSTD_pthread_mutex_unlock(&bufPool->poolMutex);
-    /* Reached bufferPool capacity (should not happen) */
+    /* Reached bufferPool capacity (note: should not happen) */
     DEBUGLOG(5, "ZSTDMT_releaseBuffer: pool capacity reached => freeing ");
     ZSTD_customFree(buf.start, bufPool->cMem);
 }
@@ -353,10 +361,13 @@ typedef struct {
 static void ZSTDMT_freeCCtxPool(ZSTDMT_CCtxPool* pool)
 {
     int cid;
-    for (cid=0; cid<pool->totalCCtx; cid++)
-        ZSTD_freeCCtx(pool->cctxs[cid]);  /* note : compatible with free on NULL */
-    ZSTD_customFree(pool->cctxs, pool->cMem);
+    if (!pool) return;
     ZSTD_pthread_mutex_destroy(&pool->poolMutex);
+    if (pool->cctxs) {
+        for (cid=0; cid<pool->totalCCtx; cid++)
+            ZSTD_freeCCtx(pool->cctxs[cid]);  /* free compatible with NULL */
+        ZSTD_customFree(pool->cctxs, pool->cMem);
+    }
     ZSTD_customFree(pool, pool->cMem);
 }
 

@@ -1119,6 +1119,9 @@ static int basicUnitTests(U32 const seed, double compressibility)
         size_t const srcSize1 = kWindowSize / 2;
         size_t const srcSize2 = kWindowSize * 10;
 
+        CHECK(cctx!=NULL);
+        CHECK(dctx!=NULL);
+        CHECK(dict!=NULL);
         if (CNBuffSize < dictSize) goto _output_error;
 
         RDG_genBuffer(dict, dictSize, 0.5, 0.5, seed);
@@ -1140,6 +1143,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, srcSize1);
         CHECK_Z(cSize);
         CHECK_Z(ZSTD_decompress_usingDict(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize, dict, dictSize));
+
         cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, srcSize2);
         /* Streaming decompression to catch out of bounds offsets. */
         {
@@ -1153,24 +1157,22 @@ static int basicUnitTests(U32 const seed, double compressibility)
         CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 2));
         /* Round trip once with a dictionary. */
         CHECK_Z(ZSTD_CCtx_refPrefix(cctx, dict, dictSize));
-        {
-            ZSTD_inBuffer in = {CNBuffer, srcSize1, 0};
+        {   ZSTD_inBuffer in = {CNBuffer, srcSize1, 0};
             ZSTD_outBuffer out = {compressedBuffer, compressedBufferSize, 0};
             CHECK_Z(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_flush));
             CHECK_Z(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end));
             cSize = out.pos;
         }
         CHECK_Z(ZSTD_decompress_usingDict(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize, dict, dictSize));
-        {
-            ZSTD_inBuffer in = {CNBuffer, srcSize2, 0};
+
+        {   ZSTD_inBuffer in = {CNBuffer, srcSize2, 0};
             ZSTD_outBuffer out = {compressedBuffer, compressedBufferSize, 0};
             CHECK_Z(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_flush));
             CHECK_Z(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end));
             cSize = out.pos;
         }
         /* Streaming decompression to catch out of bounds offsets. */
-        {
-            ZSTD_inBuffer in = {compressedBuffer, cSize, 0};
+        {   ZSTD_inBuffer in = {compressedBuffer, cSize, 0};
             ZSTD_outBuffer out = {decodedBuffer, CNBuffSize, 0};
             size_t const dSize = ZSTD_decompressStream(dctx, &out, &in);
             CHECK_Z(dSize);

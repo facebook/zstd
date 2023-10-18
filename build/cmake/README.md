@@ -41,6 +41,31 @@ cmake -DZSTD_BUILD_TESTS=ON -DZSTD_LEGACY_SUPPORT=OFF ..
 make
 ```
 
+### how to use it with CMake FetchContent
+
+For all options available, you can see it on <https://github.com/facebook/zstd/blob/dev/build/cmake/lib/CMakeLists.txt>
+```cmake
+include(FetchContent)
+
+set(ZSTD_BUILD_STATIC ON)
+set(ZSTD_BUILD_SHARED OFF)
+
+FetchContent_Declare(
+    zstd
+    URL "https://github.com/facebook/zstd/releases/download/v1.5.5/zstd-1.5.5.tar.gz"
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    SOURCE_SUBDIR build/cmake
+)
+
+FetchContent_MakeAvailable(zstd)
+
+target_link_libraries(
+    ${PROJECT_NAME}
+    PRIVATE
+    libzstd_static
+)
+```
+
 ### referring
 [Looking for a 'cmake clean' command to clear up CMake output](https://stackoverflow.com/questions/9680420/looking-for-a-cmake-clean-command-to-clear-up-cmake-output)
 

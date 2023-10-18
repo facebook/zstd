@@ -9,6 +9,12 @@
 
 cmake_minimum_required(VERSION 2.8.12 FATAL_ERROR)
 
+if (ANDROID AND ANDROID_MIN_SDK_VERSION)
+    if ((CMAKE_SIZEOF_VOID_P EQUAL 4) AND (ANDROID_MIN_SDK_VERSION VERSION_LESS 24))
+        add_compile_definitions(ANDROID_WITHOUT_FSEEKO)
+    endif()
+endif()
+
 # As of 2018-12-26 ZSTD has been validated to build with cmake version 3.13.2 new policies.
 # Set and use the newest cmake policies that are validated to work
 set(ZSTD_MAX_VALIDATED_CMAKE_MAJOR_VERSION "3")

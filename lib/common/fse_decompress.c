@@ -22,8 +22,7 @@
 #define FSE_STATIC_LINKING_ONLY
 #include "fse.h"
 #include "error_private.h"
-#define ZSTD_DEPS_NEED_MALLOC
-#include "zstd_deps.h"
+#include "zstd_deps.h"  /* ZSTD_memcpy */
 #include "bits.h"       /* ZSTD_highbit32 */
 
 
@@ -236,7 +235,6 @@ FORCE_INLINE_TEMPLATE size_t FSE_decompress_usingDTable_generic(
 
 typedef struct {
     short ncount[FSE_MAX_SYMBOL_VALUE + 1];
-    FSE_DTable dtable[1]; /* actual size is dynamic - member just helps get a pointer easily */
 } FSE_DecompressWksp;
 
 
@@ -251,10 +249,14 @@ FORCE_INLINE_TEMPLATE size_t FSE_decompress_wksp_body(
     unsigned tableLog;
     unsigned maxSymbolValue = FSE_MAX_SYMBOL_VALUE;
     FSE_DecompressWksp* const wksp = (FSE_DecompressWksp*)workSpace;
-    FSE_DTable* const dtable = wksp->dtable;
+    size_t const dtablePos = sizeof(FSE_DecompressWksp) / sizeof(FSE_DTable);
+    FSE_DTable* const dtable = (FSE_DTable*)workSpace + dtablePos;
 
-    DEBUG_STATIC_ASSERT((FSE_MAX_SYMBOL_VALUE + 1) % 2 == 0);
+    FSE_STATIC_ASSERT((FSE_MAX_SYMBOL_VALUE + 1) % 2 == 0);
     if (wkspSize < sizeof(*wksp)) return ERROR(GENERIC);
+
+    /* correct offset to dtable depends on this property */
+    FSE_STATIC_ASSERT(sizeof(FSE_DecompressWksp) % sizeof(FSE_DTable) == 0);
 
     /* normal FSE decoding mode */
     {   size_t const NCountLength =

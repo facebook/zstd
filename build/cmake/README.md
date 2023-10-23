@@ -64,6 +64,13 @@ target_link_libraries(
     PRIVATE
     libzstd_static
 )
+
+# On windows and macos this is needed
+target_include_directories(
+    ${PROJECT_NAME}
+    PRIVATE
+    ${zstd_SOURCE_DIR}/lib
+)
 ```
 
 ### referring

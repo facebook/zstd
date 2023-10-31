@@ -1083,7 +1083,7 @@ It depends on :
   Presuming an `Accuracy_Log` of 8,
   and presuming 100 probabilities points have already been distributed,
   the decoder may read any value from `0` to `256 - 100 + 1 == 157` (inclusive).
-  Therefore, it must read `log2sup(157) == 8` bits.
+  Therefore, it may read up to `log2sup(157) == 8` bits.
 
 - Value decoded : small values use 1 less bit :
   __example__ :

@@ -13,10 +13,8 @@ cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
 # Set and use the newest cmake policies that are validated to work
 set(ZSTD_MAX_VALIDATED_CMAKE_MAJOR_VERSION "3")
 set(ZSTD_MAX_VALIDATED_CMAKE_MINOR_VERSION "13") #Policies never changed at PATCH level
-if("${CMAKE_MAJOR_VERSION}" LESS 3)
-  set(ZSTD_CMAKE_POLICY_VERSION "${CMAKE_VERSION}")
-elseif( "${ZSTD_MAX_VALIDATED_CMAKE_MAJOR_VERSION}" EQUAL "${CMAKE_MAJOR_VERSION}" AND
-        "${ZSTD_MAX_VALIDATED_CMAKE_MINOR_VERSION}" GREATER "${CMAKE_MINOR_VERSION}")
+if("${ZSTD_MAX_VALIDATED_CMAKE_MAJOR_VERSION}" EQUAL "${CMAKE_MAJOR_VERSION}" AND
+       "${ZSTD_MAX_VALIDATED_CMAKE_MINOR_VERSION}" GREATER "${CMAKE_MINOR_VERSION}")
     set(ZSTD_CMAKE_POLICY_VERSION "${CMAKE_VERSION}")
 else()
     set(ZSTD_CMAKE_POLICY_VERSION "${ZSTD_MAX_VALIDATED_CMAKE_MAJOR_VERSION}.${ZSTD_MAX_VALIDATED_CMAKE_MINOR_VERSION}.0")
@@ -32,24 +30,13 @@ set(LIBRARY_DIR ${ZSTD_SOURCE_DIR}/lib)
 include(GetZstdLibraryVersion)
 GetZstdLibraryVersion(${LIBRARY_DIR}/zstd.h zstd_VERSION_MAJOR zstd_VERSION_MINOR zstd_VERSION_PATCH)
 
-if( CMAKE_MAJOR_VERSION LESS 3 )
-  ## Provide cmake 3+ behavior for older versions of cmake
-  project(zstd)
-  set(PROJECT_VERSION_MAJOR ${zstd_VERSION_MAJOR})
-  set(PROJECT_VERSION_MINOR ${zstd_VERSION_MINOR})
-  set(PROJECT_VERSION_PATCH ${zstd_VERSION_PATCH})
-  set(PROJECT_VERSION "${zstd_VERSION_MAJOR}.${zstd_VERSION_MINOR}.${zstd_VERSION_PATCH}")
-  enable_language(C)   # Main library is in C
-  enable_language(ASM) # And ASM
-  enable_language(CXX) # Testing contributed code also utilizes CXX
-else()
-  project(zstd
-    VERSION "${zstd_VERSION_MAJOR}.${zstd_VERSION_MINOR}.${zstd_VERSION_PATCH}"
-    LANGUAGES C   # Main library is in C
-              ASM # And ASM
-              CXX # Testing contributed code also utilizes CXX
-    )
-endif()
+project(zstd
+  VERSION "${zstd_VERSION_MAJOR}.${zstd_VERSION_MINOR}.${zstd_VERSION_PATCH}"
+  LANGUAGES C   # Main library is in C
+            ASM # And ASM
+            CXX # Testing contributed code also utilizes CXX
+  )
+
 message(STATUS "ZSTD VERSION: ${zstd_VERSION}")
 set(zstd_HOMEPAGE_URL "https://facebook.github.io/zstd")
 set(zstd_DESCRIPTION  "Zstandard is a real-time compression algorithm, providing high compression ratios.")

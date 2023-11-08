@@ -198,6 +198,10 @@ Going into `build` directory, you will find additional possibilities:
 You can build the zstd binary via buck by executing: `buck build programs:zstd` from the root of the repo.
 The output binary will be in `buck-out/gen/programs/`.
 
+### Bazel
+
+You easily can integrate zstd into your Bazel project by using the module hosted on the [Bazel Central Repository](https://registry.bazel.build/modules/zstd).
+
 ## Testing
 
 You can run quick local smoke tests by running `make check`.

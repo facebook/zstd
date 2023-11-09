@@ -1353,6 +1353,9 @@ If updating state after decoding a symbol would require more bits than
 remain in the stream, it is assumed that extra bits are 0.  Then,
 symbols for each of the final states are decoded and the process is complete.
 
+If this process would produce more weights than the maximum number of decoded
+weights (255), then the data is considered corrupted.
+
 #### Conversion from weights to Huffman prefix codes
 
 All present symbols shall now have a `Weight` value.

@@ -1252,7 +1252,9 @@ Number_of_Bits = Weight ? (Max_Number_of_Bits + 1 - Weight) : 0
 ```
 When a literal value is not present, it receives a `Weight` of 0.
 The least frequent symbol receives a `Weight` of 1.
-If no symbol has a `Weight` of 1, then the data is considered corrupted.
+If no literal has a `Weight` of 1, then the data is considered corrupted.
+If there are not at least two literals with non-zero `Weight`, then the data
+is considered corrupted.
 The most frequent symbol receives a `Weight` anywhere between 1 and 11 (max).
 The last symbol's `Weight` is deduced from previously retrieved Weights,
 by completing to the nearest power of 2. It's necessarily non 0.

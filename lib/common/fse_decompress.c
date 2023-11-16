@@ -237,7 +237,7 @@ FORCE_INLINE_TEMPLATE size_t FSE_decompress_usingDTable_generic(
 
 typedef struct {
     short ncount[FSE_MAX_SYMBOL_VALUE + 1];
-    FSE_DTable dtable[1]; /* Dynamically sized */
+    FSE_DTable dtable[]; /* Dynamically sized */
 } FSE_DecompressWksp;
 
 

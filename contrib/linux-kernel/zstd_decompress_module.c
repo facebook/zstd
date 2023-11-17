@@ -77,7 +77,7 @@ EXPORT_SYMBOL(zstd_init_dstream);
 
 size_t zstd_reset_dstream(zstd_dstream *dstream)
 {
-	return ZSTD_resetDStream(dstream);
+	return ZSTD_DCtx_reset(dstream, ZSTD_reset_session_only);
 }
 EXPORT_SYMBOL(zstd_reset_dstream);
 

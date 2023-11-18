@@ -34,6 +34,12 @@
 *  Macros
 ****************************************************************/
 
+#ifdef HUF_DISABLE_FAST_DECODE
+# define HUF_ENABLE_FAST_DECODE 0
+#else
+# define HUF_ENABLE_FAST_DECODE 1
+#endif
+
 /* These two optional macros force the use one way or another of the two
  * Huffman decompression implementations. You can't force in both directions
  * at the same time.
@@ -291,6 +297,24 @@ static size_t HUF_initRemainingDStream(BIT_DStream_t* bit, HUF_DecompressFastArg
 
     return 0;
 }
+
+/* Calls X(N) for each stream 0, 1, 2, 3. */
+#define HUF_4X_FOR_EACH_STREAM(X) \
+    {                             \
+        X(0)                      \
+        X(1)                      \
+        X(2)                      \
+        X(3)                      \
+    }
+
+/* Calls X(N, var) for each stream 0, 1, 2, 3. */
+#define HUF_4X_FOR_EACH_STREAM_WITH_VAR(X, var) \
+    {                                           \
+        X(0, (var))                             \
+        X(1, (var))                             \
+        X(2, (var))                             \
+        X(3, (var))                             \
+    }
 
 
 #ifndef HUF_FORCE_DECOMPRESS_X2
@@ -705,7 +729,6 @@ void HUF_decompress4X1_usingDTable_internal_fast_c_loop(HUF_DecompressFastArgs* 
     for (;;) {
         BYTE* olimit;
         int stream;
-        int symbol;
 
         /* Assert loop preconditions */
 #ifndef NDEBUG
@@ -752,27 +775,42 @@ void HUF_decompress4X1_usingDTable_internal_fast_c_loop(HUF_DecompressFastArgs* 
         }
 #endif
 
+#define HUF_4X1_DECODE_SYMBOL(_stream, _symbol)                 \
+    {                                                           \
+        int const index = (int)(bits[(_stream)] >> 53);         \
+        int const entry = (int)dtable[index];                   \
+        bits[(_stream)] <<= (entry & 0x3F);                     \
+        op[(_stream)][(_symbol)] = (BYTE)((entry >> 8) & 0xFF); \
+    }
+
+#define HUF_4X1_RELOAD_STREAM(_stream)                              \
+    {                                                               \
+        int const ctz = ZSTD_countTrailingZeros64(bits[(_stream)]); \
+        int const nbBits = ctz & 7;                                 \
+        int const nbBytes = ctz >> 3;                               \
+        op[(_stream)] += 5;                                         \
+        ip[(_stream)] -= nbBytes;                                   \
+        bits[(_stream)] = MEM_read64(ip[(_stream)]) | 1;            \
+        bits[(_stream)] <<= nbBits;                                 \
+    }
+
+        /* Manually unroll the loop because compilers don't consistently
+         * unroll the inner loops, which destroys performance.
+         */
         do {
             /* Decode 5 symbols in each of the 4 streams */
-            for (symbol = 0; symbol < 5; ++symbol) {
-                for (stream = 0; stream < 4; ++stream) {
-                    int const index = (int)(bits[stream] >> 53);
-                    int const entry = (int)dtable[index];
-                    bits[stream] <<= (entry & 63);
-                    op[stream][symbol] = (BYTE)((entry >> 8) & 0xFF);
-                }
-            }
-            /* Reload the bitstreams */
-            for (stream = 0; stream < 4; ++stream) {
-                int const ctz = ZSTD_countTrailingZeros64(bits[stream]);
-                int const nbBits = ctz & 7;
-                int const nbBytes = ctz >> 3;
-                op[stream] += 5;
-                ip[stream] -= nbBytes;
-                bits[stream] = MEM_read64(ip[stream]) | 1;
-                bits[stream] <<= nbBits;
-            }
+            HUF_4X_FOR_EACH_STREAM_WITH_VAR(HUF_4X1_DECODE_SYMBOL, 0)
+            HUF_4X_FOR_EACH_STREAM_WITH_VAR(HUF_4X1_DECODE_SYMBOL, 1)
+            HUF_4X_FOR_EACH_STREAM_WITH_VAR(HUF_4X1_DECODE_SYMBOL, 2)
+            HUF_4X_FOR_EACH_STREAM_WITH_VAR(HUF_4X1_DECODE_SYMBOL, 3)
+            HUF_4X_FOR_EACH_STREAM_WITH_VAR(HUF_4X1_DECODE_SYMBOL, 4)
+
+            /* Reload each of the 4 the bitstreams */
+            HUF_4X_FOR_EACH_STREAM(HUF_4X1_RELOAD_STREAM)
         } while (op[3] < olimit);
+
+#undef HUF_4X1_DECODE_SYMBOL
+#undef HUF_4X1_RELOAD_STREAM
     }
 
 _out:
@@ -868,7 +906,7 @@ static size_t HUF_decompress4X1_usingDTable_internal(void* dst, size_t dstSize, 
     }
 #endif
 
-    if (!(flags & HUF_flags_disableFast)) {
+    if (HUF_ENABLE_FAST_DECODE && !(flags & HUF_flags_disableFast)) {
         size_t const ret = HUF_decompress4X1_usingDTable_internal_fast(dst, dstSize, cSrc, cSrcSize, DTable, loopFn);
         if (ret != 0)
             return ret;
@@ -1490,7 +1528,6 @@ void HUF_decompress4X2_usingDTable_internal_fast_c_loop(HUF_DecompressFastArgs* 
     for (;;) {
         BYTE* olimit;
         int stream;
-        int symbol;
 
         /* Assert loop preconditions */
 #ifndef NDEBUG
@@ -1547,53 +1584,55 @@ void HUF_decompress4X2_usingDTable_internal_fast_c_loop(HUF_DecompressFastArgs* 
         }
 #endif
 
+#define HUF_4X2_DECODE_SYMBOL(_stream, _decode3)        \
+    if ((_decode3) || (_stream) != 3) {                 \
+        int const index = (int)(bits[(_stream)] >> 53); \
+        HUF_DEltX2 const entry = dtable[index];         \
+        MEM_write16(op[(_stream)], entry.sequence);     \
+        bits[(_stream)] <<= (entry.nbBits) & 0x3F;      \
+        op[(_stream)] += (entry.length);                \
+    }
+
+#define HUF_4X2_RELOAD_STREAM(_stream)                                  \
+    {                                                                   \
+        HUF_4X2_DECODE_SYMBOL(3, 1)                                     \
+        {                                                               \
+            int const ctz = ZSTD_countTrailingZeros64(bits[(_stream)]); \
+            int const nbBits = ctz & 7;                                 \
+            int const nbBytes = ctz >> 3;                               \
+            ip[(_stream)] -= nbBytes;                                   \
+            bits[(_stream)] = MEM_read64(ip[(_stream)]) | 1;            \
+            bits[(_stream)] <<= nbBits;                                 \
+        }                                                               \
+    }
+
+        /* Manually unroll the loop because compilers don't consistently
+         * unroll the inner loops, which destroys performance.
+         */
         do {
-            /* Do 5 table lookups for each of the first 3 streams */
-            for (symbol = 0; symbol < 5; ++symbol) {
-                for (stream = 0; stream < 3; ++stream) {
-                    int const index = (int)(bits[stream] >> 53);
-                    HUF_DEltX2 const entry = dtable[index];
-                    MEM_write16(op[stream], entry.sequence);
-                    bits[stream] <<= (entry.nbBits);
-                    op[stream] += (entry.length);
-                }
-            }
-            /* Do 1 table lookup from the final stream */
-            {
-                int const index = (int)(bits[3] >> 53);
-                HUF_DEltX2 const entry = dtable[index];
-                MEM_write16(op[3], entry.sequence);
-                bits[3] <<= (entry.nbBits);
-                op[3] += (entry.length);
-            }
-            /* Do 4 table lookups from the final stream & reload bitstreams */
-            for (stream = 0; stream < 4; ++stream) {
-                /* Do a table lookup from the final stream.
-                 * This is interleaved with the reloading to reduce register
-                 * pressure. This shouldn't be necessary, but compilers can
-                 * struggle with codegen with high register pressure.
-                 */
-                {
-                    int const index = (int)(bits[3] >> 53);
-                    HUF_DEltX2 const entry = dtable[index];
-                    MEM_write16(op[3], entry.sequence);
-                    bits[3] <<= (entry.nbBits);
-                    op[3] += (entry.length);
-                }
-                /* Reload the bistreams. The final bitstream must be reloaded
-                 * after the 5th symbol was decoded.
-                 */
-                {
-                    int const ctz = ZSTD_countTrailingZeros64(bits[stream]);
-                    int const nbBits = ctz & 7;
-                    int const nbBytes = ctz >> 3;
-                    ip[stream] -= nbBytes;
-                    bits[stream] = MEM_read64(ip[stream]) | 1;
-                    bits[stream] <<= nbBits;
-                }
-            }
+            /* Decode 5 symbols from each of the first 3 streams.
+             * The final stream will be decoded during the reload phase
+             * to reduce register pressure.
+             */
+            HUF_4X_FOR_EACH_STREAM_WITH_VAR(HUF_4X2_DECODE_SYMBOL, 0)
+            HUF_4X_FOR_EACH_STREAM_WITH_VAR(HUF_4X2_DECODE_SYMBOL, 0)
+            HUF_4X_FOR_EACH_STREAM_WITH_VAR(HUF_4X2_DECODE_SYMBOL, 0)
+            HUF_4X_FOR_EACH_STREAM_WITH_VAR(HUF_4X2_DECODE_SYMBOL, 0)
+            HUF_4X_FOR_EACH_STREAM_WITH_VAR(HUF_4X2_DECODE_SYMBOL, 0)
+
+            /* Decode one symbol from the final stream */
+            HUF_4X2_DECODE_SYMBOL(3, 1)
+
+            /* Decode 4 symbols from the final stream & reload bitstreams.
+             * The final stream is reloaded last, meaning that all 5 symbols
+             * are decoded from the final stream before it is reloaded.
+             */
+            HUF_4X_FOR_EACH_STREAM(HUF_4X2_RELOAD_STREAM)
         } while (op[3] < olimit);
     }
+
+#undef HUF_4X2_DECODE_SYMBOL
+#undef HUF_4X2_RELOAD_STREAM
 
 _out:
 
@@ -1679,7 +1718,7 @@ static size_t HUF_decompress4X2_usingDTable_internal(void* dst, size_t dstSize, 
     }
 #endif
 
-    if (!(flags & HUF_flags_disableFast)) {
+    if (HUF_ENABLE_FAST_DECODE && !(flags & HUF_flags_disableFast)) {
         size_t const ret = HUF_decompress4X2_usingDTable_internal_fast(dst, dstSize, cSrc, cSrcSize, DTable, loopFn);
         if (ret != 0)
             return ret;

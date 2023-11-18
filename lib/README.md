@@ -178,6 +178,10 @@ The file structure is designed to make this selection manually achievable for an
   `ZSTDERRORLIB_VSIBILITY`, and `ZDICTLIB_VISIBILITY` if unset, for backwards compatibility
   with the old macro names.
 
+- The C compiler macro `HUF_DISABLE_FAST_DECODE` disables the newer Huffman fast C
+  and assembly decoding loops. You may want to use this macro if these loops are
+  slower on your platform.
+
 #### Windows : using MinGW+MSYS to create DLL
 
 DLL can be created using MinGW+MSYS with the `make libzstd` command.

@@ -685,6 +685,7 @@ HUF_ASM_DECL void HUF_decompress4X1_usingDTable_internal_fast_asm_loop(HUF_Decom
 
 #endif
 
+#if ZSTD_ENABLE_FAST_C_LOOP
 static HUF_FAST_BMI2_ATTRS
 void HUF_decompress4X1_usingDTable_internal_fast_c_loop(HUF_DecompressFastArgs* args)
 {
@@ -783,6 +784,7 @@ _out:
     ZSTD_memcpy((void*)(&args->ip), &ip, sizeof(ip));
     ZSTD_memcpy(&args->op, &op, sizeof(op));
 }
+#endif
 
 /**
  * @returns @p dstSize on success (>= 6)
@@ -848,7 +850,11 @@ static size_t HUF_decompress4X1_usingDTable_internal(void* dst, size_t dstSize, 
                     size_t cSrcSize, HUF_DTable const* DTable, int flags)
 {
     HUF_DecompressUsingDTableFn fallbackFn = HUF_decompress4X1_usingDTable_internal_default;
-    HUF_DecompressFastLoopFn loopFn = HUF_decompress4X1_usingDTable_internal_fast_c_loop;
+    HUF_DecompressFastLoopFn loopFn = NULL;
+    
+#if ZSTD_ENABLE_FAST_C_LOOP
+    loopFn = HUF_decompress4X1_usingDTable_internal_fast_c_loop;
+#endif
 
 #if DYNAMIC_BMI2
     if (flags & HUF_flags_bmi2) {
@@ -869,7 +875,7 @@ static size_t HUF_decompress4X1_usingDTable_internal(void* dst, size_t dstSize, 
     }
 #endif
 
-    if (!(flags & HUF_flags_disableFast)) {
+    if (loopFn && !(flags & HUF_flags_disableFast)) {
         size_t const ret = HUF_decompress4X1_usingDTable_internal_fast(dst, dstSize, cSrc, cSrcSize, DTable, loopFn);
         if (ret != 0)
             return ret;
@@ -1466,6 +1472,7 @@ HUF_ASM_DECL void HUF_decompress4X2_usingDTable_internal_fast_asm_loop(HUF_Decom
 
 #endif
 
+#if ZSTD_ENABLE_FAST_C_LOOP
 static HUF_FAST_BMI2_ATTRS
 void HUF_decompress4X2_usingDTable_internal_fast_c_loop(HUF_DecompressFastArgs* args)
 {
@@ -1604,7 +1611,7 @@ _out:
     ZSTD_memcpy((void*)(&args->ip), &ip, sizeof(ip));
     ZSTD_memcpy(&args->op, &op, sizeof(op));
 }
-
+#endif
 
 static HUF_FAST_BMI2_ATTRS size_t
 HUF_decompress4X2_usingDTable_internal_fast(
@@ -1660,7 +1667,11 @@ static size_t HUF_decompress4X2_usingDTable_internal(void* dst, size_t dstSize, 
                     size_t cSrcSize, HUF_DTable const* DTable, int flags)
 {
     HUF_DecompressUsingDTableFn fallbackFn = HUF_decompress4X2_usingDTable_internal_default;
-    HUF_DecompressFastLoopFn loopFn = HUF_decompress4X2_usingDTable_internal_fast_c_loop;
+    HUF_DecompressFastLoopFn loopFn = NULL;
+    
+#if ZSTD_ENABLE_FAST_C_LOOP
+    loopFn = HUF_decompress4X2_usingDTable_internal_fast_c_loop;
+#endif
 
 #if DYNAMIC_BMI2
     if (flags & HUF_flags_bmi2) {
@@ -1681,7 +1692,7 @@ static size_t HUF_decompress4X2_usingDTable_internal(void* dst, size_t dstSize, 
     }
 #endif
 
-    if (!(flags & HUF_flags_disableFast)) {
+    if (loopFn && !(flags & HUF_flags_disableFast)) {
         size_t const ret = HUF_decompress4X2_usingDTable_internal_fast(dst, dstSize, cSrc, cSrcSize, DTable, loopFn);
         if (ret != 0)
             return ret;

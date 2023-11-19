@@ -136,6 +136,15 @@
 # define ZSTD_ENABLE_ASM_X86_64_BMI2 0
 #endif
 
+/**
+ * 
+*/
+#if !defined(ZSTD_DISABLE_FAST_C_LOOP)
+# define ZSTD_ENABLE_FAST_C_LOOP 1
+#else
+# define ZSTD_ENABLE_FAST_C_LOOP 0
+#endif
+
 /*
  * For x86 ELF targets, add .note.gnu.property section for Intel CET in
  * assembly sources when CET is enabled.

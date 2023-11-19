@@ -245,6 +245,7 @@ static void ZSTD_DCtx_resetParameters(ZSTD_DCtx* dctx)
     dctx->forceIgnoreChecksum = ZSTD_d_validateChecksum;
     dctx->refMultipleDDicts = ZSTD_rmd_refSingleDDict;
     dctx->disableHufAsm = 0;
+    dctx->disableHufFastCLoops = 0;
     dctx->maxBlockSizeParam = 0;
 }
 
@@ -1827,6 +1828,7 @@ ZSTD_bounds ZSTD_dParam_getBounds(ZSTD_dParameter dParam)
             bounds.upperBound = (int)ZSTD_rmd_refMultipleDDicts;
             return bounds;
         case ZSTD_d_disableHuffmanAssembly:
+        case ZSTD_d_disableHuffmanFastCLoops:
             bounds.lowerBound = 0;
             bounds.upperBound = 1;
             return bounds;
@@ -1878,6 +1880,9 @@ size_t ZSTD_DCtx_getParameter(ZSTD_DCtx* dctx, ZSTD_dParameter param, int* value
         case ZSTD_d_disableHuffmanAssembly:
             *value = (int)dctx->disableHufAsm;
             return 0;
+        case ZSTD_d_disableHuffmanFastCLoops:
+            *value = (int)dctx->disableHufFastCLoops;
+            return 0;
         case ZSTD_d_maxBlockSize:
             *value = dctx->maxBlockSizeParam;
             return 0;
@@ -1917,6 +1922,10 @@ size_t ZSTD_DCtx_setParameter(ZSTD_DCtx* dctx, ZSTD_dParameter dParam, int value
         case ZSTD_d_disableHuffmanAssembly:
             CHECK_DBOUNDS(ZSTD_d_disableHuffmanAssembly, value);
             dctx->disableHufAsm = value != 0;
+            return 0;
+        case ZSTD_d_disableHuffmanFastCLoops:
+            CHECK_DBOUNDS(ZSTD_d_disableHuffmanFastCLoops, value);
+            dctx->disableHufFastCLoops = value != 0;
             return 0;
         case ZSTD_d_maxBlockSize:
             if (value != 0) CHECK_DBOUNDS(ZSTD_d_maxBlockSize, value);

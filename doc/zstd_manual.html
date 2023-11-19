@@ -513,6 +513,8 @@ size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);  </b>/* accept NULL pointer */<b>
      * ZSTD_d_forceIgnoreChecksum
      * ZSTD_d_refMultipleDDicts
      * ZSTD_d_disableHuffmanAssembly
+     * ZSTD_d_maxBlockSize
+     * ZSTD_d_disableFastCLoops
      * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
      * note : never ever use experimentalParam? names directly
      */
@@ -520,7 +522,9 @@ size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);  </b>/* accept NULL pointer */<b>
      ZSTD_d_experimentalParam2=1001,
      ZSTD_d_experimentalParam3=1002,
      ZSTD_d_experimentalParam4=1003,
-     ZSTD_d_experimentalParam5=1004
+     ZSTD_d_experimentalParam5=1004,
+     ZSTD_d_experimentalParam6=1005,
+     ZSTD_d_experimentalParam7=1006,
 
 } ZSTD_dParameter;
 </b></pre><BR>

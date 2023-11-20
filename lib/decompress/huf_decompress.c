@@ -203,6 +203,11 @@ static size_t HUF_DecompressFastArgs_init(HUF_DecompressFastArgs* args, void* ds
     if (!MEM_isLittleEndian() || MEM_32bits())
         return 0;
 
+    /* Avoid nullptr addition */
+    if (dstSize == 0)
+        return 0;
+    assert(dst != NULL);
+
     /* strict minimum : jump table + 1 byte per stream */
     if (srcSize < 10)
         return ERROR(corruption_detected);

@@ -131,7 +131,7 @@ HUF_decompress4X1_usingDTable_internal_fast_asm_loop:
     movq 88(%rax), %bits3
     movq 96(%rax), %dtable
     push %rax      /* argument */
-    push 104(%rax) /* ilimit */
+    push 104(%rax) /* ilowest */
     push 112(%rax) /* oend */
     push %olimit   /* olimit space */
 
@@ -156,11 +156,11 @@ HUF_decompress4X1_usingDTable_internal_fast_asm_loop:
     shrq $2, %r15
 
     movq %ip0,     %rax /* rax = ip0 */
-    movq 40(%rsp), %rdx /* rdx = ilimit */
-    subq %rdx,     %rax /* rax = ip0 - ilimit */
-    movq %rax,     %rbx /* rbx = ip0 - ilimit */
+    movq 40(%rsp), %rdx /* rdx = ilowest */
+    subq %rdx,     %rax /* rax = ip0 - ilowest */
+    movq %rax,     %rbx /* rbx = ip0 - ilowest */
 
-    /* rdx = (ip0 - ilimit) / 7 */
+    /* rdx = (ip0 - ilowest) / 7 */
     movabsq $2635249153387078803, %rdx
     mulq %rdx
     subq %rdx, %rbx
@@ -183,9 +183,8 @@ HUF_decompress4X1_usingDTable_internal_fast_asm_loop:
 
     /* If (op3 + 20 > olimit) */
     movq %op3, %rax    /* rax = op3 */
-    addq $20,  %rax    /* rax = op3 + 20 */
-    cmpq %rax, %olimit /* op3 + 20 > olimit */
-    jb .L_4X1_exit
+    cmpq %rax, %olimit /* op3 == olimit */
+    je .L_4X1_exit
 
     /* If (ip1 < ip0) go to exit */
     cmpq %ip0, %ip1
@@ -316,7 +315,7 @@ HUF_decompress4X1_usingDTable_internal_fast_asm_loop:
     /* Restore stack (oend & olimit) */
     pop %rax /* olimit */
     pop %rax /* oend */
-    pop %rax /* ilimit */
+    pop %rax /* ilowest */
     pop %rax /* arg */
 
     /* Save ip / op / bits */
@@ -387,7 +386,7 @@ HUF_decompress4X2_usingDTable_internal_fast_asm_loop:
     movq 96(%rax), %dtable
     push %rax      /* argument */
     push %rax      /* olimit */
-    push 104(%rax) /* ilimit */
+    push 104(%rax) /* ilowest */
 
     movq 112(%rax), %rax
     push %rax /* oend3 */
@@ -414,9 +413,9 @@ HUF_decompress4X2_usingDTable_internal_fast_asm_loop:
 
     /* We can consume up to 7 input bytes each iteration. */
     movq %ip0,     %rax  /* rax = ip0 */
-    movq 40(%rsp), %rdx  /* rdx = ilimit */
-    subq %rdx,     %rax  /* rax = ip0 - ilimit */
-    movq %rax,    %r15   /* r15 = ip0 - ilimit */
+    movq 40(%rsp), %rdx  /* rdx = ilowest */
+    subq %rdx,     %rax  /* rax = ip0 - ilowest */
+    movq %rax,    %r15   /* r15 = ip0 - ilowest */
 
     /* rdx = rax / 7 */
     movabsq $2635249153387078803, %rdx
@@ -426,7 +425,7 @@ HUF_decompress4X2_usingDTable_internal_fast_asm_loop:
     addq %r15, %rdx
     shrq $2, %rdx
 
-    /* r15 = (ip0 - ilimit) / 7 */
+    /* r15 = (ip0 - ilowest) / 7 */
     movq %rdx, %r15
 
     /* r15 = min(r15, min(oend0 - op0, oend1 - op1, oend2 - op2, oend3 - op3) / 10) */
@@ -467,9 +466,8 @@ HUF_decompress4X2_usingDTable_internal_fast_asm_loop:
 
     /* If (op3 + 10 > olimit) */
     movq %op3, %rax    /* rax = op3 */
-    addq $10,  %rax    /* rax = op3 + 10 */
-    cmpq %rax, %olimit /* op3 + 10 > olimit */
-    jb .L_4X2_exit
+    cmpq %rax, %olimit /* op3 == olimit */
+    je .L_4X2_exit
 
     /* If (ip1 < ip0) go to exit */
     cmpq %ip0, %ip1
@@ -537,7 +535,7 @@ HUF_decompress4X2_usingDTable_internal_fast_asm_loop:
     pop %rax /* oend1 */
     pop %rax /* oend2 */
     pop %rax /* oend3 */
-    pop %rax /* ilimit */
+    pop %rax /* ilowest */
     pop %rax /* olimit */
     pop %rax /* arg */
 

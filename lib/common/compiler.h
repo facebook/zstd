@@ -132,8 +132,8 @@
 /* prefetch
  * can be disabled, by declaring NO_PREFETCH build macro */
 #if defined(NO_PREFETCH)
-#  define PREFETCH_L1(ptr)  (void)(ptr)  /* disabled */
-#  define PREFETCH_L2(ptr)  (void)(ptr)  /* disabled */
+#  define PREFETCH_L1(ptr)  do { (void)(ptr); } while (0)  /* disabled */
+#  define PREFETCH_L2(ptr)  do { (void)(ptr); } while (0)  /* disabled */
 #else
 #  if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_I86)) && !defined(_M_ARM64EC)  /* _mm_prefetch() is not defined outside of x86/x64 */
 #    include <mmintrin.h>   /* https://msdn.microsoft.com/fr-fr/library/84szxsww(v=vs.90).aspx */
@@ -143,24 +143,25 @@
 #    define PREFETCH_L1(ptr)  __builtin_prefetch((ptr), 0 /* rw==read */, 3 /* locality */)
 #    define PREFETCH_L2(ptr)  __builtin_prefetch((ptr), 0 /* rw==read */, 2 /* locality */)
 #  elif defined(__aarch64__)
-#    define PREFETCH_L1(ptr)  __asm__ __volatile__("prfm pldl1keep, %0" ::"Q"(*(ptr)))
-#    define PREFETCH_L2(ptr)  __asm__ __volatile__("prfm pldl2keep, %0" ::"Q"(*(ptr)))
+#    define PREFETCH_L1(ptr)  do { __asm__ __volatile__("prfm pldl1keep, %0" ::"Q"(*(ptr))); } while (0)
+#    define PREFETCH_L2(ptr)  do { __asm__ __volatile__("prfm pldl2keep, %0" ::"Q"(*(ptr))); } while (0)
 #  else
-#    define PREFETCH_L1(ptr) (void)(ptr)  /* disabled */
-#    define PREFETCH_L2(ptr) (void)(ptr)  /* disabled */
+#    define PREFETCH_L1(ptr) do { (void)(ptr); } while (0)  /* disabled */
+#    define PREFETCH_L2(ptr) do { (void)(ptr); } while (0)  /* disabled */
 #  endif
 #endif  /* NO_PREFETCH */
 
 #define CACHELINE_SIZE 64
 
-#define PREFETCH_AREA(p, s)  {            \
-    const char* const _ptr = (const char*)(p);  \
-    size_t const _size = (size_t)(s);     \
-    size_t _pos;                          \
-    for (_pos=0; _pos<_size; _pos+=CACHELINE_SIZE) {  \
-        PREFETCH_L2(_ptr + _pos);         \
-    }                                     \
-}
+#define PREFETCH_AREA(p, s)                              \
+    do {                                                 \
+        const char* const _ptr = (const char*)(p);       \
+        size_t const _size = (size_t)(s);                \
+        size_t _pos;                                     \
+        for (_pos=0; _pos<_size; _pos+=CACHELINE_SIZE) { \
+            PREFETCH_L2(_ptr + _pos);                    \
+        }                                                \
+    } while (0)
 
 /* vectorization
  * older GCC (pre gcc-4.3 picked as the cutoff) uses a different syntax,
@@ -189,9 +190,9 @@
 #endif
 
 #if __has_builtin(__builtin_unreachable) || (defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 5)))
-#  define ZSTD_UNREACHABLE { assert(0), __builtin_unreachable(); }
+#  define ZSTD_UNREACHABLE do { assert(0), __builtin_unreachable(); } while (0)
 #else
-#  define ZSTD_UNREACHABLE { assert(0); }
+#  define ZSTD_UNREACHABLE do { assert(0); } while (0)
 #endif
 
 /* disable warnings */

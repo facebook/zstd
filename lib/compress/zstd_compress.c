@@ -650,10 +650,11 @@ static size_t ZSTD_cParam_clampBounds(ZSTD_cParameter cParam, int* value)
     return 0;
 }
 
-#define BOUNDCHECK(cParam, val) { \
-    RETURN_ERROR_IF(!ZSTD_cParam_withinBounds(cParam,val), \
-                    parameter_outOfBound, "Param out of bounds"); \
-}
+#define BOUNDCHECK(cParam, val)                                       \
+    do {                                                              \
+        RETURN_ERROR_IF(!ZSTD_cParam_withinBounds(cParam,val),        \
+                        parameter_outOfBound, "Param out of bounds"); \
+    } while (0)
 
 
 static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
@@ -1392,11 +1393,12 @@ size_t ZSTD_checkCParams(ZSTD_compressionParameters cParams)
 static ZSTD_compressionParameters
 ZSTD_clampCParams(ZSTD_compressionParameters cParams)
 {
-#   define CLAMP_TYPE(cParam, val, type) {                                \
-        ZSTD_bounds const bounds = ZSTD_cParam_getBounds(cParam);         \
-        if ((int)val<bounds.lowerBound) val=(type)bounds.lowerBound;      \
-        else if ((int)val>bounds.upperBound) val=(type)bounds.upperBound; \
-    }
+#   define CLAMP_TYPE(cParam, val, type)                                      \
+        do {                                                                  \
+            ZSTD_bounds const bounds = ZSTD_cParam_getBounds(cParam);         \
+            if ((int)val<bounds.lowerBound) val=(type)bounds.lowerBound;      \
+            else if ((int)val>bounds.upperBound) val=(type)bounds.upperBound; \
+        } while (0)
 #   define CLAMP(cParam, val) CLAMP_TYPE(cParam, val, unsigned)
     CLAMP(ZSTD_c_windowLog, cParams.windowLog);
     CLAMP(ZSTD_c_chainLog,  cParams.chainLog);

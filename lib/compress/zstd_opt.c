@@ -1182,7 +1182,7 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
         for (cur = 1; cur <= last_pos; cur++) {
             const BYTE* const inr = ip + cur;
             assert(cur < ZSTD_OPT_NUM);
-            DEBUGLOG(7, "cPos:%zi==rPos:%u", inr-istart, cur)
+            DEBUGLOG(7, "cPos:%zi==rPos:%u", inr-istart, cur);
 
             /* Fix current position with one literal if cheaper */
             {   U32 const litlen = (opt[cur-1].mlen == 0) ? opt[cur-1].litlen + 1 : 1;
@@ -1331,7 +1331,7 @@ _shortestPath:   /* cur, last_pos, best_mlen, best_off have to be set */
             }
 
             /* save sequences */
-            DEBUGLOG(6, "sending selected sequences into seqStore")
+            DEBUGLOG(6, "sending selected sequences into seqStore");
             {   U32 storePos;
                 for (storePos=storeStart; storePos <= storeEnd; storePos++) {
                     U32 const llen = opt[storePos].litlen;

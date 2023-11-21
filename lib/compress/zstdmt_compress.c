@@ -40,12 +40,13 @@
 #  include <unistd.h>
 #  include <sys/times.h>
 
-#  define DEBUG_PRINTHEX(l,p,n) {            \
-    unsigned debug_u;                        \
-    for (debug_u=0; debug_u<(n); debug_u++)  \
-        RAWLOG(l, "%02X ", ((const unsigned char*)(p))[debug_u]); \
-    RAWLOG(l, " \n");                        \
-}
+#  define DEBUG_PRINTHEX(l,p,n)                                       \
+    do {                                                              \
+        unsigned debug_u;                                             \
+        for (debug_u=0; debug_u<(n); debug_u++)                       \
+            RAWLOG(l, "%02X ", ((const unsigned char*)(p))[debug_u]); \
+        RAWLOG(l, " \n");                                             \
+    } while (0)
 
 static unsigned long long GetCurrentClockTimeMicroseconds(void)
 {
@@ -57,25 +58,28 @@ static unsigned long long GetCurrentClockTimeMicroseconds(void)
 }  }
 
 #define MUTEX_WAIT_TIME_DLEVEL 6
-#define ZSTD_PTHREAD_MUTEX_LOCK(mutex) {          \
-    if (DEBUGLEVEL >= MUTEX_WAIT_TIME_DLEVEL) {   \
-        unsigned long long const beforeTime = GetCurrentClockTimeMicroseconds(); \
-        ZSTD_pthread_mutex_lock(mutex);           \
-        {   unsigned long long const afterTime = GetCurrentClockTimeMicroseconds(); \
-            unsigned long long const elapsedTime = (afterTime-beforeTime); \
-            if (elapsedTime > 1000) {  /* or whatever threshold you like; I'm using 1 millisecond here */ \
-                DEBUGLOG(MUTEX_WAIT_TIME_DLEVEL, "Thread took %llu microseconds to acquire mutex %s \n", \
-                   elapsedTime, #mutex);          \
-        }   }                                     \
-    } else {                                      \
-        ZSTD_pthread_mutex_lock(mutex);           \
-    }                                             \
-}
+#define ZSTD_PTHREAD_MUTEX_LOCK(mutex)                                                  \
+    do {                                                                                \
+        if (DEBUGLEVEL >= MUTEX_WAIT_TIME_DLEVEL) {                                     \
+            unsigned long long const beforeTime = GetCurrentClockTimeMicroseconds();    \
+            ZSTD_pthread_mutex_lock(mutex);                                             \
+            {   unsigned long long const afterTime = GetCurrentClockTimeMicroseconds(); \
+                unsigned long long const elapsedTime = (afterTime-beforeTime);          \
+                if (elapsedTime > 1000) {                                               \
+                    /* or whatever threshold you like; I'm using 1 millisecond here */  \
+                    DEBUGLOG(MUTEX_WAIT_TIME_DLEVEL,                                    \
+                        "Thread took %llu microseconds to acquire mutex %s \n",         \
+                        elapsedTime, #mutex);                                           \
+            }   }                                                                       \
+        } else {                                                                        \
+            ZSTD_pthread_mutex_lock(mutex);                                             \
+        }                                                                               \
+    } while (0)
 
 #else
 
 #  define ZSTD_PTHREAD_MUTEX_LOCK(m) ZSTD_pthread_mutex_lock(m)
-#  define DEBUG_PRINTHEX(l,p,n) {}
+#  define DEBUG_PRINTHEX(l,p,n) do { } while (0)
 
 #endif
 
@@ -667,12 +671,13 @@ typedef struct {
     unsigned frameChecksumNeeded;        /* used only by mtctx */
 } ZSTDMT_jobDescription;
 
-#define JOB_ERROR(e) {                          \
-    ZSTD_PTHREAD_MUTEX_LOCK(&job->job_mutex);   \
-    job->cSize = e;                             \
-    ZSTD_pthread_mutex_unlock(&job->job_mutex); \
-    goto _endJob;                               \
-}
+#define JOB_ERROR(e)                                \
+    do {                                            \
+        ZSTD_PTHREAD_MUTEX_LOCK(&job->job_mutex);   \
+        job->cSize = e;                             \
+        ZSTD_pthread_mutex_unlock(&job->job_mutex); \
+        goto _endJob;                               \
+    } while (0)
 
 /* ZSTDMT_compressionJob() is a POOL_function type */
 static void ZSTDMT_compressionJob(void* jobDescription)
@@ -1101,7 +1106,7 @@ ZSTD_frameProgression ZSTDMT_getFrameProgression(ZSTDMT_CCtx* mtctx)
     {   unsigned jobNb;
         unsigned lastJobNb = mtctx->nextJobID + mtctx->jobReady; assert(mtctx->jobReady <= 1);
         DEBUGLOG(6, "ZSTDMT_getFrameProgression: jobs: from %u to <%u (jobReady:%u)",
-                    mtctx->doneJobID, lastJobNb, mtctx->jobReady)
+                    mtctx->doneJobID, lastJobNb, mtctx->jobReady);
         for (jobNb = mtctx->doneJobID ; jobNb < lastJobNb ; jobNb++) {
             unsigned const wJobID = jobNb & mtctx->jobIDMask;
             ZSTDMT_jobDescription* jobPtr = &mtctx->jobs[wJobID];

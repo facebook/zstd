@@ -508,7 +508,7 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
 
     if (ms->prefetchCDictTables) {
         size_t const hashTableBytes = (((size_t)1) << dictCParams->hashLog) * sizeof(U32);
-        PREFETCH_AREA(dictHashTable, hashTableBytes)
+        PREFETCH_AREA(dictHashTable, hashTableBytes);
     }
 
     /* init */

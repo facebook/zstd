@@ -7086,7 +7086,7 @@ ZSTD_parameters ZSTD_getParams(int compressionLevel, unsigned long long srcSizeH
 
 void ZSTD_registerSequenceProducer(
     ZSTD_CCtx* zc, void* mState,
-    ZSTD_sequenceProducer_F* mFinder
+    ZSTD_sequenceProducer_F mFinder
 ) {
     if (mFinder != NULL) {
         ZSTD_externalMatchCtx emctx;

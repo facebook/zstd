@@ -404,7 +404,7 @@ typedef struct {
 /* Context for block-level external matchfinder API */
 typedef struct {
   void* mState;
-  ZSTD_sequenceProducer_F* mFinder;
+  ZSTD_sequenceProducer_F mFinder;
   ZSTD_Sequence* seqBuffer;
   size_t seqBufferCapacity;
 } ZSTD_externalMatchCtx;

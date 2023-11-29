@@ -360,10 +360,11 @@ struct ZSTD_CCtx_params_s {
      * if the external matchfinder returns an error code. */
     int enableMatchFinderFallback;
 
-    /* Indicates whether an external matchfinder has been referenced.
-     * Users can't set this externally.
-     * It is set internally in ZSTD_registerSequenceProducer(). */
-    int useSequenceProducer;
+    /* Parameters for the external sequence producer API.
+     * Users set these parameters through ZSTD_registerSequenceProducer().
+     * It is not possible to set these parameters individually through the public API. */
+    void* extSeqProdState;
+    ZSTD_sequenceProducer_F extSeqProdFunc;
 
     /* Adjust the max block size*/
     size_t maxBlockSize;
@@ -400,14 +401,6 @@ typedef struct {
     U32 partitions[ZSTD_MAX_NB_BLOCK_SPLITS];
     ZSTD_entropyCTablesMetadata_t entropyMetadata;
 } ZSTD_blockSplitCtx;
-
-/* Context for block-level external matchfinder API */
-typedef struct {
-  void* mState;
-  ZSTD_sequenceProducer_F* mFinder;
-  ZSTD_Sequence* seqBuffer;
-  size_t seqBufferCapacity;
-} ZSTD_externalMatchCtx;
 
 struct ZSTD_CCtx_s {
     ZSTD_compressionStage_e stage;
@@ -479,8 +472,9 @@ struct ZSTD_CCtx_s {
     /* Workspace for block splitter */
     ZSTD_blockSplitCtx blockSplitCtx;
 
-    /* Workspace for external matchfinder */
-    ZSTD_externalMatchCtx externalMatchCtx;
+    /* Buffer for output from external sequence producer */
+    ZSTD_Sequence* extSeqBuf;
+    size_t extSeqBufCapacity;
 };
 
 typedef enum { ZSTD_dtlm_fast, ZSTD_dtlm_full } ZSTD_dictTableLoadMethod_e;
@@ -1512,6 +1506,10 @@ ZSTD_copySequencesToSeqStoreNoBlockDelim(ZSTD_CCtx* cctx, ZSTD_sequencePosition*
                                    const ZSTD_Sequence* const inSeqs, size_t inSeqsSize,
                                    const void* src, size_t blockSize, ZSTD_paramSwitch_e externalRepSearch);
 
+/* Returns 1 if an external sequence producer is registered, otherwise returns 0. */
+MEM_STATIC int ZSTD_hasExtSeqProd(const ZSTD_CCtx_params* params) {
+    return params->extSeqProdFunc != NULL;
+}
 
 /* ===============================================================
  * Deprecated definitions that are still used internally to avoid

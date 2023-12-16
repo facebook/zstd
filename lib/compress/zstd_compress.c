@@ -5525,7 +5525,7 @@ ZSTD_CDict* ZSTD_createCDict_advanced2(
                         cctxParams.useRowMatchFinder, cctxParams.enableDedicatedDictSearch,
                         customMem);
 
-    if (ZSTD_isError( ZSTD_initCDict_internal(cdict,
+    if (!cdict || ZSTD_isError( ZSTD_initCDict_internal(cdict,
                                     dict, dictSize,
                                     dictLoadMethod, dictContentType,
                                     cctxParams) )) {

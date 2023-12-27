@@ -2824,6 +2824,12 @@ ZSTD_registerSequenceProducer(
   ZSTD_sequenceProducer_F sequenceProducer
 );
 
+void ZSTD_CCtxParams_registerSequenceProducer(
+  ZSTD_CCtx_params* params,
+  void* sequenceProducerState,
+  ZSTD_sequenceProducer_F sequenceProducer
+);
+
 
 /*********************************************************************
 *  Buffer-less and synchronous inner streaming functions (DEPRECATED)

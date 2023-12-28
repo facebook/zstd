@@ -2830,7 +2830,8 @@ ZSTD_registerSequenceProducer(
  * is required, then this function is for you. Otherwise, you probably don't need it.
  *
  * See tests/zstreamtest.c for example usage. */
-void ZSTD_CCtxParams_registerSequenceProducer(
+ZSTDLIB_STATIC_API void
+ZSTD_CCtxParams_registerSequenceProducer(
   ZSTD_CCtx_params* params,
   void* sequenceProducerState,
   ZSTD_sequenceProducer_F sequenceProducer

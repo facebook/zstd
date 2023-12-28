@@ -7088,6 +7088,7 @@ void ZSTD_registerSequenceProducer(
     void* extSeqProdState,
     ZSTD_sequenceProducer_F extSeqProdFunc
 ) {
+    assert(zc != NULL);
     ZSTD_CCtxParams_registerSequenceProducer(
         &zc->requestedParams, extSeqProdState, extSeqProdFunc
     );
@@ -7098,6 +7099,7 @@ void ZSTD_CCtxParams_registerSequenceProducer(
   void* extSeqProdState,
   ZSTD_sequenceProducer_F extSeqProdFunc
 ) {
+    assert(params != NULL);
     if (extSeqProdFunc != NULL) {
         params->extSeqProdFunc = extSeqProdFunc;
         params->extSeqProdState = extSeqProdState;

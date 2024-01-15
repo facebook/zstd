@@ -91,7 +91,13 @@ fi
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 PRGDIR="$SCRIPT_DIR/../programs"
 TESTDIR="$SCRIPT_DIR/../tests"
-UNAME=$(uname)
+UNAME=${UNAME:-$(uname)}
+GREP=${GREP:-grep}
+
+case "$UNAME" in
+  SunOS) DIFF=${DIFF:-gdiff} ;;
+  *) DIFF=${DIFF:-diff} ;;
+esac
 
 detectedTerminal=false
 if [ -t 0 ] && [ -t 1 ]
@@ -151,11 +157,6 @@ assertSamePermissions() {
     [ "$STAT1" = "$STAT2" ] || die "permissions on $1 don't match those on $2 ($STAT1 != $STAT2)"
 }
 
-DIFF="diff"
-case "$UNAME" in
-  SunOS) DIFF="gdiff" ;;
-esac
-
 
 # check if ZSTD_BIN is defined. if not, use the default value
 if [ -z "${ZSTD_BIN}" ]; then
@@ -177,7 +178,7 @@ fi
 [ -n "$DATAGEN_BIN" ] || die "datagen not found at $DATAGEN_BIN! \n Please define DATAGEN_BIN pointing to the datagen binary. You might also consider rebuilding zstd tests following the instructions in README.md. "
 println "\nStarting playTests.sh isWindows=$isWindows EXE_PREFIX='$EXE_PREFIX' ZSTD_BIN='$ZSTD_BIN' DATAGEN_BIN='$DATAGEN_BIN'"
 
-if echo hello | zstd -v -T2 2>&1 > $INTOVOID | grep -q 'multi-threading is disabled'
+if echo hello | zstd -v -T2 2>&1 > $INTOVOID | $GREP -q 'multi-threading is disabled'
 then
     hasMT=""
 else
@@ -253,8 +254,8 @@ println "test : null-length file roundtrip"
 println -n '' | zstd - --stdout | zstd -d --stdout
 println "test : ensure small file doesn't add 3-bytes null block"
 datagen -g1 > tmp1
-zstd tmp1 -c | wc -c | grep "14"
-zstd < tmp1  | wc -c | grep "14"
+zstd tmp1 -c | wc -c | $GREP "14"
+zstd < tmp1  | wc -c | $GREP "14"
 println "test : decompress file with wrong suffix (must fail)"
 zstd -d tmpCompressed && die "wrong suffix error not detected!"
 zstd -df tmp && die "should have refused : wrong extension"
@@ -291,9 +292,9 @@ println "test: --no-progress flag"
 zstd tmpro -c --no-progress | zstd -d -f -o "$INTOVOID" --no-progress
 zstd tmpro -cv --no-progress | zstd -dv -f -o "$INTOVOID" --no-progress
 println "test: --progress flag"
-zstd tmpro -c | zstd -d -f -o "$INTOVOID" --progress 2>&1 | grep -E "[A-Za-z0-9._ ]+: [0-9]+ bytes"
-zstd tmpro -c | zstd -d -f -q -o "$INTOVOID" --progress 2>&1 | grep -E "[A-Za-z0-9._ ]+: [0-9]+ bytes"
-zstd tmpro -c | zstd -d -f -v -o "$INTOVOID" 2>&1 | grep -E "[A-Za-z0-9._ ]+: [0-9]+ bytes"
+zstd tmpro -c | zstd -d -f -o "$INTOVOID" --progress 2>&1 | $GREP "[A-Za-z0-9._ ]\+: [0-9]\+ bytes"
+zstd tmpro -c | zstd -d -f -q -o "$INTOVOID" --progress 2>&1 | $GREP "[A-Za-z0-9._ ]\+: [0-9]\+ bytes"
+zstd tmpro -c | zstd -d -f -v -o "$INTOVOID" 2>&1 | $GREP "[A-Za-z0-9._ ]\+: [0-9]\+ bytes"
 rm -f tmpro tmpro.zst
 println "test: overwrite input file (must fail)"
 zstd tmp -fo tmp && die "zstd compression overwrote the input file"
@@ -320,7 +321,7 @@ zstd -d -f tmp.zst --no-check
 if [ "$isWindows" = false ] && [ "$UNAME" != "AIX" ]; then
   if [ -n "$(which readelf)" ]; then
     println "test: check if binary has executable stack (#2963)"
-    readelf -lW "$ZSTD_BIN" | grep 'GNU_STACK .* RW ' || die "zstd binary has executable stack!"
+    readelf -lW "$ZSTD_BIN" | $GREP 'GNU_STACK .* RW ' || die "zstd binary has executable stack!"
   fi
 fi
 
@@ -413,9 +414,9 @@ zstd -q tmp tmp2 -o tmp3.zst --rm && die "should refuse to concatenate"
 println "test : should quietly not remove non-regular file"
 println hello > tmp
 zstd tmp -f -o "$DEVDEVICE" 2>tmplog > "$INTOVOID"
-grep "Refusing to remove non-regular file" tmplog && die
+$GREP "Refusing to remove non-regular file" tmplog && die
 rm -f tmplog
-zstd tmp -f -o "$INTOVOID" 2>&1 | grep "Refusing to remove non-regular file" && die
+zstd tmp -f -o "$INTOVOID" 2>&1 | $GREP "Refusing to remove non-regular file" && die
 println "test : --rm on stdin"
 println a | zstd --rm > $INTOVOID   # --rm should remain silent
 rm -f tmp
@@ -615,7 +616,7 @@ if [ -n "$DEVNULLRIGHTS" ] ; then
     zstd tmp -f -o tmp.zst
     sudoZstd -d tmp.zst -c > $INTOVOID
     sudoZstd -d tmp.zst -o $INTOVOID
-    ls -las $INTOVOID | grep "rw-rw-rw-"
+    ls -las $INTOVOID | $GREP "rw-rw-rw-"
 fi
 
 if [ -n "$READFROMBLOCKDEVICE" ] ; then
@@ -625,7 +626,7 @@ if [ -n "$READFROMBLOCKDEVICE" ] ; then
     println "\n===> checking that zstd can read from a block device"
     datagen -g65536 > tmp.img
     sudo losetup -fP tmp.img
-    LOOP_DEV=$(losetup -a | grep 'tmp\.img' | cut -f1 -d:)
+    LOOP_DEV=$(losetup -a | $GREP 'tmp\.img' | cut -f1 -d:)
     [ -z "$LOOP_DEV" ] && die "failed to get loopback device"
     sudoZstd $LOOP_DEV -c > tmp.img.zst && die "should fail without -f"
     sudoZstd -f $LOOP_DEV -c > tmp.img.zst
@@ -774,13 +775,13 @@ println "\n===> --[no-]content-size tests"
 
 datagen > tmp_contentsize
 zstd -f tmp_contentsize
-zstd -lv tmp_contentsize.zst | grep "Decompressed Size:"
+zstd -lv tmp_contentsize.zst | $GREP "Decompressed Size:"
 zstd -f --no-content-size tmp_contentsize
-zstd -lv tmp_contentsize.zst | grep "Decompressed Size:" && die
+zstd -lv tmp_contentsize.zst | $GREP "Decompressed Size:" && die
 zstd -f --content-size tmp_contentsize
-zstd -lv tmp_contentsize.zst | grep "Decompressed Size:"
+zstd -lv tmp_contentsize.zst | $GREP "Decompressed Size:"
 zstd -f --content-size --no-content-size tmp_contentsize
-zstd -lv tmp_contentsize.zst | grep "Decompressed Size:" && die
+zstd -lv tmp_contentsize.zst | $GREP "Decompressed Size:" && die
 rm -rf tmp*
 
 println "test : show-default-cparams regular"
@@ -800,8 +801,7 @@ rm -rf tmp*
 println "test : show compression parameters in verbose mode"
 datagen > tmp
 zstd -vv tmp 2>&1 | \
-grep -q -E -- "--zstd=wlog=[[:digit:]]+,clog=[[:digit:]]+,hlog=[[:digit:]]+,\
-slog=[[:digit:]]+,mml=[[:digit:]]+,tlen=[[:digit:]]+,strat=[[:digit:]]+"
+$GREP -q -- "--zstd=wlog=[0-9]\+,clog=[0-9]\+,hlog=[0-9]\+,slog=[0-9]\+,mml=[0-9]\+,tlen=[0-9]\+,strat=[0-9]\+"
 rm -rf tmp*
 
 println "\n===>  Advanced compression parameters "
@@ -1098,8 +1098,8 @@ println "- Test --memory for dictionary compression"
 datagen -g12M -P90 > tmpCorpusHighCompress
 zstd --train -B2K tmpCorpusHighCompress -o tmpDictHighCompress --memory=10K && die "Dictionary training should fail : --memory too low (10K)"
 zstd --train -B2K tmpCorpusHighCompress -o tmpDictHighCompress --memory=5MB 2> zstTrainWithMemLimitStdErr
-cat zstTrainWithMemLimitStdErr | grep "setting manual memory limit for dictionary training data at 5 MB"
-cat zstTrainWithMemLimitStdErr | grep "Training samples set too large (12 MB); training on 5 MB only..."
+cat zstTrainWithMemLimitStdErr | $GREP "setting manual memory limit for dictionary training data at 5 MB"
+cat zstTrainWithMemLimitStdErr | $GREP "Training samples set too large (12 MB); training on 5 MB only..."
 rm zstTrainWithMemLimitStdErr
 
 println "\n===>  fastCover dictionary builder : advanced options "
@@ -1385,16 +1385,16 @@ println "\n===> suffix list test"
 ! zstd -d tmp.abc 2> tmplg
 
 if [ $GZIPMODE -ne 1 ]; then
-    grep ".gz" tmplg > $INTOVOID && die "Unsupported suffix listed"
+    $GREP ".gz" tmplg > $INTOVOID && die "Unsupported suffix listed"
 fi
 
 if [ $LZMAMODE -ne 1 ]; then
-    grep ".lzma" tmplg > $INTOVOID && die "Unsupported suffix listed"
-    grep ".xz" tmplg > $INTOVOID && die "Unsupported suffix listed"
+    $GREP ".lzma" tmplg > $INTOVOID && die "Unsupported suffix listed"
+    $GREP ".xz" tmplg > $INTOVOID && die "Unsupported suffix listed"
 fi
 
 if [ $LZ4MODE -ne 1 ]; then
-    grep ".lz4" tmplg > $INTOVOID && die "Unsupported suffix listed"
+    $GREP ".lz4" tmplg > $INTOVOID && die "Unsupported suffix listed"
 fi
 
 touch tmp1
@@ -1523,7 +1523,7 @@ datagen > tmp2
 datagen > tmp3
 zstd tmp*
 zstd -l ./*.zst
-zstd -lv ./*.zst | grep "Decompressed Size:"  # check that decompressed size is present in header
+zstd -lv ./*.zst | $GREP "Decompressed Size:"  # check that decompressed size is present in header
 zstd --list ./*.zst
 zstd --list -v ./*.zst
 
@@ -1566,13 +1566,13 @@ datagen -g0 > tmp5
 zstd tmp5
 zstd -l tmp5.zst
 zstd -l tmp5* && die "-l must fail on non-zstd file"
-zstd -lv tmp5.zst | grep "Decompressed Size: 0 B (0 B)"  # check that 0 size is present in header
+zstd -lv tmp5.zst | $GREP "Decompressed Size: 0 B (0 B)"  # check that 0 size is present in header
 zstd -lv tmp5* && die "-l must fail on non-zstd file"
 
 println "\n===>  zstd --list/-l test with no content size field "
 datagen -g513K | zstd > tmp6.zst
 zstd -l tmp6.zst
-zstd -lv tmp6.zst | grep "Decompressed Size:"  && die "Field :Decompressed Size: should not be available in this compressed file"
+zstd -lv tmp6.zst | $GREP "Decompressed Size:"  && die "Field :Decompressed Size: should not be available in this compressed file"
 
 println "\n===>   zstd --list/-l test with no checksum "
 zstd -f --no-check tmp1
@@ -1723,7 +1723,7 @@ else
     datagen -g5000000 > tmp_dict
     datagen -g5000000 > tmp_patch
 fi
-zstd -15 --patch-from=tmp_dict tmp_patch 2>&1 | grep "long mode automatically triggered"
+zstd -15 --patch-from=tmp_dict tmp_patch 2>&1 | $GREP "long mode automatically triggered"
 rm -rf tmp*
 
 println "\n===> patch-from very large dictionary and file test"

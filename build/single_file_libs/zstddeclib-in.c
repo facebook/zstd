@@ -43,6 +43,10 @@
 #define ZSTD_LEGACY_SUPPORT 0
 #define ZSTD_STRIP_ERROR_STRINGS
 #define ZSTD_TRACE 0
+#if defined(__TINYC__) && defined(_WIN32)
+#undef ZSTD_MULTITHREAD
+#define ZSTD_NO_INTRINSICS
+#endif
 /* TODO: Can't amalgamate ASM function */
 #define ZSTD_DISABLE_ASM 1
 

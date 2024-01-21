@@ -1,6 +1,7 @@
 #!/bin/sh
 
-set -e
+set -e # exit immediately on error
+# set -x # print commands before execution (debug)
 
 unset ZSTD_CLEVEL
 unset ZSTD_NBTHREADS
@@ -292,9 +293,9 @@ println "test: --no-progress flag"
 zstd tmpro -c --no-progress | zstd -d -f -o "$INTOVOID" --no-progress
 zstd tmpro -cv --no-progress | zstd -dv -f -o "$INTOVOID" --no-progress
 println "test: --progress flag"
-zstd tmpro -c | zstd -d -f -o "$INTOVOID" --progress 2>&1 | $GREP "[A-Za-z0-9._ ]\+: [0-9]\+ bytes"
-zstd tmpro -c | zstd -d -f -q -o "$INTOVOID" --progress 2>&1 | $GREP "[A-Za-z0-9._ ]\+: [0-9]\+ bytes"
-zstd tmpro -c | zstd -d -f -v -o "$INTOVOID" 2>&1 | $GREP "[A-Za-z0-9._ ]\+: [0-9]\+ bytes"
+zstd tmpro -c | zstd -d -f -o "$INTOVOID" --progress 2>&1 | $GREP '[A-Za-z0-9._ ]*: [0-9]* bytes'
+zstd tmpro -c | zstd -d -f -q -o "$INTOVOID" --progress 2>&1 | $GREP '[A-Za-z0-9._ ]*: [0-9]* bytes'
+zstd tmpro -c | zstd -d -f -v -o "$INTOVOID" 2>&1 | $GREP '[A-Za-z0-9._ ]*: [0-9]* bytes'
 rm -f tmpro tmpro.zst
 println "test: overwrite input file (must fail)"
 zstd tmp -fo tmp && die "zstd compression overwrote the input file"
@@ -801,7 +802,7 @@ rm -rf tmp*
 println "test : show compression parameters in verbose mode"
 datagen > tmp
 zstd -vv tmp 2>&1 | \
-$GREP -q -- "--zstd=wlog=[0-9]\+,clog=[0-9]\+,hlog=[0-9]\+,slog=[0-9]\+,mml=[0-9]\+,tlen=[0-9]\+,strat=[0-9]\+"
+$GREP -q -- "--zstd=wlog=[0-9]*,clog=[0-9]*,hlog=[0-9]*,slog=[0-9]*,mml=[0-9]*,tlen=[0-9]*,strat=[0-9]*"
 rm -rf tmp*
 
 println "\n===>  Advanced compression parameters "

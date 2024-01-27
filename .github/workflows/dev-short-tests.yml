@@ -80,19 +80,16 @@ jobs:
         make clean
         LDFLAGS=-Wl,--no-undefined make -C lib libzstd-mt
 
-    # candidate test (to check) : underlink test
+    # candidate test (for discussion) : underlink test
     # LDFLAGS=-Wl,--no-undefined : will make the linker fail if dll is underlinked
 
   cmake-build-and-test-check:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v3
-    - name: cmake build and test check
+    - name: cmake build and test
       run: |
-        FUZZERTEST=-T1mn ZSTREAM_TESTTIME=-T1mn make cmakebuild
-        cp -r ./ "../zstd source"
-        cd "../zstd source"
-        FUZZERTEST=-T1mn ZSTREAM_TESTTIME=-T1mn make cmakebuild
+        FUZZERTEST=-T1mn ZSTREAM_TESTTIME=-T1mn make cmakebuild V=1
 
   cpp-gnu90-c99-compatibility:
     runs-on: ubuntu-latest

@@ -145,7 +145,7 @@ clean:
 	$(Q)$(MAKE) -C contrib/largeNbDicts $@ > $(VOID)
 	$(Q)$(MAKE) -C contrib/externalSequenceProducer $@ > $(VOID)
 	$(Q)$(RM) zstd$(EXT) zstdmt$(EXT) tmp*
-	$(Q)$(RM) -r lz4
+	$(Q)$(RM) -r lz4 cmakebuild install
 	@echo Cleaning completed
 
 #------------------------------------------------------------------------------
@@ -389,28 +389,32 @@ lz4install:
 endif
 
 
-CMAKE_PARAMS = -DZSTD_BUILD_CONTRIB:BOOL=ON -DZSTD_BUILD_STATIC:BOOL=ON -DZSTD_BUILD_TESTS:BOOL=ON -DZSTD_ZLIB_SUPPORT:BOOL=ON -DZSTD_LZMA_SUPPORT:BOOL=ON -DCMAKE_BUILD_TYPE=Release
-
 ifneq (,$(filter MSYS%,$(shell uname)))
 HOST_OS = MSYS
-CMAKE_PARAMS = -G"MSYS Makefiles" -DCMAKE_BUILD_TYPE=Debug -DZSTD_MULTITHREAD_SUPPORT:BOOL=OFF -DZSTD_BUILD_STATIC:BOOL=ON -DZSTD_BUILD_TESTS:BOOL=ON
 endif
 
 #------------------------------------------------------------------------
 # target specific tests
 #------------------------------------------------------------------------
 ifneq (,$(filter $(HOST_OS),MSYS POSIX))
-.PHONY: cmakebuild c89build gnu90build c99build gnu99build c11build bmix64build bmix32build bmi32build staticAnalyze
-cmakebuild:
-	cmake --version
-	$(RM) -r $(BUILDIR)/cmake/build
-	$(MKDIR) $(BUILDIR)/cmake/build
-	cd $(BUILDIR)/cmake/build; cmake -DCMAKE_INSTALL_PREFIX:PATH=~/install_test_dir $(CMAKE_PARAMS) ..
-	$(MAKE) -C $(BUILDIR)/cmake/build -j4;
-	$(MAKE) -C $(BUILDIR)/cmake/build install;
-	$(MAKE) -C $(BUILDIR)/cmake/build uninstall;
-	cd $(BUILDIR)/cmake/build; ctest -V -L Medium
 
+CMAKE ?= cmake
+CMAKE_PARAMS = -DZSTD_BUILD_CONTRIB:BOOL=ON -DZSTD_BUILD_STATIC:BOOL=ON -DZSTD_BUILD_TESTS:BOOL=ON -DZSTD_ZLIB_SUPPORT:BOOL=ON -DZSTD_LZMA_SUPPORT:BOOL=ON
+
+ifneq (,$(filter MSYS%,$(shell uname)))
+CMAKE_PARAMS = -G"MSYS Makefiles" -DZSTD_MULTITHREAD_SUPPORT:BOOL=OFF -DZSTD_BUILD_STATIC:BOOL=ON -DZSTD_BUILD_TESTS:BOOL=ON
+endif
+
+.PHONY: cmakebuild
+cmakebuild:
+	$(CMAKE) --version
+	$(RM) -r cmakebuild install
+	$(MKDIR) cmakebuild install
+	cd cmakebuild; $(CMAKE) -Wdev -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS="-Werror -O0" -DCMAKE_INSTALL_PREFIX=install $(CMAKE_PARAMS) ../build/cmake
+	$(CMAKE) --build cmakebuild --target install -- -j V=1
+	cd cmakebuild; ctest -V -L Medium
+
+.PHONY: c89build gnu90build c99build gnu99build c11build bmix64build bmix32build bmi32build staticAnalyze
 c89build: clean
 	$(CC) -v
 	CFLAGS="-std=c89 -Werror -Wno-attributes -Wpedantic -Wno-long-long -Wno-variadic-macros -O0" $(MAKE) lib zstd

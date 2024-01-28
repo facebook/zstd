@@ -27,6 +27,8 @@ tmp*
 dictionary.
 dictionary
 NUL
+cmakebuild/
+install/
 
 # Build artefacts
 contrib/linux-kernel/linux/

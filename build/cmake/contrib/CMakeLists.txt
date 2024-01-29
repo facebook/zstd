@@ -7,7 +7,11 @@
 # in the COPYING file in the root directory of this source tree).
 # ################################################################
 
-project(contrib)
+project(contrib
+  LANGUAGES C   # Main library is in C
+  ASM # And ASM
+  CXX # pzstd, gen_html
+)
 
 add_subdirectory(pzstd)
 add_subdirectory(gen_html)

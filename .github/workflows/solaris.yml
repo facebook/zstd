@@ -51,5 +51,5 @@ jobs:
           cmake --version
           rm -rf cmakebuild install
           mkdir -p cmakebuild install
-          cd cmakebuild; cmake -Wdev -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS="-Werror -O0" -DCMAKE_INSTALL_PREFIX=install ../build/cmake
+          cd cmakebuild; cmake -Wdev -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS="-Werror -O0" -DCMAKE_INSTALL_PREFIX=install ../build/cmake; cd ..
           cmake --build cmakebuild --target install -- -j V=1

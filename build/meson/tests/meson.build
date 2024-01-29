@@ -29,6 +29,7 @@ DECODECORPUS_TESTTIME = '-T30'
 test_includes = [ include_directories(join_paths(zstd_rootdir, 'programs')) ]
 
 testcommon_sources = [join_paths(zstd_rootdir, 'programs/datagen.c'),
+  join_paths(zstd_rootdir, 'programs/lorem.c'),
   join_paths(zstd_rootdir, 'programs/util.c'),
   join_paths(zstd_rootdir, 'programs/timefn.c'),
   join_paths(zstd_rootdir, 'programs/benchfn.c'),

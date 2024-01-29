@@ -126,11 +126,12 @@ int BMK_benchFilesAdvanced(
 
 /*! BMK_syntheticTest() -- called from zstdcli */
 /*  Generates a sample with datagen, using compressibility argument */
-/*  cLevel - compression level to benchmark, errors if invalid
- *  compressibility - determines compressibility of sample
- *  compressionParams - basic compression Parameters
- *  displayLevel - see benchFiles
- *  adv - see advanced_Params_t
+/* @cLevel - compression level to benchmark, errors if invalid
+ * @compressibility - determines compressibility of sample, range [0.0 - 1.0]
+ *        if @compressibility < 0.0, uses the lorem ipsum generator
+ * @compressionParams - basic compression Parameters
+ * @displayLevel - see benchFiles
+ * @adv - see advanced_Params_t
  * @return: 0 on success, !0 on error
  */
 int BMK_syntheticTest(int cLevel, double compressibility,

@@ -32,12 +32,13 @@
 #include "benchfn.h"
 #include "../lib/common/mem.h"
 #ifndef ZSTD_STATIC_LINKING_ONLY
-#define ZSTD_STATIC_LINKING_ONLY
+# define ZSTD_STATIC_LINKING_ONLY
 #endif
 #include "../lib/zstd.h"
 #include "datagen.h"     /* RDG_genBuffer */
+#include "lorem.h"       /* LOREM_genBuffer */
 #ifndef XXH_INLINE_ALL
-#define XXH_INLINE_ALL
+# define XXH_INLINE_ALL
 #endif
 #include "../lib/common/xxhash.h"
 #include "benchzstd.h"
@@ -701,7 +702,8 @@ int BMK_syntheticTest(int cLevel, double compressibility,
                       const ZSTD_compressionParameters* compressionParams,
                       int displayLevel, const BMK_advancedParams_t* adv)
 {
-    char name[20] = {0};
+    char nameBuff[20] = {0};
+    const char* name = nameBuff;
     size_t const benchedSize = 10000000;
     void* srcBuffer;
     BMK_benchOutcome_t res;
@@ -719,10 +721,15 @@ int BMK_syntheticTest(int cLevel, double compressibility,
     }
 
     /* Fill input buffer */
-    RDG_genBuffer(srcBuffer, benchedSize, compressibility, 0.0, 0);
+    if (compressibility < 0.0) {
+        LOREM_genBuffer(srcBuffer, benchedSize, 0);
+        name = "Lorem ipsum";
+    } else {
+        RDG_genBuffer(srcBuffer, benchedSize, compressibility, 0.0, 0);
+        snprintf (nameBuff, sizeof(nameBuff), "Synthetic %2u%%", (unsigned)(compressibility*100));
+    }
 
     /* Bench */
-    snprintf (name, sizeof(name), "Synthetic %2u%%", (unsigned)(compressibility*100));
     res = BMK_benchCLevel(srcBuffer, benchedSize,
                     &benchedSize /* ? */, 1 /* ? */,
                     cLevel, compressionParams,

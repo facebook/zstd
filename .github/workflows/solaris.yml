@@ -48,4 +48,8 @@ jobs:
           gcc -v
           CC=gcc CFLAGS="-Werror -O1" gmake -j check
           pkg install cmake
-          gmake cmakebuild V=1
+          cmake --version
+          rm -rf cmakebuild install
+          mkdir -p cmakebuild install
+          cd cmakebuild; cmake -Wdev -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS="-Werror -O0" -DCMAKE_INSTALL_PREFIX=install ../build/cmake
+          cmake --build cmakebuild --target install -- -j V=1

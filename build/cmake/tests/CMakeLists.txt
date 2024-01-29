@@ -56,7 +56,7 @@ target_link_libraries(datagen libzstd_static)
 #
 # fullbench
 #
-add_executable(fullbench ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/timefn.c ${PROGRAMS_DIR}/benchfn.c ${PROGRAMS_DIR}/benchzstd.c ${TESTS_DIR}/fullbench.c)
+add_executable(fullbench ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/lorem.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/timefn.c ${PROGRAMS_DIR}/benchfn.c ${PROGRAMS_DIR}/benchzstd.c ${TESTS_DIR}/fullbench.c)
 if (NOT MSVC)
     target_compile_options(fullbench PRIVATE "-Wno-deprecated-declarations")
 endif()
@@ -110,7 +110,7 @@ endif()
 # Label the "Medium" set of tests (see TESTING.md)
 set_property(TEST fuzzer zstreamtest playTests APPEND PROPERTY LABELS Medium)
 
-add_executable(paramgrill ${PROGRAMS_DIR}/benchfn.c ${PROGRAMS_DIR}/benchzstd.c ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/timefn.c ${TESTS_DIR}/paramgrill.c)
+add_executable(paramgrill ${PROGRAMS_DIR}/benchfn.c ${PROGRAMS_DIR}/benchzstd.c ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/lorem.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/timefn.c ${TESTS_DIR}/paramgrill.c)
 if (UNIX)
     target_link_libraries(paramgrill libzstd_static m) #m is math library
 else()

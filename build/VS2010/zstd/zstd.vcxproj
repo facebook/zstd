@@ -63,6 +63,7 @@
     <ClCompile Include="..\..\..\programs\dibio.c" />
     <ClCompile Include="..\..\..\programs\fileio.c" />
     <ClCompile Include="..\..\..\programs\fileio_asyncio.c" />
+    <ClCompile Include="..\..\..\programs\lorem.c" />
     <ClCompile Include="..\..\..\programs\zstdcli.c" />
     <ClCompile Include="..\..\..\programs\zstdcli_trace.c" />
   </ItemGroup>

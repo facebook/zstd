@@ -1585,7 +1585,8 @@ ZSTD_decompressSequences_bodySplitLitBuffer( ZSTD_DCtx* dctx,
     /* last literal segment */
     if (dctx->litBufferLocation == ZSTD_split) {
         /* split hasn't been reached yet, first get dst then copy litExtraBuffer */
-        size_t const lastLLSize = litBufferEnd - litPtr;
+        size_t const lastLLSize = (size_t)(litBufferEnd - litPtr);
+        DEBUGLOG(6, "copy last literals from segment : %u", (U32)lastLLSize);
         RETURN_ERROR_IF(lastLLSize > (size_t)(oend - op), dstSize_tooSmall, "");
         if (op != NULL) {
             ZSTD_memmove(op, litPtr, lastLLSize);
@@ -1596,14 +1597,16 @@ ZSTD_decompressSequences_bodySplitLitBuffer( ZSTD_DCtx* dctx,
         dctx->litBufferLocation = ZSTD_not_in_dst;
     }
     /* copy last literals from internal buffer */
-    {   size_t const lastLLSize = litBufferEnd - litPtr;
+    {   size_t const lastLLSize = (size_t)(litBufferEnd - litPtr);
+        DEBUGLOG(6, "copy last literals from internal buffer : %u", (U32)lastLLSize);
         RETURN_ERROR_IF(lastLLSize > (size_t)(oend-op), dstSize_tooSmall, "");
         if (op != NULL) {
             ZSTD_memcpy(op, litPtr, lastLLSize);
             op += lastLLSize;
     }   }
 
-    return op-ostart;
+    DEBUGLOG(6, "decoded block of size %u bytes", (U32)(op - ostart));
+    return (size_t)(op - ostart);
 }
 
 FORCE_INLINE_TEMPLATE size_t
@@ -1673,14 +1676,16 @@ ZSTD_decompressSequences_body(ZSTD_DCtx* dctx,
     }
 
     /* last literal segment */
-    {   size_t const lastLLSize = litEnd - litPtr;
+    {   size_t const lastLLSize = (size_t)(litEnd - litPtr);
+        DEBUGLOG(6, "copy last literals : %u", (U32)lastLLSize);
         RETURN_ERROR_IF(lastLLSize > (size_t)(oend-op), dstSize_tooSmall, "");
         if (op != NULL) {
             ZSTD_memcpy(op, litPtr, lastLLSize);
             op += lastLLSize;
     }   }
 
-    return op-ostart;
+    DEBUGLOG(6, "decoded block of size %u bytes", (U32)(op - ostart));
+    return (size_t)(op - ostart);
 }
 
 static size_t
@@ -1878,7 +1883,7 @@ ZSTD_decompressSequencesLong_body(
         }
     }
 
-    return op-ostart;
+    return (size_t)(op - ostart);
 }
 
 static size_t

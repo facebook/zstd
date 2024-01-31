@@ -1200,8 +1200,8 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                     DEBUGLOG(7, "cPos:%zi==rPos:%u : better price (%.2f<=%.2f) using literal (ll==%u) (hist:%u,%u,%u)",
                                 inr-istart, cur, ZSTD_fCost(price), ZSTD_fCost(opt[cur].price), litlen,
                                 opt[cur-1].rep[0], opt[cur-1].rep[1], opt[cur-1].rep[2]);
-                    if ( 0 && (optLevel == 2) /* additional check only for high modes */
-                      && (opt[cur].mlen > 0) /* interrupt a match */
+                    if ((optLevel == 2) /* additional check only for high modes */
+                      && (opt[cur].litlen == 0) /* interrupt a match */
                       && (LL_INCPRICE(1) < 0) ) /* ll1 is cheaper than ll0 */
                     {
                         /* check next position, in case it would be cheaper */
@@ -1209,33 +1209,35 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                         int withMoreLiterals = price + LL_INCPRICE(litlen+1);
                         DEBUGLOG(7, "But at next rPos %u : match+1lit %.2f vs %ulits %.2f",
                                 cur+1, ZSTD_fCost(with1literal), litlen+1, ZSTD_fCost(withMoreLiterals));
-                        if (with1literal < withMoreLiterals) {
-                            DEBUGLOG(7, "==> match+1lit is cheaper (%.2f < %.2f) !!!", ZSTD_fCost(with1literal), ZSTD_fCost(withMoreLiterals));
-                            /* do not take this literal */
-                        } else {
-                            opt[cur].mlen = opt[cur-1].mlen;
-                            opt[cur].off = opt[cur-1].off;
-                            opt[cur].litlen = litlen;
-                            opt[cur].price = price;
+                        if ( (with1literal < withMoreLiterals)
+                          && (with1literal < opt[cur+1].price) ) {
+                            /* update offset history - before it disappears */
+                            U32 const prev = cur - opt[cur].mlen;
+                            repcodes_t const newReps = ZSTD_newRep(opt[prev].rep, opt[cur].off, opt[prev].litlen==0);
+                            assert(cur >= opt[cur].mlen);
+                            DEBUGLOG(7, "==> match+1lit is cheaper (%.2f < %.2f) (hist:%u,%u,%u) !",
+                                        ZSTD_fCost(with1literal), ZSTD_fCost(withMoreLiterals),
+                                        newReps.rep[0], newReps.rep[1], newReps.rep[2] );
+                            opt[cur+1] = opt[cur];  /* mlen & offbase */
+                            ZSTD_memcpy(opt[cur+1].rep, &newReps, sizeof(repcodes_t));
+                            opt[cur+1].litlen = 1;
+                            opt[cur+1].price = with1literal;
+                            if (last_pos < cur+1) last_pos = cur+1;
                         }
-                    } else {
-                        /* normal case: take the literal, it's expected to be cheaper at position @cur */
-                        opt[cur].mlen = opt[cur-1].mlen;
-                        opt[cur].off = opt[cur-1].off;
-                        opt[cur].litlen = litlen;
-                        opt[cur].price = price;
                     }
+                    opt[cur].mlen = opt[cur-1].mlen;
+                    opt[cur].off = opt[cur-1].off;
+                    opt[cur].litlen = litlen;
+                    opt[cur].price = price;
+                    ZSTD_memcpy(opt[cur].rep, opt[cur - 1].rep, sizeof(repcodes_t));
                 } else {
-                    DEBUGLOG(7, "cPos:%zi==rPos:%u : literal would cost more (%.2f>%.2f) (hist:%u,%u,%u)",
-                                inr-istart, cur, ZSTD_fCost(price), ZSTD_fCost(opt[cur].price),
-                                opt[cur].rep[0], opt[cur].rep[1], opt[cur].rep[2]);
+                    DEBUGLOG(7, "cPos:%zi==rPos:%u : literal would cost more (%.2f>%.2f)",
+                                inr-istart, cur, ZSTD_fCost(price), ZSTD_fCost(opt[cur].price));
                 }
             }
 
-            /* Set the repcodes of the current position. We must do it here
-             * because we rely on the repcodes of the 2nd to last sequence being
-             * correct to set the next chunks repcodes during the backward
-             * traversal.
+            /* Offset history is not updated during match comparison.
+             * Do it here, now that the match is selected and confirmed.
              */
             ZSTD_STATIC_ASSERT(sizeof(opt[cur].rep) == sizeof(repcodes_t));
             assert(cur >= opt[cur].mlen);
@@ -1244,8 +1246,6 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                 U32 const prev = cur - opt[cur].mlen;
                 repcodes_t const newReps = ZSTD_newRep(opt[prev].rep, opt[cur].off, opt[prev].litlen==0);
                 ZSTD_memcpy(opt[cur].rep, &newReps, sizeof(repcodes_t));
-            } else {
-                ZSTD_memcpy(opt[cur].rep, opt[cur - 1].rep, sizeof(repcodes_t));
             }
 
             /* last match must start at a minimum distance of 8 from oend */
@@ -1514,6 +1514,7 @@ size_t ZSTD_compressBlock_btultra2(
      * The compression ratio gain is generally small (~0.5% on first block),
      * the cost is 2x cpu time on first block. */
     assert(srcSize <= ZSTD_BLOCKSIZE_MAX);
+    //g_debuglevel = -g_debuglevel;
     if ( (ms->opt.litLengthSum==0)   /* first block */
       && (seqStore->sequences == seqStore->sequencesStart)  /* no ldm */
       && (ms->window.dictLimit == ms->window.lowLimit)   /* no dictionary */
@@ -1523,6 +1524,7 @@ size_t ZSTD_compressBlock_btultra2(
         ZSTD_initStats_ultra(ms, seqStore, rep, src, srcSize);
     }
 
+    //g_debuglevel = -g_debuglevel;
     return ZSTD_compressBlock_opt2(ms, seqStore, rep, src, srcSize, ZSTD_noDict);
 }
 #endif

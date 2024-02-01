@@ -856,7 +856,7 @@ int main(int argCount, const char* argv[])
     ZSTD_paramSwitch_e useRowMatchFinder = ZSTD_ps_auto;
     FIO_compressionType_t cType = FIO_zstdCompression;
     unsigned nbWorkers = 0;
-    double compressibility = 0.5;
+    double compressibility = -1.0;  /* lorem ipsum generator */
     unsigned bench_nbSeconds = 3;   /* would be better if this value was synchronized from bench */
     size_t blockSize = 0;
 
@@ -1280,7 +1280,7 @@ int main(int argCount, const char* argv[])
                     break;
 
                     /* unknown command */
-                default : 
+                default :
                     sprintf(shortArgument, "-%c", argument[0]);
                     badUsage(programName, shortArgument);
                     CLEAN_RETURN(1);

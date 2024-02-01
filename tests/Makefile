@@ -203,7 +203,7 @@ zstreamtest-dll : $(ZSTREAM_LOCAL_FILES)
 CLEAN += paramgrill
 paramgrill : DEBUGFLAGS =   # turn off debug for speed measurements
 paramgrill : LDLIBS += -lm
-paramgrill : $(ZSTD_FILES) $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/benchfn.c $(PRGDIR)/benchzstd.c $(PRGDIR)/datagen.c paramgrill.c
+paramgrill : $(ZSTD_FILES) $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/benchfn.c $(PRGDIR)/benchzstd.c $(PRGDIR)/datagen.c $(PRGDIR)/lorem.c paramgrill.c
 
 CLEAN += datagen
 datagen : $(PRGDIR)/datagen.c datagencli.c

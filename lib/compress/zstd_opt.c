@@ -1138,7 +1138,7 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
              */
             opt[0].price = LL_PRICE(litlen);
             ZSTD_STATIC_ASSERT(sizeof(opt[0].rep[0]) == sizeof(rep[0]));
-            memcpy(&opt[0].rep, rep, sizeof(opt[0].rep));
+            ZSTD_memcpy(&opt[0].rep, rep, sizeof(opt[0].rep));
 
             /* large match -> immediate encoding */
             {   U32 const maxML = matches[nbMatches-1].len;

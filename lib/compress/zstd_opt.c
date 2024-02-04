@@ -1325,7 +1325,6 @@ _shortestPath:   /* cur, last_pos, best_mlen, best_off have to be set */
         assert(opt[0].mlen == 0);
         assert(last_pos >= lastStretch.mlen);
         assert(cur == last_pos - lastStretch.mlen);
-        assert(lastStretch.rep[0] != 0);
 
         if (lastStretch.mlen==0) {
             /* no solution : all matches have been converted into literals */

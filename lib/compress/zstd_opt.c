@@ -1164,7 +1164,8 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                 U32 matchNb;
                 for (pos = 1; pos < minMatch; pos++) {
                     opt[pos].price = ZSTD_MAX_PRICE;
-                    /* will be updated later on at match check */
+                    opt[pos].mlen = 0;
+                    opt[pos].litlen = litlen + pos;
                 }
                 for (matchNb = 0; matchNb < nbMatches; matchNb++) {
                     U32 const offBase = matches[matchNb].off;
@@ -1205,8 +1206,8 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                     opt[cur] = opt[cur-1];
                     opt[cur].litlen = litlen;
                     opt[cur].price = price;
-                    if ( (optLevel == 2) /* additional check only for high modes */
-                      && (prevMatch.litlen == 0) /* interrupt a match */
+                    if ( (optLevel >= 1) /* additional check only for higher modes */
+                      && (prevMatch.litlen == 0) /* replace a match */
                       && (LL_INCPRICE(1) < 0) /* ll1 is cheaper than ll0 */
                     ) {
                         /* check next position, in case it would be cheaper */
@@ -1305,7 +1306,12 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                         if ((pos > last_pos) || (price < opt[pos].price)) {
                             DEBUGLOG(7, "rPos:%u (ml=%2u) => new better price (%.2f<%.2f)",
                                         pos, mlen, ZSTD_fCost(price), ZSTD_fCost(opt[pos].price));
-                            while (last_pos < pos) { opt[last_pos+1].price = ZSTD_MAX_PRICE; last_pos++; }   /* fill empty positions */
+                            while (last_pos < pos) {
+                                /* fill empty positions, for future comparisons */
+                                last_pos++;
+                                opt[last_pos].price = ZSTD_MAX_PRICE;
+                                opt[last_pos].litlen = !0;  /* just needs to be != 0, to mean "not an end of match" */
+                            }
                             opt[pos].mlen = mlen;
                             opt[pos].off = offset;
                             opt[pos].litlen = 0;

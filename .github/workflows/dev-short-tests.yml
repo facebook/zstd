@@ -271,7 +271,7 @@ jobs:
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v3
     - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # tag=v1.3
+      uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # tag=v2.0.0
     - name: Build
       working-directory: ${{env.GITHUB_WORKSPACE}}
       run: |
@@ -298,7 +298,7 @@ jobs:
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v3
     - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # tag=v1.3
+      uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # tag=v2.0.0
     - name: Build ${{matrix.name}}
       working-directory: ${{env.GITHUB_WORKSPACE}}
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
@@ -485,7 +485,7 @@ jobs:
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v3
     - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # tag=v1.3
+      uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # tag=v2.0.0
     - name: Build and run tests
       working-directory: ${{env.GITHUB_WORKSPACE}}
       env:

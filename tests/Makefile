@@ -251,8 +251,9 @@ checkTag.o : $(ZSTDDIR)/zstd.h
 clean:
 	$(MAKE) -C $(ZSTDDIR) clean
 	$(MAKE) -C $(PRGDIR) clean
-	$(RM) -fR $(TESTARTEFACT)
-	$(RM) -rf tmp*  # some test directories are named tmp*
+	$(MAKE) -C fuzz clean
+	$(RM) -R $(TESTARTEFACT)
+	$(RM) -r tmp*  # some test directories are named tmp*
 	$(RM) $(CLEAN) core *.o *.tmp result* *.gcda dictionary *.zst \
         $(PRGDIR)/zstd$(EXT) $(PRGDIR)/zstd32$(EXT) \
         fullbench-dll$(EXT) fuzzer-dll$(EXT) zstreamtest-dll$(EXT)

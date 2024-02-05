@@ -267,6 +267,7 @@ static U32 ZSTD_rawLiteralsCost(const BYTE* const literals, U32 const litLength,
                                 const optState_t* const optPtr,
                                 int optLevel)
 {
+    DEBUGLOG(8, "ZSTD_rawLiteralsCost (%u literals)", litLength);
     if (litLength == 0) return 0;
 
     if (!ZSTD_compressedLiterals(optPtr))
@@ -1204,7 +1205,7 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                     opt[cur] = opt[cur-1];
                     opt[cur].litlen = litlen;
                     opt[cur].price = price;
-                    if ((optLevel == 2) /* additional check only for high modes */
+                    if ( (optLevel == 2) /* additional check only for high modes */
                       && (prevMatch.litlen == 0) /* interrupt a match */
                       && (LL_INCPRICE(1) < 0) /* ll1 is cheaper than ll0 */
                     ) {
@@ -1278,7 +1279,8 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                                 inr-istart, cur, nbMatches, longestML);
 
                     if ( (longestML > sufficient_len)
-                      || (cur + longestML >= ZSTD_OPT_NUM) ) {
+                      || (cur + longestML >= ZSTD_OPT_NUM)
+                      || (ip + cur + longestML >= iend) ) {
                         lastStretch.mlen = longestML;
                         lastStretch.off = matches[nbMatches-1].off;
                         lastStretch.litlen = 0;

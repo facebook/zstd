@@ -328,8 +328,9 @@ asan-%: clean
 msan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=memory -fno-omit-frame-pointer -Werror $(MOREFLAGS)" HAVE_LZMA=0   # datagen.c fails this test for no obvious reason
 
-msan-%: clean
-	LDFLAGS=-fuse-ld=gold MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize=memory -fno-omit-frame-pointer -Werror $(MOREFLAGS)" FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)" $(MAKE) -C $(TESTDIR) HAVE_LZMA=0 $*
+msan-%:
+	$(MAKE) clean
+	LDFLAGS=-fuse-ld=gold MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize=memory -fno-omit-frame-pointer -Werror $(MOREFLAGS)" FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)" $(MAKE) -j -C $(TESTDIR) HAVE_LZMA=0 $*
 
 asan32: clean
 	$(MAKE) -C $(TESTDIR) test32 CC=clang MOREFLAGS="-g -fsanitize=address $(MOREFLAGS)"

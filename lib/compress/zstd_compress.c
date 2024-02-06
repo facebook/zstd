@@ -1661,8 +1661,8 @@ ZSTD_sizeof_matchState(const ZSTD_compressionParameters* const cParams,
       + ZSTD_cwksp_aligned_alloc_size((MaxLL+1) * sizeof(U32))
       + ZSTD_cwksp_aligned_alloc_size((MaxOff+1) * sizeof(U32))
       + ZSTD_cwksp_aligned_alloc_size((1<<Litbits) * sizeof(U32))
-      + ZSTD_cwksp_aligned_alloc_size((ZSTD_OPT_NUM+1) * sizeof(ZSTD_match_t))
-      + ZSTD_cwksp_aligned_alloc_size((ZSTD_OPT_NUM+1) * sizeof(ZSTD_optimal_t));
+      + ZSTD_cwksp_aligned_alloc_size(ZSTD_OPT_SIZE * sizeof(ZSTD_match_t))
+      + ZSTD_cwksp_aligned_alloc_size(ZSTD_OPT_SIZE * sizeof(ZSTD_optimal_t));
     size_t const lazyAdditionalSpace = ZSTD_rowMatchFinderUsed(cParams->strategy, useRowMatchFinder)
                                             ? ZSTD_cwksp_aligned_alloc_size(hSize)
                                             : 0;
@@ -2045,8 +2045,8 @@ ZSTD_reset_matchState(ZSTD_matchState_t* ms,
         ms->opt.litLengthFreq = (unsigned*)ZSTD_cwksp_reserve_aligned(ws, (MaxLL+1) * sizeof(unsigned));
         ms->opt.matchLengthFreq = (unsigned*)ZSTD_cwksp_reserve_aligned(ws, (MaxML+1) * sizeof(unsigned));
         ms->opt.offCodeFreq = (unsigned*)ZSTD_cwksp_reserve_aligned(ws, (MaxOff+1) * sizeof(unsigned));
-        ms->opt.matchTable = (ZSTD_match_t*)ZSTD_cwksp_reserve_aligned(ws, (ZSTD_OPT_NUM+1) * sizeof(ZSTD_match_t));
-        ms->opt.priceTable = (ZSTD_optimal_t*)ZSTD_cwksp_reserve_aligned(ws, (ZSTD_OPT_NUM+1) * sizeof(ZSTD_optimal_t));
+        ms->opt.matchTable = (ZSTD_match_t*)ZSTD_cwksp_reserve_aligned(ws, ZSTD_OPT_SIZE * sizeof(ZSTD_match_t));
+        ms->opt.priceTable = (ZSTD_optimal_t*)ZSTD_cwksp_reserve_aligned(ws, ZSTD_OPT_SIZE * sizeof(ZSTD_optimal_t));
     }
 
     ms->cParams = *cParams;

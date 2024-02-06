@@ -1129,13 +1129,20 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                 continue;
             }
 
+            /* Match found: let's store this solution, and eventually find more candidates.
+             * During this forward pass, @opt is used to store stretches,
+             * defined as "a match followed by N literals".
+             * Note how this is different from a Sequence, which is "N literals followed by a match".
+             * Storing stretches allows us to store different match predecessors
+             * for each literal position part of a literals run. */
+
             /* initialize opt[0] */
             opt[0].mlen = 0;  /* there are only literals so far */
             opt[0].litlen = litlen;
-            /* No need to include the actual price of the literals before the segment
+            /* No need to include the actual price of the literals before the first match
              * because it is static for the duration of the forward pass, and is included
-             * in every subsequent price. We include the literal length as the cost variation
-             * of litlen depends on the value of litlen.
+             * in every subsequent price. But, we include the literal length because
+             * the cost variation of litlen depends on the value of litlen.
              */
             opt[0].price = LL_PRICE(litlen);
             ZSTD_STATIC_ASSERT(sizeof(opt[0].rep[0]) == sizeof(rep[0]));
@@ -1353,11 +1360,10 @@ _shortestPath:   /* cur, last_pos, best_mlen, best_off have to be set */
             cur -= lastStretch.litlen;
         }
 
-        /* let's write the shortest path solution
-         * solution is stored in @opt,
-         * in reverse order,
-         * starting from @storeEnd (==cur+1)
-         * (effectively partially overwriting @opt).
+        /* Let's write the shortest path solution.
+         * It is stored in @opt in reverse order,
+         * starting from @storeEnd (==cur+2),
+         * effectively partially @opt overwriting.
          * Content is changed too:
          * - So far, @opt stored stretches, aka a match followed by literals
          * - Now, it will store sequences, aka literals followed by a match

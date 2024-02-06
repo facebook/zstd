@@ -162,7 +162,7 @@ typedef struct {
     int price;  /* price from beginning of segment to this position */
     U32 off;    /* offset of previous match */
     U32 mlen;   /* length of previous match */
-    U32 litlen; /* nb of literals after previous match */
+    U32 litlen; /* nb of literals since previous match */
     U32 rep[ZSTD_REP_NUM];  /* offset history after previous match */
 } ZSTD_optimal_t;
 

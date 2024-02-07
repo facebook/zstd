@@ -168,7 +168,7 @@ typedef struct {
 
 typedef enum { zop_dynamic=0, zop_predef } ZSTD_OptPrice_e;
 
-#define ZSTD_OPT_SIZE (ZSTD_OPT_NUM+2)
+#define ZSTD_OPT_SIZE (ZSTD_OPT_NUM+3)
 typedef struct {
     /* All tables are allocated inside cctx->workspace by ZSTD_resetCCtx_internal() */
     unsigned* litFreq;           /* table of literals statistics, of size 256 */

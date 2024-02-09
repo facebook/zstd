@@ -492,6 +492,7 @@ def build(args):
     subprocess.check_call(clean_cmd)
     build_cmd = [
         'make',
+        '-j',
         cc_str,
         cxx_str,
         cppflags_str,

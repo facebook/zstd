@@ -257,7 +257,7 @@ corpora: $(patsubst %,corpora/%,$(FUZZ_TARGETS))
 seedcorpora: $(patsubst %,corpora/%_seed_corpus.zip,$(FUZZ_TARGETS))
 
 regressiontest: corpora
-	CC="$(CC)" CXX="$(CXX)" CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" $(PYTHON) ./fuzz.py build all
+	CC="$(CC)" CXX="$(CXX)" CFLAGS="$(CFLAGS)" CXXFLAGS="$(CXXFLAGS)" LDFLAGS="$(LDFLAGS)" $(PYTHON) ./fuzz.py build all --debug=$(DEBUGLEVEL)
 	$(PYTHON) ./fuzz.py regression all
 
 clean:

@@ -1216,6 +1216,7 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                     if ( (optLevel >= 1) /* additional check only for higher modes */
                       && (prevMatch.litlen == 0) /* replace a match */
                       && (LL_INCPRICE(1) < 0) /* ll1 is cheaper than ll0 */
+                      && LIKELY(ip + cur < iend)
                     ) {
                         /* check next position, in case it would be cheaper */
                         int with1literal = prevMatch.price + LIT_PRICE(ip+cur) + LL_INCPRICE(1);

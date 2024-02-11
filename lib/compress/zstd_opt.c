@@ -1372,7 +1372,6 @@ _shortestPath:   /* cur, last_pos, best_mlen, best_off have to be set */
         {   U32 const storeEnd = cur + 2;
             U32 storeStart = storeEnd;
             U32 stretchPos = cur;
-            ZSTD_optimal_t nextStretch;
 
             DEBUGLOG(6, "start reverse traversal (last_pos:%u, cur:%u)",
                         last_pos, cur); (void)last_pos;
@@ -1390,7 +1389,7 @@ _shortestPath:   /* cur, last_pos, best_mlen, best_off have to be set */
                 storeStart = storeEnd;
             }
             while (1) {
-                nextStretch = opt[stretchPos];
+                ZSTD_optimal_t nextStretch = opt[stretchPos];
                 opt[storeStart].litlen = nextStretch.litlen;
                 DEBUGLOG(6, "selected sequence (llen=%u,mlen=%u,ofc=%u)",
                             opt[storeStart].litlen, opt[storeStart].mlen, opt[storeStart].off);

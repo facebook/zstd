@@ -1839,7 +1839,6 @@ static int FIO_compressFilename_dstFile(FIO_ctx_t* const fCtx,
     int closeDstFile = 0;
     int result;
     int transferStat = 0;
-    FILE *dstFile;
     int dstFd = -1;
 
     assert(AIO_ReadPool_getFile(ress.readCtx) != NULL);
@@ -1854,10 +1853,11 @@ static int FIO_compressFilename_dstFile(FIO_ctx_t* const fCtx,
 
         closeDstFile = 1;
         DISPLAYLEVEL(6, "FIO_compressFilename_dstFile: opening dst: %s \n", dstFileName);
-        dstFile = FIO_openDstFile(fCtx, prefs, srcFileName, dstFileName, dstFileInitialPermissions);
-        if (dstFile==NULL) return 1;  /* could not open dstFileName */
-        dstFd = fileno(dstFile);
-        AIO_WritePool_setFile(ress.writeCtx, dstFile);
+        {   FILE *dstFile = FIO_openDstFile(fCtx, prefs, srcFileName, dstFileName, dstFileInitialPermissions);
+            if (dstFile==NULL) return 1;  /* could not open dstFileName */
+            dstFd = fileno(dstFile);
+            AIO_WritePool_setFile(ress.writeCtx, dstFile);
+        }
         /* Must only be added after FIO_openDstFile() succeeds.
          * Otherwise we may delete the destination file if it already exists,
          * and the user presses Ctrl-C when asked if they wish to overwrite.

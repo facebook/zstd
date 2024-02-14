@@ -819,8 +819,8 @@ each using the required number of bits in their respective _accuracy_,
 decoded previously from their normalized distribution.
 
 It starts by `Literals_Length_State`,
-followed by `Offset_State`,
-and finally `Match_Length_State`.
+followed by `Match_Length_State`,
+and finally `Offset_State`.
 
 Reminder : always keep in mind that all values are read _backward_,
 so the 'start' of the bitstream is at the highest position in memory,

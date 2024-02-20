@@ -23,11 +23,11 @@
  * and lacks a regularity more representative of text.
  *
  * The compression ratio achievable on the generated lorem ipsum
- * is still a bit too good, presumably because the dictionary is too small.
- * It would be possible to create some more complex scheme,
- * notably by enlarging the dictionary with a word generator,
- * and adding grammatical rules (composition) and syntax rules.
- * But that's probably overkill for the intended goal.
+ * is still a bit too good, presumably because the dictionary is a bit too
+ * small. It would be possible to create some more complex scheme, notably by
+ * enlarging the dictionary with a word generator, and adding grammatical rules
+ * (composition) and syntax rules. But that's probably overkill for the intended
+ * goal.
  */
 
 #include "lorem.h"

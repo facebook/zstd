@@ -206,7 +206,7 @@ paramgrill : LDLIBS += -lm
 paramgrill : $(ZSTD_FILES) $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/benchfn.c $(PRGDIR)/benchzstd.c $(PRGDIR)/datagen.c $(PRGDIR)/lorem.c paramgrill.c
 
 CLEAN += datagen
-datagen : $(PRGDIR)/datagen.c datagencli.c
+datagen : $(PRGDIR)/datagen.c $(PRGDIR)/lorem.c loremOut.c datagencli.c
 	$(LINK.c) $^ -o $@$(EXT)
 
 CLEAN += roundTripCrash

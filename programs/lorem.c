@@ -63,7 +63,17 @@ static const char* words[] = {
     "quae",         "ab",         "illo",        "inventore",    "veritatis",
     "quasi",        "architecto", "beatae",      "vitae",        "dicta",
     "sunt",         "explicabo",  "nemo",        "ipsam",        "quia",
-    "voluptas",     "aspernatur", "aut",         "odit",         "fugit"
+    "voluptas",     "aspernatur", "aut",         "odit",         "fugit",
+    "consequuntur", "magni",      "dolores",     "eos",          "qui",
+    "ratione",      "sequi",      "nesciunt",    "neque",        "porro",
+    "quisquam",     "est",        "dolorem",     "adipisci",     "numquam",
+    "eius",         "modi",       "tempora",     "incidunt",     "magnam",
+    "quaerat",      "ad",         "minima",      "veniam",       "nostrum",
+    "ullam",        "corporis",   "suscipit",    "laboriosam",   "nisi",
+    "aliquid",      "ex",         "ea",          "commodi",      "consequatur",
+    "autem",        "eum",        "iure",        "voluptate",    "esse",
+    "quam",         "nihil",      "molestiae",   "illum",        "fugiat",
+    "quo",          "pariatur"
 };
 
 /* simple 1-dimension distribution that favors small words :
@@ -81,7 +91,11 @@ static const int distrib[] = {
     73,  73,  74,  75,  76,  77,  78,  79,  80,  81,  82,  83,  84,  84,  85,
     86,  87,  88,  89,  89,  90,  91,  92,  93,  94,  95,  96,  97,  98,  99,
     100, 101, 101, 102, 103, 104, 105, 106, 106, 107, 108, 109, 110, 111, 112,
-    113, 114, 115, 116, 117, 118, 119, 129, 121, 122, 123, 124,
+    113, 114, 115, 116, 117, 118, 119, 129, 121, 122, 123, 124, 125, 126, 127,
+    128, 128, 129, 129, 130, 131, 132, 133, 134, 135, 136, 136, 137, 138, 139,
+    140, 141, 142, 143, 144, 145, 146, 146, 147, 148, 149, 150, 151, 152, 153,
+    154, 155, 156, 156, 157, 157, 158, 159, 160, 161, 161, 162, 163, 164, 165,
+    166, 167, 168, 169, 170, 170, 171,
 };
 static const unsigned distribCount = sizeof(distrib) / sizeof(distrib[0]);
 

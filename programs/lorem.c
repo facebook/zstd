@@ -160,8 +160,10 @@ static int about(unsigned target)
 /* Function to generate a random sentence */
 static void generateSentence(int nbWords)
 {
-    int commaPos = about(9);
-    int comma2   = commaPos + about(7);
+    int commaPos       = about(9);
+    int comma2         = commaPos + about(7);
+    int qmark          = (LOREM_rand(11) == 7);
+    const char* endSep = qmark ? "? " : ". ";
     int i;
     for (i = 0; i < nbWords; i++) {
         int const wordID       = distrib[LOREM_rand(distribCount)];
@@ -172,7 +174,7 @@ static void generateSentence(int nbWords)
         if (i == comma2)
             sep = ", ";
         if (i == nbWords - 1)
-            sep = ". ";
+            sep = endSep;
         generateWord(word, sep, i == 0);
     }
 }
@@ -181,7 +183,7 @@ static void generateParagraph(int nbSentences)
 {
     int i;
     for (i = 0; i < nbSentences; i++) {
-        int wordsPerSentence = about(8);
+        int wordsPerSentence = about(10);
         generateSentence(wordsPerSentence);
     }
     if (g_nbChars < g_maxChars) {

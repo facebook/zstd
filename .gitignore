@@ -39,12 +39,15 @@ buck-out/
 build-*
 *.gcda
 
+# IDE
+.clang_complete
+compile_flags.txt
+.clang-format
+
 # Other files
 .directory
 _codelite/
 _zstdbench/
-.clang_complete
-compile_flags.txt
 *.idea
 *.swp
 .DS_Store

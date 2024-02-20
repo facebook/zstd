@@ -38,7 +38,7 @@
 #define WORD_MAX_SIZE 20
 
 /* Define the word pool */
-static const char* words[] = {
+static const char* kWords[] = {
     "lorem",        "ipsum",      "dolor",       "sit",          "amet",
     "consectetur",  "adipiscing", "elit",        "sed",          "do",
     "eiusmod",      "tempor",     "incididunt",  "ut",           "labore",
@@ -75,29 +75,56 @@ static const char* words[] = {
     "quam",         "nihil",      "molestiae",   "illum",        "fugiat",
     "quo",          "pariatur"
 };
+static const unsigned kNbWords = sizeof(kWords) / sizeof(kWords[0]);
 
-/* simple 1-dimension distribution that favors small words :
- * 1 letter : weight 3
- * 2-3 letters : weight 2
- * 4+ letters : weight 1
+/* simple 1-dimension distribution, based on word's length, favors small words
  */
-static const int distrib[] = {
-    0,   1,   2,   3,   3,   4,   5,   6,   7,   8,   8,   9,   9,   10,  11,
-    12,  13,  13,  14,  15,  15,  16,  17,  18,  19,  19,  20,  21,  22,  23,
-    24,  25,  26,  26,  26,  27,  28,  29,  30,  31,  32,  33,  34,  34,  35,
-    36,  37,  38,  39,  40,  41,  41,  42,  43,  43,  44,  45,  45,  46,  47,
-    48,  49,  50,  51,  52,  53,  54,  55,  55,  56,  57,  58,  58,  59,  60,
-    60,  61,  62,  63,  64,  65,  66,  67,  67,  68,  69,  70,  71,  72,  72,
-    73,  73,  74,  75,  76,  77,  78,  79,  80,  81,  82,  83,  84,  84,  85,
-    86,  87,  88,  89,  89,  90,  91,  92,  93,  94,  95,  96,  97,  98,  99,
-    100, 101, 101, 102, 103, 104, 105, 106, 106, 107, 108, 109, 110, 111, 112,
-    113, 114, 115, 116, 117, 118, 119, 129, 121, 122, 123, 124, 125, 126, 127,
-    128, 128, 129, 129, 130, 131, 132, 133, 134, 135, 136, 136, 137, 138, 139,
-    140, 141, 142, 143, 144, 145, 146, 146, 147, 148, 149, 150, 151, 152, 153,
-    154, 155, 156, 156, 157, 157, 158, 159, 160, 161, 161, 162, 163, 164, 165,
-    166, 167, 168, 169, 170, 170, 171,
-};
-static const unsigned distribCount = sizeof(distrib) / sizeof(distrib[0]);
+static const int kWeights[]      = { 0, 8, 6, 4, 3, 2 };
+static const unsigned kNbWeights = sizeof(kWeights) / sizeof(kWeights[0]);
+
+#define DISTRIB_SIZE_MAX 500
+static int g_distrib[DISTRIB_SIZE_MAX] = { 0 };
+static unsigned g_distribCount         = 0;
+
+static void countFreqs(
+        const char* words[],
+        size_t nbWords,
+        const int* weights,
+        unsigned long nbWeights)
+{
+    unsigned total = 0;
+    size_t w;
+    for (w = 0; w < nbWords; w++) {
+        unsigned long len = strlen(words[w]);
+        int lmax;
+        if (len >= nbWeights)
+            len = nbWeights - 1;
+        lmax = weights[len];
+        total += (unsigned)lmax;
+    }
+    g_distribCount = total;
+    assert(g_distribCount <= DISTRIB_SIZE_MAX);
+}
+
+static void init_word_distrib(
+        const char* words[],
+        size_t nbWords,
+        const int* weights,
+        unsigned long nbWeights)
+{
+    size_t w, d = 0;
+    countFreqs(words, nbWords, weights, nbWeights);
+    for (w = 0; w < nbWords; w++) {
+        unsigned long len = strlen(words[w]);
+        int l, lmax;
+        if (len >= nbWeights)
+            len = nbWeights - 1;
+        lmax = weights[len];
+        for (l = 0; l < lmax; l++) {
+            g_distrib[d++] = (int)w;
+        }
+    }
+}
 
 /* Note: this unit only works when invoked sequentially.
  * No concurrent access is allowed */
@@ -166,8 +193,8 @@ static void generateSentence(int nbWords)
     const char* endSep = qmark ? "? " : ". ";
     int i;
     for (i = 0; i < nbWords; i++) {
-        int const wordID       = distrib[LOREM_rand(distribCount)];
-        const char* const word = words[wordID];
+        int const wordID       = g_distrib[LOREM_rand(g_distribCount)];
+        const char* const word = kWords[wordID];
         const char* sep        = " ";
         if (i == commaPos)
             sep = ", ";
@@ -200,7 +227,7 @@ static void generateFirstSentence(void)
 {
     int i;
     for (i = 0; i < 18; i++) {
-        const char* word      = words[i];
+        const char* word      = kWords[i];
         const char* separator = " ";
         if (i == 4)
             separator = ", ";
@@ -208,7 +235,7 @@ static void generateFirstSentence(void)
             separator = ", ";
         generateWord(word, separator, i == 0);
     }
-    generateWord(words[18], ". ", 0);
+    generateWord(kWords[18], ". ", 0);
 }
 
 size_t
@@ -219,6 +246,10 @@ LOREM_genBlock(void* buffer, size_t size, unsigned seed, int first, int fill)
     g_maxChars = size;
     g_nbChars  = 0;
     g_randRoot = seed;
+    if (g_distribCount == 0) {
+        init_word_distrib(kWords, kNbWords, kWeights, kNbWeights);
+    }
+
     if (first) {
         generateFirstSentence();
     }

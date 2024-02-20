@@ -73,7 +73,23 @@ static const char* kWords[] = {
     "aliquid",      "ex",         "ea",          "commodi",      "consequatur",
     "autem",        "eum",        "iure",        "voluptate",    "esse",
     "quam",         "nihil",      "molestiae",   "illum",        "fugiat",
-    "quo",          "pariatur"
+    "quo",          "pariatur",   "vero",        "accusamus",    "iusto",
+    "dignissimos",  "ducimus",    "blanditiis",  "praesentium",  "voluptatum",
+    "deleniti",     "atque",      "corrupti",    "quos",         "quas",
+    "molestias",    "excepturi",  "sint",        "occaecati",    "cupiditate",
+    "provident",    "similique",  "culpa",       "officia",      "deserunt",
+    "mollitia",     "animi",      "laborum",     "dolorum",      "fuga",
+    "harum",        "quidem",     "rerum",       "facilis",      "expedita",
+    "distinctio",   "libero",     "tempore",     "cum",          "soluta",
+    "nobis",        "eligendi",   "optio",       "cumque",       "impedit",
+    "minus",        "quod",       "maxime",      "placeat",      "facere",
+    "possimus",     "assumenda",  "repellendus", "temporibus",   "quibusdam",
+    "officiis",     "debitis",    "saepe",       "eveniet",      "voluptates",
+    "repudiandae",  "recusandae", "itaque",      "earum",        "hic",
+    "tenetur",      "sapiente",   "delectus",    "reiciendis",   "cillum",
+    "maiores",      "alias",      "perferendis", "doloribus",    "asperiores",
+    "repellat",     "minim",      "nostrud",     "exercitation", "ullamco",
+    "laboris",      "aliquip",    "duis",        "aute",         "irure",
 };
 static const unsigned kNbWords = sizeof(kWords) / sizeof(kWords[0]);
 
@@ -82,7 +98,7 @@ static const unsigned kNbWords = sizeof(kWords) / sizeof(kWords[0]);
 static const int kWeights[]      = { 0, 8, 6, 4, 3, 2 };
 static const unsigned kNbWeights = sizeof(kWeights) / sizeof(kWeights[0]);
 
-#define DISTRIB_SIZE_MAX 500
+#define DISTRIB_SIZE_MAX 650
 static int g_distrib[DISTRIB_SIZE_MAX] = { 0 };
 static unsigned g_distribCount         = 0;
 
@@ -210,7 +226,7 @@ static void generateParagraph(int nbSentences)
 {
     int i;
     for (i = 0; i < nbSentences; i++) {
-        int wordsPerSentence = about(10);
+        int wordsPerSentence = about(11);
         generateSentence(wordsPerSentence);
     }
     if (g_nbChars < g_maxChars) {

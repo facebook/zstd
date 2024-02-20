@@ -95,8 +95,8 @@ static const unsigned kNbWords = sizeof(kWords) / sizeof(kWords[0]);
 
 /* simple 1-dimension distribution, based on word's length, favors small words
  */
-static const int kWeights[]      = { 0, 8, 6, 4, 3, 2 };
-static const unsigned kNbWeights = sizeof(kWeights) / sizeof(kWeights[0]);
+static const int kWeights[]    = { 0, 8, 6, 4, 3, 2 };
+static const size_t kNbWeights = sizeof(kWeights) / sizeof(kWeights[0]);
 
 #define DISTRIB_SIZE_MAX 650
 static int g_distrib[DISTRIB_SIZE_MAX] = { 0 };
@@ -106,12 +106,12 @@ static void countFreqs(
         const char* words[],
         size_t nbWords,
         const int* weights,
-        unsigned long nbWeights)
+        size_t nbWeights)
 {
     unsigned total = 0;
     size_t w;
     for (w = 0; w < nbWords; w++) {
-        unsigned long len = strlen(words[w]);
+        size_t len = strlen(words[w]);
         int lmax;
         if (len >= nbWeights)
             len = nbWeights - 1;
@@ -126,12 +126,12 @@ static void init_word_distrib(
         const char* words[],
         size_t nbWords,
         const int* weights,
-        unsigned long nbWeights)
+        size_t nbWeights)
 {
     size_t w, d = 0;
     countFreqs(words, nbWords, weights, nbWeights);
     for (w = 0; w < nbWords; w++) {
-        unsigned long len = strlen(words[w]);
+        size_t len = strlen(words[w]);
         int l, lmax;
         if (len >= nbWeights)
             len = nbWeights - 1;

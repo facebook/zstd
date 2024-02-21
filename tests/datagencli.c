@@ -143,7 +143,6 @@ int main(int argc, const char** argv)
         LOREM_genOut(size, seed);
     }
 
-    RDG_genStdout(size, (double)probaU32 / 100, litProba, seed);
     DISPLAYLEVEL(3, "\n");
 
     return 0;

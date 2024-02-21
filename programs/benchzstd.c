@@ -18,14 +18,16 @@
 /* *************************************
  *  Includes
  ***************************************/
+/* this must be included first */
+#include "platform.h" /* Large Files support, compiler specifics */
+
+/* then following system includes */
 #include <assert.h> /* assert */
 #include <errno.h>
 #include <stdio.h>    /* fprintf, fopen */
 #include <stdlib.h>   /* malloc, free */
 #include <string.h>   /* memset, strerror */
-#include "platform.h" /* Large Files support */
 #include "util.h"     /* UTIL_getFileSize, UTIL_sleep */
-
 #include "../lib/common/mem.h"
 #include "benchfn.h"
 #include "timefn.h" /* UTIL_time_t */

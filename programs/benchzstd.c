@@ -137,6 +137,57 @@ static const size_t maxMemory = (sizeof(size_t) == 4)
         return r;                                      \
     }
 
+/* replacement for snprintf(), which is not supported by C89
+ * sprintf() would be the supported one, but it's labelled unsafe,
+ * so some modern static analyzer will flag it as such, making it unusable.
+ * formatString_u() replaces snprintf() for the specific case where there are only %u arguments */
+static int formatString_u(char *buffer, size_t buffer_size, const char *formatString, unsigned int value)
+{
+    size_t written = 0;
+    int i;
+    assert(value <= 100);
+
+    for (i = 0; formatString[i] != '\0' && written < buffer_size - 1; ++i) {
+        if (formatString[i] != '%') {
+            buffer[written++] = formatString[i];
+            continue;
+        }
+
+        if (formatString[++i] == 'u') {
+            /* Handle single digit */
+            if (value < 10) {
+                buffer[written++] = '0' + value;
+            } else if (value < 100) {
+                /* Handle two digits */
+                if (written >= buffer_size - 2) {
+                    return -1; /* buffer overflow */
+                }
+                buffer[written++] = '0' + value / 10;
+                buffer[written++] = '0' + value % 10;
+            } else { /* 100 */
+                if (written >= buffer_size - 3) {
+                    return -1; /* buffer overflow */
+                }
+                buffer[written++] = '1';
+                buffer[written++] = '0';
+                buffer[written++] = '0';
+            }
+        } else if (formatString[i] == '%') { /* Check for escaped percent sign */
+            buffer[written++] = '%';
+        } else {
+            return -1; /* unsupported format */
+        }
+    }
+
+    if (written < buffer_size) {
+        buffer[written] = '\0';
+    } else {
+        buffer[0] = '\0'; /* Handle truncation */
+    }
+
+    return written;
+}
+
 /* *************************************
  *  Benchmark Parameters
  ***************************************/
@@ -942,10 +993,10 @@ int BMK_syntheticTest(
         name = "Lorem ipsum";
     } else {
         RDG_genBuffer(srcBuffer, benchedSize, compressibility, 0.0, 0);
-        snprintf(
+        formatString_u(
                 nameBuff,
                 sizeof(nameBuff),
-                "Synthetic %2u%%",
+                "Synthetic %u%%",
                 (unsigned)(compressibility * 100));
     }
 
@@ -1162,7 +1213,7 @@ int BMK_benchFilesAdvanced(
     /* Bench */
     {
         char mfName[20] = { 0 };
-        snprintf(mfName, sizeof(mfName), " %u files", nbFiles);
+        formatString_u(mfName, sizeof(mfName), " %u files", nbFiles);
         {
             const char* const displayName =
                     (nbFiles > 1) ? mfName : fileNamesTable[0];

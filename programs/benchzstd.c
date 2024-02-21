@@ -141,7 +141,7 @@ static const size_t maxMemory = (sizeof(size_t) == 4)
  * sprintf() would be the supported one, but it's labelled unsafe,
  * so some modern static analyzer will flag it as such, making it unusable.
  * formatString_u() replaces snprintf() for the specific case where there are only %u arguments */
-static int formatString_u(char *buffer, size_t buffer_size, const char *formatString, unsigned int value)
+static int formatString_u(char* buffer, size_t buffer_size, const char* formatString, unsigned int value)
 {
     size_t written = 0;
     int i;
@@ -156,14 +156,14 @@ static int formatString_u(char *buffer, size_t buffer_size, const char *formatSt
         if (formatString[++i] == 'u') {
             /* Handle single digit */
             if (value < 10) {
-                buffer[written++] = '0' + value;
+                buffer[written++] = '0' + (char)value;
             } else if (value < 100) {
                 /* Handle two digits */
                 if (written >= buffer_size - 2) {
                     return -1; /* buffer overflow */
                 }
-                buffer[written++] = '0' + value / 10;
-                buffer[written++] = '0' + value % 10;
+                buffer[written++] = '0' + (char)(value / 10);
+                buffer[written++] = '0' + (char)(value % 10);
             } else { /* 100 */
                 if (written >= buffer_size - 3) {
                     return -1; /* buffer overflow */
@@ -185,7 +185,7 @@ static int formatString_u(char *buffer, size_t buffer_size, const char *formatSt
         buffer[0] = '\0'; /* Handle truncation */
     }
 
-    return written;
+    return (int)written;
 }
 
 /* *************************************

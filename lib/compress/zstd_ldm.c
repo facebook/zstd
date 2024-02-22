@@ -695,7 +695,6 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
         /* maybeSplitSequence updates rawSeqStore->pos */
         rawSeq const sequence = maybeSplitSequence(rawSeqStore,
                                                    (U32)(iend - ip), minMatch);
-        int i;
         /* End signal */
         if (sequence.offset == 0)
             break;
@@ -708,6 +707,7 @@ size_t ZSTD_ldm_blockCompress(rawSeqStore_t* rawSeqStore,
         /* Run the block compressor */
         DEBUGLOG(5, "pos %u : calling block compressor on segment of size %u", (unsigned)(ip-istart), sequence.litLength);
         {
+            int i;
             size_t const newLitLength =
                 blockCompressor(ms, seqStore, rep, ip, sequence.litLength);
             ip += sequence.litLength;

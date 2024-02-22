@@ -1062,12 +1062,12 @@ HUF_compress1X_usingCTable_internal_body(void* dst, size_t dstSize,
     const BYTE* ip = (const BYTE*) src;
     BYTE* const ostart = (BYTE*)dst;
     BYTE* const oend = ostart + dstSize;
-    BYTE* op = ostart;
     HUF_CStream_t bitC;
 
     /* init */
     if (dstSize < 8) return 0;   /* not enough space to compress */
-    { size_t const initErr = HUF_initCStream(&bitC, op, (size_t)(oend-op));
+    { BYTE* op = ostart;
+      size_t const initErr = HUF_initCStream(&bitC, op, (size_t)(oend-op));
       if (HUF_isError(initErr)) return 0; }
 
     if (dstSize < HUF_tightCompressBound(srcSize, (size_t)tableLog) || tableLog > 11)
@@ -1288,7 +1288,7 @@ unsigned HUF_optimalTableLog(
 
     {   BYTE* dst = (BYTE*)workSpace + sizeof(HUF_WriteCTableWksp);
         size_t dstSize = wkspSize - sizeof(HUF_WriteCTableWksp);
-        size_t maxBits, hSize, newSize;
+        size_t hSize, newSize;
         const unsigned symbolCardinality = HUF_cardinality(count, maxSymbolValue);
         const unsigned minTableLog = HUF_minTableLog(symbolCardinality);
         size_t optSize = ((size_t) ~0) - 1;
@@ -1299,12 +1299,14 @@ unsigned HUF_optimalTableLog(
         /* Search until size increases */
         for (optLogGuess = minTableLog; optLogGuess <= maxTableLog; optLogGuess++) {
             DEBUGLOG(7, "checking for huffLog=%u", optLogGuess);
-            maxBits = HUF_buildCTable_wksp(table, count, maxSymbolValue, optLogGuess, workSpace, wkspSize);
-            if (ERR_isError(maxBits)) continue;
 
-            if (maxBits < optLogGuess && optLogGuess > minTableLog) break;
+            {   size_t maxBits = HUF_buildCTable_wksp(table, count, maxSymbolValue, optLogGuess, workSpace, wkspSize);
+                if (ERR_isError(maxBits)) continue;
 
-            hSize = HUF_writeCTable_wksp(dst, dstSize, table, maxSymbolValue, (U32)maxBits, workSpace, wkspSize);
+                if (maxBits < optLogGuess && optLogGuess > minTableLog) break;
+
+                hSize = HUF_writeCTable_wksp(dst, dstSize, table, maxSymbolValue, (U32)maxBits, workSpace, wkspSize);
+            }
 
             if (ERR_isError(hSize)) continue;
 

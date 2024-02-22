@@ -44,7 +44,8 @@ testcommon_dep = declare_dependency(link_with: testcommon,
   dependencies: libzstd_deps,
   include_directories: libzstd_includes)
 
-datagen_sources = [join_paths(zstd_rootdir, 'tests/datagencli.c')]
+datagen_sources = [join_paths(zstd_rootdir, 'tests/datagencli.c'),
+  join_paths(zstd_rootdir, 'tests/loremOut.c')]
 datagen = executable('datagen',
   datagen_sources,
   c_args: [ '-DNDEBUG' ],

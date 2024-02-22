@@ -157,6 +157,8 @@
   <ItemGroup>
     <ClCompile Include="..\..\..\programs\util.c" />
     <ClCompile Include="..\..\..\programs\datagen.c" />
+    <ClCompile Include="..\..\..\programs\lorem.c" />
+    <ClCompile Include="..\..\..\tests\loremOut.c" />
     <ClCompile Include="..\..\..\tests\datagencli.c" />
   </ItemGroup>
   <ItemGroup>

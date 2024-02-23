@@ -952,7 +952,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         ZSTD_freeCDict(cdict);
         ZSTD_freeCCtx(cctx);
     }
-    
+
     DISPLAYLEVEL(3, "test%3i : maxBlockSize = 2K", testNb++);
     {
         ZSTD_CCtx* cctx = ZSTD_createCCtx();
@@ -1374,7 +1374,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
-    DISPLAYLEVEL(3, "test%3d: superblock uncompressible data, too many nocompress superblocks : ", testNb++);
+    DISPLAYLEVEL(3, "test%3d : superblock uncompressible data: too many nocompress superblocks : ", testNb++);
     {
         ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         const BYTE* src = (BYTE*)CNBuffer; BYTE* dst = (BYTE*)compressedBuffer;

@@ -136,6 +136,7 @@ ZSTD_seqDecompressedSize(seqStore_t const* seqStore,
     size_t matchLengthSum = 0;
     size_t litLengthSum = 0;
     (void)(litLengthSum); /* suppress unused variable warning on some environments */
+    DEBUGLOG(6, "ZSTD_seqDecompressedSize (%u sequences from %p) (last==%i)", (unsigned)nbSeq, sp, lastSequence);
     while (sp < send) {
         ZSTD_sequenceLength const seqLen = ZSTD_getSequenceLength(seqStore, sp);
         litLengthSum += seqLen.litLength;
@@ -279,7 +280,8 @@ static size_t ZSTD_compressSubBlock(const ZSTD_entropyCTables_t* entropy,
                 litSize, nbSeq, writeLitEntropy, writeSeqEntropy, lastBlock);
     {   size_t cLitSize = ZSTD_compressSubBlock_literal((const HUF_CElt*)entropy->huf.CTable,
                                                         &entropyMetadata->hufMetadata, literals, litSize,
-                                                        op, oend-op, bmi2, writeLitEntropy, litEntropyWritten);
+                                                        op, (size_t)(oend-op),
+                                                        bmi2, writeLitEntropy, litEntropyWritten);
         FORWARD_IF_ERROR(cLitSize, "ZSTD_compressSubBlock_literal failed");
         if (cLitSize == 0) return 0;
         op += cLitSize;
@@ -289,7 +291,7 @@ static size_t ZSTD_compressSubBlock(const ZSTD_entropyCTables_t* entropy,
                                                   sequences, nbSeq,
                                                   llCode, mlCode, ofCode,
                                                   cctxParams,
-                                                  op, oend-op,
+                                                  op, (size_t)(oend-op),
                                                   bmi2, writeSeqEntropy, seqEntropyWritten);
         FORWARD_IF_ERROR(cSeqSize, "ZSTD_compressSubBlock_sequences failed");
         if (cSeqSize == 0) return 0;
@@ -419,13 +421,14 @@ static int ZSTD_needSequenceEntropyTables(ZSTD_fseCTablesMetadata_t const* fseMe
     return 0;
 }
 
-static size_t countLiterals(const seqDef* sp, size_t seqCount)
+static size_t countLiterals(seqStore_t const* seqStore, const seqDef* sp, size_t seqCount)
 {
     size_t n, total = 0;
     assert(sp != NULL);
     for (n=0; n<seqCount; n++) {
-        total += sp[n].litLength;
+        total += ZSTD_getSequenceLength(seqStore, sp+n).litLength;
     }
+    DEBUGLOG(6, "countLiterals for %zu sequences from %p => %zu bytes", seqCount, sp, total);
     return total;
 }
 
@@ -504,7 +507,7 @@ static size_t ZSTD_compressSubBlock_multi(const seqStore_t* seqStorePtr,
             int lastSubBlock = (n==nbSubBlocks-1);
             size_t const nbSeqsLastSubBlock = nbSeqs - (nbSubBlocks-1) * nbSeqsPerBlock;
             size_t seqCount = lastSubBlock ? nbSeqsLastSubBlock : nbSeqsPerBlock;
-            size_t litSize = lastSubBlock ? (size_t)(lend-lp) : countLiterals(sp, seqCount);
+            size_t litSize = lastSubBlock ? (size_t)(lend-lp) : countLiterals(seqStorePtr, sp, seqCount);
             int litEntropyWritten = 0;
             int seqEntropyWritten = 0;
             const size_t decompressedSize =

@@ -100,6 +100,7 @@ typedef struct {
     BMK_mode_t mode;        /* 0: all, 1: compress only 2: decode only */
     unsigned nbSeconds;     /* default timing is in nbSeconds */
     size_t blockSize;       /* Maximum size of each block*/
+    size_t targetCBlockSize;/* Approximative size of compressed blocks */
     int nbWorkers;          /* multithreading */
     unsigned realTime;      /* real time priority */
     int additionalParam;    /* used by python speed benchmark */

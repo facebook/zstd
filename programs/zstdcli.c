@@ -1374,6 +1374,7 @@ int main(int argCount, const char* argv[])
             CLEAN_RETURN(1);
         }
         benchParams.blockSize = blockSize;
+        benchParams.targetCBlockSize = targetCBlockSize;
         benchParams.nbWorkers = (int)nbWorkers;
         benchParams.realTime = (unsigned)setRealTimePrio;
         benchParams.nbSeconds = bench_nbSeconds;

@@ -200,6 +200,7 @@ BMK_advancedParams_t BMK_initAdvancedParams(void)
         BMK_both,               /* mode */
         BMK_TIMETEST_DEFAULT_S, /* nbSeconds */
         0,                      /* blockSize */
+        0,               /* targetCBlockSize */
         0,                      /* nbWorkers */
         0,                      /* realTime */
         0,                      /* additionalParam */
@@ -275,6 +276,8 @@ static void BMK_initCCtx(
             (int)adv->literalCompressionMode));
     CHECK_Z(ZSTD_CCtx_setParameter(
             ctx, ZSTD_c_strategy, (int)comprParams->strategy));
+    CHECK_Z(ZSTD_CCtx_setParameter(
+            ctx, ZSTD_c_targetCBlockSize, (int)adv->targetCBlockSize));
     CHECK_Z(ZSTD_CCtx_loadDictionary(ctx, dictBuffer, dictBufferSize));
 }
 

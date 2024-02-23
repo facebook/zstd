@@ -218,6 +218,10 @@ the last one takes effect.
     expected. This feature allows for controlling the guess when needed.
     Exact guesses result in better compression ratios. Overestimates result in slightly
     degraded compression ratios, while underestimates may result in significant degradation.
+* `--target-compressed-block-size=#`:
+    Attempt to produce compressed blocks of approximately this size.
+    This will split larger blocks in order to approach this target.
+    Notably useful to improve latency when the receiver can make use of early data sooner.
 * `-o FILE`:
     save result into `FILE`.
 * `-f`, `--force`:

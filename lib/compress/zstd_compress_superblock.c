@@ -467,7 +467,7 @@ static size_t ZSTD_compressSubBlock_multi(const seqStore_t* seqStorePtr,
     const BYTE* ofCodePtr = seqStorePtr->ofCode;
     size_t const minTarget = 2 KB; /* enforce minimum size to avoid undesirable side effects */
     size_t const targetCBlockSize = MAX(minTarget, cctxParams->targetCBlockSize);
-    int writeLitEntropy = entropyMetadata->hufMetadata.hType == set_compressed;
+    int writeLitEntropy = (entropyMetadata->hufMetadata.hType == set_compressed);
     int writeSeqEntropy = 1;
     size_t nbSubBlocks = 1;
 
@@ -523,9 +523,11 @@ static size_t ZSTD_compressSubBlock_multi(const seqStore_t* seqStorePtr,
                                                lastBlock && lastSubBlock);
             FORWARD_IF_ERROR(cSize, "ZSTD_compressSubBlock failed");
 
-            if (cSize == 0 || cSize >= decompressedSize) {
+            if (cSize == 0 || (cSize >= decompressedSize && n>0)) {
+                litEntropyWritten = 0;
+                seqEntropyWritten = 0;
                 cSize = ZSTD_noCompressBlock(op, (size_t)(oend - op), ip, decompressedSize, lastBlock);
-                DEBUGLOG(5, "send an uncompressed sub-block of %u bytes", (unsigned)(decompressedSize));
+                DEBUGLOG(5, "Generate uncompressed sub-block of %u bytes", (unsigned)(decompressedSize));
                 FORWARD_IF_ERROR(cSize, "ZSTD_noCompressBlock failed");
                 assert(cSize != 0);
                 /* We have to regenerate the repcodes because we've skipped some sequences */
@@ -578,8 +580,9 @@ static size_t ZSTD_compressSubBlock_multi(const seqStore_t* seqStorePtr,
 
 size_t ZSTD_compressSuperBlock(ZSTD_CCtx* zc,
                                void* dst, size_t dstCapacity,
-                               void const* src, size_t srcSize,
-                               unsigned lastBlock) {
+                               const void* src, size_t srcSize,
+                               unsigned lastBlock)
+{
     ZSTD_entropyCTablesMetadata_t entropyMetadata;
 
     FORWARD_IF_ERROR(ZSTD_buildBlockEntropyStats(&zc->seqStore,

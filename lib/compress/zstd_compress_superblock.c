@@ -136,7 +136,7 @@ ZSTD_seqDecompressedSize(seqStore_t const* seqStore,
     size_t matchLengthSum = 0;
     size_t litLengthSum = 0;
     (void)(litLengthSum); /* suppress unused variable warning on some environments */
-    DEBUGLOG(6, "ZSTD_seqDecompressedSize (%u sequences from %p) (last==%i)", (unsigned)nbSeq, sp, lastSequence);
+    DEBUGLOG(6, "ZSTD_seqDecompressedSize (%u sequences from %p) (last==%i)", (unsigned)nbSeq, (const void*)sp, lastSequence);
     while (sp < send) {
         ZSTD_sequenceLength const seqLen = ZSTD_getSequenceLength(seqStore, sp);
         litLengthSum += seqLen.litLength;
@@ -428,7 +428,7 @@ static size_t countLiterals(seqStore_t const* seqStore, const seqDef* sp, size_t
     for (n=0; n<seqCount; n++) {
         total += ZSTD_getSequenceLength(seqStore, sp+n).litLength;
     }
-    DEBUGLOG(6, "countLiterals for %zu sequences from %p => %zu bytes", seqCount, sp, total);
+    DEBUGLOG(6, "countLiterals for %zu sequences from %p => %zu bytes", seqCount, (const void*)sp, total);
     return total;
 }
 

@@ -18,7 +18,6 @@
  * on stack (0), or into heap (1, default; requires malloc()).
  * Note that functions with explicit context such as ZSTD_decompressDCtx() are unaffected.
  */
-#include "error_private.h"
 #ifndef ZSTD_HEAPMODE
 #  define ZSTD_HEAPMODE 1
 #endif
@@ -56,18 +55,19 @@
 /*-*******************************************************
 *  Dependencies
 *********************************************************/
-#include "../common/allocations.h"  /* ZSTD_customMalloc, ZSTD_customCalloc, ZSTD_customFree */
 #include "../common/zstd_deps.h"   /* ZSTD_memcpy, ZSTD_memmove, ZSTD_memset */
+#include "../common/allocations.h"  /* ZSTD_customMalloc, ZSTD_customCalloc, ZSTD_customFree */
+#include "../common/error_private.h"
+#include "../common/zstd_internal.h"  /* blockProperties_t */
 #include "../common/mem.h"         /* low level memory routines */
+#include "../common/bits.h"  /* ZSTD_highbit32 */
 #define FSE_STATIC_LINKING_ONLY
 #include "../common/fse.h"
 #include "../common/huf.h"
 #include "../common/xxhash.h" /* XXH64_reset, XXH64_update, XXH64_digest, XXH64 */
-#include "../common/zstd_internal.h"  /* blockProperties_t */
 #include "zstd_decompress_internal.h"   /* ZSTD_DCtx */
 #include "zstd_ddict.h"  /* ZSTD_DDictDictContent */
 #include "zstd_decompress_block.h"   /* ZSTD_decompressBlock_internal */
-#include "../common/bits.h"  /* ZSTD_highbit32 */
 
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
 #  include "../legacy/zstd_legacy.h"

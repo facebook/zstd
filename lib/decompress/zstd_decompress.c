@@ -18,6 +18,7 @@
  * on stack (0), or into heap (1, default; requires malloc()).
  * Note that functions with explicit context such as ZSTD_decompressDCtx() are unaffected.
  */
+#include "error_private.h"
 #ifndef ZSTD_HEAPMODE
 #  define ZSTD_HEAPMODE 1
 #endif
@@ -1023,12 +1024,14 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
         default:
             RETURN_ERROR(corruption_detected, "invalid block type");
         }
-
-        if (ZSTD_isError(decodedSize)) return decodedSize;
-        if (dctx->validateChecksum)
+        FORWARD_IF_ERROR(decodedSize, "Block decompression failure");
+        DEBUGLOG(5, "Decompressed block of dSize = %u", (unsigned)decodedSize);
+        if (dctx->validateChecksum) {
             XXH64_update(&dctx->xxhState, op, decodedSize);
-        if (decodedSize != 0)
+        }
+        if (decodedSize) /* support dst = NULL,0 */ {
             op += decodedSize;
+        }
         assert(ip != NULL);
         ip += cBlockSize;
         remainingSrcSize -= cBlockSize;

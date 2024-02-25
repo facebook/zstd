@@ -76,8 +76,8 @@ ZSTD_compressSubBlock_literal(const HUF_CElt* hufTable,
     }
 
     {   int const flags = bmi2 ? HUF_flags_bmi2 : 0;
-        const size_t cSize = singleStream ? HUF_compress1X_usingCTable(op, oend-op, literals, litSize, hufTable, flags)
-                                          : HUF_compress4X_usingCTable(op, oend-op, literals, litSize, hufTable, flags);
+        const size_t cSize = singleStream ? HUF_compress1X_usingCTable(op, (size_t)(oend-op), literals, litSize, hufTable, flags)
+                                          : HUF_compress4X_usingCTable(op, (size_t)(oend-op), literals, litSize, hufTable, flags);
         op += cSize;
         cLitSize += cSize;
         if (cSize == 0 || ERR_isError(cSize)) {
@@ -102,7 +102,7 @@ ZSTD_compressSubBlock_literal(const HUF_CElt* hufTable,
     switch(lhSize)
     {
     case 3: /* 2 - 2 - 10 - 10 */
-        {   U32 const lhc = hType + ((!singleStream) << 2) + ((U32)litSize<<4) + ((U32)cLitSize<<14);
+        {   U32 const lhc = hType + ((U32)(!singleStream) << 2) + ((U32)litSize<<4) + ((U32)cLitSize<<14);
             MEM_writeLE24(ostart, lhc);
             break;
         }
@@ -122,30 +122,30 @@ ZSTD_compressSubBlock_literal(const HUF_CElt* hufTable,
     }
     *entropyWritten = 1;
     DEBUGLOG(5, "Compressed literals: %u -> %u", (U32)litSize, (U32)(op-ostart));
-    return op-ostart;
+    return (size_t)(op-ostart);
 }
 
 static size_t
 ZSTD_seqDecompressedSize(seqStore_t const* seqStore,
-                   const seqDef* sequences, size_t nbSeq,
-                         size_t litSize, int lastSequence)
+                   const seqDef* sequences, size_t nbSeqs,
+                         size_t litSize, int lastSubBlock)
 {
-    const seqDef* const sstart = sequences;
-    const seqDef* const send = sequences + nbSeq;
-    const seqDef* sp = sstart;
     size_t matchLengthSum = 0;
     size_t litLengthSum = 0;
-    (void)(litLengthSum); /* suppress unused variable warning on some environments */
-    while (send-sp > 0) {
-        ZSTD_sequenceLength const seqLen = ZSTD_getSequenceLength(seqStore, sp);
+    size_t n;
+    for (n=0; n<nbSeqs; n++) {
+        const ZSTD_sequenceLength seqLen = ZSTD_getSequenceLength(seqStore, sequences+n);
         litLengthSum += seqLen.litLength;
         matchLengthSum += seqLen.matchLength;
-        sp++;
     }
-    assert(litLengthSum <= litSize);
-    if (!lastSequence) {
+    DEBUGLOG(5, "ZSTD_seqDecompressedSize: %u sequences from %p: %u literals + %u matchlength",
+                (unsigned)nbSeqs, (const void*)sequences,
+                (unsigned)litLengthSum, (unsigned)matchLengthSum);
+    if (!lastSubBlock)
         assert(litLengthSum == litSize);
-    }
+    else
+        assert(litLengthSum <= litSize);
+    (void)litLengthSum;
     return matchLengthSum + litSize;
 }
 
@@ -187,7 +187,7 @@ ZSTD_compressSubBlock_sequences(const ZSTD_fseCTables_t* fseTables,
     else
         op[0]=0xFF, MEM_writeLE16(op+1, (U16)(nbSeq - LONGNBSEQ)), op+=3;
     if (nbSeq==0) {
-        return op - ostart;
+        return (size_t)(op - ostart);
     }
 
     /* seqHead : flags for FSE encoding type */
@@ -209,7 +209,7 @@ ZSTD_compressSubBlock_sequences(const ZSTD_fseCTables_t* fseTables,
     }
 
     {   size_t const bitstreamSize = ZSTD_encodeSequences(
-                                        op, oend - op,
+                                        op, (size_t)(oend - op),
                                         fseTables->matchlengthCTable, mlCode,
                                         fseTables->offcodeCTable, ofCode,
                                         fseTables->litlengthCTable, llCode,
@@ -253,7 +253,7 @@ ZSTD_compressSubBlock_sequences(const ZSTD_fseCTables_t* fseTables,
 #endif
 
     *entropyWritten = 1;
-    return op - ostart;
+    return (size_t)(op - ostart);
 }
 
 /** ZSTD_compressSubBlock() :
@@ -279,7 +279,8 @@ static size_t ZSTD_compressSubBlock(const ZSTD_entropyCTables_t* entropy,
                 litSize, nbSeq, writeLitEntropy, writeSeqEntropy, lastBlock);
     {   size_t cLitSize = ZSTD_compressSubBlock_literal((const HUF_CElt*)entropy->huf.CTable,
                                                         &entropyMetadata->hufMetadata, literals, litSize,
-                                                        op, oend-op, bmi2, writeLitEntropy, litEntropyWritten);
+                                                        op, (size_t)(oend-op),
+                                                        bmi2, writeLitEntropy, litEntropyWritten);
         FORWARD_IF_ERROR(cLitSize, "ZSTD_compressSubBlock_literal failed");
         if (cLitSize == 0) return 0;
         op += cLitSize;
@@ -289,18 +290,18 @@ static size_t ZSTD_compressSubBlock(const ZSTD_entropyCTables_t* entropy,
                                                   sequences, nbSeq,
                                                   llCode, mlCode, ofCode,
                                                   cctxParams,
-                                                  op, oend-op,
+                                                  op, (size_t)(oend-op),
                                                   bmi2, writeSeqEntropy, seqEntropyWritten);
         FORWARD_IF_ERROR(cSeqSize, "ZSTD_compressSubBlock_sequences failed");
         if (cSeqSize == 0) return 0;
         op += cSeqSize;
     }
     /* Write block header */
-    {   size_t cSize = (op-ostart)-ZSTD_blockHeaderSize;
+    {   size_t cSize = (size_t)(op-ostart) - ZSTD_blockHeaderSize;
         U32 const cBlockHeader24 = lastBlock + (((U32)bt_compressed)<<1) + (U32)(cSize << 3);
         MEM_writeLE24(ostart, cBlockHeader24);
     }
-    return op-ostart;
+    return (size_t)(op-ostart);
 }
 
 static size_t ZSTD_estimateSubBlockSize_literal(const BYTE* literals, size_t litSize,
@@ -419,6 +420,17 @@ static int ZSTD_needSequenceEntropyTables(ZSTD_fseCTablesMetadata_t const* fseMe
     return 0;
 }
 
+static size_t countLiterals(seqStore_t const* seqStore, const seqDef* sp, size_t seqCount)
+{
+    size_t n, total = 0;
+    assert(sp != NULL);
+    for (n=0; n<seqCount; n++) {
+        total += ZSTD_getSequenceLength(seqStore, sp+n).litLength;
+    }
+    DEBUGLOG(5, "countLiterals for %zu sequences from %p => %zu bytes", seqCount, (const void*)sp, total);
+    return total;
+}
+
 /** ZSTD_compressSubBlock_multi() :
  *  Breaks super-block into multiple sub-blocks and compresses them.
  *  Entropy will be written to the first block.
@@ -438,10 +450,13 @@ static size_t ZSTD_compressSubBlock_multi(const seqStore_t* seqStorePtr,
 {
     const seqDef* const sstart = seqStorePtr->sequencesStart;
     const seqDef* const send = seqStorePtr->sequences;
-    const seqDef* sp = sstart;
+    const seqDef* sp = sstart; /* tracks progresses within seqStorePtr->sequences */
+    size_t const nbSeqs = (size_t)(send - sstart);
+    size_t nbSeqsPerBlock = nbSeqs;
     const BYTE* const lstart = seqStorePtr->litStart;
     const BYTE* const lend = seqStorePtr->lit;
     const BYTE* lp = lstart;
+    size_t const nbLiterals = (size_t)(lend - lstart);
     BYTE const* ip = (BYTE const*)src;
     BYTE const* const iend = ip + srcSize;
     BYTE* const ostart = (BYTE*)dst;
@@ -450,66 +465,76 @@ static size_t ZSTD_compressSubBlock_multi(const seqStore_t* seqStorePtr,
     const BYTE* llCodePtr = seqStorePtr->llCode;
     const BYTE* mlCodePtr = seqStorePtr->mlCode;
     const BYTE* ofCodePtr = seqStorePtr->ofCode;
-    size_t targetCBlockSize = cctxParams->targetCBlockSize;
-    size_t litSize, seqCount;
-    int writeLitEntropy = entropyMetadata->hufMetadata.hType == set_compressed;
+    size_t const minTarget = 1300; /* enforce minimum size, to reduce undesirable side effects */
+    size_t const targetCBlockSize = MAX(minTarget, cctxParams->targetCBlockSize);
+    int writeLitEntropy = (entropyMetadata->hufMetadata.hType == set_compressed);
     int writeSeqEntropy = 1;
-    int lastSequence = 0;
+    size_t nbSubBlocks = 1;
 
-    DEBUGLOG(5, "ZSTD_compressSubBlock_multi (litSize=%u, nbSeq=%u)",
-                (unsigned)(lend-lp), (unsigned)(send-sstart));
+    DEBUGLOG(5, "ZSTD_compressSubBlock_multi (srcSize=%u, litSize=%u, nbSeq=%u)",
+               (unsigned)srcSize, (unsigned)(lend-lstart), (unsigned)(send-sstart));
 
-    litSize = 0;
-    seqCount = 0;
-    do {
-        size_t cBlockSizeEstimate = 0;
-        if (sstart == send) {
-            lastSequence = 1;
+    if (nbSeqs == 0) {
+        /* special case : no sequence */
+        nbSeqsPerBlock = 0;
+        nbSubBlocks = 1;
+    } else {
+        /* let's start by a general estimation for the full block */
+        size_t const cBlockSizeEstimate =
+                ZSTD_estimateSubBlockSize(lp, nbLiterals,
+                                        ofCodePtr, llCodePtr, mlCodePtr, nbSeqs,
+                                        &nextCBlock->entropy, entropyMetadata,
+                                        workspace, wkspSize,
+                                        writeLitEntropy, writeSeqEntropy);
+        /* quick estimation */
+        nbSubBlocks = (cBlockSizeEstimate + (targetCBlockSize-1)) / targetCBlockSize;
+        assert(nbSubBlocks > 0);
+        if (nbSeqs > nbSubBlocks) {
+            nbSeqsPerBlock = nbSeqs / nbSubBlocks;
         } else {
-            const seqDef* const sequence = sp + seqCount;
-            lastSequence = sequence == send - 1;
-            litSize += ZSTD_getSequenceLength(seqStorePtr, sequence).litLength;
-            seqCount++;
+            nbSeqsPerBlock = 1;
+            nbSubBlocks = nbSeqs;
         }
-        if (lastSequence) {
-            assert(lp <= lend);
-            assert(litSize <= (size_t)(lend - lp));
-            litSize = (size_t)(lend - lp);
-        }
-        /* I think there is an optimization opportunity here.
-         * Calling ZSTD_estimateSubBlockSize for every sequence can be wasteful
-         * since it recalculates estimate from scratch.
-         * For example, it would recount literal distribution and symbol codes every time.
-         */
-        cBlockSizeEstimate = ZSTD_estimateSubBlockSize(lp, litSize, ofCodePtr, llCodePtr, mlCodePtr, seqCount,
-                                                       &nextCBlock->entropy, entropyMetadata,
-                                                       workspace, wkspSize, writeLitEntropy, writeSeqEntropy);
-        if (cBlockSizeEstimate > targetCBlockSize || lastSequence) {
+        /* Note: this is very approximative. Obviously, some sub-blocks will be larger and others smaller.
+         * But the contract of this feature has always been approximative, so for now we'll leverage it for speed.
+         * It can be refined later, for closer-to-target compressed block size, if it ever matters. */
+    }
+
+    /* write sub-blocks */
+    {   size_t n;
+        size_t nbSeqsToProcess = 0;
+        for (n=0; n < nbSubBlocks; n++) {
+            int const lastSubBlock = (n==nbSubBlocks-1);
+            size_t const nbSeqsLastSubBlock = nbSeqs - (nbSubBlocks-1) * nbSeqsPerBlock;
+            size_t nbSeqsSubBlock = lastSubBlock ? nbSeqsLastSubBlock : nbSeqsPerBlock;
+            size_t seqCount = nbSeqsToProcess+nbSeqsSubBlock;
+            size_t litSize = lastSubBlock ? (size_t)(lend-lp) : countLiterals(seqStorePtr, sp, seqCount);
             int litEntropyWritten = 0;
             int seqEntropyWritten = 0;
-            const size_t decompressedSize = ZSTD_seqDecompressedSize(seqStorePtr, sp, seqCount, litSize, lastSequence);
-            const size_t cSize = ZSTD_compressSubBlock(&nextCBlock->entropy, entropyMetadata,
-                                                       sp, seqCount,
-                                                       lp, litSize,
-                                                       llCodePtr, mlCodePtr, ofCodePtr,
-                                                       cctxParams,
-                                                       op, oend-op,
-                                                       bmi2, writeLitEntropy, writeSeqEntropy,
-                                                       &litEntropyWritten, &seqEntropyWritten,
-                                                       lastBlock && lastSequence);
+            const size_t decompressedSize =
+                    ZSTD_seqDecompressedSize(seqStorePtr, sp, seqCount, litSize, lastSubBlock);
+            size_t const cSize = ZSTD_compressSubBlock(&nextCBlock->entropy, entropyMetadata,
+                                               sp, seqCount,
+                                               lp, litSize,
+                                               llCodePtr, mlCodePtr, ofCodePtr,
+                                               cctxParams,
+                                               op, (size_t)(oend-op),
+                                               bmi2, writeLitEntropy, writeSeqEntropy,
+                                               &litEntropyWritten, &seqEntropyWritten,
+                                               lastBlock && lastSubBlock);
+            nbSeqsToProcess = seqCount;
             FORWARD_IF_ERROR(cSize, "ZSTD_compressSubBlock failed");
+
             if (cSize > 0 && cSize < decompressedSize) {
-                DEBUGLOG(5, "Committed the sub-block");
+                DEBUGLOG(5, "Committed sub-block compressing %u bytes => %u bytes",
+                            (unsigned)decompressedSize, (unsigned)cSize);
                 assert(ip + decompressedSize <= iend);
                 ip += decompressedSize;
-                sp += seqCount;
                 lp += litSize;
                 op += cSize;
                 llCodePtr += seqCount;
                 mlCodePtr += seqCount;
                 ofCodePtr += seqCount;
-                litSize = 0;
-                seqCount = 0;
                 /* Entropy only needs to be written once */
                 if (litEntropyWritten) {
                     writeLitEntropy = 0;
@@ -517,29 +542,36 @@ static size_t ZSTD_compressSubBlock_multi(const seqStore_t* seqStorePtr,
                 if (seqEntropyWritten) {
                     writeSeqEntropy = 0;
                 }
+                sp += seqCount;
+                nbSeqsToProcess = 0;
             }
+            /* otherwise : coalesce current block with next one */
         }
-    } while (!lastSequence);
+    }
+
     if (writeLitEntropy) {
-        DEBUGLOG(5, "ZSTD_compressSubBlock_multi has literal entropy tables unwritten");
+        DEBUGLOG(5, "Literal entropy tables were never written");
         ZSTD_memcpy(&nextCBlock->entropy.huf, &prevCBlock->entropy.huf, sizeof(prevCBlock->entropy.huf));
     }
     if (writeSeqEntropy && ZSTD_needSequenceEntropyTables(&entropyMetadata->fseMetadata)) {
         /* If we haven't written our entropy tables, then we've violated our contract and
          * must emit an uncompressed block.
          */
-        DEBUGLOG(5, "ZSTD_compressSubBlock_multi has sequence entropy tables unwritten");
+        DEBUGLOG(5, "Sequence entropy tables were never written => cancel, emit an uncompressed block");
         return 0;
     }
+
     if (ip < iend) {
-        size_t const cSize = ZSTD_noCompressBlock(op, oend - op, ip, iend - ip, lastBlock);
-        DEBUGLOG(5, "ZSTD_compressSubBlock_multi last sub-block uncompressed, %zu bytes", (size_t)(iend - ip));
+        /* some data left : last part of the block sent uncompressed */
+        size_t const rSize = (size_t)((iend - ip));
+        size_t const cSize = ZSTD_noCompressBlock(op, (size_t)(oend - op), ip, rSize, lastBlock);
+        DEBUGLOG(5, "Generate last uncompressed sub-block of %u bytes", (unsigned)(rSize));
         FORWARD_IF_ERROR(cSize, "ZSTD_noCompressBlock failed");
         assert(cSize != 0);
         op += cSize;
         /* We have to regenerate the repcodes because we've skipped some sequences */
         if (sp < send) {
-            seqDef const* seq;
+            const seqDef* seq;
             repcodes_t rep;
             ZSTD_memcpy(&rep, prevCBlock->rep, sizeof(rep));
             for (seq = sstart; seq < sp; ++seq) {
@@ -548,14 +580,17 @@ static size_t ZSTD_compressSubBlock_multi(const seqStore_t* seqStorePtr,
             ZSTD_memcpy(nextCBlock->rep, &rep, sizeof(rep));
         }
     }
-    DEBUGLOG(5, "ZSTD_compressSubBlock_multi compressed");
-    return op-ostart;
+
+    DEBUGLOG(5, "ZSTD_compressSubBlock_multi compressed %u subBlocks: total compressed size = %u",
+                (unsigned)nbSubBlocks, (unsigned)(op-ostart));
+    return (size_t)(op-ostart);
 }
 
 size_t ZSTD_compressSuperBlock(ZSTD_CCtx* zc,
                                void* dst, size_t dstCapacity,
-                               void const* src, size_t srcSize,
-                               unsigned lastBlock) {
+                               const void* src, size_t srcSize,
+                               unsigned lastBlock)
+{
     ZSTD_entropyCTablesMetadata_t entropyMetadata;
 
     FORWARD_IF_ERROR(ZSTD_buildBlockEntropyStats(&zc->seqStore,

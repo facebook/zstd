@@ -318,7 +318,7 @@ static void usageAdvanced(const char* programName)
 
 static void badUsage(const char* programName, const char* parameter)
 {
-    DISPLAYLEVEL(1, "Incorrect parameter: %s\n", parameter);
+    DISPLAYLEVEL(1, "Incorrect parameter: %s \n", parameter);
     if (g_displayLevel >= 2) usage(stderr, programName);
 }
 
@@ -1148,7 +1148,6 @@ int main(int argCount, const char* argv[])
 
             argument++;
             while (argument[0]!=0) {
-                char shortArgument[3];
 
 #ifndef ZSTD_NOCOMPRESS
                 /* compression Level */
@@ -1281,9 +1280,11 @@ int main(int argCount, const char* argv[])
 
                     /* unknown command */
                 default :
-                    sprintf(shortArgument, "-%c", argument[0]);
-                    badUsage(programName, shortArgument);
-                    CLEAN_RETURN(1);
+                    {   char shortArgument[3] = {'-', 0, 0};
+                        shortArgument[1] = argument[0];
+                        badUsage(programName, shortArgument);
+                        CLEAN_RETURN(1);
+                    }
                 }
             }
             continue;

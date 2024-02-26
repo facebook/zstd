@@ -521,6 +521,9 @@ static size_t ZSTD_compressSubBlock_multi(const seqStore_t* seqStorePtr,
         DEBUGLOG(5, "estimated fullblock size=%u bytes ; avgLitCost=%.2f ; avgSeqCost=%.2f ; targetCBlockSize=%u, nbSubBlocks=%u ; avgBlockBudget=%.0f bytes",
                     (unsigned)ebs.estBlockSize, (double)avgLitCost/BYTESCALE, (double)avgSeqCost/BYTESCALE,
                     (unsigned)targetCBlockSize, (unsigned)nbSubBlocks, (double)avgBlockBudget/BYTESCALE);
+        /* simplification: if estimates states that the full superblock doesn't compress, just bail out immediately
+         * this will result in the production of a single uncompressed block covering @srcSize.*/
+        if (ebs.estBlockSize > srcSize) return 0;
 
         /* compress and write sub-blocks */
         for (n=0; n+1 < nbSubBlocks; n++) {
@@ -568,7 +571,7 @@ static size_t ZSTD_compressSubBlock_multi(const seqStore_t* seqStorePtr,
                     sp += seqCount;
                     blockBudgetSupp = 0;
             }   }
-            /* otherwise : do not compress yet, coalesce current block with next one */
+            /* otherwise : do not compress yet, coalesce current sub-block with following one */
         }
     } /* if (nbSeqs > 0) */
 

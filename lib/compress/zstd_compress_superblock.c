@@ -461,7 +461,7 @@ static size_t sizeBlockSequences(const seqDef* sp, size_t nbSeqs,
     return n;
 }
 
-#define CBLOCK_TARGET_SIZE_MIN 1300 /* suitable to fit an ethernet / wifi / 4G transport frame */
+#define CBLOCK_TARGET_SIZE_MIN 1340 /* suitable to fit into an ethernet / wifi / 4G transport frame */
 
 /** ZSTD_compressSubBlock_multi() :
  *  Breaks super-block into multiple sub-blocks and compresses them.
@@ -515,9 +515,8 @@ static size_t ZSTD_compressSubBlock_multi(const seqStore_t* seqStorePtr,
         /* quick estimation */
         size_t const avgLitCost = nbLiterals ? (ebs.estLitSize * BYTESCALE) / nbLiterals : BYTESCALE;
         size_t const avgSeqCost = ((ebs.estBlockSize - ebs.estLitSize) * BYTESCALE) / nbSeqs;
-        size_t nbSubBlocks = (ebs.estBlockSize + (targetCBlockSize-1)) / targetCBlockSize;
+        const size_t nbSubBlocks = MAX((ebs.estBlockSize + (targetCBlockSize/2)) / targetCBlockSize, 1);
         size_t n, avgBlockBudget, blockBudgetSupp=0;
-        if (nbSubBlocks<1) nbSubBlocks=1;
         avgBlockBudget = (ebs.estBlockSize * BYTESCALE) / nbSubBlocks;
         DEBUGLOG(5, "estimated fullblock size=%u bytes ; avgLitCost=%.2f ; avgSeqCost=%.2f ; targetCBlockSize=%u, nbSubBlocks=%u ; avgBlockBudget=%.0f bytes",
                     (unsigned)ebs.estBlockSize, (double)avgLitCost/BYTESCALE, (double)avgSeqCost/BYTESCALE,

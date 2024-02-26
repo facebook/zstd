@@ -449,7 +449,7 @@ static size_t sizeBlockSequences(const seqDef* sp, size_t nbSeqs,
         budget += 120 * BYTESCALE; /* generous estimate */
     }
     /* first sequence => at least one sequence*/
-    budget += sp[0].litLength * avgLitCost + avgSeqCost;;
+    budget += sp[0].litLength * avgLitCost + avgSeqCost;
     if (budget > targetBudget) return 1;
 
     /* loop over sequences */

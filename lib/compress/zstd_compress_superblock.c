@@ -526,9 +526,11 @@ static size_t ZSTD_compressSubBlock_multi(const seqStore_t* seqStorePtr,
         if (ebs.estBlockSize > srcSize) return 0;
 
         /* compress and write sub-blocks */
-        for (n=0; n+1 < nbSubBlocks; n++) {
+        assert(nbSubBlocks>0);
+        for (n=0; n < nbSubBlocks-1; n++) {
             /* determine nb of sequences for current sub-block + nbLiterals from next sequence */
-            size_t seqCount = sizeBlockSequences(sp, (size_t)(send-sp), avgBlockBudget + blockBudgetSupp, avgLitCost, avgSeqCost, n==0);
+            size_t const seqCount = sizeBlockSequences(sp, (size_t)(send-sp),
+                                        avgBlockBudget + blockBudgetSupp, avgLitCost, avgSeqCost, n==0);
             /* if reached last sequence : break to last sub-block (simplification) */
             assert(seqCount <= (size_t)(send-sp));
             if (sp + seqCount == send) break;

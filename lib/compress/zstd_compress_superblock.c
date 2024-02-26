@@ -443,21 +443,29 @@ static size_t sizeBlockSequences(const seqDef* sp, size_t nbSeqs,
                 size_t targetBudget, size_t avgLitCost, size_t avgSeqCost,
                 int firstSubBlock)
 {
-    size_t n, budget = 0;
+    size_t n, budget = 0, inSize=0;
     /* entropy headers */
-    if (firstSubBlock) {
-        budget += 120 * BYTESCALE; /* generous estimate */
-    }
+    size_t const headerSize = (size_t)firstSubBlock * 120 * BYTESCALE; /* generous estimate */
+    assert(firstSubBlock==0 || firstSubBlock==1);
+    budget += headerSize;
+
     /* first sequence => at least one sequence*/
     budget += sp[0].litLength * avgLitCost + avgSeqCost;
     if (budget > targetBudget) return 1;
+    inSize = sp[0].litLength + (sp[0].mlBase+MINMATCH);
 
     /* loop over sequences */
     for (n=1; n<nbSeqs; n++) {
         size_t currentCost = sp[n].litLength * avgLitCost + avgSeqCost;
-        if (budget + currentCost > targetBudget) break;
         budget += currentCost;
+        inSize += sp[n].litLength + (sp[n].mlBase+MINMATCH);
+        /* stop when sub-block budget is reached */
+        if ( (budget > targetBudget)
+            /* though continue to expand until the sub-block is deemed compressible */
+          && (budget < inSize * BYTESCALE) )
+            break;
     }
+
     return n;
 }
 

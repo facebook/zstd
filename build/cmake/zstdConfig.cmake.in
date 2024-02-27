@@ -7,18 +7,4 @@ endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/zstdTargets.cmake")
 
-if(NOT TARGET zstd::libzstd)
-  if(@ZSTD_BUILD_SHARED@ AND NOT @ZSTD_BUILD_STATIC@)
-    add_library(zstd::libzstd INTERFACE IMPORTED)
-    set_target_properties(zstd::libzstd PROPERTIES
-      INTERFACE_LINK_LIBRARIES "zstd::libzstd_shared"
-    )
-  elseif(NOT @ZSTD_BUILD_SHARED@ AND @ZSTD_BUILD_STATIC@)
-    add_library(zstd::libzstd INTERFACE IMPORTED)
-    set_target_properties(zstd::libzstd PROPERTIES
-      INTERFACE_LINK_LIBRARIES "zstd::libzstd_static"
-    )
-  endif()
-endif()
-
 check_required_components("zstd")

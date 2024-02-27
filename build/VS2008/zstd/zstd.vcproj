@@ -357,6 +357,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\programs\lorem.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\lib\dictBuilder\cover.c"
 				>
 			</File>

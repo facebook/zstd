@@ -1124,6 +1124,9 @@ When last symbol reaches cumulated total of `1 << Accuracy_Log`,
 decoding is complete.
 If the last symbol makes cumulated total go above `1 << Accuracy_Log`,
 distribution is considered corrupted.
+If this process results in a non-zero probability for a value outside of the
+valid range of values that the FSE table is defined for, even if that value is
+not used, then the data is considered corrupted.
 
 Then the decoder can tell how many bytes were used in this process,
 and how many symbols are present.
@@ -1252,7 +1255,9 @@ Number_of_Bits = Weight ? (Max_Number_of_Bits + 1 - Weight) : 0
 ```
 When a literal value is not present, it receives a `Weight` of 0.
 The least frequent symbol receives a `Weight` of 1.
-Consequently, the `Weight` 1 is necessarily present.
+If no literal has a `Weight` of 1, then the data is considered corrupted.
+If there are not at least two literals with non-zero `Weight`, then the data
+is considered corrupted.
 The most frequent symbol receives a `Weight` anywhere between 1 and 11 (max).
 The last symbol's `Weight` is deduced from previously retrieved Weights,
 by completing to the nearest power of 2. It's necessarily non 0.
@@ -1352,6 +1357,9 @@ by tracking bitStream overflow condition:
 If updating state after decoding a symbol would require more bits than
 remain in the stream, it is assumed that extra bits are 0.  Then,
 symbols for each of the final states are decoded and the process is complete.
+
+If this process would produce more weights than the maximum number of decoded
+weights (255), then the data is considered corrupted.
 
 #### Conversion from weights to Huffman prefix codes
 

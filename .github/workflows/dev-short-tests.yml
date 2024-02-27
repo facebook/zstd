@@ -63,7 +63,7 @@ jobs:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v3
     - name: build zstd bin against a dynamic lib (debuglevel for more dependencies)
       run: |
-        make -C lib lib-mt-release 
+        make -C lib lib-mt-release
         DEBUGLEVEL=2 make -C programs zstd-dll
 
   gcc-7-libzstd:
@@ -80,19 +80,16 @@ jobs:
         make clean
         LDFLAGS=-Wl,--no-undefined make -C lib libzstd-mt
 
-    # candidate test (to check) : underlink test
+    # candidate test (for discussion) : underlink test
     # LDFLAGS=-Wl,--no-undefined : will make the linker fail if dll is underlinked
 
   cmake-build-and-test-check:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v3
-    - name: cmake build and test check
+    - name: cmake build and test
       run: |
-        FUZZERTEST=-T1mn ZSTREAM_TESTTIME=-T1mn make cmakebuild
-        cp -r ./ "../zstd source"
-        cd "../zstd source"
-        FUZZERTEST=-T1mn ZSTREAM_TESTTIME=-T1mn make cmakebuild
+        FUZZERTEST=-T1mn ZSTREAM_TESTTIME=-T1mn make cmakebuild V=1
 
   cpp-gnu90-c99-compatibility:
     runs-on: ubuntu-latest
@@ -246,14 +243,12 @@ jobs:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v3
       - name: Install packages
         run: pip install --pre meson
-      - name: Initialize the MSVC dev command prompt
-        uses: ilammy/msvc-dev-cmd@cec98b9d092141f74527d0afa6feb2af698cfe89
       - name: Configure with Meson
         run: |
-          meson setup build/meson/ builddir -Dbin_tests=true -Dbin_programs=true -Dbin_contrib=true
+          meson setup --vsenv build/meson/ builddir -Dbin_tests=true -Dbin_programs=true -Dbin_contrib=true
       - name: Build with Meson
         run: |
-          ninja -C builddir/
+          meson compile -C builddir/
       - name: Test with Meson
         run: |
           meson test -C builddir/ --print-errorlogs
@@ -276,7 +271,7 @@ jobs:
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v3
     - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@1ff57057b5cfdc39105cd07a01d78e9b0ea0c14c # tag=v1.3
+      uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # tag=v2.0.0
     - name: Build
       working-directory: ${{env.GITHUB_WORKSPACE}}
       run: |
@@ -303,7 +298,7 @@ jobs:
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v3
     - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@1ff57057b5cfdc39105cd07a01d78e9b0ea0c14c # tag=v1.3
+      uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # tag=v2.0.0
     - name: Build ${{matrix.name}}
       working-directory: ${{env.GITHUB_WORKSPACE}}
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
@@ -386,6 +381,7 @@ jobs:
           { name: S390X,    xcc_pkg: gcc-s390x-linux-gnu,       xcc: s390x-linux-gnu-gcc,       xemu_pkg: qemu-system-s390x,  xemu: qemu-s390x-static   },
           { name: MIPS,     xcc_pkg: gcc-mips-linux-gnu,        xcc: mips-linux-gnu-gcc,        xemu_pkg: qemu-system-mips,   xemu: qemu-mips-static    },
           { name: M68K,     xcc_pkg: gcc-m68k-linux-gnu,        xcc: m68k-linux-gnu-gcc,        xemu_pkg: qemu-system-m68k,   xemu: qemu-m68k-static    },
+          { name: SPARC,    xcc_pkg: gcc-sparc64-linux-gnu,     xcc: sparc64-linux-gnu-gcc,     xemu_pkg: qemu-system-sparc,  xemu: qemu-sparc64-static },
         ]
     env:                        # Set environment variables
       XCC: ${{ matrix.xcc }}
@@ -432,6 +428,10 @@ jobs:
       if: ${{ matrix.name == 'M68K' }}
       run: |
         LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
+    - name: SPARC
+      if: ${{ matrix.name == 'SPARC' }}
+      run: |
+        LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
 
   mingw-short-test:
     runs-on: windows-latest
@@ -448,7 +448,7 @@ jobs:
         shell: msys2 {0}
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v3
-    - uses: msys2/setup-msys2@5beef6d11f48bba68b9eb503e3adc60b23c0cc36 # tag=v2
+    - uses: msys2/setup-msys2@cc11e9188b693c2b100158c3322424c4cc1dadea # tag=v2.22.0
       with:
         msystem: ${{ matrix.msystem }}
         install: make diffutils
@@ -485,7 +485,7 @@ jobs:
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v3
     - name: Add MSBuild to PATH
-      uses: microsoft/setup-msbuild@1ff57057b5cfdc39105cd07a01d78e9b0ea0c14c # tag=v1.3
+      uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # tag=v2.0.0
     - name: Build and run tests
       working-directory: ${{env.GITHUB_WORKSPACE}}
       env:
@@ -525,25 +525,6 @@ jobs:
         make -j allzstd &&
         make -C tests fuzzer &&
         ./tests/fuzzer.exe -v -T1m
-
-  intel-cet-compatibility:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v3
-    - name: Build Zstd
-      run: |
-        make -j zstd V=1
-        readelf -n zstd
-    - name: Get Intel SDE
-      run: |
-        curl -LO https://downloadmirror.intel.com/684899/sde-external-9.0.0-2021-11-07-lin.tar.xz
-        tar xJvf sde-external-9.0.0-2021-11-07-lin.tar.xz
-    - name: Configure Permissions
-      run: |
-        echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
-    - name: Run Under SDE
-      run: |
-        sde-external-9.0.0-2021-11-07-lin/sde -cet -cet-raise 0 -cet-endbr-exe -cet-stderr -cet-abort -- ./zstd -b3
 
   pkg-config:
     runs-on: ubuntu-latest
@@ -601,10 +582,29 @@ jobs:
         make -C programs zstd-pgo
         ./programs/zstd -b
 
+  intel-cet-compatibility:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v3
+    - name: Build Zstd
+      run: |
+        make -j zstd V=1
+        readelf -n zstd
+    - name: Get Intel SDE
+      run: |
+        curl -LO https://downloadmirror.intel.com/813591/sde-external-9.33.0-2024-01-07-lin.tar.xz
+        tar xJvf sde-external-9.33.0-2024-01-07-lin.tar.xz
+    - name: Configure Permissions
+      run: |
+        echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
+    - name: Run Under SDE
+      run: |
+        sde-external-9.33.0-2024-01-07-lin/sde -cet -cet-raise 0 -cet-endbr-exe -cet-stderr -cet-abort -- ./zstd -b3
 
-# For reference : icc tests
+
+# Failing tests, for reference
+
 # icc tests are currently failing on Github Actions, likely to issues during installation stage
-# To be fixed later
 #
 #  icc:
 #    name: icc-check

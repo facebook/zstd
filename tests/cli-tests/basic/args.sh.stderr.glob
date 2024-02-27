@@ -1,0 +1,28 @@
++ zstd --blah
+Incorrect parameter: --blah
+...
+Usage: zstd *
+
+Options:
+...
++ zstd -xz
+Incorrect parameter: -x
+...
+Usage: zstd *
+
+Options:
+...
++ zstd --adapt=min=1,maxx=2 file.txt
+Incorrect parameter: --adapt=min=1,maxx=2
+...
+Usage: zstd *
+
+Options:
+...
++ zstd --train-cover=k=48,d=8,steps32 file.txt
+Incorrect parameter: --train-cover=k=48,d=8,steps32
+...
+Usage: zstd *
+
+Options:
+...

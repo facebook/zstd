@@ -18,6 +18,7 @@ zstd_programs_sources = [join_paths(zstd_rootdir, 'programs/zstdcli.c'),
   join_paths(zstd_rootdir, 'programs/benchfn.c'),
   join_paths(zstd_rootdir, 'programs/benchzstd.c'),
   join_paths(zstd_rootdir, 'programs/datagen.c'),
+  join_paths(zstd_rootdir, 'programs/lorem.c'),
   join_paths(zstd_rootdir, 'programs/dibio.c'),
   join_paths(zstd_rootdir, 'programs/zstdcli_trace.c')]
 

@@ -203,10 +203,10 @@ zstreamtest-dll : $(ZSTREAM_LOCAL_FILES)
 CLEAN += paramgrill
 paramgrill : DEBUGFLAGS =   # turn off debug for speed measurements
 paramgrill : LDLIBS += -lm
-paramgrill : $(ZSTD_FILES) $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/benchfn.c $(PRGDIR)/benchzstd.c $(PRGDIR)/datagen.c paramgrill.c
+paramgrill : $(ZSTD_FILES) $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/benchfn.c $(PRGDIR)/benchzstd.c $(PRGDIR)/datagen.c $(PRGDIR)/lorem.c paramgrill.c
 
 CLEAN += datagen
-datagen : $(PRGDIR)/datagen.c datagencli.c
+datagen : $(PRGDIR)/datagen.c $(PRGDIR)/lorem.c loremOut.c datagencli.c
 	$(LINK.c) $^ -o $@$(EXT)
 
 CLEAN += roundTripCrash
@@ -251,8 +251,9 @@ checkTag.o : $(ZSTDDIR)/zstd.h
 clean:
 	$(MAKE) -C $(ZSTDDIR) clean
 	$(MAKE) -C $(PRGDIR) clean
-	$(RM) -fR $(TESTARTEFACT)
-	$(RM) -rf tmp*  # some test directories are named tmp*
+	$(MAKE) -C fuzz clean
+	$(RM) -R $(TESTARTEFACT)
+	$(RM) -r tmp*  # some test directories are named tmp*
 	$(RM) $(CLEAN) core *.o *.tmp result* *.gcda dictionary *.zst \
         $(PRGDIR)/zstd$(EXT) $(PRGDIR)/zstd32$(EXT) \
         fullbench-dll$(EXT) fuzzer-dll$(EXT) zstreamtest-dll$(EXT)
@@ -313,7 +314,7 @@ check: shortest
 fuzztest: test-fuzzer test-zstream test-decodecorpus
 
 .PHONY: test
-test: test-zstd test-fullbench test-fuzzer test-zstream test-invalidDictionaries test-legacy test-decodecorpus test-cli-tests
+test: test-zstd test-cli-tests test-fullbench test-fuzzer test-zstream test-invalidDictionaries test-legacy test-decodecorpus
 ifeq ($(QEMU_SYS),)
 test: test-pool
 endif

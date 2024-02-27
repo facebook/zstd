@@ -660,7 +660,6 @@ UTIL_createFileNamesTable_fromFileName(const char* inputFileName)
     size_t nbFiles = 0;
     char* buf;
     size_t bufSize;
-    size_t pos = 0;
     stat_t statbuf;
 
     if (!UTIL_stat(inputFileName, &statbuf) || !UTIL_isRegularFileStat(&statbuf))
@@ -687,12 +686,13 @@ UTIL_createFileNamesTable_fromFileName(const char* inputFileName)
     {   const char** filenamesTable = (const char**) malloc(nbFiles * sizeof(*filenamesTable));
         CONTROL(filenamesTable != NULL);
 
-        {   size_t fnb;
-            for (fnb = 0, pos = 0; fnb < nbFiles; fnb++) {
+        {   size_t fnb, pos = 0;
+            for (fnb = 0; fnb < nbFiles; fnb++) {
                 filenamesTable[fnb] = buf+pos;
                 pos += strlen(buf+pos)+1;  /* +1 for the finishing `\0` */
-        }   }
+            }
         assert(pos <= bufSize);
+        }
 
         return UTIL_assembleFileNamesTable(filenamesTable, nbFiles, buf);
     }
@@ -753,7 +753,7 @@ void UTIL_refFilename(FileNamesTable* fnt, const char* filename)
 
 static size_t getTotalTableSize(FileNamesTable* table)
 {
-    size_t fnb = 0, totalSize = 0;
+    size_t fnb, totalSize = 0;
     for(fnb = 0 ; fnb < table->tableSize && table->fileNames[fnb] ; ++fnb) {
         totalSize += strlen(table->fileNames[fnb]) + 1; /* +1 to add '\0' at the end of each fileName */
     }

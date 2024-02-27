@@ -1665,9 +1665,6 @@ ZSTDLIB_API unsigned ZSTD_isSkippableFrame(const void* buffer, size_t size);
  *
  *  Note : only single-threaded compression is supported.
  *  ZSTD_estimateCCtxSize_usingCCtxParams() will return an error code if ZSTD_c_nbWorkers is >= 1.
- *
- *  Note 2 : ZSTD_estimateCCtxSize* functions are not compatible with the Block-Level Sequence Producer API at this time.
- *  Size estimates assume that no external sequence producer is registered.
  */
 ZSTDLIB_STATIC_API size_t ZSTD_estimateCCtxSize(int maxCompressionLevel);
 ZSTDLIB_STATIC_API size_t ZSTD_estimateCCtxSize_usingCParams(ZSTD_compressionParameters cParams);
@@ -2789,7 +2786,7 @@ ZSTDLIB_STATIC_API size_t ZSTD_resetDStream(ZSTD_DStream* zds);
 
 #define ZSTD_SEQUENCE_PRODUCER_ERROR ((size_t)(-1))
 
-typedef size_t ZSTD_sequenceProducer_F (
+typedef size_t (*ZSTD_sequenceProducer_F) (
   void* sequenceProducerState,
   ZSTD_Sequence* outSeqs, size_t outSeqsCapacity,
   const void* src, size_t srcSize,
@@ -2821,7 +2818,23 @@ ZSTDLIB_STATIC_API void
 ZSTD_registerSequenceProducer(
   ZSTD_CCtx* cctx,
   void* sequenceProducerState,
-  ZSTD_sequenceProducer_F* sequenceProducer
+  ZSTD_sequenceProducer_F sequenceProducer
+);
+
+/*! ZSTD_CCtxParams_registerSequenceProducer() :
+ * Same as ZSTD_registerSequenceProducer(), but operates on ZSTD_CCtx_params.
+ * This is used for accurate size estimation with ZSTD_estimateCCtxSize_usingCCtxParams(),
+ * which is needed when creating a ZSTD_CCtx with ZSTD_initStaticCCtx().
+ *
+ * If you are using the external sequence producer API in a scenario where ZSTD_initStaticCCtx()
+ * is required, then this function is for you. Otherwise, you probably don't need it.
+ *
+ * See tests/zstreamtest.c for example usage. */
+ZSTDLIB_STATIC_API void
+ZSTD_CCtxParams_registerSequenceProducer(
+  ZSTD_CCtx_params* params,
+  void* sequenceProducerState,
+  ZSTD_sequenceProducer_F sequenceProducer
 );
 
 

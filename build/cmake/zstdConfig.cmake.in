@@ -1,0 +1,10 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+if(@ZSTD_MULTITHREAD_SUPPORT@ AND "@UNIX@")
+  find_dependency(Threads)
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/zstdTargets.cmake")
+
+check_required_components("zstd")

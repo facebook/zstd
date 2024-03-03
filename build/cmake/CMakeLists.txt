@@ -180,10 +180,6 @@ export(EXPORT zstdExports
     FILE "${CMAKE_CURRENT_BINARY_DIR}/zstdTargets.cmake"
     NAMESPACE zstd::
     )
-configure_file(zstdConfig.cmake
-    "${CMAKE_CURRENT_BINARY_DIR}/zstdConfig.cmake"
-    COPYONLY
-    )
 
 # A Package Config file that works from the installation directory
 set(ConfigPackageLocation ${CMAKE_INSTALL_LIBDIR}/cmake/zstd)
@@ -192,8 +188,13 @@ install(EXPORT zstdExports
     NAMESPACE zstd::
     DESTINATION ${ConfigPackageLocation}
     )
+configure_package_config_file(
+    zstdConfig.cmake.in
+    "${CMAKE_CURRENT_BINARY_DIR}/zstdConfig.cmake"
+    INSTALL_DESTINATION ${ConfigPackageLocation}
+)
 install(FILES
-    zstdConfig.cmake
+    "${CMAKE_CURRENT_BINARY_DIR}/zstdConfig.cmake"
     "${CMAKE_CURRENT_BINARY_DIR}/zstdConfigVersion.cmake"
     DESTINATION ${ConfigPackageLocation}
     )

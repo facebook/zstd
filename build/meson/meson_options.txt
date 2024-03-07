@@ -27,7 +27,7 @@ option('bin_contrib', type: 'boolean', value: false,
   description: 'Enable contrib build')
 
 option('multi_thread', type: 'feature', value: 'enabled',
-  description: 'Enable multi-threading when pthread is detected')
+  description: 'Enable multi-threading when pthread or Windows is detected')
 option('zlib', type: 'feature', value: 'auto',
   description: 'Enable zlib support')
 option('lzma', type: 'feature', value: 'auto',

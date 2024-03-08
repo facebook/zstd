@@ -586,7 +586,7 @@ static size_t ZSTD_compressSubBlock_multi(const seqStore_t* seqStorePtr,
     } /* if (nbSeqs > 0) */
 
     /* write last block */
-    DEBUGLOG(2, "Generate last sub-block: %u sequences remaining", (unsigned)(send - sp));
+    DEBUGLOG(5, "Generate last sub-block: %u sequences remaining", (unsigned)(send - sp));
     {   int litEntropyWritten = 0;
         int seqEntropyWritten = 0;
         size_t litSize = (size_t)(lend - lp);
@@ -606,7 +606,7 @@ static size_t ZSTD_compressSubBlock_multi(const seqStore_t* seqStorePtr,
 
         /* update pointers, the nb of literals borrowed from next sequence must be preserved */
         if (cSize > 0 && cSize < decompressedSize) {
-            DEBUGLOG(2, "Last sub-block compressed %u bytes => %u bytes",
+            DEBUGLOG(5, "Last sub-block compressed %u bytes => %u bytes",
                         (unsigned)decompressedSize, (unsigned)cSize);
             assert(ip + decompressedSize <= iend);
             ip += decompressedSize;
@@ -643,7 +643,7 @@ static size_t ZSTD_compressSubBlock_multi(const seqStore_t* seqStorePtr,
         /* some data left : last part of the block sent uncompressed */
         size_t const rSize = (size_t)((iend - ip));
         size_t const cSize = ZSTD_noCompressBlock(op, (size_t)(oend - op), ip, rSize, lastBlock);
-        DEBUGLOG(2, "Generate last uncompressed sub-block of %u bytes", (unsigned)(rSize));
+        DEBUGLOG(5, "Generate last uncompressed sub-block of %u bytes", (unsigned)(rSize));
         FORWARD_IF_ERROR(cSize, "ZSTD_noCompressBlock failed");
         assert(cSize != 0);
         op += cSize;

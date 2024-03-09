@@ -531,7 +531,7 @@ static void test_decompressBound(unsigned tnb)
             CHECK_EQ( ZSTD_flushStream(cctx, &out), 0 );
         }
         CHECK_EQ( ZSTD_endStream(cctx, &out), 0 );
-        CHECK( ZSTD_decompressBound(outBuffer, out.pos) > 0x100000000LLU /* 4 GB */ );
+        CHECK( ZSTD_decompressBound(outBuffer, out.pos) > 0x100000000ULL /* 4 GB */ );
         ZSTD_freeCCtx(cctx);
         free(outBuffer);
     }

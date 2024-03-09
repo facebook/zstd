@@ -25,7 +25,7 @@ Offset == 0
 
 **Produced by the reference compressor**: No
 
-**Example Frame**: `28b5 2ffd 2000 1500 0000 00`
+**Example Frame**: `28b5 2ffd 0000 4500 0008 0002 002f 430b ae`
 
 If a sequence is decoded with `literals_length = 0` and `offset_value = 3`
 while `Repeated_Offset_1 = 1`, the computed offset will be `0`, which is
@@ -48,8 +48,6 @@ Non-zeroes reserved bits
 **Last affected version**: v1.5.5
 
 **Produced by the reference compressor**: No
-
-**Example Frame**: `28b5 2ffd 2000 1500 0000 00`
 
 The Sequences section of each block has a header, and one of its elements is a
 byte, which describes the compression mode of each symbol.

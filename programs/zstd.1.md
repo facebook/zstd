@@ -290,10 +290,11 @@ the last one takes effect.
 * `-h`/`-H`, `--help`:
     display help/long help and exit
 * `-V`, `--version`:
-    display version number and exit.
+    display version number and immediately exit.
+    note that, since it exits, flags specified after `-V` are effectively ignored.
     Advanced: `-vV` also displays supported formats.
     `-vvV` also displays POSIX support.
-    `-q` will only display the version number, suitable for machine reading.
+    `-qV` will only display the version number, suitable for machine reading.
 * `-v`, `--verbose`:
     verbose mode, display more information
 * `-q`, `--quiet`:

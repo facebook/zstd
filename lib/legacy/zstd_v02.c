@@ -862,7 +862,7 @@ extern "C" {
 *  Streaming functions
 ***************************************/
 
-typedef struct ZSTD_DCtx_s ZSTD_DCtx;
+typedef struct ZSTDv02_Dctx_s ZSTD_DCtx;
 
 /*
   Use above functions alternatively.
@@ -2737,7 +2737,7 @@ static unsigned ZSTD_isError(size_t code) { return ERR_isError(code); }
 /* *************************************************************
 *   Decompression section
 ***************************************************************/
-struct ZSTD_DCtx_s
+struct ZSTDv02_Dctx_s
 {
     U32 LLTable[FSE_DTABLE_SIZE_U32(LLFSELog)];
     U32 OffTable[FSE_DTABLE_SIZE_U32(OffFSELog)];

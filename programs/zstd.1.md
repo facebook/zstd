@@ -234,8 +234,8 @@ the last one takes effect.
     write to standard output (even if it is the console); keep original files (disable `--rm`).
 * `-o FILE`:
     save result into `FILE`.
-    This command is in conflict with `-c`.
-    If both are present on the command line, the last expressed one wins.
+    Note that this operation is in conflict with `-c`.
+    If both operations are present on the command line, the last expressed one wins.
 * `--[no-]sparse`:
     enable / disable sparse FS support,
     to make files with many zeroes smaller on disk.

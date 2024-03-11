@@ -962,7 +962,7 @@ int main(int argCount, const char* argv[])
                 if (!strcmp(argument, "--help")) { usageAdvanced(programName); CLEAN_RETURN(0); }
                 if (!strcmp(argument, "--verbose")) { g_displayLevel++; continue; }
                 if (!strcmp(argument, "--quiet")) { g_displayLevel--; continue; }
-                if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; removeSrcFile=0; continue; }
+                if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; continue; }
                 if (!strcmp(argument, "--ultra")) { ultra=1; continue; }
                 if (!strcmp(argument, "--check")) { FIO_setChecksumFlag(prefs, 2); continue; }
                 if (!strcmp(argument, "--no-check")) { FIO_setChecksumFlag(prefs, 0); continue; }
@@ -1365,14 +1365,6 @@ int main(int argCount, const char* argv[])
         DISPLAYLEVEL(1, "file information is not supported \n");
         CLEAN_RETURN(1);
 #endif
-    }
-
-    /* disable --rm when writing to stdout */
-    if (!strcmp(outFileName, stdoutmark)) {
-        if (removeSrcFile) {
-            DISPLAYLEVEL(2, "warning: source not removed when writing to stdout \n");
-            removeSrcFile = 0;
-        }
     }
 
     /* Check if benchmark is selected */

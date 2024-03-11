@@ -234,12 +234,23 @@ unset ZSTD_CLEVEL
 println "test : compress to stdout"
 zstd tmp -c > tmpCompressed
 zstd tmp --stdout > tmpCompressed       # long command format
-println "test : compress to named file"
+
+println "test : compress to named file (-o)"
 rm -f tmpCompressed
 zstd tmp -o tmpCompressed
 test -f tmpCompressed   # file must be created
+
 println "test : force write, correct order"
 zstd tmp -fo tmpCompressed
+
+println "test : -c + -o : last one wins"
+rm -f tmpOut
+zstd tmp -c > tmpCompressed -o tmpOut
+test -f tmpOut   # file must be created
+rm -f tmpCompressed
+zstd tmp -o tmpOut -c > tmpCompressed
+test -f tmpCompressed   # file must be created
+
 println "test : forgotten argument"
 cp tmp tmp2
 zstd tmp2 -fo && die "-o must be followed by filename "
@@ -394,6 +405,8 @@ println "test: --rm is disabled when output is stdout"
 test -f tmp
 zstd --rm tmp -c > $INTOVOID
 test -f tmp # tmp shall still be there
+zstd --rm tmp --stdout > $INTOVOID
+test -f tmp # tmp shall still be there
 zstd -f --rm tmp -c > $INTOVOID
 test -f tmp # tmp shall still be there
 zstd -f tmp -c > $INTOVOID --rm
@@ -411,7 +424,22 @@ zstd -f tmp tmp2 -o tmp3.zst --rm # just warns, no prompt
 test -f tmp
 test -f tmp2
 zstd -q tmp tmp2 -o tmp3.zst --rm && die "should refuse to concatenate"
-
+println "test: --rm is active with -o when single input"
+rm -f tmp2.zst
+zstd --rm tmp2 -o tmp2.zst
+test -f tmp2.zst
+test ! -f tmp2
+println "test: -c followed by -o => -o wins, so --rm remains active" # (#3719)
+rm tmp2.zst
+cp tmp tmp2
+zstd --rm tmp2 -c > $INTOVOID -o tmp2.zst
+test ! -f tmp2
+println "test: -o followed by -c => -c wins, so --rm is disabled" # (#3719)
+rm tmp3.zst
+cp tmp tmp2
+zstd -v --rm tmp2 -o tmp2.zst -c > tmp3.zst
+test -f tmp2
+test -f tmp3.zst
 println "test : should quietly not remove non-regular file"
 println hello > tmp
 zstd tmp -f -o "$DEVDEVICE" 2>tmplog > "$INTOVOID"

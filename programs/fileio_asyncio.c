@@ -514,8 +514,7 @@ static void AIO_ReadPool_enqueueRead(ReadPoolCtx_t* ctx) {
 }
 
 static void AIO_ReadPool_startReading(ReadPoolCtx_t* ctx) {
-    int i;
-    for (i = 0; i < ctx->base.availableJobsCount; i++) {
+    while(ctx->base.availableJobsCount) {
         AIO_ReadPool_enqueueRead(ctx);
     }
 }

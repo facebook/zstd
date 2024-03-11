@@ -1176,7 +1176,10 @@ int main(int argCount, const char* argv[])
                         operation=zom_decompress; argument++; break;
 
                     /* Force stdout, even if stdout==console */
-                case 'c': forceStdout=1; outFileName=stdoutmark; removeSrcFile=0; argument++; break;
+                case 'c': forceStdout=1; outFileName=stdoutmark; argument++; break;
+
+                    /* destination file name */
+                case 'o': argument++; NEXT_FIELD(outFileName); break;
 
                     /* do not store filename - gzip compatibility - nothing to do */
                 case 'n': argument++; break;
@@ -1201,9 +1204,6 @@ int main(int argCount, const char* argv[])
 
                     /* test compressed file */
                 case 't': operation=zom_test; argument++; break;
-
-                    /* destination file name */
-                case 'o': argument++; NEXT_FIELD(outFileName); break;
 
                     /* limit memory */
                 case 'M':
@@ -1365,6 +1365,14 @@ int main(int argCount, const char* argv[])
         DISPLAYLEVEL(1, "file information is not supported \n");
         CLEAN_RETURN(1);
 #endif
+    }
+
+    /* disable --rm when writing to stdout */
+    if (!strcmp(outFileName, stdoutmark)) {
+        if (removeSrcFile) {
+            DISPLAYLEVEL(2, "warning: source not removed when writing to stdout \n");
+            removeSrcFile = 0;
+        }
     }
 
     /* Check if benchmark is selected */

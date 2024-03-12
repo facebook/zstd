@@ -21,6 +21,7 @@
 # ##########################################################################
 
 ZSTD_LEGACY_SUPPORT ?= 5
+export ZSTD_LEGACY_SUPPORT
 
 DEBUGLEVEL ?= 2
 export DEBUGLEVEL  # transmit value to sub-makefiles

@@ -8,7 +8,7 @@
 # You may select, at your option, one of the above-listed licenses.
 # ################################################################
 
-# default target (when runing `make` with no argument)
+# default target (when running `make` with no argument)
 lib-release:
 
 # Modules

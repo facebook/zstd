@@ -74,8 +74,7 @@ extern "C" {
 ***************************************************************/
 #ifndef PLATFORM_POSIX_VERSION
 
-#  if (defined(__APPLE__) && defined(__MACH__)) || defined(__SVR4) || defined(_AIX) || defined(__hpux) /* POSIX.1-2001 (SUSv3) conformant */ \
-     || defined(__DragonFly__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)  /* BSD distros */
+#  if (defined(__APPLE__) && defined(__MACH__)) || defined(__SVR4) || defined(_AIX) || defined(__hpux) /* POSIX.1-2001 (SUSv3) conformant */
      /* exception rule : force posix version to 200112L,
       * note: it's better to use unistd.h's _POSIX_VERSION whenever possible */
 #    define PLATFORM_POSIX_VERSION 200112L

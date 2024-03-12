@@ -2408,6 +2408,15 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : Decoder should reject invalid frame header on legacy frames: ", testNb++);
+    {
+        const unsigned char compressed[] = { 0x26,0xb5,0x2f,0xfd,0x50,0x91,0xfd,0xd8,0xb5 };
+        const size_t compressedSize = 9;
+        size_t const dSize = ZSTD_decompress(NULL, 0, compressed, compressedSize);
+        CHECK(!ZSTD_isError(dSize), "must reject when legacy frame header is invalid");
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
 _end:
     FUZ_freeDictionary(dictionary);
     ZSTD_freeCStream(zc);

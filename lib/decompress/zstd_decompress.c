@@ -1093,6 +1093,15 @@ size_t ZSTD_decompressMultiFrame(ZSTD_DCtx* dctx,
             decodedSize = ZSTD_decompressLegacy(dst, dstCapacity, src, frameSize, dict, dictSize);
             if (ZSTD_isError(decodedSize)) return decodedSize;
 
+            {
+                unsigned long long const expectedSize = ZSTD_getFrameContentSize(src, srcSize);
+                RETURN_ERROR_IF(expectedSize == ZSTD_CONTENTSIZE_ERROR, corruption_detected, "Corrupted frame header!");
+                if (expectedSize != ZSTD_CONTENTSIZE_UNKNOWN) {
+                    RETURN_ERROR_IF(expectedSize != decodedSize, corruption_detected,
+                        "Frame header size does not match decoded size!");
+                }
+            }
+
             assert(decodedSize <= dstCapacity);
             dst = (BYTE*)dst + decodedSize;
             dstCapacity -= decodedSize;

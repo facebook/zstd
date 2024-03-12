@@ -297,6 +297,8 @@ the last one takes effect.
 * `--show-default-cparams`:
     shows the default compression parameters that will be used for a particular input file, based on the provided compression level and the input size.
     If the provided file is not a regular file (e.g. a pipe), this flag will output the parameters used for inputs of unknown size.
+* `--exclude-compressed`:
+    only compress files that are not already compressed.
 * `--`:
     All arguments after `--` are treated as files
 

@@ -380,6 +380,7 @@ jobs:
           { name: PPC64LE,  xcc_pkg: gcc-powerpc64le-linux-gnu, xcc: powerpc64le-linux-gnu-gcc, xemu_pkg: qemu-system-ppc,    xemu: qemu-ppc64le-static },
           { name: S390X,    xcc_pkg: gcc-s390x-linux-gnu,       xcc: s390x-linux-gnu-gcc,       xemu_pkg: qemu-system-s390x,  xemu: qemu-s390x-static   },
           { name: MIPS,     xcc_pkg: gcc-mips-linux-gnu,        xcc: mips-linux-gnu-gcc,        xemu_pkg: qemu-system-mips,   xemu: qemu-mips-static    },
+          { name: RISC-V,   xcc_pkg: gcc-riscv64-linux-gnu,     xcc: riscv64-linux-gnu-gcc,     xemu_pkg: qemu-system-riscv64,xemu: qemu-riscv64-static },
           { name: M68K,     xcc_pkg: gcc-m68k-linux-gnu,        xcc: m68k-linux-gnu-gcc,        xemu_pkg: qemu-system-m68k,   xemu: qemu-m68k-static    },
           { name: SPARC,    xcc_pkg: gcc-sparc64-linux-gnu,     xcc: sparc64-linux-gnu-gcc,     xemu_pkg: qemu-system-sparc,  xemu: qemu-sparc64-static },
         ]
@@ -422,6 +423,10 @@ jobs:
         LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
     - name: MIPS
       if: ${{ matrix.name == 'MIPS' }}
+      run: |
+        LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
+    - name: RISC-V
+      if: ${{ matrix.name == 'RISC-V' }}
       run: |
         LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
     - name: M68K

@@ -114,20 +114,25 @@ endif ()
 #-----------------------------------------------------------------------------
 # External dependencies
 #-----------------------------------------------------------------------------
+# Define a function to handle special thread settings for HP-UX
+# See https://github.com/facebook/zstd/pull/3862 for details.
+function(setup_hpux_threads)
+    find_package(Threads)
+    if (NOT Threads_FOUND)
+        set(CMAKE_USE_PTHREADS_INIT 1 PARENT_SCOPE)
+        set(CMAKE_THREAD_LIBS_INIT -lpthread PARENT_SCOPE)
+        set(CMAKE_HAVE_THREADS_LIBRARY 1 PARENT_SCOPE)
+        set(Threads_FOUND TRUE PARENT_SCOPE)
+    endif()
+endfunction()
+
 if (ZSTD_MULTITHREAD_SUPPORT AND UNIX)
     if (CMAKE_SYSTEM_NAME MATCHES "HP-UX")
-        find_package(Threads)
-        if (NOT Threads_FOUND)
-            set(CMAKE_USE_PTHREADS_INIT 1)
-            set(CMAKE_THREAD_LIBS_INIT -lpthread)
-            set(CMAKE_HAVE_THREADS_LIBRARY 1)
-            set(Threads_FOUND TRUE)
-        endif ()
-    else ()
+        setup_hpux_threads()
+    else()
         set(THREADS_PREFER_PTHREAD_FLAG ON)
         find_package(Threads REQUIRED)
-    endif ()
-
+    endif()
     if (CMAKE_USE_PTHREADS_INIT)
         set(THREADS_LIBS "${CMAKE_THREAD_LIBS_INIT}")
     else()

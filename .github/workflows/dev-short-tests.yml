@@ -272,14 +272,15 @@ jobs:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # tag=v2.0.0
-    - name: Build
+    - name: Build & Test
       working-directory: ${{env.GITHUB_WORKSPACE}}
       run: |
         cd build\cmake
         mkdir build
         cd build
-        cmake.exe -G "${{matrix.generator}}" ${{matrix.flags}} ..
+        cmake.exe -G "${{matrix.generator}}" ${{matrix.flags}} -DCMAKE_BUILD_TYPE=Debug -DZSTD_BUILD_TESTS:BOOL=ON -DZSTD_ZSTREAM_FLAGS=-T30s -DZSTD_FUZZER_FLAGS=-T30s -DZSTD_FULLBENCH_FLAGS=-i0 ..
         cmake.exe --build .
+        ctest.exe -V -C Debug
 
   msbuild-visual-studio:
     strategy:

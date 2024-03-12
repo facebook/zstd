@@ -61,7 +61,7 @@ if (NOT MSVC)
     target_compile_options(fullbench PRIVATE "-Wno-deprecated-declarations")
 endif()
 target_link_libraries(fullbench libzstd_static)
-add_test(NAME fullbench COMMAND fullbench ${ZSTD_FULLBENCH_FLAGS})
+add_test(NAME fullbench COMMAND "$<TARGET_FILE:fullbench>" ${ZSTD_FULLBENCH_FLAGS})
 
 #
 # fuzzer
@@ -73,7 +73,7 @@ endif()
 target_link_libraries(fuzzer libzstd_static)
 AddTestFlagsOption(ZSTD_FUZZER_FLAGS "$ENV{FUZZERTEST} $ENV{FUZZER_FLAGS}"
     "Semicolon-separated list of flags to pass to the fuzzer test (see `fuzzer -h` for usage)")
-add_test(NAME fuzzer COMMAND fuzzer ${ZSTD_FUZZER_FLAGS})
+add_test(NAME fuzzer COMMAND "$<TARGET_FILE:fuzzer>" ${ZSTD_FUZZER_FLAGS})
 # Disable the timeout since the run time is too long for the default timeout of
 # 1500 seconds and varies considerably between low-end and high-end CPUs.
 # set_tests_properties(fuzzer PROPERTIES TIMEOUT 0)
@@ -88,7 +88,7 @@ endif()
 target_link_libraries(zstreamtest libzstd_static)
 AddTestFlagsOption(ZSTD_ZSTREAM_FLAGS "$ENV{ZSTREAM_TESTTIME} $ENV{FUZZER_FLAGS}"
     "Semicolon-separated list of flags to pass to the zstreamtest test (see `zstreamtest -h` for usage)")
-add_test(NAME zstreamtest COMMAND zstreamtest ${ZSTD_ZSTREAM_FLAGS})
+add_test(NAME zstreamtest COMMAND "$<TARGET_FILE:zstreamtest>" ${ZSTD_ZSTREAM_FLAGS})
 
 #
 # playTests.sh

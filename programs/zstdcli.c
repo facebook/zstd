@@ -962,7 +962,7 @@ int main(int argCount, const char* argv[])
                 if (!strcmp(argument, "--help")) { usageAdvanced(programName); CLEAN_RETURN(0); }
                 if (!strcmp(argument, "--verbose")) { g_displayLevel++; continue; }
                 if (!strcmp(argument, "--quiet")) { g_displayLevel--; continue; }
-                if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; removeSrcFile=0; continue; }
+                if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; continue; }
                 if (!strcmp(argument, "--ultra")) { ultra=1; continue; }
                 if (!strcmp(argument, "--check")) { FIO_setChecksumFlag(prefs, 2); continue; }
                 if (!strcmp(argument, "--no-check")) { FIO_setChecksumFlag(prefs, 0); continue; }
@@ -1176,7 +1176,10 @@ int main(int argCount, const char* argv[])
                         operation=zom_decompress; argument++; break;
 
                     /* Force stdout, even if stdout==console */
-                case 'c': forceStdout=1; outFileName=stdoutmark; removeSrcFile=0; argument++; break;
+                case 'c': forceStdout=1; outFileName=stdoutmark; argument++; break;
+
+                    /* destination file name */
+                case 'o': argument++; NEXT_FIELD(outFileName); break;
 
                     /* do not store filename - gzip compatibility - nothing to do */
                 case 'n': argument++; break;
@@ -1201,9 +1204,6 @@ int main(int argCount, const char* argv[])
 
                     /* test compressed file */
                 case 't': operation=zom_test; argument++; break;
-
-                    /* destination file name */
-                case 'o': argument++; NEXT_FIELD(outFileName); break;
 
                     /* limit memory */
                 case 'M':

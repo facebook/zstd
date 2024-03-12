@@ -67,3 +67,6 @@ speedTest.pid
 *.exe
 *.out
 *.app
+
+# Specific exclusions
+!golden-decompression/*.zst

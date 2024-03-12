@@ -15,7 +15,7 @@
 # zstd-decompress : decompressor-only version of zstd
 # ##########################################################################
 
-# default target (when runing `make` with no argument)
+# default target (when running `make` with no argument)
 zstd-release:
 
 LIBZSTD_MK_DIR = ../lib

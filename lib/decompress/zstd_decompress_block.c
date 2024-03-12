@@ -1305,7 +1305,7 @@ ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets, c
                 } else {
                     offset = ofBase + ll0 + BIT_readBitsFast(&seqState->DStream, 1);
                     {   size_t temp = (offset==3) ? seqState->prevOffset[0] - 1 : seqState->prevOffset[offset];
-                        temp += !temp;   /* 0 is not valid; input is corrupted; force offset to 1 */
+                        temp -= !temp; /* 0 is not valid: input corrupted => force offset to -1 => corruption detected at execSequence */
                         if (offset != 1) seqState->prevOffset[2] = seqState->prevOffset[1];
                         seqState->prevOffset[1] = seqState->prevOffset[0];
                         seqState->prevOffset[0] = offset = temp;

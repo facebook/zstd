@@ -116,7 +116,7 @@ static size_t decodeSequences(void* dst, size_t nbSequences,
                 }
             }
             for (; j < matchLength; ++j) {
-                op[j] = op[j - generatedSequences[i].offset];
+                op[j] = op[(ptrdiff_t)(j - generatedSequences[i].offset)];
             }
             op += j;
             FUZZ_ASSERT(generatedSequences[i].matchLength == j + k);

@@ -997,7 +997,8 @@ static void decompress_sequences(frame_context_t *const ctx,
                                  const size_t num_sequences);
 static sequence_command_t decode_sequence(sequence_states_t *const state,
                                           const u8 *const src,
-                                          i64 *const offset);
+                                          i64 *const offset,
+                                          int lastSequence);
 static void decode_seq_table(FSE_dtable *const table, istream_t *const in,
                                const seq_part_t type, const seq_mode_t mode);
 
@@ -1017,12 +1018,7 @@ static size_t decode_sequences(frame_context_t *const ctx, istream_t *in,
     // This is a variable size field using between 1 and 3 bytes. Let's call its
     // first byte byte0."
     u8 header = IO_read_bits(in, 8);
-    if (header == 0) {
-        // "There are no sequences. The sequence section stops there.
-        // Regenerated content is defined entirely by literals section."
-        *sequences = NULL;
-        return 0;
-    } else if (header < 128) {
+    if (header < 128) {
         // "Number_of_Sequences = byte0 . Uses 1 byte."
         num_sequences = header;
     } else if (header < 255) {
@@ -1031,6 +1027,12 @@ static size_t decode_sequences(frame_context_t *const ctx, istream_t *in,
     } else {
         // "Number_of_Sequences = byte1 + (byte2<<8) + 0x7F00 . Uses 3 bytes."
         num_sequences = IO_read_bits(in, 16) + 0x7F00;
+    }
+
+    if (num_sequences == 0) {
+        // "There are no sequences. The sequence section stops there."
+        *sequences = NULL;
+        return 0;
     }
 
     *sequences = malloc(num_sequences * sizeof(sequence_command_t));
@@ -1114,7 +1116,7 @@ static void decompress_sequences(frame_context_t *const ctx, istream_t *in,
 
     for (size_t i = 0; i < num_sequences; i++) {
         // Decode sequences one by one
-        sequences[i] = decode_sequence(&states, src, &bit_offset);
+        sequences[i] = decode_sequence(&states, src, &bit_offset, i==num_sequences-1);
     }
 
     if (bit_offset != 0) {
@@ -1125,7 +1127,8 @@ static void decompress_sequences(frame_context_t *const ctx, istream_t *in,
 // Decode a single sequence and update the state
 static sequence_command_t decode_sequence(sequence_states_t *const states,
                                           const u8 *const src,
-                                          i64 *const offset) {
+                                          i64 *const offset,
+                                          int lastSequence) {
     // "Each symbol is a code in its own context, which specifies Baseline and
     // Number_of_Bits to add. Codes are FSE compressed, and interleaved with raw
     // additional bits in the same bitstream."
@@ -1160,7 +1163,7 @@ static sequence_command_t decode_sequence(sequence_states_t *const states,
     // Literals_Length_State is updated, followed by Match_Length_State, and
     // then Offset_State."
     // If the stream is complete don't read bits to update state
-    if (*offset != 0) {
+    if (!lastSequence) {
         FSE_update_state(&states->ll_table, &states->ll_state, src, offset);
         FSE_update_state(&states->ml_table, &states->ml_state, src, offset);
         FSE_update_state(&states->of_table, &states->of_state, src, offset);
@@ -1210,7 +1213,7 @@ static void decode_seq_table(FSE_dtable *const table, istream_t *const in,
         break;
     }
     case seq_repeat:
-        // "Repeat_Mode : re-use distribution table from previous compressed
+        // "Repeat_Mode : reuse distribution table from previous compressed
         // block."
         // Nothing to do here, table will be unchanged
         if (!table->symbols) {
@@ -1399,7 +1402,7 @@ size_t ZSTD_get_decompressed_size(const void *src, const size_t src_len) {
 /******* END OUTPUT SIZE COUNTING *********************************************/
 
 /******* DICTIONARY PARSING ***************************************************/
-dictionary_t* create_dictionary() {
+dictionary_t* create_dictionary(void) {
     dictionary_t* const dict = calloc(1, sizeof(dictionary_t));
     if (!dict) {
         BAD_ALLOC();

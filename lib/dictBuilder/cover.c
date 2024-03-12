@@ -733,7 +733,7 @@ static size_t COVER_buildDictionary(const COVER_ctx_t *ctx, U32 *freqs,
   return tail;
 }
 
-ZDICTLIB_API size_t ZDICT_trainFromBuffer_cover(
+ZDICTLIB_STATIC_API size_t ZDICT_trainFromBuffer_cover(
     void *dictBuffer, size_t dictBufferCapacity,
     const void *samplesBuffer, const size_t *samplesSizes, unsigned nbSamples,
     ZDICT_cover_params_t parameters)
@@ -1119,7 +1119,7 @@ _cleanup:
   free(freqs);
 }
 
-ZDICTLIB_API size_t ZDICT_optimizeTrainFromBuffer_cover(
+ZDICTLIB_STATIC_API size_t ZDICT_optimizeTrainFromBuffer_cover(
     void* dictBuffer, size_t dictBufferCapacity, const void* samplesBuffer,
     const size_t* samplesSizes, unsigned nbSamples,
     ZDICT_cover_params_t* parameters)

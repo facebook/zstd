@@ -23,7 +23,7 @@ jobs:
       run:
         shell: msys2 {0}
     steps:
-    - uses: actions/checkout@8f4b7f84864484a7bf31766abe9204da3cbe65b3 # tag=v3
+    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v3
     - uses: msys2/setup-msys2@5beef6d11f48bba68b9eb503e3adc60b23c0cc36 # tag=v2
       with:
         msystem: ${{ matrix.msystem }}
@@ -52,7 +52,7 @@ jobs:
         cd ..
 
     - name: Publish zstd-$VERSION-${{matrix.ziparch}}.zip
-      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # tag=v3
+      uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # tag=v4.3.1
       with:
         path: ${{ github.workspace }}/zstd-${{ github.ref_name }}-${{matrix.ziparch}}.zip
         name: zstd-${{ github.ref_name }}-${{matrix.ziparch}}.zip

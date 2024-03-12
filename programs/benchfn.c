@@ -108,7 +108,6 @@ static BMK_runOutcome_t BMK_setValid_runTime(BMK_runTime_t runTime)
 BMK_runOutcome_t BMK_benchFunction(BMK_benchParams_t p,
                                    unsigned nbLoops)
 {
-    size_t dstSize = 0;
     nbLoops += !nbLoops;   /* minimum nbLoops is 1 */
 
     /* init */
@@ -118,7 +117,8 @@ BMK_runOutcome_t BMK_benchFunction(BMK_benchParams_t p,
     }   }
 
     /* benchmark */
-    {   UTIL_time_t const clockStart = UTIL_getTime();
+    {   size_t dstSize = 0;
+        UTIL_time_t const clockStart = UTIL_getTime();
         unsigned loopNb, blockNb;
         if (p.initFn != NULL) p.initFn(p.initPayload);
         for (loopNb = 0; loopNb < nbLoops; loopNb++) {

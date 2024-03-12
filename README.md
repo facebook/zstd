@@ -5,7 +5,7 @@ targeting real-time compression scenarios at zlib-level and better compression r
 It's backed by a very fast entropy stage, provided by [Huff0 and FSE library](https://github.com/Cyan4973/FiniteStateEntropy).
 
 Zstandard's format is stable and documented in [RFC8878](https://datatracker.ietf.org/doc/html/rfc8878). Multiple independent implementations are already available.
-This repository represents the reference implementation, provided as an open-source dual [BSD](LICENSE) and [GPLv2](COPYING) licensed **C** library,
+This repository represents the reference implementation, provided as an open-source dual [BSD](LICENSE) OR [GPLv2](COPYING) licensed **C** library,
 and a command line utility producing and decoding `.zst`, `.gz`, `.xz` and `.lz4` files.
 Should your project require another programming language,
 a list of known ports and bindings is provided on [Zstandard homepage](https://facebook.github.io/zstd/#other-languages).
@@ -198,6 +198,10 @@ Going into `build` directory, you will find additional possibilities:
 You can build the zstd binary via buck by executing: `buck build programs:zstd` from the root of the repo.
 The output binary will be in `buck-out/gen/programs/`.
 
+### Bazel
+
+You easily can integrate zstd into your Bazel project by using the module hosted on the [Bazel Central Repository](https://registry.bazel.build/modules/zstd).
+
 ## Testing
 
 You can run quick local smoke tests by running `make check`.
@@ -213,7 +217,7 @@ Zstandard is considered safe for production environments.
 
 ## License
 
-Zstandard is dual-licensed under [BSD](LICENSE) and [GPLv2](COPYING).
+Zstandard is dual-licensed under [BSD](LICENSE) OR [GPLv2](COPYING).
 
 ## Contributing
 

@@ -338,7 +338,7 @@ void UTIL_refFilename(FileNamesTable* fnt, const char* filename);
 FileNamesTable*
 UTIL_createExpandedFNT(const char* const* filenames, size_t nbFilenames, int followLinks);
 
-#if defined(_WIN32) || defined(WIN32)
+#if defined(_WIN32)
 DWORD CountSetBits(ULONG_PTR bitMask);
 #endif
 

@@ -271,10 +271,10 @@ Employing environment variables to set parameters has security implications\. Th
 They can both be overridden by corresponding command line arguments: \fB\-#\fR for compression level and \fB\-T#\fR for number of compression threads\.
 .
 .SH "ADVANCED COMPRESSION OPTIONS"
-zstd provides 22 predefined regular compression levels plus the fast levels\. A compression level is translated internally into a number of specific parameters that actually control the behavior of the compressor (one can see the result of this translation with \-\-show\-default\-cparams)\. These specific parameters can be overridden with advanced compression options\.
+\fBzstd\fR provides 22 predefined regular compression levels plus the fast levels\. A compression level is translated internally into multiple advanced parameters that control the behavior of the compressor (one can observe the result of this translation with \fB\-\-show\-default\-cparams\fR)\. These advanced parameters can be overridden using advanced compression options\.
 .
 .SS "\-\-zstd[=options]:"
-\fBzstd\fR provides 22 predefined regular compression levels plus the fast levels\. This compression level is translated internally into a number of specific parameters that actually control the behavior of the compressor\. (You can see the result of this translation with \fB\-\-show\-default\-cparams\fR\.) These specific parameters can be overridden with advanced compression options\. The \fIoptions\fR are provided as a comma\-separated list\. You may specify only the options you want to change and the rest will be taken from the selected or default compression level\. The list of available \fIoptions\fR:
+The \fIoptions\fR are provided as a comma\-separated list\. You may specify only the options you want to change and the rest will be taken from the selected or default compression level\. The list of available \fIoptions\fR:
 .
 .TP
 \fBstrategy\fR=\fIstrat\fR, \fBstrat\fR=\fIstrat\fR

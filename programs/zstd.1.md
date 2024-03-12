@@ -350,16 +350,12 @@ They can both be overridden by corresponding command line arguments:
 
 ADVANCED COMPRESSION OPTIONS
 ----------------------------
-zstd provides 22 predefined regular compression levels plus the fast levels.
-A compression level is translated internally into a number of specific parameters that actually control the behavior of the compressor
-(one can see the result of this translation with --show-default-cparams).
-These specific parameters can be overridden with advanced compression options.
+`zstd` provides 22 predefined regular compression levels plus the fast levels.
+A compression level is translated internally into multiple advanced parameters that control the behavior of the compressor
+(one can observe the result of this translation with `--show-default-cparams`).
+These advanced parameters can be overridden using advanced compression options.
 
 ### --zstd[=options]:
-`zstd` provides 22 predefined regular compression levels plus the fast levels.
-This compression level is translated internally into a number of specific parameters that actually control the behavior of the compressor.
-(You can see the result of this translation with `--show-default-cparams`.)
-These specific parameters can be overridden with advanced compression options.
 The _options_ are provided as a comma-separated list.
 You may specify only the options you want to change and the rest will be
 taken from the selected or default compression level.

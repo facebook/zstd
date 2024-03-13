@@ -409,6 +409,7 @@ jobs:
     - name: ARM64
       if: ${{ matrix.name == 'ARM64' }}
       run: |
+        LDFLAGS="-static -z force-bti" MOREFLAGS="-mbranch-protection=standard" CC=$XCC QEMU_SYS=$XEMU make clean check
         LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
     - name: PPC
       if: ${{ matrix.name == 'PPC' }}

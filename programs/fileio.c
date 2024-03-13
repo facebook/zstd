@@ -2441,9 +2441,10 @@ FIO_decompressZstdFrame(FIO_ctx_t* const fCtx, dRess_t* ress,
     U64 frameSize = 0;
     IOJob_t *writeJob = AIO_WritePool_acquireJob(ress->writeCtx);
 
-    /* display last 20 characters only */
+    /* display last 20 characters only when not --verbose */
     {   size_t const srcFileLength = strlen(srcFileName);
-        if (srcFileLength>20) srcFileName += srcFileLength-20;
+        if ((srcFileLength>20) && (g_display_prefs.displayLevel<3))
+            srcFileName += srcFileLength-20;
     }
 
     ZSTD_DCtx_reset(ress->dctx, ZSTD_reset_session_only);

@@ -1119,9 +1119,6 @@ static char* mallocAndJoin2Dir(const char *dir1, const char *dir2)
         memcpy(outDirBuffer, dir1, dir1Size);
         outDirBuffer[dir1Size] = '\0';
 
-        if (dir2[0] == '.')
-            return outDirBuffer;
-
         buffer = outDirBuffer + dir1Size;
         if (dir1Size > 0 && *(buffer - 1) != PATH_SEP) {
             *buffer = PATH_SEP;

@@ -12,14 +12,8 @@
 #  define ZDICT_STATIC_LINKING_ONLY
 #endif
 
-#include <stdio.h>  /* fprintf */
-#include <stdlib.h> /* malloc, free, qsort */
-#include <string.h> /* memset */
-#include <time.h>   /* clock */
-#include "../common/mem.h" /* read */
-#include "../common/pool.h"
-#include "../common/threading.h"
-#include "../common/zstd_internal.h" /* includes zstd.h */
+#include "../common/threading.h" /* ZSTD_pthread_mutex_t */
+#include "../common/mem.h"   /* U32, BYTE */
 #include "../zdict.h"
 
 /**

@@ -23,16 +23,27 @@ extern "C" {
 #include <errno.h>
 #include <assert.h>
 
+#if defined(__FreeBSD__)
+#include <sys/param.h> /* __FreeBSD_version */
+#endif /* #ifdef __FreeBSD__ */
+
 #if defined(_WIN32)
 #  include <sys/utime.h>  /* utime */
 #  include <io.h>         /* _chmod */
+#  define ZSTD_USE_UTIMENSAT 0
 #else
 #  include <unistd.h>     /* chown, stat */
-#  if PLATFORM_POSIX_VERSION < 200809L || !defined(st_mtime)
-#    include <utime.h>    /* utime */
+#  include <sys/stat.h>   /* utimensat, st_mtime */
+#  if (PLATFORM_POSIX_VERSION >= 200809L && defined(st_mtime)) \
+      || (defined(__FreeBSD__) && __FreeBSD_version >= 1100056)
+#    define ZSTD_USE_UTIMENSAT 1
 #  else
+#    define ZSTD_USE_UTIMENSAT 0
+#  endif
+#  if ZSTD_USE_UTIMENSAT
 #    include <fcntl.h>    /* AT_FDCWD */
-#    include <sys/stat.h> /* utimensat */
+#  else
+#    include <utime.h>    /* utime */
 #  endif
 #endif
 
@@ -259,7 +270,12 @@ int UTIL_utime(const char* filename, const stat_t *statbuf)
      * that struct stat has a struct timespec st_mtim member. We need this
      * check because there are some platforms that claim to be POSIX 2008
      * compliant but which do not have st_mtim... */
-#if (PLATFORM_POSIX_VERSION >= 200809L) && defined(st_mtime)
+    /* FreeBSD has implemented POSIX 2008 for a long time but still only
+     * advertises support for POSIX 2001. They have a version macro that
+     * lets us safely gate them in.
+     * See https://docs.freebsd.org/en/books/porters-handbook/versions/.
+     */
+#if ZSTD_USE_UTIMENSAT
     {
         /* (atime, mtime) */
         struct timespec timebuf[2] = { {0, UTIME_NOW} };
@@ -1546,7 +1562,6 @@ failed:
 
 #elif defined(__FreeBSD__)
 
-#include <sys/param.h>
 #include <sys/sysctl.h>
 
 /* Use physical core sysctl when available

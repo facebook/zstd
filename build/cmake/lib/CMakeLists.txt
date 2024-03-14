@@ -48,6 +48,7 @@ endif ()
 file(GLOB DictBuilderSources ${LIBRARY_DIR}/dictBuilder/*.c)
 file(GLOB DeprecatedSources ${LIBRARY_DIR}/deprecated/*.c)
 
+file(GLOB PublicHeaders ${LIBRARY_DIR}/*.h)
 file(GLOB CommonHeaders ${LIBRARY_DIR}/common/*.h)
 file(GLOB CompressHeaders ${LIBRARY_DIR}/compress/*.h)
 file(GLOB DecompressHeaders ${LIBRARY_DIR}/decompress/*.h)
@@ -55,7 +56,7 @@ file(GLOB DictBuilderHeaders ${LIBRARY_DIR}/dictBuilder/*.h)
 file(GLOB DeprecatedHeaders ${LIBRARY_DIR}/deprecated/*.h)
 
 set(Sources ${CommonSources})
-set(Headers ${LIBRARY_DIR}/zstd.h ${CommonHeaders})
+set(Headers ${PublicHeaders} ${CommonHeaders})
 if (ZSTD_BUILD_COMPRESSION)
     set(Sources ${Sources} ${CompressSources})
     set(Headers ${Headers} ${CompressHeaders})
@@ -75,7 +76,6 @@ endif()
 
 if (ZSTD_LEGACY_SUPPORT)
     set(LIBRARY_LEGACY_DIR ${LIBRARY_DIR}/legacy)
-    include_directories(${LIBRARY_LEGACY_DIR})
 
     set(Sources ${Sources}
             ${LIBRARY_LEGACY_DIR}/zstd_v01.c
@@ -116,14 +116,14 @@ macro (add_definition target var)
     endif ()
 endmacro ()
 
-# Define include directories, where header files are located
-set(LIBRARY_INCLUDES "${LIBRARY_DIR} ${LIBRARY_DIR}/common")
+# Define directories containing the library's public headers
+set(PUBLIC_INCLUDE_DIRS ${LIBRARY_DIR})
 
 # Split project to static and shared libraries build
 set(library_targets)
 if (ZSTD_BUILD_SHARED)
     add_library(libzstd_shared SHARED ${Sources} ${Headers} ${PlatformDependResources})
-    target_include_directories(libzstd_shared PUBLIC $<BUILD_INTERFACE:${LIBRARY_INCLUDES}>)
+    target_include_directories(libzstd_shared INTERFACE $<BUILD_INTERFACE:${PUBLIC_INCLUDE_DIRS}>)
     list(APPEND library_targets libzstd_shared)
     if (ZSTD_MULTITHREAD_SUPPORT)
         set_property(TARGET libzstd_shared APPEND PROPERTY COMPILE_DEFINITIONS "ZSTD_MULTITHREAD")
@@ -137,7 +137,7 @@ if (ZSTD_BUILD_SHARED)
 endif ()
 if (ZSTD_BUILD_STATIC)
     add_library(libzstd_static STATIC ${Sources} ${Headers})
-    target_include_directories(libzstd_static PUBLIC $<BUILD_INTERFACE:${LIBRARY_INCLUDES}>)
+    target_include_directories(libzstd_static INTERFACE $<BUILD_INTERFACE:${PUBLIC_INCLUDE_DIRS}>)
     list(APPEND library_targets libzstd_static)
     if (ZSTD_MULTITHREAD_SUPPORT)
         set_property(TARGET libzstd_static APPEND PROPERTY COMPILE_DEFINITIONS "ZSTD_MULTITHREAD")
@@ -224,11 +224,7 @@ configure_file("${LIBRARY_DIR}/libzstd.pc.in" "${CMAKE_CURRENT_BINARY_DIR}/libzs
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libzstd.pc" DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
 
 # install target
-install(FILES
-    "${LIBRARY_DIR}/zstd.h"
-    "${LIBRARY_DIR}/zdict.h"
-    "${LIBRARY_DIR}/zstd_errors.h"
-    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+install(FILES ${PublicHeaders} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 
 install(TARGETS ${library_targets}
     EXPORT zstdExports

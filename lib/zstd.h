@@ -390,6 +390,16 @@ typedef enum {
                               * The higher the value of selected strategy, the more complex it is,
                               * resulting in stronger and slower compression.
                               * Special: value 0 means "use default strategy". */
+    ZSTD_c_targetCBlockSize=130, /* Tries to fit compressed block size to be
+                                  * around targetCBlockSize. No target when
+                                  * targetCBlockSize == 0. There is no guarantee
+                                  * on compressed block size (default:0).
+                                  * Since the decoder has to buffer a complete
+                                  * block to begin decoding it, in low band-
+                                  * width streaming environments this may
+                                  * improve end-to-end latency. Bound by
+                                  * ZSTD_TARGETCBLOCKSIZE_MIN and
+                                  * ZSTD_TARGETCBLOCKSIZE_MAX. */
     /* LDM mode parameters */
     ZSTD_c_enableLongDistanceMatching=160, /* Enable long distance matching.
                                      * This parameter is designed to improve compression ratio
@@ -469,7 +479,6 @@ typedef enum {
      * ZSTD_c_forceMaxWindow
      * ZSTD_c_forceAttachDict
      * ZSTD_c_literalCompressionMode
-     * ZSTD_c_targetCBlockSize
      * ZSTD_c_srcSizeHint
      * ZSTD_c_enableDedicatedDictSearch
      * ZSTD_c_stableInBuffer
@@ -490,7 +499,7 @@ typedef enum {
      ZSTD_c_experimentalParam3=1000,
      ZSTD_c_experimentalParam4=1001,
      ZSTD_c_experimentalParam5=1002,
-     ZSTD_c_experimentalParam6=1003,
+     /* was ZSTD_c_experimentalParam6=1003; is now ZSTD_c_targetCBlockSize */
      ZSTD_c_experimentalParam7=1004,
      ZSTD_c_experimentalParam8=1005,
      ZSTD_c_experimentalParam9=1006,
@@ -1950,11 +1959,6 @@ ZSTDLIB_STATIC_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const vo
  * negative compression levels do not use literal compression.
  */
 #define ZSTD_c_literalCompressionMode ZSTD_c_experimentalParam5
-
-/* Tries to fit compressed block size to be around targetCBlockSize.
- * No target when targetCBlockSize == 0.
- * There is no guarantee on compressed block size (default:0) */
-#define ZSTD_c_targetCBlockSize ZSTD_c_experimentalParam6
 
 /* User's best guess of source size.
  * Hint is not valid when srcSizeHint == 0.

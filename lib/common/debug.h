@@ -92,10 +92,14 @@ extern int g_debuglevel; /* the variable is only declared,
         }                                  \
     } while (0)
 
+#define STRINGIFY(x) #x
+#define TOSTRING(x) STRINGIFY(x)
+#define LINE_AS_STRING TOSTRING(__LINE__)
+
 #  define DEBUGLOG(l, ...)                               \
     do {                                                 \
         if (l<=g_debuglevel) {                           \
-            ZSTD_DEBUG_PRINT(__FILE__ ": " __VA_ARGS__); \
+            ZSTD_DEBUG_PRINT(__FILE__ ":" LINE_AS_STRING ": " __VA_ARGS__); \
             ZSTD_DEBUG_PRINT(" \n");                     \
         }                                                \
     } while (0)

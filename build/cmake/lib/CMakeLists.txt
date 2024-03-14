@@ -159,6 +159,20 @@ if (ZSTD_BUILD_STATIC AND NOT ZSTD_BUILD_SHARED)
     target_link_libraries(libzstd INTERFACE libzstd_static)
     list(APPEND library_targets libzstd)
 endif ()
+if (ZSTD_BUILD_SHARED AND ZSTD_BUILD_STATIC)
+    # If both ZSTD_BUILD_SHARED and ZSTD_BUILD_STATIC are set, which is the
+    # default, fallback to using BUILD_SHARED_LIBS to determine whether to
+    # set libzstd to static or shared.
+    if (BUILD_SHARED_LIBS)
+        add_library(libzstd INTERFACE)
+        target_link_libraries(libzstd INTERFACE libzstd_shared)
+        list(APPEND library_targets libzstd)
+    else ()
+        add_library(libzstd INTERFACE)
+        target_link_libraries(libzstd INTERFACE libzstd_static)
+        list(APPEND library_targets libzstd)
+    endif ()
+endif ()
 
 # Add specific compile definitions for MSVC project
 if (MSVC)

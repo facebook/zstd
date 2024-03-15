@@ -729,17 +729,17 @@ static ZSTD_frameSizeInfo ZSTD_errorFrameSizeInfo(size_t ret)
     return frameSizeInfo;
 }
 
-static ZSTD_frameSizeInfo ZSTD_findFrameSizeInfo(const void* src, size_t srcSize)
+static ZSTD_frameSizeInfo ZSTD_findFrameSizeInfo(const void* src, size_t srcSize, ZSTD_format_e format)
 {
     ZSTD_frameSizeInfo frameSizeInfo;
     ZSTD_memset(&frameSizeInfo, 0, sizeof(ZSTD_frameSizeInfo));
 
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
-    if (ZSTD_isLegacy(src, srcSize))
+    if (format == ZSTD_f_zstd1 && ZSTD_isLegacy(src, srcSize))
         return ZSTD_findFrameSizeInfoLegacy(src, srcSize);
 #endif
 
-    if ((srcSize >= ZSTD_SKIPPABLEHEADERSIZE)
+    if (format == ZSTD_f_zstd1 && (srcSize >= ZSTD_SKIPPABLEHEADERSIZE)
         && (MEM_readLE32(src) & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START) {
         frameSizeInfo.compressedSize = readSkippableFrameSize(src, srcSize);
         assert(ZSTD_isError(frameSizeInfo.compressedSize) ||
@@ -753,7 +753,7 @@ static ZSTD_frameSizeInfo ZSTD_findFrameSizeInfo(const void* src, size_t srcSize
         ZSTD_frameHeader zfh;
 
         /* Extract Frame Header */
-        {   size_t const ret = ZSTD_getFrameHeader(&zfh, src, srcSize);
+        {   size_t const ret = ZSTD_getFrameHeader_advanced(&zfh, src, srcSize, format);
             if (ZSTD_isError(ret))
                 return ZSTD_errorFrameSizeInfo(ret);
             if (ret > 0)
@@ -796,13 +796,17 @@ static ZSTD_frameSizeInfo ZSTD_findFrameSizeInfo(const void* src, size_t srcSize
     }
 }
 
+static size_t ZSTD_findFrameCompressedSize_advanced(const void *src, size_t srcSize, ZSTD_format_e format) {
+    ZSTD_frameSizeInfo const frameSizeInfo = ZSTD_findFrameSizeInfo(src, srcSize, format);
+    return frameSizeInfo.compressedSize;
+}
+
 /** ZSTD_findFrameCompressedSize() :
  * See docs in zstd.h
  * Note: compatible with legacy mode */
 size_t ZSTD_findFrameCompressedSize(const void *src, size_t srcSize)
 {
-    ZSTD_frameSizeInfo const frameSizeInfo = ZSTD_findFrameSizeInfo(src, srcSize);
-    return frameSizeInfo.compressedSize;
+    return ZSTD_findFrameCompressedSize_advanced(src, srcSize, ZSTD_f_zstd1);
 }
 
 /** ZSTD_decompressBound() :
@@ -816,7 +820,7 @@ unsigned long long ZSTD_decompressBound(const void* src, size_t srcSize)
     unsigned long long bound = 0;
     /* Iterate over each frame */
     while (srcSize > 0) {
-        ZSTD_frameSizeInfo const frameSizeInfo = ZSTD_findFrameSizeInfo(src, srcSize);
+        ZSTD_frameSizeInfo const frameSizeInfo = ZSTD_findFrameSizeInfo(src, srcSize, ZSTD_f_zstd1);
         size_t const compressedSize = frameSizeInfo.compressedSize;
         unsigned long long const decompressedBound = frameSizeInfo.decompressedBound;
         if (ZSTD_isError(compressedSize) || decompressedBound == ZSTD_CONTENTSIZE_ERROR)
@@ -836,7 +840,7 @@ size_t ZSTD_decompressionMargin(void const* src, size_t srcSize)
 
     /* Iterate over each frame */
     while (srcSize > 0) {
-        ZSTD_frameSizeInfo const frameSizeInfo = ZSTD_findFrameSizeInfo(src, srcSize);
+        ZSTD_frameSizeInfo const frameSizeInfo = ZSTD_findFrameSizeInfo(src, srcSize, ZSTD_f_zstd1);
         size_t const compressedSize = frameSizeInfo.compressedSize;
         unsigned long long const decompressedBound = frameSizeInfo.decompressedBound;
         ZSTD_frameHeader zfh;
@@ -2178,7 +2182,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             if (zds->fParams.frameContentSize != ZSTD_CONTENTSIZE_UNKNOWN
                 && zds->fParams.frameType != ZSTD_skippableFrame
                 && (U64)(size_t)(oend-op) >= zds->fParams.frameContentSize) {
-                size_t const cSize = ZSTD_findFrameCompressedSize(istart, (size_t)(iend-istart));
+                size_t const cSize = ZSTD_findFrameCompressedSize_advanced(istart, (size_t)(iend-istart), zds->format);
                 if (cSize <= (size_t)(iend-istart)) {
                     /* shortcut : using single-pass mode */
                     size_t const decompressedSize = ZSTD_decompress_usingDDict(zds, op, (size_t)(oend-op), istart, cSize, ZSTD_getDDict(zds));

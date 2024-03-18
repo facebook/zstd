@@ -59,7 +59,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: restore_cache
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         key: regression-cache-{{ checksum "tests/regression/data.c" }}-v0
         path: tests/regression/cache

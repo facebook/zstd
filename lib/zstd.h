@@ -262,9 +262,9 @@ ZSTDLIB_API size_t     ZSTD_freeCCtx(ZSTD_CCtx* cctx);  /* accept NULL pointer *
 
 /*! ZSTD_compressCCtx() :
  *  Same as ZSTD_compress(), using an explicit ZSTD_CCtx.
- *  Important : in order to behave similarly to `ZSTD_compress()`,
- *  this function compresses at requested compression level,
- *  __ignoring any other parameter__ .
+ *  Important : in order to mirror `ZSTD_compress()` behavior,
+ *  this function compresses at the requested compression level,
+ *  __ignoring any other advanced parameter__ .
  *  If any advanced parameter was set using the advanced API,
  *  they will all be reset. Only `compressionLevel` remains.
  */
@@ -286,7 +286,7 @@ ZSTDLIB_API size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);  /* accept NULL pointer *
 /*! ZSTD_decompressDCtx() :
  *  Same as ZSTD_decompress(),
  *  requires an allocated ZSTD_DCtx.
- *  Compatible with sticky parameters.
+ *  Compatible with sticky parameters (see below).
  */
 ZSTDLIB_API size_t ZSTD_decompressDCtx(ZSTD_DCtx* dctx,
                                        void* dst, size_t dstCapacity,
@@ -302,12 +302,12 @@ ZSTDLIB_API size_t ZSTD_decompressDCtx(ZSTD_DCtx* dctx,
  *   using ZSTD_CCtx_set*() functions.
  *   Pushed parameters are sticky : they are valid for next compressed frame, and any subsequent frame.
  *   "sticky" parameters are applicable to `ZSTD_compress2()` and `ZSTD_compressStream*()` !
- *   __They do not apply to "simple" one-shot variants such as ZSTD_compressCCtx()__ .
+ *   __They do not apply to one-shot variants such as ZSTD_compressCCtx()__ .
  *
  *   It's possible to reset all parameters to "default" using ZSTD_CCtx_reset().
  *
  *   This API supersedes all other "advanced" API entry points in the experimental section.
- *   In the future, we expect to remove from experimental API entry points which are redundant with this API.
+ *   In the future, we expect to remove API entry points from experimental which are redundant with this API.
  */
 
 
@@ -390,16 +390,19 @@ typedef enum {
                               * The higher the value of selected strategy, the more complex it is,
                               * resulting in stronger and slower compression.
                               * Special: value 0 means "use default strategy". */
-    ZSTD_c_targetCBlockSize=130, /* Tries to fit compressed block size to be
-                                  * around targetCBlockSize. No target when
-                                  * targetCBlockSize == 0. There is no guarantee
-                                  * on compressed block size (default:0).
-                                  * Since the decoder has to buffer a complete
-                                  * block to begin decoding it, in low band-
-                                  * width streaming environments this may
-                                  * improve end-to-end latency. Bound by
-                                  * ZSTD_TARGETCBLOCKSIZE_MIN and
-                                  * ZSTD_TARGETCBLOCKSIZE_MAX. */
+
+    ZSTD_c_targetCBlockSize=130, /* v1.5.6+
+                                  * Attempts to fit compressed block size into approximatively targetCBlockSize.
+                                  * Bound by ZSTD_TARGETCBLOCKSIZE_MIN and ZSTD_TARGETCBLOCKSIZE_MAX.
+                                  * Note that it's not a guarantee, just a convergence target (default:0).
+                                  * No target when targetCBlockSize == 0.
+                                  * This is helpful in low bandwidth streaming environments to improve end-to-end latency,
+                                  * when a client can make use of partial documents (a prominent example being Chrome).
+                                  * Note: this parameter is stable since v1.5.6.
+                                  * It was present as an experimental parameter in earlier versions,
+                                  * but we don't recomment using it with earlier library versions
+                                  * due to massive performance regressions.
+                                  */
     /* LDM mode parameters */
     ZSTD_c_enableLongDistanceMatching=160, /* Enable long distance matching.
                                      * This parameter is designed to improve compression ratio
@@ -584,6 +587,7 @@ ZSTDLIB_API size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx, ZSTD_ResetDirective reset);
 
 /*! ZSTD_compress2() :
  *  Behave the same as ZSTD_compressCCtx(), but compression parameters are set using the advanced API.
+ *  (note that this entry point doesn't even expose a compression level parameter).
  *  ZSTD_compress2() always starts a new frame.
  *  Should cctx hold data from a previously unfinished frame, everything about it is forgotten.
  *  - Compression parameters are pushed into CCtx before starting compression, using ZSTD_CCtx_set*()
@@ -1250,7 +1254,7 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 #define ZSTD_LDM_HASHRATELOG_MAX (ZSTD_WINDOWLOG_MAX - ZSTD_HASHLOG_MIN)
 
 /* Advanced parameter bounds */
-#define ZSTD_TARGETCBLOCKSIZE_MIN   64
+#define ZSTD_TARGETCBLOCKSIZE_MIN   1340 /* suitable to fit into an ethernet / wifi / 4G transport frame */
 #define ZSTD_TARGETCBLOCKSIZE_MAX   ZSTD_BLOCKSIZE_MAX
 #define ZSTD_SRCSIZEHINT_MIN        0
 #define ZSTD_SRCSIZEHINT_MAX        INT_MAX

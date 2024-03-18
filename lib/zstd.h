@@ -400,7 +400,7 @@ typedef enum {
                                   * when a client can make use of partial documents (a prominent example being Chrome).
                                   * Note: this parameter is stable since v1.5.6.
                                   * It was present as an experimental parameter in earlier versions,
-                                  * but we don't recomment using it with earlier library versions
+                                  * but it's not recommended using it with earlier library versions
                                   * due to massive performance regressions.
                                   */
     /* LDM mode parameters */

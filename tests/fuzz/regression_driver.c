@@ -44,10 +44,11 @@ int main(int argc, char const **argv) {
     fprintf(stderr, "WARNING: No files passed to %s\n", argv[0]);
   for (i = 0; i < files->tableSize; ++i) {
     char const *fileName = files->fileNames[i];
-    DEBUGLOG(3, "Running %s", fileName);
     size_t const fileSize = UTIL_getFileSize(fileName);
     size_t readSize;
     FILE *file;
+
+    DEBUGLOG(3, "Running %s", fileName);
 
     /* Check that it is a regular file, and that the fileSize is valid.
      * If it is not a regular file, then it may have been deleted since we

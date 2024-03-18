@@ -136,7 +136,7 @@ static size_t compress(uint8_t *dst, size_t capacity,
     return dstSize;
 }
 
-size_t decompress(void* dst, size_t dstCapacity, void const* src, size_t srcSize, FUZZ_dataProducer_t* producer)
+static size_t decompress(void* dst, size_t dstCapacity, void const* src, size_t srcSize, FUZZ_dataProducer_t* producer)
 {
     ZSTD_inBuffer in = {src, srcSize, 0};
     ZSTD_outBuffer out = {dst, dstCapacity, 0};

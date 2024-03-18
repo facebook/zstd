@@ -16,6 +16,9 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>
+
+#define ZSTD_STATIC_LINKING_ONLY
+
 #include "fuzz_helpers.h"
 #include "zstd.h"
 #include "fuzz_data_producer.h"
@@ -40,7 +43,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     size_t const dSize = ZSTD_decompressDCtx(dctx, rBuf, bufSize, src, size);
     if (!ZSTD_isError(dSize)) {
         /* If decompression was successful, the content size from the frame header(s) should be valid. */
-        size_t const expectedSize = ZSTD_findDecompressedSize(src, size);
+        unsigned long long const expectedSize = ZSTD_findDecompressedSize(src, size);
         FUZZ_ASSERT(expectedSize != ZSTD_CONTENTSIZE_ERROR);
         FUZZ_ASSERT(expectedSize == ZSTD_CONTENTSIZE_UNKNOWN || expectedSize == dSize);
     }

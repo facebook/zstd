@@ -3701,6 +3701,31 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : ZSTD_generateSequences too small output buffer : ", testNb++);
+    {
+        const size_t seqsCapacity = 10;
+        const size_t srcSize = 150 KB;
+        const BYTE* src = (BYTE*)CNBuffer;
+
+        ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        ZSTD_Sequence* const seqs = (ZSTD_Sequence*)malloc(seqsCapacity * sizeof(ZSTD_Sequence));
+
+        if (seqs == NULL) goto _output_error;
+        if (cctx == NULL) goto _output_error;
+        /* Populate src with random data */
+        RDG_genBuffer(CNBuffer, srcSize, compressibility, 0.5, seed);
+
+        /* Test with block delimiters roundtrip */
+        {
+            size_t const seqsSize = ZSTD_generateSequences(cctx, seqs, seqsCapacity, src, srcSize);
+            if (!ZSTD_isError(seqsSize)) goto _output_error;
+        }
+
+        ZSTD_freeCCtx(cctx);
+        free(seqs);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     DISPLAYLEVEL(3, "test%3i : ZSTD_getSequences followed by ZSTD_compressSequences : ", testNb++);
     {
         const size_t srcSize = 500 KB;

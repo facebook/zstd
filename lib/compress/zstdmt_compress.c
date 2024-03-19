@@ -121,7 +121,7 @@ static void ZSTDMT_freeBufferPool(ZSTDMT_bufferPool* bufPool)
 
 static ZSTDMT_bufferPool* ZSTDMT_createBufferPool(unsigned maxNbBuffers, ZSTD_customMem cMem)
 {
-    ZSTDMT_bufferPool* const bufPool = 
+    ZSTDMT_bufferPool* const bufPool =
         (ZSTDMT_bufferPool*)ZSTD_customCalloc(sizeof(ZSTDMT_bufferPool), cMem);
     if (bufPool==NULL) return NULL;
     if (ZSTD_pthread_mutex_init(&bufPool->poolMutex, NULL)) {
@@ -380,7 +380,7 @@ static void ZSTDMT_freeCCtxPool(ZSTDMT_CCtxPool* pool)
 static ZSTDMT_CCtxPool* ZSTDMT_createCCtxPool(int nbWorkers,
                                               ZSTD_customMem cMem)
 {
-    ZSTDMT_CCtxPool* const cctxPool = 
+    ZSTDMT_CCtxPool* const cctxPool =
         (ZSTDMT_CCtxPool*) ZSTD_customCalloc(sizeof(ZSTDMT_CCtxPool), cMem);
     assert(nbWorkers > 0);
     if (!cctxPool) return NULL;

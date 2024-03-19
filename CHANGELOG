@@ -33,6 +33,7 @@ port: sparc64 support validation in CI, by @Cyan4973
 port: AIX compatibility, by @likema
 port: HP-UX compatibility, by @likema
 doc: Improved specification accuracy, by @elasota
+bug: Fix and deprecate ZSTD_generateSequences (#3981)
 
 v1.5.5 (Apr 2023)
 fix: fix rare corruption bug affecting the high compression mode, reported by @danlark1 (#3517, @terrelln)

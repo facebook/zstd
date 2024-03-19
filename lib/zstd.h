@@ -1538,25 +1538,38 @@ typedef enum {
 ZSTDLIB_STATIC_API size_t ZSTD_sequenceBound(size_t srcSize);
 
 /*! ZSTD_generateSequences() :
+ * WARNING: This function is meant for debugging and informational purposes ONLY!
+ * Its implementation is flawed, and it will be deleted in a future version.
+ * It is not guaranteed to succeed, as there are several cases where it will give
+ * up and fail. You should NOT use this function in production code.
+ *
+ * This function is deprecated, and will be removed in a future version.
+ *
  * Generate sequences using ZSTD_compress2(), given a source buffer.
+ *
+ * @param zc The compression context to be used for ZSTD_compress2(). Set any
+ *           compression parameters you need on this context.
+ * @param outSeqs The output sequences buffer of size @p outSeqsSize
+ * @param outSeqsSize The size of the output sequences buffer.
+ *                    ZSTD_sequenceBound(srcSize) is an upper bound on the number
+ *                    of sequences that can be generated.
+ * @param src The source buffer to generate sequences from of size @p srcSize.
+ * @param srcSize The size of the source buffer.
  *
  * Each block will end with a dummy sequence
  * with offset == 0, matchLength == 0, and litLength == length of last literals.
  * litLength may be == 0, and if so, then the sequence of (of: 0 ml: 0 ll: 0)
  * simply acts as a block delimiter.
  *
- * @zc can be used to insert custom compression params.
- * This function invokes ZSTD_compress2().
- *
- * The output of this function can be fed into ZSTD_compressSequences() with CCtx
- * setting of ZSTD_c_blockDelimiters as ZSTD_sf_explicitBlockDelimiters
- * @return : number of sequences generated
+ * @returns The number of sequences generated, necessarily less than
+ *          ZSTD_sequenceBound(srcSize), or an error code that can be checked
+ *          with ZSTD_isError().
  */
-
+ZSTD_DEPRECATED("For debugging only, will be replaced by ZSTD_extractSequences()")
 ZSTDLIB_STATIC_API size_t
-ZSTD_generateSequences( ZSTD_CCtx* zc,
-                        ZSTD_Sequence* outSeqs, size_t outSeqsSize,
-                        const void* src, size_t srcSize);
+ZSTD_generateSequences(ZSTD_CCtx* zc,
+                       ZSTD_Sequence* outSeqs, size_t outSeqsSize,
+                       const void* src, size_t srcSize);
 
 /*! ZSTD_mergeBlockDelimiters() :
  * Given an array of ZSTD_Sequence, remove all sequences that represent block delimiters/last literals

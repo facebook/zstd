@@ -57,10 +57,12 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 
     // Test one-shot decompression
     {
+        FUZZ_ZASSERT(ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters));
         FUZZ_ZASSERT(ZSTD_DCtx_setParameter(dctx, ZSTD_d_format, ZSTD_f_zstd1));
         const size_t standardRet = ZSTD_decompressDCtx(
                                         dctx, standardDst, dstSize, standardSrc, standardSize);
 
+        FUZZ_ZASSERT(ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters));
         FUZZ_ZASSERT(ZSTD_DCtx_setParameter(dctx, ZSTD_d_format, ZSTD_f_zstd1_magicless));
         const size_t magiclessRet = ZSTD_decompressDCtx(
                                         dctx, magiclessDst, dstSize, magiclessSrc, magiclessSize);
@@ -88,13 +90,13 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
         ZSTD_outBuffer standardOut = { standardDst, dstSize, 0 };
         ZSTD_outBuffer magiclessOut = { magiclessDst, dstSize, 0 };
 
+        FUZZ_ZASSERT(ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters));
         FUZZ_ZASSERT(ZSTD_DCtx_setParameter(dctx, ZSTD_d_format, ZSTD_f_zstd1));
         const size_t standardRet = ZSTD_decompressStream(dctx, &standardOut, &standardIn);
-        ZSTD_DCtx_reset(dctx, ZSTD_reset_session_only);
 
+        FUZZ_ZASSERT(ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters));
         FUZZ_ZASSERT(ZSTD_DCtx_setParameter(dctx, ZSTD_d_format, ZSTD_f_zstd1_magicless));
         const size_t magiclessRet = ZSTD_decompressStream(dctx, &magiclessOut, &magiclessIn);
-        ZSTD_DCtx_reset(dctx, ZSTD_reset_session_only);
 
         // Standard accepts => magicless should accept
         if (standardRet == 0) FUZZ_ASSERT(magiclessRet == 0);

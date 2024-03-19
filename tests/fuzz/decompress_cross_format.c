@@ -77,9 +77,11 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
         // If both accept, decompressed size and data should match
         if (!ZSTD_isError(standardRet) && !ZSTD_isError(magiclessRet)) {
             FUZZ_ASSERT(standardRet == magiclessRet);
-            FUZZ_ASSERT(
-                memcmp(standardDst, magiclessDst, standardRet) == 0
-            );
+            if (standardRet > 0) {
+                FUZZ_ASSERT(
+                    memcmp(standardDst, magiclessDst, standardRet) == 0
+                );
+            }
         }
     }
 
@@ -108,9 +110,11 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
         // If both accept, decompressed size and data should match
         if (standardRet == 0 && magiclessRet == 0) {
             FUZZ_ASSERT(standardOut.pos == magiclessOut.pos);
-            FUZZ_ASSERT(
-                memcmp(standardOut.dst, magiclessOut.dst, standardOut.pos) == 0
-            );
+            if (standardOut.pos > 0) {
+                FUZZ_ASSERT(
+                    memcmp(standardOut.dst, magiclessOut.dst, standardOut.pos) == 0
+                );
+            }
         }
     }
 

@@ -124,7 +124,8 @@ FUZZ_TARGETS :=       \
 	sequence_compression_api \
 	seekable_roundtrip \
 	huf_round_trip \
-	huf_decompress
+	huf_decompress \
+	decompress_cross_format
 
 all: libregression.a $(FUZZ_TARGETS)
 
@@ -238,6 +239,9 @@ huf_round_trip: $(FUZZ_HEADERS) $(FUZZ_ROUND_TRIP_OBJ) rt_fuzz_huf_round_trip.o
 
 huf_decompress: $(FUZZ_HEADERS) $(FUZZ_DECOMPRESS_OBJ) d_fuzz_huf_decompress.o
 	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_DECOMPRESS_OBJ) d_fuzz_huf_decompress.o $(LIB_FUZZING_ENGINE) -o $@
+	
+decompress_cross_format: $(FUZZ_HEADERS) $(FUZZ_DECOMPRESS_OBJ) d_fuzz_decompress_cross_format.o
+	$(CXX) $(FUZZ_TARGET_FLAGS) $(FUZZ_DECOMPRESS_OBJ) d_fuzz_decompress_cross_format.o $(LIB_FUZZING_ENGINE) -o $@
 
 libregression.a: $(FUZZ_HEADERS) $(PRGDIR)/util.h $(PRGDIR)/util.c d_fuzz_regression_driver.o
 	$(AR) $(FUZZ_ARFLAGS) $@ d_fuzz_regression_driver.o

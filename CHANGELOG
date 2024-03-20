@@ -9,6 +9,7 @@ lib: accept dictionaries with partial literal tables, by @terrelln
 lib: fix CCtx size estimation with external sequence producer, by @embg
 lib: fix corner case decoder behaviors, by @Cyan4973 and @aimuz
 lib: fix zdict prototype mismatch in static_only mode, by @ldv-alt
+lib: fix several bugs in magicless-format decoding, by @embg
 cli: add common compressed file types to `--exclude-compressed`` by @daniellerozenblit
 cli: fix mixing `-c` and `-o` commands with `--rm`, by @Cyan4973
 cli: fix erroneous exclusion of hidden files with `--output-dir-mirror` by @felixhandte

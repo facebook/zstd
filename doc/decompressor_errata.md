@@ -131,7 +131,7 @@ Magicless format
 
 **Last affected version**: v1.5.5
 
-**Affected decompressor component(s)**: Library & CLI
+**Affected decompressor component(s)**: Library
 
 **Produced by the reference compressor**: Yes (example: https://gist.github.com/embg/9940726094f4cf2cef162cffe9319232)
 

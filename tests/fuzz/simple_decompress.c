@@ -37,17 +37,18 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
         FUZZ_ASSERT(dctx);
     }
 
-    size_t const bufSize = FUZZ_dataProducer_uint32Range(producer, 0, 10 * size);
-    void *rBuf = FUZZ_malloc(bufSize);
-
-    size_t const dSize = ZSTD_decompressDCtx(dctx, rBuf, bufSize, src, size);
-    if (!ZSTD_isError(dSize)) {
-        /* If decompression was successful, the content size from the frame header(s) should be valid. */
-        unsigned long long const expectedSize = ZSTD_findDecompressedSize(src, size);
-        FUZZ_ASSERT(expectedSize != ZSTD_CONTENTSIZE_ERROR);
-        FUZZ_ASSERT(expectedSize == ZSTD_CONTENTSIZE_UNKNOWN || expectedSize == dSize);
+    {
+        size_t const bufSize = FUZZ_dataProducer_uint32Range(producer, 0, 10 * size);
+        void *rBuf = FUZZ_malloc(bufSize);
+        size_t const dSize = ZSTD_decompressDCtx(dctx, rBuf, bufSize, src, size);
+        if (!ZSTD_isError(dSize)) {
+            /* If decompression was successful, the content size from the frame header(s) should be valid. */
+            unsigned long long const expectedSize = ZSTD_findDecompressedSize(src, size);
+            FUZZ_ASSERT(expectedSize != ZSTD_CONTENTSIZE_ERROR);
+            FUZZ_ASSERT(expectedSize == ZSTD_CONTENTSIZE_UNKNOWN || expectedSize == dSize);
+        }
+        free(rBuf);
     }
-    free(rBuf);
 
     FUZZ_dataProducer_free(producer);
 

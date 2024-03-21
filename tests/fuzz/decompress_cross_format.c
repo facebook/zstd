@@ -27,15 +27,15 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     // The rest will be interpreted as magicless compressed data.
     FUZZ_dataProducer_t *producer = FUZZ_dataProducer_create(src, size);
     size_t magiclessSize = FUZZ_dataProducer_reserveDataPrefix(producer);
-    const void* const magiclessSrc = src;
+    const uint8_t* const magiclessSrc = src;
     size_t const dstSize = FUZZ_dataProducer_uint32Range(producer, 0, 10 * size);
-    void* const standardDst = FUZZ_malloc(dstSize);
-    void* const magiclessDst = FUZZ_malloc(dstSize);
+    uint8_t* const standardDst = (uint8_t*)FUZZ_malloc(dstSize);
+    uint8_t* const magiclessDst = (uint8_t*)FUZZ_malloc(dstSize);
 
     // Create standard-format src from magicless-format src
     const uint32_t zstd_magic = ZSTD_MAGICNUMBER;
     size_t standardSize = sizeof(zstd_magic) + magiclessSize;
-    void* const standardSrc = FUZZ_malloc(standardSize);
+    uint8_t* const standardSrc = (uint8_t*)FUZZ_malloc(standardSize);
     memcpy(standardSrc, &zstd_magic, sizeof(zstd_magic)); // assume fuzzing on little-endian machine
     memcpy(standardSrc + sizeof(zstd_magic), magiclessSrc, magiclessSize);
 

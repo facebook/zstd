@@ -66,6 +66,7 @@ TARGET_INFO = {
     'huf_round_trip': TargetInfo(InputType.RAW_DATA),
     'huf_decompress': TargetInfo(InputType.RAW_DATA),
     'decompress_cross_format': TargetInfo(InputType.RAW_DATA),
+    'generate_sequences': TargetInfo(InputType.RAW_DATA),
 }
 TARGETS = list(TARGET_INFO.keys())
 ALL_TARGETS = TARGETS + ['all']

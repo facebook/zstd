@@ -190,9 +190,9 @@ size_t     ZSTD_freeCCtx(ZSTD_CCtx* cctx);  </b>/* accept NULL pointer */<b>
                    const void* src, size_t srcSize,
                          int compressionLevel);
 </b><p>  Same as ZSTD_compress(), using an explicit ZSTD_CCtx.
-  Important : in order to behave similarly to `ZSTD_compress()`,
-  this function compresses at requested compression level,
-  __ignoring any other parameter__ .
+  Important : in order to mirror `ZSTD_compress()` behavior,
+  this function compresses at the requested compression level,
+  __ignoring any other advanced parameter__ .
   If any advanced parameter was set using the advanced API,
   they will all be reset. Only `compressionLevel` remains.
  
@@ -212,7 +212,7 @@ size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);  </b>/* accept NULL pointer */<b>
                      const void* src, size_t srcSize);
 </b><p>  Same as ZSTD_decompress(),
   requires an allocated ZSTD_DCtx.
-  Compatible with sticky parameters.
+  Compatible with sticky parameters (see below).
  
 </p></pre><BR>
 
@@ -296,6 +296,19 @@ size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);  </b>/* accept NULL pointer */<b>
                               * The higher the value of selected strategy, the more complex it is,
                               * resulting in stronger and slower compression.
                               * Special: value 0 means "use default strategy". */
+
+    ZSTD_c_targetCBlockSize=130, </b>/* v1.5.6+<b>
+                                  * Attempts to fit compressed block size into approximatively targetCBlockSize.
+                                  * Bound by ZSTD_TARGETCBLOCKSIZE_MIN and ZSTD_TARGETCBLOCKSIZE_MAX.
+                                  * Note that it's not a guarantee, just a convergence target (default:0).
+                                  * No target when targetCBlockSize == 0.
+                                  * This is helpful in low bandwidth streaming environments to improve end-to-end latency,
+                                  * when a client can make use of partial documents (a prominent example being Chrome).
+                                  * Note: this parameter is stable since v1.5.6.
+                                  * It was present as an experimental parameter in earlier versions,
+                                  * but it's not recommended using it with earlier library versions
+                                  * due to massive performance regressions.
+                                  */
     </b>/* LDM mode parameters */<b>
     ZSTD_c_enableLongDistanceMatching=160, </b>/* Enable long distance matching.<b>
                                      * This parameter is designed to improve compression ratio
@@ -375,7 +388,6 @@ size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);  </b>/* accept NULL pointer */<b>
      * ZSTD_c_forceMaxWindow
      * ZSTD_c_forceAttachDict
      * ZSTD_c_literalCompressionMode
-     * ZSTD_c_targetCBlockSize
      * ZSTD_c_srcSizeHint
      * ZSTD_c_enableDedicatedDictSearch
      * ZSTD_c_stableInBuffer
@@ -396,7 +408,7 @@ size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);  </b>/* accept NULL pointer */<b>
      ZSTD_c_experimentalParam3=1000,
      ZSTD_c_experimentalParam4=1001,
      ZSTD_c_experimentalParam5=1002,
-     ZSTD_c_experimentalParam6=1003,
+     </b>/* was ZSTD_c_experimentalParam6=1003; is now ZSTD_c_targetCBlockSize */<b>
      ZSTD_c_experimentalParam7=1004,
      ZSTD_c_experimentalParam8=1005,
      ZSTD_c_experimentalParam9=1006,
@@ -483,6 +495,7 @@ size_t     ZSTD_freeDCtx(ZSTD_DCtx* dctx);  </b>/* accept NULL pointer */<b>
                        void* dst, size_t dstCapacity,
                  const void* src, size_t srcSize);
 </b><p>  Behave the same as ZSTD_compressCCtx(), but compression parameters are set using the advanced API.
+  (note that this entry point doesn't even expose a compression level parameter).
   ZSTD_compress2() always starts a new frame.
   Should cctx hold data from a previously unfinished frame, everything about it is forgotten.
   - Compression parameters are pushed into CCtx before starting compression, using ZSTD_CCtx_set*()
@@ -668,6 +681,11 @@ size_t ZSTD_freeCStream(ZSTD_CStream* zcs);  </b>/* accept NULL pointer */<b>
             only ZSTD_e_end or ZSTD_e_flush operations are allowed.
             Before starting a new compression job, or changing compression parameters,
             it is required to fully flush internal buffers.
+  - note: if an operation ends with an error, it may leave @cctx in an undefined state.
+          Therefore, it's UB to invoke ZSTD_compressStream2() of ZSTD_compressStream() on such a state.
+          In order to be re-employed after an error, a state must be reset,
+          which can be done explicitly (ZSTD_CCtx_reset()),
+          or is sometimes implied by methods starting a new compression job (ZSTD_initCStream(), ZSTD_compressCCtx())
  
 </p></pre><BR>
 
@@ -753,6 +771,12 @@ size_t ZSTD_freeDStream(ZSTD_DStream* zds);  </b>/* accept NULL pointer */<b>
  @return : 0 when a frame is completely decoded and fully flushed,
            or an error code, which can be tested using ZSTD_isError(),
            or any other value > 0, which means there is some decoding or flushing to do to complete current frame.
+
+ Note: when an operation returns with an error code, the @zds state may be left in undefined state.
+       It's UB to invoke `ZSTD_decompressStream()` on such a state.
+       In order to re-use such a state, it must be first reset,
+       which can be done explicitly (`ZSTD_DCtx_reset()`),
+       or is implied for operations starting some new decompression job (`ZSTD_initDStream`, `ZSTD_decompressDCtx()`, `ZSTD_decompress_usingDict()`)
  
 </p></pre><BR>
 

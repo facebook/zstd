@@ -870,7 +870,7 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
 #else
         FORWARD_IF_ERROR(ZSTD_cParam_clampBounds(param, &value), "");
         CCtxParams->nbWorkers = value;
-        return CCtxParams->nbWorkers;
+        return (size_t)(CCtxParams->nbWorkers);
 #endif
 
     case ZSTD_c_jobSize :
@@ -894,7 +894,7 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
 #else
         FORWARD_IF_ERROR(ZSTD_cParam_clampBounds(ZSTD_c_overlapLog, &value), "");
         CCtxParams->overlapLog = value;
-        return CCtxParams->overlapLog;
+        return (size_t)CCtxParams->overlapLog;
 #endif
 
     case ZSTD_c_rsyncable :
@@ -904,7 +904,7 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
 #else
         FORWARD_IF_ERROR(ZSTD_cParam_clampBounds(ZSTD_c_overlapLog, &value), "");
         CCtxParams->rsyncable = value;
-        return CCtxParams->rsyncable;
+        return (size_t)CCtxParams->rsyncable;
 #endif
 
     case ZSTD_c_enableDedicatedDictSearch :
@@ -941,8 +941,10 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
         return CCtxParams->ldmParams.hashRateLog;
 
     case ZSTD_c_targetCBlockSize :
-        if (value!=0)   /* 0 ==> default */
+        if (value!=0) {  /* 0 ==> default */
+            value = MAX(value, ZSTD_TARGETCBLOCKSIZE_MIN);
             BOUNDCHECK(ZSTD_c_targetCBlockSize, value);
+        }
         CCtxParams->targetCBlockSize = (U32)value;
         return CCtxParams->targetCBlockSize;
 
@@ -970,7 +972,7 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
     case ZSTD_c_validateSequences:
         BOUNDCHECK(ZSTD_c_validateSequences, value);
         CCtxParams->validateSequences = value;
-        return CCtxParams->validateSequences;
+        return (size_t)CCtxParams->validateSequences;
 
     case ZSTD_c_useBlockSplitter:
         BOUNDCHECK(ZSTD_c_useBlockSplitter, value);
@@ -985,7 +987,7 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
     case ZSTD_c_deterministicRefPrefix:
         BOUNDCHECK(ZSTD_c_deterministicRefPrefix, value);
         CCtxParams->deterministicRefPrefix = !!value;
-        return CCtxParams->deterministicRefPrefix;
+        return (size_t)CCtxParams->deterministicRefPrefix;
 
     case ZSTD_c_prefetchCDictTables:
         BOUNDCHECK(ZSTD_c_prefetchCDictTables, value);
@@ -995,7 +997,7 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
     case ZSTD_c_enableSeqProducerFallback:
         BOUNDCHECK(ZSTD_c_enableSeqProducerFallback, value);
         CCtxParams->enableMatchFinderFallback = value;
-        return CCtxParams->enableMatchFinderFallback;
+        return (size_t)CCtxParams->enableMatchFinderFallback;
 
     case ZSTD_c_maxBlockSize:
         if (value!=0)    /* 0 ==> default */

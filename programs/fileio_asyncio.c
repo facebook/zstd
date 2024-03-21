@@ -453,8 +453,8 @@ static IOJob_t* AIO_ReadPool_findNextWaitingOffsetCompletedJob_locked(ReadPoolCt
 /* AIO_ReadPool_numReadsInFlight:
  * Returns the number of IO read jobs currently in flight. */
 static size_t AIO_ReadPool_numReadsInFlight(ReadPoolCtx_t* ctx) {
-    const size_t jobsHeld = (ctx->currentJobHeld==NULL ? 0 : 1);
-    return ctx->base.totalIoJobs - (ctx->base.availableJobsCount + ctx->completedJobsCount + jobsHeld);
+    const int jobsHeld = (ctx->currentJobHeld==NULL ? 0 : 1);
+    return (size_t)(ctx->base.totalIoJobs - (ctx->base.availableJobsCount + ctx->completedJobsCount + jobsHeld));
 }
 
 /* AIO_ReadPool_getNextCompletedJob:
@@ -514,8 +514,7 @@ static void AIO_ReadPool_enqueueRead(ReadPoolCtx_t* ctx) {
 }
 
 static void AIO_ReadPool_startReading(ReadPoolCtx_t* ctx) {
-    int i;
-    for (i = 0; i < ctx->base.availableJobsCount; i++) {
+    while(ctx->base.availableJobsCount) {
         AIO_ReadPool_enqueueRead(ctx);
     }
 }
@@ -551,6 +550,7 @@ ReadPoolCtx_t* AIO_ReadPool_create(const FIO_prefs_t* prefs, size_t bufferSize) 
     AIO_IOPool_init(&ctx->base, prefs, AIO_ReadPool_executeReadJob, bufferSize);
 
     ctx->coalesceBuffer = (U8*) malloc(bufferSize * 2);
+    if(!ctx->coalesceBuffer) EXM_THROW(100, "Allocation error : not enough memory");
     ctx->srcBuffer = ctx->coalesceBuffer;
     ctx->srcBufferLoaded = 0;
     ctx->completedJobsCount = 0;

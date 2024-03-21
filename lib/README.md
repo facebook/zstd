@@ -88,7 +88,7 @@ The file structure is designed to make this selection manually achievable for an
         For example, advanced API for version `v0.4` is exposed in `lib/legacy/zstd_v04.h` .
 
 - While invoking `make libzstd`, it's possible to define build macros
-        `ZSTD_LIB_COMPRESSION, ZSTD_LIB_DECOMPRESSION`, `ZSTD_LIB_DICTBUILDER`,
+        `ZSTD_LIB_COMPRESSION`, `ZSTD_LIB_DECOMPRESSION`, `ZSTD_LIB_DICTBUILDER`,
         and `ZSTD_LIB_DEPRECATED` as `0` to forgo compilation of the
         corresponding features. This will also disable compilation of all
         dependencies (e.g. `ZSTD_LIB_COMPRESSION=0` will also disable
@@ -118,6 +118,15 @@ The file structure is designed to make this selection manually achievable for an
   only one or the other of two decompression implementations. The smallest
   binary is achieved by using `HUF_FORCE_DECOMPRESS_X1` and
   `ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT` (implied by `ZSTD_LIB_MINIFY`).
+
+  On the compressor side, Zstd's compression levels map to several internal
+  strategies. In environments where the higher compression levels aren't used,
+  it is possible to exclude all but the fastest strategy with
+  `ZSTD_LIB_EXCLUDE_COMPRESSORS_DFAST_AND_UP=1`. (Note that this will change
+  the behavior of the default compression level.) Or if you want to retain the
+  default compressor as well, you can set
+  `ZSTD_LIB_EXCLUDE_COMPRESSORS_GREEDY_AND_UP=1`, at the cost of an additional
+  ~20KB or so.
 
   For squeezing the last ounce of size out, you can also define
   `ZSTD_NO_INLINE`, which disables inlining, and `ZSTD_STRIP_ERROR_STRINGS`,
@@ -168,6 +177,10 @@ The file structure is designed to make this selection manually achievable for an
   from the shared library. These macros default to `ZSTDLIB_VISIBILITY`,
   `ZSTDERRORLIB_VSIBILITY`, and `ZDICTLIB_VISIBILITY` if unset, for backwards compatibility
   with the old macro names.
+
+- The C compiler macro `HUF_DISABLE_FAST_DECODE` disables the newer Huffman fast C
+  and assembly decoding loops. You may want to use this macro if these loops are
+  slower on your platform.
 
 #### Windows : using MinGW+MSYS to create DLL
 

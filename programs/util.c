@@ -23,16 +23,27 @@ extern "C" {
 #include <errno.h>
 #include <assert.h>
 
+#if defined(__FreeBSD__)
+#include <sys/param.h> /* __FreeBSD_version */
+#endif /* #ifdef __FreeBSD__ */
+
 #if defined(_WIN32)
 #  include <sys/utime.h>  /* utime */
 #  include <io.h>         /* _chmod */
+#  define ZSTD_USE_UTIMENSAT 0
 #else
 #  include <unistd.h>     /* chown, stat */
-#  if PLATFORM_POSIX_VERSION < 200809L || !defined(st_mtime)
-#    include <utime.h>    /* utime */
+#  include <sys/stat.h>   /* utimensat, st_mtime */
+#  if (PLATFORM_POSIX_VERSION >= 200809L && defined(st_mtime)) \
+      || (defined(__FreeBSD__) && __FreeBSD_version >= 1100056)
+#    define ZSTD_USE_UTIMENSAT 1
 #  else
+#    define ZSTD_USE_UTIMENSAT 0
+#  endif
+#  if ZSTD_USE_UTIMENSAT
 #    include <fcntl.h>    /* AT_FDCWD */
-#    include <sys/stat.h> /* utimensat */
+#  else
+#    include <utime.h>    /* utime */
 #  endif
 #endif
 
@@ -259,7 +270,12 @@ int UTIL_utime(const char* filename, const stat_t *statbuf)
      * that struct stat has a struct timespec st_mtim member. We need this
      * check because there are some platforms that claim to be POSIX 2008
      * compliant but which do not have st_mtim... */
-#if (PLATFORM_POSIX_VERSION >= 200809L) && defined(st_mtime)
+    /* FreeBSD has implemented POSIX 2008 for a long time but still only
+     * advertises support for POSIX 2001. They have a version macro that
+     * lets us safely gate them in.
+     * See https://docs.freebsd.org/en/books/porters-handbook/versions/.
+     */
+#if ZSTD_USE_UTIMENSAT
     {
         /* (atime, mtime) */
         struct timespec timebuf[2] = { {0, UTIME_NOW} };
@@ -660,7 +676,6 @@ UTIL_createFileNamesTable_fromFileName(const char* inputFileName)
     size_t nbFiles = 0;
     char* buf;
     size_t bufSize;
-    size_t pos = 0;
     stat_t statbuf;
 
     if (!UTIL_stat(inputFileName, &statbuf) || !UTIL_isRegularFileStat(&statbuf))
@@ -687,12 +702,13 @@ UTIL_createFileNamesTable_fromFileName(const char* inputFileName)
     {   const char** filenamesTable = (const char**) malloc(nbFiles * sizeof(*filenamesTable));
         CONTROL(filenamesTable != NULL);
 
-        {   size_t fnb;
-            for (fnb = 0, pos = 0; fnb < nbFiles; fnb++) {
+        {   size_t fnb, pos = 0;
+            for (fnb = 0; fnb < nbFiles; fnb++) {
                 filenamesTable[fnb] = buf+pos;
                 pos += strlen(buf+pos)+1;  /* +1 for the finishing `\0` */
-        }   }
+            }
         assert(pos <= bufSize);
+        }
 
         return UTIL_assembleFileNamesTable(filenamesTable, nbFiles, buf);
     }
@@ -753,7 +769,7 @@ void UTIL_refFilename(FileNamesTable* fnt, const char* filename)
 
 static size_t getTotalTableSize(FileNamesTable* table)
 {
-    size_t fnb = 0, totalSize = 0;
+    size_t fnb, totalSize = 0;
     for(fnb = 0 ; fnb < table->tableSize && table->fileNames[fnb] ; ++fnb) {
         totalSize += strlen(table->fileNames[fnb]) + 1; /* +1 to add '\0' at the end of each fileName */
     }
@@ -1118,9 +1134,6 @@ static char* mallocAndJoin2Dir(const char *dir1, const char *dir2)
 
         memcpy(outDirBuffer, dir1, dir1Size);
         outDirBuffer[dir1Size] = '\0';
-
-        if (dir2[0] == '.')
-            return outDirBuffer;
 
         buffer = outDirBuffer + dir1Size;
         if (dir1Size > 0 && *(buffer - 1) != PATH_SEP) {
@@ -1546,7 +1559,6 @@ failed:
 
 #elif defined(__FreeBSD__)
 
-#include <sys/param.h>
 #include <sys/sysctl.h>
 
 /* Use physical core sysctl when available

@@ -63,6 +63,8 @@ static size_t compress(uint8_t *dst, size_t capacity,
     size_t dstSize = 0;
     ZSTD_CCtx_reset(cctx, ZSTD_reset_session_only);
     FUZZ_setRandomParameters(cctx, srcSize, producer);
+    int maxBlockSize;
+    FUZZ_ZASSERT(ZSTD_CCtx_getParameter(cctx, ZSTD_c_maxBlockSize, &maxBlockSize));
 
     while (srcSize > 0) {
         ZSTD_inBuffer in = makeInBuffer(&src, &srcSize, producer);
@@ -93,6 +95,8 @@ static size_t compress(uint8_t *dst, size_t capacity,
                         if (FUZZ_dataProducer_uint32Range(producer, 0, 7) == 0) {
                             size_t const remaining = in.size - in.pos;
                             FUZZ_setRandomParameters(cctx, remaining, producer);
+                            /* Always use the same maxBlockSize */
+                            FUZZ_ZASSERT(ZSTD_CCtx_setParameter(cctx, ZSTD_c_maxBlockSize, maxBlockSize));
                         }
                         mode = -1;
                     }
@@ -132,6 +136,23 @@ static size_t compress(uint8_t *dst, size_t capacity,
     return dstSize;
 }
 
+static size_t decompress(void* dst, size_t dstCapacity, void const* src, size_t srcSize, FUZZ_dataProducer_t* producer)
+{
+    ZSTD_inBuffer in = {src, srcSize, 0};
+    ZSTD_outBuffer out = {dst, dstCapacity, 0};
+    int maxBlockSize;
+    FUZZ_ZASSERT(ZSTD_CCtx_getParameter(cctx, ZSTD_c_maxBlockSize, &maxBlockSize));
+    if (FUZZ_dataProducer_uint32Range(producer, 0, 1)) {
+        FUZZ_ZASSERT(ZSTD_DCtx_setParameter(dctx, ZSTD_d_maxBlockSize, maxBlockSize));
+    }
+    while (in.pos < in.size) {
+        size_t const ret = ZSTD_decompressStream(dctx, &out, &in);
+        FUZZ_ZASSERT(ret);
+        FUZZ_ASSERT(ret == 0);
+    }
+    return out.pos;
+}
+
 int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 {
     FUZZ_SEQ_PROD_SETUP();
@@ -163,8 +184,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 
     {
         size_t const cSize = compress(cBuf, neededBufSize, src, size, producer);
-        size_t const rSize =
-            ZSTD_decompressDCtx(dctx, rBuf, neededBufSize, cBuf, cSize);
+        size_t const rSize = decompress(rBuf, neededBufSize, cBuf, cSize, producer);
         FUZZ_ZASSERT(rSize);
         FUZZ_ASSERT_MSG(rSize == size, "Incorrect regenerated size");
         FUZZ_ASSERT_MSG(!FUZZ_memcmp(src, rBuf, size), "Corruption!");

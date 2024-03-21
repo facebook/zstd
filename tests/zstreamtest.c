@@ -408,8 +408,8 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
     if (inBuff.pos != inBuff.size) goto _output_error;   /* should have read the entire frame */
     DISPLAYLEVEL(3, "OK \n");
 
-    /* Re-use without init */
-    DISPLAYLEVEL(3, "test%3i : decompress again without init (re-use previous settings): ", testNb++);
+    /* Reuse without init */
+    DISPLAYLEVEL(3, "test%3i : decompress again without init (reuse previous settings): ", testNb++);
     outBuff.pos = 0;
     { size_t const remaining = ZSTD_decompressStream(zd, &outBuff, &inBuff2);
       if (remaining != 0) goto _output_error; }  /* should reach end of frame == 0; otherwise, some data left, or an error */
@@ -653,8 +653,8 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
             DISPLAYLEVEL(3, "OK (error detected : %s) \n", ZSTD_getErrorName(r));
     }   }
 
-    /* Compression state re-use scenario */
-    DISPLAYLEVEL(3, "test%3i : context re-use : ", testNb++);
+    /* Compression state reuse scenario */
+    DISPLAYLEVEL(3, "test%3i : context reuse : ", testNb++);
     ZSTD_freeCStream(zc);
     zc = ZSTD_createCStream();
     if (zc==NULL) goto _output_error;   /* memory allocation issue */
@@ -718,6 +718,67 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
             CHECK(memcmp(CNBuffer, outBuff.dst, CNBufferSize) != 0, "Corruption!");
         }
         CHECK(dctxSize != ZSTD_sizeof_DCtx(dctx), "No buffers allocated");
+        ZSTD_freeDCtx(dctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : maxBlockSize = 2KB : ", testNb++);
+    {
+        ZSTD_DCtx* dctx = ZSTD_createDCtx();
+        size_t singlePassSize, streamingSize, streaming2KSize;
+
+        {
+            ZSTD_CCtx* cctx = ZSTD_createCCtx();
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_windowLog, 18));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_contentSizeFlag, 0));
+            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_maxBlockSize, 2048));
+            cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBufferSize);
+            CHECK_Z(cSize);
+            ZSTD_freeCCtx(cctx);
+        }
+
+        CHECK_Z(ZSTD_decompressDCtx(dctx, decodedBuffer, CNBufferSize, compressedBuffer, cSize));
+        singlePassSize = ZSTD_sizeof_DCtx(dctx);
+        CHECK_Z(singlePassSize);
+
+        inBuff.src = compressedBuffer;
+        inBuff.size = cSize;
+
+        outBuff.dst = decodedBuffer;
+        outBuff.size = decodedBufferSize;
+
+        CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_maxBlockSize, 2048));
+        inBuff.pos = 0;
+        outBuff.pos = 0;
+        {
+            size_t const r = ZSTD_decompressStream(dctx, &outBuff, &inBuff);
+            CHECK_Z(r);
+            CHECK(r != 0, "Entire frame must be decompressed");
+        }
+        streaming2KSize = ZSTD_sizeof_DCtx(dctx);
+        CHECK_Z(streaming2KSize);
+        
+        CHECK_Z(ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters));
+        inBuff.pos = 0;
+        outBuff.pos = 0;
+        {
+            size_t const r = ZSTD_decompressStream(dctx, &outBuff, &inBuff);
+            CHECK_Z(r);
+            CHECK(r != 0, "Entire frame must be decompressed");
+        }
+        streamingSize = ZSTD_sizeof_DCtx(dctx);
+        CHECK_Z(streamingSize);
+        
+        CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_maxBlockSize, 1024));
+        inBuff.pos = 0;
+        outBuff.pos = 0;
+        CHECK(!ZSTD_isError(ZSTD_decompressStream(dctx, &outBuff, &inBuff)), "decompression must fail");
+
+        CHECK(streamingSize < singlePassSize + (1 << 18) + 3 * ZSTD_BLOCKSIZE_MAX, "Streaming doesn't use the right amount of memory");
+        CHECK(streamingSize != streaming2KSize + 3 * (ZSTD_BLOCKSIZE_MAX - 2048), "ZSTD_d_blockSizeMax didn't save the right amount of memory");
+        DISPLAYLEVEL(3, "| %zu | %zu | %zu | ", singlePassSize, streaming2KSize, streamingSize);
+
         ZSTD_freeDCtx(dctx);
     }
     DISPLAYLEVEL(3, "OK \n");
@@ -1859,7 +1920,7 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
     DISPLAYLEVEL(3, "test%3i : Block-Level External Sequence Producer API: ", testNb++);
     {
         size_t const dstBufSize = ZSTD_compressBound(CNBufferSize);
-        BYTE* const dstBuf = (BYTE*)malloc(ZSTD_compressBound(dstBufSize));
+        BYTE* const dstBuf = (BYTE*)malloc(dstBufSize);
         size_t const checkBufSize = CNBufferSize;
         BYTE* const checkBuf = (BYTE*)malloc(checkBufSize);
         int enableFallback;
@@ -2290,6 +2351,102 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
             ZSTD_freeCDict(cdict);
             ZSTD_freeDDict(ddict);
         }
+        ZSTD_freeCCtx(cctx);
+        ZSTD_freeDCtx(dctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : Testing external sequence producer with static CCtx: ", testNb++);
+    {
+        size_t const dstBufSize = ZSTD_compressBound(CNBufferSize);
+        BYTE* const dstBuf = (BYTE*)malloc(dstBufSize);
+        size_t const checkBufSize = CNBufferSize;
+        BYTE* const checkBuf = (BYTE*)malloc(checkBufSize);
+        ZSTD_CCtx_params* params = ZSTD_createCCtxParams();
+        ZSTD_CCtx* staticCCtx;
+        void* cctxBuf;
+        EMF_testCase seqProdState;
+
+        CHECK_Z(ZSTD_CCtxParams_setParameter(params, ZSTD_c_validateSequences, 1));
+        CHECK_Z(ZSTD_CCtxParams_setParameter(params, ZSTD_c_enableSeqProducerFallback, 0));
+        ZSTD_CCtxParams_registerSequenceProducer(params, &seqProdState, zstreamSequenceProducer);
+
+        {
+            size_t const cctxSize = ZSTD_estimateCCtxSize_usingCCtxParams(params);
+            cctxBuf = malloc(cctxSize);
+            staticCCtx = ZSTD_initStaticCCtx(cctxBuf, cctxSize);
+            ZSTD_CCtx_setParametersUsingCCtxParams(staticCCtx, params);
+        }
+
+        // Check that compression with external sequence producer succeeds when expected
+        seqProdState = EMF_LOTS_OF_SEQS;
+        {
+            size_t dResult;
+            size_t const cResult = ZSTD_compress2(staticCCtx, dstBuf, dstBufSize, CNBuffer, CNBufferSize);
+            CHECK(ZSTD_isError(cResult), "EMF: Compression error: %s", ZSTD_getErrorName(cResult));
+            dResult = ZSTD_decompress(checkBuf, checkBufSize, dstBuf, cResult);
+            CHECK(ZSTD_isError(dResult), "EMF: Decompression error: %s", ZSTD_getErrorName(dResult));
+            CHECK(dResult != CNBufferSize, "EMF: Corruption!");
+            CHECK(memcmp(CNBuffer, checkBuf, CNBufferSize) != 0, "EMF: Corruption!");
+        }
+
+        // Check that compression with external sequence producer fails when expected
+        seqProdState = EMF_BIG_ERROR;
+        {
+            size_t const cResult = ZSTD_compress2(staticCCtx, dstBuf, dstBufSize, CNBuffer, CNBufferSize);
+            CHECK(!ZSTD_isError(cResult), "EMF: Should have raised an error!");
+            CHECK(
+                ZSTD_getErrorCode(cResult) != ZSTD_error_sequenceProducer_failed,
+                "EMF: Wrong error code: %s", ZSTD_getErrorName(cResult)
+            );
+        }
+
+        free(dstBuf);
+        free(checkBuf);
+        free(cctxBuf);
+        ZSTD_freeCCtxParams(params);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : Decoder should reject invalid frame header on legacy frames: ", testNb++);
+    {
+        const unsigned char compressed[] = { 0x26,0xb5,0x2f,0xfd,0x50,0x91,0xfd,0xd8,0xb5 };
+        const size_t compressedSize = 9;
+        size_t const dSize = ZSTD_decompress(NULL, 0, compressed, compressedSize);
+        CHECK(!ZSTD_isError(dSize), "must reject when legacy frame header is invalid");
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : Test single-shot fallback for magicless mode: ", testNb++);
+    {
+        // Aquire resources
+        size_t const srcSize = COMPRESSIBLE_NOISE_LENGTH;
+        void* src = malloc(srcSize);
+        size_t const dstSize = ZSTD_compressBound(srcSize);
+        void* dst = malloc(dstSize);
+        size_t const valSize = srcSize;
+        void* val = malloc(valSize);
+        ZSTD_inBuffer inBuf = { dst, dstSize, 0 };
+        ZSTD_outBuffer outBuf = { val, valSize, 0 };
+        ZSTD_CCtx* cctx = ZSTD_createCCtx();
+        ZSTD_DCtx* dctx = ZSTD_createDCtx();
+        CHECK(!src || !dst || !val || !dctx || !cctx, "memory allocation failure");
+
+        // Write test data for decompression to dst
+        RDG_genBuffer(src, srcSize, compressibility, 0.0, 0xdeadbeef);
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_format, ZSTD_f_zstd1_magicless));
+        CHECK_Z(ZSTD_compress2(cctx, dst, dstSize, src, srcSize));
+
+        // Run decompression
+        CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_format, ZSTD_f_zstd1_magicless));
+        CHECK_Z(ZSTD_decompressStream(dctx, &outBuf, &inBuf));
+
+        // Validate
+        CHECK(outBuf.pos != srcSize, "decompressed size must match");
+        CHECK(memcmp(src, val, srcSize) != 0, "decompressed data must match");
+        
+        // Cleanup
+        free(src); free(dst); free(val);
         ZSTD_freeCCtx(cctx);
         ZSTD_freeDCtx(dctx);
     }
@@ -2845,6 +3002,13 @@ static int fuzzerTests_newAPI(U32 seed, int nbTests, int startTest,
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_c_forceMaxWindow, FUZ_rand(&lseed) & 1, opaqueAPI) );
                 if (FUZ_rand(&lseed) & 1) CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_c_deterministicRefPrefix, FUZ_rand(&lseed) & 1, opaqueAPI) );
 
+                /* Set max block size parameters */
+                if (FUZ_rand(&lseed) & 1) {
+                    int maxBlockSize = (int)(FUZ_rand(&lseed) % ZSTD_BLOCKSIZE_MAX);
+                    maxBlockSize = MAX(1024, maxBlockSize);
+                    CHECK_Z( setCCtxParameter(zc, cctxParams, ZSTD_c_maxBlockSize, maxBlockSize, opaqueAPI) );
+                }
+
                 /* Apply parameters */
                 if (opaqueAPI) {
                     DISPLAYLEVEL(5, "t%u: applying CCtxParams \n", testNb);
@@ -2975,6 +3139,13 @@ static int fuzzerTests_newAPI(U32 seed, int nbTests, int startTest,
         }
         if (FUZ_rand(&lseed) & 1) {
             CHECK_Z(ZSTD_DCtx_setParameter(zd, ZSTD_d_disableHuffmanAssembly, FUZ_rand(&lseed) & 1));
+        }
+        if (FUZ_rand(&lseed) & 1) {
+            int maxBlockSize;
+            CHECK_Z(ZSTD_CCtx_getParameter(zc, ZSTD_c_maxBlockSize, &maxBlockSize));
+            CHECK_Z(ZSTD_DCtx_setParameter(zd, ZSTD_d_maxBlockSize, maxBlockSize));
+        } else {
+            CHECK_Z(ZSTD_DCtx_setParameter(zd, ZSTD_d_maxBlockSize, 0));
         }
         {   size_t decompressionResult = 1;
             ZSTD_inBuffer  inBuff = { cBuffer, cSize, 0 };

@@ -11,6 +11,7 @@
 
 #include <stddef.h>    /* size_t, ptrdiff_t */
 #include "zstd_v02.h"
+#include "../common/compiler.h"
 #include "../common/error_private.h"
 
 
@@ -69,20 +70,6 @@ extern "C" {
 ******************************************/
 #include <stddef.h>    /* size_t, ptrdiff_t */
 #include <string.h>    /* memcpy */
-
-
-/******************************************
-*  Compiler-specific
-******************************************/
-#if defined(__GNUC__)
-#  define MEM_STATIC static __attribute__((unused))
-#elif defined (__cplusplus) || (defined (__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) /* C99 */)
-#  define MEM_STATIC static inline
-#elif defined(_MSC_VER)
-#  define MEM_STATIC static __inline
-#else
-#  define MEM_STATIC static  /* this version may generate warnings for unused static functions; disable the relevant warning */
-#endif
 
 
 /****************************************************************
@@ -875,7 +862,7 @@ extern "C" {
 *  Streaming functions
 ***************************************/
 
-typedef struct ZSTD_DCtx_s ZSTD_DCtx;
+typedef struct ZSTDv02_Dctx_s ZSTD_DCtx;
 
 /*
   Use above functions alternatively.
@@ -2750,7 +2737,7 @@ static unsigned ZSTD_isError(size_t code) { return ERR_isError(code); }
 /* *************************************************************
 *   Decompression section
 ***************************************************************/
-struct ZSTD_DCtx_s
+struct ZSTDv02_Dctx_s
 {
     U32 LLTable[FSE_DTABLE_SIZE_U32(LLFSELog)];
     U32 OffTable[FSE_DTABLE_SIZE_U32(OffFSELog)];
@@ -3431,6 +3418,7 @@ static size_t ZSTD_decompressContinue(ZSTD_DCtx* ctx, void* dst, size_t maxDstSi
         }
         ctx->phase = 1;
         ctx->expected = ZSTD_blockHeaderSize;
+        if (ZSTD_isError(rSize)) return rSize;
         ctx->previousDstEnd = (void*)( ((char*)dst) + rSize);
         return rSize;
     }

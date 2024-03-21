@@ -23,13 +23,13 @@
 #include "fuzz_data_producer.h"
 #include "fuzz_third_party_seq_prod.h"
 
-static ZSTD_CCtx *cctx = NULL;
-static ZSTD_DCtx *dctx = NULL;
+static ZSTD_CCtx* cctx = NULL;
+static ZSTD_DCtx* dctx = NULL;
 
-static size_t roundTripTest(void *result, size_t resultCapacity,
-                            void *compressed, size_t compressedCapacity,
-                            const void *src, size_t srcSize,
-                            FUZZ_dataProducer_t *producer)
+static size_t roundTripTest(void* result, size_t resultCapacity,
+                            void* compressed, size_t compressedCapacity,
+                            const void* src, size_t srcSize,
+                            FUZZ_dataProducer_t* producer)
 {
     ZSTD_dictContentType_e dictContentType = ZSTD_dct_auto;
     FUZZ_dict_t dict = FUZZ_train(src, srcSize, producer);

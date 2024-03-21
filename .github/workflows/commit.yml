@@ -1,0 +1,89 @@
+name: facebook/zstd/commit
+on:
+  push:
+    branches:
+    - dev
+permissions: read-all
+jobs:
+  short-tests-0:
+    runs-on: ubuntu-latest
+    services:
+      docker:
+        image: fbopensource/zstd-circleci-primary:0.0.1
+        options: --entrypoint /bin/bash
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install libcurl4-gnutls-dev
+    - name: Test
+      run: |
+        ./tests/test-license.py
+        cc -v
+        CFLAGS="-O0 -Werror -pedantic" make allmost; make clean
+        make c99build; make clean
+        make c11build; make clean
+        make -j regressiontest; make clean
+        make shortest; make clean
+        make cxxtest; make clean
+  short-tests-1:
+    runs-on: ubuntu-latest
+    services:
+      docker:
+        image: fbopensource/zstd-circleci-primary:0.0.1
+        options: --entrypoint /bin/bash
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install gcc-powerpc-linux-gnu gcc-arm-linux-gnueabi gcc-aarch64-linux-gnu libc6-dev-ppc64-powerpc-cross libcurl4-gnutls-dev lib64gcc-11-dev-powerpc-cross
+    - name: Test
+      run: |-
+        make gnu90build; make clean
+        make gnu99build; make clean
+        make ppc64build V=1; make clean
+        make ppcbuild   V=1; make clean
+        make armbuild   V=1; make clean
+        make aarch64build V=1; make clean
+        make -C tests test-legacy test-longmatch; make clean
+        make -C lib libzstd-nomt; make clean
+  regression-test:
+    runs-on: ubuntu-latest
+    services:
+      docker:
+        image: fbopensource/zstd-circleci-primary:0.0.1
+        options: --entrypoint /bin/bash
+    env:
+      CIRCLE_ARTIFACTS: "/tmp/circleci-artifacts"
+    steps:
+    - uses: actions/checkout@v4
+    - name: restore_cache
+      uses: actions/cache@v4
+      with:
+        key: regression-cache-{{ checksum "tests/regression/data.c" }}-v0
+        path: tests/regression/cache
+        restore-keys: regression-cache-{{ checksum "tests/regression/data.c" }}-v0
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install libcurl4-gnutls-dev
+    - name: Regression Test
+      run: |
+        make -C programs zstd
+        make -C tests/regression test
+        mkdir -p $CIRCLE_ARTIFACTS
+        ./tests/regression/test                     \
+            --cache  tests/regression/cache         \
+            --output $CIRCLE_ARTIFACTS/results.csv  \
+            --zstd   programs/zstd
+        echo "NOTE: The new results.csv is uploaded as an artifact to this job"
+        echo "      If this fails, go to the Artifacts pane in CircleCI, "
+        echo "      download /tmp/circleci-artifacts/results.csv, and if they "
+        echo "      are still good, copy it into the repo and commit it."
+        echo "> diff tests/regression/results.csv $CIRCLE_ARTIFACTS/results.csv"
+        diff tests/regression/results.csv $CIRCLE_ARTIFACTS/results.csv
+    - uses: actions/upload-artifact@v4
+      with:
+        path: "/tmp/circleci-artifacts"

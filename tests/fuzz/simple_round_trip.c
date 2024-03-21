@@ -27,7 +27,7 @@
 static ZSTD_CCtx *cctx = NULL;
 static ZSTD_DCtx *dctx = NULL;
 
-static size_t getDecompressionMargin(void const* compressed, size_t cSize, size_t srcSize, int hasSmallBlocks)
+static size_t getDecompressionMargin(void const* compressed, size_t cSize, size_t srcSize, int hasSmallBlocks, int maxBlockSize)
 {
     size_t margin = ZSTD_decompressionMargin(compressed, cSize);
     if (!hasSmallBlocks) {
@@ -37,7 +37,12 @@ static size_t getDecompressionMargin(void const* compressed, size_t cSize, size_
         ZSTD_frameHeader zfh;
         size_t marginM;
         FUZZ_ZASSERT(ZSTD_getFrameHeader(&zfh, compressed, cSize));
-        marginM = ZSTD_DECOMPRESSION_MARGIN(srcSize, zfh.blockSizeMax);
+        if (maxBlockSize == 0) {
+            maxBlockSize = zfh.blockSizeMax;
+        } else {
+            maxBlockSize = MIN(maxBlockSize, (int)zfh.blockSizeMax);
+        }
+        marginM = ZSTD_DECOMPRESSION_MARGIN(srcSize, maxBlockSize);
         if (marginM < margin)
             margin = marginM;
     }
@@ -52,12 +57,14 @@ static size_t roundTripTest(void *result, size_t resultCapacity,
     size_t cSize;
     size_t dSize;
     int targetCBlockSize = 0;
+    int maxBlockSize = 0;
     if (FUZZ_dataProducer_uint32Range(producer, 0, 1)) {
         size_t const remainingBytes = FUZZ_dataProducer_remainingBytes(producer);
         FUZZ_setRandomParameters(cctx, srcSize, producer);
         cSize = ZSTD_compress2(cctx, compressed, compressedCapacity, src, srcSize);
         FUZZ_ZASSERT(cSize);
         FUZZ_ZASSERT(ZSTD_CCtx_getParameter(cctx, ZSTD_c_targetCBlockSize, &targetCBlockSize));
+        FUZZ_ZASSERT(ZSTD_CCtx_getParameter(cctx, ZSTD_c_maxBlockSize, &maxBlockSize));
         // Compress a second time and check for determinism
         {
             size_t const cSize0 = cSize;
@@ -83,13 +90,16 @@ static size_t roundTripTest(void *result, size_t resultCapacity,
             FUZZ_ASSERT(XXH64(compressed, cSize, 0) == hash0);
         }
     }
+    if (FUZZ_dataProducer_uint32Range(producer, 0, 1)) {
+        FUZZ_ZASSERT(ZSTD_DCtx_setParameter(dctx, ZSTD_d_maxBlockSize, maxBlockSize));
+    }
     dSize = ZSTD_decompressDCtx(dctx, result, resultCapacity, compressed, cSize);
     FUZZ_ZASSERT(dSize);
     FUZZ_ASSERT_MSG(dSize == srcSize, "Incorrect regenerated size");
     FUZZ_ASSERT_MSG(!FUZZ_memcmp(src, result, dSize), "Corruption!");
 
     {
-        size_t margin = getDecompressionMargin(compressed, cSize, srcSize, targetCBlockSize);
+        size_t margin = getDecompressionMargin(compressed, cSize, srcSize, targetCBlockSize, maxBlockSize);
         size_t const outputSize = srcSize + margin;
         char* const output = (char*)FUZZ_malloc(outputSize);
         char* const input = output + outputSize - cSize;

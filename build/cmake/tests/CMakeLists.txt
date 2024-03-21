@@ -50,18 +50,18 @@ set(PROGRAMS_DIR ${ZSTD_SOURCE_DIR}/programs)
 set(TESTS_DIR ${ZSTD_SOURCE_DIR}/tests)
 include_directories(${TESTS_DIR} ${PROGRAMS_DIR} ${LIBRARY_DIR} ${LIBRARY_DIR}/common ${LIBRARY_DIR}/compress ${LIBRARY_DIR}/dictBuilder)
 
-add_executable(datagen ${PROGRAMS_DIR}/datagen.c ${TESTS_DIR}/datagencli.c)
+add_executable(datagen ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/lorem.c ${TESTS_DIR}/loremOut.c ${TESTS_DIR}/datagencli.c)
 target_link_libraries(datagen libzstd_static)
 
 #
 # fullbench
 #
-add_executable(fullbench ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/timefn.c ${PROGRAMS_DIR}/benchfn.c ${PROGRAMS_DIR}/benchzstd.c ${TESTS_DIR}/fullbench.c)
+add_executable(fullbench ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/lorem.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/timefn.c ${PROGRAMS_DIR}/benchfn.c ${PROGRAMS_DIR}/benchzstd.c ${TESTS_DIR}/fullbench.c)
 if (NOT MSVC)
     target_compile_options(fullbench PRIVATE "-Wno-deprecated-declarations")
 endif()
 target_link_libraries(fullbench libzstd_static)
-add_test(NAME fullbench COMMAND fullbench ${ZSTD_FULLBENCH_FLAGS})
+add_test(NAME fullbench COMMAND "$<TARGET_FILE:fullbench>" ${ZSTD_FULLBENCH_FLAGS})
 
 #
 # fuzzer
@@ -73,7 +73,7 @@ endif()
 target_link_libraries(fuzzer libzstd_static)
 AddTestFlagsOption(ZSTD_FUZZER_FLAGS "$ENV{FUZZERTEST} $ENV{FUZZER_FLAGS}"
     "Semicolon-separated list of flags to pass to the fuzzer test (see `fuzzer -h` for usage)")
-add_test(NAME fuzzer COMMAND fuzzer ${ZSTD_FUZZER_FLAGS})
+add_test(NAME fuzzer COMMAND "$<TARGET_FILE:fuzzer>" ${ZSTD_FUZZER_FLAGS})
 # Disable the timeout since the run time is too long for the default timeout of
 # 1500 seconds and varies considerably between low-end and high-end CPUs.
 # set_tests_properties(fuzzer PROPERTIES TIMEOUT 0)
@@ -88,7 +88,7 @@ endif()
 target_link_libraries(zstreamtest libzstd_static)
 AddTestFlagsOption(ZSTD_ZSTREAM_FLAGS "$ENV{ZSTREAM_TESTTIME} $ENV{FUZZER_FLAGS}"
     "Semicolon-separated list of flags to pass to the zstreamtest test (see `zstreamtest -h` for usage)")
-add_test(NAME zstreamtest COMMAND zstreamtest ${ZSTD_ZSTREAM_FLAGS})
+add_test(NAME zstreamtest COMMAND "$<TARGET_FILE:zstreamtest>" ${ZSTD_ZSTREAM_FLAGS})
 
 #
 # playTests.sh
@@ -110,7 +110,7 @@ endif()
 # Label the "Medium" set of tests (see TESTING.md)
 set_property(TEST fuzzer zstreamtest playTests APPEND PROPERTY LABELS Medium)
 
-add_executable(paramgrill ${PROGRAMS_DIR}/benchfn.c ${PROGRAMS_DIR}/benchzstd.c ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/timefn.c ${TESTS_DIR}/paramgrill.c)
+add_executable(paramgrill ${PROGRAMS_DIR}/benchfn.c ${PROGRAMS_DIR}/benchzstd.c ${PROGRAMS_DIR}/datagen.c ${PROGRAMS_DIR}/lorem.c ${PROGRAMS_DIR}/util.c ${PROGRAMS_DIR}/timefn.c ${TESTS_DIR}/paramgrill.c)
 if (UNIX)
     target_link_libraries(paramgrill libzstd_static m) #m is math library
 else()

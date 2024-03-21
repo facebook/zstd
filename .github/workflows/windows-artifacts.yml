@@ -10,19 +10,26 @@ on:
 permissions: read-all
 
 jobs:
-  windows-64-artifacts:
+  windows-artifacts:
     # see https://ariya.io/2020/07/on-github-actions-with-msys2
     runs-on: windows-latest
+    # see https://github.com/msys2/setup-msys2
+    strategy:
+      matrix:
+        include:
+          - { msystem: mingw64, env: x86_64, ziparch: win64 }
+          - { msystem: mingw32, env: i686, ziparch: win32 }
     defaults:
       run:
         shell: msys2 {0}
     steps:
-    - uses: actions/checkout@8f4b7f84864484a7bf31766abe9204da3cbe65b3 # tag=v3
+    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v3
     - uses: msys2/setup-msys2@5beef6d11f48bba68b9eb503e3adc60b23c0cc36 # tag=v2
       with:
-        msystem: MINGW64
-        install: make zlib git p7zip mingw-w64-x86_64-gcc
+        msystem: ${{ matrix.msystem }}
+        install: make zlib git p7zip mingw-w64-${{matrix.env}}-gcc
         update: true
+
     - name: display versions
       run: |
         make -v
@@ -33,19 +40,19 @@ jobs:
         git clone --depth 1 --branch v1.2.11 https://github.com/madler/zlib
         make -C zlib -f win32/Makefile.gcc libz.a
 
-    - name: Building zstd programs in 64-bit mode
+    - name: Building zstd programs
       run: |
         CPPFLAGS=-I../zlib LDFLAGS=../zlib/libz.a make -j allzstd MOREFLAGS=-static V=1
 
     - name: Create artifacts
       run: |
         ./lib/dll/example/build_package.bat
-        mv bin/ zstd-${{ github.ref_name }}-win64/
-        7z a -tzip -mx9 zstd-${{ github.ref_name }}-win64.zip zstd-${{ github.ref_name }}-win64/
+        mv bin/ zstd-${{ github.ref_name }}-${{matrix.ziparch}}/
+        7z a -tzip -mx9 zstd-${{ github.ref_name }}-${{matrix.ziparch}}.zip zstd-${{ github.ref_name }}-${{matrix.ziparch}}/
         cd ..
 
-    - name: Publish zstd-$VERSION-win64.zip
-      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # tag=v3
+    - name: Publish zstd-$VERSION-${{matrix.ziparch}}.zip
+      uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # tag=v4.3.1
       with:
-        path: ${{ github.workspace }}/zstd-${{ github.ref_name }}-win64.zip
-        name: zstd-${{ github.ref_name }}-win64.zip
+        path: ${{ github.workspace }}/zstd-${{ github.ref_name }}-${{matrix.ziparch}}.zip
+        name: zstd-${{ github.ref_name }}-${{matrix.ziparch}}.zip

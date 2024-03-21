@@ -21,10 +21,11 @@ It is based on the **LZ77** family, with further FSE & huff0 entropy stages.
 `zstd` offers highly configurable compression speed,
 from fast modes at > 200 MB/s per core,
 to strong modes with excellent compression ratios.
-It also features a very fast decoder, with speeds > 500 MB/s per core.
+It also features a very fast decoder, with speeds > 500 MB/s per core,
+which remains roughly stable at all compression settings.
 
 `zstd` command line syntax is generally similar to gzip,
-but features the following differences:
+but features the following few differences:
 
   - Source files are preserved by default.
     It's possible to remove them automatically by using the `--rm` command.
@@ -105,7 +106,11 @@ the last one takes effect.
 ### Operation Modifiers
 
 * `-#`:
-    selects `#` compression level \[1-19\] (default: 3)
+    selects `#` compression level \[1-19\] (default: 3).
+    Higher compression levels *generally* produce higher compression ratio at the expense of speed and memory.
+    A rough rule of thumb is that compression speed is expected to be divided by 2 every 2 levels.
+    Technically, each level is mapped to a set of advanced parameters (that can also be modified individually, see below).
+    Because the compressor's behavior highly depends on the content to compress, there's no guarantee of a smooth progression from one level to another.
 * `--ultra`:
     unlocks high compression levels 20+ (maximum 22), using a lot more memory.
     Note that decompression will also require more memory when using these levels.
@@ -218,15 +223,24 @@ the last one takes effect.
     expected. This feature allows for controlling the guess when needed.
     Exact guesses result in better compression ratios. Overestimates result in slightly
     degraded compression ratios, while underestimates may result in significant degradation.
-* `-o FILE`:
-    save result into `FILE`.
+* `--target-compressed-block-size=#`:
+    Attempt to produce compressed blocks of approximately this size.
+    This will split larger blocks in order to approach this target.
+    This feature is notably useful for improved latency, when the receiver can leverage receiving early incomplete data.
+    This parameter defines a loose target: compressed blocks will target this size "on average", but individual blocks can still be larger or smaller.
+    Enabling this feature can decrease compression speed by up to ~10% at level 1.
+    Higher levels will see smaller relative speed regression, becoming invisible at higher settings.
 * `-f`, `--force`:
     disable input and output checks. Allows overwriting existing files, input
     from console, output to stdout, operating on links, block devices, etc.
     During decompression and when the output destination is stdout, pass-through
     unrecognized formats as-is.
 * `-c`, `--stdout`:
-    write to standard output (even if it is the console); keep original files unchanged.
+    write to standard output (even if it is the console); keep original files (disable `--rm`).
+* `-o FILE`:
+    save result into `FILE`.
+    Note that this operation is in conflict with `-c`.
+    If both operations are present on the command line, the last expressed one wins.
 * `--[no-]sparse`:
     enable / disable sparse FS support,
     to make files with many zeroes smaller on disk.
@@ -283,10 +297,11 @@ the last one takes effect.
 * `-h`/`-H`, `--help`:
     display help/long help and exit
 * `-V`, `--version`:
-    display version number and exit.
+    display version number and immediately exit.
+    note that, since it exits, flags specified after `-V` are effectively ignored.
     Advanced: `-vV` also displays supported formats.
     `-vvV` also displays POSIX support.
-    `-q` will only display the version number, suitable for machine reading.
+    `-qV` will only display the version number, suitable for machine reading.
 * `-v`, `--verbose`:
     verbose mode, display more information
 * `-q`, `--quiet`:
@@ -297,6 +312,8 @@ the last one takes effect.
 * `--show-default-cparams`:
     shows the default compression parameters that will be used for a particular input file, based on the provided compression level and the input size.
     If the provided file is not a regular file (e.g. a pipe), this flag will output the parameters used for inputs of unknown size.
+* `--exclude-compressed`:
+    only compress files that are not already compressed.
 * `--`:
     All arguments after `--` are treated as files
 
@@ -313,11 +330,10 @@ options that intend to mimic the `gzip` behavior:
 
 
 ### Environment Variables
-
 Employing environment variables to set parameters has security implications.
 Therefore, this avenue is intentionally limited.
 Only `ZSTD_CLEVEL` and `ZSTD_NBTHREADS` are currently supported.
-They set the compression level and number of threads to use during compression, respectively.
+They set the default compression level and number of threads to use during compression, respectively.
 
 `ZSTD_CLEVEL` can be used to set the level between 1 and 19 (the "normal" range).
 If the value of `ZSTD_CLEVEL` is not a valid integer, it will be ignored with a warning message.
@@ -326,10 +342,169 @@ If the value of `ZSTD_CLEVEL` is not a valid integer, it will be ignored with a 
 `ZSTD_NBTHREADS` can be used to set the number of threads `zstd` will attempt to use during compression.
 If the value of `ZSTD_NBTHREADS` is not a valid unsigned integer, it will be ignored with a warning message.
 `ZSTD_NBTHREADS` has a default value of (`1`), and is capped at ZSTDMT_NBWORKERS_MAX==200.
-`zstd` must be compiled with multithread support for this to have any effect.
+`zstd` must be compiled with multithread support for this variable to have any effect.
 
 They can both be overridden by corresponding command line arguments:
 `-#` for compression level and `-T#` for number of compression threads.
+
+
+ADVANCED COMPRESSION OPTIONS
+----------------------------
+`zstd` provides 22 predefined regular compression levels plus the fast levels.
+A compression level is translated internally into multiple advanced parameters that control the behavior of the compressor
+(one can observe the result of this translation with `--show-default-cparams`).
+These advanced parameters can be overridden using advanced compression options.
+
+### --zstd[=options]:
+The _options_ are provided as a comma-separated list.
+You may specify only the options you want to change and the rest will be
+taken from the selected or default compression level.
+The list of available _options_:
+
+- `strategy`=_strat_, `strat`=_strat_:
+    Specify a strategy used by a match finder.
+
+    There are 9 strategies numbered from 1 to 9, from fastest to strongest:
+    1=`ZSTD_fast`, 2=`ZSTD_dfast`, 3=`ZSTD_greedy`,
+    4=`ZSTD_lazy`, 5=`ZSTD_lazy2`, 6=`ZSTD_btlazy2`,
+    7=`ZSTD_btopt`, 8=`ZSTD_btultra`, 9=`ZSTD_btultra2`.
+
+- `windowLog`=_wlog_, `wlog`=_wlog_:
+    Specify the maximum number of bits for a match distance.
+
+    The higher number of increases the chance to find a match which usually
+    improves compression ratio.
+    It also increases memory requirements for the compressor and decompressor.
+    The minimum _wlog_ is 10 (1 KiB) and the maximum is 30 (1 GiB) on 32-bit
+    platforms and 31 (2 GiB) on 64-bit platforms.
+
+    Note: If `windowLog` is set to larger than 27, `--long=windowLog` or
+    `--memory=windowSize` needs to be passed to the decompressor.
+
+- `hashLog`=_hlog_, `hlog`=_hlog_:
+    Specify the maximum number of bits for a hash table.
+
+    Bigger hash tables cause fewer collisions which usually makes compression
+    faster, but requires more memory during compression.
+
+    The minimum _hlog_ is 6 (64 entries / 256 B) and the maximum is 30 (1B entries / 4 GiB).
+
+- `chainLog`=_clog_, `clog`=_clog_:
+    Specify the maximum number of bits for the secondary search structure,
+    whose form depends on the selected `strategy`.
+
+    Higher numbers of bits increases the chance to find a match which usually
+    improves compression ratio.
+    It also slows down compression speed and increases memory requirements for
+    compression.
+    This option is ignored for the `ZSTD_fast` `strategy`, which only has the primary hash table.
+
+    The minimum _clog_ is 6 (64 entries / 256 B) and the maximum is 29 (512M entries / 2 GiB) on 32-bit platforms
+    and 30 (1B entries / 4 GiB) on 64-bit platforms.
+
+- `searchLog`=_slog_, `slog`=_slog_:
+    Specify the maximum number of searches in a hash chain or a binary tree
+    using logarithmic scale.
+
+    More searches increases the chance to find a match which usually increases
+    compression ratio but decreases compression speed.
+
+    The minimum _slog_ is 1 and the maximum is 'windowLog' - 1.
+
+- `minMatch`=_mml_, `mml`=_mml_:
+    Specify the minimum searched length of a match in a hash table.
+
+    Larger search lengths usually decrease compression ratio but improve
+    decompression speed.
+
+    The minimum _mml_ is 3 and the maximum is 7.
+
+- `targetLength`=_tlen_, `tlen`=_tlen_:
+    The impact of this field vary depending on selected strategy.
+
+    For `ZSTD_btopt`, `ZSTD_btultra` and `ZSTD_btultra2`, it specifies
+    the minimum match length that causes match finder to stop searching.
+    A larger `targetLength` usually improves compression ratio
+    but decreases compression speed.
+
+    For `ZSTD_fast`, it triggers ultra-fast mode when > 0.
+    The value represents the amount of data skipped between match sampling.
+    Impact is reversed: a larger `targetLength` increases compression speed
+    but decreases compression ratio.
+
+    For all other strategies, this field has no impact.
+
+    The minimum _tlen_ is 0 and the maximum is 128 KiB.
+
+- `overlapLog`=_ovlog_,  `ovlog`=_ovlog_:
+    Determine `overlapSize`, amount of data reloaded from previous job.
+    This parameter is only available when multithreading is enabled.
+    Reloading more data improves compression ratio, but decreases speed.
+
+    The minimum _ovlog_ is 0, and the maximum is 9.
+    1 means "no overlap", hence completely independent jobs.
+    9 means "full overlap", meaning up to `windowSize` is reloaded from previous job.
+    Reducing _ovlog_ by 1 reduces the reloaded amount by a factor 2.
+    For example, 8 means "windowSize/2", and 6 means "windowSize/8".
+    Value 0 is special and means "default": _ovlog_ is automatically determined by `zstd`.
+    In which case, _ovlog_ will range from 6 to 9, depending on selected _strat_.
+
+- `ldmHashLog`=_lhlog_, `lhlog`=_lhlog_:
+    Specify the maximum size for a hash table used for long distance matching.
+
+    This option is ignored unless long distance matching is enabled.
+
+    Bigger hash tables usually improve compression ratio at the expense of more
+    memory during compression and a decrease in compression speed.
+
+    The minimum _lhlog_ is 6 and the maximum is 30 (default: 20).
+
+- `ldmMinMatch`=_lmml_, `lmml`=_lmml_:
+    Specify the minimum searched length of a match for long distance matching.
+
+    This option is ignored unless long distance matching is enabled.
+
+    Larger/very small values usually decrease compression ratio.
+
+    The minimum _lmml_ is 4 and the maximum is 4096 (default: 64).
+
+- `ldmBucketSizeLog`=_lblog_, `lblog`=_lblog_:
+    Specify the size of each bucket for the hash table used for long distance
+    matching.
+
+    This option is ignored unless long distance matching is enabled.
+
+    Larger bucket sizes improve collision resolution but decrease compression
+    speed.
+
+    The minimum _lblog_ is 1 and the maximum is 8 (default: 3).
+
+- `ldmHashRateLog`=_lhrlog_, `lhrlog`=_lhrlog_:
+    Specify the frequency of inserting entries into the long distance matching
+    hash table.
+
+    This option is ignored unless long distance matching is enabled.
+
+    Larger values will improve compression speed. Deviating far from the
+    default value will likely result in a decrease in compression ratio.
+
+    The default value is `wlog - lhlog`.
+
+### Example
+The following parameters sets advanced compression options to something
+similar to predefined level 19 for files bigger than 256 KB:
+
+`--zstd`=wlog=23,clog=23,hlog=22,slog=6,mml=3,tlen=48,strat=6
+
+### -B#:
+Specify the size of each compression job.
+This parameter is only available when multi-threading is enabled.
+Each compression job is run in parallel, so this value indirectly impacts the nb of active threads.
+Default job size varies depending on compression level (generally  `4 * windowSize`).
+`-B#` makes it possible to manually select a custom size.
+Note that job size must respect a minimum value which is enforced transparently.
+This minimum is either 512 KB, or `overlapSize`, whichever is largest.
+Different job sizes will lead to non-identical compressed frames.
 
 
 DICTIONARY BUILDER
@@ -484,178 +659,26 @@ Compression of small files similar to the sample set will be greatly improved.
 
 BENCHMARK
 ---------
+The `zstd` CLI provides a benchmarking mode that can be used to easily find suitable compression parameters, or alternatively to benchmark a computer's performance.
+Note that the results are highly dependent on the content being compressed.
 
 * `-b#`:
     benchmark file(s) using compression level #
 * `-e#`:
     benchmark file(s) using multiple compression levels, from `-b#` to `-e#` (inclusive)
+* `-d`:
+    benchmark decompression speed only (requires providing an already zstd-compressed content)
 * `-i#`:
     minimum evaluation time, in seconds (default: 3s), benchmark mode only
 * `-B#`, `--block-size=#`:
     cut file(s) into independent chunks of size # (default: no chunking)
 * `--priority=rt`:
-    set process priority to real-time
+    set process priority to real-time (Windows)
 
 **Output Format:** CompressionLevel#Filename: InputSize -> OutputSize (CompressionRatio), CompressionSpeed, DecompressionSpeed
 
 **Methodology:** For both compression and decompression speed, the entire input is compressed/decompressed in-memory to measure speed. A run lasts at least 1 sec, so when files are small, they are compressed/decompressed several times per run, in order to improve measurement accuracy.
 
-ADVANCED COMPRESSION OPTIONS
-----------------------------
-### -B#:
-Specify the size of each compression job.
-This parameter is only available when multi-threading is enabled.
-Each compression job is run in parallel, so this value indirectly impacts the nb of active threads.
-Default job size varies depending on compression level (generally  `4 * windowSize`).
-`-B#` makes it possible to manually select a custom size.
-Note that job size must respect a minimum value which is enforced transparently.
-This minimum is either 512 KB, or `overlapSize`, whichever is largest.
-Different job sizes will lead to non-identical compressed frames.
-
-### --zstd[=options]:
-`zstd` provides 22 predefined regular compression levels plus the fast levels.
-This compression level is translated internally into a number of specific parameters that actually control the behavior of the compressor.
-(You can see the result of this translation with `--show-default-cparams`.)
-These specific parameters can be overridden with advanced compression options.
-The _options_ are provided as a comma-separated list.
-You may specify only the options you want to change and the rest will be
-taken from the selected or default compression level.
-The list of available _options_:
-
-- `strategy`=_strat_, `strat`=_strat_:
-    Specify a strategy used by a match finder.
-
-    There are 9 strategies numbered from 1 to 9, from fastest to strongest:
-    1=`ZSTD_fast`, 2=`ZSTD_dfast`, 3=`ZSTD_greedy`,
-    4=`ZSTD_lazy`, 5=`ZSTD_lazy2`, 6=`ZSTD_btlazy2`,
-    7=`ZSTD_btopt`, 8=`ZSTD_btultra`, 9=`ZSTD_btultra2`.
-
-- `windowLog`=_wlog_, `wlog`=_wlog_:
-    Specify the maximum number of bits for a match distance.
-
-    The higher number of increases the chance to find a match which usually
-    improves compression ratio.
-    It also increases memory requirements for the compressor and decompressor.
-    The minimum _wlog_ is 10 (1 KiB) and the maximum is 30 (1 GiB) on 32-bit
-    platforms and 31 (2 GiB) on 64-bit platforms.
-
-    Note: If `windowLog` is set to larger than 27, `--long=windowLog` or
-    `--memory=windowSize` needs to be passed to the decompressor.
-
-- `hashLog`=_hlog_, `hlog`=_hlog_:
-    Specify the maximum number of bits for a hash table.
-
-    Bigger hash tables cause fewer collisions which usually makes compression
-    faster, but requires more memory during compression.
-
-    The minimum _hlog_ is 6 (64 entries / 256 B) and the maximum is 30 (1B entries / 4 GiB).
-
-- `chainLog`=_clog_, `clog`=_clog_:
-    Specify the maximum number of bits for the secondary search structure,
-    whose form depends on the selected `strategy`.
-
-    Higher numbers of bits increases the chance to find a match which usually
-    improves compression ratio.
-    It also slows down compression speed and increases memory requirements for
-    compression.
-    This option is ignored for the `ZSTD_fast` `strategy`, which only has the primary hash table.
-
-    The minimum _clog_ is 6 (64 entries / 256 B) and the maximum is 29 (512M entries / 2 GiB) on 32-bit platforms
-    and 30 (1B entries / 4 GiB) on 64-bit platforms.
-
-- `searchLog`=_slog_, `slog`=_slog_:
-    Specify the maximum number of searches in a hash chain or a binary tree
-    using logarithmic scale.
-
-    More searches increases the chance to find a match which usually increases
-    compression ratio but decreases compression speed.
-
-    The minimum _slog_ is 1 and the maximum is 'windowLog' - 1.
-
-- `minMatch`=_mml_, `mml`=_mml_:
-    Specify the minimum searched length of a match in a hash table.
-
-    Larger search lengths usually decrease compression ratio but improve
-    decompression speed.
-
-    The minimum _mml_ is 3 and the maximum is 7.
-
-- `targetLength`=_tlen_, `tlen`=_tlen_:
-    The impact of this field vary depending on selected strategy.
-
-    For `ZSTD_btopt`, `ZSTD_btultra` and `ZSTD_btultra2`, it specifies
-    the minimum match length that causes match finder to stop searching.
-    A larger `targetLength` usually improves compression ratio
-    but decreases compression speed.
-
-    For `ZSTD_fast`, it triggers ultra-fast mode when > 0.
-    The value represents the amount of data skipped between match sampling.
-    Impact is reversed: a larger `targetLength` increases compression speed
-    but decreases compression ratio.
-
-    For all other strategies, this field has no impact.
-
-    The minimum _tlen_ is 0 and the maximum is 128 KiB.
-
-- `overlapLog`=_ovlog_,  `ovlog`=_ovlog_:
-    Determine `overlapSize`, amount of data reloaded from previous job.
-    This parameter is only available when multithreading is enabled.
-    Reloading more data improves compression ratio, but decreases speed.
-
-    The minimum _ovlog_ is 0, and the maximum is 9.
-    1 means "no overlap", hence completely independent jobs.
-    9 means "full overlap", meaning up to `windowSize` is reloaded from previous job.
-    Reducing _ovlog_ by 1 reduces the reloaded amount by a factor 2.
-    For example, 8 means "windowSize/2", and 6 means "windowSize/8".
-    Value 0 is special and means "default": _ovlog_ is automatically determined by `zstd`.
-    In which case, _ovlog_ will range from 6 to 9, depending on selected _strat_.
-
-- `ldmHashLog`=_lhlog_, `lhlog`=_lhlog_:
-    Specify the maximum size for a hash table used for long distance matching.
-
-    This option is ignored unless long distance matching is enabled.
-
-    Bigger hash tables usually improve compression ratio at the expense of more
-    memory during compression and a decrease in compression speed.
-
-    The minimum _lhlog_ is 6 and the maximum is 30 (default: 20).
-
-- `ldmMinMatch`=_lmml_, `lmml`=_lmml_:
-    Specify the minimum searched length of a match for long distance matching.
-
-    This option is ignored unless long distance matching is enabled.
-
-    Larger/very small values usually decrease compression ratio.
-
-    The minimum _lmml_ is 4 and the maximum is 4096 (default: 64).
-
-- `ldmBucketSizeLog`=_lblog_, `lblog`=_lblog_:
-    Specify the size of each bucket for the hash table used for long distance
-    matching.
-
-    This option is ignored unless long distance matching is enabled.
-
-    Larger bucket sizes improve collision resolution but decrease compression
-    speed.
-
-    The minimum _lblog_ is 1 and the maximum is 8 (default: 3).
-
-- `ldmHashRateLog`=_lhrlog_, `lhrlog`=_lhrlog_:
-    Specify the frequency of inserting entries into the long distance matching
-    hash table.
-
-    This option is ignored unless long distance matching is enabled.
-
-    Larger values will improve compression speed. Deviating far from the
-    default value will likely result in a decrease in compression ratio.
-
-    The default value is `wlog - lhlog`.
-
-### Example
-The following parameters sets advanced compression options to something
-similar to predefined level 19 for files bigger than 256 KB:
-
-`--zstd`=wlog=23,clog=23,hlog=22,slog=6,mml=3,tlen=48,strat=6
 
 SEE ALSO
 --------

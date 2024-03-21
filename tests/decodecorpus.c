@@ -732,7 +732,7 @@ generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
             }
         } while (((!info.useDict) && (offset > (size_t)((BYTE*)srcPtr - (BYTE*)frame->srcStart))) || offset == 0);
 
-        {   BYTE* const dictEnd = info.dictContent + info.dictContentSize;
+        {   BYTE* const dictEnd = ZSTD_maybeNullPtrAdd(info.dictContent, info.dictContentSize);
             size_t j;
             for (j = 0; j < matchLen; j++) {
                 if ((U32)((BYTE*)srcPtr - (BYTE*)frame->srcStart) < offset) {
@@ -825,7 +825,7 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
 
     /* Sequences Header */
     if ((oend-op) < 3 /*max nbSeq Size*/ + 1 /*seqHead */) return ERROR(dstSize_tooSmall);
-    if (nbSeq < 0x7F) *op++ = (BYTE)nbSeq;
+    if (nbSeq < 128) *op++ = (BYTE)nbSeq;
     else if (nbSeq < LONGNBSEQ) op[0] = (BYTE)((nbSeq>>8) + 0x80), op[1] = (BYTE)nbSeq, op+=2;
     else op[0]=0xFF, MEM_writeLE16(op+1, (U16)(nbSeq - LONGNBSEQ)), op+=3;
 

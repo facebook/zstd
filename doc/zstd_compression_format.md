@@ -16,7 +16,7 @@ Distribution of this document is unlimited.
 
 ### Version
 
-0.3.9 (2023-03-08)
+0.4.0 (2023-06-05)
 
 
 Introduction
@@ -650,13 +650,15 @@ __`Number_of_Sequences`__
 
 This is a variable size field using between 1 and 3 bytes.
 Let's call its first byte `byte0`.
-- `if (byte0 == 0)` : there are no sequences.
-            The sequence section stops there.
-            Decompressed content is defined entirely as Literals Section content.
-            The FSE tables used in `Repeat_Mode` aren't updated.
 - `if (byte0 < 128)` : `Number_of_Sequences = byte0` . Uses 1 byte.
-- `if (byte0 < 255)` : `Number_of_Sequences = ((byte0-128) << 8) + byte1` . Uses 2 bytes.
-- `if (byte0 == 255)`: `Number_of_Sequences = byte1 + (byte2<<8) + 0x7F00` . Uses 3 bytes.
+- `if (byte0 < 255)` : `Number_of_Sequences = ((byte0 - 0x80) << 8) + byte1`. Uses 2 bytes.
+            Note that the 2 bytes format fully overlaps the 1 byte format.
+- `if (byte0 == 255)`: `Number_of_Sequences = byte1 + (byte2<<8) + 0x7F00`. Uses 3 bytes.
+
+`if (Number_of_Sequences == 0)` : there are no sequences.
+            The sequence section stops immediately,
+            FSE tables used in `Repeat_Mode` aren't updated.
+            Block's decompressed content is defined solely by the Literals Section content.
 
 __Symbol compression modes__
 
@@ -927,7 +929,10 @@ There is an exception though, when current sequence's `literals_length = 0`.
 In this case, repeated offsets are shifted by one,
 so an `offset_value` of 1 means `Repeated_Offset2`,
 an `offset_value` of 2 means `Repeated_Offset3`,
-and an `offset_value` of 3 means `Repeated_Offset1 - 1_byte`.
+and an `offset_value` of 3 means `Repeated_Offset1 - 1`.
+
+In the final case, if `Repeated_Offset1 - 1` evaluates to 0, then the
+data is considered corrupted.
 
 For the first block, the starting offset history is populated with following values :
 `Repeated_Offset1`=1, `Repeated_Offset2`=4, `Repeated_Offset3`=8,
@@ -1081,7 +1086,8 @@ It depends on :
   Presuming an `Accuracy_Log` of 8,
   and presuming 100 probabilities points have already been distributed,
   the decoder may read any value from `0` to `256 - 100 + 1 == 157` (inclusive).
-  Therefore, it must read `log2sup(157) == 8` bits.
+  Therefore, it may read up to `log2sup(157) == 8` bits, where `log2sup(N)`
+  is the smallest integer `T` that satisfies `(1 << T) > N`.
 
 - Value decoded : small values use 1 less bit :
   __example__ :
@@ -1121,6 +1127,9 @@ When last symbol reaches cumulated total of `1 << Accuracy_Log`,
 decoding is complete.
 If the last symbol makes cumulated total go above `1 << Accuracy_Log`,
 distribution is considered corrupted.
+If this process results in a non-zero probability for a value outside of the
+valid range of values that the FSE table is defined for, even if that value is
+not used, then the data is considered corrupted.
 
 Then the decoder can tell how many bytes were used in this process,
 and how many symbols are present.
@@ -1184,9 +1193,9 @@ Baseline is assigned starting from the higher states using fewer bits,
 increasing at each state, then resuming at the first state,
 each state takes its allocated width from Baseline.
 
-| state value      |   1   |  39   |   77   |  84  |  122   |
 | state order      |   0   |   1   |    2   |   3  |    4   |
 | ---------------- | ----- | ----- | ------ | ---- | ------ |
+| state value      |   1   |  39   |   77   |  84  |  122   |
 | width            |  32   |  32   |   32   |  16  |   16   |
 | `Number_of_Bits` |   5   |   5   |    5   |   4  |    4   |
 | range number     |   2   |   4   |    6   |   0  |    1   |
@@ -1249,7 +1258,9 @@ Number_of_Bits = Weight ? (Max_Number_of_Bits + 1 - Weight) : 0
 ```
 When a literal value is not present, it receives a `Weight` of 0.
 The least frequent symbol receives a `Weight` of 1.
-Consequently, the `Weight` 1 is necessarily present.
+If no literal has a `Weight` of 1, then the data is considered corrupted.
+If there are not at least two literals with non-zero `Weight`, then the data
+is considered corrupted.
 The most frequent symbol receives a `Weight` anywhere between 1 and 11 (max).
 The last symbol's `Weight` is deduced from previously retrieved Weights,
 by completing to the nearest power of 2. It's necessarily non 0.
@@ -1349,6 +1360,9 @@ by tracking bitStream overflow condition:
 If updating state after decoding a symbol would require more bits than
 remain in the stream, it is assumed that extra bits are 0.  Then,
 symbols for each of the final states are decoded and the process is complete.
+
+If this process would produce more weights than the maximum number of decoded
+weights (255), then the data is considered corrupted.
 
 #### Conversion from weights to Huffman prefix codes
 
@@ -1697,6 +1711,7 @@ or at least provide a meaningful error code explaining for which reason it canno
 
 Version changes
 ---------------
+- 0.4.0 : fixed imprecise behavior for nbSeq==0, detected by Igor Pavlov
 - 0.3.9 : clarifications for Huffman-compressed literal sizes.
 - 0.3.8 : clarifications for Huffman Blocks and Huffman Tree descriptions.
 - 0.3.7 : clarifications for Repeat_Offsets, matching RFC8878

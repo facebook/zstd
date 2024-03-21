@@ -1,3 +1,40 @@
+V1.5.6 (Mar 2024)
+api: Promote `ZSTD_c_targetCBlockSize` to Stable API by @felixhandte
+api: new `ZSTD_d_maxBlockSize` experimental parameter, to reduce streaming decompression memory, by @terrelln
+perf: improve performance of param `ZSTD_c_targetCBlockSize`, by @Cyan4973
+perf: improved compression of arrays of integers at high compression, by @Cyan4973
+lib: reduce binary size with selective built-time exclusion, by @felixhandte
+lib: improved huffman speed on small data and linux kernel, by @terrelln
+lib: accept dictionaries with partial literal tables, by @terrelln
+lib: fix CCtx size estimation with external sequence producer, by @embg
+lib: fix corner case decoder behaviors, by @Cyan4973 and @aimuz
+lib: fix zdict prototype mismatch in static_only mode, by @ldv-alt
+lib: fix several bugs in magicless-format decoding, by @embg
+cli: add common compressed file types to `--exclude-compressed`` by @daniellerozenblit
+cli: fix mixing `-c` and `-o` commands with `--rm`, by @Cyan4973
+cli: fix erroneous exclusion of hidden files with `--output-dir-mirror` by @felixhandte
+cli: improved time accuracy on BSD, by @felixhandte
+cli: better errors on argument parsing, by @KapJI
+tests: better compatibility with older versions of `grep`, by @Cyan4973
+tests: lorem ipsum generator as default backup content, by @Cyan4973
+build: cmake improvements by @terrelln, @sighingnow, @gjasny, @JohanMabille, @Saverio976, @gruenich, @teo-tsirpanis
+build: bazel support, by @jondo2010
+build: fix cross-compiling for AArch64 with lld by @jcelerier
+build: fix Apple platform compatibility, by @nidhijaju
+build: fix Visual 2012 and lower compatibility, by @Cyan4973
+build: improve win32 support, by @DimitriPapadopoulos
+build: better C90 compliance for zlibWrapper, by @emaste
+port: make: fat binaries on macos, by @mredig
+port: ARM64EC compatibility for Windows, by @dunhor
+port: QNX support by @klausholstjacobsen
+port: MSYS2 and Cygwin makefile installation and test support, by @QBos07
+port: risc-v support validation in CI, by @Cyan4973
+port: sparc64 support validation in CI, by @Cyan4973
+port: AIX compatibility, by @likema
+port: HP-UX compatibility, by @likema
+doc: Improved specification accuracy, by @elasota
+bug: Fix and deprecate ZSTD_generateSequences (#3981)
+
 v1.5.5 (Apr 2023)
 fix: fix rare corruption bug affecting the high compression mode, reported by @danlark1 (#3517, @terrelln)
 perf: improve mid-level compression speed (#3529, #3533, #3543, @yoniko and #3552, @terrelln)
@@ -98,7 +135,7 @@ build: support for m68k (Motorola 68000's), by @cyan4973
 build: improved AIX support, by @Helflym
 build: improved meson unofficial build, by @eli-schwartz
 cli : custom memory limit when training dictionary (#2925), by @embg
-cli : report advanced parameters information when compressing in very verbose mode (``-vv`), by @Svetlitski-FB
+cli : report advanced parameters information when compressing in very verbose mode (`-vv`), by @Svetlitski-FB
 
 v1.5.0  (May 11, 2021)
 api: Various functions promoted from experimental to stable API: (#2579-2581, @senhuang42)
@@ -165,7 +202,7 @@ api: Add Function to Generate Skippable Frame (#2439, @senhuang42)
 perf: New Algorithms for the Long Distance Matcher (#2483, @mpu)
 perf: Performance Improvements for Long Distance Matcher (#2464, @mpu)
 perf: Don't Shrink Window Log when Streaming with a Dictionary (#2451, @terrelln)
-cli: Fix `--output-dir-mirror`'s Rejection of `..`-Containing Paths (#2512, @felixhandte)
+cli: Fix `--output-dir-mirror` rejection of `..` -containing paths (#2512, @felixhandte)
 cli: Allow Input From Console When `-f`/`--force` is Passed (#2466, @felixhandte)
 cli: Improve Help Message (#2500, @senhuang42)
 tests: Remove Flaky Tests (#2455, #2486, #2445, @Cyan4973)

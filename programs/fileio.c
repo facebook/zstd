@@ -527,7 +527,7 @@ static int FIO_removeFile(const char* path)
         DISPLAYLEVEL(2, "zstd: Refusing to remove non-regular file %s\n", path);
         return 0;
     }
-#if defined(_WIN32) || defined(WIN32)
+#if defined(_WIN32)
     /* windows doesn't allow remove read-only files,
      * so try to make it writable first */
     if (!(statbuf.st_mode & _S_IWRITE)) {
@@ -1096,15 +1096,15 @@ static void FIO_adjustParamsForPatchFromMode(FIO_prefs_t* const prefs,
     comprParams->windowLog = MAX(ZSTD_WINDOWLOG_MIN, MIN(ZSTD_WINDOWLOG_MAX, fileWindowLog));
     if (fileWindowLog > ZSTD_cycleLog(cParams.chainLog, cParams.strategy)) {
         if (!prefs->ldmFlag)
-            DISPLAYLEVEL(1, "long mode automatically triggered\n");
+            DISPLAYLEVEL(2, "long mode automatically triggered\n");
         FIO_setLdmFlag(prefs, 1);
     }
     if (cParams.strategy >= ZSTD_btopt) {
-        DISPLAYLEVEL(1, "[Optimal parser notes] Consider the following to improve patch size at the cost of speed:\n");
-        DISPLAYLEVEL(1, "- Use --single-thread mode in the zstd cli\n");
-        DISPLAYLEVEL(1, "- Set a larger targetLength (e.g. --zstd=targetLength=4096)\n");
-        DISPLAYLEVEL(1, "- Set a larger chainLog (e.g. --zstd=chainLog=%u)\n", ZSTD_CHAINLOG_MAX);
-        DISPLAYLEVEL(1, "Also consider playing around with searchLog and hashLog\n");
+        DISPLAYLEVEL(3, "[Optimal parser notes] Consider the following to improve patch size at the cost of speed:\n");
+        DISPLAYLEVEL(3, "- Use --single-thread mode in the zstd cli\n");
+        DISPLAYLEVEL(3, "- Set a larger targetLength (e.g. --zstd=targetLength=4096)\n");
+        DISPLAYLEVEL(3, "- Set a larger chainLog (e.g. --zstd=chainLog=%u)\n", ZSTD_CHAINLOG_MAX);
+        DISPLAYLEVEL(3, "Also consider playing around with searchLog and hashLog\n");
     }
 }
 
@@ -1839,7 +1839,6 @@ static int FIO_compressFilename_dstFile(FIO_ctx_t* const fCtx,
     int closeDstFile = 0;
     int result;
     int transferStat = 0;
-    FILE *dstFile;
     int dstFd = -1;
 
     assert(AIO_ReadPool_getFile(ress.readCtx) != NULL);
@@ -1854,10 +1853,11 @@ static int FIO_compressFilename_dstFile(FIO_ctx_t* const fCtx,
 
         closeDstFile = 1;
         DISPLAYLEVEL(6, "FIO_compressFilename_dstFile: opening dst: %s \n", dstFileName);
-        dstFile = FIO_openDstFile(fCtx, prefs, srcFileName, dstFileName, dstFileInitialPermissions);
-        if (dstFile==NULL) return 1;  /* could not open dstFileName */
-        dstFd = fileno(dstFile);
-        AIO_WritePool_setFile(ress.writeCtx, dstFile);
+        {   FILE *dstFile = FIO_openDstFile(fCtx, prefs, srcFileName, dstFileName, dstFileInitialPermissions);
+            if (dstFile==NULL) return 1;  /* could not open dstFileName */
+            dstFd = fileno(dstFile);
+            AIO_WritePool_setFile(ress.writeCtx, dstFile);
+        }
         /* Must only be added after FIO_openDstFile() succeeds.
          * Otherwise we may delete the destination file if it already exists,
          * and the user presses Ctrl-C when asked if they wish to overwrite.
@@ -1907,6 +1907,110 @@ static const char *compressedFileExtensions[] = {
     TXZ_EXTENSION,
     LZ4_EXTENSION,
     TLZ4_EXTENSION,
+    ".7z",
+    ".aa3",
+    ".aac",
+    ".aar",
+    ".ace",
+    ".alac",
+    ".ape",
+    ".apk",
+    ".apng",
+    ".arc",
+    ".archive",
+    ".arj",
+    ".ark",
+    ".asf",
+    ".avi",
+    ".avif",
+    ".ba",
+    ".br",
+    ".bz2",
+    ".cab",
+    ".cdx",
+    ".chm",
+    ".cr2",
+    ".divx",
+    ".dmg",
+    ".dng",
+    ".docm",
+    ".docx",
+    ".dotm",
+    ".dotx",
+    ".dsft",
+    ".ear",
+    ".eftx",
+    ".emz",
+    ".eot",
+    ".epub",
+    ".f4v",
+    ".flac",
+    ".flv",
+    ".gho",
+    ".gif",
+    ".gifv",
+    ".gnp",
+    ".iso",
+    ".jar",
+    ".jpeg",
+    ".jpg",
+    ".jxl",
+    ".lz",
+    ".lzh",
+    ".m4a",
+    ".m4v",
+    ".mkv",
+    ".mov",
+    ".mp2",
+    ".mp3",
+    ".mp4",
+    ".mpa",
+    ".mpc",
+    ".mpe",
+    ".mpeg",
+    ".mpg",
+    ".mpl",
+    ".mpv",
+    ".msi",
+    ".odp",
+    ".ods",
+    ".odt",
+    ".ogg",
+    ".ogv",
+    ".otp",
+    ".ots",
+    ".ott",
+    ".pea",
+    ".png",
+    ".pptx",
+    ".qt",
+    ".rar",
+    ".s7z",
+    ".sfx",
+    ".sit",
+    ".sitx",
+    ".sqx",
+    ".svgz",
+    ".swf",
+    ".tbz2",
+    ".tib",
+    ".tlz",
+    ".vob",
+    ".war",
+    ".webm",
+    ".webp",
+    ".wma",
+    ".wmv",
+    ".woff",
+    ".woff2",
+    ".wvl",
+    ".xlsx",
+    ".xpi",
+    ".xps",
+    ".zip",
+    ".zipx",
+    ".zoo",
+    ".zpaq",
     NULL
 };
 
@@ -2222,6 +2326,7 @@ static dRess_t FIO_createDResources(FIO_prefs_t* const prefs, const char* dictFi
     int forceNoUseMMap = prefs->mmapDict == ZSTD_ps_disable;
     stat_t statbuf;
     dRess_t ress;
+    memset(&statbuf, 0, sizeof(statbuf));
     memset(&ress, 0, sizeof(ress));
 
     FIO_getDictFileStat(dictFileName, &statbuf);
@@ -2336,9 +2441,10 @@ FIO_decompressZstdFrame(FIO_ctx_t* const fCtx, dRess_t* ress,
     U64 frameSize = 0;
     IOJob_t *writeJob = AIO_WritePool_acquireJob(ress->writeCtx);
 
-    /* display last 20 characters only */
+    /* display last 20 characters only when not --verbose */
     {   size_t const srcFileLength = strlen(srcFileName);
-        if (srcFileLength>20) srcFileName += srcFileLength-20;
+        if ((srcFileLength>20) && (g_display_prefs.displayLevel<3))
+            srcFileName += srcFileLength-20;
     }
 
     ZSTD_DCtx_reset(ress->dctx, ZSTD_reset_session_only);

@@ -74,8 +74,7 @@ extern "C" {
 ***************************************************************/
 #ifndef PLATFORM_POSIX_VERSION
 
-#  if (defined(__APPLE__) && defined(__MACH__)) || defined(__SVR4) || defined(_AIX) || defined(__hpux) /* POSIX.1-2001 (SUSv3) conformant */ \
-     || defined(__DragonFly__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)  /* BSD distros */
+#  if (defined(__APPLE__) && defined(__MACH__)) || defined(__SVR4) || defined(_AIX) || defined(__hpux) /* POSIX.1-2001 (SUSv3) conformant */
      /* exception rule : force posix version to 200112L,
       * note: it's better to use unistd.h's _POSIX_VERSION whenever possible */
 #    define PLATFORM_POSIX_VERSION 200112L
@@ -89,7 +88,7 @@ extern "C" {
  */
 #  elif !defined(_WIN32) \
      && ( defined(__unix__) || defined(__unix) \
-       || defined(__midipix__) || defined(__VMS) || defined(__HAIKU__) )
+       || defined(_QNX_SOURCE) || defined(__midipix__) || defined(__VMS) || defined(__HAIKU__) )
 
 #    if defined(__linux__) || defined(__linux) || defined(__CYGWIN__)
 #      ifndef _POSIX_C_SOURCE
@@ -141,7 +140,7 @@ extern "C" {
 #elif defined(MSDOS) || defined(OS2)
 #  include <io.h>       /* _isatty */
 #  define IS_CONSOLE(stdStream) _isatty(_fileno(stdStream))
-#elif defined(WIN32) || defined(_WIN32)
+#elif defined(_WIN32)
 #  include <io.h>      /* _isatty */
 #  include <windows.h> /* DeviceIoControl, HANDLE, FSCTL_SET_SPARSE */
 #  include <stdio.h>   /* FILE */
@@ -157,7 +156,7 @@ static __inline int IS_CONSOLE(FILE* stdStream) {
 /******************************
 *  OS-specific IO behaviors
 ******************************/
-#if defined(MSDOS) || defined(OS2) || defined(WIN32) || defined(_WIN32)
+#if defined(MSDOS) || defined(OS2) || defined(_WIN32)
 #  include <fcntl.h>   /* _O_BINARY */
 #  include <io.h>      /* _setmode, _fileno, _get_osfhandle */
 #  if !defined(__DJGPP__)

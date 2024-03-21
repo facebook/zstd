@@ -42,7 +42,13 @@ static void compressFile_orDie(const char* fname, const char* outName, int cLeve
      */
     CHECK_ZSTD( ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, cLevel) );
     CHECK_ZSTD( ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1) );
-    ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, nbThreads);
+    if (nbThreads > 1) {
+        size_t const r = ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, nbThreads);
+        if (ZSTD_isError(r)) {
+            fprintf (stderr, "Note: the linked libzstd library doesn't support multithreading. "
+                             "Reverting to single-thread mode. \n");
+        }
+    }
 
     /* This loop read from the input file, compresses that entire chunk,
      * and writes all output produced to the output file.
@@ -117,7 +123,7 @@ int main(int argc, const char** argv)
     }
 
     int cLevel = 1;
-    int nbThreads = 4;
+    int nbThreads = 1;
 
     if (argc >= 3) {
       cLevel = atoi (argv[2]);

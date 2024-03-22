@@ -1125,8 +1125,14 @@ the last byte used or partially used by probability decoding.  If the last
 byte was partially used, then any unused bits are ignored.
 
 If this process results in a non-zero probability for a value outside of the
-valid range of values that the FSE table is defined for, even if that value is
-not used, then the data is considered corrupted.
+valid range of values that the FSE table is defined for, then the data is
+considered corrupted, even if the value is not used.
+
+In the case of offset codes, a decoder may reject a frame that encodes a
+non-zero probability for an offset code that exceeds the decoder's
+maximum allowed offset code.  A compliant encoder should not emit non-zero
+probabilities for offset codes that are greater than the highest offset
+code value present in the data stream.
 
 __Example__ :
 

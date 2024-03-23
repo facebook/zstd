@@ -2,7 +2,7 @@
 
 IF "%1%" == "" GOTO display_help
 
-SETLOCAL
+SETLOCAL ENABLEDELAYEDEXPANSION
 
 SET msbuild_version=%1
 
@@ -29,29 +29,23 @@ EXIT /B 1
 :build
 
 SET msbuild="%windir%\Microsoft.NET\Framework\v4.0.30319\MSBuild.exe"
-SET msbuild_vs2017community="%programfiles(x86)%\Microsoft Visual Studio\2017\Community\MSBuild\15.0\Bin\MSBuild.exe"
-SET msbuild_vs2017professional="%programfiles(x86)%\Microsoft Visual Studio\2017\Professional\MSBuild\15.0\Bin\MSBuild.exe"
-SET msbuild_vs2017enterprise="%programfiles(x86)%\Microsoft Visual Studio\2017\Enterprise\MSBuild\15.0\Bin\MSBuild.exe"
 IF %msbuild_version% == VS2013 SET msbuild="%programfiles(x86)%\MSBuild\12.0\Bin\MSBuild.exe"
 IF %msbuild_version% == VS2015 SET msbuild="%programfiles(x86)%\MSBuild\14.0\Bin\MSBuild.exe"
-IF %msbuild_version% == VS2017Community SET msbuild=%msbuild_vs2017community%
-IF %msbuild_version% == VS2017Professional SET msbuild=%msbuild_vs2017professional%
-IF %msbuild_version% == VS2017Enterprise SET msbuild=%msbuild_vs2017enterprise%
-IF %msbuild_version% == VS2017 (
-	IF EXIST %msbuild_vs2017community% SET msbuild=%msbuild_vs2017community%
-	IF EXIST %msbuild_vs2017professional% SET msbuild=%msbuild_vs2017professional%
-	IF EXIST %msbuild_vs2017enterprise% SET msbuild=%msbuild_vs2017enterprise%
-)
+IF %msbuild_version% == VS2017 SET vswhere_version=[15,16)
+IF %msbuild_version% == VS2017Community SET vswhere_version=[15,16) & SET vswhere_products=Community
+IF %msbuild_version% == VS2017Enterprise SET vswhere_version=[15,16) & SET vswhere_products=Enterprise
+IF %msbuild_version% == VS2017Professional SET vswhere_version=[15,16) & SET vswhere_products=Professional
+IF %msbuild_version% == VS2019 SET vswhere_version=[16,17)
+IF %msbuild_version% == VS2022 SET vswhere_version=[17,18)
+REM Add the next Visual Studio version here. 
 
-:: VS2019
-SET msbuild_vs2019community="%programfiles(x86)%\Microsoft Visual Studio\2019\Community\MSBuild\Current\Bin\MSBuild.exe"
-SET msbuild_vs2019professional="%programfiles(x86)%\Microsoft Visual Studio\2019\Professional\MSBuild\Current\Bin\MSBuild.exe"
-SET msbuild_vs2019enterprise="%programfiles(x86)%\Microsoft Visual Studio\2019\Enterprise\MSBuild\Current\Bin\MSBuild.exe"
-IF %msbuild_version% == VS2019 (
-	IF EXIST %msbuild_vs2019community% SET msbuild=%msbuild_vs2019community%
-	IF EXIST %msbuild_vs2019professional% SET msbuild=%msbuild_vs2019professional%
-	IF EXIST %msbuild_vs2019enterprise% SET msbuild=%msbuild_vs2019enterprise%
+IF NOT DEFINED vswhere_version GOTO skip_vswhere
+IF NOT DEFINED vswhere_products SET vswhere_products=*
+SET vswhere="%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
+FOR /F "USEBACKQ TOKENS=*" %%F IN (`%vswhere% -utf8 -property installationPath -products !vswhere_products! -version !vswhere_version!`) DO (
+	SET msbuild="%%F\MSBuild\Current\Bin\MSBuild.exe"
 )
+:skip_vswhere
 
 SET project="%~p0\..\VS2010\zstd.sln"
 

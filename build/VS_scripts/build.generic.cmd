@@ -19,7 +19,7 @@ GOTO build
 :display_help
 
 echo Syntax: build.generic.cmd msbuild_version msbuild_platform msbuild_configuration msbuild_toolset
-echo   msbuild_version:          VS installed version (VS2012, VS2013, VS2015, VS2017, VS2019, ...)
+echo   msbuild_version:          VS installed version (latest, VS2012, VS2013, VS2015, VS2017, VS2019, ...)
 echo   msbuild_platform:         Platform (x64 or Win32)
 echo   msbuild_configuration:    VS configuration (Release or Debug)
 echo   msbuild_toolset:          Platform Toolset (v100, v110, v120, v140, v141, v142, ...)
@@ -31,19 +31,19 @@ EXIT /B 1
 SET msbuild="%windir%\Microsoft.NET\Framework\v4.0.30319\MSBuild.exe"
 IF %msbuild_version% == VS2013 SET msbuild="%programfiles(x86)%\MSBuild\12.0\Bin\MSBuild.exe"
 IF %msbuild_version% == VS2015 SET msbuild="%programfiles(x86)%\MSBuild\14.0\Bin\MSBuild.exe"
-IF %msbuild_version% == VS2017 SET vswhere_version=[15,16)
-IF %msbuild_version% == VS2017Community SET vswhere_version=[15,16) & SET vswhere_products=Community
-IF %msbuild_version% == VS2017Enterprise SET vswhere_version=[15,16) & SET vswhere_products=Enterprise
-IF %msbuild_version% == VS2017Professional SET vswhere_version=[15,16) & SET vswhere_products=Professional
-IF %msbuild_version% == VS2019 SET vswhere_version=[16,17)
-IF %msbuild_version% == VS2022 SET vswhere_version=[17,18)
-REM Add the next Visual Studio version here. 
+IF %msbuild_version% == VS2017 SET vswhere_params=-version [15,16) -products *
+IF %msbuild_version% == VS2017Community SET vswhere_params=-version [15,16) -products Community
+IF %msbuild_version% == VS2017Enterprise SET vswhere_params=-version [15,16) -products Enterprise
+IF %msbuild_version% == VS2017Professional SET vswhere_params=-version [15,16) -products Professional
+IF %msbuild_version% == VS2019 SET vswhere_params=-version [16,17) -products *
+IF %msbuild_version% == VS2022 SET vswhere_params=-version [17,18) -products *
+REM Add the next Visual Studio version here.
+IF %msbuild_version% == latest SET vswhere_params=-latest -products *
 
-IF NOT DEFINED vswhere_version GOTO skip_vswhere
-IF NOT DEFINED vswhere_products SET vswhere_products=*
+IF NOT DEFINED vswhere_params GOTO skip_vswhere
 SET vswhere="%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
-FOR /F "USEBACKQ TOKENS=*" %%F IN (`%vswhere% -utf8 -property installationPath -products !vswhere_products! -version !vswhere_version!`) DO (
-	SET msbuild="%%F\MSBuild\Current\Bin\MSBuild.exe"
+FOR /F "USEBACKQ TOKENS=*" %%F IN (`%vswhere% !vswhere_params! -requires Microsoft.Component.MSBuild -find MSBuild\**\Bin\MSBuild.exe`) DO (
+	SET msbuild="%%F"
 )
 :skip_vswhere
 

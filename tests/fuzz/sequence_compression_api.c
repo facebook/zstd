@@ -127,7 +127,7 @@ static size_t decodeSequences(void* dst, size_t nbSequences,
     FUZZ_ASSERT(litPtr <= litEnd);
     if (mode == ZSTD_sf_noBlockDelimiters) {
         const uint32_t lastLLSize = (uint32_t)(litEnd - litPtr);
-        if (lastLLSize <= oend - op) {
+        if (lastLLSize <= (uint32_t)(oend - op)) {
             memcpy(op, litPtr, lastLLSize);
             generatedSrcBufferSize += lastLLSize;
     }   }

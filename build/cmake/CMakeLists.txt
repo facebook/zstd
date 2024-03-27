@@ -34,7 +34,6 @@ project(zstd
   VERSION "${zstd_VERSION_MAJOR}.${zstd_VERSION_MINOR}.${zstd_VERSION_PATCH}"
   LANGUAGES C   # Main library is in C
             ASM # And ASM
-            CXX # Testing contributed code also utilizes CXX
   )
 
 message(STATUS "ZSTD VERSION: ${zstd_VERSION}")

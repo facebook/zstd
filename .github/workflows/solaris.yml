@@ -1,0 +1,55 @@
+name: Run Solaris tests
+
+# This test runs within a Solaris VM.
+# It is very slow.
+# Consequently, we only want to run it on demand.
+# The trigger is the feature branch name.
+
+on:
+  push:
+    branches:
+      - '*sun*'
+      - '*Sun*'
+      - '*solaris*'
+      - '*Solaris*'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: solaris-vm test
+    env:
+      EX_TOKEN: "ex_value"
+    steps:
+    - uses: actions/checkout@v4
+    - name: Test in Solaris
+      id: test
+      uses: vmactions/solaris-vm@v1.0.1
+      with:
+        envs: 'EX_TOKEN'
+        usesh: true
+        prepare: |
+          pkgutil -y -i socat
+        release: "11.4-gcc"
+        run: |
+          if [ -n "test" ]; then
+            echo "false"
+          fi
+          if [ "test" ]; then
+            echo "test"
+          fi
+          pwd
+          ls -lah
+          whoami
+          env
+          psrinfo -vp
+          cat /etc/release
+          psrinfo -v
+          echo "::memstat" | mdb -k
+          gcc -v
+          CC=gcc CFLAGS="-Werror -O1" gmake -j check
+          pkg install cmake
+          cmake --version
+          rm -rf cmakebuild install
+          mkdir -p cmakebuild install
+          cd cmakebuild; cmake -Wdev -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS="-Werror -O0" -DCMAKE_INSTALL_PREFIX=install ../build/cmake; cd ..
+          cmake --build cmakebuild --target install -- -j V=1

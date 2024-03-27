@@ -51,7 +51,7 @@ function(EnableCompilerFlag _flag _C _CXX _LD)
 endfunction()
 
 macro(ADD_ZSTD_COMPILATION_FLAGS)
-    if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" OR MINGW) #Not only UNIX but also WIN32 for MinGW
+    if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" OR MINGW) # Not only UNIX but also WIN32 for MinGW
         # It's possible to select the exact standard used for compilation.
         # It's not necessary, but can be employed for specific purposes.
         # Note that zstd source code is compatible with both C++98 and above

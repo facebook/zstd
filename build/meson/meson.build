@@ -88,8 +88,13 @@ feature_lz4 = get_option('lz4')
 # =============================================================================
 
 libm_dep = cc.find_library('m', required: false)
-thread_dep = dependency('threads', required: feature_multi_thread)
-use_multi_thread = thread_dep.found()
+if host_machine_os == os_windows
+  thread_dep = dependency('', required: false)
+  use_multi_thread = not feature_multi_thread.disabled()
+else
+  thread_dep = dependency('threads', required: feature_multi_thread)
+  use_multi_thread = thread_dep.found()
+endif
 # Arguments in dependency should be equivalent to those passed to pkg-config
 zlib_dep = dependency('zlib', required: feature_zlib)
 use_zlib = zlib_dep.found()

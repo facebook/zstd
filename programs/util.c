@@ -64,12 +64,17 @@ extern "C" {
  * It's designed for failures that may happen rarely,
  * but we don't want to maintain a specific error code path for them,
  * such as a malloc() returning NULL for example.
- * Since it's always active, this macro can trigger side effects.
  */
-#define CONTROL(c)  {         \
+#define CONTROL(c)  CONTROL_EXIT(c, {})
+
+/* CONTROL_EXIT:
+ * Same as CONTROL, but can also run a last action before exit()
+ */
+#define CONTROL_EXIT(c, _action) { \
     if (!(c)) {               \
-        UTIL_DISPLAYLEVEL(1, "Error : %s, %i : %s",  \
+        UTIL_DISPLAYLEVEL(1, "Error : %s, %i : %s not respected",  \
                           __FILE__, __LINE__, #c);   \
+        { _action; }          \
         exit(1);              \
 }   }
 
@@ -700,7 +705,7 @@ UTIL_createFileNamesTable_fromFileName(const char* inputFileName)
     }
 
     {   const char** filenamesTable = (const char**) malloc(nbFiles * sizeof(*filenamesTable));
-        CONTROL(filenamesTable != NULL);
+        CONTROL_EXIT(filenamesTable != NULL, free(buf));
 
         {   size_t fnb, pos = 0;
             for (fnb = 0; fnb < nbFiles; fnb++) {
@@ -790,12 +795,12 @@ UTIL_mergeFileNamesTable(FileNamesTable* table1, FileNamesTable* table2)
     newTotalTableSize = getTotalTableSize(table1) + getTotalTableSize(table2);
 
     buf = (char*) calloc(newTotalTableSize, sizeof(*buf));
-    CONTROL ( buf != NULL );
+    CONTROL_EXIT ( buf != NULL, UTIL_freeFileNamesTable(newTable) );
 
     newTable->buf = buf;
     newTable->tableSize = table1->tableSize + table2->tableSize;
     newTable->fileNames = (const char **) calloc(newTable->tableSize, sizeof(*(newTable->fileNames)));
-    CONTROL ( newTable->fileNames != NULL );
+    CONTROL_EXIT ( newTable->fileNames != NULL, { free(buf); UTIL_freeFileNamesTable(newTable); }  );
 
     {   unsigned idx1;
         for( idx1=0 ; (idx1 < table1->tableSize) && table1->fileNames[idx1] && (pos < newTotalTableSize); ++idx1, ++newTableIdx) {
@@ -1279,7 +1284,7 @@ void UTIL_mirrorSourceFilesDirectories(const char** inFileNames, unsigned int nb
     for (i = 0; i < nbFile; ++i) {
         if (isFileNameValidForMirroredOutput(inFileNames[i])) {
             char* fname = STRDUP(inFileNames[i]);
-            CONTROL(fname != NULL);
+            CONTROL_EXIT(fname != NULL, free(srcFileNames));
             srcFileNames[validFilenamesNr++] = fname;
         }
     }

@@ -213,8 +213,6 @@ ifeq ($(UNAME), Darwin)
   ifeq ($(shell md5 < /dev/null > /dev/null; echo $$?), 0)
     HASH ?= md5
   endif
-else ifeq ($(UNAME), FreeBSD)
-  HASH ?= gmd5sum
 else ifeq ($(UNAME), NetBSD)
   HASH ?= md5 -n
 else ifeq ($(UNAME), OpenBSD)

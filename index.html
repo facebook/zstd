@@ -115,31 +115,30 @@ Benchmarks
 ----------
 
 For reference, several fast compression algorithms were tested and compared
-on a server running Arch Linux (`Linux version 5.5.11-arch1-1`),
-with a Core i9-9900K CPU @ 5.0GHz,
+on a desktop featuring a Core i7-9700K CPU @ 4.9GHz
+and running Ubuntu 20.04 (`Linux ubu20 5.15.0-101-generic`),
 using [lzbench], an open-source in-memory benchmark by @inikep
-compiled with [gcc] 9.3.0,
+compiled with [gcc] 9.4.0,
 on the [Silesia compression corpus].
 
 [lzbench]: https://github.com/inikep/lzbench
-[Silesia compression corpus]: http://sun.aei.polsl.pl/~sdeor/index.php?page=silesia
+[Silesia compression corpus]: https://sun.aei.polsl.pl//~sdeor/index.php?page=silesia
 [gcc]: https://gcc.gnu.org/
 
 | Compressor name         | Ratio | Compression| Decompress.|
 | ---------------         | ------| -----------| ---------- |
-| **zstd 1.4.5 -1**       | 2.884 |   500 MB/s |  1660 MB/s |
-| [zlib] 1.2.11 -1        | 2.743 |    90 MB/s |   400 MB/s |
-| brotli 1.0.7 -0         | 2.703 |   400 MB/s |   450 MB/s |
-| **zstd 1.4.5 --fast=1** | 2.434 |   570 MB/s |  2200 MB/s |
-| **zstd 1.4.5 --fast=3** | 2.312 |   640 MB/s |  2300 MB/s |
-| quicklz 1.5.0 -1        | 2.238 |   560 MB/s |   710 MB/s |
-| **zstd 1.4.5 --fast=5** | 2.178 |   700 MB/s |  2420 MB/s |
-| lzo1x 2.10 -1           | 2.106 |   690 MB/s |   820 MB/s |
-| [lz4] 1.9.2             | 2.101 |   740 MB/s |  4530 MB/s |
-| lzf 3.6 -1              | 2.077 |   410 MB/s |   860 MB/s |
-| snappy 1.1.8            | 2.073 |   560 MB/s |  1790 MB/s |
+| **zstd 1.5.6 -1**       | 2.887 |   510 MB/s |  1580 MB/s |
+| [zlib] 1.2.11 -1        | 2.743 |    95 MB/s |   400 MB/s |
+| brotli 1.0.9 -0         | 2.702 |   395 MB/s |   430 MB/s |
+| **zstd 1.5.6 --fast=1** | 2.437 |   545 MB/s |  1890 MB/s |
+| **zstd 1.5.6 --fast=3** | 2.239 |   650 MB/s |  2000 MB/s |
+| quicklz 1.5.0 -1        | 2.238 |   525 MB/s |   750 MB/s |
+| lzo1x 2.10 -1           | 2.106 |   650 MB/s |   825 MB/s |
+| [lz4] 1.9.4             | 2.101 |   700 MB/s |  4000 MB/s |
+| lzf 3.6 -1              | 2.077 |   420 MB/s |   830 MB/s |
+| snappy 1.1.9            | 2.073 |   530 MB/s |  1660 MB/s |
 
-[zlib]:http://www.zlib.net/
+[zlib]: https://www.zlib.net/
 [lz4]: http://www.lz4.org/
 
 The negative compression levels, specified with `--fast=#`,

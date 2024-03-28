@@ -31,7 +31,7 @@ extern "C" {
 ***************************************************************/
 #if defined(_MSC_VER) && (_MSC_VER >= 1400)
 #  define UTIL_fseek _fseeki64
-#elif !defined(__64BIT__) && (PLATFORM_POSIX_VERSION >= 200112L) /* No point defining Large file for 64 bit */
+#elif !defined(__64BIT__) && (PLATFORM_POSIX_VERSION >= 200112L) && !defined(ANDROID_WITHOUT_FSEEKO) /* No point defining Large file for 64 bit */
 #  define UTIL_fseek fseeko
 #elif defined(__MINGW32__) && defined(__MSVCRT__) && !defined(__STRICT_ANSI__) && !defined(__NO_MINGW_LFS)
 #  define UTIL_fseek fseeko64

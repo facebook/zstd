@@ -24,7 +24,7 @@ jobs:
         shell: msys2 {0}
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v3
-    - uses: msys2/setup-msys2@5beef6d11f48bba68b9eb503e3adc60b23c0cc36 # tag=v2
+    - uses: msys2/setup-msys2@cc11e9188b693c2b100158c3322424c4cc1dadea # tag=v2.22.0
       with:
         msystem: ${{ matrix.msystem }}
         install: make zlib git p7zip mingw-w64-${{matrix.env}}-gcc

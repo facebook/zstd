@@ -153,7 +153,7 @@ static size_t HUF_initFastDStream(BYTE const* ip) {
     size_t const value = MEM_readLEST(ip) | 1;
     assert(bitsConsumed <= 8);
     assert(sizeof(size_t) == 8);
-    return (value << bitsConsumed) | (ip[bitsConsumed >> 3] >> (8 - bitsConsumed & 7));
+    return (value << bitsConsumed) | (ip[bitsConsumed >> 3] >> (8 - (bitsConsumed & 7)));
 }
 
 

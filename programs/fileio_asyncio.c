@@ -268,7 +268,7 @@ static void AIO_IOPool_destroy(IOPoolCtx_t* ctx) {
 /* AIO_IOPool_acquireJob:
  * Returns an available io job to be used for a future io. */
 static IOJob_t* AIO_IOPool_acquireJob(IOPoolCtx_t* ctx) {
-    IOJob_t *job;
+    IOJob_t* job;
     assert(ctx->file != NULL || ctx->prefs->testMode);
     AIO_IOPool_lockJobsMutex(ctx);
     assert(ctx->availableJobsCount > 0);

@@ -63,6 +63,8 @@ CPPFLAGS_DYNLIB  += -DZSTD_MULTITHREAD # dynamic library build defaults to multi
 LDFLAGS_DYNLIB   += -pthread
 CPPFLAGS_STATICLIB +=                  # static library build defaults to single-threaded
 
+# pkg-config Libs.private points to LDFLAGS_DYNLIB
+PCLIB := $(LDFLAGS_DYNLIB)
 
 ifeq ($(findstring GCC,$(CCVER)),GCC)
 decompress/zstd_decompress_block.o : CFLAGS+=-fno-tree-vectorize
@@ -186,12 +188,15 @@ lib : libzstd.a libzstd
 %-mt : CPPFLAGS_DYNLIB  := -DZSTD_MULTITHREAD
 %-mt : CPPFLAGS_STATICLIB := -DZSTD_MULTITHREAD
 %-mt : LDFLAGS_DYNLIB   := -pthread
+%-mt : PCLIB :=
+%-mt : PCMTLIB := $(LDFLAGS_DYNLIB)
 %-mt : %
 	@echo multi-threaded build completed
 
 %-nomt : CPPFLAGS_DYNLIB  :=
 %-nomt : LDFLAGS_DYNLIB   :=
 %-nomt : CPPFLAGS_STATICLIB :=
+%-nomt : PCLIB :=
 %-nomt : %
 	@echo single-threaded build completed
 
@@ -292,6 +297,14 @@ PCLIBPREFIX := $(if $(findstring $(LIBDIR),$(PCLIBDIR)),,$${exec_prefix})
 # to PREFIX, rather than as a resolved value.
 PCEXEC_PREFIX := $(if $(HAS_EXPLICIT_EXEC_PREFIX),$(EXEC_PREFIX),$${prefix})
 
+
+ifneq ($(MT),)
+  PCLIB :=
+  PCMTLIB := $(LDFLAGS_DYNLIB)
+else
+  PCLIB := $(LDFLAGS_DYNLIB)
+endif
+
 ifneq (,$(filter $(UNAME),FreeBSD NetBSD DragonFly))
   PKGCONFIGDIR ?= $(PREFIX)/libdata/pkgconfig
 else
@@ -308,6 +321,10 @@ INSTALL_PROGRAM ?= $(INSTALL)
 INSTALL_DATA    ?= $(INSTALL) -m 644
 
 
+# pkg-config library define.
+# For static single-threaded library declare -pthread in Libs.private
+# For static multi-threaded library declare -pthread in Libs and Cflags
+.PHONY: libzstd.pc
 libzstd.pc: libzstd.pc.in
 	@echo creating pkgconfig
 	@sed \
@@ -316,7 +333,8 @@ libzstd.pc: libzstd.pc.in
 	        -e 's|@INCLUDEDIR@|$(PCINCPREFIX)$(PCINCDIR)|' \
 	        -e 's|@LIBDIR@|$(PCLIBPREFIX)$(PCLIBDIR)|' \
 	        -e 's|@VERSION@|$(VERSION)|' \
-	        -e 's|@LIBS_PRIVATE@|$(LDFLAGS_DYNLIB)|' \
+	        -e 's|@LIBS_MT@|$(PCMTLIB)|' \
+	        -e 's|@LIBS_PRIVATE@|$(PCLIB)|' \
 	        $< >$@
 
 .PHONY: install

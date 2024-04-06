@@ -1125,8 +1125,6 @@ If it is a 3, another 2-bits repeat flag follows, and so on.
 
 When last symbol reaches cumulated total of `1 << Accuracy_Log`,
 decoding is complete.
-If the last symbol makes cumulated total go above `1 << Accuracy_Log`,
-distribution is considered corrupted.
 If this process results in a non-zero probability for a value outside of the
 valid range of values that the FSE table is defined for, even if that value is
 not used, then the data is considered corrupted.

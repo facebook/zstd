@@ -223,7 +223,7 @@ local z_size_t gz_write(gz_statep state, voidpc buf, z_size_t len) {
             z_size_t n = (unsigned)-1;
             if (n > len)
                 n = len;
-            state.state->strm.avail_in = (z_uInt)n;
+            state.state->strm.avail_in = (uInt)n;
             state.state->x.pos += n;
             if (gz_comp(state, Z_NO_FLUSH) == -1)
                 return 0;

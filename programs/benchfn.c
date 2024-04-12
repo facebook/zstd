@@ -91,7 +91,7 @@ static BMK_runOutcome_t BMK_runOutcome_error(size_t errorResult)
 
 static BMK_runOutcome_t BMK_setValid_runTime(BMK_runTime_t runTime)
 {
-    BMK_runOutcome_t outcome = {};
+    BMK_runOutcome_t outcome;
     outcome.error_tag_never_ever_use_directly = 0;
     outcome.internal_never_ever_use_directly = runTime;
     return outcome;

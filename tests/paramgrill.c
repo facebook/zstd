@@ -1273,7 +1273,6 @@ static int createBuffers(buffers_t* buff, const char* const * const fileNamesTab
         f = fopen(fileNamesTable[n], "rb");
         if (f==NULL) {
             DISPLAY("impossible to open file %s\n", fileNamesTable[n]);
-            fclose(f);
             ret = 10;
             goto _cleanUp;
         }

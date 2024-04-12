@@ -50,6 +50,7 @@ static buffer_s read_file(const char *path)
 
     fclose(f);
     buffer_s const b = { ptr, size };
+    free(ptr);
     return b;
 }
 

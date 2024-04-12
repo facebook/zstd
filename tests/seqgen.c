@@ -31,7 +31,7 @@ static BYTE SEQ_randByte(unsigned* src)
 
 SEQ_stream SEQ_initStream(unsigned seed)
 {
-    SEQ_stream stream;
+    SEQ_stream stream = {};
     stream.state = 0;
     XXH64_reset(&stream.xxh, 0);
     stream.seed = seed;

@@ -2764,7 +2764,7 @@ ZSTD_buildSequencesStatistics(
     const BYTE* const ofCodeTable = seqStorePtr->ofCode;
     const BYTE* const llCodeTable = seqStorePtr->llCode;
     const BYTE* const mlCodeTable = seqStorePtr->mlCode;
-    ZSTD_symbolEncodingTypeStats_t stats;
+    ZSTD_symbolEncodingTypeStats_t stats = {};
 
     stats.lastCountSize = 0;
     /* convert length/distances into codes */

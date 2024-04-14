@@ -234,7 +234,7 @@ int gzwrite _Z_OF((gzFile, const void *, unsigned));
 
 int gzwrite(gzFile gz, const void *buf, unsigned len) {
     z_stream *strm;
-    unsigned char out[BUFLEN] = 0;
+    unsigned char out[BUFLEN] = { 0 };
 
     if (gz == NULL || !gz->write)
         return 0;

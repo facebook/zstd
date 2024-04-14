@@ -287,7 +287,7 @@ int gzclose _Z_OF((gzFile));
 
 int gzclose(gzFile gz) {
     z_stream *strm;
-    unsigned char out[BUFLEN] = 0;
+    unsigned char out[BUFLEN] = { 0 };
 
     if (gz == NULL)
         return Z_STREAM_ERROR;

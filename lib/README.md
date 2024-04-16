@@ -27,11 +27,15 @@ Enabling multithreading requires 2 conditions :
 
 For convenience, we provide a build target to generate multi and single threaded libraries:
 - Force enable multithreading on both dynamic and static libraries by appending `-mt` to the target, e.g. `make lib-mt`.
+  Note that the `.pc` generated on calling `make lib-mt` will already include the require Libs and Cflags.
 - Force disable multithreading on both dynamic and static libraries by appending `-nomt` to the target, e.g. `make lib-nomt`.
 - By default, as mentioned before, dynamic library is multithreaded, and static library is single-threaded, e.g. `make lib`.
 
 When linking a POSIX program with a multithreaded version of `libzstd`,
 note that it's necessary to invoke the `-pthread` flag during link stage.
+
+The `.pc` generated from `make install` or `make install-pc` always assume a single-threaded static library
+is compiled. To correctly generate a `.pc` for the multi-threaded static library, set `MT=1` as ENV variable.
 
 Multithreading capabilities are exposed
 via the [advanced API defined in `lib/zstd.h`](https://github.com/facebook/zstd/blob/v1.4.3/lib/zstd.h#L351).

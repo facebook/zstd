@@ -118,7 +118,7 @@ endmacro ()
 
 # Define directories containing the library's public headers
 set(PUBLIC_INCLUDE_DIRS ${LIBRARY_DIR})
-
+set(CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} /I ${LIBRARY_DIR}")
 # Split project to static and shared libraries build
 set(library_targets)
 if (ZSTD_BUILD_SHARED)

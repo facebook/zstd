@@ -224,9 +224,9 @@ roundTripCrash : $(ZSTD_OBJECTS) roundTripCrash.c
 CLEAN += longmatch
 longmatch : $(ZSTD_OBJECTS) longmatch.c
 
-CLEAN += bigdict
-bigdict: CFLAGS += $(MULTITHREAD)
-bigdict: $(ZSTDMT_OBJECTS) $(PRGDIR)/datagen.c bigdict.c
+CLEAN += largeDictionary
+largeDictionary: CFLAGS += $(MULTITHREAD)
+largeDictionary: $(ZSTDMT_OBJECTS) $(PRGDIR)/datagen.c largeDictionary.c
 
 CLEAN += invalidDictionaries
 invalidDictionaries : $(ZSTD_OBJECTS) invalidDictionaries.c
@@ -391,8 +391,8 @@ test-zstream32: zstreamtest32
 test-longmatch: longmatch
 	$(QEMU_SYS) ./longmatch
 
-test-bigdict: bigdict
-	$(QEMU_SYS) ./bigdict
+test-largeDictionary: largeDictionary
+	$(QEMU_SYS) ./largeDictionary
 
 test-invalidDictionaries: invalidDictionaries
 	$(QEMU_SYS) ./invalidDictionaries

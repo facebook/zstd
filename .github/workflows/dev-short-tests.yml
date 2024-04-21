@@ -237,6 +237,50 @@ jobs:
           meson test -C builddir/ --print-errorlogs
           meson install -C builddir --destdir staging/
 
+  meson-mingw-cross-compilation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
+      - name: Install packages
+        run: |
+          sudo apt-get -qqq update
+          sudo apt-get -y install build-essential python3-pip ninja-build {gcc,g++}-mingw-w64-x86-64
+          pip install --pre meson
+      - name: Build with Meson
+        run: |
+          cat > cross.ini <<EOF
+          [binaries]
+          ar = 'x86_64-w64-mingw32-ar'
+          c = 'x86_64-w64-mingw32-gcc'
+          cpp = 'x86_64-w64-mingw32-g++'
+          ld = 'x86_64-w64-mingw32-ld'
+          objcopy = 'x86_64-w64-mingw32-objcopy'
+          objdump = 'x86_64-w64-mingw32-objdump'
+          strip = 'x86_64-w64-mingw32-strip'
+          windres = 'x86_64-w64-mingw32-windres'
+
+          [host_machine]
+          system = 'windows'
+          endian = 'little'
+          cpu_family = 'x86_64'
+          cpu = 'x86_64'
+          EOF
+
+          # pzstd doesn't build; skip -Dbin_contrib=true
+          meson setup \
+            --buildtype=debugoptimized \
+            --cross-file=cross.ini \
+            -Db_lundef=false \
+            -Dbin_programs=true \
+            -Dbin_tests=true \
+            -Ddefault_library=both \
+            build/meson builddir
+          ninja -C builddir/
+          if grep -- -pthread builddir/meson-private/libzstd.pc; then
+            echo "Error: found stray pthread dependency"
+            exit 1
+          fi
+
   meson-windows:
     runs-on: windows-latest
     steps:

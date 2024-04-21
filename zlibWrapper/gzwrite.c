@@ -64,6 +64,7 @@ local int gz_init(gz_statep state) {
         strm->next_out = state.state->out;
         state.state->x.next = strm->next_out;
     }
+
     return 0;
 }
 

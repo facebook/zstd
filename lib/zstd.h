@@ -855,7 +855,7 @@ ZSTDLIB_API size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output);
 *
 *  A ZSTD_DStream object is required to track streaming operations.
 *  Use ZSTD_createDStream() and ZSTD_freeDStream() to create/release resources.
-*  ZSTD_DStream objects can be reused multiple times.
+*  ZSTD_DStream objects can be re-employed multiple times.
 *
 *  Use ZSTD_initDStream() to start a new decompression operation.
 * @return : recommended first input size
@@ -865,16 +865,21 @@ ZSTDLIB_API size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output);
 *  The function will update both `pos` fields.
 *  If `input.pos < input.size`, some input has not been consumed.
 *  It's up to the caller to present again remaining data.
+*
 *  The function tries to flush all data decoded immediately, respecting output buffer size.
 *  If `output.pos < output.size`, decoder has flushed everything it could.
-*  But if `output.pos == output.size`, there might be some data left within internal buffers.,
+*
+*  However, when `output.pos == output.size`, it's more difficult to know.
+*  If @return > 0, the frame is not complete, meaning
+*  either there is still some data left to flush within internal buffers,
+*  or there is more input to read to complete the frame (or both).
 *  In which case, call ZSTD_decompressStream() again to flush whatever remains in the buffer.
 *  Note : with no additional input provided, amount of data flushed is necessarily <= ZSTD_BLOCKSIZE_MAX.
 * @return : 0 when a frame is completely decoded and fully flushed,
 *        or an error code, which can be tested using ZSTD_isError(),
 *        or any other value > 0, which means there is still some decoding or flushing to do to complete current frame :
 *                                the return value is a suggested next input size (just a hint for better latency)
-*                                that will never request more than the remaining frame size.
+*                                that will never request more than the remaining content of the compressed frame.
 * *******************************************************************************/
 
 typedef ZSTD_DCtx ZSTD_DStream;  /**< DCtx and DStream are now effectively same object (>= v1.3.0) */
@@ -901,9 +906,10 @@ ZSTDLIB_API size_t ZSTD_initDStream(ZSTD_DStream* zds);
  * Function will update both input and output `pos` fields exposing current state via these fields:
  * - `input.pos < input.size`, some input remaining and caller should provide remaining input
  *   on the next call.
- * - `output.pos < output.size`, decoder finished and flushed all remaining buffers.
- * - `output.pos == output.size`, potentially uncflushed data present in the internal buffers,
- *   call ZSTD_decompressStream() again to flush remaining data to output.
+ * - `output.pos < output.size`, decoder flushed internal output buffer.
+ * - `output.pos == output.size`, unflushed data potentially present in the internal buffers,
+ *   check ZSTD_decompressStream() @return value,
+ *   if > 0, invoke it again to flush remaining data to output.
  * Note : with no additional input, amount of data flushed <= ZSTD_BLOCKSIZE_MAX.
  *
  * @return : 0 when a frame is completely decoded and fully flushed,

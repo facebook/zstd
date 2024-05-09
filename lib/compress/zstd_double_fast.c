@@ -392,7 +392,7 @@ size_t ZSTD_compressBlock_doubleFast_dictMatchState_generic(
         hashLong[h2] = hashSmall[h] = curr;   /* update hash tables */
 
         /* check repcode */
-        if (((U32)((prefixLowestIndex-1) - repIndex) >= 3 /* intentional underflow */)
+        if ((ZSTD_index_overlap_check(prefixLowestIndex, repIndex))
             && (MEM_read32(repMatch) == MEM_read32(ip+1)) ) {
             const BYTE* repMatchEnd = repIndex < prefixLowestIndex ? dictEnd : iend;
             mLength = ZSTD_count_2segments(ip+1+4, repMatch+4, iend, repMatchEnd, prefixLowest) + 4;
@@ -513,7 +513,7 @@ _match_stored:
                 const BYTE* repMatch2 = repIndex2 < prefixLowestIndex ?
                         dictBase + repIndex2 - dictIndexDelta :
                         base + repIndex2;
-                if ( ((U32)((prefixLowestIndex-1) - (U32)repIndex2) >= 3 /* intentional overflow */)
+                if ( (ZSTD_index_overlap_check(prefixLowestIndex, repIndex2))
                    && (MEM_read32(repMatch2) == MEM_read32(ip)) ) {
                     const BYTE* const repEnd2 = repIndex2 < prefixLowestIndex ? dictEnd : iend;
                     size_t const repLength2 = ZSTD_count_2segments(ip+4, repMatch2+4, iend, repEnd2, prefixLowest) + 4;
@@ -651,7 +651,7 @@ size_t ZSTD_compressBlock_doubleFast_extDict_generic(
         size_t mLength;
         hashSmall[hSmall] = hashLong[hLong] = curr;   /* update hash table */
 
-        if ((((U32)((prefixStartIndex-1) - repIndex) >= 3) /* intentional underflow : ensure repIndex doesn't overlap dict + prefix */
+        if (((ZSTD_index_overlap_check(prefixStartIndex, repIndex)) 
             & (offset_1 <= curr+1 - dictStartIndex)) /* note: we are searching at curr+1 */
           && (MEM_read32(repMatch) == MEM_read32(ip+1)) ) {
             const BYTE* repMatchEnd = repIndex < prefixStartIndex ? dictEnd : iend;
@@ -719,7 +719,7 @@ size_t ZSTD_compressBlock_doubleFast_extDict_generic(
                 U32 const current2 = (U32)(ip-base);
                 U32 const repIndex2 = current2 - offset_2;
                 const BYTE* repMatch2 = repIndex2 < prefixStartIndex ? dictBase + repIndex2 : base + repIndex2;
-                if ( (((U32)((prefixStartIndex-1) - repIndex2) >= 3)   /* intentional overflow : ensure repIndex2 doesn't overlap dict + prefix */
+                if ( ((ZSTD_index_overlap_check(prefixStartIndex, repIndex2))
                     & (offset_2 <= current2 - dictStartIndex))
                   && (MEM_read32(repMatch2) == MEM_read32(ip)) ) {
                     const BYTE* const repEnd2 = repIndex2 < prefixStartIndex ? dictEnd : iend;

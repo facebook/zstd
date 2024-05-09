@@ -664,13 +664,13 @@ ZSTD_insertBtAndGetAllMatches (
                 assert(curr >= windowLow);
                 if ( dictMode == ZSTD_extDict
                   && ( ((repOffset-1) /*intentional overflow*/ < curr - windowLow)  /* equivalent to `curr > repIndex >= windowLow` */
-                     & (((U32)((dictLimit-1) - repIndex) >= 3) ) /* intentional overflow : do not test positions overlapping 2 memory segments */)
+                     & (ZSTD_index_overlap_check(dictLimit, repIndex)) )
                   && (ZSTD_readMINMATCH(ip, minMatch) == ZSTD_readMINMATCH(repMatch, minMatch)) ) {
                     repLen = (U32)ZSTD_count_2segments(ip+minMatch, repMatch+minMatch, iLimit, dictEnd, prefixStart) + minMatch;
                 }
                 if (dictMode == ZSTD_dictMatchState
                   && ( ((repOffset-1) /*intentional overflow*/ < curr - (dmsLowLimit + dmsIndexDelta))  /* equivalent to `curr > repIndex >= dmsLowLimit` */
-                     & ((U32)((dictLimit-1) - repIndex) >= 3) ) /* intentional overflow : do not test positions overlapping 2 memory segments */
+                     & (ZSTD_index_overlap_check(dictLimit, repIndex)) )
                   && (ZSTD_readMINMATCH(ip, minMatch) == ZSTD_readMINMATCH(repMatch, minMatch)) ) {
                     repLen = (U32)ZSTD_count_2segments(ip+minMatch, repMatch+minMatch, iLimit, dmsEnd, prefixStart) + minMatch;
             }   }

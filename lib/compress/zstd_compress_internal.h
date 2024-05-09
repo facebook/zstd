@@ -1315,6 +1315,13 @@ MEM_STATIC U32 ZSTD_getLowestPrefixIndex(const ZSTD_matchState_t* ms, U32 curr, 
     return matchLowest;
 }
 
+/* index_safety_check:
+ * intentional underflow : ensure repIndex isn't overlapping dict + prefix
+ * @return 1 if values are not overlapping,
+ * 0 otherwise */
+MEM_STATIC int ZSTD_index_overlap_check(const U32 prefixLowestIndex, const U32 repIndex) {
+    return ((U32)((prefixLowestIndex-1)  - repIndex) >= 3);
+}
 
 
 /* debug functions */

@@ -43,6 +43,8 @@ MEM_STATIC unsigned ZSTD_countTrailingZeros32(U32 val)
 #       endif
 #   elif defined(__GNUC__) && (__GNUC__ >= 4)
         return (unsigned)__builtin_ctz(val);
+#   elif defined(__ICCARM__)
+        return (unsigned)__builtin_ctz(val);
 #   else
         return ZSTD_countTrailingZeros32_fallback(val);
 #   endif
@@ -82,6 +84,8 @@ MEM_STATIC unsigned ZSTD_countLeadingZeros32(U32 val)
 #       endif
 #   elif defined(__GNUC__) && (__GNUC__ >= 4)
         return (unsigned)__builtin_clz(val);
+#   elif defined(__ICCARM__)
+        return (unsigned)__builtin_clz(val);
 #   else
         return ZSTD_countLeadingZeros32_fallback(val);
 #   endif
@@ -104,6 +108,8 @@ MEM_STATIC unsigned ZSTD_countTrailingZeros64(U64 val)
             }
 #       endif
 #   elif defined(__GNUC__) && (__GNUC__ >= 4) && defined(__LP64__)
+        return (unsigned)__builtin_ctzll(val);
+#   elif defined(__ICCARM__)
         return (unsigned)__builtin_ctzll(val);
 #   else
         {
@@ -135,6 +141,8 @@ MEM_STATIC unsigned ZSTD_countLeadingZeros64(U64 val)
             }
 #       endif
 #   elif defined(__GNUC__) && (__GNUC__ >= 4)
+        return (unsigned)(__builtin_clzll(val));
+#   elif defined(__ICCARM__)
         return (unsigned)(__builtin_clzll(val));
 #   else
         {

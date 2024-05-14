@@ -57,7 +57,7 @@ extern "C" {
 #else
 #  if defined (__cplusplus) && (__cplusplus >= 201402) /* C++14 or greater */
 #    define ZSTD_DEPRECATED(message) [[deprecated(message)]]
-#  elif (defined(GNUC) && (GNUC > 4 || (GNUC == 4 && GNUC_MINOR >= 5))) || defined(__clang__)
+#  elif (defined(GNUC) && (GNUC > 4 || (GNUC == 4 && GNUC_MINOR >= 5))) || defined(__clang__) || defined(__IAR_SYSTEMS_ICC__)
 #    define ZSTD_DEPRECATED(message) __attribute__((deprecated(message)))
 #  elif defined(__GNUC__) && (__GNUC__ >= 3)
 #    define ZSTD_DEPRECATED(message) __attribute__((deprecated))

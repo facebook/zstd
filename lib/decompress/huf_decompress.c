@@ -294,7 +294,7 @@ static size_t HUF_initRemainingDStream(BIT_DStream_t* bit, HUF_DecompressFastArg
     /* Construct the BIT_DStream_t. */
     assert(sizeof(size_t) == 8);
     bit->bitContainer = MEM_readLEST(args->ip[stream]);
-    bit->bitsConsumed = ZSTD_countTrailingZeros64(args->bits[stream]);
+    bit->bitsLeft = sizeof(bit->bitContainer)*8 - ZSTD_countTrailingZeros64(args->bits[stream]);
     bit->start = (const char*)args->ilowest;
     bit->limitPtr = bit->start + sizeof(size_t);
     bit->ptr = (const char*)args->ip[stream];
@@ -1279,11 +1279,11 @@ HUF_decodeLastSymbolX2(void* op, BIT_DStream_t* DStream, const HUF_DEltX2* dt, c
     if (dt[val].length==1) {
         BIT_skipBits(DStream, dt[val].nbBits);
     } else {
-        if (DStream->bitsConsumed < (sizeof(DStream->bitContainer)*8)) {
+        if ((sizeof(DStream->bitContainer)*8 - DStream->bitsLeft) < (sizeof(DStream->bitContainer)*8)) {
             BIT_skipBits(DStream, dt[val].nbBits);
-            if (DStream->bitsConsumed > (sizeof(DStream->bitContainer)*8))
+            if ((sizeof(DStream->bitContainer)*8 - DStream->bitsLeft) > (sizeof(DStream->bitContainer)*8))
                 /* ugly hack; works only because it's the last symbol. Note : can't easily extract nbBits from just this symbol */
-                DStream->bitsConsumed = (sizeof(DStream->bitContainer)*8);
+                DStream->bitsLeft = 0;
         }
     }
     return 1;

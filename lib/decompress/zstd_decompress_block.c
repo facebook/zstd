@@ -1286,11 +1286,11 @@ ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets, c
                      * avoids branches, and avoids accidentally reading 0 bits.
                      */
                     U32 const extraBits = LONG_OFFSETS_MAX_EXTRA_BITS_32;
-                    offset = ofBase + (BIT_readBitsFast(&seqState->DStream, ofBits - extraBits) << extraBits);
+                    offset = ofBase + (BIT_readBits(&seqState->DStream, ofBits - extraBits) << extraBits);
                     BIT_reloadDStream(&seqState->DStream);
-                    offset += BIT_readBitsFast(&seqState->DStream, extraBits);
+                    offset += BIT_readBits(&seqState->DStream, extraBits);
                 } else {
-                    offset = ofBase + BIT_readBitsFast(&seqState->DStream, ofBits/*>0*/);   /* <=  (ZSTD_WINDOWLOG_MAX-1) bits */
+                    offset = ofBase + BIT_readBits(&seqState->DStream, ofBits/*>0*/);   /* <=  (ZSTD_WINDOWLOG_MAX-1) bits */
                     if (MEM_32bits()) BIT_reloadDStream(&seqState->DStream);
                 }
                 seqState->prevOffset[2] = seqState->prevOffset[1];
@@ -1303,7 +1303,7 @@ ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets, c
                     seqState->prevOffset[1] = seqState->prevOffset[!ll0];
                     seqState->prevOffset[0] = offset;
                 } else {
-                    offset = ofBase + ll0 + BIT_readBitsFast(&seqState->DStream, 1);
+                    offset = ofBase + ll0 + BIT_readBits(&seqState->DStream, 1);
                     {   size_t temp = (offset==3) ? seqState->prevOffset[0] - 1 : seqState->prevOffset[offset];
                         temp -= !temp; /* 0 is not valid: input corrupted => force offset to -1 => corruption detected at execSequence */
                         if (offset != 1) seqState->prevOffset[2] = seqState->prevOffset[1];
@@ -1314,7 +1314,7 @@ ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets, c
         }
 
         if (mlBits > 0)
-            seq.matchLength += BIT_readBitsFast(&seqState->DStream, mlBits/*>0*/);
+            seq.matchLength += BIT_readBits(&seqState->DStream, mlBits/*>0*/);
 
         if (MEM_32bits() && (mlBits+llBits >= STREAM_ACCUMULATOR_MIN_32-LONG_OFFSETS_MAX_EXTRA_BITS_32))
             BIT_reloadDStream(&seqState->DStream);
@@ -1324,7 +1324,7 @@ ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets, c
         ZSTD_STATIC_ASSERT(16+LLFSELog+MLFSELog+OffFSELog < STREAM_ACCUMULATOR_MIN_64);
 
         if (llBits > 0)
-            seq.litLength += BIT_readBitsFast(&seqState->DStream, llBits/*>0*/);
+            seq.litLength += BIT_readBits(&seqState->DStream, llBits/*>0*/);
 
         if (MEM_32bits())
             BIT_reloadDStream(&seqState->DStream);
@@ -1577,7 +1577,7 @@ ZSTD_decompressSequences_bodySplitLitBuffer( ZSTD_DCtx* dctx,
         /* check if reached exact end */
         DEBUGLOG(5, "ZSTD_decompressSequences_bodySplitLitBuffer: after decode loop, remaining nbSeq : %i", nbSeq);
         RETURN_ERROR_IF(nbSeq, corruption_detected, "");
-        DEBUGLOG(5, "bitStream : start=%p, ptr=%p, bitsConsumed=%u", seqState.DStream.start, seqState.DStream.ptr, seqState.DStream.bitsConsumed);
+        DEBUGLOG(5, "bitStream : start=%p, ptr=%p, bitsLeft=%u", seqState.DStream.start, seqState.DStream.ptr, seqState.DStream.bitsLeft);
         RETURN_ERROR_IF(!BIT_endOfDStream(&seqState.DStream), corruption_detected, "");
         /* save reps for next block */
         { U32 i; for (i=0; i<ZSTD_REP_NUM; i++) dctx->entropy.rep[i] = (U32)(seqState.prevOffset[i]); }

@@ -38,11 +38,7 @@ const char* HUF_getErrorName(size_t code) { return ERR_getErrorName(code); }
 /*-**************************************************************
 *  FSE NCount encoding-decoding
 ****************************************************************/
-#if defined(__IAR_SYSTEMS_ICC__)
-MEM_STATIC
-#else
 FORCE_INLINE_TEMPLATE
-#endif
 size_t FSE_readNCount_body(short* normalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr,
                            const void* headerBuffer, size_t hbSize)
 {

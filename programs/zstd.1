@@ -37,8 +37,6 @@ When compressing a single file, \fBzstd\fR displays progress notifications and r
 .IP "\(bu" 4
 \fBzstd\fR does not store the input\'s filename or attributes, only its contents\.
 .
-.IP "" 0
-.
 .P
 \fBzstd\fR processes each \fIfile\fR according to the selected operation mode\. If no \fIfiles\fR are given or \fIfile\fR is \fB\-\fR, \fBzstd\fR reads from standard input and writes the processed data to standard output\. \fBzstd\fR will refuse to write compressed data to standard output if it is a terminal: it will display an error message and skip the file\. Similarly, \fBzstd\fR will refuse to read compressed data from standard input if it is a terminal\.
 .
@@ -50,8 +48,6 @@ When compressing, the suffix \fB\.zst\fR is appended to the source filename to g
 .
 .IP "\(bu" 4
 When decompressing, the \fB\.zst\fR suffix is removed from the source filename to get the target filename
-.
-.IP "" 0
 .
 .SS "Concatenation with \.zst Files"
 It is possible to concatenate multiple \fB\.zst\fR files\. \fBzstd\fR will decompress such agglomerated file as if it was a single \fB\.zst\fR file\.
@@ -244,8 +240,6 @@ If input directory contains "\.\.", the files in this directory will be ignored\
 .
 .IP "\(bu" 4
 \fB\-\-\fR: All arguments after \fB\-\-\fR are treated as files
-.
-.IP "" 0
 .
 .SS "gzip Operation Modifiers"
 When invoked via a \fBgzip\fR symlink, \fBzstd\fR will support further options that intend to mimic the \fBgzip\fR behavior:

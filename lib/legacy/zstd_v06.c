@@ -3919,6 +3919,10 @@ ZBUFFv06_DCtx* ZBUFFv06_createDCtx(void)
     if (zbd==NULL) return NULL;
     memset(zbd, 0, sizeof(*zbd));
     zbd->zd = ZSTDv06_createDCtx();
+    if (zbd->zd==NULL) {
+        ZBUFFv06_freeDCtx(zbd); /* avoid leaking the context */
+        return NULL;
+    }
     zbd->stage = ZBUFFds_init;
     return zbd;
 }

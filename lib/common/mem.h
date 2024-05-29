@@ -30,6 +30,8 @@ extern "C" {
 #if defined(_MSC_VER)   /* Visual Studio */
 #   include <stdlib.h>  /* _byteswap_ulong */
 #   include <intrin.h>  /* _byteswap_* */
+#elif defined(__ICCARM__)
+#   include <intrinsics.h>
 #endif
 
 /*-**************************************************************
@@ -154,6 +156,8 @@ MEM_STATIC unsigned MEM_isLittleEndian(void)
     return 1;
 #elif defined(__DMC__) && defined(_M_IX86)
     return 1;
+#elif defined(__IAR_SYSTEMS_ICC__) && __LITTLE_ENDIAN__
+    return 1;
 #else
     const union { U32 u; BYTE c[4]; } one = { 1 };   /* don't use static : performance detrimental  */
     return one.c[0];
@@ -246,6 +250,8 @@ MEM_STATIC U32 MEM_swap32(U32 in)
 #elif (defined (__GNUC__) && (__GNUC__ * 100 + __GNUC_MINOR__ >= 403)) \
   || (defined(__clang__) && __has_builtin(__builtin_bswap32))
     return __builtin_bswap32(in);
+#elif defined(__ICCARM__)
+    return __REV(in);
 #else
     return MEM_swap32_fallback(in);
 #endif

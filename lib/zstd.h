@@ -157,37 +157,40 @@ ZSTDLIB_API size_t ZSTD_compress( void* dst, size_t dstCapacity,
                                   int compressionLevel);
 
 /*! ZSTD_decompress() :
- *  `compressedSize` : must be the _exact_ size of some number of compressed and/or skippable frames.
- *  `dstCapacity` is an upper bound of originalSize to regenerate.
- *  If user cannot imply a maximum upper bound, it's better to use streaming mode to decompress data.
- *  @return : the number of bytes decompressed into `dst` (<= `dstCapacity`),
- *            or an errorCode if it fails (which can be tested using ZSTD_isError()). */
+ * `compressedSize` : must be the _exact_ size of some number of compressed and/or skippable frames.
+ *  Multiple compressed frames can be decompressed at once with this method.
+ *  The result will be the concatenation of all decompressed frames, back to back.
+ * `dstCapacity` is an upper bound of originalSize to regenerate.
+ *  First frame's decompressed size can be extracted using ZSTD_getFrameContentSize().
+ *  If maximum upper bound isn't known, prefer using streaming mode to decompress data.
+ * @return : the number of bytes decompressed into `dst` (<= `dstCapacity`),
+ *           or an errorCode if it fails (which can be tested using ZSTD_isError()). */
 ZSTDLIB_API size_t ZSTD_decompress( void* dst, size_t dstCapacity,
                               const void* src, size_t compressedSize);
 
 /*! ZSTD_getFrameContentSize() : requires v1.3.0+
- *  `src` should point to the start of a ZSTD encoded frame.
- *  `srcSize` must be at least as large as the frame header.
- *            hint : any size >= `ZSTD_frameHeaderSize_max` is large enough.
- *  @return : - decompressed size of `src` frame content, if known
- *            - ZSTD_CONTENTSIZE_UNKNOWN if the size cannot be determined
- *            - ZSTD_CONTENTSIZE_ERROR if an error occurred (e.g. invalid magic number, srcSize too small)
- *   note 1 : a 0 return value means the frame is valid but "empty".
- *   note 2 : decompressed size is an optional field, it may not be present, typically in streaming mode.
- *            When `return==ZSTD_CONTENTSIZE_UNKNOWN`, data to decompress could be any size.
- *            In which case, it's necessary to use streaming mode to decompress data.
- *            Optionally, application can rely on some implicit limit,
- *            as ZSTD_decompress() only needs an upper bound of decompressed size.
- *            (For example, data could be necessarily cut into blocks <= 16 KB).
- *   note 3 : decompressed size is always present when compression is completed using single-pass functions,
- *            such as ZSTD_compress(), ZSTD_compressCCtx() ZSTD_compress_usingDict() or ZSTD_compress_usingCDict().
- *   note 4 : decompressed size can be very large (64-bits value),
- *            potentially larger than what local system can handle as a single memory segment.
- *            In which case, it's necessary to use streaming mode to decompress data.
- *   note 5 : If source is untrusted, decompressed size could be wrong or intentionally modified.
- *            Always ensure return value fits within application's authorized limits.
- *            Each application can set its own limits.
- *   note 6 : This function replaces ZSTD_getDecompressedSize() */
+ * `src` should point to the start of a ZSTD encoded frame.
+ * `srcSize` must be at least as large as the frame header.
+ *           hint : any size >= `ZSTD_frameHeaderSize_max` is large enough.
+ * @return : - decompressed size of `src` frame content, if known
+ *           - ZSTD_CONTENTSIZE_UNKNOWN if the size cannot be determined
+ *           - ZSTD_CONTENTSIZE_ERROR if an error occurred (e.g. invalid magic number, srcSize too small)
+ *  note 1 : a 0 return value means the frame is valid but "empty".
+ *  note 2 : decompressed size is an optional field, it may not be present (typically in streaming mode).
+ *           When `return==ZSTD_CONTENTSIZE_UNKNOWN`, data to decompress could be any size.
+ *           In which case, it's necessary to use streaming mode to decompress data.
+ *           Optionally, application can rely on some implicit limit,
+ *           as ZSTD_decompress() only needs an upper bound of decompressed size.
+ *           (For example, data could be necessarily cut into blocks <= 16 KB).
+ *  note 3 : decompressed size is always present when compression is completed using single-pass functions,
+ *           such as ZSTD_compress(), ZSTD_compressCCtx() ZSTD_compress_usingDict() or ZSTD_compress_usingCDict().
+ *  note 4 : decompressed size can be very large (64-bits value),
+ *           potentially larger than what local system can handle as a single memory segment.
+ *           In which case, it's necessary to use streaming mode to decompress data.
+ *  note 5 : If source is untrusted, decompressed size could be wrong or intentionally modified.
+ *           Always ensure return value fits within application's authorized limits.
+ *           Each application can set its own limits.
+ *  note 6 : This function replaces ZSTD_getDecompressedSize() */
 #define ZSTD_CONTENTSIZE_UNKNOWN (0ULL - 1)
 #define ZSTD_CONTENTSIZE_ERROR   (0ULL - 2)
 ZSTDLIB_API unsigned long long ZSTD_getFrameContentSize(const void *src, size_t srcSize);
@@ -1802,7 +1805,7 @@ static
 #ifdef __GNUC__
 __attribute__((__unused__))
 #endif
-	
+
 #if defined(__clang__) && __clang_major__ >= 5
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wzero-as-null-pointer-constant"

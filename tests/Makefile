@@ -271,8 +271,8 @@ clean:
 #----------------------------------------------------------------------------------
 # valgrind tests validated only for some posix platforms
 #----------------------------------------------------------------------------------
-UNAME := $(shell uname)
-ifneq (,$(filter $(UNAME),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS AIX CYGWIN_NT))
+UNAME := $(shell sh -c 'MSYSTEM="MSYS" uname') 
+ifneq (,$(filter Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS AIX CYGWIN_NT%,$(UNAME)))
 HOST_OS = POSIX
 
 .PHONY: test-valgrind
@@ -300,10 +300,10 @@ endif
 #-----------------------------------------------------------------------------
 # make tests validated only for below targets
 #-----------------------------------------------------------------------------
-ifneq (,$(filter $(HOST_OS),MSYS POSIX))
+ifneq (,$(filter MSYS POSIX,$(HOST_OS)))
 
 DIFF:=diff
-ifneq (,$(filter $(UNAME),SunOS))
+ifneq (,$(filter SunOS,$(UNAME)))
   DIFF:=gdiff
 endif
 

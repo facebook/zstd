@@ -206,7 +206,7 @@ endif
 endif
 CPPFLAGS  += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)
 
-UNAME := $(shell uname)
+UNAME := $(shell sh -c 'MSYSTEM="MSYS" uname') 
 
 ifndef BUILD_DIR
 ifeq ($(UNAME), Darwin)

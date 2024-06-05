@@ -2478,7 +2478,7 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
 
     DISPLAYLEVEL(3, "test%3i : Test single-shot fallback for magicless mode: ", testNb++);
     {
-        // Aquire resources
+        // Acquire resources
         size_t const srcSize = COMPRESSIBLE_NOISE_LENGTH;
         void* src = malloc(srcSize);
         size_t const dstSize = ZSTD_compressBound(srcSize);

@@ -17,7 +17,7 @@ LDFLAGS ?=
 ARFLAGS ?=
 LIB_FUZZING_ENGINE ?= libregression.a
 PYTHON ?= python
-ifeq ($(shell uname), Darwin)
+ifeq ($(shell sh -c 'MSYSTEM="MSYS" uname') , Darwin)
 	DOWNLOAD?=curl -L -o
 else
 	DOWNLOAD?=wget -O

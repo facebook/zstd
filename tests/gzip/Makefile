@@ -36,7 +36,7 @@ clean:
 #------------------------------------------------------------------------------
 # validated only for Linux, macOS, Hurd and some BSD targets
 #------------------------------------------------------------------------------
-ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU FreeBSD DragonFly NetBSD))
+ifneq (,$(filter Linux Darwin GNU/kFreeBSD GNU FreeBSD DragonFly NetBSD,$(shell sh -c 'MSYSTEM="MSYS" uname') ))
 
 test-%: zstd
 	@./test-driver.sh --test-name $* --log-file $*.log --trs-file $*.trs --expect-failure "no" --color-tests "yes" --enable-hard-errors "yes" ./$*.sh

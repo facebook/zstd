@@ -10,7 +10,7 @@
 
 ZSTD ?= zstd   # note: requires zstd installation on local system
 
-UNAME?= $(shell uname)
+UNAME?= $(shell sh -c 'MSYSTEM="MSYS" uname') 
 ifeq ($(UNAME), SunOS)
 DIFF ?= gdiff
 else

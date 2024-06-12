@@ -266,7 +266,7 @@ clean:
 #-----------------------------------------------------------------------------
 # make install is validated only for below listed environments
 #-----------------------------------------------------------------------------
-ifneq (,$(filter $(UNAME),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku AIX MSYS_NT CYGWIN_NT))
+ifneq (,$(filter Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku AIX MSYS_NT% CYGWIN_NT%,$(UNAME)))
 
 lib: libzstd.pc
 
@@ -305,13 +305,21 @@ else
   PCLIB := $(LDFLAGS_DYNLIB)
 endif
 
-ifneq (,$(filter $(UNAME),FreeBSD NetBSD DragonFly))
+
+ifneq ($(MT),)
+  PCLIB :=
+  PCMTLIB := $(LDFLAGS_DYNLIB)
+else
+  PCLIB := $(LDFLAGS_DYNLIB)
+endif
+
+ifneq (,$(filter FreeBSD NetBSD DragonFly,$(UNAME)))
   PKGCONFIGDIR ?= $(PREFIX)/libdata/pkgconfig
 else
   PKGCONFIGDIR ?= $(LIBDIR)/pkgconfig
 endif
 
-ifneq (,$(filter $(UNAME),SunOS))
+ifneq (,$(filter SunOS,$(UNAME)))
   INSTALL ?= ginstall
 else
   INSTALL ?= install

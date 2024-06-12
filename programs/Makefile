@@ -345,7 +345,7 @@ include $(wildcard $(DEPFILES))
 #-----------------------------------------------------------------------------
 # make install is validated only for Linux, macOS, BSD, Hurd and Solaris targets
 #-----------------------------------------------------------------------------
-ifneq (,$(filter $(UNAME),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku AIX MSYS_NT CYGWIN_NT))
+ifneq (,$(filter Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku AIX MSYS_NT% CYGWIN_NT%,$(UNAME)))
 
 HAVE_COLORNEVER = $(shell echo a | egrep --color=never a > /dev/null 2> /dev/null && echo 1 || echo 0)
 EGREP_OPTIONS ?=
@@ -388,14 +388,14 @@ datarootdir ?= $(PREFIX)/share
 mandir      ?= $(datarootdir)/man
 man1dir     ?= $(mandir)/man1
 
-ifneq (,$(filter $(UNAME),OpenBSD FreeBSD NetBSD DragonFly SunOS))
+ifneq (,$(filter OpenBSD FreeBSD NetBSD DragonFly SunOS,$(UNAME)))
   MANDIR  ?= $(PREFIX)/man
   MAN1DIR ?= $(MANDIR)/man1
 else
   MAN1DIR ?= $(man1dir)
 endif
 
-ifneq (,$(filter $(UNAME),SunOS))
+ifneq (,$(filter SunOS,$(UNAME)))
   INSTALL ?= ginstall
 else
   INSTALL ?= install

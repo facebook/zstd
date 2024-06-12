@@ -151,7 +151,7 @@ clean:
 #------------------------------------------------------------------------------
 # make install is validated only for Linux, macOS, Hurd and some BSD targets
 #------------------------------------------------------------------------------
-ifneq (,$(filter $(shell uname),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD DragonFly NetBSD MSYS_NT CYGWIN_NT Haiku AIX))
+ifneq (,$(filter Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD DragonFly NetBSD MSYS_NT% CYGWIN_NT% Haiku AIX,$(shell sh -c 'MSYSTEM="MSYS" uname') ))
 
 HOST_OS = POSIX
 
@@ -390,19 +390,19 @@ lz4install:
 endif
 
 
-ifneq (,$(filter MSYS%,$(shell uname)))
+ifneq (,$(filter MSYS%,$(shell sh -c 'MSYSTEM="MSYS" uname') ))
 HOST_OS = MSYS
 endif
 
 #------------------------------------------------------------------------
 # target specific tests
 #------------------------------------------------------------------------
-ifneq (,$(filter $(HOST_OS),MSYS POSIX))
+ifneq (,$(filter MSYS POSIX,$(HOST_OS)))
 
 CMAKE ?= cmake
 CMAKE_PARAMS = -DZSTD_BUILD_CONTRIB:BOOL=ON -DZSTD_BUILD_STATIC:BOOL=ON -DZSTD_BUILD_TESTS:BOOL=ON -DZSTD_ZLIB_SUPPORT:BOOL=ON -DZSTD_LZMA_SUPPORT:BOOL=ON
 
-ifneq (,$(filter MSYS%,$(shell uname)))
+ifneq (,$(filter MSYS%,$(shell sh -c 'MSYSTEM="MSYS" uname')))
 CMAKE_PARAMS = -G"MSYS Makefiles" -DZSTD_MULTITHREAD_SUPPORT:BOOL=OFF -DZSTD_BUILD_STATIC:BOOL=ON -DZSTD_BUILD_TESTS:BOOL=ON
 endif
 

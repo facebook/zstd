@@ -576,6 +576,11 @@ jobs:
         make -j allzstd &&
         make -C tests fuzzer &&
         ./tests/fuzzer.exe -v -T1m
+    - name: cygwin install test
+      shell: C:\cygwin\bin\bash.exe --noprofile --norc -eo pipefail '{0}'
+      run: >-
+        make -j &&
+        make install
 
   pkg-config:
     runs-on: ubuntu-latest

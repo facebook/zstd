@@ -154,6 +154,20 @@ typedef ZSTD_CCtx zstd_cctx;
 size_t zstd_cctx_workspace_bound(const zstd_compression_parameters *parameters);
 
 /**
+ * zstd_cctx_workspace_bound_with_ext_seq_prod() - max memory needed to
+ * initialize a zstd_cctx when using the block-level external sequence
+ * producer API.
+ * @parameters: The compression parameters to be used.
+ *
+ * If multiple compression parameters might be used, the caller must call
+ * this function for each set of parameters and use the maximum size.
+ *
+ * Return:      A lower bound on the size of the workspace that is passed to
+ *              zstd_init_cctx().
+ */
+size_t zstd_cctx_workspace_bound_with_ext_seq_prod(const zstd_compression_parameters *parameters);
+
+/**
  * zstd_init_cctx() - initialize a zstd compression context
  * @workspace:      The workspace to emplace the context into. It must outlive
  *                  the returned context.
@@ -256,6 +270,16 @@ typedef ZSTD_CStream zstd_cstream;
  *           zstd_init_cstream().
  */
 size_t zstd_cstream_workspace_bound(const zstd_compression_parameters *cparams);
+
+/**
+ * zstd_cstream_workspace_bound_with_ext_seq_prod() - memory needed to initialize
+ * a zstd_cstream when using the block-level external sequence producer API.
+ * @cparams: The compression parameters to be used for compression.
+ *
+ * Return:   A lower bound on the size of the workspace that is passed to
+ *           zstd_init_cstream().
+ */
+size_t zstd_cstream_workspace_bound_with_ext_seq_prod(const zstd_compression_parameters *cparams);
 
 /**
  * zstd_init_cstream() - initialize a zstd streaming compression context
@@ -415,6 +439,18 @@ size_t zstd_decompress_stream(zstd_dstream *dstream, zstd_out_buffer *output,
  *            Suitable to pass to ZSTD_decompress() or similar functions.
  */
 size_t zstd_find_frame_compressed_size(const void *src, size_t src_size);
+
+/**
+ * zstd_register_sequence_producer() - exposes the zstd library function
+ * ZSTD_registerSequenceProducer(). This is used for the block-level external
+ * sequence producer API. See upstream zstd.h for detailed documentation.
+ */
+typedef ZSTD_sequenceProducer_F zstd_sequence_producer_f;
+void zstd_register_sequence_producer(
+  zstd_cctx *cctx,
+  void* sequence_producer_state,
+  zstd_sequence_producer_f sequence_producer
+);
 
 /**
  * struct zstd_frame_params - zstd frame parameters stored in the frame header

@@ -21,8 +21,13 @@
 /*-*************************************
 *  Dependencies
 ***************************************/
+/* qsort_r is an extension. */
+#if defined(__linux) || defined(__linux__) || defined(linux) || defined(__gnu_linux__)
+#define _GNU_SOURCE
+#endif
 #include <stdio.h>  /* fprintf */
-#include <stdlib.h> /* malloc, free, qsort */
+#include <stdlib.h> /* malloc, free, qsort_r */
+
 #include <string.h> /* memset */
 #include <time.h>   /* clock */
 
@@ -232,9 +237,6 @@ typedef struct {
   unsigned d;
 } COVER_ctx_t;
 
-/* We need a global context for qsort... */
-static COVER_ctx_t *g_coverCtx = NULL;
-
 /*-*************************************
 *  Helper functions
 ***************************************/
@@ -276,11 +278,15 @@ static int COVER_cmp8(COVER_ctx_t *ctx, const void *lp, const void *rp) {
 
 /**
  * Same as COVER_cmp() except ties are broken by pointer value
- * NOTE: g_coverCtx must be set to call this function.  A global is required because
- * qsort doesn't take an opaque pointer.
  */
-static int WIN_CDECL COVER_strict_cmp(const void *lp, const void *rp) {
-  int result = COVER_cmp(g_coverCtx, lp, rp);
+#if defined(_WIN32)
+static int WIN_CDECL COVER_strict_cmp(void* g_coverCtx, const void* lp, const void* rp) {
+#elif defined(__APPLE__)
+static int WIN_CDECL COVER_strict_cmp(void *g_coverCtx, const void *lp, const void *rp) {
+#elif defined(_GNU_SOURCE) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
+static int WIN_CDECL COVER_strict_cmp(const void *lp, const void *rp, void *g_coverCtx) {
+#endif
+  int result = COVER_cmp((COVER_ctx_t*)g_coverCtx, lp, rp);
   if (result == 0) {
     result = lp < rp ? -1 : 1;
   }
@@ -289,8 +295,14 @@ static int WIN_CDECL COVER_strict_cmp(const void *lp, const void *rp) {
 /**
  * Faster version for d <= 8.
  */
-static int WIN_CDECL COVER_strict_cmp8(const void *lp, const void *rp) {
-  int result = COVER_cmp8(g_coverCtx, lp, rp);
+#if defined(_WIN32)
+static int WIN_CDECL COVER_strict_cmp8(void* g_coverCtx, const void* lp, const void* rp) {
+#elif defined(__APPLE__)
+static int WIN_CDECL COVER_strict_cmp8(void *g_coverCtx, const void *lp, const void *rp) {
+#elif defined(_GNU_SOURCE) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
+static int WIN_CDECL COVER_strict_cmp8(const void *lp, const void *rp, void *g_coverCtx) {
+#endif
+  int result = COVER_cmp8((COVER_ctx_t*)g_coverCtx, lp, rp);
   if (result == 0) {
     result = lp < rp ? -1 : 1;
   }
@@ -620,17 +632,20 @@ static size_t COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
     for (i = 0; i < ctx->suffixSize; ++i) {
       ctx->suffix[i] = i;
     }
-    /* qsort doesn't take an opaque pointer, so pass as a global.
-     * On OpenBSD qsort() is not guaranteed to be stable, their mergesort() is.
-     */
-    g_coverCtx = ctx;
-#if defined(__OpenBSD__)
-    mergesort(ctx->suffix, ctx->suffixSize, sizeof(U32),
-          (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp));
-#else
-    qsort(ctx->suffix, ctx->suffixSize, sizeof(U32),
-          (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp));
+#if defined(__APPLE__)
+    qsort_r(ctx->suffix, ctx->suffixSize, sizeof(U32),
+            ctx,
+            (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp));
+#elif defined(_GNU_SOURCE) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
+    qsort_r(ctx->suffix, ctx->suffixSize, sizeof(U32),
+            (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp),
+            ctx);
+#elif defined(_WIN32)
+    qsort_s(ctx->suffix, ctx->suffixSize, sizeof(U32),
+            (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp),
+            ctx);
 #endif
+
   }
   DISPLAYLEVEL(2, "Computing frequencies\n");
   /* For each dmer group (group of positions with the same first d bytes):

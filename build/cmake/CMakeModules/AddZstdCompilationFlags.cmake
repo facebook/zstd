@@ -57,7 +57,7 @@ macro(ADD_ZSTD_COMPILATION_FLAGS)
         # Note that zstd source code is compatible with both C++98 and above
         # and C-gnu90 (c90 + long long + variadic macros ) and above
         # EnableCompilerFlag("-std=c++11" false true) # Set C++ compilation to c++11 standard
-        # EnableCompilerFlag("-std=c99" true false)   # Set C compiation to c99 standard
+        # EnableCompilerFlag("-std=c99" true false)   # Set C compilation to c99 standard
         if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND MSVC)
             # clang-cl normally maps -Wall to -Weverything.
             EnableCompilerFlag("/clang:-Wall" true true false)

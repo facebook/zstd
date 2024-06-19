@@ -358,7 +358,7 @@ size_t ZSTD_decodeLiteralsBlock_wrapper(ZSTD_DCtx* dctx,
  * - start from default distributions, present in /lib/common/zstd_internal.h
  * - generate tables normally, using ZSTD_buildFSETable()
  * - printout the content of tables
- * - pretify output, report below, test with fuzzer to ensure it's correct */
+ * - prettify output, report below, test with fuzzer to ensure it's correct */
 
 /* Default FSE distribution table for Literal Lengths */
 static const ZSTD_seqSymbol LL_defaultDTable[(1<<LL_DEFAULTNORMLOG)+1] = {

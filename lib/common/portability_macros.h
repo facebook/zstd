@@ -90,7 +90,7 @@
 #endif
 
 /**
- * Only enable assembly for GNUC compatible compilers,
+ * Only enable assembly for GNU C compatible compilers,
  * because other platforms may not support GAS assembly syntax.
  *
  * Only enable assembly for Linux / MacOS, other platforms may

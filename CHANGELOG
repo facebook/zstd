@@ -3,7 +3,7 @@ api: Promote `ZSTD_c_targetCBlockSize` to Stable API by @felixhandte
 api: new `ZSTD_d_maxBlockSize` experimental parameter, to reduce streaming decompression memory, by @terrelln
 perf: improve performance of param `ZSTD_c_targetCBlockSize`, by @Cyan4973
 perf: improved compression of arrays of integers at high compression, by @Cyan4973
-lib: reduce binary size with selective built-time exclusion, by @felixhandte
+lib: reduce binary size with selective build-time exclusion, by @felixhandte
 lib: improved huffman speed on small data and linux kernel, by @terrelln
 lib: accept dictionaries with partial literal tables, by @terrelln
 lib: fix CCtx size estimation with external sequence producer, by @embg
@@ -489,7 +489,7 @@ misc: added /contrib/docker script by @gyscos
 
 v1.3.3  (Dec 21, 2017)
 perf: faster zstd_opt strategy (levels 16-19)
-fix : bug #944 : multithreading with shared ditionary and large data, reported by @gsliepen
+fix : bug #944 : multithreading with shared dictionary and large data, reported by @gsliepen
 cli : fix : content size written in header by default
 cli : fix : improved LZ4 format support, by @felixhandte
 cli : new : hidden command `-S`, to benchmark multiple files while generating one result per file

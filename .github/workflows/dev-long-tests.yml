@@ -31,12 +31,12 @@ jobs:
       run: make test
 
   # lasts ~26mn
-  make-test-osx:
+  make-test-macos:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
-    - name: OS-X test
-      run: make test # make -c lib all doesn't work because of the fact that it's not a tty
+    - name: make test on macos
+      run: make test
 
   # lasts ~24mn
   make-test-32bit:

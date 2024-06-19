@@ -305,14 +305,6 @@ else
   PCLIB := $(LDFLAGS_DYNLIB)
 endif
 
-
-ifneq ($(MT),)
-  PCLIB :=
-  PCMTLIB := $(LDFLAGS_DYNLIB)
-else
-  PCLIB := $(LDFLAGS_DYNLIB)
-endif
-
 ifneq (,$(filter FreeBSD NetBSD DragonFly,$(UNAME)))
   PKGCONFIGDIR ?= $(PREFIX)/libdata/pkgconfig
 else

@@ -1362,6 +1362,10 @@ symbols for each of the final states are decoded and the process is complete.
 If this process would produce more weights than the maximum number of decoded
 weights (255), then the data is considered corrupted.
 
+If either of the 2 initial states are absent or truncated, then the data is
+considered corrupted.  Consequently, it is not possible to encode fewer than
+2 weights using this mode.
+
 #### Conversion from weights to Huffman prefix codes
 
 All present symbols shall now have a `Weight` value.

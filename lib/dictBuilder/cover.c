@@ -22,9 +22,10 @@
 *  Dependencies
 ***************************************/
 /* qsort_r is an extension. */
-#if defined(__linux) || defined(__linux__) || defined(linux) || defined(__gnu_linux__)
+#if defined(__linux) || defined(__linux__) || defined(linux) || defined(__gnu_linux__) || defined(__CYGWIN__) || defined(__MSYS__)
 #define _GNU_SOURCE
 #endif
+
 #include <stdio.h>  /* fprintf */
 #include <stdlib.h> /* malloc, free, qsort_r */
 
@@ -279,7 +280,7 @@ static int COVER_cmp8(COVER_ctx_t *ctx, const void *lp, const void *rp) {
 /**
  * Same as COVER_cmp() except ties are broken by pointer value
  */
-#if defined(_WIN32)
+#if defined(_WIN32) && defined(_MSC_VER)
 static int WIN_CDECL COVER_strict_cmp(void* g_coverCtx, const void* lp, const void* rp) {
 #elif defined(__APPLE__)
 static int WIN_CDECL COVER_strict_cmp(void *g_coverCtx, const void *lp, const void *rp) {
@@ -295,7 +296,7 @@ static int WIN_CDECL COVER_strict_cmp(const void *lp, const void *rp, void *g_co
 /**
  * Faster version for d <= 8.
  */
-#if defined(_WIN32)
+#if defined(_WIN32) && defined(_MSC_VER)
 static int WIN_CDECL COVER_strict_cmp8(void* g_coverCtx, const void* lp, const void* rp) {
 #elif defined(__APPLE__)
 static int WIN_CDECL COVER_strict_cmp8(void *g_coverCtx, const void *lp, const void *rp) {
@@ -640,7 +641,7 @@ static size_t COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
     qsort_r(ctx->suffix, ctx->suffixSize, sizeof(U32),
             (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp),
             ctx);
-#elif defined(_WIN32)
+#elif defined(_WIN32) && defined(_MSC_VER)
     qsort_s(ctx->suffix, ctx->suffixSize, sizeof(U32),
             (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp),
             ctx);

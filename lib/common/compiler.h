@@ -326,7 +326,7 @@
 #endif
 
 /**
- * Helper function to perform a wrapped pointer difference without trigging
+ * Helper function to perform a wrapped pointer difference without triggering
  * UBSAN.
  *
  * @returns lhs - rhs with wrapping

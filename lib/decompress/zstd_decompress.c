@@ -811,7 +811,7 @@ size_t ZSTD_findFrameCompressedSize(const void *src, size_t srcSize)
 
 /** ZSTD_decompressBound() :
  *  compatible with legacy mode
- *  `src` must point to the start of a ZSTD frame or a skippeable frame
+ *  `src` must point to the start of a ZSTD frame or a skippable frame
  *  `srcSize` must be at least as large as the frame contained
  *  @return : the maximum decompressed size of the compressed source
  */

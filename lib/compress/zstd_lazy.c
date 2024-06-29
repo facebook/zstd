@@ -1123,9 +1123,9 @@ ZSTD_row_getMatchMask(const BYTE* const tagRow, const BYTE tag, const U32 headGr
 
 /* The high-level approach of the SIMD row based match finder is as follows:
  * - Figure out where to insert the new entry:
- *      - Generate a hash for current input posistion and split it into a one byte of tag and `rowHashLog` bits of index.
- *           - The hash is salted by a value that changes on every contex reset, so when the same table is used
- *             we will avoid collisions that would otherwise slow us down by intorducing phantom matches.
+ *      - Generate a hash for current input position and split it into a one byte of tag and `rowHashLog` bits of index.
+ *           - The hash is salted by a value that changes on every context reset, so when the same table is used
+ *             we will avoid collisions that would otherwise slow us down by introducing phantom matches.
  *      - The hashTable is effectively split into groups or "rows" of 15 or 31 entries of U32, and the index determines
  *        which row to insert into.
  *      - Determine the correct position within the row to insert the entry into. Each row of 15 or 31 can

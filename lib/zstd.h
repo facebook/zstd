@@ -395,7 +395,7 @@ typedef enum {
                               * Special: value 0 means "use default strategy". */
 
     ZSTD_c_targetCBlockSize=130, /* v1.5.6+
-                                  * Attempts to fit compressed block size into approximatively targetCBlockSize.
+                                  * Attempts to fit compressed block size into approximately targetCBlockSize.
                                   * Bound by ZSTD_TARGETCBLOCKSIZE_MIN and ZSTD_TARGETCBLOCKSIZE_MAX.
                                   * Note that it's not a guarantee, just a convergence target (default:0).
                                   * No target when targetCBlockSize == 0.

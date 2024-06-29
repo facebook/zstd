@@ -2606,7 +2606,7 @@ ZSTD_reduceTable_internal (U32* const table, U32 const size, U32 const reducerVa
     /* Protect special index values < ZSTD_WINDOW_START_INDEX. */
     U32 const reducerThreshold = reducerValue + ZSTD_WINDOW_START_INDEX;
     assert((size & (ZSTD_ROWSIZE-1)) == 0);  /* multiple of ZSTD_ROWSIZE */
-    assert(size < (1U<<31));   /* can be casted to int */
+    assert(size < (1U<<31));   /* can be cast to int */
 
 #if ZSTD_MEMORY_SANITIZER && !defined (ZSTD_MSAN_DONT_POISON_WORKSPACE)
     /* To validate that the table reuse logic is sound, and that we don't
@@ -5622,7 +5622,7 @@ size_t ZSTD_freeCDict(ZSTD_CDict* cdict)
  *  workspaceSize: Use ZSTD_estimateCDictSize()
  *                 to determine how large workspace must be.
  *  cParams : use ZSTD_getCParams() to transform a compression level
- *            into its relevants cParams.
+ *            into its relevant cParams.
  * @return : pointer to ZSTD_CDict*, or NULL if error (size too small)
  *  Note : there is no corresponding "free" function.
  *         Since workspace was allocated externally, it must be freed externally.

@@ -18,6 +18,26 @@ This document lists a few known cases where invalid data was formerly accepted
 by the decoder, and what has changed since.
 
 
+Truncated Huffman states
+------------------------
+
+**Last affected version**: v1.5.6
+
+**Produced by the reference compressor**: No
+
+**Example Frame**: `28b5 2ffd 0000 5500 0072 8001 0420 7e1f 02aa 00`
+
+When using FSE-compressed Huffman weights, the compressed weight bitstream
+could contain fewer bits than necessary to decode the initial states.
+
+The reference decompressor up to v1.5.6 will decode truncated or missing
+initial states as zero, which can result in a valid Huffman tree if only
+the second state is truncated.
+
+In newer versions, truncated initial states are reported as a corruption
+error by the decoder.
+
+
 Offset == 0
 -----------
 

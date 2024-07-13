@@ -22,7 +22,7 @@ LIBZSTD_MK_INCLUDED := 1
 
 # By default, library's directory is same as this included makefile
 LIB_SRCDIR ?= $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
-LIB_BINDIR ?= $(LIBSRC_DIR)
+LIB_BINDIR ?= $(LIB_SRCDIR)
 
 # ZSTD_LIB_MINIFY is a helper variable that
 # configures a bunch of other variables to space-optimized defaults.

@@ -184,6 +184,17 @@ You can build and install zstd [vcpkg](https://github.com/Microsoft/vcpkg/) depe
 The zstd port in vcpkg is kept up to date by Microsoft team members and community contributors.
 If the version is out of date, please [create an issue or pull request](https://github.com/Microsoft/vcpkg) on the vcpkg repository.
 
+### Conan
+
+You can install pre-built binaries for zstd or build it from source using [Conan](https://conan.io/). Use the following command:
+
+```bash
+conan install --requires="zstd/[*]" --build=missing
+```
+
+The zstd Conan recipe is kept up to date by Conan maintainers and community contributors.
+If the version is out of date, please [create an issue or pull request](https://github.com/conan-io/conan-center-index) on the ConanCenterIndex repository.
+
 ### Visual Studio (Windows)
 
 Going into `build` directory, you will find additional possibilities:

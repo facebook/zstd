@@ -174,8 +174,10 @@ the last one takes effect.
         (_fileLog_ being the _windowLog_ required to cover the whole file). You
         can also manually force it.
 
-    Note: for all levels, you can use `--patch-from` in `--single-thread` mode
-        to improve compression ratio at the cost of speed.
+    Note: up to level 15, you can use `--patch-from` in `--single-thread` mode
+        to improve compression ratio marginally at the cost of speed. Using
+        '--single-thread' above level 15  will lead to lower compression
+        ratios.
 
     Note: for level 19, you can get increased compression ratio at the cost
         of speed by specifying `--zstd=targetLength=` to be something large

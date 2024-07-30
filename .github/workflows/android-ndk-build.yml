@@ -1,0 +1,37 @@
+name: Android NDK Build
+
+on:
+  pull_request:
+    branches: [ dev, release, actionsTest ]
+  push:
+    branches: [ actionsTest, '*ndk*' ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Install Android NDK
+      run: |
+        sdkmanager --install "ndk;27.0.12077973"
+        echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/27.0.12077973" >> $GITHUB_ENV
+
+    - name: Build with NDK
+      run: |
+        export PATH=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
+        make CC=aarch64-linux-android21-clang \
+             AR=llvm-ar \
+             RANLIB=llvm-ranlib \
+             STRIP=llvm-strip
+

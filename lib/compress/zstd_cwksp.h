@@ -287,7 +287,7 @@ ZSTD_cwksp_reserve_internal_buffer_space(ZSTD_cwksp* ws, size_t const bytes)
 {
     void* const alloc = (BYTE*)ws->allocStart - bytes;
     void* const bottom = ws->tableEnd;
-    DEBUGLOG(5, "cwksp: reserving %p %zd bytes, %zd bytes remaining",
+    DEBUGLOG(5, "cwksp: reserving [0x%p]:%zd bytes; %zd bytes remaining",
         alloc, bytes, ZSTD_cwksp_available_space(ws) - bytes);
     ZSTD_cwksp_assert_internal_consistency(ws);
     assert(alloc >= bottom);
@@ -577,7 +577,8 @@ MEM_STATIC void ZSTD_cwksp_clean_tables(ZSTD_cwksp* ws) {
  * Invalidates table allocations.
  * All other allocations remain valid.
  */
-MEM_STATIC void ZSTD_cwksp_clear_tables(ZSTD_cwksp* ws) {
+MEM_STATIC void ZSTD_cwksp_clear_tables(ZSTD_cwksp* ws)
+{
     DEBUGLOG(4, "cwksp: clearing tables!");
 
 #if ZSTD_ADDRESS_SANITIZER && !defined (ZSTD_ASAN_DONT_POISON_WORKSPACE)

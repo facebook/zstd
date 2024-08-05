@@ -499,7 +499,7 @@ jobs:
         shell: msys2 {0}
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
-    - uses: msys2/setup-msys2@5df0ca6cbf14efcd08f8d5bd5e049a3cc8e07fd2 # tag=v2.24.0
+    - uses: msys2/setup-msys2@ddf331adaebd714795f1042345e6ca57bd66cea8 # tag=v2.24.1
       with:
         msystem: ${{ matrix.msystem }}
         install: make diffutils

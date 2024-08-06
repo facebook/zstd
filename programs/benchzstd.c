@@ -149,7 +149,7 @@ static size_t uintSize(unsigned value)
     return size;
 }
 
-// Note: presume @buffer is large enough
+/* Note: presume @buffer is large enough */
 static void writeUint_varLen(char* buffer, size_t capacity, unsigned value)
 {
     int endPos = (int)uintSize(value) - 1;

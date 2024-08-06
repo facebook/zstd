@@ -21,13 +21,14 @@ extern "C" {
  * For now, enable conservatively:
  * - Only GNUC
  * - Only ELF
- * - Only x86-64, i386 and aarch64
+ * - Only x86-64, i386, aarch64 and risc-v.
  * Also, explicitly disable on platforms known not to work so they aren't
  * forgotten in the future.
  */
 #if !defined(ZSTD_HAVE_WEAK_SYMBOLS) && \
     defined(__GNUC__) && defined(__ELF__) && \
-    (defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86) || defined(__aarch64__)) && \
+    (defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || \
+     defined(_M_IX86) || defined(__aarch64__) || defined(__riscv)) && \
     !defined(__APPLE__) && !defined(_WIN32) && !defined(__MINGW32__) && \
     !defined(__CYGWIN__) && !defined(_AIX)
 #  define ZSTD_HAVE_WEAK_SYMBOLS 1

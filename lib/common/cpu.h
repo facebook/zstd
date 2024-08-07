@@ -34,8 +34,8 @@ MEM_STATIC ZSTD_cpuid_t ZSTD_cpuid(void) {
     U32 f1d = 0;
     U32 f7b = 0;
     U32 f7c = 0;
-#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))
-#if !defined(__clang__) || __clang_major__ >= 16
+#if defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86))                 \
+    && (!defined(__clang__) || __clang_major__ >= 16)
     int reg[4];
     __cpuid((int*)reg, 0);
     {
@@ -51,7 +51,8 @@ MEM_STATIC ZSTD_cpuid_t ZSTD_cpuid(void) {
             f7c = (U32)reg[2];
         }
     }
-#else
+#elif defined(_MSC_VER) && defined(_M_X64)                                     \
+      && defined(__clang__) && __clang_major__ < 16
     /* Clang compiler has a bug (fixed in https://reviews.llvm.org/D101338) in
      * which the `__cpuid` intrinsic does not save and restore `rbx` as it needs
      * to due to being a reserved register. So in that case, do the `cpuid`
@@ -85,7 +86,6 @@ MEM_STATIC ZSTD_cpuid_t ZSTD_cpuid(void) {
           : "a"(7), "c"(0)
           : "rdx");
     }
-#endif
 #elif defined(__i386__) && defined(__PIC__) && !defined(__clang__) && defined(__GNUC__)
     /* The following block like the normal cpuid branch below, but gcc
      * reserves ebx for use of its pic register so we must specially

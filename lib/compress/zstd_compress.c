@@ -3458,7 +3458,7 @@ size_t ZSTD_generateSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
                               size_t outSeqsSize, const void* src, size_t srcSize)
 {
     const size_t dstCapacity = ZSTD_compressBound(srcSize);
-    void* dst = ZSTD_customMalloc(dstCapacity, ZSTD_defaultCMem);
+    void* dst; /* Make C90 happy. */
     SeqCollector seqCollector;
     {
         int targetCBlockSize;
@@ -3471,6 +3471,7 @@ size_t ZSTD_generateSequences(ZSTD_CCtx* zc, ZSTD_Sequence* outSeqs,
         RETURN_ERROR_IF(nbWorkers != 0, parameter_unsupported, "nbWorkers != 0");
     }
 
+    dst = ZSTD_customMalloc(dstCapacity, ZSTD_defaultCMem);
     RETURN_ERROR_IF(dst == NULL, memory_allocation, "NULL pointer!");
 
     seqCollector.collectSequences = 1;

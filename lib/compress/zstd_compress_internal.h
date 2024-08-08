@@ -1246,8 +1246,8 @@ MEM_STATIC void ZSTD_window_init(ZSTD_window_t* window) {
 MEM_STATIC
 ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
 U32 ZSTD_window_update(ZSTD_window_t* window,
-                                  void const* src, size_t srcSize,
-                                  int forceNonContiguous)
+                 const void* src, size_t srcSize,
+                       int forceNonContiguous)
 {
     BYTE const* const ip = (BYTE const*)src;
     U32 contiguous = 1;

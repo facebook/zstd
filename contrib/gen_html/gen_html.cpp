@@ -51,10 +51,10 @@ vector<string> get_lines(vector<string>& input, int& linenum, string terminator)
 
         epos = line.find(terminator);
         if (!terminator.empty() && epos!=string::npos) {
-            out.push_back(line);
+            out.emplace_back(line);
             break;
         }
-        out.push_back(line);
+        out.emplace_back(line);
         linenum++;
     }
     return out;
@@ -108,7 +108,7 @@ int main(int argc, char *argv[]) {
    }
 
     while (getline(istream, line)) {
-        input.push_back(line);
+        input.emplace_back(line);
     }
 
     for (linenum=0; (size_t)linenum < input.size(); linenum++) {
@@ -196,7 +196,7 @@ int main(int argc, char *argv[]) {
 
             trim(comments[0], " ");
             sout << "<a name=\"Chapter" << chapter << "\"></a><h2>" << comments[0] << "</h2><pre>";
-            chapters.push_back(comments[0]);
+            chapters.emplace_back(comments[0]);
             chapter++;
 
             for (l=1; l<comments.size(); l++) {

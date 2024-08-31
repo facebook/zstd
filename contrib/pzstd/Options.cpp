@@ -322,7 +322,7 @@ Options::Status Options::parse(int argc, const char **argv) {
   g_utilDisplayLevel = verbosity;
   // Remove local input files that are symbolic links
   if (!followLinks) {
-      std::remove_if(localInputFiles.begin(), localInputFiles.end(),
+	  std::ignore = std::remove_if(localInputFiles.begin(), localInputFiles.end(),
                      [&](const char *path) {
                         bool isLink = UTIL_isLink(path);
                         if (isLink && verbosity >= 2) {

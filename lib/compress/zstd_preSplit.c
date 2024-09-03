@@ -60,7 +60,7 @@ static void addToFingerprint(FingerPrint* fp, const void* src, size_t s)
 
 static void recordFingerprint(FingerPrint* fp, const void* src, size_t s)
 {
-    memset(fp, 0, sizeof(*fp));
+    ZSTD_memset(fp, 0, sizeof(*fp));
     addToFingerprint(fp, src, s);
 }
 
@@ -108,7 +108,7 @@ static void flushEvents(void)
         pastEvents.events[n] = newEvents.events[n];
     }
     pastEvents.nbEvents = newEvents.nbEvents;
-    memset(&newEvents, 0, sizeof(newEvents));
+    ZSTD_memset(&newEvents, 0, sizeof(newEvents));
 }
 
 static void removeEvents(FingerPrint* acc, const FingerPrint* slice)
@@ -139,7 +139,7 @@ size_t ZSTD_splitBlock_4k(const void* src, size_t srcSize, size_t blockSizeMax)
             return pos;
         } else {
             mergeEvents(&pastEvents, &newEvents);
-            memset(&newEvents, 0, sizeof(newEvents));
+            ZSTD_memset(&newEvents, 0, sizeof(newEvents));
             penalty = penalty - 1 + (penalty == 0);
         }
         pos += CHUNKSIZE;

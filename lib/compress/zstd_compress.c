@@ -883,7 +883,7 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
             value = ZSTDMT_JOBSIZE_MIN;
         FORWARD_IF_ERROR(ZSTD_cParam_clampBounds(param, &value), "");
         assert(value >= 0);
-        CCtxParams->jobSize = value;
+        CCtxParams->jobSize = (size_t)value;
         return CCtxParams->jobSize;
 #endif
 
@@ -1002,7 +1002,8 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
     case ZSTD_c_maxBlockSize:
         if (value!=0)    /* 0 ==> default */
             BOUNDCHECK(ZSTD_c_maxBlockSize, value);
-        CCtxParams->maxBlockSize = value;
+        assert(value>=0);
+        CCtxParams->maxBlockSize = (size_t)value;
         return CCtxParams->maxBlockSize;
 
     case ZSTD_c_searchForExternalRepcodes:
@@ -2444,7 +2445,8 @@ static size_t ZSTD_resetCCtx_byCopyingCDict(ZSTD_CCtx* cctx,
     }
 
     /* Zero the hashTable3, since the cdict never fills it */
-    {   int const h3log = cctx->blockState.matchState.hashLog3;
+    assert(cctx->blockState.matchState.hashLog3 <= 31);
+    {   U32 const h3log = cctx->blockState.matchState.hashLog3;
         size_t const h3Size = h3log ? ((size_t)1 << h3log) : 0;
         assert(cdict->matchState.hashLog3 == 0);
         ZSTD_memset(cctx->blockState.matchState.hashTable3, 0, h3Size * sizeof(U32));
@@ -4484,6 +4486,18 @@ static void ZSTD_overflowCorrectIfNeeded(ZSTD_matchState_t* ms,
     }
 }
 
+#include "zstd_preSplit.h"
+
+static size_t ZSTD_optimalBlockSize(const void* src, size_t srcSize, size_t blockSizeMax, ZSTD_strategy strat)
+{
+    if (srcSize <= 128 KB || blockSizeMax < 128 KB)
+        return MIN(srcSize, blockSizeMax);
+    (void)strat;
+    if (strat >= ZSTD_btlazy2)
+        return ZSTD_splitBlock_4k(src, srcSize, blockSizeMax);
+    return 92 KB;
+}
+
 /*! ZSTD_compress_frameChunk() :
 *   Compress a chunk of data into one or multiple blocks.
 *   All blocks will be terminated, all input will be consumed.
@@ -4496,7 +4510,7 @@ static size_t ZSTD_compress_frameChunk(ZSTD_CCtx* cctx,
                                const void* src, size_t srcSize,
                                      U32 lastFrameChunk)
 {
-    size_t blockSize = cctx->blockSize;
+    size_t blockSizeMax = cctx->blockSize;
     size_t remaining = srcSize;
     const BYTE* ip = (const BYTE*)src;
     BYTE* const ostart = (BYTE*)dst;
@@ -4505,20 +4519,21 @@ static size_t ZSTD_compress_frameChunk(ZSTD_CCtx* cctx,
 
     assert(cctx->appliedParams.cParams.windowLog <= ZSTD_WINDOWLOG_MAX);
 
-    DEBUGLOG(4, "ZSTD_compress_frameChunk (blockSize=%u)", (unsigned)blockSize);
+    DEBUGLOG(4, "ZSTD_compress_frameChunk (blockSizeMax=%u)", (unsigned)blockSizeMax);
     if (cctx->appliedParams.fParams.checksumFlag && srcSize)
         XXH64_update(&cctx->xxhState, src, srcSize);
 
     while (remaining) {
         ZSTD_matchState_t* const ms = &cctx->blockState.matchState;
-        U32 const lastBlock = lastFrameChunk & (blockSize >= remaining);
+        U32 const lastBlock = lastFrameChunk & (blockSizeMax >= remaining);
+        size_t blockSize = ZSTD_optimalBlockSize(ip, remaining, blockSizeMax, cctx->appliedParams.cParams.strategy);
+        assert(blockSize <= remaining);
 
         /* TODO: See 3090. We reduced MIN_CBLOCK_SIZE from 3 to 2 so to compensate we are adding
          * additional 1. We need to revisit and change this logic to be more consistent */
         RETURN_ERROR_IF(dstCapacity < ZSTD_blockHeaderSize + MIN_CBLOCK_SIZE + 1,
                         dstSize_tooSmall,
                         "not enough space to store compressed block");
-        if (remaining < blockSize) blockSize = remaining;
 
         ZSTD_overflowCorrectIfNeeded(
             ms, &cctx->workspace, &cctx->appliedParams, ip, ip + blockSize);
@@ -5022,7 +5037,7 @@ size_t ZSTD_loadCEntropy(ZSTD_compressedBlockState_t* bs, void* workspace,
                 RETURN_ERROR_IF(bs->rep[u] > dictContentSize, dictionary_corrupted, "");
     }   }   }
 
-    return dictPtr - (const BYTE*)dict;
+    return (size_t)(dictPtr - (const BYTE*)dict);
 }
 
 /* Dictionary format :

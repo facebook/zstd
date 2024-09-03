@@ -39,38 +39,42 @@ typedef struct {
 static FingerPrint pastEvents;
 static FingerPrint newEvents;
 
-static void initStats(void) {
-  memset(&pastEvents, 0, sizeof(pastEvents));
-  memset(&newEvents, 0, sizeof(newEvents));
+static void initStats(void)
+{
+    ZSTD_memset(&pastEvents, 0, sizeof(pastEvents));
+    ZSTD_memset(&newEvents, 0, sizeof(newEvents));
 }
 /* ==================================== */
 
-static void addToFingerprint(FingerPrint* fp, const void* src, size_t s) {
-  const char* p = src;
-  size_t limit = s - HASHLENGTH + 1;
-  size_t n;
-  assert(s >= HASHLENGTH);
-  for (n = 0; n < limit; n++) {
-    fp->events[hash2(p++)]++;
-  }
-  fp->nbEvents += limit;
+static void addToFingerprint(FingerPrint* fp, const void* src, size_t s)
+{
+    const char* p = src;
+    size_t limit = s - HASHLENGTH + 1;
+    size_t n;
+    assert(s >= HASHLENGTH);
+    for (n = 0; n < limit; n++) {
+        fp->events[hash2(p++)]++;
+    }
+    fp->nbEvents += limit;
 }
 
-static void recordFingerprint(FingerPrint *fp, const void *src, size_t s) {
-  memset(fp, 0, sizeof(*fp));
-  addToFingerprint(fp, src, s);
+static void recordFingerprint(FingerPrint* fp, const void* src, size_t s)
+{
+    memset(fp, 0, sizeof(*fp));
+    addToFingerprint(fp, src, s);
 }
 
 static S64 abs64(S64 i) { return (i < 0) ? -i : i; }
 
-static S64 fpDistance(const FingerPrint *fp1, const FingerPrint *fp2) {
-  S64 distance = 0;
-  size_t n;
-  for (n = 0; n < HASHTABLESIZE; n++) {
-    distance +=
-        abs64(fp1->events[n] * fp2->nbEvents - fp2->events[n] * fp1->nbEvents);
-  }
-  return distance;
+static S64 fpDistance(const FingerPrint* fp1, const FingerPrint* fp2)
+{
+    S64 distance = 0;
+    size_t n;
+    for (n = 0; n < HASHTABLESIZE; n++) {
+        distance +=
+            abs64(fp1->events[n] * fp2->nbEvents - fp2->events[n] * fp1->nbEvents);
+    }
+    return distance;
 }
 
 // Compare newEvents with pastEvents

@@ -76,25 +76,25 @@ static S64 fpDistance(const FingerPrint *fp1, const FingerPrint *fp2) {
 // Compare newEvents with pastEvents
 // return 1 when considered "too different"
 static int compareFingerprints(const FingerPrint* ref,
-                            const FingerPrint* new,
+                            const FingerPrint* newfp,
                             int penalty)
 {
     if (ref->nbEvents <= BLOCKSIZE_MIN)
         return 0;
-    {   S64 p50 = ref->nbEvents * new->nbEvents;
-        S64 deviation = fpDistance(ref, new);
+    {   S64 p50 = ref->nbEvents * newfp->nbEvents;
+        S64 deviation = fpDistance(ref, newfp);
         S64 threshold = p50 * (THRESHOLD_BASE + penalty) / THRESHOLD_PENALTY_RATE;
         return deviation >= threshold;
     }
 }
 
-static void mergeEvents(FingerPrint* acc, const FingerPrint* new)
+static void mergeEvents(FingerPrint* acc, const FingerPrint* newfp)
 {
     size_t n;
     for (n = 0; n < HASHTABLESIZE; n++) {
-        acc->events[n] += new->events[n];
+        acc->events[n] += newfp->events[n];
     }
-    acc->nbEvents += new->nbEvents;
+    acc->nbEvents += newfp->nbEvents;
 }
 
 static void flushEvents(void)

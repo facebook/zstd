@@ -36,8 +36,8 @@ typedef struct {
   int events[HASHTABLESIZE];
   S64 nbEvents;
 } FingerPrint;
-static FingerPrint pastEvents = {};
-static FingerPrint newEvents = {};
+static FingerPrint pastEvents;
+static FingerPrint newEvents;
 
 static void initStats(void) {
   memset(&pastEvents, 0, sizeof(pastEvents));
@@ -48,8 +48,9 @@ static void initStats(void) {
 static void addToFingerprint(FingerPrint* fp, const void* src, size_t s) {
   const char* p = src;
   size_t limit = s - HASHLENGTH + 1;
+  size_t n;
   assert(s >= HASHLENGTH);
-  for (size_t n = 0; n < limit; n++) {
+  for (n = 0; n < limit; n++) {
     fp->events[hash2(p++)]++;
   }
   fp->nbEvents += limit;
@@ -64,7 +65,8 @@ static S64 abs64(S64 i) { return (i < 0) ? -i : i; }
 
 static S64 fpDistance(const FingerPrint *fp1, const FingerPrint *fp2) {
   S64 distance = 0;
-  for (size_t n = 0; n < HASHTABLESIZE; n++) {
+  size_t n;
+  for (n = 0; n < HASHTABLESIZE; n++) {
     distance +=
         abs64(fp1->events[n] * fp2->nbEvents - fp2->events[n] * fp1->nbEvents);
   }
@@ -73,42 +75,46 @@ static S64 fpDistance(const FingerPrint *fp1, const FingerPrint *fp2) {
 
 // Compare newEvents with pastEvents
 // return 1 when considered "too different"
-// debug:write Deviation value in %
-static int compareFingerprints(const FingerPrint *ref,
-                            const FingerPrint *new,
+static int compareFingerprints(const FingerPrint* ref,
+                            const FingerPrint* new,
                             int penalty)
 {
     if (ref->nbEvents <= BLOCKSIZE_MIN)
         return 0;
     {   S64 p50 = ref->nbEvents * new->nbEvents;
         S64 deviation = fpDistance(ref, new);
-        // printf("Deviation: %.2f%% \n", (double)deviation / (double)ref * 100.);
         S64 threshold = p50 * (THRESHOLD_BASE + penalty) / THRESHOLD_PENALTY_RATE;
         return deviation >= threshold;
     }
 }
 
-static void mergeEvents(FingerPrint *acc, const FingerPrint *new) {
-  for (size_t n = 0; n < HASHTABLESIZE; n++) {
-    acc->events[n] += new->events[n];
-  }
-  acc->nbEvents += new->nbEvents;
+static void mergeEvents(FingerPrint* acc, const FingerPrint* new)
+{
+    size_t n;
+    for (n = 0; n < HASHTABLESIZE; n++) {
+        acc->events[n] += new->events[n];
+    }
+    acc->nbEvents += new->nbEvents;
 }
 
-static void flushEvents(void) {
-  for (size_t n = 0; n < HASHTABLESIZE; n++) {
-    pastEvents.events[n] = newEvents.events[n];
-  }
-  pastEvents.nbEvents = newEvents.nbEvents;
-  memset(&newEvents, 0, sizeof(newEvents));
+static void flushEvents(void)
+{
+    size_t n;
+    for (n = 0; n < HASHTABLESIZE; n++) {
+        pastEvents.events[n] = newEvents.events[n];
+    }
+    pastEvents.nbEvents = newEvents.nbEvents;
+    memset(&newEvents, 0, sizeof(newEvents));
 }
 
-static void removeEvents(FingerPrint *acc, const FingerPrint *slice) {
-  for (size_t n = 0; n < HASHTABLESIZE; n++) {
-    assert(acc->events[n] >= slice->events[n]);
-    acc->events[n] -= slice->events[n];
-  }
-  acc->nbEvents -= slice->nbEvents;
+static void removeEvents(FingerPrint* acc, const FingerPrint* slice)
+{
+    size_t n;
+    for (n = 0; n < HASHTABLESIZE; n++) {
+        assert(acc->events[n] >= slice->events[n]);
+        acc->events[n] -= slice->events[n];
+    }
+    acc->nbEvents -= slice->nbEvents;
 }
 
 #define CHUNKSIZE (8 << 10)

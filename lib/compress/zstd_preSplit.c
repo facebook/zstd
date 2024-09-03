@@ -48,7 +48,7 @@ static void initStats(void)
 
 static void addToFingerprint(FingerPrint* fp, const void* src, size_t s)
 {
-    const char* p = src;
+    const char* p = (const char*)src;
     size_t limit = s - HASHLENGTH + 1;
     size_t n;
     assert(s >= HASHLENGTH);
@@ -125,7 +125,7 @@ static void removeEvents(FingerPrint* acc, const FingerPrint* slice)
 /* Note: technically, we use CHUNKSIZE, so that's 8 KB */
 size_t ZSTD_splitBlock_4k(const void* src, size_t srcSize, size_t blockSizeMax)
 {
-    const char* p = src;
+    const char* p = (const char*)src;
     int penalty = THRESHOLD_PENALTY;
     size_t pos = 0;
     if (srcSize <= blockSizeMax) return srcSize;

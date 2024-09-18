@@ -162,6 +162,11 @@ size_t ZSTD_compressBlock_fast_noDict_generic(
     const BYTE* const prefixStart = base + prefixStartIndex;
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - HASH_READ_SIZE;
+    /* Array of ~random data, should have low probability of matching data
+     * we load from here instead of from tables, if the index is invalid.
+     * Used to avoid unpredictable branches. */
+    const BYTE dummy[] = {0x12,0x34,0x56,0x78,0x9a,0xbc,0xde,0xf0,0xe2,0xb4};
+    const BYTE *mvalAddr;
 
     const BYTE* anchor = istart;
     const BYTE* ip0 = istart;
@@ -246,15 +251,18 @@ _start: /* Requires: ip0 */
             goto _match;
         }
 
+        /* idx >= prefixStartIndex is a (somewhat) unpredictable branch.
+         * However expression below complies into conditional move. Since
+         * match is unlikely and we only *branch* on idxl0 > prefixLowestIndex
+         * if there is a match, all branches become predictable. */
+        mvalAddr = base + idx;
+        mvalAddr = ZSTD_selectAddr(idx, prefixStartIndex, mvalAddr, &dummy[0]);
+
         /* load match for ip[0] */
-        if (idx >= prefixStartIndex) {
-            mval = MEM_read32(base + idx);
-        } else {
-            mval = MEM_read32(ip0) ^ 1; /* guaranteed to not match. */
-        }
+        mval = MEM_read32(mvalAddr);
 
         /* check match at ip[0] */
-        if (MEM_read32(ip0) == mval) {
+        if (MEM_read32(ip0) == mval && idx >= prefixStartIndex) {
             /* found a match! */
 
             /* First write next hash table entry; we've already calculated it.
@@ -281,15 +289,15 @@ _start: /* Requires: ip0 */
         current0 = (U32)(ip0 - base);
         hashTable[hash0] = current0;
 
+        mvalAddr = base + idx;
+        mvalAddr = ZSTD_selectAddr(idx, prefixStartIndex, mvalAddr, &dummy[0]);
+
         /* load match for ip[0] */
-        if (idx >= prefixStartIndex) {
-            mval = MEM_read32(base + idx);
-        } else {
-            mval = MEM_read32(ip0) ^ 1; /* guaranteed to not match. */
-        }
+        mval = MEM_read32(mvalAddr);
+
 
         /* check match at ip[0] */
-        if (MEM_read32(ip0) == mval) {
+        if (MEM_read32(ip0) == mval && idx >= prefixStartIndex) {
             /* found a match! */
 
             /* first write next hash table entry; we've already calculated it */

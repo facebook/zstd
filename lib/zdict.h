@@ -248,7 +248,7 @@ typedef struct {
  * is presumed that the most profitable content is at the end of the dictionary,
  * since that is the cheapest to reference.
  *
- * `maxDictSize` must be >= max(dictContentSize, ZSTD_DICTSIZE_MIN).
+ * `maxDictSize` must be >= max(dictContentSize, ZDICT_DICTSIZE_MIN).
  *
  * @return: size of dictionary stored into `dstDictBuffer` (<= `maxDictSize`),
  *          or an error code, which can be tested by ZDICT_isError().

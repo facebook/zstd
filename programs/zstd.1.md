@@ -674,6 +674,10 @@ Note that the results are highly dependent on the content being compressed.
     minimum evaluation time, in seconds (default: 3s), benchmark mode only
 * `-B#`, `--block-size=#`:
     cut file(s) into independent chunks of size # (default: no chunking)
+* `-S`:
+    output one benchmark result per input file (default: consolidated result)
+* `-D dictionary`
+    benchmark using dictionary
 * `--priority=rt`:
     set process priority to real-time (Windows)
 

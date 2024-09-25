@@ -32,7 +32,6 @@
 #include <stdlib.h>   /* getenv */
 #include <string.h>   /* strcmp, strlen */
 #include <stdio.h>    /* fprintf(), stdin, stdout, stderr */
-#include <errno.h>    /* errno */
 #include <assert.h>   /* assert */
 
 #include "fileio.h"   /* stdinmark, stdoutmark, ZSTD_EXTENSION */
@@ -311,6 +310,7 @@ static void usageAdvanced(const char* programName)
     DISPLAYOUT("  -i#                           Set the minimum evaluation to time # seconds. [Default: 3]\n");
     DISPLAYOUT("  -B#                           Cut file into independent chunks of size #. [Default: No chunking]\n");
     DISPLAYOUT("  -S                            Output one benchmark result per input file. [Default: Consolidated result]\n");
+    DISPLAYOUT("  -D dictionary                 Benchmark using dictionary \n");
     DISPLAYOUT("  --priority=rt                 Set process priority to real-time.\n");
 #endif
 

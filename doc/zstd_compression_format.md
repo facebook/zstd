@@ -1127,7 +1127,10 @@ When last symbol reaches cumulated total of `1 << Accuracy_Log`,
 decoding is complete.
 If this process results in a non-zero probability for a value outside of the
 valid range of values that the FSE table is defined for, even if that value is
-not used, then the data is considered corrupted.
+not used, then the data is considered corrupted.  In the case of offset codes,
+a decoder implementation may reject a frame containing a non-zero probability
+for an offset code larger than the largest offset code supported by the decoder
+implementation.
 
 Then the decoder can tell how many bytes were used in this process,
 and how many symbols are present.

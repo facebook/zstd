@@ -124,7 +124,7 @@ libzstd = library('zstd',
   version: zstd_libversion)
 
 libzstd_dep = declare_dependency(link_with: libzstd,
-  include_directories: libzstd_includes)
+  include_directories: join_paths(zstd_rootdir,'lib')) # Do not expose private headers
 
 # we link to both:
 # - the shared library (for public symbols)

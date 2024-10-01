@@ -1067,11 +1067,12 @@ static int BMK_loadFiles(
     size_t pos = 0, totalSize = 0;
     unsigned n;
     for (n = 0; n < nbFiles; n++) {
+        const char* const filename = fileNamesTable[n];
         U64 fileSize = UTIL_getFileSize(
-                fileNamesTable[n]); /* last file may be shortened */
-        if (UTIL_isDirectory(fileNamesTable[n])) {
+                filename); /* last file may be shortened */
+        if (UTIL_isDirectory(filename)) {
             DISPLAYLEVEL(
-                    2, "Ignoring %s directory...       \n", fileNamesTable[n]);
+                    2, "Ignoring %s directory...       \n", filename);
             fileSizes[n] = 0;
             continue;
         }
@@ -1079,25 +1080,29 @@ static int BMK_loadFiles(
             DISPLAYLEVEL(
                     2,
                     "Cannot evaluate size of %s, ignoring ... \n",
-                    fileNamesTable[n]);
+                    filename);
             fileSizes[n] = 0;
             continue;
         }
-        {
-            FILE* const f = fopen(fileNamesTable[n], "rb");
-            if (f == NULL)
+        if (fileSize > bufferSize - pos) {
+            /* buffer too small - limit quantity loaded */
+            fileSize = bufferSize - pos;
+            nbFiles  = n; /* stop after this file */
+        }
+
+        {   FILE* const f = fopen(filename, "rb");
+            if (f == NULL) {
                 RETURN_ERROR_INT(
-                        10, "impossible to open file %s", fileNamesTable[n]);
-            OUTPUTLEVEL(2, "Loading %s...       \r", fileNamesTable[n]);
-            if (fileSize > bufferSize - pos)
-                fileSize = bufferSize - pos,
-                nbFiles  = n; /* buffer too small - stop after this file */
-            {
-                size_t const readSize =
+                        10, "cannot open file %s", filename);
+            }
+            OUTPUTLEVEL(2, "Loading %s...       \r", filename);
+            {   size_t const readSize =
                         fread(((char*)buffer) + pos, 1, (size_t)fileSize, f);
-                if (readSize != (size_t)fileSize)
+                if (readSize != (size_t)fileSize) {
+                    fclose(f);
                     RETURN_ERROR_INT(
-                            11, "could not read %s", fileNamesTable[n]);
+                            11, "invalid read %s", filename);
+                }
                 pos += readSize;
             }
             fileSizes[n] = (size_t)fileSize;

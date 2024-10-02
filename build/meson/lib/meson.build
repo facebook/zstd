@@ -124,7 +124,7 @@ libzstd = library('zstd',
   version: zstd_libversion)
 
 libzstd_dep = declare_dependency(link_with: libzstd,
-  include_directories: libzstd_includes)
+  include_directories: join_paths(zstd_rootdir,'lib')) # Do not expose private headers
 
 # we link to both:
 # - the shared library (for public symbols)
@@ -134,7 +134,8 @@ libzstd_dep = declare_dependency(link_with: libzstd,
 # -fvisibility=hidden means those cannot be found
 if get_option('default_library') == 'static'
   libzstd_static = libzstd
-  libzstd_internal_dep = libzstd_dep
+  libzstd_internal_dep = declare_dependency(link_with: libzstd,
+      include_directories: libzstd_includes)
 else
   if get_option('default_library') == 'shared'
     libzstd_static = static_library('zstd_objlib',
@@ -147,11 +148,13 @@ else
   if cc_id == compiler_msvc
     # msvc does not actually support linking to both, but errors out with:
     #   error LNK2005: ZSTD_<foo> already defined in zstd.lib(zstd-1.dll)
-    libzstd_internal_dep = declare_dependency(link_with: libzstd_static)
+    libzstd_internal_dep = declare_dependency(link_with: libzstd_static,
+      include_directories: libzstd_includes)
   else
     libzstd_internal_dep = declare_dependency(link_with: libzstd,
       # the static library must be linked after the shared one
-      dependencies: declare_dependency(link_with: libzstd_static))
+      dependencies: declare_dependency(link_with: libzstd_static),
+      include_directories: libzstd_includes)
   endif
 endif
 

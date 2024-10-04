@@ -1,18 +1,20 @@
 name: facebook/zstd/nightly
 on:
   schedule:
-  - cron: 0 0 * * *
+    - cron: '0 0 * * *'
   push:
     branches:
-    - release
-    - dev
-    - master
+      - release
+      - dev
+      - '*nightly*'
 permissions: read-all
 jobs:
   regression-test:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+    - name: Install dependencies
+      run: sudo apt-get update && sudo apt-get install -y libcurl4-openssl-dev
     - name: Regression Test
       run: |
         make -C programs zstd

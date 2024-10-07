@@ -166,7 +166,6 @@ size_t ZSTD_compressBlock_fast_noDict_generic(
      * we load from here instead of from tables, if the index is invalid.
      * Used to avoid unpredictable branches. */
     const BYTE dummy[] = {0x12,0x34,0x56,0x78,0x9a,0xbc,0xde,0xf0,0xe2,0xb4};
-    const BYTE *mvalAddr;
 
     const BYTE* anchor = istart;
     const BYTE* ip0 = istart;
@@ -182,7 +181,6 @@ size_t ZSTD_compressBlock_fast_noDict_generic(
     size_t hash0; /* hash for ip0 */
     size_t hash1; /* hash for ip1 */
     U32 idx; /* match idx for ip0 */
-    U32 mval; /* src value at match idx */
 
     U32 offcode;
     const BYTE* match0;
@@ -255,22 +253,21 @@ _start: /* Requires: ip0 */
          * However expression below complies into conditional move. Since
          * match is unlikely and we only *branch* on idxl0 > prefixLowestIndex
          * if there is a match, all branches become predictable. */
-        mvalAddr = base + idx;
-        mvalAddr = ZSTD_selectAddr(idx, prefixStartIndex, mvalAddr, &dummy[0]);
+        {   const BYTE* mvalAddr = ZSTD_selectAddr(idx, prefixStartIndex, base + idx, &dummy[0]);
+            /* load match for ip[0] */
+            U32 const mval = MEM_read32(mvalAddr);
 
-        /* load match for ip[0] */
-        mval = MEM_read32(mvalAddr);
+            /* check match at ip[0] */
+            if (MEM_read32(ip0) == mval && idx >= prefixStartIndex) {
+                /* found a match! */
 
-        /* check match at ip[0] */
-        if (MEM_read32(ip0) == mval && idx >= prefixStartIndex) {
-            /* found a match! */
+                /* Write next hash table entry (it's already calculated).
+                * This write is known to be safe because the ip1 == ip0 + 1,
+                * so searching will resume after ip1 */
+                hashTable[hash1] = (U32)(ip1 - base);
 
-            /* First write next hash table entry; we've already calculated it.
-             * This write is known to be safe because the ip1 == ip0 + 1, so
-             * we know we will resume searching after ip1 */
-            hashTable[hash1] = (U32)(ip1 - base);
-
-            goto _offset;
+                goto _offset;
+            }
         }
 
         /* lookup ip[1] */
@@ -289,32 +286,30 @@ _start: /* Requires: ip0 */
         current0 = (U32)(ip0 - base);
         hashTable[hash0] = current0;
 
-        mvalAddr = base + idx;
-        mvalAddr = ZSTD_selectAddr(idx, prefixStartIndex, mvalAddr, &dummy[0]);
+        {   const BYTE* mvalAddr = ZSTD_selectAddr(idx, prefixStartIndex, base + idx, &dummy[0]);
+            /* load match for ip[0] */
+            U32 const mval = MEM_read32(mvalAddr);
 
-        /* load match for ip[0] */
-        mval = MEM_read32(mvalAddr);
+            /* check match at ip[0] */
+            if (MEM_read32(ip0) == mval && idx >= prefixStartIndex) {
+                /* found a match! */
 
+                /* first write next hash table entry; we've already calculated it */
+                if (step <= 4) {
+                    /* We need to avoid writing an index into the hash table >= the
+                    * position at which we will pick up our searching after we've
+                    * taken this match.
+                    *
+                    * The minimum possible match has length 4, so the earliest ip0
+                    * can be after we take this match will be the current ip0 + 4.
+                    * ip1 is ip0 + step - 1. If ip1 is >= ip0 + 4, we can't safely
+                    * write this position.
+                    */
+                    hashTable[hash1] = (U32)(ip1 - base);
+                }
 
-        /* check match at ip[0] */
-        if (MEM_read32(ip0) == mval && idx >= prefixStartIndex) {
-            /* found a match! */
-
-            /* first write next hash table entry; we've already calculated it */
-            if (step <= 4) {
-                /* We need to avoid writing an index into the hash table >= the
-                 * position at which we will pick up our searching after we've
-                 * taken this match.
-                 *
-                 * The minimum possible match has length 4, so the earliest ip0
-                 * can be after we take this match will be the current ip0 + 4.
-                 * ip1 is ip0 + step - 1. If ip1 is >= ip0 + 4, we can't safely
-                 * write this position.
-                 */
-                hashTable[hash1] = (U32)(ip1 - base);
+                goto _offset;
             }
-
-            goto _offset;
         }
 
         /* lookup ip[1] */
@@ -554,7 +549,7 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
             size_t const dictHashAndTag1 = ZSTD_hashPtr(ip1, dictHBits, mls);
             hashTable[hash0] = curr;   /* update hash table */
 
-            if ((ZSTD_index_overlap_check(prefixStartIndex, repIndex)) 
+            if ((ZSTD_index_overlap_check(prefixStartIndex, repIndex))
                 && (MEM_read32(repMatch) == MEM_read32(ip0 + 1))) {
                 const BYTE* const repMatchEnd = repIndex < prefixStartIndex ? dictEnd : iend;
                 mLength = ZSTD_count_2segments(ip0 + 1 + 4, repMatch + 4, iend, repMatchEnd, prefixStart) + 4;

@@ -560,7 +560,9 @@ MEM_STATIC int ZSTD_cParam_withinBounds(ZSTD_cParameter cParam, int value)
 /* ZSTD_selectAddr:
  * @return a >= b ? trueAddr : falseAddr,
  * tries to force branchless codegen. */
-MEM_STATIC const BYTE* ZSTD_selectAddr(U32 a, U32 b, const BYTE* trueAddr, const BYTE* falseAddr) {
+MEM_STATIC const BYTE*
+ZSTD_selectAddr(U32 a, U32 b, const BYTE* trueAddr, const BYTE* falseAddr)
+{
 #if defined(__GNUC__) && defined(__x86_64__)
     __asm__ (
         "cmp %1, %2\n"

@@ -558,21 +558,21 @@ MEM_STATIC int ZSTD_cParam_withinBounds(ZSTD_cParameter cParam, int value)
 }
 
 /* ZSTD_selectAddr:
- * @return a >= b ? trueAddr : falseAddr,
+ * @return index >= lowLimit ? candidate : backup,
  * tries to force branchless codegen. */
 MEM_STATIC const BYTE*
-ZSTD_selectAddr(U32 index, U32 lowLimit, const BYTE* trueAddr, const BYTE* falseAddr)
+ZSTD_selectAddr(U32 index, U32 lowLimit, const BYTE* candidate, const BYTE* backup)
 {
 #if defined(__GNUC__) && defined(__x86_64__)
     __asm__ (
         "cmp %1, %2\n"
         "cmova %3, %0\n"
-        : "+r"(trueAddr)
-        : "r"(index), "r"(lowLimit), "r"(falseAddr)
+        : "+r"(candidate)
+        : "r"(index), "r"(lowLimit), "r"(backup)
         );
-    return trueAddr;
+    return candidate;
 #else
-    return a >= b ? trueAddr : falseAddr;
+    return index >= lowLimit ? candidate : backup;
 #endif
 }
 

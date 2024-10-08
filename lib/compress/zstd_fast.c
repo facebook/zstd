@@ -97,15 +97,20 @@ void ZSTD_fillHashTable(ZSTD_matchState_t* ms,
 }
 
 
-typedef int (*ZSTD_match4Found) (const BYTE* currentPtr, const BYTE* matchAddress, U32 currentIdx, U32 lowLimit, const BYTE* fakeAddress);
+typedef int (*ZSTD_match4Found) (const BYTE* currentPtr, const BYTE* matchAddress, U32 currentIdx, U32 lowLimit);
 
 static int
-ZSTD_match4Found_cmov(const BYTE* currentPtr, const BYTE* matchAddress, U32 currentIdx, U32 lowLimit, const BYTE* fakeAddress)
+ZSTD_match4Found_cmov(const BYTE* currentPtr, const BYTE* matchAddress, U32 currentIdx, U32 lowLimit)
 {
+    /* Array of ~random data, should have low probability of matching data.
+     * Load from here if the index is invalid.
+     * Used to avoid unpredictable branches. */
+    static const BYTE dummy[] = {0x12,0x34,0x56,0x78 };
+
     /* currentIdx >= lowLimit is a (somewhat) unpredictable branch.
      * However expression below compiles into conditional move.
      */
-    const BYTE* mvalAddr = ZSTD_selectAddr(currentIdx, lowLimit, matchAddress, fakeAddress);
+    const BYTE* mvalAddr = ZSTD_selectAddr(currentIdx, lowLimit, matchAddress, dummy);
     /* Note: this used to be written as : return test1 && test2;
      * Unfortunately, once inlined, these tests become branches,
      * in which case it becomes critical that they are executed in the right order (test1 then test2).
@@ -118,12 +123,12 @@ ZSTD_match4Found_cmov(const BYTE* currentPtr, const BYTE* matchAddress, U32 curr
 }
 
 static int
-ZSTD_match4Found_branch(const BYTE* currentPtr, const BYTE* matchAddress, U32 currentIdx, U32 lowLimit, const BYTE* fakeAddress)
+ZSTD_match4Found_branch(const BYTE* currentPtr, const BYTE* matchAddress, U32 currentIdx, U32 lowLimit)
 {
     /* using a branch instead of a cmov,
      * because it's faster in scenarios where currentIdx >= lowLimit is generally true,
      * aka almost all candidates are within range */
-    U32 mval; (void)fakeAddress;
+    U32 mval;
     if (currentIdx >= lowLimit) {
         mval = MEM_read32(matchAddress);
     } else {
@@ -198,10 +203,6 @@ size_t ZSTD_compressBlock_fast_noDict_generic(
     const BYTE* const prefixStart = base + prefixStartIndex;
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - HASH_READ_SIZE;
-    /* Array of ~random data, should have low probability of matching data
-     * we load from here instead of from tables, if the index is invalid.
-     * Used to avoid unpredictable branches. */
-    const BYTE dummy[] = {0x12,0x34,0x56,0x78,0x9a,0xbc,0xde,0xf0,0xe2,0xb4};
 
     const BYTE* anchor = istart;
     const BYTE* ip0 = istart;
@@ -286,7 +287,7 @@ _start: /* Requires: ip0 */
             goto _match;
         }
 
-         if (findMatch(ip0, base + idx, idx, prefixStartIndex, dummy)) {
+         if (findMatch(ip0, base + idx, idx, prefixStartIndex)) {
             /* found a match! */
 
             /* Write next hash table entry (it's already calculated).
@@ -313,7 +314,7 @@ _start: /* Requires: ip0 */
         current0 = (U32)(ip0 - base);
         hashTable[hash0] = current0;
 
-         if (findMatch(ip0, base + idx, idx, prefixStartIndex, dummy)) {
+         if (findMatch(ip0, base + idx, idx, prefixStartIndex)) {
             /* found a match! */
 
             /* Write next hash table entry; it's already calculated */

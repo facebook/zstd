@@ -106,7 +106,15 @@ ZSTD_match4Found_cmov(const BYTE* currentPtr, const BYTE* matchAddress, U32 curr
      * However expression below compiles into conditional move.
      */
     const BYTE* mvalAddr = ZSTD_selectAddr(currentIdx, lowLimit, matchAddress, fakeAddress);
-    return ((MEM_read32(currentPtr) == MEM_read32(mvalAddr)) & (currentIdx >= lowLimit));
+    /* Note: this used to be written as : return test1 && test2;
+     * Unfortunately, once inlined, these tests become branches,
+     * in which case it becomes critical that they are executed in the right order (test1 then test2).
+     * So we have to write these tests in a specific manner to ensure their ordering.
+     */
+    if (MEM_read32(currentPtr) != MEM_read32(mvalAddr)) return 0;
+    /* force ordering of these tests, which matters once the function is inlined, as they become branches */
+    __asm__("");
+    return currentIdx >= lowLimit;
 }
 
 static int

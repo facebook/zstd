@@ -97,6 +97,18 @@ void ZSTD_fillHashTable(ZSTD_matchState_t* ms,
 }
 
 
+static int
+ZSTD_findMatch_cmov(const BYTE* currentPtr, const BYTE* matchAddress, U32 currentIdx, U32 lowLimit,  const BYTE* fakeAddress)
+{
+    /* idx >= prefixStartIndex is a (somewhat) unpredictable branch.
+     * However expression below complies into conditional move. Since
+     * match is unlikely and we only *branch* on idxl0 > prefixLowestIndex
+     * if there is a match, all branches become predictable. */
+    const BYTE* mvalAddr = ZSTD_selectAddr(currentIdx, lowLimit, matchAddress, fakeAddress);
+    return ((MEM_read32(currentPtr) == MEM_read32(mvalAddr)) & (currentIdx >= lowLimit));
+}
+
+
 /**
  * If you squint hard enough (and ignore repcodes), the search operation at any
  * given position is broken into 4 stages:
@@ -148,13 +160,12 @@ ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
 size_t ZSTD_compressBlock_fast_noDict_generic(
         ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize,
-        U32 const mls, U32 const hasStep)
+        U32 const mls, U32 const unpredictable)
 {
     const ZSTD_compressionParameters* const cParams = &ms->cParams;
     U32* const hashTable = ms->hashTable;
     U32 const hlog = cParams->hashLog;
-    /* support stepSize of 0 */
-    size_t const stepSize = hasStep ? (cParams->targetLength + !(cParams->targetLength) + 1) : 2;
+    size_t const stepSize = cParams->targetLength + !(cParams->targetLength) + 1; /* min 2 */
     const BYTE* const base = ms->window.base;
     const BYTE* const istart = (const BYTE*)src;
     const U32   endIndex = (U32)((size_t)(istart - base) + srcSize);
@@ -193,6 +204,7 @@ size_t ZSTD_compressBlock_fast_noDict_generic(
     size_t step;
     const BYTE* nextStep;
     const size_t kStepIncr = (1 << (kSearchStrength - 1));
+    (void)unpredictable;
 
     DEBUGLOG(5, "ZSTD_compressBlock_fast_generic");
     ip0 += (ip0 == prefixStart);
@@ -249,25 +261,15 @@ _start: /* Requires: ip0 */
             goto _match;
         }
 
-        /* idx >= prefixStartIndex is a (somewhat) unpredictable branch.
-         * However expression below complies into conditional move. Since
-         * match is unlikely and we only *branch* on idxl0 > prefixLowestIndex
-         * if there is a match, all branches become predictable. */
-        {   const BYTE* mvalAddr = ZSTD_selectAddr(idx, prefixStartIndex, base + idx, &dummy[0]);
-            /* load match for ip[0] */
-            U32 const mval = MEM_read32(mvalAddr);
+         if (ZSTD_findMatch_cmov(ip0, base + idx, idx, prefixStartIndex, dummy)) {
+            /* found a match! */
 
-            /* check match at ip[0] */
-            if (MEM_read32(ip0) == mval && idx >= prefixStartIndex) {
-                /* found a match! */
+            /* Write next hash table entry (it's already calculated).
+            * This write is known to be safe because the ip1 == ip0 + 1,
+            * so searching will resume after ip1 */
+            hashTable[hash1] = (U32)(ip1 - base);
 
-                /* Write next hash table entry (it's already calculated).
-                * This write is known to be safe because the ip1 == ip0 + 1,
-                * so searching will resume after ip1 */
-                hashTable[hash1] = (U32)(ip1 - base);
-
-                goto _offset;
-            }
+            goto _offset;
         }
 
         /* lookup ip[1] */
@@ -286,30 +288,24 @@ _start: /* Requires: ip0 */
         current0 = (U32)(ip0 - base);
         hashTable[hash0] = current0;
 
-        {   const BYTE* mvalAddr = ZSTD_selectAddr(idx, prefixStartIndex, base + idx, &dummy[0]);
-            /* load match for ip[0] */
-            U32 const mval = MEM_read32(mvalAddr);
+         if (ZSTD_findMatch_cmov(ip0, base + idx, idx, prefixStartIndex, dummy)) {
+            /* found a match! */
 
-            /* check match at ip[0] */
-            if (MEM_read32(ip0) == mval && idx >= prefixStartIndex) {
-                /* found a match! */
-
-                /* first write next hash table entry; we've already calculated it */
-                if (step <= 4) {
-                    /* We need to avoid writing an index into the hash table >= the
-                    * position at which we will pick up our searching after we've
-                    * taken this match.
-                    *
-                    * The minimum possible match has length 4, so the earliest ip0
-                    * can be after we take this match will be the current ip0 + 4.
-                    * ip1 is ip0 + step - 1. If ip1 is >= ip0 + 4, we can't safely
-                    * write this position.
-                    */
-                    hashTable[hash1] = (U32)(ip1 - base);
-                }
-
-                goto _offset;
+            /* first write next hash table entry; it's already calculated */
+            if (step <= 4) {
+                /* We need to avoid writing an index into the hash table >= the
+                * position at which we will pick up our searching after we've
+                * taken this match.
+                *
+                * The minimum possible match has length 4, so the earliest ip0
+                * can be after we take this match will be the current ip0 + 4.
+                * ip1 is ip0 + step - 1. If ip1 is >= ip0 + 4, we can't safely
+                * write this position.
+                */
+                hashTable[hash1] = (U32)(ip1 - base);
             }
+
+            goto _offset;
         }
 
         /* lookup ip[1] */
@@ -409,12 +405,12 @@ _match: /* Requires: ip0, match0, offcode */
     goto _start;
 }
 
-#define ZSTD_GEN_FAST_FN(dictMode, mls, step)                                                            \
-    static size_t ZSTD_compressBlock_fast_##dictMode##_##mls##_##step(                                      \
+#define ZSTD_GEN_FAST_FN(dictMode, mls, cmov)                                                       \
+    static size_t ZSTD_compressBlock_fast_##dictMode##_##mls##_##cmov(                              \
             ZSTD_matchState_t* ms, seqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],                    \
             void const* src, size_t srcSize)                                                       \
     {                                                                                              \
-        return ZSTD_compressBlock_fast_##dictMode##_generic(ms, seqStore, rep, src, srcSize, mls, step); \
+        return ZSTD_compressBlock_fast_##dictMode##_generic(ms, seqStore, rep, src, srcSize, mls, cmov); \
     }
 
 ZSTD_GEN_FAST_FN(noDict, 4, 1)
@@ -432,8 +428,10 @@ size_t ZSTD_compressBlock_fast(
         void const* src, size_t srcSize)
 {
     U32 const mls = ms->cParams.minMatch;
+    /* use cmov instead of branch when the branch is likely unpredictable */
+    int const useCmov = 1;
     assert(ms->dictMatchState == NULL);
-    if (ms->cParams.targetLength > 1) {
+    if (useCmov) {
         switch(mls)
         {
         default: /* includes case 3 */
@@ -447,6 +445,7 @@ size_t ZSTD_compressBlock_fast(
             return ZSTD_compressBlock_fast_noDict_7_1(ms, seqStore, rep, src, srcSize);
         }
     } else {
+        /* use a branch instead */
         switch(mls)
         {
         default: /* includes case 3 */

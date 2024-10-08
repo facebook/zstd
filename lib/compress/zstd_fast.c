@@ -118,7 +118,9 @@ ZSTD_match4Found_cmov(const BYTE* currentPtr, const BYTE* matchAddress, U32 curr
      */
     if (MEM_read32(currentPtr) != MEM_read32(mvalAddr)) return 0;
     /* force ordering of these tests, which matters once the function is inlined, as they become branches */
+#if defined(__GNUC__)
     __asm__("");
+#endif
     return currentIdx >= lowLimit;
 }
 

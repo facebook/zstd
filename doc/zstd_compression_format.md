@@ -1400,7 +1400,7 @@ It is possible to transform weights into `Number_of_Bits`, using this formula:
 ```
 Number_of_Bits = (Weight>0) ? Max_Number_of_Bits + 1 - Weight : 0
 ```
-In order to determine which prefix is assigned to each Symbol,
+In order to determine which prefix code is assigned to each Symbol,
 Symbols are first sorted by `Weight`, then by natural sequential order.
 Symbols with a `Weight` of zero are removed.
 Then, starting from lowest `Weight` (hence highest `Number_of_Bits`),
@@ -1416,11 +1416,12 @@ Let's assume the following list of weights has been decoded:
 Sorted by weight and then natural sequential order,
 it gives the following prefix codes distribution:
 
-| Literal          |  D  |   E  |   F  |  C  |  B  |  A  |
-| ---------------- | --- | ---- | ---- | --- | --- | --- |
-| `Weight`         |  0  |   1  |   1  |  2  |  3  |  4  |
-| `Number_of_Bits` |  0  |   4  |   4  |  3  |  2  |  1  |
-| prefix code      | N/A | 0000 | 0001 | 001 | 01  |  1  |
+| Literal          |  D  |   E  |   F  |   C  |   B  |   A  |
+| ---------------- | --- | ---- | ---- | ---- | ---- | ---- |
+| `Weight`         |  0  |   1  |   1  |   2  |   3  |   4  |
+| `Number_of_Bits` |  0  |   4  |   4  |   3  |   2  |   1  |
+| prefix code      | N/A | 0000 | 0001 | 001  | 01   | 1    |
+| ascending order  | N/A | 0000 | 0001 | 001x | 01xx | 1xxx |
 
 ### Huffman-coded Streams
 

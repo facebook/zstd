@@ -97,10 +97,10 @@ void ZSTD_fillHashTable(ZSTD_matchState_t* ms,
 }
 
 
-typedef int (*ZSTD_match4Found) (const BYTE* currentPtr, const BYTE* matchAddress, U32 currentIdx, U32 lowLimit);
+typedef int (*ZSTD_match4Found) (const BYTE* currentPtr, const BYTE* matchAddress, U32 matchIdx, U32 idxLowLimit);
 
 static int
-ZSTD_match4Found_cmov(const BYTE* currentPtr, const BYTE* matchAddress, U32 currentIdx, U32 lowLimit)
+ZSTD_match4Found_cmov(const BYTE* currentPtr, const BYTE* matchAddress, U32 matchIdx, U32 idxLowLimit)
 {
     /* Array of ~random data, should have low probability of matching data.
      * Load from here if the index is invalid.
@@ -110,7 +110,7 @@ ZSTD_match4Found_cmov(const BYTE* currentPtr, const BYTE* matchAddress, U32 curr
     /* currentIdx >= lowLimit is a (somewhat) unpredictable branch.
      * However expression below compiles into conditional move.
      */
-    const BYTE* mvalAddr = ZSTD_selectAddr(currentIdx, lowLimit, matchAddress, dummy);
+    const BYTE* mvalAddr = ZSTD_selectAddr(matchIdx, idxLowLimit, matchAddress, dummy);
     /* Note: this used to be written as : return test1 && test2;
      * Unfortunately, once inlined, these tests become branches,
      * in which case it becomes critical that they are executed in the right order (test1 then test2).
@@ -121,17 +121,17 @@ ZSTD_match4Found_cmov(const BYTE* currentPtr, const BYTE* matchAddress, U32 curr
 #if defined(__GNUC__)
     __asm__("");
 #endif
-    return currentIdx >= lowLimit;
+    return matchIdx >= idxLowLimit;
 }
 
 static int
-ZSTD_match4Found_branch(const BYTE* currentPtr, const BYTE* matchAddress, U32 currentIdx, U32 lowLimit)
+ZSTD_match4Found_branch(const BYTE* currentPtr, const BYTE* matchAddress, U32 matchIdx, U32 idxLowLimit)
 {
     /* using a branch instead of a cmov,
-     * because it's faster in scenarios where currentIdx >= lowLimit is generally true,
+     * because it's faster in scenarios where matchIdx >= idxLowLimit is generally true,
      * aka almost all candidates are within range */
     U32 mval;
-    if (currentIdx >= lowLimit) {
+    if (matchIdx >= idxLowLimit) {
         mval = MEM_read32(matchAddress);
     } else {
         mval = MEM_read32(currentPtr) ^ 1; /* guaranteed to not match. */
@@ -219,7 +219,7 @@ size_t ZSTD_compressBlock_fast_noDict_generic(
 
     size_t hash0; /* hash for ip0 */
     size_t hash1; /* hash for ip1 */
-    U32 idx; /* match idx for ip0 */
+    U32 matchIdx; /* match idx for ip0 */
 
     U32 offcode;
     const BYTE* match0;
@@ -261,7 +261,7 @@ _start: /* Requires: ip0 */
     hash0 = ZSTD_hashPtr(ip0, hlog, mls);
     hash1 = ZSTD_hashPtr(ip1, hlog, mls);
 
-    idx = hashTable[hash0];
+    matchIdx = hashTable[hash0];
 
     do {
         /* load repcode match for ip[2]*/
@@ -289,7 +289,7 @@ _start: /* Requires: ip0 */
             goto _match;
         }
 
-         if (findMatch(ip0, base + idx, idx, prefixStartIndex)) {
+         if (findMatch(ip0, base + matchIdx, matchIdx, prefixStartIndex)) {
             /* found a match! */
 
             /* Write next hash table entry (it's already calculated).
@@ -301,7 +301,7 @@ _start: /* Requires: ip0 */
         }
 
         /* lookup ip[1] */
-        idx = hashTable[hash1];
+        matchIdx = hashTable[hash1];
 
         /* hash ip[2] */
         hash0 = hash1;
@@ -316,7 +316,7 @@ _start: /* Requires: ip0 */
         current0 = (U32)(ip0 - base);
         hashTable[hash0] = current0;
 
-         if (findMatch(ip0, base + idx, idx, prefixStartIndex)) {
+         if (findMatch(ip0, base + matchIdx, matchIdx, prefixStartIndex)) {
             /* found a match! */
 
             /* Write next hash table entry; it's already calculated */
@@ -331,7 +331,7 @@ _start: /* Requires: ip0 */
         }
 
         /* lookup ip[1] */
-        idx = hashTable[hash1];
+        matchIdx = hashTable[hash1];
 
         /* hash ip[2] */
         hash0 = hash1;
@@ -382,7 +382,7 @@ _cleanup:
 _offset: /* Requires: ip0, idx */
 
     /* Compute the offset code. */
-    match0 = base + idx;
+    match0 = base + matchIdx;
     rep_offset2 = rep_offset1;
     rep_offset1 = (U32)(ip0-match0);
     offcode = OFFSET_TO_OFFBASE(rep_offset1);

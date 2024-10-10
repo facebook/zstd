@@ -16,7 +16,7 @@ Distribution of this document is unlimited.
 
 ### Version
 
-0.4.2 (2024-10-02)
+0.4.3 (2024-10-07)
 
 
 Introduction
@@ -1270,13 +1270,13 @@ This specification limits maximum code length to 11 bits.
 
 #### Representation
 
-All literal values from zero (included) to last present one (excluded)
+All literal symbols from zero (included) to last present one (excluded)
 are represented by `Weight` with values from `0` to `Max_Number_of_Bits`.
 Transformation from `Weight` to `Number_of_Bits` follows this formula :
 ```
 Number_of_Bits = Weight ? (Max_Number_of_Bits + 1 - Weight) : 0
 ```
-When a literal value is not present, it receives a `Weight` of 0.
+When a literal symbol is not present, it receives a `Weight` of 0.
 The least frequent symbol receives a `Weight` of 1.
 If no literal has a `Weight` of 1, then the data is considered corrupted.
 If there are not at least two literals with non-zero `Weight`, then the data
@@ -1293,33 +1293,38 @@ otherwise the representation is considered corrupted.
 __Example__ :
 Let's presume the following Huffman tree must be described :
 
-|  literal value   |  0  |  1  |  2  |  3  |  4  |  5  |
+|  literal symbol  |  A  |  B  |  C  |  D  |  E  |  F  |
 | ---------------- | --- | --- | --- | --- | --- | --- |
 | `Number_of_Bits` |  1  |  2  |  3  |  0  |  4  |  4  |
 
 The tree depth is 4, since its longest elements uses 4 bits
-(longest elements are the one with smallest frequency).
-Literal value `5` will not be listed, as it can be determined from previous values 0-4,
-nor will values above `5` as they are all 0.
-Values from `0` to `4` will be listed using `Weight` instead of `Number_of_Bits`.
+(longest elements are the ones with smallest frequency).
+
+All symbols will now receive a `Weight` instead of `Number_of_Bits`.
 Weight formula is :
 ```
 Weight = Number_of_Bits ? (Max_Number_of_Bits + 1 - Number_of_Bits) : 0
 ```
-It gives the following series of weights :
+It gives the following series of Weights :
 
-| literal value |  0  |  1  |  2  |  3  |  4  |
-| ------------- | --- | --- | --- | --- | --- |
-|   `Weight`    |  4  |  3  |  2  |  0  |  1  |
+| literal symbol |  A  |  B  |  C  |  D  |  E  |  F  |
+| -------------- | --- | --- | --- | --- | --- | --- |
+|   `Weight`     |  4  |  3  |  2  |  0  |  1  |  1  |
+
+This list will be sent to the decoder, with the following modifications:
+
+- `F` will not be listed, because it can be determined from previous symbols
+- nor will symbols above `F` as they are all 0
+- on the other hand, all symbols before `A`, starting with `\0`, will be listed, with a Weight of 0.
 
 The decoder will do the inverse operation :
-having collected weights of literal symbols from `0` to `4`,
-it knows the last literal, `5`, is present with a non-zero `Weight`.
-The `Weight` of `5` can be determined by advancing to the next power of 2.
+having collected weights of literal symbols from `A` to `E`,
+it knows the last literal, `F`, is present with a non-zero `Weight`.
+The `Weight` of `F` can be determined by advancing to the next power of 2.
 The sum of `2^(Weight-1)` (excluding 0's) is :
 `8 + 4 + 2 + 0 + 1 = 15`.
 Nearest larger power of 2 value is 16.
-Therefore, `Max_Number_of_Bits = 4` and `Weight[5] = log_2(16 - 15) + 1 = 1`.
+Therefore, `Max_Number_of_Bits = log2(16) = 4` and `Weight[F] = log_2(16 - 15) + 1 = 1`.
 
 #### Huffman Tree header
 
@@ -1359,7 +1364,7 @@ sharing a single distribution table.
 To decode an FSE bitstream, it is necessary to know its compressed size.
 Compressed size is provided by `headerByte`.
 It's also necessary to know its _maximum possible_ decompressed size,
-which is `255`, since literal values span from `0` to `255`,
+which is `255`, since literal symbols span from `0` to `255`,
 and last symbol's `Weight` is not represented.
 
 An FSE bitstream starts by a header, describing probabilities distribution.
@@ -1395,26 +1400,28 @@ It is possible to transform weights into `Number_of_Bits`, using this formula:
 ```
 Number_of_Bits = (Weight>0) ? Max_Number_of_Bits + 1 - Weight : 0
 ```
-Symbols are sorted by `Weight`.
-Within same `Weight`, symbols keep natural sequential order.
+In order to determine which prefix code is assigned to each Symbol,
+Symbols are first sorted by `Weight`, then by natural sequential order.
 Symbols with a `Weight` of zero are removed.
-Then, starting from lowest `Weight`, prefix codes are distributed in sequential order.
+Then, starting from lowest `Weight` (hence highest `Number_of_Bits`),
+prefix codes are assigned in ascending order.
 
 __Example__ :
-Let's presume the following list of weights has been decoded :
+Let's assume the following list of weights has been decoded:
 
-| Literal  |  0  |  1  |  2  |  3  |  4  |  5  |
+| Literal  |  A  |  B  |  C  |  D  |  E  |  F  |
 | -------- | --- | --- | --- | --- | --- | --- |
 | `Weight` |  4  |  3  |  2  |  0  |  1  |  1  |
 
 Sorted by weight and then natural sequential order,
-it gives the following distribution :
+it gives the following prefix codes distribution:
 
-| Literal          |  3  |  4  |  5  |  2  |  1  |   0  |
-| ---------------- | --- | --- | --- | --- | --- | ---- |
-| `Weight`         |  0  |  1  |  1  |  2  |  3  |   4  |
-| `Number_of_Bits` |  0  |  4  |  4  |  3  |  2  |   1  |
-| prefix codes     | N/A | 0000| 0001| 001 | 01  |   1  |
+| Literal          |  D  |   E  |   F  |   C  |   B  |   A  |
+| ---------------- | --- | ---- | ---- | ---- | ---- | ---- |
+| `Weight`         |  0  |   1  |   1  |   2  |   3  |   4  |
+| `Number_of_Bits` |  0  |   4  |   4  |   3  |   2  |   1  |
+| prefix code      | N/A | 0000 | 0001 | 001  | 01   | 1    |
+| ascending order  | N/A | 0000 | 0001 | 001x | 01xx | 1xxx |
 
 ### Huffman-coded Streams
 
@@ -1437,10 +1444,10 @@ it's possible to read the bitstream in a __little-endian__ fashion,
 keeping track of already used bits. Since the bitstream is encoded in reverse
 order, starting from the end read symbols in forward order.
 
-For example, if the literal sequence "0145" was encoded using above prefix code,
+For example, if the literal sequence `ABEF` was encoded using above prefix code,
 it would be encoded (in reverse order) as:
 
-|Symbol  |   5  |   4  |  1 | 0 | Padding |
+|Symbol  |   F  |   E  |  B | A | Padding |
 |--------|------|------|----|---|---------|
 |Encoding|`0000`|`0001`|`01`|`1`| `00001` |
 
@@ -1735,6 +1742,7 @@ or at least provide a meaningful error code explaining for which reason it canno
 
 Version changes
 ---------------
+- 0.4.3 : clarifications for Huffman prefix code assignment example
 - 0.4.2 : refactor FSE table construction process, inspired by Donald Pian
 - 0.4.1 : clarifications on a few error scenarios, by Eric Lasota
 - 0.4.0 : fixed imprecise behavior for nbSeq==0, detected by Igor Pavlov

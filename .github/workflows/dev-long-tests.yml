@@ -50,7 +50,7 @@ jobs:
       run: |
         sudo apt-get -qqq update
         make libc6install
-        CFLAGS="-m32" make test
+        CFLAGS="-m32 -O1" make test V=1
 
   no-intrinsics-fuzztest:
     runs-on: ubuntu-latest

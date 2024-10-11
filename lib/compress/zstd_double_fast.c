@@ -201,7 +201,7 @@ size_t ZSTD_compressBlock_doubleFast_noDict_generic(
              * However expression below complies into conditional move. Since
              * match is unlikely and we only *branch* on idxl0 > prefixLowestIndex
              * if there is a match, all branches become predictable. */
-            matchl0_safe = ZSTD_selectAddr(prefixLowestIndex, idxl0, &dummy[0], matchl0);
+            matchl0_safe = ZSTD_selectAddr(idxl0, prefixLowestIndex, matchl0, &dummy[0]);
 
             /* check prefix long match */
             if (MEM_read64(matchl0_safe) == MEM_read64(ip) && matchl0_safe == matchl0) {
@@ -215,7 +215,7 @@ size_t ZSTD_compressBlock_doubleFast_noDict_generic(
             matchl1 = base + idxl1;
 
             /* Same optimization as matchl0 above */
-            matchs0_safe = ZSTD_selectAddr(prefixLowestIndex, idxs0, &dummy[0], matchs0);
+            matchs0_safe = ZSTD_selectAddr(idxs0, prefixLowestIndex, matchs0, &dummy[0]);
 
             /* check prefix short match */
             if(MEM_read32(matchs0_safe) == MEM_read32(ip) && matchs0_safe == matchs0) {
@@ -662,7 +662,7 @@ size_t ZSTD_compressBlock_doubleFast_extDict_generic(
         size_t mLength;
         hashSmall[hSmall] = hashLong[hLong] = curr;   /* update hash table */
 
-        if (((ZSTD_index_overlap_check(prefixStartIndex, repIndex)) 
+        if (((ZSTD_index_overlap_check(prefixStartIndex, repIndex))
             & (offset_1 <= curr+1 - dictStartIndex)) /* note: we are searching at curr+1 */
           && (MEM_read32(repMatch) == MEM_read32(ip+1)) ) {
             const BYTE* repMatchEnd = repIndex < prefixStartIndex ? dictEnd : iend;

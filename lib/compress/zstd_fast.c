@@ -105,7 +105,7 @@ ZSTD_match4Found_cmov(const BYTE* currentPtr, const BYTE* matchAddress, U32 matc
     /* Array of ~random data, should have low probability of matching data.
      * Load from here if the index is invalid.
      * Used to avoid unpredictable branches. */
-    static const BYTE dummy[] = {0x12,0x34,0x56,0x78 };
+    static const BYTE dummy[] = {0x12,0x34,0x56,0x78};
 
     /* currentIdx >= lowLimit is a (somewhat) unpredictable branch.
      * However expression below compiles into conditional move.
@@ -232,7 +232,7 @@ size_t ZSTD_compressBlock_fast_noDict_generic(
     size_t step;
     const BYTE* nextStep;
     const size_t kStepIncr = (1 << (kSearchStrength - 1));
-    const ZSTD_match4Found findMatch = useCmov ? ZSTD_match4Found_cmov : ZSTD_match4Found_branch;
+    const ZSTD_match4Found matchFound = useCmov ? ZSTD_match4Found_cmov : ZSTD_match4Found_branch;
 
     DEBUGLOG(5, "ZSTD_compressBlock_fast_generic");
     ip0 += (ip0 == prefixStart);
@@ -289,9 +289,7 @@ _start: /* Requires: ip0 */
             goto _match;
         }
 
-         if (findMatch(ip0, base + matchIdx, matchIdx, prefixStartIndex)) {
-            /* found a match! */
-
+         if (matchFound(ip0, base + matchIdx, matchIdx, prefixStartIndex)) {
             /* Write next hash table entry (it's already calculated).
             * This write is known to be safe because the ip1 == ip0 + 1,
             * so searching will resume after ip1 */
@@ -316,17 +314,14 @@ _start: /* Requires: ip0 */
         current0 = (U32)(ip0 - base);
         hashTable[hash0] = current0;
 
-         if (findMatch(ip0, base + matchIdx, matchIdx, prefixStartIndex)) {
-            /* found a match! */
-
-            /* Write next hash table entry; it's already calculated */
+         if (matchFound(ip0, base + matchIdx, matchIdx, prefixStartIndex)) {
+            /* Write next hash table entry, since it's already calculated */
             if (step <= 4) {
                 /* Avoid writing an index if it's >= position where search will resume.
                 * The minimum possible match has length 4, so search can resume at ip0 + 4.
                 */
                 hashTable[hash1] = (U32)(ip1 - base);
             }
-
             goto _offset;
         }
 

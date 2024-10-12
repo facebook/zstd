@@ -46,11 +46,12 @@ jobs:
       READFROMBLOCKDEVICE: 1
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
-    - name: make test
+    - name: make test # note: `make -j test success` seems to require a clean state
       run: |
         sudo apt-get -qqq update
         make libc6install
-        CFLAGS="-m32" make test
+        make clean
+        CFLAGS="-m32 -O2" make -j test V=1
 
   no-intrinsics-fuzztest:
     runs-on: ubuntu-latest

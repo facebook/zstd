@@ -76,7 +76,7 @@ macro(ADD_ZSTD_COMPILATION_FLAGS)
         endif ()
         # Add noexecstack flags
         # LDFLAGS
-        EnableCompilerFlag("-z noexecstack" false false true)
+        EnableCompilerFlag("LINKER:SHELL:-z noexecstack" false false true)
         # CFLAGS & CXXFLAGS
         EnableCompilerFlag("-Qunused-arguments" true true false)
         EnableCompilerFlag("-Wa,--noexecstack" true true false)

@@ -61,14 +61,14 @@ jobs:
       run: MOREFLAGS="-DZSTD_NO_INTRINSICS" make -C tests fuzztest
 
   tsan-zstreamtest:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
     - name: thread sanitizer zstreamtest
       run: CC=clang ZSTREAM_TESTTIME=-T3mn make tsan-test-zstream
 
   ubsan-zstreamtest:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
     - name: undefined behavior sanitizer zstreamtest
@@ -76,7 +76,7 @@ jobs:
 
   # lasts ~15mn
   tsan-fuzztest:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
     - name: thread sanitizer fuzztest
@@ -95,7 +95,7 @@ jobs:
 
   # lasts ~23mn
   gcc-8-asan-ubsan-testzstd:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
     - name: gcc-8 + ASan + UBSan + Test Zstd
@@ -107,14 +107,14 @@ jobs:
         CC=gcc-8 make -j uasan-test-zstd </dev/null V=1
 
   clang-asan-ubsan-testzstd:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
     - name: clang + ASan + UBSan + Test Zstd
       run: CC=clang make -j uasan-test-zstd </dev/null V=1
 
   gcc-asan-ubsan-testzstd-32bit:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
     - name: ASan + UBSan + Test Zstd, 32bit mode
@@ -128,7 +128,7 @@ jobs:
     # so any data coming from these libraries is always considered "uninitialized"
 
   gcc-8-asan-ubsan-fuzz:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
     - name: gcc-8 + ASan + UBSan + Fuzz Test
@@ -140,14 +140,14 @@ jobs:
         CC=gcc-8 FUZZER_FLAGS="--long-tests" make clean uasan-fuzztest
 
   clang-asan-ubsan-fuzz:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
     - name: clang + ASan + UBSan + Fuzz Test
       run: CC=clang FUZZER_FLAGS="--long-tests" make clean uasan-fuzztest
 
   gcc-asan-ubsan-fuzz32:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
     - name: ASan + UBSan + Fuzz Test 32bit
@@ -157,7 +157,7 @@ jobs:
         CFLAGS="-O3 -m32" FUZZER_FLAGS="--long-tests" make uasan-fuzztest
 
   clang-asan-ubsan-fuzz32:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
     - name: clang + ASan + UBSan + Fuzz Test 32bit
@@ -167,28 +167,28 @@ jobs:
         CC=clang CFLAGS="-O3 -m32" FUZZER_FLAGS="--long-tests" make uasan-fuzztest
 
   asan-ubsan-regression:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
     - name: ASan + UBSan + Regression Test
       run: make -j uasanregressiontest
 
   clang-ubsan-regression:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
     - name: clang + ASan + UBSan + Regression Test
       run: CC=clang make -j uasanregressiontest
 
   msan-regression:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
     - name: MSan + Regression Test
       run: make -j msanregressiontest
 
   clang-msan-fuzz-unoptimized:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
       - name: clang + MSan + Fuzz Test
@@ -198,7 +198,7 @@ jobs:
           CC=clang MOREFLAGS="-O0" make clean msan-fuzztest
 
   clang-msan-fuzz:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
     - name: clang + MSan + Fuzz Test
@@ -209,7 +209,7 @@ jobs:
 
   # lasts ~24mn
   clang-msan-testzstd:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
     - name: clang + MSan + Test Zstd
@@ -270,7 +270,7 @@ jobs:
 
   # lasts ~20mn
   oss-fuzz:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:

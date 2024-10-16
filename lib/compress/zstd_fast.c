@@ -597,8 +597,8 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
                 }
             }
 
-            if (matchIndex > prefixStartIndex && MEM_read32(match) == MEM_read32(ip0)) {
-                /* found a regular match */
+            if (ZSTD_match4Found_cmov(ip0, match, matchIndex, prefixStartIndex)) {
+                /* found a regular match of size >= 4 */
                 U32 const offset = (U32) (ip0 - match);
                 mLength = ZSTD_count(ip0 + 4, match + 4, iend) + 4;
                 while (((ip0 > anchor) & (match > prefixStart))

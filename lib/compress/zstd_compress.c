@@ -1631,7 +1631,7 @@ ZSTD_compressionParameters ZSTD_getCParamsFromCCtxParams(
 {
     ZSTD_compressionParameters cParams;
     if (srcSizeHint == ZSTD_CONTENTSIZE_UNKNOWN && CCtxParams->srcSizeHint > 0) {
-        assert(srcSizeHint>=0);
+        assert(CCtxParams->srcSizeHint>=0);
         srcSizeHint = (U64)CCtxParams->srcSizeHint;
     }
     cParams = ZSTD_getCParams_internal(CCtxParams->compressionLevel, srcSizeHint, dictSize, mode);

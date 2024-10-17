@@ -4491,14 +4491,14 @@ static void ZSTD_overflowCorrectIfNeeded(ZSTD_matchState_t* ms,
 
 static size_t ZSTD_optimalBlockSize(const void* src, size_t srcSize, size_t blockSizeMax, ZSTD_strategy strat, S64 savings)
 {
-    if (srcSize <= 128 KB || blockSizeMax < 128 KB)
-        return MIN(srcSize, blockSizeMax);
-    (void)strat;
     if (strat >= ZSTD_btlazy2)
         return ZSTD_splitBlock_4k(src, srcSize, blockSizeMax);
+    if (srcSize <= 128 KB || blockSizeMax < 128 KB)
+        return MIN(srcSize, blockSizeMax);
     /* blind split strategy
-     * heuristic, just tested as being "generally better"
-     * do not split incompressible data though: just respect the 3 bytes per block overhead limit.
+     * no cpu cost, but can over-split homegeneous data.
+     * heuristic, tested as being "generally better".
+     * do not split incompressible data though: respect the 3 bytes per block overhead limit.
      */
     return savings ? 92 KB : 128 KB;
 }

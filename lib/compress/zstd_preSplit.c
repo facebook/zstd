@@ -78,8 +78,9 @@ static S64 fpDistance(const FingerPrint* fp1, const FingerPrint* fp2)
     return distance;
 }
 
-// Compare newEvents with pastEvents
-// return 1 when considered "too different"
+/* Compare newEvents with pastEvents
+ * return 1 when considered "too different"
+ */
 static int compareFingerprints(const FingerPrint* ref,
                             const FingerPrint* newfp,
                             int penalty)

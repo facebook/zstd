@@ -8,7 +8,8 @@
  * You may select, at your option, one of the above-listed licenses.
  */
 
-#include "../common/mem.h" /* U64 */
+#include "../common/mem.h" /* S64 */
+#include "../common/zstd_deps.h" /* ZSTD_memset */
 #include "zstd_preSplit.h"
 
 

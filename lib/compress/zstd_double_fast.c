@@ -252,21 +252,23 @@ _cleanup:
 
 _search_next_long:
 
-        /* check prefix long +1 match */
-        if (idxl1 > prefixLowestIndex) {
-            if (MEM_read64(matchl1) == MEM_read64(ip1)) {
+        /* short match found: let's check for a longer one */
+        mLength = ZSTD_count(ip+4, matchs0+4, iend) + 4;
+        offset = (U32)(ip - matchs0);
+
+        /* check long match at +1 position */
+        if ((idxl1 > prefixLowestIndex) && (MEM_read64(matchl1) == MEM_read64(ip1))) {
+            size_t const l1len = ZSTD_count(ip1+8, matchl1+8, iend) + 8;
+            if (l1len > mLength) {
+                /* use the long match instead */
                 ip = ip1;
-                mLength = ZSTD_count(ip+8, matchl1+8, iend) + 8;
+                mLength = l1len;
                 offset = (U32)(ip-matchl1);
-                while (((ip>anchor) & (matchl1>prefixLowest)) && (ip[-1] == matchl1[-1])) { ip--; matchl1--; mLength++; } /* catch up */
-                goto _match_found;
+                matchs0 = matchl1;
             }
         }
 
-        /* if no long +1 match, explore the short match we found */
-        mLength = ZSTD_count(ip+4, matchs0+4, iend) + 4;
-        offset = (U32)(ip - matchs0);
-        while (((ip>anchor) & (matchs0>prefixLowest)) && (ip[-1] == matchs0[-1])) { ip--; matchs0--; mLength++; } /* catch up */
+        while (((ip>anchor) & (matchs0>prefixLowest)) && (ip[-1] == matchs0[-1])) { ip--; matchs0--; mLength++; } /* complete backward */
 
         /* fall-through */
 

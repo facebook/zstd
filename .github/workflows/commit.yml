@@ -3,7 +3,12 @@ on:
   push:
     branches:
     - dev
+  pull_request:
+    branches:
+    - dev
+
 permissions: read-all
+
 jobs:
   short-tests-0:
     runs-on: ubuntu-latest
@@ -27,6 +32,7 @@ jobs:
         make -j regressiontest; make clean
         make shortest; make clean
         make cxxtest; make clean
+
   short-tests-1:
     runs-on: ubuntu-latest
     services:
@@ -49,6 +55,7 @@ jobs:
         make aarch64build V=1; make clean
         make -C tests test-legacy test-longmatch; make clean
         make -C lib libzstd-nomt; make clean
+
   regression-test:
     runs-on: ubuntu-latest
     services:

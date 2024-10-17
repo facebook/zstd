@@ -1631,7 +1631,8 @@ ZSTD_compressionParameters ZSTD_getCParamsFromCCtxParams(
 {
     ZSTD_compressionParameters cParams;
     if (srcSizeHint == ZSTD_CONTENTSIZE_UNKNOWN && CCtxParams->srcSizeHint > 0) {
-      srcSizeHint = CCtxParams->srcSizeHint;
+        assert(srcSizeHint>=0);
+        srcSizeHint = (U64)CCtxParams->srcSizeHint;
     }
     cParams = ZSTD_getCParams_internal(CCtxParams->compressionLevel, srcSizeHint, dictSize, mode);
     if (CCtxParams->ldmParams.enableLdm == ZSTD_ps_enable) cParams.windowLog = ZSTD_LDM_DEFAULT_WINDOW_LOG;
@@ -4488,14 +4489,18 @@ static void ZSTD_overflowCorrectIfNeeded(ZSTD_matchState_t* ms,
 
 #include "zstd_preSplit.h"
 
-static size_t ZSTD_optimalBlockSize(const void* src, size_t srcSize, size_t blockSizeMax, ZSTD_strategy strat)
+static size_t ZSTD_optimalBlockSize(const void* src, size_t srcSize, size_t blockSizeMax, ZSTD_strategy strat, S64 savings)
 {
     if (srcSize <= 128 KB || blockSizeMax < 128 KB)
         return MIN(srcSize, blockSizeMax);
     (void)strat;
     if (strat >= ZSTD_btlazy2)
         return ZSTD_splitBlock_4k(src, srcSize, blockSizeMax);
-    return 92 KB;
+    /* blind split strategy
+     * heuristic, just tested as being "generally better"
+     * do not split incompressible data though: just respect the 3 bytes per block overhead limit.
+     */
+    return savings ? 92 KB : 128 KB;
 }
 
 /*! ZSTD_compress_frameChunk() :
@@ -4516,6 +4521,7 @@ static size_t ZSTD_compress_frameChunk(ZSTD_CCtx* cctx,
     BYTE* const ostart = (BYTE*)dst;
     BYTE* op = ostart;
     U32 const maxDist = (U32)1 << cctx->appliedParams.cParams.windowLog;
+    S64 savings = (S64)cctx->consumedSrcSize - (S64)cctx->producedCSize;
 
     assert(cctx->appliedParams.cParams.windowLog <= ZSTD_WINDOWLOG_MAX);
 
@@ -4526,7 +4532,7 @@ static size_t ZSTD_compress_frameChunk(ZSTD_CCtx* cctx,
     while (remaining) {
         ZSTD_matchState_t* const ms = &cctx->blockState.matchState;
         U32 const lastBlock = lastFrameChunk & (blockSizeMax >= remaining);
-        size_t blockSize = ZSTD_optimalBlockSize(ip, remaining, blockSizeMax, cctx->appliedParams.cParams.strategy);
+        size_t const blockSize = ZSTD_optimalBlockSize(ip, remaining, blockSizeMax, cctx->appliedParams.cParams.strategy, savings);
         assert(blockSize <= remaining);
 
         /* TODO: See 3090. We reduced MIN_CBLOCK_SIZE from 3 to 2 so to compensate we are adding
@@ -4571,7 +4577,7 @@ static size_t ZSTD_compress_frameChunk(ZSTD_CCtx* cctx,
                 }
             }  /* if (ZSTD_useTargetCBlockSize(&cctx->appliedParams))*/
 
-
+            if (cSize < blockSize) savings += (blockSize - cSize);
             ip += blockSize;
             assert(remaining >= blockSize);
             remaining -= blockSize;

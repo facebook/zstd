@@ -441,7 +441,7 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
         size_t const gfhError = ZSTD_getFrameHeader(&fhi, cStart, cSize);
         if (gfhError!=0) goto _output_error;
         DISPLAYLEVEL(5, " (windowSize : %u) ", (unsigned)fhi.windowSize);
-        {   size_t const s = ZSTD_estimateDStreamSize(fhi.windowSize)
+        {   size_t const s = ZSTD_estimateDStreamSize((size_t)fhi.windowSize)
                             /* uses ZSTD_initDStream_usingDict() */
                            + ZSTD_estimateDDictSize(dictSize, ZSTD_dlm_byCopy);
             if (ZSTD_isError(s)) goto _output_error;
@@ -1551,7 +1551,7 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
     DISPLAYLEVEL(3, "test%3i : check dictionary FSE tables can represent every code : ", testNb++);
     {   unsigned const kMaxWindowLog = 24;
         unsigned value;
-        ZSTD_compressionParameters cParams = ZSTD_getCParams(3, 1U << kMaxWindowLog, 1024);
+        ZSTD_compressionParameters cParams = ZSTD_getCParams(3, 1ULL << kMaxWindowLog, 1024);
         ZSTD_CDict* cdict;
         ZSTD_DDict* ddict;
         SEQ_stream seq = SEQ_initStream(0x87654321);

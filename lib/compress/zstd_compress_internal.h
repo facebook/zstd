@@ -24,6 +24,7 @@
 #  include "zstdmt_compress.h"
 #endif
 #include "../common/bits.h" /* ZSTD_highbit32, ZSTD_NbCommonBytes */
+#include "zstd_preSplit.h" /* ZSTD_SLIPBLOCK_WORKSPACESIZE */
 
 #if defined (__cplusplus)
 extern "C" {
@@ -376,6 +377,7 @@ struct ZSTD_CCtx_params_s {
 
 #define COMPRESS_SEQUENCES_WORKSPACE_SIZE (sizeof(unsigned) * (MaxSeq + 2))
 #define ENTROPY_WORKSPACE_SIZE (HUF_WORKSPACE_SIZE + COMPRESS_SEQUENCES_WORKSPACE_SIZE)
+#define TMP_WORKSPACE_SIZE (MAX(ENTROPY_WORKSPACE_SIZE, ZSTD_SLIPBLOCK_WORKSPACESIZE))
 
 /**
  * Indicates whether this compression proceeds directly from user-provided
@@ -432,7 +434,8 @@ struct ZSTD_CCtx_s {
     size_t maxNbLdmSequences;
     rawSeqStore_t externSeqStore; /* Mutable reference to external sequences */
     ZSTD_blockState_t blockState;
-    U32* entropyWorkspace;  /* entropy workspace of ENTROPY_WORKSPACE_SIZE bytes */
+    void* tmpWorkspace;  /* used as substitute of stack space - must be aligned for S64 type */
+    size_t tmpWkspSize;
 
     /* Whether we are streaming or not */
     ZSTD_buffered_policy_e bufferedPolicy;

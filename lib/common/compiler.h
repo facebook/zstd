@@ -278,6 +278,8 @@
 *  Alignment check
 *****************************************************************/
 
+#define ZSTD_IS_POWER_2(a) (((a) & ((a)-1)) == 0)
+
 /* this test was initially positioned in mem.h,
  * but this file is removed (or replaced) for linux kernel
  * so it's now hosted in compiler.h,

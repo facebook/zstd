@@ -4489,8 +4489,11 @@ static void ZSTD_overflowCorrectIfNeeded(ZSTD_matchState_t* ms,
 
 #include "zstd_preSplit.h"
 
-static size_t ZSTD_optimalBlockSize(const void* src, size_t srcSize, size_t blockSizeMax, ZSTD_strategy strat, S64 savings)
+
+static size_t ZSTD_optimalBlockSize(ZSTD_CCtx* cctx, const void* src, size_t srcSize, size_t blockSizeMax, ZSTD_strategy strat, S64 savings)
 {
+    S64 workspace[ZSTD_SLIPBLOCK_WORKSPACESIZE / 8];
+    (void)cctx;
     /* note: we currenly only split full blocks (128 KB)
      * and when there is more than 128 KB input remaining
      */
@@ -4499,7 +4502,7 @@ static size_t ZSTD_optimalBlockSize(const void* src, size_t srcSize, size_t bloc
     /* dynamic splitting has a cpu cost for analysis,
      * due to that cost it's only used for btlazy2+ strategies */
     if (strat >= ZSTD_btlazy2)
-        return ZSTD_splitBlock_4k(src, srcSize, blockSizeMax);
+        return ZSTD_splitBlock_4k(src, srcSize, blockSizeMax, workspace, sizeof(workspace));
     /* blind split strategy
      * no cpu cost, but can over-split homegeneous data.
      * heuristic, tested as being "generally better".
@@ -4537,7 +4540,7 @@ static size_t ZSTD_compress_frameChunk(ZSTD_CCtx* cctx,
     while (remaining) {
         ZSTD_matchState_t* const ms = &cctx->blockState.matchState;
         U32 const lastBlock = lastFrameChunk & (blockSizeMax >= remaining);
-        size_t const blockSize = ZSTD_optimalBlockSize(ip, remaining, blockSizeMax, cctx->appliedParams.cParams.strategy, savings);
+        size_t const blockSize = ZSTD_optimalBlockSize(cctx, ip, remaining, blockSizeMax, cctx->appliedParams.cParams.strategy, savings);
         assert(blockSize <= remaining);
 
         /* TODO: See 3090. We reduced MIN_CBLOCK_SIZE from 3 to 2 so to compensate we are adding

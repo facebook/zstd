@@ -17,7 +17,13 @@
 extern "C" {
 #endif
 
-size_t ZSTD_splitBlock_4k(const void* src, size_t srcSize, size_t blockSizeMax);
+#define ZSTD_SLIPBLOCK_WORKSPACESIZE 8208
+
+/* note:
+ * @workspace must be aligned on 8-bytes boundaries
+ * @wkspSize must be at least >= ZSTD_SLIPBLOCK_WORKSPACESIZE
+ */
+size_t ZSTD_splitBlock_4k(const void* src, size_t srcSize, size_t blockSizeMax, void* workspace, size_t wkspSize);
 
 #if defined (__cplusplus)
 }

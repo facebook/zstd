@@ -85,7 +85,7 @@ class ResourcePool {
       std::lock_guard<std::mutex> lock(pool_->mutex_);
       // Make sure we don't put null resources into the pool
       if (resource) {
-        pool_->resources_.push_back(resource);
+        pool_->resources_.emplace_back(resource);
       }
       assert(pool_->inUse_ > 0);
       --pool_->inUse_;

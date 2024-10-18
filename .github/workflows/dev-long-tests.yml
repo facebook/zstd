@@ -156,15 +156,30 @@ jobs:
         make libc6install
         CFLAGS="-O3 -m32" FUZZER_FLAGS="--long-tests" make uasan-fuzztest
 
-  clang-asan-ubsan-fuzz32:
+  clang-asan-fuzz32:
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
-    - name: clang + ASan + UBSan + Fuzz Test 32bit
+    - name: clang + ASan + Fuzz Test 32bit
       run: |
         sudo apt-get -qqq update
         make libc6install
-        CC=clang CFLAGS="-O3 -m32" FUZZER_FLAGS="--long-tests" make uasan-fuzztest
+        CC=clang CFLAGS="-O3 -m32" FUZZER_FLAGS="--long-tests" make asan-fuzztest
+
+# The following test seems to have issues on github CI specifically,
+# it does not provide the `__mulodi4` instruction emulation
+# required for signed 64-bit multiplication.
+# Replaced by asan-only test (above)
+#
+#  clang-asan-ubsan-fuzz32:
+#    runs-on: ubuntu-20.04
+#    steps:
+#    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
+#    - name: clang + ASan + UBSan + Fuzz Test 32bit
+#      run: |
+#        sudo apt-get -qqq update
+#        make libc6install
+#        CC=clang CFLAGS="-O3 -m32" FUZZER_FLAGS="--long-tests" make uasan-fuzztest
 
   asan-ubsan-regression:
     runs-on: ubuntu-20.04

@@ -145,7 +145,7 @@ clean:
 	$(Q)$(MAKE) -C contrib/largeNbDicts $@ > $(VOID)
 	$(Q)$(MAKE) -C contrib/externalSequenceProducer $@ > $(VOID)
 	$(Q)$(RM) zstd$(EXT) zstdmt$(EXT) tmp*
-	$(Q)$(RM) -r lz4 cmakebuild install
+	$(Q)$(RM) -r lz4 cmakebuild mesonbuild install
 	@echo Cleaning completed
 
 #------------------------------------------------------------------------------
@@ -414,6 +414,24 @@ cmakebuild:
 	cd cmakebuild; $(CMAKE) -Wdev -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS="-Werror -O0" -DCMAKE_INSTALL_PREFIX=install $(CMAKE_PARAMS) ../build/cmake
 	$(CMAKE) --build cmakebuild --target install -- -j V=1
 	cd cmakebuild; ctest -V -L Medium
+
+MESON ?= meson
+NINJA ?= ninja
+
+.PHONY: mesonbuild
+mesonbuild:
+	$(MESON) setup \
+		--buildtype=debugoptimized \
+		-Db_lundef=false \
+		-Dauto_features=enabled \
+		-Dbin_programs=true \
+		-Dbin_tests=true \
+		-Dbin_contrib=true \
+		-Ddefault_library=both \
+		build/meson mesonbuild
+	$(NINJA) -C mesonbuild/
+	$(MESON) test -C mesonbuild/ --print-errorlogs
+	$(MESON) install -C mesonbuild --destdir staging/
 
 .PHONY: c89build gnu90build c99build gnu99build c11build bmix64build bmix32build bmi32build staticAnalyze
 c89build: clean

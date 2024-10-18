@@ -798,8 +798,8 @@ ZSTD_count_2segments(const BYTE* ip, const BYTE* match,
     size_t const matchLength = ZSTD_count(ip, match, vEnd);
     if (match + matchLength != mEnd) return matchLength;
     DEBUGLOG(7, "ZSTD_count_2segments: found a 2-parts match (current length==%zu)", matchLength);
-    DEBUGLOG(7, "distance from match beginning to end dictionary = %zi", mEnd - match);
-    DEBUGLOG(7, "distance from current pos to end buffer = %zi", iEnd - ip);
+    DEBUGLOG(7, "distance from match beginning to end dictionary = %i", (int)(mEnd - match));
+    DEBUGLOG(7, "distance from current pos to end buffer = %i", (int)(iEnd - ip));
     DEBUGLOG(7, "next byte : ip==%02X, istart==%02X", ip[matchLength], *iStart);
     DEBUGLOG(7, "final match length = %zu", matchLength + ZSTD_count(ip+matchLength, iStart, iEnd));
     return matchLength + ZSTD_count(ip+matchLength, iStart, iEnd);

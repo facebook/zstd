@@ -8,6 +8,7 @@
  * You may select, at your option, one of the above-listed licenses.
  */
 
+#include "../common/compiler.h" /* ZSTD_ALIGNOF */
 #include "../common/mem.h" /* S64 */
 #include "../common/zstd_deps.h" /* ZSTD_memset */
 #include "../common/zstd_internal.h" /* ZSTD_STATIC_ASSERT */
@@ -134,7 +135,7 @@ size_t ZSTD_splitBlock_4k(const void* src, size_t srcSize,
     if (srcSize <= blockSizeMax) return srcSize;
     assert(blockSizeMax == (128 << 10));
     assert(workspace != NULL);
-    assert((size_t)workspace % 8 == 0);
+    assert((size_t)workspace % ZSTD_ALIGNOF(FPStats) == 0);
     ZSTD_STATIC_ASSERT(ZSTD_SLIPBLOCK_WORKSPACESIZE == sizeof(FPStats));
     assert(wkspSize >= sizeof(FPStats)); (void)wkspSize;
 

@@ -206,9 +206,9 @@ MEM_STATIC void ZSTD_cwksp_assert_internal_consistency(ZSTD_cwksp* ws) {
 /**
  * Align must be a power of 2.
  */
-MEM_STATIC size_t ZSTD_cwksp_align(size_t size, size_t const align) {
+MEM_STATIC size_t ZSTD_cwksp_align(size_t size, size_t align) {
     size_t const mask = align - 1;
-    assert((align & mask) == 0);
+    assert(ZSTD_IS_POWER_2(align));
     return (size + mask) & ~mask;
 }
 
@@ -266,7 +266,7 @@ MEM_STATIC size_t ZSTD_cwksp_slack_space_required(void) {
 MEM_STATIC size_t ZSTD_cwksp_bytes_to_align_ptr(void* ptr, const size_t alignBytes) {
     size_t const alignBytesMask = alignBytes - 1;
     size_t const bytes = (alignBytes - ((size_t)ptr & (alignBytesMask))) & alignBytesMask;
-    assert((alignBytes & alignBytesMask) == 0);
+    assert(ZSTD_IS_POWER_2(alignBytes));
     assert(bytes < alignBytes);
     return bytes;
 }
@@ -408,7 +408,7 @@ MEM_STATIC void* ZSTD_cwksp_reserve_aligned_init_once(ZSTD_cwksp* ws, size_t byt
 {
     size_t const alignedBytes = ZSTD_cwksp_align(bytes, ZSTD_CWKSP_ALIGNMENT_BYTES);
     void* ptr = ZSTD_cwksp_reserve_internal(ws, alignedBytes, ZSTD_cwksp_alloc_aligned_init_once);
-    assert(((size_t)ptr & (ZSTD_CWKSP_ALIGNMENT_BYTES-1))== 0);
+    assert(((size_t)ptr & (ZSTD_CWKSP_ALIGNMENT_BYTES-1)) == 0);
     if(ptr && ptr < ws->initOnceStart) {
         /* We assume the memory following the current allocation is either:
          * 1. Not usable as initOnce memory (end of workspace)
@@ -428,12 +428,12 @@ MEM_STATIC void* ZSTD_cwksp_reserve_aligned_init_once(ZSTD_cwksp* ws, size_t byt
 /**
  * Reserves and returns memory sized on and aligned on ZSTD_CWKSP_ALIGNMENT_BYTES (64 bytes).
  */
-MEM_STATIC void* ZSTD_cwksp_reserve_aligned(ZSTD_cwksp* ws, size_t bytes)
+MEM_STATIC void* ZSTD_cwksp_reserve_aligned64(ZSTD_cwksp* ws, size_t bytes)
 {
     void* const ptr = ZSTD_cwksp_reserve_internal(ws,
                         ZSTD_cwksp_align(bytes, ZSTD_CWKSP_ALIGNMENT_BYTES),
                         ZSTD_cwksp_alloc_aligned);
-    assert(((size_t)ptr & (ZSTD_CWKSP_ALIGNMENT_BYTES-1))== 0);
+    assert(((size_t)ptr & (ZSTD_CWKSP_ALIGNMENT_BYTES-1)) == 0);
     return ptr;
 }
 
@@ -479,17 +479,17 @@ MEM_STATIC void* ZSTD_cwksp_reserve_table(ZSTD_cwksp* ws, size_t bytes)
 #endif
 
     assert((bytes & (ZSTD_CWKSP_ALIGNMENT_BYTES-1)) == 0);
-    assert(((size_t)alloc & (ZSTD_CWKSP_ALIGNMENT_BYTES-1))== 0);
+    assert(((size_t)alloc & (ZSTD_CWKSP_ALIGNMENT_BYTES-1)) == 0);
     return alloc;
 }
 
 /**
+ * Aligned on sizeof(void*).
  * Note : should happen only once, at workspace first initialization
  */
-MEM_STATIC void*
-ZSTD_cwksp_reserve_object_aligned(ZSTD_cwksp* ws, size_t bytes, size_t alignment)
+MEM_STATIC void* ZSTD_cwksp_reserve_object(ZSTD_cwksp* ws, size_t bytes)
 {
-    size_t const roundedBytes = ZSTD_cwksp_align(bytes, alignment);
+    size_t const roundedBytes = ZSTD_cwksp_align(bytes, sizeof(void*));
     void* alloc = ws->objectEnd;
     void* end = (BYTE*)alloc + roundedBytes;
 
@@ -501,8 +501,8 @@ ZSTD_cwksp_reserve_object_aligned(ZSTD_cwksp* ws, size_t bytes, size_t alignment
     DEBUGLOG(4,
         "cwksp: reserving %p object %zd bytes (rounded to %zd), %zd bytes remaining",
         alloc, bytes, roundedBytes, ZSTD_cwksp_available_space(ws) - roundedBytes);
-    assert((size_t)alloc % alignment == 0);
-    assert(bytes % alignment == 0);
+    assert((size_t)alloc % ZSTD_ALIGNOF(void*) == 0);
+    assert(bytes % ZSTD_ALIGNOF(void*) == 0);
     ZSTD_cwksp_assert_internal_consistency(ws);
     /* we must be in the first phase, no advance is possible */
     if (ws->phase != ZSTD_cwksp_alloc_objects || end > ws->workspaceEnd) {
@@ -525,14 +525,19 @@ ZSTD_cwksp_reserve_object_aligned(ZSTD_cwksp* ws, size_t bytes, size_t alignment
 
     return alloc;
 }
-
 /**
- * Aligned on sizeof(void*).
+ * with alignment control
  * Note : should happen only once, at workspace first initialization
  */
-MEM_STATIC void* ZSTD_cwksp_reserve_object(ZSTD_cwksp* ws, size_t bytes)
+MEM_STATIC void* ZSTD_cwksp_reserve_object_aligned(ZSTD_cwksp* ws, size_t byteSize, size_t alignment)
 {
-    return ZSTD_cwksp_reserve_object_aligned(ws, bytes, sizeof(void*));
+    size_t const mask = alignment - 1;
+    size_t const surplus = (alignment > sizeof(void*)) ? alignment - sizeof(void*) : 0;
+    void* const start = ZSTD_cwksp_reserve_object(ws, byteSize + surplus);
+    if (start == NULL) return NULL;
+    if (surplus == 0) return start;
+    assert(ZSTD_IS_POWER_2(alignment));
+    return (void*)(((size_t)start + surplus) & ~mask);
 }
 
 MEM_STATIC void ZSTD_cwksp_mark_tables_dirty(ZSTD_cwksp* ws)

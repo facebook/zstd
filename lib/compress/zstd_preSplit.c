@@ -10,6 +10,7 @@
 
 #include "../common/mem.h" /* S64 */
 #include "../common/zstd_deps.h" /* ZSTD_memset */
+#include "../common/zstd_internal.h" /* ZSTD_STATIC_ASSERT */
 #include "zstd_preSplit.h"
 
 
@@ -30,22 +31,19 @@ static unsigned hash2(const void *p)
 }
 
 
-/* ==================================== */
-/* Global array -> for testing only !!! */
-/* ==================================== */
 typedef struct {
   int events[HASHTABLESIZE];
   S64 nbEvents;
 } FingerPrint;
-static FingerPrint pastEvents;
-static FingerPrint newEvents;
+typedef struct {
+    FingerPrint pastEvents;
+    FingerPrint newEvents;
+} FPStats;
 
-static void initStats(void)
+static void initStats(FPStats* fpstats)
 {
-    ZSTD_memset(&pastEvents, 0, sizeof(pastEvents));
-    ZSTD_memset(&newEvents, 0, sizeof(newEvents));
+    ZSTD_memset(fpstats, 0, sizeof(FPStats));
 }
-/* ==================================== */
 
 static void addToFingerprint(FingerPrint* fp, const void* src, size_t s)
 {
@@ -103,14 +101,14 @@ static void mergeEvents(FingerPrint* acc, const FingerPrint* newfp)
     acc->nbEvents += newfp->nbEvents;
 }
 
-static void flushEvents(void)
+static void flushEvents(FPStats* fpstats)
 {
     size_t n;
     for (n = 0; n < HASHTABLESIZE; n++) {
-        pastEvents.events[n] = newEvents.events[n];
+        fpstats->pastEvents.events[n] = fpstats->newEvents.events[n];
     }
-    pastEvents.nbEvents = newEvents.nbEvents;
-    ZSTD_memset(&newEvents, 0, sizeof(newEvents));
+    fpstats->pastEvents.nbEvents = fpstats->newEvents.nbEvents;
+    ZSTD_memset(&fpstats->newEvents, 0, sizeof(fpstats->newEvents));
 }
 
 static void removeEvents(FingerPrint* acc, const FingerPrint* slice)
@@ -125,23 +123,30 @@ static void removeEvents(FingerPrint* acc, const FingerPrint* slice)
 
 #define CHUNKSIZE (8 << 10)
 /* Note: technically, we use CHUNKSIZE, so that's 8 KB */
-size_t ZSTD_splitBlock_4k(const void* src, size_t srcSize, size_t blockSizeMax)
+size_t ZSTD_splitBlock_4k(const void* src, size_t srcSize,
+                        size_t blockSizeMax,
+                        void* workspace, size_t wkspSize)
 {
+    FPStats* const fpstats = (FPStats*)workspace;
     const char* p = (const char*)src;
     int penalty = THRESHOLD_PENALTY;
     size_t pos = 0;
     if (srcSize <= blockSizeMax) return srcSize;
     assert(blockSizeMax == (128 << 10));
+    assert(workspace != NULL);
+    assert((size_t)workspace % 8 == 0);
+    ZSTD_STATIC_ASSERT(ZSTD_SLIPBLOCK_WORKSPACESIZE == sizeof(FPStats));
+    assert(wkspSize >= sizeof(FPStats)); (void)wkspSize;
 
-    initStats();
+    initStats(fpstats);
     for (pos = 0; pos < blockSizeMax;) {
         assert(pos <= blockSizeMax - CHUNKSIZE);
-        recordFingerprint(&newEvents, p + pos, CHUNKSIZE);
-        if (compareFingerprints(&pastEvents, &newEvents, penalty)) {
+        recordFingerprint(&fpstats->newEvents, p + pos, CHUNKSIZE);
+        if (compareFingerprints(&fpstats->pastEvents, &fpstats->newEvents, penalty)) {
             return pos;
         } else {
-            mergeEvents(&pastEvents, &newEvents);
-            ZSTD_memset(&newEvents, 0, sizeof(newEvents));
+            mergeEvents(&fpstats->pastEvents, &fpstats->newEvents);
+            ZSTD_memset(&fpstats->newEvents, 0, sizeof(fpstats->newEvents));
             penalty = penalty - 1 + (penalty == 0);
         }
         pos += CHUNKSIZE;

@@ -222,7 +222,7 @@ MEM_STATIC size_t ZSTD_cwksp_align(size_t size, size_t const align) {
  * to figure out how much space you need for the matchState tables. Everything
  * else is though.
  *
- * Do not use for sizing aligned buffers. Instead, use ZSTD_cwksp_aligned_alloc_size().
+ * Do not use for sizing aligned buffers. Instead, use ZSTD_cwksp_aligned64_alloc_size().
  */
 MEM_STATIC size_t ZSTD_cwksp_alloc_size(size_t size) {
     if (size == 0)
@@ -234,12 +234,16 @@ MEM_STATIC size_t ZSTD_cwksp_alloc_size(size_t size) {
 #endif
 }
 
+MEM_STATIC size_t ZSTD_cwksp_aligned_alloc_size(size_t size, size_t alignment) {
+    return ZSTD_cwksp_alloc_size(ZSTD_cwksp_align(size, alignment));
+}
+
 /**
  * Returns an adjusted alloc size that is the nearest larger multiple of 64 bytes.
  * Used to determine the number of bytes required for a given "aligned".
  */
-MEM_STATIC size_t ZSTD_cwksp_aligned_alloc_size(size_t size) {
-    return ZSTD_cwksp_alloc_size(ZSTD_cwksp_align(size, ZSTD_CWKSP_ALIGNMENT_BYTES));
+MEM_STATIC size_t ZSTD_cwksp_aligned64_alloc_size(size_t size) {
+    return ZSTD_cwksp_aligned_alloc_size(size, ZSTD_CWKSP_ALIGNMENT_BYTES);
 }
 
 /**
@@ -272,7 +276,7 @@ MEM_STATIC size_t ZSTD_cwksp_bytes_to_align_ptr(void* ptr, const size_t alignByt
  * which we can allocate from the end of the workspace.
  */
 MEM_STATIC void*  ZSTD_cwksp_initialAllocStart(ZSTD_cwksp* ws) {
-    return (void*)((size_t)ws->workspaceEnd & ~(ZSTD_CWKSP_ALIGNMENT_BYTES-1));
+    return (void*)((size_t)ws->workspaceEnd & (size_t)~(ZSTD_CWKSP_ALIGNMENT_BYTES-1));
 }
 
 /**
@@ -426,8 +430,9 @@ MEM_STATIC void* ZSTD_cwksp_reserve_aligned_init_once(ZSTD_cwksp* ws, size_t byt
  */
 MEM_STATIC void* ZSTD_cwksp_reserve_aligned(ZSTD_cwksp* ws, size_t bytes)
 {
-    void* ptr = ZSTD_cwksp_reserve_internal(ws, ZSTD_cwksp_align(bytes, ZSTD_CWKSP_ALIGNMENT_BYTES),
-                                            ZSTD_cwksp_alloc_aligned);
+    void* const ptr = ZSTD_cwksp_reserve_internal(ws,
+                        ZSTD_cwksp_align(bytes, ZSTD_CWKSP_ALIGNMENT_BYTES),
+                        ZSTD_cwksp_alloc_aligned);
     assert(((size_t)ptr & (ZSTD_CWKSP_ALIGNMENT_BYTES-1))== 0);
     return ptr;
 }
@@ -479,12 +484,12 @@ MEM_STATIC void* ZSTD_cwksp_reserve_table(ZSTD_cwksp* ws, size_t bytes)
 }
 
 /**
- * Aligned on sizeof(void*).
  * Note : should happen only once, at workspace first initialization
  */
-MEM_STATIC void* ZSTD_cwksp_reserve_object(ZSTD_cwksp* ws, size_t bytes)
+MEM_STATIC void*
+ZSTD_cwksp_reserve_object_aligned(ZSTD_cwksp* ws, size_t bytes, size_t alignment)
 {
-    size_t const roundedBytes = ZSTD_cwksp_align(bytes, sizeof(void*));
+    size_t const roundedBytes = ZSTD_cwksp_align(bytes, alignment);
     void* alloc = ws->objectEnd;
     void* end = (BYTE*)alloc + roundedBytes;
 
@@ -496,8 +501,8 @@ MEM_STATIC void* ZSTD_cwksp_reserve_object(ZSTD_cwksp* ws, size_t bytes)
     DEBUGLOG(4,
         "cwksp: reserving %p object %zd bytes (rounded to %zd), %zd bytes remaining",
         alloc, bytes, roundedBytes, ZSTD_cwksp_available_space(ws) - roundedBytes);
-    assert((size_t)alloc % ZSTD_ALIGNOF(void*) == 0);
-    assert(bytes % ZSTD_ALIGNOF(void*) == 0);
+    assert((size_t)alloc % alignment == 0);
+    assert(bytes % alignment == 0);
     ZSTD_cwksp_assert_internal_consistency(ws);
     /* we must be in the first phase, no advance is possible */
     if (ws->phase != ZSTD_cwksp_alloc_objects || end > ws->workspaceEnd) {
@@ -519,6 +524,15 @@ MEM_STATIC void* ZSTD_cwksp_reserve_object(ZSTD_cwksp* ws, size_t bytes)
 #endif
 
     return alloc;
+}
+
+/**
+ * Aligned on sizeof(void*).
+ * Note : should happen only once, at workspace first initialization
+ */
+MEM_STATIC void* ZSTD_cwksp_reserve_object(ZSTD_cwksp* ws, size_t bytes)
+{
+    return ZSTD_cwksp_reserve_object_aligned(ws, bytes, sizeof(void*));
 }
 
 MEM_STATIC void ZSTD_cwksp_mark_tables_dirty(ZSTD_cwksp* ws)

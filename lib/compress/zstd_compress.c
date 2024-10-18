@@ -137,11 +137,12 @@ ZSTD_CCtx* ZSTD_initStaticCCtx(void* workspace, size_t workspaceSize)
     ZSTD_cwksp_move(&cctx->workspace, &ws);
     cctx->staticSize = workspaceSize;
 
-    /* statically sized space. entropyWorkspace never moves (but prev/next block swap places) */
+    /* statically sized space. tmpWorkspace never moves (but prev/next block swap places) */
     if (!ZSTD_cwksp_check_available(&cctx->workspace, ENTROPY_WORKSPACE_SIZE + 2 * sizeof(ZSTD_compressedBlockState_t))) return NULL;
     cctx->blockState.prevCBlock = (ZSTD_compressedBlockState_t*)ZSTD_cwksp_reserve_object(&cctx->workspace, sizeof(ZSTD_compressedBlockState_t));
     cctx->blockState.nextCBlock = (ZSTD_compressedBlockState_t*)ZSTD_cwksp_reserve_object(&cctx->workspace, sizeof(ZSTD_compressedBlockState_t));
-    cctx->entropyWorkspace = (U32*)ZSTD_cwksp_reserve_object(&cctx->workspace, ENTROPY_WORKSPACE_SIZE);
+    cctx->tmpWorkspace = ZSTD_cwksp_reserve_object_aligned(&cctx->workspace, TMP_WORKSPACE_SIZE, sizeof(S64));
+    cctx->tmpWkspSize = TMP_WORKSPACE_SIZE;
     cctx->bmi2 = ZSTD_cpuid_bmi2(ZSTD_cpuid());
     return cctx;
 }
@@ -1661,14 +1662,14 @@ ZSTD_sizeof_matchState(const ZSTD_compressionParameters* const cParams,
                             + hSize * sizeof(U32)
                             + h3Size * sizeof(U32);
     size_t const optPotentialSpace =
-        ZSTD_cwksp_aligned_alloc_size((MaxML+1) * sizeof(U32))
-      + ZSTD_cwksp_aligned_alloc_size((MaxLL+1) * sizeof(U32))
-      + ZSTD_cwksp_aligned_alloc_size((MaxOff+1) * sizeof(U32))
-      + ZSTD_cwksp_aligned_alloc_size((1<<Litbits) * sizeof(U32))
-      + ZSTD_cwksp_aligned_alloc_size(ZSTD_OPT_SIZE * sizeof(ZSTD_match_t))
-      + ZSTD_cwksp_aligned_alloc_size(ZSTD_OPT_SIZE * sizeof(ZSTD_optimal_t));
+        ZSTD_cwksp_aligned64_alloc_size((MaxML+1) * sizeof(U32))
+      + ZSTD_cwksp_aligned64_alloc_size((MaxLL+1) * sizeof(U32))
+      + ZSTD_cwksp_aligned64_alloc_size((MaxOff+1) * sizeof(U32))
+      + ZSTD_cwksp_aligned64_alloc_size((1<<Litbits) * sizeof(U32))
+      + ZSTD_cwksp_aligned64_alloc_size(ZSTD_OPT_SIZE * sizeof(ZSTD_match_t))
+      + ZSTD_cwksp_aligned64_alloc_size(ZSTD_OPT_SIZE * sizeof(ZSTD_optimal_t));
     size_t const lazyAdditionalSpace = ZSTD_rowMatchFinderUsed(cParams->strategy, useRowMatchFinder)
-                                            ? ZSTD_cwksp_aligned_alloc_size(hSize)
+                                            ? ZSTD_cwksp_aligned64_alloc_size(hSize)
                                             : 0;
     size_t const optSpace = (forCCtx && (cParams->strategy >= ZSTD_btopt))
                                 ? optPotentialSpace
@@ -1706,16 +1707,16 @@ static size_t ZSTD_estimateCCtxSize_usingCCtxParams_internal(
     size_t const blockSize = MIN(ZSTD_resolveMaxBlockSize(maxBlockSize), windowSize);
     size_t const maxNbSeq = ZSTD_maxNbSeq(blockSize, cParams->minMatch, useSequenceProducer);
     size_t const tokenSpace = ZSTD_cwksp_alloc_size(WILDCOPY_OVERLENGTH + blockSize)
-                            + ZSTD_cwksp_aligned_alloc_size(maxNbSeq * sizeof(seqDef))
+                            + ZSTD_cwksp_aligned64_alloc_size(maxNbSeq * sizeof(seqDef))
                             + 3 * ZSTD_cwksp_alloc_size(maxNbSeq * sizeof(BYTE));
-    size_t const entropySpace = ZSTD_cwksp_alloc_size(ENTROPY_WORKSPACE_SIZE);
+    size_t const tmpWorkSpace = ZSTD_cwksp_aligned_alloc_size(TMP_WORKSPACE_SIZE, sizeof(S64));
     size_t const blockStateSpace = 2 * ZSTD_cwksp_alloc_size(sizeof(ZSTD_compressedBlockState_t));
     size_t const matchStateSize = ZSTD_sizeof_matchState(cParams, useRowMatchFinder, /* enableDedicatedDictSearch */ 0, /* forCCtx */ 1);
 
     size_t const ldmSpace = ZSTD_ldm_getTableSize(*ldmParams);
     size_t const maxNbLdmSeq = ZSTD_ldm_getMaxNbSeq(*ldmParams, blockSize);
     size_t const ldmSeqSpace = ldmParams->enableLdm == ZSTD_ps_enable ?
-        ZSTD_cwksp_aligned_alloc_size(maxNbLdmSeq * sizeof(rawSeq)) : 0;
+        ZSTD_cwksp_aligned64_alloc_size(maxNbLdmSeq * sizeof(rawSeq)) : 0;
 
 
     size_t const bufferSpace = ZSTD_cwksp_alloc_size(buffInSize)
@@ -1725,12 +1726,12 @@ static size_t ZSTD_estimateCCtxSize_usingCCtxParams_internal(
 
     size_t const maxNbExternalSeq = ZSTD_sequenceBound(blockSize);
     size_t const externalSeqSpace = useSequenceProducer
-        ? ZSTD_cwksp_aligned_alloc_size(maxNbExternalSeq * sizeof(ZSTD_Sequence))
+        ? ZSTD_cwksp_aligned64_alloc_size(maxNbExternalSeq * sizeof(ZSTD_Sequence))
         : 0;
 
     size_t const neededSpace =
         cctxSpace +
-        entropySpace +
+        tmpWorkSpace +
         blockStateSpace +
         ldmSpace +
         ldmSeqSpace +
@@ -2166,15 +2167,16 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
 
                 DEBUGLOG(5, "reserving object space");
                 /* Statically sized space.
-                 * entropyWorkspace never moves,
+                 * tmpWorkspace never moves,
                  * though prev/next block swap places */
                 assert(ZSTD_cwksp_check_available(ws, 2 * sizeof(ZSTD_compressedBlockState_t)));
                 zc->blockState.prevCBlock = (ZSTD_compressedBlockState_t*) ZSTD_cwksp_reserve_object(ws, sizeof(ZSTD_compressedBlockState_t));
                 RETURN_ERROR_IF(zc->blockState.prevCBlock == NULL, memory_allocation, "couldn't allocate prevCBlock");
                 zc->blockState.nextCBlock = (ZSTD_compressedBlockState_t*) ZSTD_cwksp_reserve_object(ws, sizeof(ZSTD_compressedBlockState_t));
                 RETURN_ERROR_IF(zc->blockState.nextCBlock == NULL, memory_allocation, "couldn't allocate nextCBlock");
-                zc->entropyWorkspace = (U32*) ZSTD_cwksp_reserve_object(ws, ENTROPY_WORKSPACE_SIZE);
-                RETURN_ERROR_IF(zc->entropyWorkspace == NULL, memory_allocation, "couldn't allocate entropyWorkspace");
+                zc->tmpWorkspace = ZSTD_cwksp_reserve_object_aligned(ws, TMP_WORKSPACE_SIZE, sizeof(S64));
+                RETURN_ERROR_IF(zc->tmpWorkspace == NULL, memory_allocation, "couldn't allocate tmpWorkspace");
+                zc->tmpWkspSize = TMP_WORKSPACE_SIZE;
         }   }
 
         ZSTD_cwksp_clear(ws);
@@ -3894,14 +3896,14 @@ ZSTD_buildEntropyStatisticsAndEstimateSubBlockSize(seqStore_t* seqStore, ZSTD_CC
                     &zc->blockState.nextCBlock->entropy,
                     &zc->appliedParams,
                     entropyMetadata,
-                    zc->entropyWorkspace, ENTROPY_WORKSPACE_SIZE), "");
+                    zc->tmpWorkspace, zc->tmpWkspSize), "");
     return ZSTD_estimateBlockSize(
                     seqStore->litStart, (size_t)(seqStore->lit - seqStore->litStart),
                     seqStore->ofCode, seqStore->llCode, seqStore->mlCode,
                     (size_t)(seqStore->sequences - seqStore->sequencesStart),
                     &zc->blockState.nextCBlock->entropy,
                     entropyMetadata,
-                    zc->entropyWorkspace, ENTROPY_WORKSPACE_SIZE,
+                    zc->tmpWorkspace, zc->tmpWkspSize,
                     (int)(entropyMetadata->hufMetadata.hType == set_compressed), 1);
 }
 
@@ -4067,7 +4069,7 @@ ZSTD_compressSeqStore_singleBlock(ZSTD_CCtx* zc,
                 &zc->appliedParams,
                 op + ZSTD_blockHeaderSize, dstCapacity - ZSTD_blockHeaderSize,
                 srcSize,
-                zc->entropyWorkspace, ENTROPY_WORKSPACE_SIZE /* statically allocated in resetCCtx */,
+                zc->tmpWorkspace, zc->tmpWkspSize /* statically allocated in resetCCtx */,
                 zc->bmi2);
     FORWARD_IF_ERROR(cSeqsSize, "ZSTD_entropyCompressSeqStore failed!");
 
@@ -4357,7 +4359,7 @@ ZSTD_compressBlock_internal(ZSTD_CCtx* zc,
             &zc->appliedParams,
             dst, dstCapacity,
             srcSize,
-            zc->entropyWorkspace, ENTROPY_WORKSPACE_SIZE /* statically allocated in resetCCtx */,
+            zc->tmpWorkspace, zc->tmpWkspSize /* statically allocated in resetCCtx */,
             zc->bmi2);
 
     if (frame &&
@@ -4489,20 +4491,17 @@ static void ZSTD_overflowCorrectIfNeeded(ZSTD_matchState_t* ms,
 
 #include "zstd_preSplit.h"
 
-
 static size_t ZSTD_optimalBlockSize(ZSTD_CCtx* cctx, const void* src, size_t srcSize, size_t blockSizeMax, ZSTD_strategy strat, S64 savings)
 {
-    S64 workspace[ZSTD_SLIPBLOCK_WORKSPACESIZE / 8];
-    (void)cctx;
-    /* note: we currenly only split full blocks (128 KB)
-     * and when there is more than 128 KB input remaining
+    /* note: conservatively only split full blocks (128 KB) currently,
+     * and even then only if there is more than 128 KB input remaining.
      */
     if (srcSize <= 128 KB || blockSizeMax < 128 KB)
         return MIN(srcSize, blockSizeMax);
     /* dynamic splitting has a cpu cost for analysis,
      * due to that cost it's only used for btlazy2+ strategies */
     if (strat >= ZSTD_btlazy2)
-        return ZSTD_splitBlock_4k(src, srcSize, blockSizeMax, workspace, sizeof(workspace));
+        return ZSTD_splitBlock_4k(src, srcSize, blockSizeMax, cctx->tmpWorkspace, cctx->tmpWkspSize);
     /* blind split strategy
      * no cpu cost, but can over-split homegeneous data.
      * heuristic, tested as being "generally better".
@@ -5174,11 +5173,11 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
                         cctx->blockState.prevCBlock, &cctx->blockState.matchState,
                         &cctx->ldmState, &cctx->workspace, &cctx->appliedParams, cdict->dictContent,
                         cdict->dictContentSize, cdict->dictContentType, dtlm,
-                        ZSTD_tfp_forCCtx, cctx->entropyWorkspace)
+                        ZSTD_tfp_forCCtx, cctx->tmpWorkspace)
               : ZSTD_compress_insertDictionary(
                         cctx->blockState.prevCBlock, &cctx->blockState.matchState,
                         &cctx->ldmState, &cctx->workspace, &cctx->appliedParams, dict, dictSize,
-                        dictContentType, dtlm, ZSTD_tfp_forCCtx, cctx->entropyWorkspace);
+                        dictContentType, dtlm, ZSTD_tfp_forCCtx, cctx->tmpWorkspace);
         FORWARD_IF_ERROR(dictID, "ZSTD_compress_insertDictionary failed");
         assert(dictID <= UINT_MAX);
         cctx->dictID = (U32)dictID;
@@ -6876,7 +6875,7 @@ ZSTD_compressSequences_internal(ZSTD_CCtx* cctx,
                                 &cctx->appliedParams,
                                 op + ZSTD_blockHeaderSize /* Leave space for block header */, dstCapacity - ZSTD_blockHeaderSize,
                                 blockSize,
-                                cctx->entropyWorkspace, ENTROPY_WORKSPACE_SIZE /* statically allocated in resetCCtx */,
+                                cctx->tmpWorkspace, cctx->tmpWkspSize /* statically allocated in resetCCtx */,
                                 cctx->bmi2);
         FORWARD_IF_ERROR(compressedSeqsSize, "Compressing sequences of block failed");
         DEBUGLOG(5, "Compressed sequences size: %zu", compressedSeqsSize);

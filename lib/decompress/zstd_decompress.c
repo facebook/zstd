@@ -2095,6 +2095,10 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
 
     DEBUGLOG(5, "ZSTD_decompressStream");
     RETURN_ERROR_IF(
+        zds == NULL,
+        stage_wrong,
+        "forbidden. DStream is NULL");
+    RETURN_ERROR_IF(
         input->pos > input->size,
         srcSize_wrong,
         "forbidden. in: pos: %u   vs size: %u",

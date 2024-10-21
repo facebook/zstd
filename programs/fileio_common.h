@@ -83,7 +83,7 @@ extern UTIL_time_t g_displayClock;
 #if defined(_MSC_VER) && _MSC_VER >= 1400
 #   define LONG_SEEK _fseeki64
 #   define LONG_TELL _ftelli64
-#elif !defined(__64BIT__) && (PLATFORM_POSIX_VERSION >= 200112L) /* No point defining Large file for 64 bit */
+#elif !defined(__64BIT__) && (PLATFORM_POSIX_VERSION >= 200112L) && !defined(ANDROID_WITHOUT_FSEEKO) /* No point defining Large file for 64 bit */
 #  define LONG_SEEK fseeko
 #  define LONG_TELL ftello
 #elif defined(__MINGW32__) && !defined(__STRICT_ANSI__) && !defined(__NO_MINGW_LFS) && defined(__MSVCRT__)

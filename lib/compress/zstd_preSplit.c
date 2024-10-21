@@ -18,7 +18,7 @@
 #define BLOCKSIZE_MIN 3500
 #define THRESHOLD_PENALTY_RATE 16
 #define THRESHOLD_BASE (THRESHOLD_PENALTY_RATE - 2)
-#define THRESHOLD_PENALTY 4
+#define THRESHOLD_PENALTY 3
 
 #define HASHLENGTH 2
 #define HASHLOG 10
@@ -84,8 +84,8 @@ static int compareFingerprints(const FingerPrint* ref,
                             const FingerPrint* newfp,
                             int penalty)
 {
-    if (ref->nbEvents <= BLOCKSIZE_MIN)
-        return 0;
+    assert(ref->nbEvents > 0);
+    assert(newfp->nbEvents > 0);
     {   S64 p50 = ref->nbEvents * newfp->nbEvents;
         S64 deviation = fpDistance(ref, newfp);
         S64 threshold = p50 * (THRESHOLD_BASE + penalty) / THRESHOLD_PENALTY_RATE;
@@ -140,7 +140,8 @@ size_t ZSTD_splitBlock_4k(const void* src, size_t srcSize,
     assert(wkspSize >= sizeof(FPStats)); (void)wkspSize;
 
     initStats(fpstats);
-    for (pos = 0; pos < blockSizeMax;) {
+    recordFingerprint(&fpstats->pastEvents, p, CHUNKSIZE);
+    for (pos = CHUNKSIZE; pos < blockSizeMax; pos += CHUNKSIZE) {
         assert(pos <= blockSizeMax - CHUNKSIZE);
         recordFingerprint(&fpstats->newEvents, p + pos, CHUNKSIZE);
         if (compareFingerprints(&fpstats->pastEvents, &fpstats->newEvents, penalty)) {
@@ -150,7 +151,6 @@ size_t ZSTD_splitBlock_4k(const void* src, size_t srcSize,
             ZSTD_memset(&fpstats->newEvents, 0, sizeof(fpstats->newEvents));
             penalty = penalty - 1 + (penalty == 0);
         }
-        pos += CHUNKSIZE;
     }
     return blockSizeMax;
     (void)flushEvents; (void)removeEvents;

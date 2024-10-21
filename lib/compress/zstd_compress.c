@@ -4500,8 +4500,10 @@ static size_t ZSTD_optimalBlockSize(ZSTD_CCtx* cctx, const void* src, size_t src
         return MIN(srcSize, blockSizeMax);
     /* dynamic splitting has a cpu cost for analysis,
      * due to that cost it's only used for btlazy2+ strategies */
-    if (strat >= ZSTD_btlazy2)
-        return ZSTD_splitBlock_4k(src, srcSize, blockSizeMax, cctx->tmpWorkspace, cctx->tmpWkspSize);
+    if (strat >= ZSTD_btopt)
+        return ZSTD_splitBlock(src, srcSize, blockSizeMax, split_lvl2, cctx->tmpWorkspace, cctx->tmpWkspSize);
+    if (strat >= ZSTD_lazy2)
+        return ZSTD_splitBlock(src, srcSize, blockSizeMax, split_lvl1, cctx->tmpWorkspace, cctx->tmpWkspSize);
     /* blind split strategy
      * no cpu cost, but can over-split homegeneous data.
      * heuristic, tested as being "generally better".

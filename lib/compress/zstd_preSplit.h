@@ -17,6 +17,8 @@
 extern "C" {
 #endif
 
+typedef enum { split_lvl1, split_lvl2 } ZSTD_SplitBlock_strategy_e;
+
 #define ZSTD_SLIPBLOCK_WORKSPACESIZE 8208
 
 /* note:
@@ -27,7 +29,9 @@ extern "C" {
  * therefore @blockSizeMax must be == 128 KB.
  * This could be extended to smaller sizes in the future.
  */
-size_t ZSTD_splitBlock_4k(const void* src, size_t srcSize, size_t blockSizeMax, void* workspace, size_t wkspSize);
+size_t ZSTD_splitBlock(const void* src, size_t srcSize,
+                    size_t blockSizeMax, ZSTD_SplitBlock_strategy_e splitStrat,
+                    void* workspace, size_t wkspSize);
 
 #if defined (__cplusplus)
 }

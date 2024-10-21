@@ -46,22 +46,36 @@ static void initStats(FPStats* fpstats)
     ZSTD_memset(fpstats, 0, sizeof(FPStats));
 }
 
-static void addToFingerprint(FingerPrint* fp, const void* src, size_t s)
+FORCE_INLINE_TEMPLATE void addEvents_generic(FingerPrint* fp, const void* src, size_t srcSize, size_t samplingRate)
 {
     const char* p = (const char*)src;
-    size_t limit = s - HASHLENGTH + 1;
+    size_t limit = srcSize - HASHLENGTH + 1;
     size_t n;
-    assert(s >= HASHLENGTH);
-    for (n = 0; n < limit; n++) {
-        fp->events[hash2(p++)]++;
+    assert(srcSize >= HASHLENGTH);
+    for (n = 0; n < limit; n+=samplingRate) {
+        fp->events[hash2(p+n)]++;
     }
-    fp->nbEvents += limit;
+    fp->nbEvents += limit/samplingRate;
 }
 
-static void recordFingerprint(FingerPrint* fp, const void* src, size_t s)
+#define ADDEVENTS_RATE(_rate) ZSTD_addEvents_##_rate
+
+#define ZSTD_GEN_ADDEVENTS_SAMPLE(_rate)                                                \
+    static void ADDEVENTS_RATE(_rate)(FingerPrint* fp, const void* src, size_t srcSize) \
+    {                                                                                   \
+        return addEvents_generic(fp, src, srcSize, _rate);                              \
+    }
+
+ZSTD_GEN_ADDEVENTS_SAMPLE(1);
+ZSTD_GEN_ADDEVENTS_SAMPLE(5);
+
+
+typedef void (*addEvents_f)(FingerPrint* fp, const void* src, size_t srcSize);
+
+static void recordFingerprint(FingerPrint* fp, const void* src, size_t s, addEvents_f addEvents)
 {
     ZSTD_memset(fp, 0, sizeof(*fp));
-    addToFingerprint(fp, src, s);
+    addEvents(fp, src, s);
 }
 
 static S64 abs64(S64 i) { return (i < 0) ? -i : i; }
@@ -124,8 +138,8 @@ static void removeEvents(FingerPrint* acc, const FingerPrint* slice)
 
 #define CHUNKSIZE (8 << 10)
 /* Note: technically, we use CHUNKSIZE, so that's 8 KB */
-size_t ZSTD_splitBlock_4k(const void* src, size_t srcSize,
-                        size_t blockSizeMax,
+static size_t ZSTD_splitBlock_byChunks(const void* src, size_t srcSize,
+                        size_t blockSizeMax, addEvents_f f,
                         void* workspace, size_t wkspSize)
 {
     FPStats* const fpstats = (FPStats*)workspace;
@@ -140,18 +154,28 @@ size_t ZSTD_splitBlock_4k(const void* src, size_t srcSize,
     assert(wkspSize >= sizeof(FPStats)); (void)wkspSize;
 
     initStats(fpstats);
-    recordFingerprint(&fpstats->pastEvents, p, CHUNKSIZE);
+    recordFingerprint(&fpstats->pastEvents, p, CHUNKSIZE, f);
     for (pos = CHUNKSIZE; pos < blockSizeMax; pos += CHUNKSIZE) {
         assert(pos <= blockSizeMax - CHUNKSIZE);
-        recordFingerprint(&fpstats->newEvents, p + pos, CHUNKSIZE);
+        recordFingerprint(&fpstats->newEvents, p + pos, CHUNKSIZE, f);
         if (compareFingerprints(&fpstats->pastEvents, &fpstats->newEvents, penalty)) {
             return pos;
         } else {
             mergeEvents(&fpstats->pastEvents, &fpstats->newEvents);
-            ZSTD_memset(&fpstats->newEvents, 0, sizeof(fpstats->newEvents));
             penalty = penalty - 1 + (penalty == 0);
         }
     }
     return blockSizeMax;
     (void)flushEvents; (void)removeEvents;
+}
+
+size_t ZSTD_splitBlock(const void* src, size_t srcSize,
+                    size_t blockSizeMax, ZSTD_SplitBlock_strategy_e splitStrat,
+                    void* workspace, size_t wkspSize)
+{
+    if (splitStrat == split_lvl2)
+        return ZSTD_splitBlock_byChunks(src, srcSize, blockSizeMax, ADDEVENTS_RATE(1), workspace, wkspSize);
+
+    assert(splitStrat == split_lvl1);
+    return ZSTD_splitBlock_byChunks(src, srcSize, blockSizeMax, ADDEVENTS_RATE(5), workspace, wkspSize);
 }

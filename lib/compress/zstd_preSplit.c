@@ -35,10 +35,10 @@ static unsigned hash2(const void *p)
 typedef struct {
   int events[HASHTABLESIZE];
   S64 nbEvents;
-} FingerPrint;
+} Fingerprint;
 typedef struct {
-    FingerPrint pastEvents;
-    FingerPrint newEvents;
+    Fingerprint pastEvents;
+    Fingerprint newEvents;
 } FPStats;
 
 static void initStats(FPStats* fpstats)
@@ -46,7 +46,7 @@ static void initStats(FPStats* fpstats)
     ZSTD_memset(fpstats, 0, sizeof(FPStats));
 }
 
-FORCE_INLINE_TEMPLATE void addEvents_generic(FingerPrint* fp, const void* src, size_t srcSize, size_t samplingRate)
+FORCE_INLINE_TEMPLATE void addEvents_generic(Fingerprint* fp, const void* src, size_t srcSize, size_t samplingRate)
 {
     const char* p = (const char*)src;
     size_t limit = srcSize - HASHLENGTH + 1;
@@ -61,7 +61,7 @@ FORCE_INLINE_TEMPLATE void addEvents_generic(FingerPrint* fp, const void* src, s
 #define ADDEVENTS_RATE(_rate) ZSTD_addEvents_##_rate
 
 #define ZSTD_GEN_ADDEVENTS_SAMPLE(_rate)                                                \
-    static void ADDEVENTS_RATE(_rate)(FingerPrint* fp, const void* src, size_t srcSize) \
+    static void ADDEVENTS_RATE(_rate)(Fingerprint* fp, const void* src, size_t srcSize) \
     {                                                                                   \
         return addEvents_generic(fp, src, srcSize, _rate);                              \
     }
@@ -70,9 +70,9 @@ ZSTD_GEN_ADDEVENTS_SAMPLE(1);
 ZSTD_GEN_ADDEVENTS_SAMPLE(5);
 
 
-typedef void (*addEvents_f)(FingerPrint* fp, const void* src, size_t srcSize);
+typedef void (*addEvents_f)(Fingerprint* fp, const void* src, size_t srcSize);
 
-static void recordFingerprint(FingerPrint* fp, const void* src, size_t s, addEvents_f addEvents)
+static void recordFingerprint(Fingerprint* fp, const void* src, size_t s, addEvents_f addEvents)
 {
     ZSTD_memset(fp, 0, sizeof(*fp));
     addEvents(fp, src, s);
@@ -80,7 +80,7 @@ static void recordFingerprint(FingerPrint* fp, const void* src, size_t s, addEve
 
 static S64 abs64(S64 i) { return (i < 0) ? -i : i; }
 
-static S64 fpDistance(const FingerPrint* fp1, const FingerPrint* fp2)
+static S64 fpDistance(const Fingerprint* fp1, const Fingerprint* fp2)
 {
     S64 distance = 0;
     size_t n;
@@ -94,8 +94,8 @@ static S64 fpDistance(const FingerPrint* fp1, const FingerPrint* fp2)
 /* Compare newEvents with pastEvents
  * return 1 when considered "too different"
  */
-static int compareFingerprints(const FingerPrint* ref,
-                            const FingerPrint* newfp,
+static int compareFingerprints(const Fingerprint* ref,
+                            const Fingerprint* newfp,
                             int penalty)
 {
     assert(ref->nbEvents > 0);
@@ -107,7 +107,7 @@ static int compareFingerprints(const FingerPrint* ref,
     }
 }
 
-static void mergeEvents(FingerPrint* acc, const FingerPrint* newfp)
+static void mergeEvents(Fingerprint* acc, const Fingerprint* newfp)
 {
     size_t n;
     for (n = 0; n < HASHTABLESIZE; n++) {
@@ -126,7 +126,7 @@ static void flushEvents(FPStats* fpstats)
     ZSTD_memset(&fpstats->newEvents, 0, sizeof(fpstats->newEvents));
 }
 
-static void removeEvents(FingerPrint* acc, const FingerPrint* slice)
+static void removeEvents(Fingerprint* acc, const Fingerprint* slice)
 {
     size_t n;
     for (n = 0; n < HASHTABLESIZE; n++) {

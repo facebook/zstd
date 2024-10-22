@@ -155,8 +155,7 @@ static size_t ZSTD_splitBlock_byChunks(const void* src, size_t srcSize,
 
     initStats(fpstats);
     recordFingerprint(&fpstats->pastEvents, p, CHUNKSIZE, f);
-    for (pos = CHUNKSIZE; pos < blockSizeMax; pos += CHUNKSIZE) {
-        assert(pos <= blockSizeMax - CHUNKSIZE);
+    for (pos = CHUNKSIZE; pos <= blockSizeMax - CHUNKSIZE; pos += CHUNKSIZE) {
         recordFingerprint(&fpstats->newEvents, p + pos, CHUNKSIZE, f);
         if (compareFingerprints(&fpstats->pastEvents, &fpstats->newEvents, penalty)) {
             return pos;
@@ -165,6 +164,7 @@ static size_t ZSTD_splitBlock_byChunks(const void* src, size_t srcSize,
             penalty = penalty - 1 + (penalty == 0);
         }
     }
+    assert(pos == blockSizeMax);
     return blockSizeMax;
     (void)flushEvents; (void)removeEvents;
 }

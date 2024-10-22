@@ -4587,6 +4587,7 @@ static size_t ZSTD_compress_frameChunk(ZSTD_CCtx* cctx,
             }  /* if (ZSTD_useTargetCBlockSize(&cctx->appliedParams))*/
 
             if (cSize < blockSize) savings += (blockSize - cSize);
+            else if (savings) savings--;
             ip += blockSize;
             assert(remaining >= blockSize);
             remaining -= blockSize;

@@ -9,8 +9,8 @@ silesia.tar,                        level 4,                            compress
 silesia.tar,                        level 5,                            compress simple,                    4669650
 silesia.tar,                        level 6,                            compress simple,                    4604925
 silesia.tar,                        level 7,                            compress simple,                    4570873
-silesia.tar,                        level 9,                            compress simple,                    4546477
-silesia.tar,                        level 13,                           compress simple,                    4486256
+silesia.tar,                        level 9,                            compress simple,                    4537558
+silesia.tar,                        level 13,                           compress simple,                    4484732
 silesia.tar,                        level 16,                           compress simple,                    4355572
 silesia.tar,                        level 19,                           compress simple,                    4257629
 silesia.tar,                        uncompressed literals,              compress simple,                    4843429
@@ -26,7 +26,7 @@ github.tar,                         level 4,                            compress
 github.tar,                         level 5,                            compress simple,                    39808
 github.tar,                         level 6,                            compress simple,                    39455
 github.tar,                         level 7,                            compress simple,                    38168
-github.tar,                         level 9,                            compress simple,                    36897
+github.tar,                         level 9,                            compress simple,                    36723
 github.tar,                         level 13,                           compress simple,                    35501
 github.tar,                         level 16,                           compress simple,                    40466
 github.tar,                         level 19,                           compress simple,                    32262
@@ -43,8 +43,8 @@ silesia,                            level 4,                            compress
 silesia,                            level 5,                            compress cctx,                      4666524
 silesia,                            level 6,                            compress cctx,                      4602031
 silesia,                            level 7,                            compress cctx,                      4567954
-silesia,                            level 9,                            compress cctx,                      4543669
-silesia,                            level 13,                           compress cctx,                      4484875
+silesia,                            level 9,                            compress cctx,                      4535624
+silesia,                            level 13,                           compress cctx,                      4484013
 silesia,                            level 16,                           compress cctx,                      4356207
 silesia,                            level 19,                           compress cctx,                      4266751
 silesia,                            long distance mode,                 compress cctx,                      4838417
@@ -107,8 +107,8 @@ silesia,                            level 4,                            zstdcli,
 silesia,                            level 5,                            zstdcli,                            4666931
 silesia,                            level 6,                            zstdcli,                            4602509
 silesia,                            level 7,                            zstdcli,                            4568265
-silesia,                            level 9,                            zstdcli,                            4544068
-silesia,                            level 13,                           zstdcli,                            4484443
+silesia,                            level 9,                            zstdcli,                            4535309
+silesia,                            level 13,                           zstdcli,                            4483601
 silesia,                            level 16,                           zstdcli,                            4357591
 silesia,                            level 19,                           zstdcli,                            4266865
 silesia,                            long distance mode,                 zstdcli,                            4830467
@@ -132,8 +132,8 @@ silesia.tar,                        level 4,                            zstdcli,
 silesia.tar,                        level 5,                            zstdcli,                            4671144
 silesia.tar,                        level 6,                            zstdcli,                            4606407
 silesia.tar,                        level 7,                            zstdcli,                            4572666
-silesia.tar,                        level 9,                            zstdcli,                            4546557
-silesia.tar,                        level 13,                           zstdcli,                            4491076
+silesia.tar,                        level 9,                            zstdcli,                            4542599
+silesia.tar,                        level 13,                           zstdcli,                            4489976
 silesia.tar,                        level 16,                           zstdcli,                            4356959
 silesia.tar,                        level 19,                           zstdcli,                            4259787
 silesia.tar,                        no source size,                     zstdcli,                            4841902
@@ -206,9 +206,9 @@ github.tar,                         level 5 with dict,                  zstdcli,
 github.tar,                         level 6,                            zstdcli,                            39455
 github.tar,                         level 6 with dict,                  zstdcli,                            38787
 github.tar,                         level 7,                            zstdcli,                            38177
-github.tar,                         level 7 with dict,                  zstdcli,                            38009
-github.tar,                         level 9,                            zstdcli,                            36893
-github.tar,                         level 9 with dict,                  zstdcli,                            36827
+github.tar,                         level 7 with dict,                  zstdcli,                            37861
+github.tar,                         level 9,                            zstdcli,                            36727
+github.tar,                         level 9 with dict,                  zstdcli,                            36686
 github.tar,                         level 13,                           zstdcli,                            35505
 github.tar,                         level 13 with dict,                 zstdcli,                            37134
 github.tar,                         level 16,                           zstdcli,                            40470
@@ -242,12 +242,12 @@ silesia,                            level 6,                            advanced
 silesia,                            level 7 row 1,                      advanced one pass,                  4567954
 silesia,                            level 7 row 2,                      advanced one pass,                  4562774
 silesia,                            level 7,                            advanced one pass,                  4567954
-silesia,                            level 9,                            advanced one pass,                  4543669
-silesia,                            level 11 row 1,                     advanced one pass,                  4503577
-silesia,                            level 11 row 2,                     advanced one pass,                  4501229
-silesia,                            level 12 row 1,                     advanced one pass,                  4503577
-silesia,                            level 12 row 2,                     advanced one pass,                  4501229
-silesia,                            level 13,                           advanced one pass,                  4484875
+silesia,                            level 9,                            advanced one pass,                  4535624
+silesia,                            level 11 row 1,                     advanced one pass,                  4495623
+silesia,                            level 11 row 2,                     advanced one pass,                  4493258
+silesia,                            level 12 row 1,                     advanced one pass,                  4495623
+silesia,                            level 12 row 2,                     advanced one pass,                  4493258
+silesia,                            level 13,                           advanced one pass,                  4484013
 silesia,                            level 16,                           advanced one pass,                  4356207
 silesia,                            level 19,                           advanced one pass,                  4266751
 silesia,                            no source size,                     advanced one pass,                  4838417
@@ -276,12 +276,12 @@ silesia.tar,                        level 6,                            advanced
 silesia.tar,                        level 7 row 1,                      advanced one pass,                  4570873
 silesia.tar,                        level 7 row 2,                      advanced one pass,                  4566314
 silesia.tar,                        level 7,                            advanced one pass,                  4570873
-silesia.tar,                        level 9,                            advanced one pass,                  4546477
-silesia.tar,                        level 11 row 1,                     advanced one pass,                  4505875
-silesia.tar,                        level 11 row 2,                     advanced one pass,                  4504435
-silesia.tar,                        level 12 row 1,                     advanced one pass,                  4505461
-silesia.tar,                        level 12 row 2,                     advanced one pass,                  4504644
-silesia.tar,                        level 13,                           advanced one pass,                  4486256
+silesia.tar,                        level 9,                            advanced one pass,                  4537558
+silesia.tar,                        level 11 row 1,                     advanced one pass,                  4496590
+silesia.tar,                        level 11 row 2,                     advanced one pass,                  4495225
+silesia.tar,                        level 12 row 1,                     advanced one pass,                  4496084
+silesia.tar,                        level 12 row 2,                     advanced one pass,                  4495434
+silesia.tar,                        level 13,                           advanced one pass,                  4484732
 silesia.tar,                        level 16,                           advanced one pass,                  4355572
 silesia.tar,                        level 19,                           advanced one pass,                  4257629
 silesia.tar,                        no source size,                     advanced one pass,                  4843429
@@ -474,47 +474,47 @@ github.tar,                         level 6 with dict dds,              advanced
 github.tar,                         level 6 with dict copy,             advanced one pass,                  38808
 github.tar,                         level 6 with dict load,             advanced one pass,                  38796
 github.tar,                         level 7 row 1,                      advanced one pass,                  38168
-github.tar,                         level 7 row 1 with dict dms,        advanced one pass,                  38001
-github.tar,                         level 7 row 1 with dict dds,        advanced one pass,                  38008
-github.tar,                         level 7 row 1 with dict copy,       advanced one pass,                  37975
+github.tar,                         level 7 row 1 with dict dms,        advanced one pass,                  37832
+github.tar,                         level 7 row 1 with dict dds,        advanced one pass,                  37857
+github.tar,                         level 7 row 1 with dict copy,       advanced one pass,                  37839
 github.tar,                         level 7 row 1 with dict load,       advanced one pass,                  37445
 github.tar,                         level 7 row 2,                      advanced one pass,                  38235
-github.tar,                         level 7 row 2 with dict dms,        advanced one pass,                  38164
-github.tar,                         level 7 row 2 with dict dds,        advanced one pass,                  38169
-github.tar,                         level 7 row 2 with dict copy,       advanced one pass,                  38294
+github.tar,                         level 7 row 2 with dict dms,        advanced one pass,                  38012
+github.tar,                         level 7 row 2 with dict dds,        advanced one pass,                  38014
+github.tar,                         level 7 row 2 with dict copy,       advanced one pass,                  38101
 github.tar,                         level 7 row 2 with dict load,       advanced one pass,                  37552
 github.tar,                         level 7,                            advanced one pass,                  38168
-github.tar,                         level 7 with dict,                  advanced one pass,                  37975
-github.tar,                         level 7 with dict dms,              advanced one pass,                  38001
-github.tar,                         level 7 with dict dds,              advanced one pass,                  38008
-github.tar,                         level 7 with dict copy,             advanced one pass,                  37975
+github.tar,                         level 7 with dict,                  advanced one pass,                  37839
+github.tar,                         level 7 with dict dms,              advanced one pass,                  37832
+github.tar,                         level 7 with dict dds,              advanced one pass,                  37857
+github.tar,                         level 7 with dict copy,             advanced one pass,                  37839
 github.tar,                         level 7 with dict load,             advanced one pass,                  37445
-github.tar,                         level 9,                            advanced one pass,                  36897
-github.tar,                         level 9 with dict,                  advanced one pass,                  36689
-github.tar,                         level 9 with dict dms,              advanced one pass,                  36756
-github.tar,                         level 9 with dict dds,              advanced one pass,                  36817
-github.tar,                         level 9 with dict copy,             advanced one pass,                  36689
-github.tar,                         level 9 with dict load,             advanced one pass,                  36484
-github.tar,                         level 11 row 1,                     advanced one pass,                  36234
+github.tar,                         level 9,                            advanced one pass,                  36723
+github.tar,                         level 9 with dict,                  advanced one pass,                  36531
+github.tar,                         level 9 with dict dms,              advanced one pass,                  36615
+github.tar,                         level 9 with dict dds,              advanced one pass,                  36682
+github.tar,                         level 9 with dict copy,             advanced one pass,                  36531
+github.tar,                         level 9 with dict load,             advanced one pass,                  36322
+github.tar,                         level 11 row 1,                     advanced one pass,                  36085
 github.tar,                         level 11 row 1 with dict dms,       advanced one pass,                  36963
 github.tar,                         level 11 row 1 with dict dds,       advanced one pass,                  36963
 github.tar,                         level 11 row 1 with dict copy,      advanced one pass,                  36557
-github.tar,                         level 11 row 1 with dict load,      advanced one pass,                  36567
-github.tar,                         level 11 row 2,                     advanced one pass,                  36217
+github.tar,                         level 11 row 1 with dict load,      advanced one pass,                  36423
+github.tar,                         level 11 row 2,                     advanced one pass,                  36110
 github.tar,                         level 11 row 2 with dict dms,       advanced one pass,                  36963
 github.tar,                         level 11 row 2 with dict dds,       advanced one pass,                  36963
 github.tar,                         level 11 row 2 with dict copy,      advanced one pass,                  36557
-github.tar,                         level 11 row 2 with dict load,      advanced one pass,                  36586
-github.tar,                         level 12 row 1,                     advanced one pass,                  36234
+github.tar,                         level 11 row 2 with dict load,      advanced one pass,                  36459
+github.tar,                         level 12 row 1,                     advanced one pass,                  36085
 github.tar,                         level 12 row 1 with dict dms,       advanced one pass,                  36986
 github.tar,                         level 12 row 1 with dict dds,       advanced one pass,                  36986
 github.tar,                         level 12 row 1 with dict copy,      advanced one pass,                  36609
-github.tar,                         level 12 row 1 with dict load,      advanced one pass,                  36567
-github.tar,                         level 12 row 2,                     advanced one pass,                  36217
+github.tar,                         level 12 row 1 with dict load,      advanced one pass,                  36423
+github.tar,                         level 12 row 2,                     advanced one pass,                  36110
 github.tar,                         level 12 row 2 with dict dms,       advanced one pass,                  36986
 github.tar,                         level 12 row 2 with dict dds,       advanced one pass,                  36986
 github.tar,                         level 12 row 2 with dict copy,      advanced one pass,                  36609
-github.tar,                         level 12 row 2 with dict load,      advanced one pass,                  36586
+github.tar,                         level 12 row 2 with dict load,      advanced one pass,                  36459
 github.tar,                         level 13,                           advanced one pass,                  35501
 github.tar,                         level 13 with dict,                 advanced one pass,                  37130
 github.tar,                         level 13 with dict dms,             advanced one pass,                  37220
@@ -560,12 +560,12 @@ silesia,                            level 6,                            advanced
 silesia,                            level 7 row 1,                      advanced one pass small out,        4567954
 silesia,                            level 7 row 2,                      advanced one pass small out,        4562774
 silesia,                            level 7,                            advanced one pass small out,        4567954
-silesia,                            level 9,                            advanced one pass small out,        4543669
-silesia,                            level 11 row 1,                     advanced one pass small out,        4503577
-silesia,                            level 11 row 2,                     advanced one pass small out,        4501229
-silesia,                            level 12 row 1,                     advanced one pass small out,        4503577
-silesia,                            level 12 row 2,                     advanced one pass small out,        4501229
-silesia,                            level 13,                           advanced one pass small out,        4484875
+silesia,                            level 9,                            advanced one pass small out,        4535624
+silesia,                            level 11 row 1,                     advanced one pass small out,        4495623
+silesia,                            level 11 row 2,                     advanced one pass small out,        4493258
+silesia,                            level 12 row 1,                     advanced one pass small out,        4495623
+silesia,                            level 12 row 2,                     advanced one pass small out,        4493258
+silesia,                            level 13,                           advanced one pass small out,        4484013
 silesia,                            level 16,                           advanced one pass small out,        4356207
 silesia,                            level 19,                           advanced one pass small out,        4266751
 silesia,                            no source size,                     advanced one pass small out,        4838417
@@ -594,12 +594,12 @@ silesia.tar,                        level 6,                            advanced
 silesia.tar,                        level 7 row 1,                      advanced one pass small out,        4570873
 silesia.tar,                        level 7 row 2,                      advanced one pass small out,        4566314
 silesia.tar,                        level 7,                            advanced one pass small out,        4570873
-silesia.tar,                        level 9,                            advanced one pass small out,        4546477
-silesia.tar,                        level 11 row 1,                     advanced one pass small out,        4505875
-silesia.tar,                        level 11 row 2,                     advanced one pass small out,        4504435
-silesia.tar,                        level 12 row 1,                     advanced one pass small out,        4505461
-silesia.tar,                        level 12 row 2,                     advanced one pass small out,        4504644
-silesia.tar,                        level 13,                           advanced one pass small out,        4486256
+silesia.tar,                        level 9,                            advanced one pass small out,        4537558
+silesia.tar,                        level 11 row 1,                     advanced one pass small out,        4496590
+silesia.tar,                        level 11 row 2,                     advanced one pass small out,        4495225
+silesia.tar,                        level 12 row 1,                     advanced one pass small out,        4496084
+silesia.tar,                        level 12 row 2,                     advanced one pass small out,        4495434
+silesia.tar,                        level 13,                           advanced one pass small out,        4484732
 silesia.tar,                        level 16,                           advanced one pass small out,        4355572
 silesia.tar,                        level 19,                           advanced one pass small out,        4257629
 silesia.tar,                        no source size,                     advanced one pass small out,        4843429
@@ -792,47 +792,47 @@ github.tar,                         level 6 with dict dds,              advanced
 github.tar,                         level 6 with dict copy,             advanced one pass small out,        38808
 github.tar,                         level 6 with dict load,             advanced one pass small out,        38796
 github.tar,                         level 7 row 1,                      advanced one pass small out,        38168
-github.tar,                         level 7 row 1 with dict dms,        advanced one pass small out,        38001
-github.tar,                         level 7 row 1 with dict dds,        advanced one pass small out,        38008
-github.tar,                         level 7 row 1 with dict copy,       advanced one pass small out,        37975
+github.tar,                         level 7 row 1 with dict dms,        advanced one pass small out,        37832
+github.tar,                         level 7 row 1 with dict dds,        advanced one pass small out,        37857
+github.tar,                         level 7 row 1 with dict copy,       advanced one pass small out,        37839
 github.tar,                         level 7 row 1 with dict load,       advanced one pass small out,        37445
 github.tar,                         level 7 row 2,                      advanced one pass small out,        38235
-github.tar,                         level 7 row 2 with dict dms,        advanced one pass small out,        38164
-github.tar,                         level 7 row 2 with dict dds,        advanced one pass small out,        38169
-github.tar,                         level 7 row 2 with dict copy,       advanced one pass small out,        38294
+github.tar,                         level 7 row 2 with dict dms,        advanced one pass small out,        38012
+github.tar,                         level 7 row 2 with dict dds,        advanced one pass small out,        38014
+github.tar,                         level 7 row 2 with dict copy,       advanced one pass small out,        38101
 github.tar,                         level 7 row 2 with dict load,       advanced one pass small out,        37552
 github.tar,                         level 7,                            advanced one pass small out,        38168
-github.tar,                         level 7 with dict,                  advanced one pass small out,        37975
-github.tar,                         level 7 with dict dms,              advanced one pass small out,        38001
-github.tar,                         level 7 with dict dds,              advanced one pass small out,        38008
-github.tar,                         level 7 with dict copy,             advanced one pass small out,        37975
+github.tar,                         level 7 with dict,                  advanced one pass small out,        37839
+github.tar,                         level 7 with dict dms,              advanced one pass small out,        37832
+github.tar,                         level 7 with dict dds,              advanced one pass small out,        37857
+github.tar,                         level 7 with dict copy,             advanced one pass small out,        37839
 github.tar,                         level 7 with dict load,             advanced one pass small out,        37445
-github.tar,                         level 9,                            advanced one pass small out,        36897
-github.tar,                         level 9 with dict,                  advanced one pass small out,        36689
-github.tar,                         level 9 with dict dms,              advanced one pass small out,        36756
-github.tar,                         level 9 with dict dds,              advanced one pass small out,        36817
-github.tar,                         level 9 with dict copy,             advanced one pass small out,        36689
-github.tar,                         level 9 with dict load,             advanced one pass small out,        36484
-github.tar,                         level 11 row 1,                     advanced one pass small out,        36234
+github.tar,                         level 9,                            advanced one pass small out,        36723
+github.tar,                         level 9 with dict,                  advanced one pass small out,        36531
+github.tar,                         level 9 with dict dms,              advanced one pass small out,        36615
+github.tar,                         level 9 with dict dds,              advanced one pass small out,        36682
+github.tar,                         level 9 with dict copy,             advanced one pass small out,        36531
+github.tar,                         level 9 with dict load,             advanced one pass small out,        36322
+github.tar,                         level 11 row 1,                     advanced one pass small out,        36085
 github.tar,                         level 11 row 1 with dict dms,       advanced one pass small out,        36963
 github.tar,                         level 11 row 1 with dict dds,       advanced one pass small out,        36963
 github.tar,                         level 11 row 1 with dict copy,      advanced one pass small out,        36557
-github.tar,                         level 11 row 1 with dict load,      advanced one pass small out,        36567
-github.tar,                         level 11 row 2,                     advanced one pass small out,        36217
+github.tar,                         level 11 row 1 with dict load,      advanced one pass small out,        36423
+github.tar,                         level 11 row 2,                     advanced one pass small out,        36110
 github.tar,                         level 11 row 2 with dict dms,       advanced one pass small out,        36963
 github.tar,                         level 11 row 2 with dict dds,       advanced one pass small out,        36963
 github.tar,                         level 11 row 2 with dict copy,      advanced one pass small out,        36557
-github.tar,                         level 11 row 2 with dict load,      advanced one pass small out,        36586
-github.tar,                         level 12 row 1,                     advanced one pass small out,        36234
+github.tar,                         level 11 row 2 with dict load,      advanced one pass small out,        36459
+github.tar,                         level 12 row 1,                     advanced one pass small out,        36085
 github.tar,                         level 12 row 1 with dict dms,       advanced one pass small out,        36986
 github.tar,                         level 12 row 1 with dict dds,       advanced one pass small out,        36986
 github.tar,                         level 12 row 1 with dict copy,      advanced one pass small out,        36609
-github.tar,                         level 12 row 1 with dict load,      advanced one pass small out,        36567
-github.tar,                         level 12 row 2,                     advanced one pass small out,        36217
+github.tar,                         level 12 row 1 with dict load,      advanced one pass small out,        36423
+github.tar,                         level 12 row 2,                     advanced one pass small out,        36110
 github.tar,                         level 12 row 2 with dict dms,       advanced one pass small out,        36986
 github.tar,                         level 12 row 2 with dict dds,       advanced one pass small out,        36986
 github.tar,                         level 12 row 2 with dict copy,      advanced one pass small out,        36609
-github.tar,                         level 12 row 2 with dict load,      advanced one pass small out,        36586
+github.tar,                         level 12 row 2 with dict load,      advanced one pass small out,        36459
 github.tar,                         level 13,                           advanced one pass small out,        35501
 github.tar,                         level 13 with dict,                 advanced one pass small out,        37130
 github.tar,                         level 13 with dict dms,             advanced one pass small out,        37220

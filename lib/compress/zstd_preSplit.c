@@ -161,7 +161,7 @@ static size_t ZSTD_splitBlock_byChunks(const void* src, size_t srcSize,
             return pos;
         } else {
             mergeEvents(&fpstats->pastEvents, &fpstats->newEvents);
-            penalty = penalty - 1 + (penalty == 0);
+            if (penalty > 0) penalty--;
         }
     }
     assert(pos == blockSizeMax);

@@ -17,6 +17,7 @@
 #include "../common/allocations.h"  /* ZSTD_customMalloc, ZSTD_customFree */
 #include "../common/zstd_internal.h"
 #include "../common/portability_macros.h"
+#include "../common/compiler.h" /* ZS2_isPower2 */
 
 #if defined (__cplusplus)
 extern "C" {
@@ -275,8 +276,12 @@ MEM_STATIC size_t ZSTD_cwksp_bytes_to_align_ptr(void* ptr, const size_t alignByt
  * Returns the initial value for allocStart which is used to determine the position from
  * which we can allocate from the end of the workspace.
  */
-MEM_STATIC void*  ZSTD_cwksp_initialAllocStart(ZSTD_cwksp* ws) {
-    return (void*)((size_t)ws->workspaceEnd & (size_t)~(ZSTD_CWKSP_ALIGNMENT_BYTES-1));
+MEM_STATIC void*  ZSTD_cwksp_initialAllocStart(ZSTD_cwksp* ws)
+{
+    char* endPtr = (char*)ws->workspaceEnd;
+    assert(ZSTD_isPower2(ZSTD_CWKSP_ALIGNMENT_BYTES));
+    endPtr = endPtr - ((size_t)endPtr % ZSTD_CWKSP_ALIGNMENT_BYTES);
+    return (void*)endPtr;
 }
 
 /**

@@ -122,12 +122,13 @@ BMK_advancedParams_t BMK_initAdvancedParams(void);
 int BMK_benchFilesAdvanced(
                const char* const * fileNamesTable, unsigned nbFiles,
                const char* dictFileName,
-               int cLevel, const ZSTD_compressionParameters* compressionParams,
+               int startCLevel, int endCLevel,
+               const ZSTD_compressionParameters* compressionParams,
                int displayLevel, const BMK_advancedParams_t* adv);
 
 /*! BMK_syntheticTest() -- called from zstdcli */
-/*  Generates a sample with datagen, using compressibility argument */
-/* @cLevel - compression level to benchmark, errors if invalid
+/*  Generates a sample with datagen, using @compressibility argument
+ * @cLevel - compression level to benchmark, errors if invalid
  * @compressibility - determines compressibility of sample, range [0.0 - 1.0]
  *        if @compressibility < 0.0, uses the lorem ipsum generator
  * @compressionParams - basic compression Parameters
@@ -135,7 +136,8 @@ int BMK_benchFilesAdvanced(
  * @adv - see advanced_Params_t
  * @return: 0 on success, !0 on error
  */
-int BMK_syntheticTest(int cLevel, double compressibility,
+int BMK_syntheticTest(double compressibility,
+                      int startingCLevel, int endCLevel,
                       const ZSTD_compressionParameters* compressionParams,
                       int displayLevel, const BMK_advancedParams_t* adv);
 

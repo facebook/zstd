@@ -928,12 +928,13 @@ BMK_benchOutcome_t BMK_benchMem(
             &adv);
 }
 
-static BMK_benchOutcome_t BMK_benchCLevel(
+/* @return: 0 on success, !0 if error */
+static int BMK_benchCLevels(
         const void* srcBuffer,
         size_t benchedSize,
         const size_t* fileSizes,
         unsigned nbFiles,
-        int cLevel,
+        int startCLevel, int endCLevel,
         const ZSTD_compressionParameters* comprParams,
         const void* dictBuffer,
         size_t dictBufferSize,
@@ -941,11 +942,21 @@ static BMK_benchOutcome_t BMK_benchCLevel(
         const char* displayName,
         BMK_advancedParams_t const* const adv)
 {
+    int level;
     const char* pch = strrchr(displayName, '\\'); /* Windows */
     if (!pch)
         pch = strrchr(displayName, '/'); /* Linux */
     if (pch)
         displayName = pch + 1;
+
+    if (endCLevel > ZSTD_maxCLevel()) {
+        DISPLAYLEVEL(1, "Invalid Compression Level \n");
+        return 15;
+    }
+    if (endCLevel < startCLevel) {
+        DISPLAYLEVEL(1, "Invalid Compression Level Range \n");
+        return 15;
+    }
 
     if (adv->realTime) {
         DISPLAYLEVEL(2, "Note : switching to real-time priority \n");
@@ -960,25 +971,29 @@ static BMK_benchOutcome_t BMK_benchCLevel(
                adv->nbSeconds,
                (unsigned)(adv->blockSize >> 10));
 
-    return BMK_benchMemAdvanced(
+    for (level = startCLevel; level <= endCLevel; level++) {
+        BMK_benchOutcome_t res = BMK_benchMemAdvanced(
             srcBuffer,
             benchedSize,
             NULL,
             0,
             fileSizes,
             nbFiles,
-            cLevel,
+            level,
             comprParams,
             dictBuffer,
             dictBufferSize,
             displayLevel,
             displayName,
             adv);
+        if (!BMK_isSuccessful_benchOutcome(res)) return 1;
+    }
+    return 0;
 }
 
 int BMK_syntheticTest(
-        int cLevel,
         double compressibility,
+        int startingCLevel, int endCLevel,
         const ZSTD_compressionParameters* compressionParams,
         int displayLevel,
         const BMK_advancedParams_t* adv)
@@ -986,18 +1001,11 @@ int BMK_syntheticTest(
     char nameBuff[20]        = { 0 };
     const char* name         = nameBuff;
     size_t const benchedSize = adv->blockSize ? adv->blockSize : 10000000;
-    void* srcBuffer;
-    BMK_benchOutcome_t res;
-
-    if (cLevel > ZSTD_maxCLevel()) {
-        DISPLAYLEVEL(1, "Invalid Compression Level");
-        return 15;
-    }
 
     /* Memory allocation */
-    srcBuffer = malloc(benchedSize);
+    void* const srcBuffer = malloc(benchedSize);
     if (!srcBuffer) {
-        DISPLAYLEVEL(1, "allocation error : not enough memory");
+        DISPLAYLEVEL(1, "allocation error : not enough memory \n");
         return 16;
     }
 
@@ -1015,23 +1023,21 @@ int BMK_syntheticTest(
     }
 
     /* Bench */
-    res = BMK_benchCLevel(
-            srcBuffer,
-            benchedSize,
-            &benchedSize /* ? */,
-            1 /* ? */,
-            cLevel,
-            compressionParams,
-            NULL,
-            0, /* dictionary */
-            displayLevel,
-            name,
-            adv);
-
-    /* clean up */
-    free(srcBuffer);
-
-    return !BMK_isSuccessful_benchOutcome(res);
+    {   int res = BMK_benchCLevels(
+                srcBuffer,
+                benchedSize,
+                &benchedSize,
+                1,
+                startingCLevel, endCLevel,
+                compressionParams,
+                NULL,
+                0, /* dictionary */
+                displayLevel,
+                name,
+                adv);
+        free(srcBuffer);
+        return res;
+    }
 }
 
 static size_t BMK_findMaxMem(U64 requiredMem)
@@ -1120,7 +1126,7 @@ int BMK_benchFilesAdvanced(
         const char* const* fileNamesTable,
         unsigned nbFiles,
         const char* dictFileName,
-        int cLevel,
+        int startCLevel, int endCLevel,
         const ZSTD_compressionParameters* compressionParams,
         int displayLevel,
         const BMK_advancedParams_t* adv)
@@ -1130,7 +1136,7 @@ int BMK_benchFilesAdvanced(
     void* dictBuffer      = NULL;
     size_t dictBufferSize = 0;
     size_t* fileSizes     = NULL;
-    BMK_benchOutcome_t res;
+    int res = 1;
     U64 const totalSizeToLoad = UTIL_getTotalFileSize(fileNamesTable, nbFiles);
 
     if (!nbFiles) {
@@ -1138,7 +1144,7 @@ int BMK_benchFilesAdvanced(
         return 13;
     }
 
-    if (cLevel > ZSTD_maxCLevel()) {
+    if (endCLevel > ZSTD_maxCLevel()) {
         DISPLAYLEVEL(1, "Invalid Compression Level");
         return 14;
     }
@@ -1192,7 +1198,6 @@ int BMK_benchFilesAdvanced(
                     1 /*?*/,
                     displayLevel);
             if (errorCode) {
-                res = BMK_benchOutcome_error();
                 goto _cleanUp;
             }
         }
@@ -1224,7 +1229,6 @@ int BMK_benchFilesAdvanced(
                 nbFiles,
                 displayLevel);
         if (errorCode) {
-            res = BMK_benchOutcome_error();
             goto _cleanUp;
         }
     }
@@ -1233,15 +1237,14 @@ int BMK_benchFilesAdvanced(
     {
         char mfName[20] = { 0 };
         formatString_u(mfName, sizeof(mfName), " %u files", nbFiles);
-        {
-            const char* const displayName =
+        {   const char* const displayName =
                     (nbFiles > 1) ? mfName : fileNamesTable[0];
-            res = BMK_benchCLevel(
+            res = BMK_benchCLevels(
                     srcBuffer,
                     benchedSize,
                     fileSizes,
                     nbFiles,
-                    cLevel,
+                    startCLevel, endCLevel,
                     compressionParams,
                     dictBuffer,
                     dictBufferSize,
@@ -1255,7 +1258,7 @@ _cleanUp:
     free(srcBuffer);
     free(dictBuffer);
     free(fileSizes);
-    return !BMK_isSuccessful_benchOutcome(res);
+    return res;
 }
 
 int BMK_benchFiles(
@@ -1271,7 +1274,7 @@ int BMK_benchFiles(
             fileNamesTable,
             nbFiles,
             dictFileName,
-            cLevel,
+            cLevel, cLevel,
             compressionParams,
             displayLevel,
             &adv);

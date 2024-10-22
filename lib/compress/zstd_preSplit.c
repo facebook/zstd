@@ -63,7 +63,7 @@ FORCE_INLINE_TEMPLATE void addEvents_generic(Fingerprint* fp, const void* src, s
 #define ZSTD_GEN_ADDEVENTS_SAMPLE(_rate)                                                \
     static void ADDEVENTS_RATE(_rate)(Fingerprint* fp, const void* src, size_t srcSize) \
     {                                                                                   \
-        return addEvents_generic(fp, src, srcSize, _rate);                              \
+        addEvents_generic(fp, src, srcSize, _rate);                                     \
     }
 
 ZSTD_GEN_ADDEVENTS_SAMPLE(1);

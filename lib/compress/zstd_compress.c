@@ -4540,8 +4540,8 @@ static size_t ZSTD_compress_frameChunk(ZSTD_CCtx* cctx,
 
     while (remaining) {
         ZSTD_matchState_t* const ms = &cctx->blockState.matchState;
-        U32 const lastBlock = lastFrameChunk & (blockSizeMax >= remaining);
         size_t const blockSize = ZSTD_optimalBlockSize(cctx, ip, remaining, blockSizeMax, cctx->appliedParams.cParams.strategy, savings);
+        U32 const lastBlock = lastFrameChunk & (blockSize == remaining);
         assert(blockSize <= remaining);
 
         /* TODO: See 3090. We reduced MIN_CBLOCK_SIZE from 3 to 2 so to compensate we are adding

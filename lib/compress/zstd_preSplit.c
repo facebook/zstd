@@ -33,8 +33,8 @@ static unsigned hash2(const void *p)
 
 
 typedef struct {
-  int events[HASHTABLESIZE];
-  S64 nbEvents;
+  unsigned events[HASHTABLESIZE];
+  size_t nbEvents;
 } Fingerprint;
 typedef struct {
     Fingerprint pastEvents;
@@ -78,15 +78,15 @@ static void recordFingerprint(Fingerprint* fp, const void* src, size_t s, addEve
     addEvents(fp, src, s);
 }
 
-static S64 abs64(S64 i) { return (i < 0) ? -i : i; }
+static U64 abs64(S64 s64) { return (U64)((s64 < 0) ? -s64 : s64); }
 
-static S64 fpDistance(const Fingerprint* fp1, const Fingerprint* fp2)
+static U64 fpDistance(const Fingerprint* fp1, const Fingerprint* fp2)
 {
-    S64 distance = 0;
+    U64 distance = 0;
     size_t n;
     for (n = 0; n < HASHTABLESIZE; n++) {
         distance +=
-            abs64(fp1->events[n] * fp2->nbEvents - fp2->events[n] * fp1->nbEvents);
+            abs64((S64)fp1->events[n] * (S64)fp2->nbEvents - (S64)fp2->events[n] * (S64)fp1->nbEvents);
     }
     return distance;
 }
@@ -100,9 +100,9 @@ static int compareFingerprints(const Fingerprint* ref,
 {
     assert(ref->nbEvents > 0);
     assert(newfp->nbEvents > 0);
-    {   S64 p50 = ref->nbEvents * newfp->nbEvents;
-        S64 deviation = fpDistance(ref, newfp);
-        S64 threshold = p50 * (THRESHOLD_BASE + penalty) / THRESHOLD_PENALTY_RATE;
+    {   U64 p50 = (U64)ref->nbEvents * (U64)newfp->nbEvents;
+        U64 deviation = fpDistance(ref, newfp);
+        U64 threshold = p50 * (U64)(THRESHOLD_BASE + penalty) / THRESHOLD_PENALTY_RATE;
         return deviation >= threshold;
     }
 }
@@ -150,7 +150,7 @@ static size_t ZSTD_splitBlock_byChunks(const void* src, size_t srcSize,
     assert(blockSizeMax == (128 << 10));
     assert(workspace != NULL);
     assert((size_t)workspace % ZSTD_ALIGNOF(FPStats) == 0);
-    ZSTD_STATIC_ASSERT(ZSTD_SLIPBLOCK_WORKSPACESIZE == sizeof(FPStats));
+    ZSTD_STATIC_ASSERT(ZSTD_SLIPBLOCK_WORKSPACESIZE >= sizeof(FPStats));
     assert(wkspSize >= sizeof(FPStats)); (void)wkspSize;
 
     initStats(fpstats);

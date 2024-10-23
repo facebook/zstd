@@ -46,7 +46,8 @@ static void initStats(FPStats* fpstats)
     ZSTD_memset(fpstats, 0, sizeof(FPStats));
 }
 
-FORCE_INLINE_TEMPLATE void addEvents_generic(Fingerprint* fp, const void* src, size_t srcSize, size_t samplingRate)
+FORCE_INLINE_TEMPLATE void
+addEvents_generic(Fingerprint* fp, const void* src, size_t srcSize, size_t samplingRate)
 {
     const char* p = (const char*)src;
     size_t limit = srcSize - HASHLENGTH + 1;
@@ -58,26 +59,27 @@ FORCE_INLINE_TEMPLATE void addEvents_generic(Fingerprint* fp, const void* src, s
     fp->nbEvents += limit/samplingRate;
 }
 
-#define ADDEVENTS_RATE(_rate) ZSTD_addEvents_##_rate
-
-#define ZSTD_GEN_ADDEVENTS_SAMPLE(_rate)                                                \
-    static void ADDEVENTS_RATE(_rate)(Fingerprint* fp, const void* src, size_t srcSize) \
-    {                                                                                   \
-        addEvents_generic(fp, src, srcSize, _rate);                                     \
-    }
-
-ZSTD_GEN_ADDEVENTS_SAMPLE(1)
-ZSTD_GEN_ADDEVENTS_SAMPLE(5)
-ZSTD_GEN_ADDEVENTS_SAMPLE(11)
-
-
-typedef void (*addEvents_f)(Fingerprint* fp, const void* src, size_t srcSize);
-
-static void recordFingerprint(Fingerprint* fp, const void* src, size_t s, addEvents_f addEvents)
+FORCE_INLINE_TEMPLATE void
+recordFingerprint_generic(Fingerprint* fp, const void* src, size_t srcSize, size_t samplingRate)
 {
     ZSTD_memset(fp, 0, sizeof(*fp));
-    addEvents(fp, src, s);
+    addEvents_generic(fp, src, srcSize, samplingRate);
 }
+
+typedef void (*RecordEvents_f)(Fingerprint* fp, const void* src, size_t srcSize);
+
+#define FP_RECORD_RATE(_rate) ZSTD_recordFingerprint_##_rate
+
+#define ZSTD_GEN_RECORD_FINGERPRINT_RATE(_rate)                                         \
+    static void FP_RECORD_RATE(_rate)(Fingerprint* fp, const void* src, size_t srcSize) \
+    {                                                                                   \
+        recordFingerprint_generic(fp, src, srcSize, _rate);                             \
+    }
+
+ZSTD_GEN_RECORD_FINGERPRINT_RATE(1)
+ZSTD_GEN_RECORD_FINGERPRINT_RATE(5)
+ZSTD_GEN_RECORD_FINGERPRINT_RATE(11)
+
 
 static U64 abs64(S64 s64) { return (U64)((s64 < 0) ? -s64 : s64); }
 
@@ -140,7 +142,7 @@ static void removeEvents(Fingerprint* acc, const Fingerprint* slice)
 #define CHUNKSIZE (8 << 10)
 /* Note: technically, we use CHUNKSIZE, so that's 8 KB */
 static size_t ZSTD_splitBlock_byChunks(const void* src, size_t srcSize,
-                        size_t blockSizeMax, addEvents_f f,
+                        size_t blockSizeMax, RecordEvents_f record_f,
                         void* workspace, size_t wkspSize)
 {
     FPStats* const fpstats = (FPStats*)workspace;
@@ -155,9 +157,9 @@ static size_t ZSTD_splitBlock_byChunks(const void* src, size_t srcSize,
     assert(wkspSize >= sizeof(FPStats)); (void)wkspSize;
 
     initStats(fpstats);
-    recordFingerprint(&fpstats->pastEvents, p, CHUNKSIZE, f);
+    record_f(&fpstats->pastEvents, p, CHUNKSIZE);
     for (pos = CHUNKSIZE; pos <= blockSizeMax - CHUNKSIZE; pos += CHUNKSIZE) {
-        recordFingerprint(&fpstats->newEvents, p + pos, CHUNKSIZE, f);
+        record_f(&fpstats->newEvents, p + pos, CHUNKSIZE);
         if (compareFingerprints(&fpstats->pastEvents, &fpstats->newEvents, penalty)) {
             return pos;
         } else {
@@ -175,11 +177,11 @@ size_t ZSTD_splitBlock(const void* src, size_t srcSize,
                     void* workspace, size_t wkspSize)
 {
     if (splitStrat == split_lvl3)
-        return ZSTD_splitBlock_byChunks(src, srcSize, blockSizeMax, ADDEVENTS_RATE(1), workspace, wkspSize);
+        return ZSTD_splitBlock_byChunks(src, srcSize, blockSizeMax, FP_RECORD_RATE(1), workspace, wkspSize);
 
     if (splitStrat == split_lvl2)
-        return ZSTD_splitBlock_byChunks(src, srcSize, blockSizeMax, ADDEVENTS_RATE(5), workspace, wkspSize);
+        return ZSTD_splitBlock_byChunks(src, srcSize, blockSizeMax, FP_RECORD_RATE(5), workspace, wkspSize);
 
     assert(splitStrat == split_lvl1);
-    return ZSTD_splitBlock_byChunks(src, srcSize, blockSizeMax, ADDEVENTS_RATE(11), workspace, wkspSize);
+    return ZSTD_splitBlock_byChunks(src, srcSize, blockSizeMax, FP_RECORD_RATE(11), workspace, wkspSize);
 }

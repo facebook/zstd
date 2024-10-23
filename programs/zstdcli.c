@@ -1391,6 +1391,7 @@ int main(int argCount, const char* argv[])
         }
         benchParams.literalCompressionMode = literalCompressionMode;
 
+        if (benchParams.mode == BMK_decodeOnly) cLevel = cLevelLast = 0;
         if (cLevel > ZSTD_maxCLevel()) cLevel = ZSTD_maxCLevel();
         if (cLevelLast > ZSTD_maxCLevel()) cLevelLast = ZSTD_maxCLevel();
         if (cLevelLast < cLevel) cLevelLast = cLevel;

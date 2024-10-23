@@ -662,14 +662,17 @@ Compression of small files similar to the sample set will be greatly improved.
 BENCHMARK
 ---------
 The `zstd` CLI provides a benchmarking mode that can be used to easily find suitable compression parameters, or alternatively to benchmark a computer's performance.
-Note that the results are highly dependent on the content being compressed.
+`zstd -b [FILE(s)]` will benchmark `zstd` for both compression and decompression using default compression level.
+Note that results are very dependent on the content being compressed.
+It's possible to pass multiple files to the benchmark, and even a directory with `-r DIRECTORY`.
+When no `FILE` is provided, the benchmark will use a procedurally generated `lorem ipsum` text.
 
 * `-b#`:
     benchmark file(s) using compression level #
 * `-e#`:
     benchmark file(s) using multiple compression levels, from `-b#` to `-e#` (inclusive)
 * `-d`:
-    benchmark decompression speed only (requires providing an already zstd-compressed content)
+    benchmark decompression speed only (requires providing a zstd-compressed content)
 * `-i#`:
     minimum evaluation time, in seconds (default: 3s), benchmark mode only
 * `-B#`, `--block-size=#`:
@@ -681,9 +684,11 @@ Note that the results are highly dependent on the content being compressed.
 * `--priority=rt`:
     set process priority to real-time (Windows)
 
+Beyond compression levels, benchmarking is also compatible with other parameters, such as number of threads (`-T#`), advanced compression parameters (`--zstd=###`), dictionary compression (`-D dictionary`), or even disabling checksum verification for example.
+
 **Output Format:** CompressionLevel#Filename: InputSize -> OutputSize (CompressionRatio), CompressionSpeed, DecompressionSpeed
 
-**Methodology:** For both compression and decompression speed, the entire input is compressed/decompressed in-memory to measure speed. A run lasts at least 1 sec, so when files are small, they are compressed/decompressed several times per run, in order to improve measurement accuracy.
+**Methodology:** For speed measurement, the entire input is compressed/decompressed in-memory to measure speed. A run lasts at least 1 sec, so when files are small, they are compressed/decompressed several times per run, in order to improve measurement accuracy.
 
 
 SEE ALSO

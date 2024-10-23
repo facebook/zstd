@@ -4507,8 +4507,10 @@ static size_t ZSTD_optimalBlockSize(ZSTD_CCtx* cctx, const void* src, size_t src
     /* dynamic splitting has a cpu cost for analysis,
      * due to that cost it's only used for higher levels */
     if (strat >= ZSTD_btopt)
-        return ZSTD_splitBlock(src, srcSize, blockSizeMax, split_lvl2, cctx->tmpWorkspace, cctx->tmpWkspSize);
+        return ZSTD_splitBlock(src, srcSize, blockSizeMax, split_lvl3, cctx->tmpWorkspace, cctx->tmpWkspSize);
     if (strat >= ZSTD_lazy2)
+        return ZSTD_splitBlock(src, srcSize, blockSizeMax, split_lvl2, cctx->tmpWorkspace, cctx->tmpWkspSize);
+    if (strat >= ZSTD_greedy)
         return ZSTD_splitBlock(src, srcSize, blockSizeMax, split_lvl1, cctx->tmpWorkspace, cctx->tmpWkspSize);
     /* blind split strategy
      * heuristic value, tested as being "generally better".

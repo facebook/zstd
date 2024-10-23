@@ -68,6 +68,7 @@ FORCE_INLINE_TEMPLATE void addEvents_generic(Fingerprint* fp, const void* src, s
 
 ZSTD_GEN_ADDEVENTS_SAMPLE(1)
 ZSTD_GEN_ADDEVENTS_SAMPLE(5)
+ZSTD_GEN_ADDEVENTS_SAMPLE(11)
 
 
 typedef void (*addEvents_f)(Fingerprint* fp, const void* src, size_t srcSize);
@@ -173,9 +174,12 @@ size_t ZSTD_splitBlock(const void* src, size_t srcSize,
                     size_t blockSizeMax, ZSTD_SplitBlock_strategy_e splitStrat,
                     void* workspace, size_t wkspSize)
 {
-    if (splitStrat == split_lvl2)
+    if (splitStrat == split_lvl3)
         return ZSTD_splitBlock_byChunks(src, srcSize, blockSizeMax, ADDEVENTS_RATE(1), workspace, wkspSize);
 
+    if (splitStrat == split_lvl2)
+        return ZSTD_splitBlock_byChunks(src, srcSize, blockSizeMax, ADDEVENTS_RATE(5), workspace, wkspSize);
+
     assert(splitStrat == split_lvl1);
-    return ZSTD_splitBlock_byChunks(src, srcSize, blockSizeMax, ADDEVENTS_RATE(5), workspace, wkspSize);
+    return ZSTD_splitBlock_byChunks(src, srcSize, blockSizeMax, ADDEVENTS_RATE(11), workspace, wkspSize);
 }

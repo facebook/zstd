@@ -17,7 +17,7 @@
 extern "C" {
 #endif
 
-typedef enum { split_lvl1, split_lvl2 } ZSTD_SplitBlock_strategy_e;
+typedef enum { split_lvl1, split_lvl2, split_lvl3 } ZSTD_SplitBlock_strategy_e;
 
 #define ZSTD_SLIPBLOCK_WORKSPACESIZE 8208
 

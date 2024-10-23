@@ -66,8 +66,8 @@ FORCE_INLINE_TEMPLATE void addEvents_generic(Fingerprint* fp, const void* src, s
         addEvents_generic(fp, src, srcSize, _rate);                                     \
     }
 
-ZSTD_GEN_ADDEVENTS_SAMPLE(1);
-ZSTD_GEN_ADDEVENTS_SAMPLE(5);
+ZSTD_GEN_ADDEVENTS_SAMPLE(1)
+ZSTD_GEN_ADDEVENTS_SAMPLE(5)
 
 
 typedef void (*addEvents_f)(Fingerprint* fp, const void* src, size_t srcSize);

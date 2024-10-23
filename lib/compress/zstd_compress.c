@@ -4493,20 +4493,21 @@ static void ZSTD_overflowCorrectIfNeeded(ZSTD_matchState_t* ms,
 
 static size_t ZSTD_optimalBlockSize(ZSTD_CCtx* cctx, const void* src, size_t srcSize, size_t blockSizeMax, ZSTD_strategy strat, S64 savings)
 {
-    /* note: conservatively only split full blocks (128 KB) currently,
-     * and even then only if there is more than 128 KB input remaining.
+    /* note: conservatively only split full blocks (128 KB) currently.
+     * While it's possible to go lower, let's keep it simple for a first implementation.
+     * Besides, benefits of splitting are reduced when blocks are already small.
      */
-    if (srcSize <= 128 KB || blockSizeMax < 128 KB)
+    if (srcSize < 128 KB || blockSizeMax < 128 KB)
         return MIN(srcSize, blockSizeMax);
     /* dynamic splitting has a cpu cost for analysis,
-     * due to that cost it's only used for btlazy2+ strategies */
+     * due to that cost it's only used for higher levels */
     if (strat >= ZSTD_btopt)
         return ZSTD_splitBlock(src, srcSize, blockSizeMax, split_lvl2, cctx->tmpWorkspace, cctx->tmpWkspSize);
     if (strat >= ZSTD_lazy2)
         return ZSTD_splitBlock(src, srcSize, blockSizeMax, split_lvl1, cctx->tmpWorkspace, cctx->tmpWkspSize);
     /* blind split strategy
-     * no cpu cost, but can over-split homegeneous data.
      * heuristic, tested as being "generally better".
+     * no cpu cost, but can over-split homegeneous data.
      * do not split incompressible data though: respect the 3 bytes per block overhead limit.
      */
     return savings ? 92 KB : 128 KB;

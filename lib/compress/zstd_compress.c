@@ -4506,11 +4506,11 @@ static size_t ZSTD_optimalBlockSize(ZSTD_CCtx* cctx, const void* src, size_t src
     if (strat >= ZSTD_lazy2)
         return ZSTD_splitBlock(src, srcSize, blockSizeMax, split_lvl1, cctx->tmpWorkspace, cctx->tmpWkspSize);
     /* blind split strategy
-     * heuristic, tested as being "generally better".
+     * heuristic value, tested as being "generally better".
      * no cpu cost, but can over-split homegeneous data.
      * do not split incompressible data though: respect the 3 bytes per block overhead limit.
      */
-    return savings ? 92 KB : 128 KB;
+    return (savings > 3) ? 92 KB : 128 KB;
 }
 
 /*! ZSTD_compress_frameChunk() :
@@ -4587,8 +4587,22 @@ static size_t ZSTD_compress_frameChunk(ZSTD_CCtx* cctx,
                 }
             }  /* if (ZSTD_useTargetCBlockSize(&cctx->appliedParams))*/
 
+            /* @savings is employed by the blind-split strategy,
+             * to authorize splitting into less-than-full blocks,
+             * and thus avoid oversplitting blocks in case of incompressible data:
+             * when @savings is not large enough, blind split is disactivated, and full block is used instead.
+             * If data is incompressible, it's allowed to expand it by 3-bytes per full block.
+             * For large data, a full block is 128 KB.
+             * blind-split will instead use 92 KB as block size.
+             * So it expands incompressible data by 3-bytes per 92 KB block.
+             * That's an over-expansion of ((128*3) - (92*3)) / 128 = 0.84 bytes per block.
+             * Therefore, when data doesn't shrink, we subtract a 1 byte malus from @savings.
+             * This is a conservative estimate, especially as we don't count the 3-bytes header when there are savings,
+             * but it doesn't matter, the goal is not accuracy,
+             * the goal is to ensure the 3-bytes expansion limit per 128 KB input can never be breached */
             if (cSize < blockSize) savings += (blockSize - cSize);
-            else if (savings) savings--;
+            else savings--;
+
             ip += blockSize;
             assert(remaining >= blockSize);
             remaining -= blockSize;

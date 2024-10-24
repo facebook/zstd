@@ -1197,7 +1197,7 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
         for (cur = 1; cur <= last_pos; cur++) {
             const BYTE* const inr = ip + cur;
             assert(cur <= ZSTD_OPT_NUM);
-            DEBUGLOG(7, "cPos:%zi==rPos:%u", inr-istart, cur);
+            DEBUGLOG(7, "cPos:%i==rPos:%u", (int)(inr-istart), cur);
 
             /* Fix current position with one literal if cheaper */
             {   U32 const litlen = opt[cur-1].litlen + 1;
@@ -1207,8 +1207,8 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                 assert(price < 1000000000); /* overflow check */
                 if (price <= opt[cur].price) {
                     ZSTD_optimal_t const prevMatch = opt[cur];
-                    DEBUGLOG(7, "cPos:%zi==rPos:%u : better price (%.2f<=%.2f) using literal (ll==%u) (hist:%u,%u,%u)",
-                                inr-istart, cur, ZSTD_fCost(price), ZSTD_fCost(opt[cur].price), litlen,
+                    DEBUGLOG(7, "cPos:%i==rPos:%u : better price (%.2f<=%.2f) using literal (ll==%u) (hist:%u,%u,%u)",
+                                (int)(inr-istart), cur, ZSTD_fCost(price), ZSTD_fCost(opt[cur].price), litlen,
                                 opt[cur-1].rep[0], opt[cur-1].rep[1], opt[cur-1].rep[2]);
                     opt[cur] = opt[cur-1];
                     opt[cur].litlen = litlen;
@@ -1240,8 +1240,8 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                         }
                     }
                 } else {
-                    DEBUGLOG(7, "cPos:%zi==rPos:%u : literal would cost more (%.2f>%.2f)",
-                                inr-istart, cur, ZSTD_fCost(price), ZSTD_fCost(opt[cur].price));
+                    DEBUGLOG(7, "cPos:%i==rPos:%u : literal would cost more (%.2f>%.2f)",
+                                (int)(inr-istart), cur, ZSTD_fCost(price), ZSTD_fCost(opt[cur].price));
                 }
             }
 
@@ -1284,8 +1284,8 @@ ZSTD_compressBlock_opt_generic(ZSTD_matchState_t* ms,
                 }
 
                 {   U32 const longestML = matches[nbMatches-1].len;
-                    DEBUGLOG(7, "cPos:%zi==rPos:%u, found %u matches, of longest ML=%u",
-                                inr-istart, cur, nbMatches, longestML);
+                    DEBUGLOG(7, "cPos:%i==rPos:%u, found %u matches, of longest ML=%u",
+                                (int)(inr-istart), cur, nbMatches, longestML);
 
                     if ( (longestML > sufficient_len)
                       || (cur + longestML >= ZSTD_OPT_NUM)
@@ -1411,8 +1411,8 @@ _shortestPath:   /* cur, last_pos, best_mlen, best_off have to be set */
                     U32 const mlen = opt[storePos].mlen;
                     U32 const offBase = opt[storePos].off;
                     U32 const advance = llen + mlen;
-                    DEBUGLOG(6, "considering seq starting at %zi, llen=%u, mlen=%u",
-                                anchor - istart, (unsigned)llen, (unsigned)mlen);
+                    DEBUGLOG(6, "considering seq starting at %i, llen=%u, mlen=%u",
+                                (int)(anchor - istart), (unsigned)llen, (unsigned)mlen);
 
                     if (mlen==0) {  /* only literals => must be last "sequence", actually starting a new stream of sequences */
                         assert(storePos == storeEnd);   /* must be last sequence */

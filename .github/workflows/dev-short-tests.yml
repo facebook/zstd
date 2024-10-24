@@ -232,10 +232,10 @@ jobs:
             -Dbin_tests=true \
             -Dbin_contrib=true \
             -Ddefault_library=both \
-            build/meson builddir
-          ninja -C builddir/
-          meson test -C builddir/ --print-errorlogs
-          meson install -C builddir --destdir staging/
+            build/meson mesonBuild
+          ninja -C mesonBuild/
+          meson test -C mesonBuild/ --print-errorlogs
+          meson install -C mesonBuild --destdir staging/
 
   meson-mingw-cross-compilation:
     runs-on: ubuntu-latest

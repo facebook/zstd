@@ -278,6 +278,12 @@
 *  Alignment check
 *****************************************************************/
 
+/* @return 1 if @u is a 2^n value, 0 otherwise
+ * useful to check a value is valid for alignment restrictions */
+MEM_STATIC int ZSTD_isPower2(size_t u) {
+    return (u & (u-1)) == 0;
+}
+
 /* this test was initially positioned in mem.h,
  * but this file is removed (or replaced) for linux kernel
  * so it's now hosted in compiler.h,

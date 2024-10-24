@@ -4499,6 +4499,11 @@ static size_t ZSTD_optimalBlockSize(ZSTD_CCtx* cctx, const void* src, size_t src
      */
     if (srcSize < 128 KB || blockSizeMax < 128 KB)
         return MIN(srcSize, blockSizeMax);
+    /* do not split incompressible data though:
+     * ensure a 3 bytes per full block overhead limit.
+     * Note: as a consequence, the first full block skips the splitting detector.
+     */
+    if (savings < 3) return 128 KB;
     /* dynamic splitting has a cpu cost for analysis,
      * due to that cost it's only used for higher levels */
     if (strat >= ZSTD_btopt)
@@ -4508,9 +4513,8 @@ static size_t ZSTD_optimalBlockSize(ZSTD_CCtx* cctx, const void* src, size_t src
     /* blind split strategy
      * heuristic value, tested as being "generally better".
      * no cpu cost, but can over-split homegeneous data.
-     * do not split incompressible data though: respect the 3 bytes per block overhead limit.
      */
-    return (savings > 3) ? 92 KB : 128 KB;
+    return 92 KB;
 }
 
 /*! ZSTD_compress_frameChunk() :
@@ -4587,21 +4591,21 @@ static size_t ZSTD_compress_frameChunk(ZSTD_CCtx* cctx,
                 }
             }  /* if (ZSTD_useTargetCBlockSize(&cctx->appliedParams))*/
 
-            /* @savings is employed by the blind-split strategy,
-             * to authorize splitting into less-than-full blocks,
-             * and thus avoid oversplitting blocks in case of incompressible data:
-             * when @savings is not large enough, blind split is disactivated, and full block is used instead.
-             * If data is incompressible, it's allowed to expand it by 3-bytes per full block.
-             * For large data, a full block is 128 KB.
-             * blind-split will instead use 92 KB as block size.
-             * So it expands incompressible data by 3-bytes per 92 KB block.
-             * That's an over-expansion of ((128*3) - (92*3)) / 128 = 0.84 bytes per block.
-             * Therefore, when data doesn't shrink, we subtract a 1 byte malus from @savings.
-             * This is a conservative estimate, especially as we don't count the 3-bytes header when there are savings,
-             * but it doesn't matter, the goal is not accuracy,
-             * the goal is to ensure the 3-bytes expansion limit per 128 KB input can never be breached */
-            if (cSize < blockSize) savings += (blockSize - cSize);
-            else savings--;
+            /* @savings is employed to ensure that splitting doesn't worsen expansion of incompressible data.
+             * Without splitting, the maximum expansion is 3 bytes per full block.
+             * An adversarial input could attempt to fudge the split detector,
+             * and make it split incompressible data, resulting in more block headers.
+             * Note that, since ZSTD_COMPRESSBOUND() assumes a worst case scenario of 1KB per block,
+             * and the splitter never creates blocks that small (current lower limit is 8 KB),
+             * there is already no risk to expand beyond ZSTD_COMPRESSBOUND() limit.
+             * But if the goal is to not expand by more than 3-bytes per 128 KB full block,
+             * then yes, it becomes possible to make the block splitter oversplit incompressible data.
+             * Using @savings, we enforce an even more conservative condition,
+             * requiring the presence of enough savings (at least 3 bytes) to authorize splitting,
+             * otherwise only full blocks are used.
+             * But being conservative is fine,
+             * since splitting barely compressible blocks is not fruitful anyway */
+            savings += (S64)blockSize - (S64)cSize;
 
             ip += blockSize;
             assert(remaining >= blockSize);

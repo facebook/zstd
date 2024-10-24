@@ -21,14 +21,15 @@
 #define THRESHOLD_PENALTY 3
 
 #define HASHLENGTH 2
-#define HASHLOG 10
-#define HASHTABLESIZE (1 << HASHLOG)
+#define HASHLOG_MAX 10
+#define HASHTABLESIZE (1 << HASHLOG_MAX)
 #define HASHMASK (HASHTABLESIZE - 1)
 #define KNUTH 0x9e3779b9
 
-static unsigned hash2(const void *p)
+FORCE_INLINE_TEMPLATE unsigned hash2(const void *p, unsigned hashLog)
 {
-    return (U32)(MEM_read16(p)) * KNUTH >> (32 - HASHLOG);
+    assert(hashLog <= HASHLOG_MAX);
+    return (U32)(MEM_read16(p)) * KNUTH >> (32 - hashLog);
 }
 
 
@@ -47,47 +48,49 @@ static void initStats(FPStats* fpstats)
 }
 
 FORCE_INLINE_TEMPLATE void
-addEvents_generic(Fingerprint* fp, const void* src, size_t srcSize, size_t samplingRate)
+addEvents_generic(Fingerprint* fp, const void* src, size_t srcSize, size_t samplingRate, unsigned hashLog)
 {
     const char* p = (const char*)src;
     size_t limit = srcSize - HASHLENGTH + 1;
     size_t n;
     assert(srcSize >= HASHLENGTH);
     for (n = 0; n < limit; n+=samplingRate) {
-        fp->events[hash2(p+n)]++;
+        fp->events[hash2(p+n, hashLog)]++;
     }
     fp->nbEvents += limit/samplingRate;
 }
 
 FORCE_INLINE_TEMPLATE void
-recordFingerprint_generic(Fingerprint* fp, const void* src, size_t srcSize, size_t samplingRate)
+recordFingerprint_generic(Fingerprint* fp, const void* src, size_t srcSize, size_t samplingRate, unsigned hashLog)
 {
-    ZSTD_memset(fp, 0, sizeof(*fp));
-    addEvents_generic(fp, src, srcSize, samplingRate);
+    ZSTD_memset(fp, 0, sizeof(unsigned) * (1 << hashLog));
+    fp->nbEvents = 0;
+    addEvents_generic(fp, src, srcSize, samplingRate, hashLog);
 }
 
 typedef void (*RecordEvents_f)(Fingerprint* fp, const void* src, size_t srcSize);
 
-#define FP_RECORD_RATE(_rate) ZSTD_recordFingerprint_##_rate
+#define FP_RECORD(_rate) ZSTD_recordFingerprint_##_rate
 
-#define ZSTD_GEN_RECORD_FINGERPRINT_RATE(_rate)                                         \
-    static void FP_RECORD_RATE(_rate)(Fingerprint* fp, const void* src, size_t srcSize) \
+#define ZSTD_GEN_RECORD_FINGERPRINT(_rate, _hSize)                                      \
+    static void FP_RECORD(_rate)(Fingerprint* fp, const void* src, size_t srcSize) \
     {                                                                                   \
-        recordFingerprint_generic(fp, src, srcSize, _rate);                             \
+        recordFingerprint_generic(fp, src, srcSize, _rate, _hSize);                     \
     }
 
-ZSTD_GEN_RECORD_FINGERPRINT_RATE(1)
-ZSTD_GEN_RECORD_FINGERPRINT_RATE(5)
-ZSTD_GEN_RECORD_FINGERPRINT_RATE(11)
+ZSTD_GEN_RECORD_FINGERPRINT(1, 10)
+ZSTD_GEN_RECORD_FINGERPRINT(5, 10)
+ZSTD_GEN_RECORD_FINGERPRINT(11, 9)
 
 
 static U64 abs64(S64 s64) { return (U64)((s64 < 0) ? -s64 : s64); }
 
-static U64 fpDistance(const Fingerprint* fp1, const Fingerprint* fp2)
+static U64 fpDistance(const Fingerprint* fp1, const Fingerprint* fp2, unsigned hashLog)
 {
     U64 distance = 0;
     size_t n;
-    for (n = 0; n < HASHTABLESIZE; n++) {
+    assert(hashLog <= HASHLOG_MAX);
+    for (n = 0; n < ((size_t)1 << hashLog); n++) {
         distance +=
             abs64((S64)fp1->events[n] * (S64)fp2->nbEvents - (S64)fp2->events[n] * (S64)fp1->nbEvents);
     }
@@ -99,12 +102,13 @@ static U64 fpDistance(const Fingerprint* fp1, const Fingerprint* fp2)
  */
 static int compareFingerprints(const Fingerprint* ref,
                             const Fingerprint* newfp,
-                            int penalty)
+                            int penalty,
+                            unsigned hashLog)
 {
     assert(ref->nbEvents > 0);
     assert(newfp->nbEvents > 0);
     {   U64 p50 = (U64)ref->nbEvents * (U64)newfp->nbEvents;
-        U64 deviation = fpDistance(ref, newfp);
+        U64 deviation = fpDistance(ref, newfp, hashLog);
         U64 threshold = p50 * (U64)(THRESHOLD_BASE + penalty) / THRESHOLD_PENALTY_RATE;
         return deviation >= threshold;
     }
@@ -140,11 +144,15 @@ static void removeEvents(Fingerprint* acc, const Fingerprint* slice)
 }
 
 #define CHUNKSIZE (8 << 10)
-/* Note: technically, we use CHUNKSIZE, so that's 8 KB */
 static size_t ZSTD_splitBlock_byChunks(const void* blockStart, size_t blockSize,
-                        RecordEvents_f record_f,
+                        ZSTD_SplitBlock_strategy_e splitStrat,
                         void* workspace, size_t wkspSize)
 {
+    static const RecordEvents_f records_fs[] = {
+        FP_RECORD(11), FP_RECORD(5), FP_RECORD(1)
+    };
+    static const unsigned hashParams[] = { 9, 10, 10 };
+    const RecordEvents_f record_f = (assert(splitStrat<=split_lvl3), records_fs[splitStrat]);
     FPStats* const fpstats = (FPStats*)workspace;
     const char* p = (const char*)blockStart;
     int penalty = THRESHOLD_PENALTY;
@@ -159,7 +167,7 @@ static size_t ZSTD_splitBlock_byChunks(const void* blockStart, size_t blockSize,
     record_f(&fpstats->pastEvents, p, CHUNKSIZE);
     for (pos = CHUNKSIZE; pos <= blockSize - CHUNKSIZE; pos += CHUNKSIZE) {
         record_f(&fpstats->newEvents, p + pos, CHUNKSIZE);
-        if (compareFingerprints(&fpstats->pastEvents, &fpstats->newEvents, penalty)) {
+        if (compareFingerprints(&fpstats->pastEvents, &fpstats->newEvents, penalty, hashParams[splitStrat])) {
             return pos;
         } else {
             mergeEvents(&fpstats->pastEvents, &fpstats->newEvents);
@@ -175,12 +183,6 @@ size_t ZSTD_splitBlock(const void* blockStart, size_t blockSize,
                     ZSTD_SplitBlock_strategy_e splitStrat,
                     void* workspace, size_t wkspSize)
 {
-    if (splitStrat == split_lvl3)
-        return ZSTD_splitBlock_byChunks(blockStart, blockSize, FP_RECORD_RATE(1), workspace, wkspSize);
-
-    if (splitStrat == split_lvl2)
-        return ZSTD_splitBlock_byChunks(blockStart, blockSize, FP_RECORD_RATE(5), workspace, wkspSize);
-
-    assert(splitStrat == split_lvl1);
-    return ZSTD_splitBlock_byChunks(blockStart, blockSize, FP_RECORD_RATE(11), workspace, wkspSize);
+    assert(splitStrat <= split_lvl3);
+    return ZSTD_splitBlock_byChunks(blockStart, blockSize, splitStrat, workspace, wkspSize);
 }

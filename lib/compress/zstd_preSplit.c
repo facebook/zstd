@@ -12,6 +12,7 @@
 #include "../common/mem.h" /* S64 */
 #include "../common/zstd_deps.h" /* ZSTD_memset */
 #include "../common/zstd_internal.h" /* ZSTD_STATIC_ASSERT */
+#include "hist.h" /* HIST_add */
 #include "zstd_preSplit.h"
 
 
@@ -77,10 +78,10 @@ typedef void (*RecordEvents_f)(Fingerprint* fp, const void* src, size_t srcSize)
 
 #define FP_RECORD(_rate) ZSTD_recordFingerprint_##_rate
 
-#define ZSTD_GEN_RECORD_FINGERPRINT(_rate, _hSize)                                      \
+#define ZSTD_GEN_RECORD_FINGERPRINT(_rate, _hSize)                                 \
     static void FP_RECORD(_rate)(Fingerprint* fp, const void* src, size_t srcSize) \
-    {                                                                                   \
-        recordFingerprint_generic(fp, src, srcSize, _rate, _hSize);                     \
+    {                                                                              \
+        recordFingerprint_generic(fp, src, srcSize, _rate, _hSize);                \
     }
 
 ZSTD_GEN_RECORD_FINGERPRINT(1, 10)
@@ -185,10 +186,52 @@ static size_t ZSTD_splitBlock_byChunks(const void* blockStart, size_t blockSize,
     (void)flushEvents; (void)removeEvents;
 }
 
+/* ZSTD_splitBlock_fromBorders(): very fast strategy :
+ * compare fingerprint from beginning and end of the block,
+ * derive from their difference if it's preferable to split in the middle,
+ * repeat the process a second time, for finer grained decision.
+ * 3 times did not brought improvements, so I stopped at 2.
+ * Benefits are good enough for a cheap heuristic.
+ * More accurate splitting saves more, but speed impact is also more perceptible.
+ * For better accuracy, use more elaborate variant *_byChunks.
+ */
+static size_t ZSTD_splitBlock_fromBorders(const void* blockStart, size_t blockSize,
+                        void* workspace, size_t wkspSize)
+{
+#define SEGMENT_SIZE 512
+    FPStats* const fpstats = (FPStats*)workspace;
+    Fingerprint* middleEvents = (Fingerprint*)(void*)((char*)workspace + 512 * sizeof(unsigned));
+    assert(blockSize == (128 << 10));
+    assert(workspace != NULL);
+    assert((size_t)workspace % ZSTD_ALIGNOF(FPStats) == 0);
+    ZSTD_STATIC_ASSERT(ZSTD_SLIPBLOCK_WORKSPACESIZE >= sizeof(FPStats));
+    assert(wkspSize >= sizeof(FPStats)); (void)wkspSize;
+
+    initStats(fpstats);
+    HIST_add(fpstats->pastEvents.events, blockStart, SEGMENT_SIZE);
+    HIST_add(fpstats->newEvents.events, (const char*)blockStart + blockSize - SEGMENT_SIZE, SEGMENT_SIZE);
+    fpstats->pastEvents.nbEvents = fpstats->newEvents.nbEvents = SEGMENT_SIZE;
+    if (!compareFingerprints(&fpstats->pastEvents, &fpstats->newEvents, 0, 8))
+        return blockSize;
+
+    HIST_add(middleEvents->events, (const char*)blockStart + blockSize/2 - SEGMENT_SIZE/2, SEGMENT_SIZE);
+    middleEvents->nbEvents = SEGMENT_SIZE;
+    {   U64 const distFromBegin = fpDistance(&fpstats->pastEvents, middleEvents, 8);
+        U64 const distFromEnd = fpDistance(&fpstats->newEvents, middleEvents, 8);
+        U64 const minDistance = SEGMENT_SIZE * SEGMENT_SIZE / 3;
+        if (abs64((S64)distFromBegin - (S64)distFromEnd) < minDistance)
+            return 64 KB;
+        return (distFromBegin > distFromEnd) ? 32 KB : 96 KB;
+    }
+}
+
 size_t ZSTD_splitBlock(const void* blockStart, size_t blockSize,
                     int level,
                     void* workspace, size_t wkspSize)
 {
-    assert(0<=level && level<=3);
-    return ZSTD_splitBlock_byChunks(blockStart, blockSize, level, workspace, wkspSize);
+    assert(0<=level && level<=4);
+    if (level == 0)
+        return ZSTD_splitBlock_fromBorders(blockStart, blockSize, workspace, wkspSize);
+    /* level >= 1*/
+    return ZSTD_splitBlock_byChunks(blockStart, blockSize, level-1, workspace, wkspSize);
 }

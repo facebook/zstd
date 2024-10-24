@@ -4493,6 +4493,8 @@ static void ZSTD_overflowCorrectIfNeeded(ZSTD_matchState_t* ms,
 
 static size_t ZSTD_optimalBlockSize(ZSTD_CCtx* cctx, const void* src, size_t srcSize, size_t blockSizeMax, ZSTD_strategy strat, S64 savings)
 {
+    /* split level based on compression strategy, from `fast` to `btultra2` */
+    static const int splitLevels[] = { 0, 0, 1, 2, 2, 3, 3, 4, 4, 4 };
     /* note: conservatively only split full blocks (128 KB) currently.
      * While it's possible to go lower, let's keep it simple for a first implementation.
      * Besides, benefits of splitting are reduced when blocks are already small.
@@ -4500,25 +4502,13 @@ static size_t ZSTD_optimalBlockSize(ZSTD_CCtx* cctx, const void* src, size_t src
     if (srcSize < 128 KB || blockSizeMax < 128 KB)
         return MIN(srcSize, blockSizeMax);
     /* do not split incompressible data though:
-     * ensure a 3 bytes per full block overhead limit.
-     * Note: as a consequence, the first full block skips the splitting detector.
+     * require verified savings to allow pre-splitting.
+     * Note: as a consequence, the first full block is not split.
      */
     if (savings < 3) return 128 KB;
     /* dynamic splitting has a cpu cost for analysis,
-     * due to that cost it's only used for higher levels */
-    if (strat >= ZSTD_btopt)
-        return ZSTD_splitBlock(src, blockSizeMax, 3, cctx->tmpWorkspace, cctx->tmpWkspSize);
-    if (strat >= ZSTD_lazy2)
-        return ZSTD_splitBlock(src, blockSizeMax, 2, cctx->tmpWorkspace, cctx->tmpWkspSize);
-    if (strat >= ZSTD_greedy)
-        return ZSTD_splitBlock(src, blockSizeMax, 1, cctx->tmpWorkspace, cctx->tmpWkspSize);
-    if (strat >= ZSTD_dfast)
-        return ZSTD_splitBlock(src, blockSizeMax, 0, cctx->tmpWorkspace, cctx->tmpWkspSize);
-    /* blind split strategy
-     * heuristic value, tested as being "generally better".
-     * no cpu cost, but can over-split homegeneous data.
-     */
-    return 92 KB;
+     * select a variant among multiple gradual speed/accuracy tradeoffs */
+    return ZSTD_splitBlock(src, blockSizeMax, splitLevels[strat], cctx->tmpWorkspace, cctx->tmpWkspSize);
 }
 
 /*! ZSTD_compress_frameChunk() :

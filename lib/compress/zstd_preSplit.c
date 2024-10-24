@@ -26,8 +26,13 @@
 #define HASHMASK (HASHTABLESIZE - 1)
 #define KNUTH 0x9e3779b9
 
+/* for hashLog > 8, hash 2 bytes.
+ * for hashLog == 8, just take the byte, no hashing.
+ * The speed of this method relies on compile-time constant propagation */
 FORCE_INLINE_TEMPLATE unsigned hash2(const void *p, unsigned hashLog)
 {
+    assert(hashLog >= 8);
+    if (hashLog == 8) return (U32)((const BYTE*)p)[0];
     assert(hashLog <= HASHLOG_MAX);
     return (U32)(MEM_read16(p)) * KNUTH >> (32 - hashLog);
 }
@@ -81,6 +86,7 @@ typedef void (*RecordEvents_f)(Fingerprint* fp, const void* src, size_t srcSize)
 ZSTD_GEN_RECORD_FINGERPRINT(1, 10)
 ZSTD_GEN_RECORD_FINGERPRINT(5, 10)
 ZSTD_GEN_RECORD_FINGERPRINT(11, 9)
+ZSTD_GEN_RECORD_FINGERPRINT(43, 8)
 
 
 static U64 abs64(S64 s64) { return (U64)((s64 < 0) ? -s64 : s64); }
@@ -145,14 +151,14 @@ static void removeEvents(Fingerprint* acc, const Fingerprint* slice)
 
 #define CHUNKSIZE (8 << 10)
 static size_t ZSTD_splitBlock_byChunks(const void* blockStart, size_t blockSize,
-                        ZSTD_SplitBlock_strategy_e splitStrat,
+                        int level,
                         void* workspace, size_t wkspSize)
 {
     static const RecordEvents_f records_fs[] = {
-        FP_RECORD(11), FP_RECORD(5), FP_RECORD(1)
+        FP_RECORD(43), FP_RECORD(11), FP_RECORD(5), FP_RECORD(1)
     };
-    static const unsigned hashParams[] = { 9, 10, 10 };
-    const RecordEvents_f record_f = (assert(splitStrat<=split_lvl3), records_fs[splitStrat]);
+    static const unsigned hashParams[] = { 8, 9, 10, 10 };
+    const RecordEvents_f record_f = (assert(0<=level && level<=3), records_fs[level]);
     FPStats* const fpstats = (FPStats*)workspace;
     const char* p = (const char*)blockStart;
     int penalty = THRESHOLD_PENALTY;
@@ -167,7 +173,7 @@ static size_t ZSTD_splitBlock_byChunks(const void* blockStart, size_t blockSize,
     record_f(&fpstats->pastEvents, p, CHUNKSIZE);
     for (pos = CHUNKSIZE; pos <= blockSize - CHUNKSIZE; pos += CHUNKSIZE) {
         record_f(&fpstats->newEvents, p + pos, CHUNKSIZE);
-        if (compareFingerprints(&fpstats->pastEvents, &fpstats->newEvents, penalty, hashParams[splitStrat])) {
+        if (compareFingerprints(&fpstats->pastEvents, &fpstats->newEvents, penalty, hashParams[level])) {
             return pos;
         } else {
             mergeEvents(&fpstats->pastEvents, &fpstats->newEvents);
@@ -180,9 +186,9 @@ static size_t ZSTD_splitBlock_byChunks(const void* blockStart, size_t blockSize,
 }
 
 size_t ZSTD_splitBlock(const void* blockStart, size_t blockSize,
-                    ZSTD_SplitBlock_strategy_e splitStrat,
+                    int level,
                     void* workspace, size_t wkspSize)
 {
-    assert(splitStrat <= split_lvl3);
-    return ZSTD_splitBlock_byChunks(blockStart, blockSize, splitStrat, workspace, wkspSize);
+    assert(0<=level && level<=3);
+    return ZSTD_splitBlock_byChunks(blockStart, blockSize, level, workspace, wkspSize);
 }

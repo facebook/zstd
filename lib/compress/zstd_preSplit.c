@@ -63,7 +63,7 @@ addEvents_generic(Fingerprint* fp, const void* src, size_t srcSize, size_t sampl
 FORCE_INLINE_TEMPLATE void
 recordFingerprint_generic(Fingerprint* fp, const void* src, size_t srcSize, size_t samplingRate, unsigned hashLog)
 {
-    ZSTD_memset(fp, 0, sizeof(unsigned) * (1 << hashLog));
+    ZSTD_memset(fp, 0, sizeof(unsigned) * ((size_t)1 << hashLog));
     fp->nbEvents = 0;
     addEvents_generic(fp, src, srcSize, samplingRate, hashLog);
 }

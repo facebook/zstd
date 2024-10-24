@@ -141,16 +141,15 @@ static void removeEvents(Fingerprint* acc, const Fingerprint* slice)
 
 #define CHUNKSIZE (8 << 10)
 /* Note: technically, we use CHUNKSIZE, so that's 8 KB */
-static size_t ZSTD_splitBlock_byChunks(const void* src, size_t srcSize,
-                        size_t blockSizeMax, RecordEvents_f record_f,
+static size_t ZSTD_splitBlock_byChunks(const void* blockStart, size_t blockSize,
+                        RecordEvents_f record_f,
                         void* workspace, size_t wkspSize)
 {
     FPStats* const fpstats = (FPStats*)workspace;
-    const char* p = (const char*)src;
+    const char* p = (const char*)blockStart;
     int penalty = THRESHOLD_PENALTY;
     size_t pos = 0;
-    if (srcSize <= blockSizeMax) return srcSize;
-    assert(blockSizeMax == (128 << 10));
+    assert(blockSize == (128 << 10));
     assert(workspace != NULL);
     assert((size_t)workspace % ZSTD_ALIGNOF(FPStats) == 0);
     ZSTD_STATIC_ASSERT(ZSTD_SLIPBLOCK_WORKSPACESIZE >= sizeof(FPStats));
@@ -158,7 +157,7 @@ static size_t ZSTD_splitBlock_byChunks(const void* src, size_t srcSize,
 
     initStats(fpstats);
     record_f(&fpstats->pastEvents, p, CHUNKSIZE);
-    for (pos = CHUNKSIZE; pos <= blockSizeMax - CHUNKSIZE; pos += CHUNKSIZE) {
+    for (pos = CHUNKSIZE; pos <= blockSize - CHUNKSIZE; pos += CHUNKSIZE) {
         record_f(&fpstats->newEvents, p + pos, CHUNKSIZE);
         if (compareFingerprints(&fpstats->pastEvents, &fpstats->newEvents, penalty)) {
             return pos;
@@ -167,21 +166,21 @@ static size_t ZSTD_splitBlock_byChunks(const void* src, size_t srcSize,
             if (penalty > 0) penalty--;
         }
     }
-    assert(pos == blockSizeMax);
-    return blockSizeMax;
+    assert(pos == blockSize);
+    return blockSize;
     (void)flushEvents; (void)removeEvents;
 }
 
-size_t ZSTD_splitBlock(const void* src, size_t srcSize,
-                    size_t blockSizeMax, ZSTD_SplitBlock_strategy_e splitStrat,
+size_t ZSTD_splitBlock(const void* blockStart, size_t blockSize,
+                    ZSTD_SplitBlock_strategy_e splitStrat,
                     void* workspace, size_t wkspSize)
 {
     if (splitStrat == split_lvl3)
-        return ZSTD_splitBlock_byChunks(src, srcSize, blockSizeMax, FP_RECORD_RATE(1), workspace, wkspSize);
+        return ZSTD_splitBlock_byChunks(blockStart, blockSize, FP_RECORD_RATE(1), workspace, wkspSize);
 
     if (splitStrat == split_lvl2)
-        return ZSTD_splitBlock_byChunks(src, srcSize, blockSizeMax, FP_RECORD_RATE(5), workspace, wkspSize);
+        return ZSTD_splitBlock_byChunks(blockStart, blockSize, FP_RECORD_RATE(5), workspace, wkspSize);
 
     assert(splitStrat == split_lvl1);
-    return ZSTD_splitBlock_byChunks(src, srcSize, blockSizeMax, FP_RECORD_RATE(11), workspace, wkspSize);
+    return ZSTD_splitBlock_byChunks(blockStart, blockSize, FP_RECORD_RATE(11), workspace, wkspSize);
 }

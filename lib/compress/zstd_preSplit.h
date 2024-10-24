@@ -29,8 +29,8 @@ typedef enum { split_lvl1, split_lvl2, split_lvl3 } ZSTD_SplitBlock_strategy_e;
  * therefore @blockSizeMax must be == 128 KB.
  * This could be extended to smaller sizes in the future.
  */
-size_t ZSTD_splitBlock(const void* src, size_t srcSize,
-                    size_t blockSizeMax, ZSTD_SplitBlock_strategy_e splitStrat,
+size_t ZSTD_splitBlock(const void* blockStart, size_t blockSize,
+                    ZSTD_SplitBlock_strategy_e splitStrat,
                     void* workspace, size_t wkspSize);
 
 #if defined (__cplusplus)

@@ -3240,6 +3240,27 @@ static size_t ZSTD_fastSequenceLengthSum(ZSTD_Sequence const* seqBuf, size_t seq
     return litLenSum + matchLenSum;
 }
 
+/**
+ * Function to validate sequences produced by a block compressor.
+ */
+static void ZSTD_validateSeqStore(const SeqStore_t* seqStore, const ZSTD_compressionParameters* cParams)
+{
+#if DEBUGLEVEL >= 1
+    const SeqDef* seq = seqStore->sequencesStart;
+    const SeqDef* const seqEnd = seqStore->sequences;
+    size_t const matchLenLowerBound = cParams->minMatch == 3 ? 3 : 4;
+    for (; seq < seqEnd; ++seq) {
+        const ZSTD_SequenceLength seqLength = ZSTD_getSequenceLength(seqStore, seq);
+        assert(seqLength.matchLength >= matchLenLowerBound);
+        (void)seqLength;
+        (void)matchLenLowerBound;
+    }
+#else
+    (void)seqStore;
+    (void)cParams;
+#endif
+}
+
 static size_t
 ZSTD_transferSequences_wBlockDelim(ZSTD_CCtx* cctx,
                                    ZSTD_SequencePosition* seqPos,
@@ -3410,6 +3431,7 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
         {   const BYTE* const lastLiterals = (const BYTE*)src + srcSize - lastLLSize;
             ZSTD_storeLastLiterals(&zc->seqStore, lastLiterals, lastLLSize);
     }   }
+    ZSTD_validateSeqStore(&zc->seqStore, &zc->appliedParams.cParams);
     return ZSTDbss_compress;
 }
 

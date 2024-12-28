@@ -622,7 +622,7 @@ size_t ZSTD_readSkippableFrame(void* dst, size_t dstCapacity,
         /* check input validity */
         RETURN_ERROR_IF(!ZSTD_isSkippableFrame(src, srcSize), frameParameter_unsupported, "");
         RETURN_ERROR_IF(skippableFrameSize < ZSTD_SKIPPABLEHEADERSIZE || skippableFrameSize > srcSize, srcSize_wrong, "");
-        RETURN_ERROR_IF(skippableContentSize > dstCapacity, dstSize_tooSmall, "");
+        RETURN_ERROR_IF(skippableContentSize > dstCapacity && dst != NULL, dstSize_tooSmall, "");
 
         /* deliver payload */
         if (skippableContentSize > 0  && dst != NULL)

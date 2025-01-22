@@ -437,6 +437,9 @@ struct ZSTD_CCtx_params_s {
 
     /* Controls repcode search in external sequence parsing */
     ZSTD_ParamSwitch_e searchForExternalRepcodes;
+
+    /* Constrains window to comply with application protocol requirements. */
+    ZSTD_ConstrainWindow_e constrainWindowForProtocol;
 };  /* typedef'd to ZSTD_CCtx_params within "zstd.h" */
 
 #define COMPRESS_SEQUENCES_WORKSPACE_SIZE (sizeof(unsigned) * (MaxSeq + 2))

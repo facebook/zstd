@@ -54,6 +54,7 @@ typedef struct FIO_prefs_s {
     int srcSizeHint;
     int testMode;
     ZSTD_ParamSwitch_e literalCompressionMode;
+    ZSTD_ConstrainWindow_e constrainWindowForProtocol;
 
     /* IO preferences */
     int removeSrcFile;

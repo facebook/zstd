@@ -232,6 +232,11 @@ the last one takes effect.
     This parameter defines a loose target: compressed blocks will target this size "on average", but individual blocks can still be larger or smaller.
     Enabling this feature can decrease compression speed by up to ~10% at level 1.
     Higher levels will see smaller relative speed regression, becoming invisible at higher settings.
+* `--constrain-window={none,http-zstd,http-dcz}`:
+    Constrains the window size to the limits set by the indicated protocol.
+    `none` (the default) doesn't set any constraints.
+    `http-zstd` refers to the `zstd` HTTP Content-Encoding specified by RFCs 8878 and 9659.
+    `http-dcz` refers to the `dcz` HTTP Content-Encoding specified by the Compression Dictionary Transport draft.
 * `-f`, `--force`:
     disable input and output checks. Allows overwriting existing files, input
     from console, output to stdout, operating on links, block devices, etc.

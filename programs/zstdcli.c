@@ -244,7 +244,9 @@ static void usageAdvanced(const char* programName)
     DISPLAYOUT("  --stream-size=#               Specify size of streaming input from STDIN.\n");
     DISPLAYOUT("  --size-hint=#                 Optimize compression parameters for streaming input of approximately size #.\n");
     DISPLAYOUT("  --target-compressed-block-size=#\n");
-    DISPLAYOUT("                                Generate compressed blocks of approximately # size.\n\n");
+    DISPLAYOUT("                                Generate compressed blocks of approximately # size.\n");
+    DISPLAYOUT("  --constrain-window={none,http-zstd,http-dcz}\n");
+    DISPLAYOUT("                                Constrain window size to comply with limits set by protocol. [Default: none]\n\n");
     DISPLAYOUT("  --no-dictID                   Don't write `dictID` into the header (dictionary compression only).\n");
     DISPLAYOUT("  --[no-]compress-literals      Force (un)compressed literals.\n");
     DISPLAYOUT("  --[no-]row-match-finder       Explicitly enable/disable the fast, row-based matchfinder for\n");
@@ -851,6 +853,7 @@ int main(int argCount, const char* argv[])
         removeSrcFile=0;
     ZSTD_ParamSwitch_e mmapDict=ZSTD_ps_auto;
     ZSTD_ParamSwitch_e useRowMatchFinder = ZSTD_ps_auto;
+    ZSTD_ConstrainWindow_e constrainWindowForProtocol = ZSTD_ConstrainWindow_auto;
     FIO_compressionType_t cType = FIO_zstdCompression;
     int nbWorkers = -1; /* -1 means unset */
     double compressibility = -1.0;  /* lorem ipsum generator */
@@ -1132,6 +1135,23 @@ int main(int argCount, const char* argv[])
                     const char* listName;
                     NEXT_FIELD(listName);
                     UTIL_refFilename(file_of_names, listName);
+                    continue;
+                }
+
+
+                if (longCommandWArg(&argument, "--constrain-window")) {
+                    const char* protocol;
+                    NEXT_FIELD(protocol);
+                    if (!strncmp(protocol, "none", strlen("none") + 1)) {
+                        constrainWindowForProtocol = ZSTD_ConstrainWindow_HTTP_Zstd;
+                    } else if (!strncmp(protocol, "http-zstd", strlen("http-zstd") + 1)) {
+                        constrainWindowForProtocol = ZSTD_ConstrainWindow_HTTP_Zstd;
+                    } else if (!strncmp(protocol, "http-dcz", strlen("http-dcz") + 1)) {
+                        constrainWindowForProtocol = ZSTD_ConstrainWindow_HTTP_DCZ;
+                    } else {
+                        badUsage(programName, originalArgument);
+                        CLEAN_RETURN(1);
+                    }
                     continue;
                 }
 
@@ -1573,6 +1593,7 @@ int main(int argCount, const char* argv[])
         FIO_setSrcSizeHint(prefs, srcSizeHint);
         FIO_setLiteralCompressionMode(prefs, literalCompressionMode);
         FIO_setSparseWrite(prefs, 0);
+        FIO_setConstrainWindowForProtocol(prefs, constrainWindowForProtocol);
         if (adaptMin > cLevel) cLevel = adaptMin;
         if (adaptMax < cLevel) cLevel = adaptMax;
 
@@ -1603,6 +1624,7 @@ int main(int argCount, const char* argv[])
         (void)ultra; (void)cLevel; (void)ldmFlag; (void)literalCompressionMode;
         (void)targetCBlockSize; (void)streamSrcSize; (void)srcSizeHint;
         (void)ZSTD_strategyMap; (void)useRowMatchFinder; (void)cType;
+        (void)constrainWindowForProtocol;
         DISPLAYLEVEL(1, "Compression not supported \n");
 #endif
     } else {  /* decompression or test */

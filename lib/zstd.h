@@ -1259,6 +1259,8 @@ extern "C" {
 #define ZSTD_FRAMEHEADERSIZE_MAX   18   /* can be useful for static allocation */
 #define ZSTD_SKIPPABLEHEADERSIZE    8
 
+#define ZSTD_DICTIONARYSIZE_MIN     8
+
 /* compression parameter bounds */
 #define ZSTD_WINDOWLOG_MAX_32    30
 #define ZSTD_WINDOWLOG_MAX_64    31
@@ -1746,6 +1748,73 @@ ZSTDLIB_STATIC_API size_t ZSTD_readSkippableFrame(void* dst, size_t dstCapacity,
  */
 ZSTDLIB_STATIC_API unsigned ZSTD_isSkippableFrame(const void* buffer, size_t size);
 
+/*! ZSTD_writeHeaderForHTTPDCZ() :
+ *
+ * The `dcz` HTTP Content-Encoding specifies that payloads using that encoding
+ * begin with a skippable frame containing a SHA-256 hash of the dictionary
+ * contents used to compress the subsequent Zstandard frame(s).
+ *
+ * This function produces that header.
+ *
+ * Note: You must ensure you use the same dictionary provided to this function
+ *       for the associated compressions (obviously!).
+ *
+ * @return : Number of bytes written (always 40) or a ZSTD error.
+ */
+ZSTDLIB_STATIC_API size_t ZSTD_writeHeaderForHTTPDCZ(
+        void* dst, size_t dstCapacity,
+        const void* dict, size_t dictSize);
+
+/*! ZSTD_writeHeaderForHTTPDCZ_fromCDict() :
+ *
+ * The `dcz` HTTP Content-Encoding specifies that payloads using that encoding
+ * begin with a skippable frame containing a SHA-256 hash of the dictionary
+ * contents used to compress the subsequent Zstandard frame(s).
+ *
+ * This function produces that header.
+ *
+ * Note: You must ensure you use the same dictionary provided to this function
+ *       for the associated compressions (obviously!).
+ *
+ * Note: The output of this is a function solely of the dictionary content and
+ *       not the input. This function has to hash the dictionary contents.
+ *
+ * @return : Number of bytes written (always 40) or a ZSTD error.
+ */
+ZSTDLIB_STATIC_API size_t ZSTD_writeHeaderForHTTPDCZ_fromCDict(
+        void* dst, size_t dstCapacity,
+        const ZSTD_CDict* cdict);
+
+/*! ZSTD_readHeaderForHTTPDCZ() :
+ *
+ * This function checks that the provided input begins with a skippable
+ * frame conforming to the `dcz` HTTP Content-Encoding specification. If it
+ * does, it extracts the contained hash into the provided @dst buffer.
+ * @dstCapacity must be at least 32.
+ *
+ * @return : If the hash was successfully read, the number of bytes written
+ *           into @dst (always 32). Otherwise, a ZSTD error.
+ */
+ZSTDLIB_STATIC_API size_t ZSTD_readHeaderForHTTPDCZ(
+        void* dst, size_t dstCapacity,
+        const void* src, size_t srcSize);
+
+/*! ZSTD_readHeaderForHTTPDCZ_validate*Matches() :
+ *
+ * This function checks that the provided input (a) begins with a skippable
+ * frame conforming to the `dcz` HTTP Content-Encoding specification and (b)
+ * that the hash indicated by that frame matches the hash of the provided
+ * dictionary.
+ *
+ * @return : 1, if the header was successfully read and the hashes match.
+ *           Otherwise, a ZSTD error.
+ */
+ZSTDLIB_STATIC_API size_t ZSTD_readHeaderForHTTPDCZ_validateDictMatches(
+        const void* src, size_t srcSize,
+        const void* dict, size_t dictSize);
+ZSTDLIB_STATIC_API size_t ZSTD_readHeaderForHTTPDCZ_validateDDictMatches(
+        const void* src, size_t srcSize,
+        const ZSTD_DDict* ddict);
 
 
 /***************************************

@@ -64,7 +64,8 @@
 #define FSE_STATIC_LINKING_ONLY
 #include "../common/fse.h"
 #include "../common/huf.h"
-#include "../common/xxhash.h" /* XXH64_reset, XXH64_update, XXH64_digest, XXH64 */
+#include "../common/sha256.h"  /* ZSTD_SHA256_Result, ZSTD_SHA256_hash, ZSTD_SHA256_DIGEST_SIZE */
+#include "../common/xxhash.h"  /* XXH64_reset, XXH64_update, XXH64_digest, XXH64 */
 #include "zstd_decompress_internal.h"   /* ZSTD_DCtx */
 #include "zstd_ddict.h"  /* ZSTD_DDictDictContent */
 #include "zstd_decompress_block.h"   /* ZSTD_decompressBlock_internal */
@@ -623,6 +624,7 @@ size_t ZSTD_readSkippableFrame(void* dst, size_t dstCapacity,
 
         /* check input validity */
         RETURN_ERROR_IF(!ZSTD_isSkippableFrame(src, srcSize), frameParameter_unsupported, "");
+        FORWARD_IF_ERROR(skippableFrameSize, "");
         RETURN_ERROR_IF(skippableFrameSize < ZSTD_SKIPPABLEHEADERSIZE || skippableFrameSize > srcSize, srcSize_wrong, "");
         RETURN_ERROR_IF(skippableContentSize > dstCapacity, dstSize_tooSmall, "");
 
@@ -633,6 +635,57 @@ size_t ZSTD_readSkippableFrame(void* dst, size_t dstCapacity,
             *magicVariant = magicNumber - ZSTD_MAGIC_SKIPPABLE_START;
         return skippableContentSize;
     }
+}
+
+size_t ZSTD_readHeaderForHTTPDCZ(
+        void* dst, size_t dstCapacity,
+        const void* src, size_t srcSize)
+{
+    unsigned variant;
+    size_t result;
+    RETURN_ERROR_IF(dst == NULL, dstBuffer_null, "NULL dst buffer.");
+    RETURN_ERROR_IF(dstCapacity < ZSTD_SHA256_DIGEST_SIZE,
+                    dstSize_tooSmall, "Too small");
+
+    result = ZSTD_readSkippableFrame(dst, dstCapacity, &variant, src, srcSize);
+
+    FORWARD_IF_ERROR(result, "Couldn't read skippable frame.");
+    RETURN_ERROR_IF(variant != ZSTD_HTTPDCZ_HEADER_SKIPPABLE_VARIANT,
+                    prefix_unknown, "Skippable frame magic is wrong for DCZ.");
+    RETURN_ERROR_IF(result != ZSTD_SHA256_DIGEST_SIZE,
+                    corruption_detected, "Wrong skippable frame size for DCZ.");
+    return result;
+}
+
+size_t ZSTD_readHeaderForHTTPDCZ_validateDictMatches(
+        const void* src, size_t srcSize,
+        const void* dict, size_t dictSize)
+{
+    ZSTD_SHA256_Result frameHash, dictHash;
+    size_t result = ZSTD_readHeaderForHTTPDCZ(frameHash.digest, ZSTD_SHA256_DIGEST_SIZE, src, srcSize);
+    FORWARD_IF_ERROR(result, "Couldn't read DCZ header.");
+    RETURN_ERROR_IF(dict == NULL,
+                    dictionary_corrupted, "Dictionary invalid: NULL pointer.");
+    RETURN_ERROR_IF(dictSize < ZSTD_DICTIONARYSIZE_MIN,
+                    dictionary_corrupted, "Dictionary invalid: too small.");
+    dictHash = ZSTD_SHA256_hash(dict, dictSize);
+    RETURN_ERROR_IF(
+            ZSTD_memcmp(frameHash.digest, dictHash.digest, ZSTD_SHA256_DIGEST_SIZE),
+            dictionary_wrong, "DCZ hashes don't match.");
+    return 1;
+}
+
+size_t ZSTD_readHeaderForHTTPDCZ_validateDDictMatches(
+        const void* src, size_t srcSize,
+        const ZSTD_DDict* ddict)
+{
+    RETURN_ERROR_IF(ddict == NULL, parameter_unsupported, "NULL ddict pointer.");
+    RETURN_ERROR_IF(ZSTD_DDict_type(ddict) != ZSTD_dct_rawContent,
+                    dictionary_corrupted,
+                    "Dictionary must be loaded as raw content for DCZ.");
+    return ZSTD_readHeaderForHTTPDCZ_validateDictMatches(
+            src, srcSize,
+            ZSTD_DDict_dictContent(ddict), ZSTD_DDict_dictSize(ddict));
 }
 
 /** ZSTD_findDecompressedSize() :

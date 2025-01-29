@@ -434,6 +434,11 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
         bounds.upperBound = ZSTD_WINDOWLOG_MAX;
         return bounds;
 
+    case ZSTD_c_windowFrac:
+        bounds.lowerBound = 0;
+        bounds.upperBound = 7;
+        return bounds;
+
     case ZSTD_c_hashLog:
         bounds.lowerBound = ZSTD_HASHLOG_MIN;
         bounds.upperBound = ZSTD_HASHLOG_MAX;
@@ -673,6 +678,7 @@ static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
 
     case ZSTD_c_format:
     case ZSTD_c_windowLog:
+    case ZSTD_c_windowFrac:
     case ZSTD_c_contentSizeFlag:
     case ZSTD_c_checksumFlag:
     case ZSTD_c_dictIDFlag:
@@ -726,6 +732,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value)
 
     case ZSTD_c_compressionLevel:
     case ZSTD_c_windowLog:
+    case ZSTD_c_windowFrac:
     case ZSTD_c_hashLog:
     case ZSTD_c_chainLog:
     case ZSTD_c_searchLog:
@@ -795,6 +802,11 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
             BOUNDCHECK(ZSTD_c_windowLog, value);
         CCtxParams->cParams.windowLog = (U32)value;
         return CCtxParams->cParams.windowLog;
+
+    case ZSTD_c_windowFrac :
+        BOUNDCHECK(ZSTD_c_windowFrac, value);
+        CCtxParams->cParams.windowFrac = (U32)value;
+        return CCtxParams->cParams.windowFrac;
 
     case ZSTD_c_hashLog :
         if (value!=0)   /* 0 => use default */
@@ -1040,6 +1052,9 @@ size_t ZSTD_CCtxParams_getParameter(
         break;
     case ZSTD_c_windowLog :
         *value = (int)CCtxParams->cParams.windowLog;
+        break;
+    case ZSTD_c_windowFrac :
+        *value = (int)CCtxParams->cParams.windowFrac;
         break;
     case ZSTD_c_hashLog :
         *value = (int)CCtxParams->cParams.hashLog;

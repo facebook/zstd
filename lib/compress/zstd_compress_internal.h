@@ -191,6 +191,19 @@ size_t ZSTD_buildBlockEntropyStats(
 *  Compression internals structs *
 *********************************/
 
+/**
+ * Internal equivalent of public ZSTD_compressionParameters struct.
+ */
+typedef struct {
+    unsigned windowLog;       /**< largest match distance : larger == more compression, more memory needed during decompression */
+    unsigned chainLog;        /**< fully searched segment : larger == more compression, slower, more memory (useless for fast) */
+    unsigned hashLog;         /**< dispatch table : larger == faster, more memory */
+    unsigned searchLog;       /**< nb of searches : larger == more compression, slower */
+    unsigned minMatch;        /**< match length searched : larger == faster decompression, sometimes less compression */
+    unsigned targetLength;    /**< acceptable match size for optimal parser (only) : larger == more compression, slower */
+    ZSTD_strategy strategy;   /**< see ZSTD_strategy definition above */
+} ZSTD_CParams;
+
 typedef struct {
     U32 off;            /* Offset sumtype code for the match, using ZSTD_storeSeq() format */
     U32 len;            /* Raw length of match */
@@ -298,7 +311,7 @@ struct ZSTD_MatchState_t {
                                */
     optState_t opt;         /* optimal parser state */
     const ZSTD_MatchState_t* dictMatchState;
-    ZSTD_compressionParameters cParams;
+    ZSTD_CParams cParams;
     const RawSeqStore_t* ldmSeqStore;
 
     /* Controls prefetching in some dictMatchState matchfinders.
@@ -361,7 +374,7 @@ typedef struct {
 
 struct ZSTD_CCtx_params_s {
     ZSTD_format_e format;
-    ZSTD_compressionParameters cParams;
+    ZSTD_CParams cParams;
     ZSTD_frameParameters fParams;
 
     int compressionLevel;
@@ -1538,12 +1551,22 @@ BlockSummary ZSTD_get1BlockSummary(const ZSTD_Sequence* seqs, size_t nbSeqs);
  * These prototypes shall only be called from within lib/compress
  * ============================================================== */
 
+/* ZSTD_getCParamsFromPublicCParams(), ZSTD_getPublicCParamsFromCParams() :
+ * Translates between the public and internal structs.
+ *
+ * Note: as these structs diverge, this may increasingly become a lossy
+ * translation. The only long-term justified use of these should be at the
+ * User API.
+ */
+ZSTD_CParams ZSTD_getCParamsFromPublicCParams(ZSTD_compressionParameters cParams);
+ZSTD_compressionParameters ZSTD_getPublicCParamsFromCParams(ZSTD_CParams cParams);
+
 /* ZSTD_getCParamsFromCCtxParams() :
  * cParams are built depending on compressionLevel, src size hints,
  * LDM and manually set compression parameters.
  * Note: srcSizeHint == 0 means 0!
  */
-ZSTD_compressionParameters ZSTD_getCParamsFromCCtxParams(
+ZSTD_CParams ZSTD_getCParamsFromCCtxParams(
         const ZSTD_CCtx_params* CCtxParams, U64 srcSizeHint, size_t dictSize, ZSTD_CParamMode_e mode);
 
 /*! ZSTD_initCStream_internal() :
@@ -1560,7 +1583,17 @@ void ZSTD_resetSeqStore(SeqStore_t* ssPtr);
 
 /*! ZSTD_getCParamsFromCDict() :
  *  as the name implies */
-ZSTD_compressionParameters ZSTD_getCParamsFromCDict(const ZSTD_CDict* cdict);
+ZSTD_CParams ZSTD_getCParamsFromCDict(const ZSTD_CDict* cdict);
+
+size_t ZSTD_checkCParams_internal(ZSTD_CParams cParams);
+
+/* ZSTD_createCDict_internal() :
+ * Private use only. To be called from zstdmt_compress.c. */
+ZSTD_CDict* ZSTD_createCDict_internal(const void* dictBuffer, size_t dictSize,
+                                      ZSTD_dictLoadMethod_e dictLoadMethod,
+                                      ZSTD_dictContentType_e dictContentType,
+                                      ZSTD_CParams cParams,
+                                      ZSTD_customMem customMem);
 
 /* ZSTD_compressBegin_advanced_internal() :
  * Private use only. To be called from zstdmt_compress.c. */

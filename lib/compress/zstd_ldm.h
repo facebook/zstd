@@ -104,6 +104,6 @@ size_t ZSTD_ldm_getMaxNbSeq(ldmParams_t params, size_t maxChunkSize);
  *  Ensures that the minMatchLength >= targetLength during optimal parsing.
  */
 void ZSTD_ldm_adjustParameters(ldmParams_t* params,
-                               ZSTD_compressionParameters const* cParams);
+                               ZSTD_CParams const* cParams);
 
 #endif /* ZSTD_FAST_H */

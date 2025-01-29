@@ -17,7 +17,7 @@ void ZSTD_fillHashTableForCDict(ZSTD_MatchState_t* ms,
                         const void* const end,
                         ZSTD_dictTableLoadMethod_e dtlm)
 {
-    const ZSTD_compressionParameters* const cParams = &ms->cParams;
+    const ZSTD_CParams* const cParams = &ms->cParams;
     U32* const hashTable = ms->hashTable;
     U32  const hBits = cParams->hashLog + ZSTD_SHORT_CACHE_TAG_BITS;
     U32  const mls = cParams->minMatch;
@@ -54,7 +54,7 @@ void ZSTD_fillHashTableForCCtx(ZSTD_MatchState_t* ms,
                         const void* const end,
                         ZSTD_dictTableLoadMethod_e dtlm)
 {
-    const ZSTD_compressionParameters* const cParams = &ms->cParams;
+    const ZSTD_CParams* const cParams = &ms->cParams;
     U32* const hashTable = ms->hashTable;
     U32  const hBits = cParams->hashLog;
     U32  const mls = cParams->minMatch;
@@ -194,7 +194,7 @@ size_t ZSTD_compressBlock_fast_noDict_generic(
         void const* src, size_t srcSize,
         U32 const mls, int useCmov)
 {
-    const ZSTD_compressionParameters* const cParams = &ms->cParams;
+    const ZSTD_CParams* const cParams = &ms->cParams;
     U32* const hashTable = ms->hashTable;
     U32 const hlog = cParams->hashLog;
     size_t const stepSize = cParams->targetLength + !(cParams->targetLength) + 1; /* min 2 */
@@ -484,7 +484,7 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
         ZSTD_MatchState_t* ms, SeqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize, U32 const mls, U32 const hasStep)
 {
-    const ZSTD_compressionParameters* const cParams = &ms->cParams;
+    const ZSTD_CParams* const cParams = &ms->cParams;
     U32* const hashTable = ms->hashTable;
     U32 const hlog = cParams->hashLog;
     /* support stepSize of 0 */
@@ -501,7 +501,7 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
     U32 offset_1=rep[0], offset_2=rep[1];
 
     const ZSTD_MatchState_t* const dms = ms->dictMatchState;
-    const ZSTD_compressionParameters* const dictCParams = &dms->cParams ;
+    const ZSTD_CParams* const dictCParams = &dms->cParams;
     const U32* const dictHashTable = dms->hashTable;
     const U32 dictStartIndex       = dms->window.dictLimit;
     const BYTE* const dictBase     = dms->window.base;
@@ -710,7 +710,7 @@ size_t ZSTD_compressBlock_fast_extDict_generic(
         ZSTD_MatchState_t* ms, SeqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize, U32 const mls, U32 const hasStep)
 {
-    const ZSTD_compressionParameters* const cParams = &ms->cParams;
+    const ZSTD_CParams* const cParams = &ms->cParams;
     U32* const hashTable = ms->hashTable;
     U32 const hlog = cParams->hashLog;
     /* support stepSize of 0 */

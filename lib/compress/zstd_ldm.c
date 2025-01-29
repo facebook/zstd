@@ -133,7 +133,7 @@ done:
 }
 
 void ZSTD_ldm_adjustParameters(ldmParams_t* params,
-                        const ZSTD_compressionParameters* cParams)
+                               const ZSTD_CParams* cParams)
 {
     params->windowLog = cParams->windowLog;
     ZSTD_STATIC_ASSERT(LDM_BUCKET_SIZE_LOG <= ZSTD_LDM_BUCKETSIZELOG_MAX);
@@ -683,7 +683,7 @@ size_t ZSTD_ldm_blockCompress(RawSeqStore_t* rawSeqStore,
     ZSTD_ParamSwitch_e useRowMatchFinder,
     void const* src, size_t srcSize)
 {
-    const ZSTD_compressionParameters* const cParams = &ms->cParams;
+    const ZSTD_CParams* const cParams = &ms->cParams;
     unsigned const minMatch = cParams->minMatch;
     ZSTD_BlockCompressor_f const blockCompressor =
         ZSTD_selectBlockCompressor(cParams->strategy, useRowMatchFinder, ZSTD_matchState_dictMode(ms));

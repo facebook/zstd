@@ -11,7 +11,7 @@
 #ifndef ZSTD_CLEVELS_H
 #define ZSTD_CLEVELS_H
 
-#define ZSTD_STATIC_LINKING_ONLY  /* ZSTD_compressionParameters  */
+#define ZSTD_STATIC_LINKING_ONLY  /* ZSTD_CParams  */
 #include "../zstd.h"
 
 /*-=====  Pre-defined compression levels  =====-*/
@@ -22,7 +22,7 @@
 __attribute__((__unused__))
 #endif
 
-static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEVEL+1] = {
+static const ZSTD_CParams ZSTD_defaultCParameters[4][ZSTD_MAX_CLEVEL+1] = {
 {   /* "default" - for any srcSize > 256 KB */
     /* W,  C,  H,  S,  L, TL, strat */
     { 19, 12, 13,  1,  6,  1, ZSTD_fast    },  /* base for negative levels */

@@ -1100,7 +1100,7 @@ void ZSTDMT_updateCParams_whileCompressing(ZSTDMT_CCtx* mtctx, const ZSTD_CCtx_p
     DEBUGLOG(5, "ZSTDMT_updateCParams_whileCompressing (level:%i)",
                 compressionLevel);
     mtctx->params.compressionLevel = compressionLevel;
-    {   ZSTD_compressionParameters cParams = ZSTD_getCParamsFromCCtxParams(cctxParams, ZSTD_CONTENTSIZE_UNKNOWN, 0, ZSTD_cpm_noAttachDict);
+    {   ZSTD_CParams cParams = ZSTD_getCParamsFromCCtxParams(cctxParams, ZSTD_CONTENTSIZE_UNKNOWN, 0, ZSTD_cpm_noAttachDict);
         cParams.windowLog = saved_wlog;
         mtctx->params.cParams = cParams;
     }
@@ -1256,7 +1256,7 @@ size_t ZSTDMT_initCStream_internal(
                 (U32)pledgedSrcSize, params.nbWorkers, mtctx->cctxPool->totalCCtx);
 
     /* params supposed partially fully validated at this point */
-    assert(!ZSTD_isError(ZSTD_checkCParams(params.cParams)));
+    assert(!ZSTD_isError(ZSTD_checkCParams_internal(params.cParams)));
     assert(!((dict) && (cdict)));  /* either dict or cdict, not both */
 
     /* init */
@@ -1276,9 +1276,10 @@ size_t ZSTDMT_initCStream_internal(
     mtctx->frameContentSize = pledgedSrcSize;
     ZSTD_freeCDict(mtctx->cdictLocal);
     if (dict) {
-        mtctx->cdictLocal = ZSTD_createCDict_advanced(dict, dictSize,
-                                                    ZSTD_dlm_byCopy, dictContentType, /* note : a loadPrefix becomes an internal CDict */
-                                                    params.cParams, mtctx->cMem);
+        mtctx->cdictLocal = ZSTD_createCDict_internal(
+                dict, dictSize,
+                ZSTD_dlm_byCopy, dictContentType, /* note : a loadPrefix becomes an internal CDict */
+                params.cParams, mtctx->cMem);
         mtctx->cdict = mtctx->cdictLocal;
         if (mtctx->cdictLocal == NULL) return ERROR(memory_allocation);
     } else {
@@ -1358,7 +1359,7 @@ size_t ZSTDMT_initCStream_internal(
             mtctx->inBuff.prefix.size = dictSize;
         } else {
             /* note : a loadPrefix becomes an internal CDict */
-            mtctx->cdictLocal = ZSTD_createCDict_advanced(dict, dictSize,
+            mtctx->cdictLocal = ZSTD_createCDict_internal(dict, dictSize,
                                                         ZSTD_dlm_byRef, dictContentType,
                                                         params.cParams, mtctx->cMem);
             mtctx->cdict = mtctx->cdictLocal;

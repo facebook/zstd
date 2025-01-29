@@ -371,8 +371,9 @@ typedef struct {
     U32 hashLog;            /* Log size of hashTable */
     U32 bucketSizeLog;      /* Log bucket size for collision resolution, at most 8 */
     U32 minMatchLength;     /* Minimum match length */
-    U32 hashRateLog;       /* Log number of entries to skip */
+    U32 hashRateLog;        /* Log number of entries to skip */
     U32 windowLog;          /* Window log for the LDM */
+    U32 windowFrac;         /* Window log for the LDM */
 } ldmParams_t;
 
 typedef struct {
@@ -1100,6 +1101,55 @@ MEM_STATIC ZSTD_dictMode_e ZSTD_matchState_dictMode(const ZSTD_MatchState_t *ms)
             ZSTD_noDict;
 }
 
+/**
+ * Return the window size described by the windowLog and windowFrac in the
+ * provided CParams.
+ */
+MEM_STATIC U32 ZSTD_windowSize(const ZSTD_CParams* cParams) {
+    return (U32)(((8ull + cParams->windowFrac) << cParams->windowLog) >> 3);
+}
+MEM_STATIC U32 ZSTD_windowSizeLDM(const ldmParams_t* ldmParams) {
+    return (U32)(((8ull + ldmParams->windowFrac) << ldmParams->windowLog) >> 3);
+}
+
+/**
+ * Checks that the selected windowSize satisfies the inequality
+ * srcSize <= windowSize <= srcSize * 1.25, in the range where the window
+ */
+MEM_STATIC int ZSTD_windowLogAndFracAreMinimal(ZSTD_CParams* cParams, const U32 srcSize) {
+    const U32 lowerBound = MIN(srcSize, 1u << ZSTD_WINDOWLOG_MAX);
+    const U32 upperBound = MAX(srcSize + (srcSize >> 3), 1u << ZSTD_WINDOWLOG_ABSOLUTEMIN);
+    const U32 windowSize = ZSTD_windowSize(cParams);
+    if (windowSize < lowerBound) {
+        return 0;
+    }
+    if (windowSize > upperBound) {
+        return 0;
+    }
+    return 1;
+}
+
+/**
+ * Calculates the minimum legal window log and fraction that contain the
+ * provided source size.
+ */
+MEM_STATIC void ZSTD_setMinimalWindowLogAndFrac(ZSTD_CParams* cParams, const U32 srcSize) {
+    const U32 minSize = 1u << ZSTD_WINDOWLOG_ABSOLUTEMIN;
+    if (srcSize < minSize) {
+        cParams->windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;
+        cParams->windowFrac = 0;
+    } else {
+        const U32 srcSizeMinusOne = srcSize - 1;
+        cParams->windowLog = ZSTD_highbit32(srcSizeMinusOne);
+        cParams->windowFrac = (((srcSizeMinusOne << 3) >> cParams->windowLog) & 7) + 1;
+        if (cParams->windowFrac == 8) {
+            cParams->windowFrac = 0;
+            cParams->windowLog++;
+        }
+    }
+    assert(ZSTD_windowLogAndFracAreMinimal(cParams, srcSize));
+}
+
 /* Defining this macro to non-zero tells zstd to run the overflow correction
  * code much more frequently. This is very inefficient, and should only be
  * used for tests and fuzzers.
@@ -1123,10 +1173,12 @@ MEM_STATIC U32 ZSTD_window_canOverflowCorrect(ZSTD_window_t const window,
                                               U32 loadedDictEnd,
                                               void const* src)
 {
+    /* overflow correction only handles power-of-two index moves. */
+    U32 const roundedMaxDist = 1u << (ZSTD_highbit32(maxDist - 1) + 1);
     U32 const cycleSize = 1u << cycleLog;
     U32 const curr = (U32)((BYTE const*)src - window.base);
     U32 const minIndexToOverflowCorrect = cycleSize
-                                        + MAX(maxDist, cycleSize)
+                                        + MAX(roundedMaxDist, cycleSize)
                                         + ZSTD_WINDOW_START_INDEX;
 
     /* Adjust the min index to backoff the overflow correction frequency,
@@ -1201,23 +1253,29 @@ U32 ZSTD_window_correctOverflow(ZSTD_window_t* window, U32 cycleLog,
      * 3. (cctx->lowLimit + 1<<windowLog) < 1<<32:
      *    windowLog <= 31 ==> 3<<29 + 1<<windowLog < 7<<29 < 1<<32.
      */
+    U32 const roundedMaxDist = 1u << (ZSTD_highbit32(maxDist - 1) + 1);
     U32 const cycleSize = 1u << cycleLog;
     U32 const cycleMask = cycleSize - 1;
     U32 const curr = (U32)((BYTE const*)src - window->base);
     U32 const currentCycle = curr & cycleMask;
-    /* Ensure newCurrent - maxDist >= ZSTD_WINDOW_START_INDEX. */
+    /* Ensure newCurrent - roundedMaxDist >= ZSTD_WINDOW_START_INDEX. */
     U32 const currentCycleCorrection = currentCycle < ZSTD_WINDOW_START_INDEX
                                      ? MAX(cycleSize, ZSTD_WINDOW_START_INDEX)
                                      : 0;
     U32 const newCurrent = currentCycle
                          + currentCycleCorrection
-                         + MAX(maxDist, cycleSize);
+                         + MAX(roundedMaxDist, cycleSize);
     U32 const correction = curr - newCurrent;
     /* maxDist must be a power of two so that:
      *   (newCurrent & cycleMask) == (curr & cycleMask)
      * This is required to not corrupt the chains / binary tree.
+     *
+     * Now that window sizes can be non-power-of-two, we round it up to the
+     * next power of two.
      */
-    assert((maxDist & (maxDist - 1)) == 0);
+    assert(roundedMaxDist >= maxDist);
+    assert(roundedMaxDist < maxDist + 7 * (maxDist >> 3));
+    assert((roundedMaxDist & (roundedMaxDist - 1)) == 0);
     assert((curr & cycleMask) == (newCurrent & cycleMask));
     assert(curr > newCurrent);
     if (!ZSTD_WINDOW_OVERFLOW_CORRECT_FREQUENTLY) {
@@ -1415,9 +1473,9 @@ U32 ZSTD_window_update(ZSTD_window_t* window,
 /**
  * Returns the lowest allowed match index. It may either be in the ext-dict or the prefix.
  */
-MEM_STATIC U32 ZSTD_getLowestMatchIndex(const ZSTD_MatchState_t* ms, U32 curr, unsigned windowLog)
+MEM_STATIC U32 ZSTD_getLowestMatchIndex(const ZSTD_MatchState_t* ms, U32 curr)
 {
-    U32 const maxDistance = 1U << windowLog;
+    U32 const maxDistance = ZSTD_windowSize(&ms->cParams);
     U32 const lowestValid = ms->window.lowLimit;
     U32 const withinWindow = (curr - lowestValid > maxDistance) ? curr - maxDistance : lowestValid;
     U32 const isDictionary = (ms->loadedDictEnd != 0);
@@ -1432,9 +1490,9 @@ MEM_STATIC U32 ZSTD_getLowestMatchIndex(const ZSTD_MatchState_t* ms, U32 curr, u
 /**
  * Returns the lowest allowed match index in the prefix.
  */
-MEM_STATIC U32 ZSTD_getLowestPrefixIndex(const ZSTD_MatchState_t* ms, U32 curr, unsigned windowLog)
+MEM_STATIC U32 ZSTD_getLowestPrefixIndex(const ZSTD_MatchState_t* ms, U32 curr)
 {
-    U32    const maxDistance = 1U << windowLog;
+    U32    const maxDistance = ZSTD_windowSize(&ms->cParams);
     U32    const lowestValid = ms->window.dictLimit;
     U32    const withinWindow = (curr - lowestValid > maxDistance) ? curr - maxDistance : lowestValid;
     U32    const isDictionary = (ms->loadedDictEnd != 0);

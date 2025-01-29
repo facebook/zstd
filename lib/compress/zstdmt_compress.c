@@ -494,7 +494,7 @@ ZSTDMT_serialState_reset(SerialState* serialState,
 {
     /* Adjust parameters */
     if (params.ldmParams.enableLdm == ZSTD_ps_enable) {
-        DEBUGLOG(4, "LDM window size = %u KB", (1U << params.cParams.windowLog) >> 10);
+        DEBUGLOG(4, "LDM window size = %u KB", ZSTD_windowSize(&params.cParams) >> 10);
         ZSTD_ldm_adjustParameters(&params.ldmParams, &params.cParams);
         assert(params.ldmParams.hashLog >= params.ldmParams.bucketSizeLog);
         assert(params.ldmParams.hashRateLog < 32);
@@ -1095,13 +1095,15 @@ static size_t ZSTDMT_resize(ZSTDMT_CCtx* mtctx, unsigned nbWorkers)
  *  New parameters will be applied to next compression job. */
 void ZSTDMT_updateCParams_whileCompressing(ZSTDMT_CCtx* mtctx, const ZSTD_CCtx_params* cctxParams)
 {
-    U32 const saved_wlog = mtctx->params.cParams.windowLog;   /* Do not modify windowLog while compressing */
+    U32 const saved_wlog = mtctx->params.cParams.windowLog;    /* Do not modify windowLog  while compressing */
+    U32 const saved_wfrac = mtctx->params.cParams.windowFrac;  /* Do not modify windowFrac while compressing */
     int const compressionLevel = cctxParams->compressionLevel;
     DEBUGLOG(5, "ZSTDMT_updateCParams_whileCompressing (level:%i)",
                 compressionLevel);
     mtctx->params.compressionLevel = compressionLevel;
     {   ZSTD_CParams cParams = ZSTD_getCParamsFromCCtxParams(cctxParams, ZSTD_CONTENTSIZE_UNKNOWN, 0, ZSTD_cpm_noAttachDict);
         cParams.windowLog = saved_wlog;
+        cParams.windowFrac = saved_wfrac;
         mtctx->params.cParams = cParams;
     }
 }
@@ -1313,7 +1315,7 @@ size_t ZSTDMT_initCStream_internal(
     ZSTDMT_setBufferSize(mtctx->bufPool, ZSTD_compressBound(mtctx->targetSectionSize));
     {
         /* If ldm is enabled we need windowSize space. */
-        size_t const windowSize = mtctx->params.ldmParams.enableLdm == ZSTD_ps_enable ? (1U << mtctx->params.cParams.windowLog) : 0;
+        size_t const windowSize = mtctx->params.ldmParams.enableLdm == ZSTD_ps_enable ? ZSTD_windowSize(&mtctx->params.cParams) : 0;
         /* Two buffers of slack, plus extra space for the overlap
          * This is the minimum slack that LDM works with. One extra because
          * flush might waste up to targetSectionSize-1 bytes. Another extra

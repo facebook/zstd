@@ -136,6 +136,7 @@ void ZSTD_ldm_adjustParameters(ldmParams_t* params,
                                const ZSTD_CParams* cParams)
 {
     params->windowLog = cParams->windowLog;
+    params->windowFrac = cParams->windowFrac;
     ZSTD_STATIC_ASSERT(LDM_BUCKET_SIZE_LOG <= ZSTD_LDM_BUCKETSIZELOG_MAX);
     DEBUGLOG(4, "ZSTD_ldm_adjustParameters");
     if (params->hashRateLog == 0) {
@@ -527,7 +528,7 @@ size_t ZSTD_ldm_generateSequences(
         ldmState_t* ldmState, RawSeqStore_t* sequences,
         ldmParams_t const* params, void const* src, size_t srcSize)
 {
-    U32 const maxDist = 1U << params->windowLog;
+    U32 const maxDist = ZSTD_windowSizeLDM(params);
     BYTE const* const istart = (BYTE const*)src;
     BYTE const* const iend = istart + srcSize;
     size_t const kMaxChunkSize = 1 << 20;

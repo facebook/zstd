@@ -116,7 +116,7 @@ size_t ZSTD_compressBlock_doubleFast_noDict_generic(
     const BYTE* anchor = istart;
     const U32 endIndex = (U32)((size_t)(istart - base) + srcSize);
     /* presumes that, if there is a dictionary, it must be using Attach mode */
-    const U32 prefixLowestIndex = ZSTD_getLowestPrefixIndex(ms, endIndex, cParams->windowLog);
+    const U32 prefixLowestIndex = ZSTD_getLowestPrefixIndex(ms, endIndex);
     const BYTE* const prefixLowest = base + prefixLowestIndex;
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - HASH_READ_SIZE;
@@ -157,7 +157,7 @@ size_t ZSTD_compressBlock_doubleFast_noDict_generic(
     ip += ((ip - prefixLowest) == 0);
     {
         U32 const current = (U32)(ip - base);
-        U32 const windowLow = ZSTD_getLowestPrefixIndex(ms, current, cParams->windowLog);
+        U32 const windowLow = ZSTD_getLowestPrefixIndex(ms, current);
         U32 const maxRep = current - windowLow;
         if (offset_2 > maxRep) offsetSaved2 = offset_2, offset_2 = 0;
         if (offset_1 > maxRep) offsetSaved1 = offset_1, offset_1 = 0;
@@ -341,7 +341,7 @@ size_t ZSTD_compressBlock_doubleFast_dictMatchState_generic(
     const BYTE* anchor = istart;
     const U32 endIndex = (U32)((size_t)(istart - base) + srcSize);
     /* presumes that, if there is a dictionary, it must be using Attach mode */
-    const U32 prefixLowestIndex = ZSTD_getLowestPrefixIndex(ms, endIndex, cParams->windowLog);
+    const U32 prefixLowestIndex = ZSTD_getLowestPrefixIndex(ms, endIndex);
     const BYTE* const prefixLowest = base + prefixLowestIndex;
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - HASH_READ_SIZE;
@@ -363,7 +363,7 @@ size_t ZSTD_compressBlock_doubleFast_dictMatchState_generic(
     DEBUGLOG(5, "ZSTD_compressBlock_doubleFast_dictMatchState_generic");
 
     /* if a dictionary is attached, it must be within window range */
-    assert(ms->window.dictLimit + (1U << cParams->windowLog) >= endIndex);
+    assert(ms->window.dictLimit + ZSTD_windowSize(cParams) >= endIndex);
 
     if (ms->prefetchCDictTables) {
         size_t const hashTableBytes = (((size_t)1) << dictCParams->hashLog) * sizeof(U32);
@@ -624,7 +624,7 @@ size_t ZSTD_compressBlock_doubleFast_extDict_generic(
     const BYTE* const ilimit = iend - 8;
     const BYTE* const base = ms->window.base;
     const U32   endIndex = (U32)((size_t)(istart - base) + srcSize);
-    const U32   lowLimit = ZSTD_getLowestMatchIndex(ms, endIndex, cParams->windowLog);
+    const U32   lowLimit = ZSTD_getLowestMatchIndex(ms, endIndex);
     const U32   dictStartIndex = lowLimit;
     const U32   dictLimit = ms->window.dictLimit;
     const U32   prefixStartIndex = (dictLimit > lowLimit) ? dictLimit : lowLimit;

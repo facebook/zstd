@@ -201,7 +201,7 @@ size_t ZSTD_compressBlock_fast_noDict_generic(
     const BYTE* const base = ms->window.base;
     const BYTE* const istart = (const BYTE*)src;
     const U32   endIndex = (U32)((size_t)(istart - base) + srcSize);
-    const U32   prefixStartIndex = ZSTD_getLowestPrefixIndex(ms, endIndex, cParams->windowLog);
+    const U32   prefixStartIndex = ZSTD_getLowestPrefixIndex(ms, endIndex);
     const BYTE* const prefixStart = base + prefixStartIndex;
     const BYTE* const iend = istart + srcSize;
     const BYTE* const ilimit = iend - HASH_READ_SIZE;
@@ -237,7 +237,7 @@ size_t ZSTD_compressBlock_fast_noDict_generic(
     DEBUGLOG(5, "ZSTD_compressBlock_fast_generic");
     ip0 += (ip0 == prefixStart);
     {   U32 const curr = (U32)(ip0 - base);
-        U32 const windowLow = ZSTD_getLowestPrefixIndex(ms, curr, cParams->windowLog);
+        U32 const windowLow = ZSTD_getLowestPrefixIndex(ms, curr);
         U32 const maxRep = curr - windowLow;
         if (rep_offset2 > maxRep) offsetSaved2 = rep_offset2, rep_offset2 = 0;
         if (rep_offset1 > maxRep) offsetSaved1 = rep_offset1, rep_offset1 = 0;
@@ -513,7 +513,7 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
 
     /* if a dictionary is still attached, it necessarily means that
      * it is within window size. So we just check it. */
-    const U32 maxDistance = 1U << cParams->windowLog;
+    const U32 maxDistance = ZSTD_windowSize(cParams);
     const U32 endIndex = (U32)((size_t)(istart - base) + srcSize);
     assert(endIndex - prefixStartIndex <= maxDistance);
     (void)maxDistance; (void)endIndex;   /* these variables are not used when assert() is disabled */
@@ -720,7 +720,7 @@ size_t ZSTD_compressBlock_fast_extDict_generic(
     const BYTE* const istart = (const BYTE*)src;
     const BYTE* anchor = istart;
     const U32   endIndex = (U32)((size_t)(istart - base) + srcSize);
-    const U32   lowLimit = ZSTD_getLowestMatchIndex(ms, endIndex, cParams->windowLog);
+    const U32   lowLimit = ZSTD_getLowestMatchIndex(ms, endIndex);
     const U32   dictStartIndex = lowLimit;
     const BYTE* const dictStart = dictBase + dictStartIndex;
     const U32   dictLimit = ms->window.dictLimit;

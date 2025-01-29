@@ -468,7 +468,7 @@ U32 ZSTD_insertBt1(
     /* windowLow is based on target because
      * we only need positions that will be in the window at the end of the tree update.
      */
-    U32 const windowLow = ZSTD_getLowestMatchIndex(ms, target, cParams->windowLog);
+    U32 const windowLow = ZSTD_getLowestMatchIndex(ms, target);
     U32 matchEndIdx = curr+8+1;
     size_t bestLength = 8;
     U32 nbCompares = 1U << cParams->searchLog;
@@ -616,7 +616,7 @@ ZSTD_insertBtAndGetAllMatches (
     const BYTE* const dictEnd = dictBase + dictLimit;
     const BYTE* const prefixStart = base + dictLimit;
     U32 const btLow = (btMask >= curr) ? 0 : curr - btMask;
-    U32 const windowLow = ZSTD_getLowestMatchIndex(ms, curr, cParams->windowLog);
+    U32 const windowLow = ZSTD_getLowestMatchIndex(ms, curr);
     U32 const matchLow = windowLow ? windowLow : 1;
     U32* smallerPtr = bt + 2*(curr&btMask);
     U32* largerPtr  = bt + 2*(curr&btMask) + 1;

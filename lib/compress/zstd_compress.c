@@ -1386,6 +1386,7 @@ size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx, ZSTD_ResetDirective reset)
 size_t ZSTD_checkCParams_internal(ZSTD_CParams cParams)
 {
     BOUNDCHECK(ZSTD_c_windowLog,    (int)cParams.windowLog);
+    /* TODO: check windowFrac */
     BOUNDCHECK(ZSTD_c_chainLog,     (int)cParams.chainLog);
     BOUNDCHECK(ZSTD_c_hashLog,      (int)cParams.hashLog);
     BOUNDCHECK(ZSTD_c_searchLog,    (int)cParams.searchLog);
@@ -1630,6 +1631,7 @@ ZSTD_CParams ZSTD_getCParamsFromPublicCParams(
         ZSTD_compressionParameters cParams) {
     return (ZSTD_CParams){
         cParams.windowLog,
+        0, /* windowFrac */
         cParams.chainLog,
         cParams.hashLog,
         cParams.searchLog,
@@ -1674,6 +1676,7 @@ static void ZSTD_overrideCParams(
         const ZSTD_CParams* overrides)
 {
     if (overrides->windowLog)    cParams->windowLog    = overrides->windowLog;
+    if (overrides->windowFrac)   cParams->windowFrac   = overrides->windowFrac;
     if (overrides->hashLog)      cParams->hashLog      = overrides->hashLog;
     if (overrides->chainLog)     cParams->chainLog     = overrides->chainLog;
     if (overrides->searchLog)    cParams->searchLog    = overrides->searchLog;

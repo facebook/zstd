@@ -196,6 +196,7 @@ size_t ZSTD_buildBlockEntropyStats(
  */
 typedef struct {
     unsigned windowLog;       /**< largest match distance : larger == more compression, more memory needed during decompression */
+    unsigned windowFrac;      /**< fractional component of window size representation */
     unsigned chainLog;        /**< fully searched segment : larger == more compression, slower, more memory (useless for fast) */
     unsigned hashLog;         /**< dispatch table : larger == faster, more memory */
     unsigned searchLog;       /**< nb of searches : larger == more compression, slower */

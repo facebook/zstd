@@ -372,12 +372,12 @@ size_t ZSTD_CCtxParams_init(ZSTD_CCtx_params* cctxParams, int compressionLevel) 
  */
 static void
 ZSTD_CCtxParams_init_internal(ZSTD_CCtx_params* cctxParams,
-                        const ZSTD_parameters* params,
+                        const ZSTD_Params* params,
                               int compressionLevel)
 {
-    assert(!ZSTD_checkCParams(params->cParams));
+    assert(!ZSTD_checkCParams_internal(params->cParams));
     ZSTD_memset(cctxParams, 0, sizeof(*cctxParams));
-    cctxParams->cParams = ZSTD_getCParamsFromPublicCParams(params->cParams);
+    cctxParams->cParams = params->cParams;
     cctxParams->fParams = params->fParams;
     /* Should not matter, as all cParams are presumed properly defined.
      * But, set it for tracing anyway.
@@ -393,10 +393,11 @@ ZSTD_CCtxParams_init_internal(ZSTD_CCtx_params* cctxParams,
                 cctxParams->useRowMatchFinder, cctxParams->postBlockSplitter, cctxParams->ldmParams.enableLdm);
 }
 
-size_t ZSTD_CCtxParams_init_advanced(ZSTD_CCtx_params* cctxParams, ZSTD_parameters params)
+size_t ZSTD_CCtxParams_init_advanced(ZSTD_CCtx_params* cctxParams, ZSTD_parameters publicParams)
 {
+    ZSTD_Params params = ZSTD_getParamsFromPublicParams(publicParams);
     RETURN_ERROR_IF(!cctxParams, GENERIC, "NULL pointer!");
-    FORWARD_IF_ERROR( ZSTD_checkCParams(params.cParams) , "");
+    FORWARD_IF_ERROR( ZSTD_checkCParams_internal(params.cParams) , "");
     ZSTD_CCtxParams_init_internal(cctxParams, &params, ZSTD_NO_CLEVEL);
     return 0;
 }
@@ -406,10 +407,10 @@ size_t ZSTD_CCtxParams_init_advanced(ZSTD_CCtx_params* cctxParams, ZSTD_paramete
  * @param params Validated zstd parameters.
  */
 static void ZSTD_CCtxParams_setZstdParams(
-        ZSTD_CCtx_params* cctxParams, const ZSTD_parameters* params)
+        ZSTD_CCtx_params* cctxParams, const ZSTD_Params* params)
 {
-    assert(!ZSTD_checkCParams(params->cParams));
-    cctxParams->cParams = ZSTD_getCParamsFromPublicCParams(params->cParams);
+    assert(!ZSTD_checkCParams_internal(params->cParams));
+    cctxParams->cParams = params->cParams;
     cctxParams->fParams = params->fParams;
     /* Should not matter, as all cParams are presumed properly defined.
      * But, set it for tracing anyway.
@@ -1651,8 +1652,22 @@ ZSTD_compressionParameters ZSTD_getPublicCParamsFromCParams(
     };
 }
 
+ZSTD_Params ZSTD_getParamsFromPublicParams(ZSTD_parameters params) {
+    return (ZSTD_Params){
+        ZSTD_getCParamsFromPublicCParams(params.cParams),
+        params.fParams
+    };
+}
+
+ZSTD_parameters ZSTD_getPublicParamsFromParams(ZSTD_Params params) {
+    return (ZSTD_parameters){
+        ZSTD_getPublicCParamsFromCParams(params.cParams),
+        params.fParams
+    };
+}
+
 static ZSTD_CParams ZSTD_getCParams_internal(int compressionLevel, unsigned long long srcSizeHint, size_t dictSize, ZSTD_CParamMode_e mode);
-static ZSTD_parameters ZSTD_getParams_internal(int compressionLevel, unsigned long long srcSizeHint, size_t dictSize, ZSTD_CParamMode_e mode);
+static ZSTD_Params ZSTD_getParams_internal(int compressionLevel, unsigned long long srcSizeHint, size_t dictSize, ZSTD_CParamMode_e mode);
 
 static void ZSTD_overrideCParams(
               ZSTD_CParams* cParams,
@@ -5349,9 +5364,11 @@ size_t ZSTD_compressBegin_advanced_internal(ZSTD_CCtx* cctx,
 *   @return : 0, or an error code */
 size_t ZSTD_compressBegin_advanced(ZSTD_CCtx* cctx,
                              const void* dict, size_t dictSize,
-                                   ZSTD_parameters params, unsigned long long pledgedSrcSize)
+                                   ZSTD_parameters publicParams,
+                                   unsigned long long pledgedSrcSize)
 {
     ZSTD_CCtx_params cctxParams;
+    ZSTD_Params params = ZSTD_getParamsFromPublicParams(publicParams);
     ZSTD_CCtxParams_init_internal(&cctxParams, &params, ZSTD_NO_CLEVEL);
     return ZSTD_compressBegin_advanced_internal(cctx,
                                             dict, dictSize, ZSTD_dct_auto, ZSTD_dtlm_fast,
@@ -5363,7 +5380,7 @@ static size_t
 ZSTD_compressBegin_usingDict_deprecated(ZSTD_CCtx* cctx, const void* dict, size_t dictSize, int compressionLevel)
 {
     ZSTD_CCtx_params cctxParams;
-    {   ZSTD_parameters const params = ZSTD_getParams_internal(compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize, ZSTD_cpm_noAttachDict);
+    {   ZSTD_Params const params = ZSTD_getParams_internal(compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize, ZSTD_cpm_noAttachDict);
         ZSTD_CCtxParams_init_internal(&cctxParams, &params, (compressionLevel == 0) ? ZSTD_CLEVEL_DEFAULT : compressionLevel);
     }
     DEBUGLOG(4, "ZSTD_compressBegin_usingDict (dictSize=%u)", (unsigned)dictSize);
@@ -5487,10 +5504,11 @@ size_t ZSTD_compress_advanced (ZSTD_CCtx* cctx,
                                void* dst, size_t dstCapacity,
                          const void* src, size_t srcSize,
                          const void* dict,size_t dictSize,
-                               ZSTD_parameters params)
+                               ZSTD_parameters publicParams)
 {
+    ZSTD_Params params = ZSTD_getParamsFromPublicParams(publicParams);
     DEBUGLOG(4, "ZSTD_compress_advanced");
-    FORWARD_IF_ERROR(ZSTD_checkCParams(params.cParams), "");
+    FORWARD_IF_ERROR(ZSTD_checkCParams_internal(params.cParams), "");
     ZSTD_CCtxParams_init_internal(&cctx->simpleApiParams, &params, ZSTD_NO_CLEVEL);
     return ZSTD_compress_advanced_internal(cctx,
                                            dst, dstCapacity,
@@ -5521,7 +5539,7 @@ size_t ZSTD_compress_usingDict(ZSTD_CCtx* cctx,
                                int compressionLevel)
 {
     {
-        ZSTD_parameters const params = ZSTD_getParams_internal(compressionLevel, srcSize, dict ? dictSize : 0, ZSTD_cpm_noAttachDict);
+        ZSTD_Params const params = ZSTD_getParams_internal(compressionLevel, srcSize, dict ? dictSize : 0, ZSTD_cpm_noAttachDict);
         assert(params.fParams.contentSizeFlag == 1);
         ZSTD_CCtxParams_init_internal(&cctx->simpleApiParams, &params, (compressionLevel == 0) ? ZSTD_CLEVEL_DEFAULT: compressionLevel);
     }
@@ -5898,17 +5916,19 @@ static size_t ZSTD_compressBegin_usingCDict_internal(
     RETURN_ERROR_IF(cdict==NULL, dictionary_wrong, "NULL pointer!");
     /* Initialize the cctxParams from the cdict */
     {
-        ZSTD_parameters params;
+        ZSTD_Params params;
         params.fParams = fParams;
         if ( pledgedSrcSize < ZSTD_USE_CDICT_PARAMS_SRCSIZE_CUTOFF
                         || pledgedSrcSize < cdict->dictContentSize * ZSTD_USE_CDICT_PARAMS_DICTSIZE_MULTIPLIER
                         || pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN
                         || cdict->compressionLevel == 0 ) {
-            params.cParams = ZSTD_getPublicCParamsFromCParams(ZSTD_getCParamsFromCDict(cdict));
+            params.cParams = ZSTD_getCParamsFromCDict(cdict);
         } else {
-            params.cParams = ZSTD_getCParams(cdict->compressionLevel,
-                                             pledgedSrcSize,
-                                             cdict->dictContentSize);
+            params.cParams = ZSTD_getCParams_internal(
+                    cdict->compressionLevel,
+                    pledgedSrcSize,
+                    cdict->dictContentSize,
+                    ZSTD_cpm_unknown);
         }
         ZSTD_CCtxParams_init_internal(&cctxParams, &params, cdict->compressionLevel);
     }
@@ -6105,8 +6125,9 @@ size_t ZSTD_initCStream_usingCDict(ZSTD_CStream* zcs, const ZSTD_CDict* cdict)
  * dict is loaded with default parameters ZSTD_dct_auto and ZSTD_dlm_byCopy. */
 size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs,
                                  const void* dict, size_t dictSize,
-                                 ZSTD_parameters params, unsigned long long pss)
+                                 ZSTD_parameters publicParams, unsigned long long pss)
 {
+    ZSTD_Params params = ZSTD_getParamsFromPublicParams(publicParams);
     /* for compatibility with older programs relying on this behavior.
      * Users should now specify ZSTD_CONTENTSIZE_UNKNOWN.
      * This line will be removed in the future.
@@ -6115,7 +6136,7 @@ size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs,
     DEBUGLOG(4, "ZSTD_initCStream_advanced");
     FORWARD_IF_ERROR( ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only) , "");
     FORWARD_IF_ERROR( ZSTD_CCtx_setPledgedSrcSize(zcs, pledgedSrcSize) , "");
-    FORWARD_IF_ERROR( ZSTD_checkCParams(params.cParams) , "");
+    FORWARD_IF_ERROR( ZSTD_checkCParams_internal(params.cParams) , "");
     ZSTD_CCtxParams_setZstdParams(&zcs->requestedParams, &params);
     FORWARD_IF_ERROR( ZSTD_CCtx_loadDictionary(zcs, dict, dictSize) , "");
     return 0;
@@ -7865,30 +7886,29 @@ ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, unsigned long l
     return ZSTD_getPublicCParamsFromCParams(ZSTD_getCParams_internal(compressionLevel, srcSizeHint, dictSize, ZSTD_cpm_unknown));
 }
 
-/*! ZSTD_getParams() :
+/*! ZSTD_getParams_internal() :
  *  same idea as ZSTD_getCParams()
- * @return a `ZSTD_parameters` structure (instead of `ZSTD_compressionParameters`).
+ * @return a `ZSTD_Params` structure (instead of `ZSTD_CParams`).
  *  Fields of `ZSTD_frameParameters` are set to default values */
-static ZSTD_parameters
+static ZSTD_Params
 ZSTD_getParams_internal(int compressionLevel, unsigned long long srcSizeHint, size_t dictSize, ZSTD_CParamMode_e mode)
 {
-    ZSTD_parameters params;
-    ZSTD_CParams const cParams = ZSTD_getCParams_internal(compressionLevel, srcSizeHint, dictSize, mode);
+    ZSTD_Params params;
     DEBUGLOG(5, "ZSTD_getParams (cLevel=%i)", compressionLevel);
     ZSTD_memset(&params, 0, sizeof(params));
-    params.cParams = ZSTD_getPublicCParamsFromCParams(cParams);
+    params.cParams = ZSTD_getCParams_internal(compressionLevel, srcSizeHint, dictSize, mode);
     params.fParams.contentSizeFlag = 1;
     return params;
 }
 
 /*! ZSTD_getParams() :
  *  same idea as ZSTD_getCParams()
- * @return a `ZSTD_parameters` structure (instead of `ZSTD_CParams`).
+ * @return a `ZSTD_parameters` structure (instead of `ZSTD_compressionParameters`).
  *  Fields of `ZSTD_frameParameters` are set to default values */
 ZSTD_parameters ZSTD_getParams(int compressionLevel, unsigned long long srcSizeHint, size_t dictSize)
 {
     if (srcSizeHint == 0) srcSizeHint = ZSTD_CONTENTSIZE_UNKNOWN;
-    return ZSTD_getParams_internal(compressionLevel, srcSizeHint, dictSize, ZSTD_cpm_unknown);
+    return ZSTD_getPublicParamsFromParams(ZSTD_getParams_internal(compressionLevel, srcSizeHint, dictSize, ZSTD_cpm_unknown));
 }
 
 void ZSTD_registerSequenceProducer(

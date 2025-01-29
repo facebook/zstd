@@ -204,6 +204,15 @@ typedef struct {
     ZSTD_strategy strategy;   /**< see ZSTD_strategy definition above */
 } ZSTD_CParams;
 
+/**
+ * Internal equivalent of public ZSTD_Params struct, wrapping the internal
+ * ZSTD_CParams struct rather than the public ZSTD_compressionParameters.
+ */
+typedef struct {
+    ZSTD_CParams cParams;
+    ZSTD_frameParameters fParams;
+} ZSTD_Params;
+
 typedef struct {
     U32 off;            /* Offset sumtype code for the match, using ZSTD_storeSeq() format */
     U32 len;            /* Raw length of match */
@@ -1560,6 +1569,16 @@ BlockSummary ZSTD_get1BlockSummary(const ZSTD_Sequence* seqs, size_t nbSeqs);
  */
 ZSTD_CParams ZSTD_getCParamsFromPublicCParams(ZSTD_compressionParameters cParams);
 ZSTD_compressionParameters ZSTD_getPublicCParamsFromCParams(ZSTD_CParams cParams);
+
+/* ZSTD_getParamsFromPublicParams(), ZSTD_getPublicParamsFromParams() :
+ * Translates between the public and internal structs.
+ *
+ * Note: as these structs diverge, this may increasingly become a lossy
+ * translation. The only long-term justified use of these should be at the
+ * User API.
+ */
+ZSTD_Params ZSTD_getParamsFromPublicParams(ZSTD_parameters params);
+ZSTD_parameters ZSTD_getPublicParamsFromParams(ZSTD_Params params);
 
 /* ZSTD_getCParamsFromCCtxParams() :
  * cParams are built depending on compressionLevel, src size hints,

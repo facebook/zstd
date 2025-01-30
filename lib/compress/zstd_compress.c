@@ -1445,10 +1445,10 @@ ZSTD_clampCParams(ZSTD_CParams cParams)
 
 /** ZSTD_cycleLog() :
  *  condition for correct operation : hashLog > 1 */
-U32 ZSTD_cycleLog(U32 hashLog, ZSTD_strategy strat)
+U32 ZSTD_cycleLog(U32 chainLog, ZSTD_strategy strat)
 {
     U32 const btScale = ((U32)strat >= (U32)ZSTD_btlazy2);
-    return hashLog - btScale;
+    return chainLog - btScale;
 }
 
 /** ZSTD_dictAndWindowLog() :

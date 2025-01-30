@@ -1102,6 +1102,18 @@ MEM_STATIC ZSTD_dictMode_e ZSTD_matchState_dictMode(const ZSTD_MatchState_t *ms)
 }
 
 /**
+ * Fractional window sizes can always be picked by the user explicitly
+ * setting ZSTD_c_windowFrac. This macro controls whether, when Zstd is
+ * picking a window size itself, it is allowed to pick a non-power-of-two
+ * window size.
+ *
+ * For now, this defaults to false.
+ */
+#ifndef ZSTD_WINDOW_ALLOW_PICKING_FRACTIONAL_SIZES
+#define ZSTD_WINDOW_ALLOW_PICKING_FRACTIONAL_SIZES 0
+#endif
+
+/**
  * Return the window size described by the windowLog and windowFrac in the
  * provided CParams.
  */
@@ -1114,11 +1126,18 @@ MEM_STATIC U32 ZSTD_windowSizeLDM(const ldmParams_t* ldmParams) {
 
 /**
  * Checks that the selected windowSize satisfies the inequality
- * srcSize <= windowSize <= srcSize * 1.25, in the range where the window
+ * `srcSize <= windowSize <= srcSize * margin`, in the range where the window
+ * isn't pressed up against one of the hard bounds, where `margin` is either
+ * 1.125 or 2, depending on whether we're allowed to pick fractional window
+ * sizes.
  */
 MEM_STATIC int ZSTD_windowLogAndFracAreMinimal(ZSTD_CParams* cParams, const U32 srcSize) {
     const U32 lowerBound = MIN(srcSize, 1u << ZSTD_WINDOWLOG_MAX);
-    const U32 upperBound = MAX(srcSize + (srcSize >> 3), 1u << ZSTD_WINDOWLOG_ABSOLUTEMIN);
+#if ZSTD_WINDOW_ALLOW_PICKING_FRACTIONAL_SIZES
+    const U32 upperBound = MAX(lowerBound + (lowerBound >> 3), 1u << ZSTD_WINDOWLOG_ABSOLUTEMIN);
+#else
+    const U32 upperBound = MAX(2 * lowerBound - 1, 1u << ZSTD_WINDOWLOG_ABSOLUTEMIN);
+#endif
     const U32 windowSize = ZSTD_windowSize(cParams);
     if (windowSize < lowerBound) {
         return 0;
@@ -1135,6 +1154,7 @@ MEM_STATIC int ZSTD_windowLogAndFracAreMinimal(ZSTD_CParams* cParams, const U32 
  */
 MEM_STATIC void ZSTD_setMinimalWindowLogAndFrac(ZSTD_CParams* cParams, const U32 srcSize) {
     const U32 minSize = 1u << ZSTD_WINDOWLOG_ABSOLUTEMIN;
+#if ZSTD_WINDOW_ALLOW_PICKING_FRACTIONAL_SIZES
     if (srcSize < minSize) {
         cParams->windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;
         cParams->windowFrac = 0;
@@ -1146,6 +1166,19 @@ MEM_STATIC void ZSTD_setMinimalWindowLogAndFrac(ZSTD_CParams* cParams, const U32
             cParams->windowFrac = 0;
             cParams->windowLog++;
         }
+    }
+#else
+    if (srcSize < minSize) {
+        cParams->windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;
+        cParams->windowFrac = 0;
+    } else {
+        cParams->windowLog = ZSTD_highbit32(srcSize - 1) + 1;
+        cParams->windowFrac = 0;
+    }
+#endif
+    if (cParams->windowLog + !!cParams->windowFrac > ZSTD_WINDOWLOG_MAX) {
+        cParams->windowLog = ZSTD_WINDOWLOG_MAX;
+        cParams->windowFrac = 0;
     }
     assert(ZSTD_windowLogAndFracAreMinimal(cParams, srcSize));
 }

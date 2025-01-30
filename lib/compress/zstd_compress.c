@@ -1461,12 +1461,11 @@ U32 ZSTD_cycleLog(U32 chainLog, ZSTD_strategy strat)
  */
 static void ZSTD_dictAndWindowLog(ZSTD_CParams* cParams, U64 srcSize, U64 dictSize)
 {
-    const U64 maxWindowSize = 1ULL << ZSTD_WINDOWLOG_MAX;
     /* No dictionary ==> No change */
     if (dictSize == 0) {
         return;
     }
-    assert(cParams->windowLog <= ZSTD_WINDOWLOG_MAX);
+    assert(cParams->windowLog + !!cParams->windowFrac <= ZSTD_WINDOWLOG_MAX);
     assert(srcSize != ZSTD_CONTENTSIZE_UNKNOWN); /* Handled in ZSTD_adjustCParams_internal() */
     {
         U64 const windowSize = ZSTD_windowSize(cParams);
@@ -1477,10 +1476,7 @@ static void ZSTD_dictAndWindowLog(ZSTD_CParams* cParams, U64 srcSize, U64 dictSi
          */
         if (windowSize >= dictSize + srcSize) {
             /* Window size large enough already */
-        } else if (dictAndWindowSize >= maxWindowSize) {
-            cParams->windowLog = ZSTD_WINDOWLOG_MAX; /* Larger than max window log */
-            cParams->windowFrac = 0;
-        } else  {
+        } else {
             ZSTD_setMinimalWindowLogAndFrac(cParams, dictAndWindowSize);
         }
     }
@@ -1725,7 +1721,10 @@ ZSTD_CParams ZSTD_getCParamsFromCCtxParams(
         srcSizeHint = (U64)CCtxParams->srcSizeHint;
     }
     cParams = ZSTD_getCParams_internal(CCtxParams->compressionLevel, srcSizeHint, dictSize, mode);
-    if (CCtxParams->ldmParams.enableLdm == ZSTD_ps_enable) cParams.windowLog = ZSTD_LDM_DEFAULT_WINDOW_LOG;
+    if (CCtxParams->ldmParams.enableLdm == ZSTD_ps_enable) {
+        cParams.windowLog = ZSTD_LDM_DEFAULT_WINDOW_LOG;
+        cParams.windowFrac = 0;
+    }
     ZSTD_overrideCParams(&cParams, &CCtxParams->cParams);
     assert(!ZSTD_checkCParams_internal(cParams));
     /* srcSizeHint == 0 means 0 */
@@ -4702,8 +4701,7 @@ static size_t ZSTD_compress_frameChunk(ZSTD_CCtx* cctx,
     U32 const maxDist = ZSTD_windowSize(&cctx->appliedParams.cParams);
     S64 savings = (S64)cctx->consumedSrcSize - (S64)cctx->producedCSize;
 
-    assert(cctx->appliedParams.cParams.windowLog <= ZSTD_WINDOWLOG_MAX);
-    assert(cctx->appliedParams.cParams.windowFrac == 0 || cctx->appliedParams.cParams.windowLog != ZSTD_WINDOWLOG_MAX);
+    assert(cctx->appliedParams.cParams.windowLog + !!cctx->appliedParams.cParams.windowFrac <= ZSTD_WINDOWLOG_MAX);
 
     DEBUGLOG(5, "ZSTD_compress_frameChunk (srcSize=%u, blockSizeMax=%u)", (unsigned)srcSize, (unsigned)blockSizeMax);
     if (cctx->appliedParams.fParams.checksumFlag && srcSize)
@@ -5979,11 +5977,8 @@ static size_t ZSTD_compressBegin_usingCDict_internal(
      */
     if (pledgedSrcSize != ZSTD_CONTENTSIZE_UNKNOWN) {
         U32 const limitedSrcSize = (U32)MIN(pledgedSrcSize, 1U << 19);
-        U32 const limitedSrcLog = limitedSrcSize > 1 ? ZSTD_highbit32(limitedSrcSize - 1) + 1 : 1;
-        U32 const curWindowLog = cctxParams.cParams.windowLog;
-        if (limitedSrcLog > curWindowLog) {
-            cctxParams.cParams.windowLog  = limitedSrcLog;
-            cctxParams.cParams.windowFrac = 0;
+        if (limitedSrcSize > 1 && ZSTD_windowSize(&cctxParams.cParams) < limitedSrcSize) {
+            ZSTD_setMinimalWindowLogAndFrac(&cctxParams.cParams, limitedSrcSize);
         }
     }
     return ZSTD_compressBegin_internal(cctx,

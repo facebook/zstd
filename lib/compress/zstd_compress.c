@@ -4957,7 +4957,6 @@ size_t ZSTD_getBlockSize(const ZSTD_CCtx* cctx)
     return ZSTD_getBlockSize_deprecated(cctx);
 }
 
-/* NOTE: Must just wrap ZSTD_compressBlock_deprecated() */
 size_t ZSTD_compressBlock_deprecated(ZSTD_CCtx* cctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
     DEBUGLOG(5, "ZSTD_compressBlock: srcSize = %u", (unsigned)srcSize);

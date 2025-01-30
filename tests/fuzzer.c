@@ -707,8 +707,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
         params.hashLog = 19;
         params.chainLog = 19;
         params = ZSTD_adjustCParams(params, 1000, 100000);
-        if (params.hashLog != 18) goto _output_error;
-        if (params.chainLog != 17) goto _output_error;
+        CHECK_EQ(params.chainLog, 17);
+        CHECK_EQ(params.hashLog, 18);
     }
     DISPLAYLEVEL(3, "OK \n");
 
@@ -3670,7 +3670,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
     {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         ZSTD_DCtx* const dctx = ZSTD_createDCtx();
         static const size_t dictSize = 65 KB;
-        static const size_t blockSize = 100 KB;   /* won't cause pb with small dict size */
+        static const size_t blockSize = 71 KB;   /* won't cause pb with small dict size */
         size_t cSize2;
         assert(cctx != NULL); assert(dctx != NULL);
 
@@ -3734,6 +3734,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         {   ZSTD_CDict* const cdict = ZSTD_createCDict(CNBuffer, dictSize, 3);
             if (cdict==NULL) goto _output_error;
             CHECK_Z( ZSTD_compressBegin_usingCDict(cctx, cdict) );
+            CHECK_Z( ZSTD_getBlockSize(cctx) >= blockSize);
             CHECK_Z( ZSTD_compressBlock(cctx, compressedBuffer, ZSTD_compressBound(blockSize), (char*)CNBuffer+dictSize, blockSize) );
             ZSTD_freeCDict(cdict);
         }

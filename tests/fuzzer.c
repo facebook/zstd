@@ -1771,6 +1771,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_windowLog, &value));
         CHECK_EQ(value, 0);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_windowFrac, &value));
+        CHECK_EQ(value, 0);
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_chainLog, &value));
         CHECK_EQ(value, 0);
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_hashLog, &value));
@@ -1789,6 +1791,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_windowLog, &value));
         CHECK_EQ(value, (int)cparams.windowLog);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_windowFrac, &value));
+        CHECK_EQ(value, 0);
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_chainLog, &value));
         CHECK_EQ(value, (int)cparams.chainLog);
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_hashLog, &value));
@@ -1839,6 +1843,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_windowLog, &value));
         CHECK_EQ(value, 0);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_windowFrac, &value));
+        CHECK_EQ(value, 0);
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_chainLog, &value));
         CHECK_EQ(value, 0);
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_hashLog, &value));
@@ -1866,6 +1872,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_windowLog, &value));
         CHECK_EQ(value, (int)params.cParams.windowLog);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_windowFrac, &value));
+        CHECK_EQ(value, 0);
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_chainLog, &value));
         CHECK_EQ(value, (int)params.cParams.chainLog);
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_hashLog, &value));

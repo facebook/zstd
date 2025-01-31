@@ -95,7 +95,7 @@
       || (defined(__GNUC__) \
           && (__GNUC__ >= 5 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)))) \
       && (defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)) \
-      && !defined(__BMI2__)
+      && !STATIC_BMI2
 #    define DYNAMIC_BMI2 1
 #  else
 #    define DYNAMIC_BMI2 0
@@ -143,7 +143,7 @@
 #if !defined(ZSTD_DISABLE_ASM) &&                                 \
     ZSTD_ASM_SUPPORTED &&                                         \
     defined(__x86_64__) &&                                        \
-    (DYNAMIC_BMI2 || defined(__BMI2__))
+    (DYNAMIC_BMI2 || STATIC_BMI2)
 # define ZSTD_ENABLE_ASM_X86_64_BMI2 1
 #else
 # define ZSTD_ENABLE_ASM_X86_64_BMI2 0

@@ -8,22 +8,6 @@
  * You may select, at your option, one of the above-listed licenses.
  */
 
-
-/*-************************************
-*  Tuning parameters
-**************************************/
-#ifndef ZSTDCLI_CLEVEL_DEFAULT
-#  define ZSTDCLI_CLEVEL_DEFAULT 3
-#endif
-
-#ifndef ZSTDCLI_CLEVEL_MAX
-#  define ZSTDCLI_CLEVEL_MAX 19   /* without using --ultra */
-#endif
-
-#ifndef ZSTDCLI_NBTHREADS_DEFAULT
-#  define ZSTDCLI_NBTHREADS_DEFAULT 1
-#endif
-
 /*-************************************
 *  Dependencies
 **************************************/
@@ -32,7 +16,6 @@
 #include <stdlib.h>   /* getenv */
 #include <string.h>   /* strcmp, strlen */
 #include <stdio.h>    /* fprintf(), stdin, stdout, stderr */
-#include <errno.h>    /* errno */
 #include <assert.h>   /* assert */
 
 #include "fileio.h"   /* stdinmark, stdoutmark, ZSTD_EXTENSION */
@@ -47,6 +30,23 @@
 #endif
 #include "../lib/zstd.h"  /* ZSTD_VERSION_STRING, ZSTD_minCLevel, ZSTD_maxCLevel */
 #include "fileio_asyncio.h"
+#include "fileio_common.h"
+
+/*-************************************
+*  Tuning parameters
+**************************************/
+#ifndef ZSTDCLI_CLEVEL_DEFAULT
+#  define ZSTDCLI_CLEVEL_DEFAULT 3
+#endif
+
+#ifndef ZSTDCLI_CLEVEL_MAX
+#  define ZSTDCLI_CLEVEL_MAX 19   /* without using --ultra */
+#endif
+
+#ifndef ZSTDCLI_NBTHREADS_DEFAULT
+#define ZSTDCLI_NBTHREADS_DEFAULT MAX(1, MIN(4, UTIL_countLogicalCores() / 4))
+#endif
+
 
 
 /*-************************************
@@ -100,9 +100,7 @@ typedef enum { cover, fastCover, legacy } dictType;
 /*-************************************
 *  Display Macros
 **************************************/
-#define DISPLAY_F(f, ...)    fprintf((f), __VA_ARGS__)
-#define DISPLAYOUT(...)      DISPLAY_F(stdout, __VA_ARGS__)
-#define DISPLAY(...)         DISPLAY_F(stderr, __VA_ARGS__)
+#undef DISPLAYLEVEL
 #define DISPLAYLEVEL(l, ...) { if (g_displayLevel>=l) { DISPLAY(__VA_ARGS__); } }
 static int g_displayLevel = DISPLAY_LEVEL_DEFAULT;   /* 0 : no display,  1: errors,  2 : + result + interaction + warnings,  3 : + progression,  4 : + information */
 
@@ -311,6 +309,7 @@ static void usageAdvanced(const char* programName)
     DISPLAYOUT("  -i#                           Set the minimum evaluation to time # seconds. [Default: 3]\n");
     DISPLAYOUT("  -B#                           Cut file into independent chunks of size #. [Default: No chunking]\n");
     DISPLAYOUT("  -S                            Output one benchmark result per input file. [Default: Consolidated result]\n");
+    DISPLAYOUT("  -D dictionary                 Benchmark using dictionary \n");
     DISPLAYOUT("  --priority=rt                 Set process priority to real-time.\n");
 #endif
 
@@ -636,8 +635,6 @@ static unsigned parseCompressionParameters(const char* stringPtr, ZSTD_compressi
         return 0;
     }
 
-    DISPLAYLEVEL(4, "windowLog=%d, chainLog=%d, hashLog=%d, searchLog=%d \n", params->windowLog, params->chainLog, params->hashLog, params->searchLog);
-    DISPLAYLEVEL(4, "minMatch=%d, targetLength=%d, strategy=%d \n", params->minMatch, params->targetLength, params->strategy);
     if (stringPtr[0] != 0) return 0; /* check the end of string */
     return 1;
 }
@@ -696,7 +693,7 @@ static void printDefaultCParams(const char* filename, const char* dictFileName, 
     unsigned long long fileSize = UTIL_getFileSize(filename);
     const size_t dictSize = dictFileName != NULL ? (size_t)UTIL_getFileSize(dictFileName) : 0;
     const ZSTD_compressionParameters cParams = ZSTD_getCParams(cLevel, fileSize, dictSize);
-    if (fileSize != UTIL_FILESIZE_UNKNOWN) DISPLAY("%s (%u bytes)\n", filename, (unsigned)fileSize);
+    if (fileSize != UTIL_FILESIZE_UNKNOWN) DISPLAY("%s (%llu bytes)\n", filename, fileSize);
     else DISPLAY("%s (src size unknown)\n", filename);
     DISPLAY(" - windowLog     : %u\n", cParams.windowLog);
     DISPLAY(" - chainLog      : %u\n", cParams.chainLog);
@@ -760,7 +757,7 @@ static int init_cLevel(void) {
 }
 
 #ifdef ZSTD_MULTITHREAD
-static unsigned init_nbThreads(void) {
+static unsigned default_nbThreads(void) {
     const char* const env = getenv(ENV_NBTHREADS);
     if (env != NULL) {
         const char* ptr = env;
@@ -852,10 +849,10 @@ int main(int argCount, const char* argv[])
         ultra=0,
         contentSize=1,
         removeSrcFile=0;
-    ZSTD_paramSwitch_e mmapDict=ZSTD_ps_auto;
-    ZSTD_paramSwitch_e useRowMatchFinder = ZSTD_ps_auto;
+    ZSTD_ParamSwitch_e mmapDict=ZSTD_ps_auto;
+    ZSTD_ParamSwitch_e useRowMatchFinder = ZSTD_ps_auto;
     FIO_compressionType_t cType = FIO_zstdCompression;
-    unsigned nbWorkers = 0;
+    int nbWorkers = -1; /* -1 means unset */
     double compressibility = -1.0;  /* lorem ipsum generator */
     unsigned bench_nbSeconds = 3;   /* would be better if this value was synchronized from bench */
     size_t blockSize = 0;
@@ -894,8 +891,7 @@ int main(int argCount, const char* argv[])
 #ifndef ZSTD_NOBENCH
     BMK_advancedParams_t benchParams = BMK_initAdvancedParams();
 #endif
-    ZSTD_paramSwitch_e literalCompressionMode = ZSTD_ps_auto;
-
+    ZSTD_ParamSwitch_e literalCompressionMode = ZSTD_ps_auto;
 
     /* init */
     checkLibVersion();
@@ -904,9 +900,6 @@ int main(int argCount, const char* argv[])
     assert(argCount >= 1);
     if ((filenames==NULL) || (file_of_names==NULL)) { DISPLAYLEVEL(1, "zstd: allocation error \n"); exit(1); }
     programName = lastNameFromPath(programName);
-#ifdef ZSTD_MULTITHREAD
-    nbWorkers = init_nbThreads();
-#endif
 
     /* preset behaviors */
     if (exeNameMatch(programName, ZSTD_ZSTDMT)) nbWorkers=0, singleThread=0;
@@ -1298,7 +1291,7 @@ int main(int argCount, const char* argv[])
     DISPLAYLEVEL(3, WELCOME_MESSAGE);
 
 #ifdef ZSTD_MULTITHREAD
-    if ((operation==zom_decompress) && (!singleThread) && (nbWorkers > 1)) {
+    if ((operation==zom_decompress) && (nbWorkers > 1)) {
         DISPLAYLEVEL(2, "Warning : decompression does not support multi-threading\n");
     }
     if ((nbWorkers==0) && (!singleThread)) {
@@ -1311,6 +1304,16 @@ int main(int argCount, const char* argv[])
             DISPLAYLEVEL(3, "Note: %d physical core(s) detected \n", nbWorkers);
         }
     }
+    /* Resolve to default if nbWorkers is still unset */
+    if (nbWorkers == -1) {
+      if (operation == zom_decompress) {
+        nbWorkers = 1;
+      } else {
+        nbWorkers = default_nbThreads();
+      }
+    }
+    if (operation != zom_bench)
+        DISPLAYLEVEL(4, "Compressing with %u worker threads \n", nbWorkers);
 #else
     (void)singleThread; (void)nbWorkers; (void)defaultLogicalCores;
 #endif
@@ -1391,28 +1394,31 @@ int main(int argCount, const char* argv[])
         }
         benchParams.literalCompressionMode = literalCompressionMode;
 
+        if (benchParams.mode == BMK_decodeOnly) cLevel = cLevelLast = 0;
         if (cLevel > ZSTD_maxCLevel()) cLevel = ZSTD_maxCLevel();
         if (cLevelLast > ZSTD_maxCLevel()) cLevelLast = ZSTD_maxCLevel();
         if (cLevelLast < cLevel) cLevelLast = cLevel;
-        if (cLevelLast > cLevel)
-            DISPLAYLEVEL(3, "Benchmarking levels from %d to %d\n", cLevel, cLevelLast);
+        DISPLAYLEVEL(3, "Benchmarking ");
+        if (filenames->tableSize > 1)
+            DISPLAYLEVEL(3, "%u files ", (unsigned)filenames->tableSize);
+        if (cLevelLast > cLevel) {
+            DISPLAYLEVEL(3, "from level %d to %d ", cLevel, cLevelLast);
+        } else {
+            DISPLAYLEVEL(3, "at level %d ", cLevel);
+        }
+        DISPLAYLEVEL(3, "using %i threads \n", nbWorkers);
         if (filenames->tableSize > 0) {
             if(separateFiles) {
                 unsigned i;
                 for(i = 0; i < filenames->tableSize; i++) {
-                    int c;
-                    DISPLAYLEVEL(3, "Benchmarking %s \n", filenames->fileNames[i]);
-                    for(c = cLevel; c <= cLevelLast; c++) {
-                        operationResult = BMK_benchFilesAdvanced(&filenames->fileNames[i], 1, dictFileName, c, &compressionParams, g_displayLevel, &benchParams);
-                }   }
+                    operationResult = BMK_benchFilesAdvanced(&filenames->fileNames[i], 1, dictFileName, cLevel, cLevelLast, &compressionParams, g_displayLevel, &benchParams);
+                }
             } else {
-                for(; cLevel <= cLevelLast; cLevel++) {
-                    operationResult = BMK_benchFilesAdvanced(filenames->fileNames, (unsigned)filenames->tableSize, dictFileName, cLevel, &compressionParams, g_displayLevel, &benchParams);
-            }   }
+                operationResult = BMK_benchFilesAdvanced(filenames->fileNames, (unsigned)filenames->tableSize, dictFileName, cLevel, cLevelLast, &compressionParams, g_displayLevel, &benchParams);
+            }
         } else {
-            for(; cLevel <= cLevelLast; cLevel++) {
-                operationResult = BMK_syntheticTest(cLevel, compressibility, &compressionParams, g_displayLevel, &benchParams);
-        }   }
+            operationResult = BMK_syntheticTest(compressibility, cLevel, cLevelLast, &compressionParams, g_displayLevel, &benchParams);
+        }
 
 #else
         (void)bench_nbSeconds; (void)blockSize; (void)setRealTimePrio; (void)separateFiles; (void)compressibility;

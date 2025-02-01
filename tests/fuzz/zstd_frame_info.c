@@ -21,7 +21,7 @@
 
 int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
 {
-    ZSTD_frameHeader zfh;
+    ZSTD_FrameHeader zfh;
     if (size == 0) {
         src = NULL;
    }

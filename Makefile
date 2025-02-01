@@ -85,14 +85,10 @@ test:
 	$(MAKE) -C $(TESTDIR) $@
 	ZSTD=../../programs/zstd $(MAKE) -C doc/educational_decoder $@
 
-## shortest: same as `make check`
-.PHONY: shortest
-shortest:
-	$(Q)$(MAKE) -C $(TESTDIR) $@
-
 ## check: run basic tests for `zstd` cli
 .PHONY: check
-check: shortest
+check:
+	$(Q)$(MAKE) -C $(TESTDIR) $@
 
 .PHONY: automated_benchmarking
 automated_benchmarking:
@@ -145,7 +141,7 @@ clean:
 	$(Q)$(MAKE) -C contrib/largeNbDicts $@ > $(VOID)
 	$(Q)$(MAKE) -C contrib/externalSequenceProducer $@ > $(VOID)
 	$(Q)$(RM) zstd$(EXT) zstdmt$(EXT) tmp*
-	$(Q)$(RM) -r lz4 cmakebuild install
+	$(Q)$(RM) -r lz4 cmakebuild mesonbuild install
 	@echo Cleaning completed
 
 #------------------------------------------------------------------------------
@@ -200,9 +196,9 @@ travis-install:
 .PHONY: clangbuild-darwin-fat
 clangbuild-darwin-fat: clean
 	clang -v
-	CXX=clang++ CC=clang CFLAGS="-Werror -Wconversion -Wno-sign-conversion -Wdocumentation -arch arm64" $(MAKE) zstd-release
+	CXX=clang++ CC=clang CFLAGS+="-Werror -Wconversion -Wno-sign-conversion -Wdocumentation -arch arm64" $(MAKE) zstd-release
 	mv programs/zstd programs/zstd_arm64
-	CXX=clang++ CC=clang CFLAGS="-Werror -Wconversion -Wno-sign-conversion -Wdocumentation -arch x86_64" $(MAKE) zstd-release
+	CXX=clang++ CC=clang CFLAGS+="-Werror -Wconversion -Wno-sign-conversion -Wdocumentation -arch x86_64" $(MAKE) zstd-release
 	mv programs/zstd programs/zstd_x64
 	lipo -create programs/zstd_x64 programs/zstd_arm64 -output programs/zstd
 
@@ -414,6 +410,24 @@ cmakebuild:
 	cd cmakebuild; $(CMAKE) -Wdev -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS="-Werror -O0" -DCMAKE_INSTALL_PREFIX=install $(CMAKE_PARAMS) ../build/cmake
 	$(CMAKE) --build cmakebuild --target install -- -j V=1
 	cd cmakebuild; ctest -V -L Medium
+
+MESON ?= meson
+NINJA ?= ninja
+
+.PHONY: mesonbuild
+mesonbuild:
+	$(MESON) setup \
+		--buildtype=debugoptimized \
+		-Db_lundef=false \
+		-Dauto_features=enabled \
+		-Dbin_programs=true \
+		-Dbin_tests=true \
+		-Dbin_contrib=true \
+		-Ddefault_library=both \
+		build/meson mesonbuild
+	$(NINJA) -C mesonbuild/
+	$(MESON) test -C mesonbuild/ --print-errorlogs
+	$(MESON) install -C mesonbuild --destdir staging/
 
 .PHONY: c89build gnu90build c99build gnu99build c11build bmix64build bmix32build bmi32build staticAnalyze
 c89build: clean

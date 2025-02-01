@@ -423,7 +423,7 @@ void FIO_setTestMode(FIO_prefs_t* const prefs, int testMode) {
 
 void FIO_setLiteralCompressionMode(
         FIO_prefs_t* const prefs,
-        ZSTD_paramSwitch_e mode) {
+        ZSTD_ParamSwitch_e mode) {
     prefs->literalCompressionMode = mode;
 }
 
@@ -485,7 +485,7 @@ void FIO_setPassThroughFlag(FIO_prefs_t* const prefs, int value) {
     prefs->passThrough = (value != 0);
 }
 
-void FIO_setMMapDict(FIO_prefs_t* const prefs, ZSTD_paramSwitch_e value)
+void FIO_setMMapDict(FIO_prefs_t* const prefs, ZSTD_ParamSwitch_e value)
 {
     prefs->mmapDict = value;
 }
@@ -2401,7 +2401,7 @@ FIO_zstdErrorHelp(const FIO_prefs_t* const prefs,
                   size_t err,
                   const char* srcFileName)
 {
-    ZSTD_frameHeader header;
+    ZSTD_FrameHeader header;
 
     /* Help message only for one specific error */
     if (ZSTD_getErrorCode(err) != ZSTD_error_frameParameter_windowTooLarge)
@@ -3201,7 +3201,7 @@ FIO_analyzeFrames(fileInfo_t* info, FILE* const srcFile)
         {   U32 const magicNumber = MEM_readLE32(headerBuffer);
             /* Zstandard frame */
             if (magicNumber == ZSTD_MAGICNUMBER) {
-                ZSTD_frameHeader header;
+                ZSTD_FrameHeader header;
                 U64 const frameContentSize = ZSTD_getFrameContentSize(headerBuffer, numBytesRead);
                 if ( frameContentSize == ZSTD_CONTENTSIZE_ERROR
                   || frameContentSize == ZSTD_CONTENTSIZE_UNKNOWN ) {

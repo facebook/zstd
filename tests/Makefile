@@ -26,6 +26,9 @@ export ZSTD_LEGACY_SUPPORT
 DEBUGLEVEL ?= 2
 export DEBUGLEVEL  # transmit value to sub-makefiles
 
+.PHONY: default
+default: fullbench
+
 LIBZSTD_MK_DIR := ../lib
 include $(LIBZSTD_MK_DIR)/libzstd.mk
 
@@ -77,9 +80,6 @@ ZSTREAM_TESTTIME ?= -T90s
 FUZZERTEST ?= -T200s
 ZSTDRTTEST = --test-large-data
 DECODECORPUS_TESTTIME ?= -T30
-
-.PHONY: default
-default: fullbench
 
 .PHONY: all
 all: fullbench fuzzer zstreamtest paramgrill datagen decodecorpus roundTripCrash poolTests
@@ -148,13 +148,14 @@ fullbench32: CPPFLAGS += -m32
 $(FULLBENCHS) : CPPFLAGS += $(MULTITHREAD_CPP) -Wno-deprecated-declarations
 $(FULLBENCHS) : LDFLAGS += $(MULTITHREAD_LD)
 $(FULLBENCHS) : DEBUGFLAGS = -DNDEBUG  # turn off assert() for speed measurements
+$(FULLBENCHS) : DEBUGLEVEL = 0  # turn off assert() for speed measurements
 $(FULLBENCHS) : $(ZSTD_FILES)
-$(FULLBENCHS) : $(PRGDIR)/datagen.c $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/benchfn.c fullbench.c
+$(FULLBENCHS) : $(PRGDIR)/datagen.c $(PRGDIR)/lorem.c $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/benchfn.c fullbench.c
 	$(LINK.c) $^ -o $@$(EXT)
 
 CLEAN += fullbench-lib
 fullbench-lib : CPPFLAGS += -DXXH_NAMESPACE=ZSTD_
-fullbench-lib : $(PRGDIR)/datagen.c $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/benchfn.c $(LIB_SRCDIR)/libzstd.a fullbench.c
+fullbench-lib : $(PRGDIR)/datagen.c $(PRGDIR)/lorem.c $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/benchfn.c $(LIB_SRCDIR)/libzstd.a fullbench.c
 	$(LINK.c) $^ -o $@$(EXT)
 
 # note : broken : requires symbols unavailable from dynamic library
@@ -271,7 +272,7 @@ clean:
 #----------------------------------------------------------------------------------
 # valgrind tests validated only for some posix platforms
 #----------------------------------------------------------------------------------
-UNAME := $(shell sh -c 'MSYSTEM="MSYS" uname') 
+UNAME := $(shell sh -c 'MSYSTEM="MSYS" uname')
 ifneq (,$(filter Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS AIX CYGWIN_NT%,$(UNAME)))
 HOST_OS = POSIX
 
@@ -311,12 +312,12 @@ endif
 list:
 	@$(MAKE) -pRrq -f $(lastword $(MAKEFILE_LIST)) : 2>/dev/null | awk -v RS= -F: '/^# File/,/^# Finished Make data base/ {if ($$1 !~ "^[#.]") {print $$1}}' | sort | egrep -v -e '^[^[:alnum:]]' -e '^$@$$' | xargs
 
-.PHONY: shortest
-shortest: ZSTDRTTEST=  # remove long tests
-shortest: test-zstd
-
 .PHONY: check
-check: shortest
+check: ZSTDRTTEST=  # remove long tests
+check: test-zstd
+	@echo "\n******************************"
+	@echo "All tests completed successfully"
+	@echo "******************************"
 
 .PHONY: fuzztest
 fuzztest: test-fuzzer test-zstream test-decodecorpus
@@ -326,6 +327,9 @@ test: test-zstd test-cli-tests test-fullbench test-fuzzer test-zstream test-inva
 ifeq ($(QEMU_SYS),)
 test: test-pool
 endif
+	@echo "\n******************************"
+	@echo "All tests completed successfully"
+	@echo "******************************"
 
 .PHONY: test32
 test32: test-zstd32 test-fullbench32 test-fuzzer32 test-zstream32

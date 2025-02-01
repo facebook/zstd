@@ -136,9 +136,20 @@ typedef ZSTD_parameters zstd_parameters;
 zstd_parameters zstd_get_params(int level,
 	unsigned long long estimated_src_size);
 
-/* ======   Single-pass Compression   ====== */
-
 typedef ZSTD_CCtx zstd_cctx;
+typedef ZSTD_cParameter zstd_cparameter;
+
+/**
+ * zstd_cctx_set_param() - sets a compression parameter
+ * @cctx:         The context. Must have been initialized with zstd_init_cctx().
+ * @param:        The parameter to set.
+ * @value:        The value to set the parameter to.
+ *
+ * Return:        Zero or an error, which can be checked using zstd_is_error().
+ */
+size_t zstd_cctx_set_param(zstd_cctx *cctx, zstd_cparameter param, int value);
+
+/* ======   Single-pass Compression   ====== */
 
 /**
  * zstd_cctx_workspace_bound() - max memory needed to initialize a zstd_cctx
@@ -465,7 +476,7 @@ void zstd_register_sequence_producer(
  *
  * See zstd_lib.h.
  */
-typedef ZSTD_frameHeader zstd_frame_header;
+typedef ZSTD_FrameHeader zstd_frame_header;
 
 /**
  * zstd_get_frame_header() - extracts parameters from a zstd or skippable frame
@@ -479,5 +490,36 @@ typedef ZSTD_frameHeader zstd_frame_header;
  */
 size_t zstd_get_frame_header(zstd_frame_header *params, const void *src,
 	size_t src_size);
+
+/**
+ * struct zstd_sequence - a sequence of literals or a match
+ *
+ * @offset: The offset of the match
+ * @litLength: The literal length of the sequence
+ * @matchLength: The match length of the sequence
+ * @rep: Represents which repeat offset is used
+ */
+typedef ZSTD_Sequence zstd_sequence;
+
+/**
+ * zstd_compress_sequences_and_literals() - compress an array of zstd_sequence and literals
+ *
+ * @cctx: The zstd compression context.
+ * @dst: The buffer to compress the data into.
+ * @dst_capacity: The size of the destination buffer.
+ * @in_seqs: The array of zstd_sequence to compress.
+ * @in_seqs_size: The number of sequences in in_seqs.
+ * @literals: The literals associated to the sequences to be compressed.
+ * @lit_size: The size of the literals in the literals buffer.
+ * @lit_capacity: The size of the literals buffer.
+ * @decompressed_size: The size of the input data
+ *
+ * Return: The compressed size or an error, which can be checked using
+ * 	   zstd_is_error().
+ */
+size_t zstd_compress_sequences_and_literals(zstd_cctx *cctx, void* dst, size_t dst_capacity,
+					    const zstd_sequence *in_seqs, size_t in_seqs_size,
+					    const void* literals, size_t lit_size, size_t lit_capacity,
+					    size_t decompressed_size);
 
 #endif  /* LINUX_ZSTD_H */

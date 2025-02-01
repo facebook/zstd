@@ -149,6 +149,13 @@ The file structure is designed to make this selection manually achievable for an
   will expose the deprecated `ZSTDMT` API exposed by `zstdmt_compress.h` in
   the shared library, which is now hidden by default.
 
+- The build macro `STATIC_BMI2` can be set to 1 to force usage of `bmi2` instructions.
+  It is generally not necessary to set this build macro,
+  because `STATIC_BMI2` will be automatically set to 1
+  on detecting the presence of the corresponding instruction set in the compilation target.
+  It's nonetheless available as an optional manual toggle for better control,
+  and can also be used to forcefully disable `bmi2` instructions by setting it to 0.
+
 - The build macro `DYNAMIC_BMI2` can be set to 1 or 0 in order to generate binaries
   which can detect at runtime the presence of BMI2 instructions, and use them only if present.
   These instructions contribute to better performance, notably on the decoder side.

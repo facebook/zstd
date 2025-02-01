@@ -19,10 +19,10 @@ GOTO build
 :display_help
 
 echo Syntax: build.generic.cmd msbuild_version msbuild_platform msbuild_configuration msbuild_toolset
-echo   msbuild_version:          VS installed version (latest, VS2012, VS2013, VS2015, VS2017, VS2019, ...)
+echo   msbuild_version:          VS installed version (latest, VS2012, VS2013, VS2015, VS2017, VS2019, VS2022, ...)
 echo   msbuild_platform:         Platform (x64 or Win32)
 echo   msbuild_configuration:    VS configuration (Release or Debug)
-echo   msbuild_toolset:          Platform Toolset (v100, v110, v120, v140, v141, v142, ...)
+echo   msbuild_toolset:          Platform Toolset (v100, v110, v120, v140, v141, v142, v143, ...)
 
 EXIT /B 1
 
@@ -39,6 +39,7 @@ IF %msbuild_version% == VS2019 SET vswhere_params=-version [16,17) -products *
 IF %msbuild_version% == VS2022 SET vswhere_params=-version [17,18) -products *
 REM Add the next Visual Studio version here.
 IF %msbuild_version% == latest SET vswhere_params=-latest -products *
+IF %msbuild_version% == preview SET vswhere_params=-prerelease -products *
 
 IF NOT DEFINED vswhere_params GOTO skip_vswhere
 SET vswhere="%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"

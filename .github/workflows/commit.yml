@@ -3,7 +3,12 @@ on:
   push:
     branches:
     - dev
+  pull_request:
+    branches:
+    - dev
+
 permissions: read-all
+
 jobs:
   short-tests-0:
     runs-on: ubuntu-latest
@@ -25,8 +30,9 @@ jobs:
         make c99build; make clean
         make c11build; make clean
         make -j regressiontest; make clean
-        make shortest; make clean
+        make check; make clean
         make cxxtest; make clean
+
   short-tests-1:
     runs-on: ubuntu-latest
     services:
@@ -38,17 +44,26 @@ jobs:
     - name: Install Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install gcc-powerpc-linux-gnu gcc-arm-linux-gnueabi gcc-aarch64-linux-gnu libc6-dev-ppc64-powerpc-cross libcurl4-gnutls-dev lib64gcc-11-dev-powerpc-cross
-    - name: Test
-      run: |-
-        make gnu90build; make clean
-        make gnu99build; make clean
-        make ppc64build V=1; make clean
-        make ppcbuild   V=1; make clean
-        make armbuild   V=1; make clean
-        make aarch64build V=1; make clean
-        make -C tests test-legacy test-longmatch; make clean
-        make -C lib libzstd-nomt; make clean
+        sudo apt-get install gcc-powerpc-linux-gnu gcc-arm-linux-gnueabi gcc-aarch64-linux-gnu libc6-dev-ppc64-powerpc-cross libcurl4-gnutls-dev lib64gcc-13-dev-powerpc-cross
+    - name: gnu90 build
+      run: make gnu90build && make clean
+    - name: gnu99 build
+      run: make gnu99build && make clean
+    - name: ppc64 build
+      run: make ppc64build V=1 && make clean
+    - name: ppc build
+      run: make ppcbuild V=1 && make clean
+    - name: arm build
+      run: make armbuild V=1 && make clean
+    - name: aarch64 build
+      run: make aarch64build V=1 && make clean
+    - name: test-legacy
+      run: make -C tests test-legacy V=1 && make clean
+    - name: test-longmatch
+      run: make -C tests test-longmatch V=1 && make clean
+    - name: libzstd-nomt build
+      run: make -C lib libzstd-nomt V=1 && make clean
+
   regression-test:
     runs-on: ubuntu-latest
     services:

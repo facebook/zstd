@@ -10,7 +10,7 @@
 
 #include "result.h"
 
-char const* result_get_error_string(result_t result) {
+const char* result_get_error_string(result_t result) {
     switch (result_get_error(result)) {
         case result_error_ok:
             return "okay";
@@ -25,6 +25,6 @@ char const* result_get_error_string(result_t result) {
         case result_error_round_trip_error:
             return "round trip error";
         default:
-            return "unknown error - " + result_get_error(result);
+            return "unknown error";
     }
 }

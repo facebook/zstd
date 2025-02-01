@@ -89,7 +89,33 @@ jobs:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
     - name: cmake build and test
       run: |
+        sudo apt install liblzma-dev
         FUZZERTEST=-T1mn ZSTREAM_TESTTIME=-T1mn make cmakebuild V=1
+
+  cmake-source-directory-with-spaces:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            generator: "Unix Makefiles"
+          - os: windows-latest
+            generator: "NMake Makefiles"
+          - os: macos-latest
+            generator: "Unix Makefiles"
+    env:
+      SRC_DIR: "source directory with spaces"
+    steps:
+    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
+      with:
+        path: "${{ env.SRC_DIR }}"
+    - uses: ilammy/msvc-dev-cmd@v1
+      if: ${{ matrix.generator == 'NMake Makefiles' }}
+    - name: cmake build on a source directory with spaces
+      run: |
+        cmake -S "${{ env.SRC_DIR }}/build/cmake" -B build -DBUILD_TESTING=ON -G "${{ matrix.generator }}" -DCMAKE_BUILD_TYPE=Release --install-prefix "${{ runner.temp }}/install"
+        cmake --build build --config Release
+        cmake --install build --config Release
 
   cpp-gnu90-c99-compatibility:
     runs-on: ubuntu-latest
@@ -140,12 +166,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
-    - name: zlib wrapper test
+    - name: install valgrind
       run: |
         sudo apt-get -qqq update
-        make valgrindinstall
-        make -C zlibWrapper test
-        make -C zlibWrapper test-valgrind
+        make valgrindinstall V=1
+    - name: zlib wrapper test
+      run: make -C zlibWrapper test V=1
+    - name: zlib wrapper test under valgrind
+      run: make -C zlibWrapper test-valgrind V=1
 
   lz4-threadpool-libs:
     runs-on: ubuntu-latest
@@ -161,7 +189,17 @@ jobs:
         make clean
         bash tests/libzstd_builds.sh
 
-  gcc-make-tests-32bit:
+  gcc-make-all-avx2:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
+    - name: Make all, with AVX2
+      run: |
+        sudo apt-get -qqq update
+        make libc6install
+        CFLAGS="-Werror -mavx2" make -j all
+
+  gcc-make-all-32bit:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
@@ -170,6 +208,17 @@ jobs:
         sudo apt-get -qqq update
         make libc6install
         CFLAGS="-Werror -m32" make -j all32
+
+  gcc-make-all-32bit-avx2:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
+    - name: Make all, 32bit + AVX2 mode
+      run: |
+        sudo apt-get -qqq update
+        make libc6install
+        CPPFLAGS="-DSTATIC_BMI2=1" CFLAGS="-Werror -m32 -mavx2 -mbmi2" make -j all32
+
 
   gcc-8-make:
     runs-on: ubuntu-latest
@@ -199,7 +248,9 @@ jobs:
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
       - name: Build with ${{matrix.name}}
-        run: ${{matrix.flags}} make zstd
+        run: |
+          sudo apt install liblzma-dev
+          ${{matrix.flags}} make zstd
 
 
   implicit-fall-through:
@@ -220,7 +271,7 @@ jobs:
       - name: Install packages
         run: |
           sudo apt-get update
-          sudo apt-get -y install build-essential python3-pip ninja-build liblz4-dev
+          sudo apt-get -y install build-essential python3-pip ninja-build liblz4-dev liblzma-dev
           pip install --pre meson
       - name: Build with Meson
         run: |
@@ -232,10 +283,10 @@ jobs:
             -Dbin_tests=true \
             -Dbin_contrib=true \
             -Ddefault_library=both \
-            build/meson builddir
-          ninja -C builddir/
-          meson test -C builddir/ --print-errorlogs
-          meson install -C builddir --destdir staging/
+            build/meson mesonBuild
+          ninja -C mesonBuild/
+          meson test -C mesonBuild/ --print-errorlogs
+          meson install -C mesonBuild --destdir staging/
 
   meson-mingw-cross-compilation:
     runs-on: ubuntu-latest
@@ -499,7 +550,7 @@ jobs:
         shell: msys2 {0}
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
-    - uses: msys2/setup-msys2@ddf331adaebd714795f1042345e6ca57bd66cea8 # tag=v2.24.1
+    - uses: msys2/setup-msys2@d44ca8e88d8b43d56cf5670f91747359d5537f97 # tag=v2.26.0
       with:
         msystem: ${{ matrix.msystem }}
         install: make diffutils
@@ -556,7 +607,7 @@ jobs:
     steps:
     - run: git config --global core.autocrlf input
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
-    - uses: cygwin/cygwin-install-action@006ad0b0946ca6d0a3ea2d4437677fa767392401 # tag=master
+    - uses: cygwin/cygwin-install-action@f61179d72284ceddc397ed07ddb444d82bf9e559 # tag=v5
       with:
         platform: x86_64
         packages: >-
@@ -615,18 +666,6 @@ jobs:
       run: |
         make clangbuild
 
-  clang-pgo:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
-    - name: Build PGO Zstd with Clang
-      env:
-        CC: clang-14
-        LLVM_PROFDATA: llvm-profdata-14
-      run: |
-        make -C programs zstd-pgo
-        ./programs/zstd -b
-
   gcc-pgo:
     runs-on: ubuntu-latest
     steps:
@@ -635,6 +674,19 @@ jobs:
       env:
         CC: gcc
       run: |
+        make -C programs zstd-pgo
+        ./programs/zstd -b
+
+  clang-pgo:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # tag=v4.1.1
+    - name: Build PGO Zstd with Clang
+      env:
+        CC: clang
+      run: |
+        sudo apt install -y llvm
+        llvm-profdata --version
         make -C programs zstd-pgo
         ./programs/zstd -b
 

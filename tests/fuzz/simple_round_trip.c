@@ -34,7 +34,7 @@ static size_t getDecompressionMargin(void const* compressed, size_t cSize, size_
         /* The macro should be correct in this case, but it may be smaller
          * because of e.g. block splitting, so take the smaller of the two.
          */
-        ZSTD_frameHeader zfh;
+        ZSTD_FrameHeader zfh;
         size_t marginM;
         FUZZ_ZASSERT(ZSTD_getFrameHeader(&zfh, compressed, cSize));
         if (maxBlockSize == 0) {

@@ -7,11 +7,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fuzzer", "fuzzer\fuzzer.vcx
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fullbench", "fullbench\fullbench.vcxproj", "{61ABD629-1CC8-4FD7-9281-6B8DBB9D3DF8}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fullbench-dll", "fullbench-dll\fullbench-dll.vcxproj", "{00000000-1CC8-4FD7-9281-6B8DBB9D3DF8}"
-	ProjectSection(ProjectDependencies) = postProject
-		{00000000-94D5-4BF9-8A50-7BD9929A0850} = {00000000-94D5-4BF9-8A50-7BD9929A0850}
-	EndProjectSection
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "datagen", "datagen\datagen.vcxproj", "{037E781E-81A6-494B-B1B3-438AB1200523}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libzstd", "libzstd\libzstd.vcxproj", "{8BFD8150-94D5-4BF9-8A50-7BD9929A0850}"

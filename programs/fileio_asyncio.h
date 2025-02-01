@@ -22,10 +22,6 @@
 #ifndef ZSTD_FILEIO_ASYNCIO_H
 #define ZSTD_FILEIO_ASYNCIO_H
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
 #include "../lib/common/mem.h"     /* U32, U64 */
 #include "fileio_types.h"
 #include "platform.h"
@@ -195,9 +191,5 @@ FILE* AIO_ReadPool_getFile(const ReadPoolCtx_t *ctx);
 /* AIO_ReadPool_closeFile:
  * Closes the current set file. Waits for all current enqueued tasks to complete and resets state. */
 int AIO_ReadPool_closeFile(ReadPoolCtx_t *ctx);
-
-#if defined (__cplusplus)
-}
-#endif
 
 #endif /* ZSTD_FILEIO_ASYNCIO_H */

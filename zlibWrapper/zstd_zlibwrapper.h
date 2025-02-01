@@ -11,11 +11,6 @@
 #ifndef ZSTD_ZLIBWRAPPER_H
 #define ZSTD_ZLIBWRAPPER_H
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
-
 #define ZLIB_CONST
 #define Z_PREFIX
 #define ZLIB_INTERNAL   /* disables gz*64 functions but fixes zlib 1.2.4 with Z_PREFIX */
@@ -27,6 +22,11 @@ extern "C" {
 
 #if !defined(_Z_OF)
     #define _Z_OF OF
+#endif
+
+
+#if defined (__cplusplus)
+extern "C" {
 #endif
 
 /* returns a string with version of zstd library */

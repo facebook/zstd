@@ -14,10 +14,6 @@
   * and display progress result and final summary
   */
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
 #ifndef BENCH_ZSTD_H_3242387
 #define BENCH_ZSTD_H_3242387
 
@@ -25,7 +21,6 @@ extern "C" {
 #include <stddef.h>   /* size_t */
 #define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_compressionParameters */
 #include "../lib/zstd.h"     /* ZSTD_compressionParameters */
-
 
 /* ===  Constants  === */
 
@@ -109,7 +104,7 @@ typedef struct {
     int ldmHashLog;
     int ldmBucketSizeLog;
     int ldmHashRateLog;
-    ZSTD_paramSwitch_e literalCompressionMode;
+    ZSTD_ParamSwitch_e literalCompressionMode;
     int useRowMatchFinder;  /* use row-based matchfinder if possible */
 } BMK_advancedParams_t;
 
@@ -122,12 +117,13 @@ BMK_advancedParams_t BMK_initAdvancedParams(void);
 int BMK_benchFilesAdvanced(
                const char* const * fileNamesTable, unsigned nbFiles,
                const char* dictFileName,
-               int cLevel, const ZSTD_compressionParameters* compressionParams,
+               int startCLevel, int endCLevel,
+               const ZSTD_compressionParameters* compressionParams,
                int displayLevel, const BMK_advancedParams_t* adv);
 
 /*! BMK_syntheticTest() -- called from zstdcli */
-/*  Generates a sample with datagen, using compressibility argument */
-/* @cLevel - compression level to benchmark, errors if invalid
+/*  Generates a sample with datagen, using @compressibility argument
+ * @cLevel - compression level to benchmark, errors if invalid
  * @compressibility - determines compressibility of sample, range [0.0 - 1.0]
  *        if @compressibility < 0.0, uses the lorem ipsum generator
  * @compressionParams - basic compression Parameters
@@ -135,7 +131,8 @@ int BMK_benchFilesAdvanced(
  * @adv - see advanced_Params_t
  * @return: 0 on success, !0 on error
  */
-int BMK_syntheticTest(int cLevel, double compressibility,
+int BMK_syntheticTest(double compressibility,
+                      int startingCLevel, int endCLevel,
                       const ZSTD_compressionParameters* compressionParams,
                       int displayLevel, const BMK_advancedParams_t* adv);
 
@@ -192,7 +189,3 @@ BMK_benchOutcome_t BMK_benchMemAdvanced(const void* srcBuffer, size_t srcSize,
 
 
 #endif   /* BENCH_ZSTD_H_3242387 */
-
-#if defined (__cplusplus)
-}
-#endif

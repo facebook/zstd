@@ -53,7 +53,7 @@ typedef struct FIO_prefs_s {
     size_t targetCBlockSize;
     int srcSizeHint;
     int testMode;
-    ZSTD_paramSwitch_e literalCompressionMode;
+    ZSTD_ParamSwitch_e literalCompressionMode;
 
     /* IO preferences */
     int removeSrcFile;
@@ -69,7 +69,7 @@ typedef struct FIO_prefs_s {
     int contentSize;
     int allowBlockDevices;
     int passThrough;
-    ZSTD_paramSwitch_e mmapDict;
+    ZSTD_ParamSwitch_e mmapDict;
 } FIO_prefs_t;
 
 typedef enum {FIO_mallocDict, FIO_mmapDict} FIO_dictBufferType_t;

@@ -16,6 +16,7 @@
  */
 
 #define ZSTD_STATIC_LINKING_ONLY
+#include "zstd_errors.h"
 
 #include <stddef.h>
 #include <stdlib.h>
@@ -76,7 +77,7 @@ static char* generatePseudoRandomString(char* str, size_t size, FUZZ_dataProduce
 static size_t decodeSequences(void* dst, size_t nbSequences,
                               size_t literalsSize,
                               const void* dict, size_t dictSize,
-                              ZSTD_sequenceFormat_e mode)
+                              ZSTD_SequenceFormat_e mode)
 {
     const uint8_t* litPtr = literalsBuffer;
     const uint8_t* const litBegin = literalsBuffer;
@@ -141,7 +142,7 @@ static size_t decodeSequences(void* dst, size_t nbSequences,
  */
 static size_t generateRandomSequences(FUZZ_dataProducer_t* producer,
                                       size_t literalsSizeLimit, size_t dictSize,
-                                      size_t windowLog, ZSTD_sequenceFormat_e mode)
+                                      size_t windowLog, ZSTD_SequenceFormat_e mode)
 {
     const uint32_t repCode = 0;  /* not used by sequence ingestion api */
     size_t windowSize = 1ULL << windowLog;
@@ -155,7 +156,7 @@ static size_t generateRandomSequences(FUZZ_dataProducer_t* producer,
     if (mode == ZSTD_sf_explicitBlockDelimiters) {
         /* ensure that no sequence can be larger than one block */
         literalsSizeLimit = MIN(literalsSizeLimit, blockSizeMax/2);
-        matchLengthMax = MIN(matchLengthMax, blockSizeMax/2);
+        matchLengthMax = MIN(matchLengthMax, (uint32_t)blockSizeMax/2);
     }
 
     while ( nbSeqGenerated < ZSTD_FUZZ_MAX_NBSEQ - 3 /* extra room for explicit delimiters */
@@ -171,7 +172,7 @@ static size_t generateRandomSequences(FUZZ_dataProducer_t* producer,
         if (bytesGenerated > ZSTD_FUZZ_GENERATED_SRC_MAXSIZE) {
             break;
         }
-        offsetBound = (bytesGenerated > windowSize) ? windowSize : bytesGenerated + (uint32_t)dictSize;
+        offsetBound = (bytesGenerated > windowSize) ? (uint32_t)windowSize : bytesGenerated + (uint32_t)dictSize;
         offset = FUZZ_dataProducer_uint32Range(producer, 1, offsetBound);
         if (dictSize > 0 && bytesGenerated <= windowSize) {
             /* Prevent match length from being such that it would be associated with an offset too large
@@ -180,7 +181,7 @@ static size_t generateRandomSequences(FUZZ_dataProducer_t* producer,
              */
             const size_t bytesToReachWindowSize = windowSize - bytesGenerated;
             if (bytesToReachWindowSize < ZSTD_MINMATCH_MIN) {
-                const uint32_t newOffsetBound = offsetBound > windowSize ? windowSize : offsetBound;
+                const uint32_t newOffsetBound = offsetBound > windowSize ? (uint32_t)windowSize : offsetBound;
                 offset = FUZZ_dataProducer_uint32Range(producer, 1, newOffsetBound);
             } else {
                 matchBound = MIN(matchLengthMax, (uint32_t)bytesToReachWindowSize);
@@ -201,14 +202,14 @@ static size_t generateRandomSequences(FUZZ_dataProducer_t* producer,
                 if (blockSize + seqSize > blockSizeMax) {  /* reaching limit : must end block now */
                     const ZSTD_Sequence endBlock = {0, 0, 0, 0};
                     generatedSequences[nbSeqGenerated++] = endBlock;
-                    blockSize = seqSize;
+                    blockSize = (uint32_t)seqSize;
                 }
                 if (split) {
                     const ZSTD_Sequence endBlock = {0, lastLits, 0, 0};
                     generatedSequences[nbSeqGenerated++] = endBlock;
                     assert(lastLits <= seq.litLength);
                     seq.litLength -= lastLits;
-                    blockSize = seqSize - lastLits;
+                    blockSize = (uint32_t)(seqSize - lastLits);
                 } else {
                     blockSize += seqSize;
                 }
@@ -227,12 +228,73 @@ static size_t generateRandomSequences(FUZZ_dataProducer_t* producer,
     return nbSeqGenerated;
 }
 
+static size_t
+transferLiterals(void* dst, size_t dstCapacity, const ZSTD_Sequence* seqs, size_t nbSeqs, const void* src, size_t srcSize)
+{
+    size_t n;
+    char* op = dst;
+    char* const oend = op + dstCapacity;
+    const char* ip = src;
+    const char* const iend = ip + srcSize;
+    for (n=0; n<nbSeqs; n++) {
+        size_t litLen = seqs[n].litLength;
+        size_t mlen = seqs[n].matchLength;
+        assert(op + litLen < oend); (void)oend;
+        assert(ip + litLen + mlen <= iend); (void)iend;
+        memcpy(op, ip, litLen);
+        op += litLen;
+        ip += litLen + mlen;
+    }
+    assert(oend - op >= 8);
+    return (size_t)(op - (char*)dst);
+}
+
+static size_t roundTripTest_compressSequencesAndLiterals(
+                    void* result, size_t resultCapacity,
+                    void* compressed, size_t compressedCapacity,
+                    const void* src, size_t srcSize,
+                    const ZSTD_Sequence* seqs, size_t nbSeqs)
+{
+    size_t const litCapacity = srcSize + 8;
+    void* literals = malloc(litCapacity);
+    size_t cSize, litSize;
+
+    assert(literals);
+    litSize = transferLiterals(literals, litCapacity, seqs, nbSeqs, src, srcSize);
+
+    cSize = ZSTD_compressSequencesAndLiterals(cctx,
+                                compressed, compressedCapacity,
+                                   seqs, nbSeqs,
+                                   literals, litSize, litCapacity, srcSize);
+    free(literals);
+    if (ZSTD_getErrorCode(cSize) == ZSTD_error_cannotProduce_uncompressedBlock) {
+        /* Valid scenario : ZSTD_compressSequencesAndLiterals cannot generate uncompressed blocks */
+        return 0;
+    }
+    if (ZSTD_getErrorCode(cSize) == ZSTD_error_dstSize_tooSmall) {
+        /* Valid scenario : in explicit delimiter mode,
+         * it might be possible for the compressed size to outgrow dstCapacity.
+         * In which case, it's still a valid fuzzer scenario,
+         * but no roundtrip shall be possible */
+        return 0;
+    }
+
+    /* round-trip */
+    FUZZ_ZASSERT(cSize);
+    {   size_t const dSize = ZSTD_decompressDCtx(dctx, result, resultCapacity, compressed, cSize);
+        FUZZ_ZASSERT(dSize);
+        FUZZ_ASSERT_MSG(dSize == srcSize, "Incorrect regenerated size");
+        FUZZ_ASSERT_MSG(!FUZZ_memcmp(src, result, srcSize), "Corruption!");
+        return dSize;
+    }
+}
+
 static size_t roundTripTest(void* result, size_t resultCapacity,
                             void* compressed, size_t compressedCapacity,
                             const void* src, size_t srcSize,
-                            const ZSTD_Sequence* seqs, size_t seqSize,
+                            const ZSTD_Sequence* seqs, size_t nbSeqs,
                             unsigned hasDict,
-                            ZSTD_sequenceFormat_e mode)
+                            ZSTD_SequenceFormat_e mode)
 {
     size_t cSize;
     size_t dSize;
@@ -242,8 +304,17 @@ static size_t roundTripTest(void* result, size_t resultCapacity,
         FUZZ_ZASSERT(ZSTD_DCtx_refDDict(dctx, ddict));
     }
 
+    {   int blockMode, validation;
+        /* compressSequencesAndLiterals() only supports explicitBlockDelimiters and no validation */
+        FUZZ_ZASSERT(ZSTD_CCtx_getParameter(cctx, ZSTD_c_blockDelimiters, &blockMode));
+        FUZZ_ZASSERT(ZSTD_CCtx_getParameter(cctx, ZSTD_c_validateSequences, &validation));
+        if ((blockMode == ZSTD_sf_explicitBlockDelimiters) && (!validation)) {
+            FUZZ_ZASSERT(roundTripTest_compressSequencesAndLiterals(result, resultCapacity, compressed, compressedCapacity, src, srcSize, seqs, nbSeqs));
+        }
+    }
+
     cSize = ZSTD_compressSequences(cctx, compressed, compressedCapacity,
-                                   seqs, seqSize,
+                                   seqs, nbSeqs,
                                    src, srcSize);
     if ( (ZSTD_getErrorCode(cSize) == ZSTD_error_dstSize_tooSmall)
       && (mode == ZSTD_sf_explicitBlockDelimiters) ) {
@@ -276,7 +347,7 @@ int LLVMFuzzerTestOneInput(const uint8_t* src, size_t size)
     unsigned hasDict;
     unsigned wLog;
     int cLevel;
-    ZSTD_sequenceFormat_e mode;
+    ZSTD_SequenceFormat_e mode;
 
     FUZZ_dataProducer_t* const producer = FUZZ_dataProducer_create(src, size);
     FUZZ_ASSERT(producer);
@@ -293,15 +364,15 @@ int LLVMFuzzerTestOneInput(const uint8_t* src, size_t size)
     /* Generate window log first so we don't generate offsets too large */
     wLog = FUZZ_dataProducer_uint32Range(producer, ZSTD_WINDOWLOG_MIN, ZSTD_WINDOWLOG_MAX);
     cLevel = FUZZ_dataProducer_int32Range(producer, -3, 22);
-    mode = (ZSTD_sequenceFormat_e)FUZZ_dataProducer_int32Range(producer, 0, 1);
+    mode = (ZSTD_SequenceFormat_e)FUZZ_dataProducer_int32Range(producer, 0, 1);
 
     ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
     ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 0);
     ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, cLevel);
-    ZSTD_CCtx_setParameter(cctx, ZSTD_c_windowLog, wLog);
+    ZSTD_CCtx_setParameter(cctx, ZSTD_c_windowLog, (int)wLog);
     ZSTD_CCtx_setParameter(cctx, ZSTD_c_minMatch, ZSTD_MINMATCH_MIN);
     ZSTD_CCtx_setParameter(cctx, ZSTD_c_validateSequences, 1);
-    ZSTD_CCtx_setParameter(cctx, ZSTD_c_blockDelimiters, mode);
+    ZSTD_CCtx_setParameter(cctx, ZSTD_c_blockDelimiters, (int)mode);
     ZSTD_CCtx_setParameter(cctx, ZSTD_c_forceAttachDict, ZSTD_dictForceAttach);
 
     if (!literalsBuffer) {

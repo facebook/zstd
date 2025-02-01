@@ -182,7 +182,7 @@ BYTE CONTENT_BUFFER[MAX_DECOMPRESSED_SIZE];
 BYTE FRAME_BUFFER[MAX_DECOMPRESSED_SIZE * 2];
 BYTE LITERAL_BUFFER[ZSTD_BLOCKSIZE_MAX];
 
-seqDef SEQUENCE_BUFFER[MAX_NB_SEQ];
+SeqDef SEQUENCE_BUFFER[MAX_NB_SEQ];
 BYTE SEQUENCE_LITERAL_BUFFER[ZSTD_BLOCKSIZE_MAX]; /* storeSeq expects a place to copy literals to */
 BYTE SEQUENCE_LLCODE[ZSTD_BLOCKSIZE_MAX];
 BYTE SEQUENCE_MLCODE[ZSTD_BLOCKSIZE_MAX];
@@ -505,7 +505,7 @@ static size_t writeLiteralsBlockCompressed(U32* seed, frame_t* frame, size_t con
     size_t compressedSize = 0;
     size_t maxLitSize = MIN(contentSize-3, g_maxBlockSize);
 
-    symbolEncodingType_e hType;
+    SymbolEncodingType_e hType;
 
     if (contentSize < 64) {
         /* make sure we get reasonably-sized literals for compression */
@@ -657,7 +657,7 @@ static size_t writeLiteralsBlock(U32* seed, frame_t* frame, size_t contentSize)
     }
 }
 
-static inline void initSeqStore(seqStore_t *seqStore) {
+static inline void initSeqStore(SeqStore_t *seqStore) {
     seqStore->maxNbSeq = MAX_NB_SEQ;
     seqStore->maxNbLit = ZSTD_BLOCKSIZE_MAX;
     seqStore->sequencesStart = SEQUENCE_BUFFER;
@@ -671,7 +671,7 @@ static inline void initSeqStore(seqStore_t *seqStore) {
 
 /* Randomly generate sequence commands */
 static U32
-generateSequences(U32* seed, frame_t* frame, seqStore_t* seqStore,
+generateSequences(U32* seed, frame_t* frame, SeqStore_t* seqStore,
                   size_t contentSize, size_t literalsSize, dictInfo info)
 {
     /* The total length of all the matches */
@@ -832,7 +832,7 @@ static int isSymbolSubset(const BYTE* symbols, size_t len, const BYTE* set, BYTE
     return 1;
 }
 
-static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
+static size_t writeSequences(U32* seed, frame_t* frame, SeqStore_t* seqStorePtr,
                              size_t nbSeq)
 {
     /* This code is mostly copied from ZSTD_compressSequences in zstd_compress.c */
@@ -842,7 +842,7 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
     FSE_CTable* CTable_OffsetBits = frame->stats.offcodeCTable;
     FSE_CTable* CTable_MatchLength = frame->stats.matchlengthCTable;
     U32 LLtype, Offtype, MLtype;   /* compressed, raw or rle */
-    const seqDef* const sequences = seqStorePtr->sequencesStart;
+    const SeqDef* const sequences = seqStorePtr->sequencesStart;
     const BYTE* const ofCodeTable = seqStorePtr->ofCode;
     const BYTE* const llCodeTable = seqStorePtr->llCode;
     const BYTE* const mlCodeTable = seqStorePtr->mlCode;
@@ -1028,7 +1028,7 @@ static size_t writeSequences(U32* seed, frame_t* frame, seqStore_t* seqStorePtr,
 static size_t writeSequencesBlock(U32* seed, frame_t* frame, size_t contentSize,
                                   size_t literalsSize, dictInfo info)
 {
-    seqStore_t seqStore;
+    SeqStore_t seqStore;
     size_t numSequences;
 
 

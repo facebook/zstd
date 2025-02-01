@@ -1,51 +1,24 @@
 name: facebook/zstd/nightly
 on:
   schedule:
-  - cron: 0 0 * * *
+    - cron: '0 0 * * *'
   push:
     branches:
-    - release
-    - dev
-    - master
+      - release
+      - dev
+      - '*nightly*'
 permissions: read-all
 jobs:
   regression-test:
     runs-on: ubuntu-latest
-    services:
-      docker:
-        image: fbopensource/zstd-circleci-primary:0.0.1
-        options: --entrypoint /bin/bash
-    env:
-      CIRCLE_ARTIFACTS: "/tmp/circleci-artifacts"
     steps:
     - uses: actions/checkout@v4
-    - uses: actions/cache@v4
-      with:
-        key: regression-cache-{{ checksum "tests/regression/data.c" }}-v0
-        path: tests/regression/cache
-        restore-keys: regression-cache-{{ checksum "tests/regression/data.c" }}-v0
-    - uses: actions/upload-artifact@v4
-      with:
-        path: "/tmp/circleci-artifacts"
-    - name: Install Dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install libcurl4-gnutls-dev
+    - name: Install dependencies
+      run: sudo apt-get update && sudo apt-get install -y libcurl4-openssl-dev
     - name: Regression Test
       run: |
         make -C programs zstd
         make -C tests/regression test
-        mkdir -p $CIRCLE_ARTIFACTS
-        ./tests/regression/test                     \
-            --cache  tests/regression/cache         \
-            --output $CIRCLE_ARTIFACTS/results.csv  \
-            --zstd   programs/zstd
-        echo "NOTE: The new results.csv is uploaded as an artifact to this job"
-        echo "      If this fails, go to the Artifacts pane in CircleCI, "
-        echo "      download /tmp/circleci-artifacts/results.csv, and if they "
-        echo "      are still good, copy it into the repo and commit it."
-        echo "> diff tests/regression/results.csv $CIRCLE_ARTIFACTS/results.csv"
-        diff tests/regression/results.csv $CIRCLE_ARTIFACTS/results.csv
 
 # Longer tests
   #- make -C tests test-zstd-nolegacy && make clean

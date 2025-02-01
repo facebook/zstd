@@ -340,7 +340,7 @@ void test_large_deflate(Byte *compr, uLong comprLen, Byte *uncompr,
 
 /* ===========================================================================
  * Test inflate() with large buffers
- */ 
+ */
 void test_large_inflate(Byte *compr, uLong comprLen, Byte *uncompr,
                         uLong uncomprLen) {
     int err;
@@ -442,8 +442,8 @@ void test_sync(Byte *compr, uLong comprLen, Byte *uncompr, uLong uncomprLen) {
     CHECK_ERR(err, "inflateSync");
 
     err = inflate(&d_stream, Z_FINISH);
-    if (err != Z_DATA_ERROR) {
-        fprintf(stderr, "inflate should report DATA_ERROR\n");
+    if (err != Z_STREAM_END) {
+        fprintf(stderr, "inflate reported %i != %i (Z_STREAM_END)\n", err, Z_STREAM_END);
         /* Because of incorrect adler32 */
         exit(1);
     }

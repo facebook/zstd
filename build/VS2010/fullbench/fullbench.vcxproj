@@ -170,6 +170,7 @@
     <ClCompile Include="..\..\..\lib\compress\zstd_compress_literals.c" />
     <ClCompile Include="..\..\..\lib\compress\zstd_compress_sequences.c" />
     <ClCompile Include="..\..\..\lib\compress\zstd_compress_superblock.c" />
+    <ClCompile Include="..\..\..\lib\compress\zstd_preSplit.c" />
     <ClCompile Include="..\..\..\lib\compress\zstdmt_compress.c" />
     <ClCompile Include="..\..\..\lib\compress\zstd_fast.c" />
     <ClCompile Include="..\..\..\lib\compress\zstd_double_fast.c" />
@@ -183,6 +184,7 @@
     <ClCompile Include="..\..\..\programs\util.c" />
     <ClCompile Include="..\..\..\programs\timefn.c" />
     <ClCompile Include="..\..\..\programs\datagen.c" />
+    <ClCompile Include="..\..\..\programs\lorem.c" />
     <ClCompile Include="..\..\..\programs\benchfn.c" />
     <ClCompile Include="..\..\..\tests\fullbench.c" />
   </ItemGroup>

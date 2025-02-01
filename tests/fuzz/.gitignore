@@ -23,6 +23,8 @@ fuzz-*.log
 rt_lib_*
 d_lib_*
 crash-*
+decompress_cross_format
+generate_sequences
 
 # misc
 trace

@@ -77,7 +77,10 @@
 /* ************************************************************
 * Avoid fseek()'s 2GiB barrier with MSVC, macOS, *BSD, MinGW
 ***************************************************************/
-#if defined(_MSC_VER) && _MSC_VER >= 1400
+#if defined(LIBC_NO_FSEEKO)
+/* Some older libc implementations don't include these functions (e.g. Bionic < 24) */
+#   define LONG_SEEK fseek
+#elif defined(_MSC_VER) && _MSC_VER >= 1400
 #   define LONG_SEEK _fseeki64
 #elif !defined(__64BIT__) && (PLATFORM_POSIX_VERSION >= 200112L) /* No point defining Large file for 64 bit */
 #   define LONG_SEEK fseeko
@@ -252,6 +255,8 @@ size_t ZSTD_seekable_free(ZSTD_seekable* zs)
 
 ZSTD_seekTable* ZSTD_seekTable_create_fromSeekable(const ZSTD_seekable* zs)
 {
+    assert(zs != NULL);
+    if (zs->seekTable.entries == NULL) return NULL;
     ZSTD_seekTable* const st = (ZSTD_seekTable*)malloc(sizeof(ZSTD_seekTable));
     if (st==NULL) return NULL;
 

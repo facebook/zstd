@@ -232,7 +232,7 @@ zstd-dll : zstd
 .PHONY: zstd-pgo
 zstd-pgo : LLVM_PROFDATA?=llvm-profdata
 zstd-pgo : PROF_GENERATE_FLAGS=-fprofile-generate $(if $(findstring gcc,$(CC)),-fprofile-dir=.)
-zstd-pgo : PROF_USE_FLAGS=-fprofile-use $(if $(findstring gcc,$(CC)),-fprofile-dir=. -Werror=missing-profile -Wno-error=coverage-mismatch)
+zstd-pgo : PROF_USE_FLAGS=-fprofile-use $(if $(findstring gcc,$(CC)),-fprofile-dir=. -Wno-error=missing-profile -Wno-error=coverage-mismatch)
 zstd-pgo :
 	$(MAKE) clean HASH_DIR=$(HASH_DIR)
 	$(MAKE) zstd HASH_DIR=$(HASH_DIR) MOREFLAGS="$(MOREFLAGS) $(PROF_GENERATE_FLAGS)"
@@ -404,7 +404,7 @@ datarootdir ?= $(PREFIX)/share
 mandir      ?= $(datarootdir)/man
 man1dir     ?= $(mandir)/man1
 
-ifneq (,$(filter OpenBSD FreeBSD NetBSD DragonFly SunOS,$(UNAME)))
+ifneq (,$(filter OpenBSD NetBSD DragonFly SunOS,$(UNAME)))
   MANDIR  ?= $(PREFIX)/man
   MAN1DIR ?= $(MANDIR)/man1
 else

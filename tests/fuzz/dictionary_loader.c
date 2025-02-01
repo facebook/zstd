@@ -77,9 +77,9 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
             FUZZ_dataProducer_uint32Range(producer, 0, 2);
     size = FUZZ_dataProducer_remainingBytes(producer);
 
-    DEBUGLOG(2, "Dict load method %d", dlm);
-    DEBUGLOG(2, "Dict content type %d", dct);
-    DEBUGLOG(2, "Dict size %u", (unsigned)size);
+    DEBUGLOG(4, "Dict load method %d", dlm);
+    DEBUGLOG(4, "Dict content type %d", dct);
+    DEBUGLOG(4, "Dict size %u", (unsigned)size);
 
     void* const rBuf = FUZZ_malloc(size);
     size_t const cBufSize = ZSTD_compressBound(size);

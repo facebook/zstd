@@ -552,9 +552,9 @@ typedef struct {
     U32  cachedLitLength;
     const BYTE* cachedLiterals;
     ZSTDv06_stats_t stats;
-} seqStore_t;
+} SeqStore_t;
 
-void ZSTDv06_seqToCodes(const seqStore_t* seqStorePtr, size_t const nbSeq);
+void ZSTDv06_seqToCodes(const SeqStore_t* seqStorePtr, size_t const nbSeq);
 
 
 #endif   /* ZSTDv06_CCOMMON_H_MODULE */

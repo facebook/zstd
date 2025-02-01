@@ -11,10 +11,6 @@
 #ifndef ZSTD_FILEIO_COMMON_H
 #define ZSTD_FILEIO_COMMON_H
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
 #include "../lib/common/mem.h"     /* U32, U64 */
 #include "fileio_types.h"
 #include "platform.h"
@@ -28,11 +24,14 @@ extern "C" {
 #define GB *(1U<<30)
 #undef MAX
 #define MAX(a,b) ((a)>(b) ? (a) : (b))
+#undef MIN  /* in case it would be already defined */
+#define MIN(a,b)    ((a) < (b) ? (a) : (b))
 
 extern FIO_display_prefs_t g_display_prefs;
 
-#define DISPLAY(...)         fprintf(stderr, __VA_ARGS__)
-#define DISPLAYOUT(...)      fprintf(stdout, __VA_ARGS__)
+#define DISPLAY_F(f, ...)    fprintf((f), __VA_ARGS__)
+#define DISPLAYOUT(...)      DISPLAY_F(stdout, __VA_ARGS__)
+#define DISPLAY(...)         DISPLAY_F(stderr, __VA_ARGS__)
 #define DISPLAYLEVEL(l, ...) { if (g_display_prefs.displayLevel>=l) { DISPLAY(__VA_ARGS__); } }
 
 extern UTIL_time_t g_displayClock;
@@ -56,10 +55,6 @@ extern UTIL_time_t g_displayClock;
 #define DISPLAYUPDATE_PROGRESS(...) { if (SHOULD_DISPLAY_PROGRESS()) { DISPLAYUPDATE(1, __VA_ARGS__); }}
 #define DISPLAY_SUMMARY(...) { if (SHOULD_DISPLAY_SUMMARY()) { DISPLAYLEVEL(1, __VA_ARGS__); } }
 
-#undef MIN  /* in case it would be already defined */
-#define MIN(a,b)    ((a) < (b) ? (a) : (b))
-
-
 #define EXM_THROW(error, ...)                                             \
 {                                                                         \
     DISPLAYLEVEL(1, "zstd: ");                                            \
@@ -80,12 +75,16 @@ extern UTIL_time_t g_displayClock;
 
 
 /* Avoid fseek()'s 2GiB barrier with MSVC, macOS, *BSD, MinGW */
-#if defined(_MSC_VER) && _MSC_VER >= 1400
+#if defined(LIBC_NO_FSEEKO)
+/* Some older libc implementations don't include these functions (e.g. Bionic < 24) */
+#   define LONG_SEEK fseek
+#   define LONG_TELL ftell
+#elif defined(_MSC_VER) && _MSC_VER >= 1400
 #   define LONG_SEEK _fseeki64
 #   define LONG_TELL _ftelli64
 #elif !defined(__64BIT__) && (PLATFORM_POSIX_VERSION >= 200112L) /* No point defining Large file for 64 bit */
-#  define LONG_SEEK fseeko
-#  define LONG_TELL ftello
+#   define LONG_SEEK fseeko
+#   define LONG_TELL ftello
 #elif defined(__MINGW32__) && !defined(__STRICT_ANSI__) && !defined(__NO_MINGW_LFS) && defined(__MSVCRT__)
 #   define LONG_SEEK fseeko64
 #   define LONG_TELL ftello64
@@ -119,7 +118,4 @@ extern UTIL_time_t g_displayClock;
 #   define LONG_TELL ftell
 #endif
 
-#if defined (__cplusplus)
-}
-#endif
 #endif /* ZSTD_FILEIO_COMMON_H */

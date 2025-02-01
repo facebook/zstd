@@ -1,12 +1,12 @@
 #ifndef SEEKABLE_H
 #define SEEKABLE_H
 
+#include <stdio.h>
+#include "zstd.h"   /* ZSTDLIB_API */
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
-
-#include <stdio.h>
-#include "zstd.h"   /* ZSTDLIB_API */
 
 
 #define ZSTD_seekTableFooterSize 9

@@ -12,6 +12,8 @@
 *.so
 *.so.*
 *.dylib
+*.framework
+*.xcframework
 
 # Executables
 /zstd

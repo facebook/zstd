@@ -11,10 +11,6 @@
 #ifndef MEM_H_MODULE
 #define MEM_H_MODULE
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
 /*-****************************************
 *  Dependencies
 ******************************************/
@@ -75,7 +71,6 @@ extern "C" {
   typedef unsigned long long  U64;
   typedef   signed long long  S64;
 #endif
-
 
 /*-**************************************************************
 *  Memory I/O API
@@ -152,7 +147,7 @@ MEM_STATIC unsigned MEM_isLittleEndian(void)
     return 1;
 #elif defined(__clang__) && __BIG_ENDIAN__
     return 0;
-#elif defined(_MSC_VER) && (_M_AMD64 || _M_IX86)
+#elif defined(_MSC_VER) && (_M_X64 || _M_IX86)
     return 1;
 #elif defined(__DMC__) && defined(_M_IX86)
     return 1;
@@ -423,10 +418,5 @@ MEM_STATIC void MEM_writeBEST(void* memPtr, size_t val)
 
 /* code only tested on 32 and 64 bits systems */
 MEM_STATIC void MEM_check(void) { DEBUG_STATIC_ASSERT((sizeof(size_t)==4) || (sizeof(size_t)==8)); }
-
-
-#if defined (__cplusplus)
-}
-#endif
 
 #endif /* MEM_H_MODULE */

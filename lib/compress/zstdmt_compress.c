@@ -290,15 +290,15 @@ static size_t ZSTDMT_sizeof_seqPool(ZSTDMT_seqPool* seqPool)
     return ZSTDMT_sizeof_bufferPool(seqPool);
 }
 
-static rawSeqStore_t bufferToSeq(buffer_t buffer)
+static RawSeqStore_t bufferToSeq(buffer_t buffer)
 {
-    rawSeqStore_t seq = kNullRawSeqStore;
+    RawSeqStore_t seq = kNullRawSeqStore;
     seq.seq = (rawSeq*)buffer.start;
     seq.capacity = buffer.capacity / sizeof(rawSeq);
     return seq;
 }
 
-static buffer_t seqToBuffer(rawSeqStore_t seq)
+static buffer_t seqToBuffer(RawSeqStore_t seq)
 {
     buffer_t buffer;
     buffer.start = seq.seq;
@@ -306,7 +306,7 @@ static buffer_t seqToBuffer(rawSeqStore_t seq)
     return buffer;
 }
 
-static rawSeqStore_t ZSTDMT_getSeq(ZSTDMT_seqPool* seqPool)
+static RawSeqStore_t ZSTDMT_getSeq(ZSTDMT_seqPool* seqPool)
 {
     if (seqPool->bufferSize == 0) {
         return kNullRawSeqStore;
@@ -315,13 +315,13 @@ static rawSeqStore_t ZSTDMT_getSeq(ZSTDMT_seqPool* seqPool)
 }
 
 #if ZSTD_RESIZE_SEQPOOL
-static rawSeqStore_t ZSTDMT_resizeSeq(ZSTDMT_seqPool* seqPool, rawSeqStore_t seq)
+static RawSeqStore_t ZSTDMT_resizeSeq(ZSTDMT_seqPool* seqPool, RawSeqStore_t seq)
 {
   return bufferToSeq(ZSTDMT_resizeBuffer(seqPool, seqToBuffer(seq)));
 }
 #endif
 
-static void ZSTDMT_releaseSeq(ZSTDMT_seqPool* seqPool, rawSeqStore_t seq)
+static void ZSTDMT_releaseSeq(ZSTDMT_seqPool* seqPool, RawSeqStore_t seq)
 {
   ZSTDMT_releaseBuffer(seqPool, seqToBuffer(seq));
 }
@@ -578,7 +578,7 @@ static void ZSTDMT_serialState_free(serialState_t* serialState)
 }
 
 static void ZSTDMT_serialState_update(serialState_t* serialState,
-                                      ZSTD_CCtx* jobCCtx, rawSeqStore_t seqStore,
+                                      ZSTD_CCtx* jobCCtx, RawSeqStore_t seqStore,
                                       range_t src, unsigned jobID)
 {
     /* Wait for our turn */
@@ -685,7 +685,7 @@ static void ZSTDMT_compressionJob(void* jobDescription)
     ZSTDMT_jobDescription* const job = (ZSTDMT_jobDescription*)jobDescription;
     ZSTD_CCtx_params jobParams = job->params;   /* do not modify job->params ! copy it, modify the copy */
     ZSTD_CCtx* const cctx = ZSTDMT_getCCtx(job->cctxPool);
-    rawSeqStore_t rawSeqStore = ZSTDMT_getSeq(job->seqPool);
+    RawSeqStore_t rawSeqStore = ZSTDMT_getSeq(job->seqPool);
     buffer_t dstBuff = job->dstBuff;
     size_t lastCBlockSize = 0;
 

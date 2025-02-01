@@ -1,11 +1,10 @@
 include(CheckCXXCompilerFlag)
 include(CheckCCompilerFlag)
-# VERSION_GREATER_EQUAL requires CMake 3.7 or later.
-# https://cmake.org/cmake/help/latest/command/if.html#version-greater-equal
-if (CMAKE_VERSION VERSION_LESS 3.18)
-    set(ZSTD_HAVE_CHECK_LINKER_FLAG false)
-else ()
+
+if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.18)
     set(ZSTD_HAVE_CHECK_LINKER_FLAG true)
+else ()
+    set(ZSTD_HAVE_CHECK_LINKER_FLAG false)
 endif ()
 if (ZSTD_HAVE_CHECK_LINKER_FLAG)
     include(CheckLinkerFlag)
@@ -51,6 +50,10 @@ function(EnableCompilerFlag _flag _C _CXX _LD)
 endfunction()
 
 macro(ADD_ZSTD_COMPILATION_FLAGS)
+    # We set ZSTD_HAS_NOEXECSTACK if we are certain we've set all the required
+    # compiler flags to mark the stack as non-executable.
+    set(ZSTD_HAS_NOEXECSTACK false)
+
     if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" OR MINGW) #Not only UNIX but also WIN32 for MinGW
         # It's possible to select the exact standard used for compilation.
         # It's not necessary, but can be employed for specific purposes.
@@ -76,10 +79,22 @@ macro(ADD_ZSTD_COMPILATION_FLAGS)
         endif ()
         # Add noexecstack flags
         # LDFLAGS
-        EnableCompilerFlag("-z noexecstack" false false true)
+        EnableCompilerFlag("-Wl,-z,noexecstack" false false true)
         # CFLAGS & CXXFLAGS
         EnableCompilerFlag("-Qunused-arguments" true true false)
         EnableCompilerFlag("-Wa,--noexecstack" true true false)
+        # NOTE: Using 3 nested ifs because the variables are sometimes
+        # empty if the condition is false, and sometimes equal to false.
+        # This implicitly converts them to truthy values. There may be
+        # a better way to do this, but this reliably works.
+        if (${LD_FLAG_WL_Z_NOEXECSTACK})
+            if (${C_FLAG_WA_NOEXECSTACK})
+                if (${CXX_FLAG_WA_NOEXECSTACK})
+                    # We've succeeded in marking the stack as non-executable
+                    set(ZSTD_HAS_NOEXECSTACK true)
+                endif()
+            endif()
+        endif()
     elseif (MSVC) # Add specific compilation flags for Windows Visual
 
         set(ACTIVATE_MULTITHREADED_COMPILATION "ON" CACHE BOOL "activate multi-threaded compilation (/MP flag)")

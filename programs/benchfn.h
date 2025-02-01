@@ -15,16 +15,11 @@
  * or detecting and returning an error
  */
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
 #ifndef BENCH_FN_H_23876
 #define BENCH_FN_H_23876
 
 /* ===  Dependencies  === */
 #include <stddef.h>   /* size_t */
-
 
 /* ====  Benchmark any function, iterated on a set of blocks  ==== */
 
@@ -175,9 +170,4 @@ typedef union {
 } BMK_timedFnState_shell;
 BMK_timedFnState_t* BMK_initStatic_timedFnState(void* buffer, size_t size, unsigned total_ms, unsigned run_ms);
 
-
 #endif   /* BENCH_FN_H_23876 */
-
-#if defined (__cplusplus)
-}
-#endif

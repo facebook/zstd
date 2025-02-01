@@ -60,7 +60,7 @@ Our contribution process works in three main stages:
         * Note: run local tests to ensure that your changes didn't break existing functionality
             * Quick check
             ```
-            make shortest
+            make check
             ```
             * Longer check
             ```

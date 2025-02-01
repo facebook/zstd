@@ -6,9 +6,7 @@
  * LICENSE file in the root directory of this source tree) and the GPLv2 (found
  * in the COPYING file in the root directory of this source tree).
  */
-extern "C" {
 #include "datagen.h"
-}
 #include "Options.h"
 #include "test/RoundTrip.h"
 #include "utils/ScopeGuard.h"

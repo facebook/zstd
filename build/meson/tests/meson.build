@@ -93,7 +93,7 @@ roundTripCrash = executable('roundTripCrash',
 longmatch_sources = [join_paths(zstd_rootdir, 'tests/longmatch.c')]
 longmatch = executable('longmatch',
   longmatch_sources,
-  dependencies: [ libzstd_dep ],
+  dependencies: [ libzstd_internal_dep ],
   install: false)
 
 invalidDictionaries_sources = [join_paths(zstd_rootdir, 'tests/invalidDictionaries.c')]

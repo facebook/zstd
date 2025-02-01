@@ -20,6 +20,6 @@ pzstd = executable('pzstd',
   pzstd_sources,
   cpp_args: pzstd_warning_flags,
   include_directories: pzstd_includes,
-  dependencies: [ libzstd_dep, thread_dep ],
+  dependencies: [ libzstd_internal_dep, thread_dep ],
   override_options: ['b_ndebug=true'],
   install: true)

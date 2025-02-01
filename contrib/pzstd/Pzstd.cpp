@@ -269,7 +269,10 @@ static void compress(
     std::shared_ptr<BufferWorkQueue> out,
     size_t maxInputSize) {
   auto& errorHolder = state.errorHolder;
-  auto guard = makeScopeGuard([&] { out->finish(); });
+  auto guard = makeScopeGuard([&] {
+    in->finish();
+    out->finish();
+  });
   // Initialize the CCtx
   auto ctx = state.cStreamPool->get();
   if (!errorHolder.check(ctx != nullptr, "Failed to allocate ZSTD_CStream")) {
@@ -431,7 +434,10 @@ static void decompress(
     std::shared_ptr<BufferWorkQueue> in,
     std::shared_ptr<BufferWorkQueue> out) {
   auto& errorHolder = state.errorHolder;
-  auto guard = makeScopeGuard([&] { out->finish(); });
+  auto guard = makeScopeGuard([&] {
+    in->finish();
+    out->finish();
+  });
   // Initialize the DCtx
   auto ctx = state.dStreamPool->get();
   if (!errorHolder.check(ctx != nullptr, "Failed to allocate ZSTD_DStream")) {
@@ -578,6 +584,7 @@ std::uint64_t writeFile(
     FILE* outputFd,
     bool decompress) {
   auto& errorHolder = state.errorHolder;
+  auto outsFinishGuard = makeScopeGuard([&outs] { outs.finish(); });
   auto lineClearGuard = makeScopeGuard([&state] {
     state.log.clear(kLogInfo);
   });
@@ -585,6 +592,7 @@ std::uint64_t writeFile(
   std::shared_ptr<BufferWorkQueue> out;
   // Grab the output queue for each decompression job (in order).
   while (outs.pop(out)) {
+    auto outFinishGuard = makeScopeGuard([&out] { out->finish(); });
     if (errorHolder.hasError()) {
       continue;
     }

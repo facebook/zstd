@@ -115,13 +115,14 @@ class WorkQueue {
   }
 
   /**
-   * Promise that `push()` won't be called again, so once the queue is empty
-   * there will never any more work.
+   * Promise that either the reader side or the writer side is done.
+   * If the writer is done, `push()` won't be called again, so once the queue
+   * is empty there will never be any more work. If the reader is done, `pop()`
+   * won't be called again, so further items pushed will just be ignored.
    */
   void finish() {
     {
       std::lock_guard<std::mutex> lock(mutex_);
-      assert(!done_);
       done_ = true;
     }
     readerCv_.notify_all();

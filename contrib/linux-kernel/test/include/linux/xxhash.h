@@ -296,7 +296,7 @@ XXH_API void xxh64_copy_state(struct xxh64_state *dst, const struct xxh64_state 
  * - xxHash source repository: https://github.com/Cyan4973/xxHash
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/module.h>

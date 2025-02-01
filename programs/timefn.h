@@ -11,12 +11,6 @@
 #ifndef TIME_FN_H_MODULE_287987
 #define TIME_FN_H_MODULE_287987
 
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
-
-
 /*-****************************************
 *  Types
 ******************************************/
@@ -61,10 +55,5 @@ PTime UTIL_getSpanTimeMicro(UTIL_time_t clockStart, UTIL_time_t clockEnd);
 PTime UTIL_clockSpanMicro(UTIL_time_t clockStart);
 
 #define SEC_TO_MICRO ((PTime)1000000)  /* nb of microseconds in a second */
-
-
-#if defined (__cplusplus)
-}
-#endif
 
 #endif /* TIME_FN_H_MODULE_287987 */

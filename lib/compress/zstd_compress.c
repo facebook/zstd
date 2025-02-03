@@ -1709,7 +1709,8 @@ static void ZSTD_overrideCParams(
         const ZSTD_CParams* overrides)
 {
     if (overrides->windowLog)    cParams->windowLog    = overrides->windowLog;
-    if (overrides->windowFrac)   cParams->windowFrac   = overrides->windowFrac;
+    /* An explicit windowFrac only applies if windowLog is set explicitly. */
+    if (overrides->windowLog)    cParams->windowFrac   = overrides->windowFrac;
     if (overrides->hashLog)      cParams->hashLog      = overrides->hashLog;
     if (overrides->chainLog)     cParams->chainLog     = overrides->chainLog;
     if (overrides->searchLog)    cParams->searchLog    = overrides->searchLog;

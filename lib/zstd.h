@@ -2366,7 +2366,10 @@ ZSTDLIB_STATIC_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const vo
  * and WF is the windowFrac.
  *
  * The valid range of values for this parameter is 0 to 7. The default value
- * is 0.
+ * is 0. The value configured only takes effect if the windowLog has also
+ * explicitly been set. The windowFrac is ignored when the windowLog is
+ * ZSTD_WINDOWLOG_MAX (you can't select a window size larger than
+ * `2 ^ ZSTD_WINDOWLOG_MAX`).
  */
 #define ZSTD_c_windowFrac ZSTD_c_experimentalParam21
 

@@ -1402,6 +1402,9 @@ size_t ZSTD_checkCParams_internal(ZSTD_CParams cParams)
 {
     BOUNDCHECK(ZSTD_c_windowLog,    (int)cParams.windowLog);
     BOUNDCHECK(ZSTD_c_windowFrac,   (int)cParams.windowFrac);
+    RETURN_ERROR_IF(
+            cParams.windowLog + !!cParams.windowFrac > ZSTD_WINDOWLOG_MAX,
+            parameter_outOfBound, "Param out of bounds");
     BOUNDCHECK(ZSTD_c_chainLog,     (int)cParams.chainLog);
     BOUNDCHECK(ZSTD_c_hashLog,      (int)cParams.hashLog);
     BOUNDCHECK(ZSTD_c_searchLog,    (int)cParams.searchLog);
@@ -1433,6 +1436,9 @@ ZSTD_clampCParams(ZSTD_CParams cParams)
         } while (0)
 #   define CLAMP(cParam, val) CLAMP_TYPE(cParam, val, unsigned)
     CLAMP(ZSTD_c_windowLog,     cParams.windowLog);
+    if (ZSTD_c_windowLog == ZSTD_WINDOWLOG_MAX) {
+        cParams.windowFrac = 0;
+    }
     CLAMP(ZSTD_c_windowFrac,    cParams.windowFrac);
     CLAMP(ZSTD_c_chainLog,      cParams.chainLog);
     CLAMP(ZSTD_c_hashLog,       cParams.hashLog);

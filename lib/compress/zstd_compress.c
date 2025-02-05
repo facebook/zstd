@@ -801,11 +801,18 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
         if (value!=0)   /* 0 => use default */
             BOUNDCHECK(ZSTD_c_windowLog, value);
         CCtxParams->cParams.windowLog = (U32)value;
+        if (value == ZSTD_WINDOWLOG_MAX) {
+            CCtxParams->cParams.windowFrac = 0;
+        }
         return CCtxParams->cParams.windowLog;
 
     case ZSTD_c_windowFrac :
         BOUNDCHECK(ZSTD_c_windowFrac, value);
-        CCtxParams->cParams.windowFrac = (U32)value;
+        if (CCtxParams->cParams.windowLog != ZSTD_WINDOWLOG_MAX) {
+            CCtxParams->cParams.windowFrac = (U32)value;
+        } else {
+            CCtxParams->cParams.windowFrac = 0;
+        }
         return CCtxParams->cParams.windowFrac;
 
     case ZSTD_c_hashLog :

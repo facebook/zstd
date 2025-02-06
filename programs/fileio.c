@@ -308,6 +308,7 @@ FIO_prefs_t* FIO_createPreferences(void)
     ret->allowBlockDevices = 0;
     ret->asyncIO = AIO_supported();
     ret->passThrough = -1;
+    ret->windowFrac = 0;
     return ret;
 }
 
@@ -425,6 +426,10 @@ void FIO_setLiteralCompressionMode(
         FIO_prefs_t* const prefs,
         ZSTD_ParamSwitch_e mode) {
     prefs->literalCompressionMode = mode;
+}
+
+void FIO_setWindowFrac(FIO_prefs_t* const prefs, int windowFrac) {
+    prefs->windowFrac = windowFrac;
 }
 
 void FIO_setAdaptMin(FIO_prefs_t* const prefs, int minCLevel)
@@ -1171,6 +1176,7 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
     CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_useRowMatchFinder, prefs->useRowMatchFinder));
     /* compression parameters */
     CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_windowLog, (int)comprParams.windowLog) );
+    CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_windowFrac, prefs->windowFrac) );
     CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_chainLog, (int)comprParams.chainLog) );
     CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_hashLog, (int)comprParams.hashLog) );
     CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_searchLog, (int)comprParams.searchLog) );

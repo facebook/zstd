@@ -616,10 +616,11 @@ static unsigned parseAdaptParameters(const char* stringPtr, int* adaptMinPtr, in
  *  @return 1 means that compression parameters were correct
  *  @return 0 in case of malformed parameters
  */
-static unsigned parseCompressionParameters(const char* stringPtr, ZSTD_compressionParameters* params)
+static unsigned parseCompressionParameters(const char* stringPtr, ZSTD_compressionParameters* params, int* windowFrac)
 {
     for ( ; ;) {
         if (longCommandWArg(&stringPtr, "windowLog=") || longCommandWArg(&stringPtr, "wlog=")) { params->windowLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
+        if (longCommandWArg(&stringPtr, "windowFrac=") || longCommandWArg(&stringPtr, "wfrac=")) { *windowFrac = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "chainLog=") || longCommandWArg(&stringPtr, "clog=")) { params->chainLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "hashLog=") || longCommandWArg(&stringPtr, "hlog=")) { params->hashLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
         if (longCommandWArg(&stringPtr, "searchLog=") || longCommandWArg(&stringPtr, "slog=")) { params->searchLog = readU32FromChar(&stringPtr); if (stringPtr[0]==',') { stringPtr++; continue; } else break; }
@@ -878,6 +879,7 @@ int main(int argCount, const char* argv[])
     FIO_progressSetting_e progress = FIO_ps_auto;
     zstd_operation_mode operation = zom_compress;
     ZSTD_compressionParameters compressionParams;
+    int windowFrac = 0;
     int cLevel = init_cLevel();
     int cLevelLast = MINCLEVEL - 1;  /* lower than minimum */
     unsigned recursive = 0;
@@ -1076,7 +1078,7 @@ int main(int argCount, const char* argv[])
                 if (longCommandWArg(&argument, "--block-size")) { NEXT_TSIZE(blockSize); continue; }
                 if (longCommandWArg(&argument, "--maxdict")) { NEXT_UINT32(maxDictSize); continue; }
                 if (longCommandWArg(&argument, "--dictID")) { NEXT_UINT32(dictID); continue; }
-                if (longCommandWArg(&argument, "--zstd=")) { if (!parseCompressionParameters(argument, &compressionParams)) { badUsage(programName, originalArgument); CLEAN_RETURN(1); } ; cType = FIO_zstdCompression; continue; }
+                if (longCommandWArg(&argument, "--zstd=")) { if (!parseCompressionParameters(argument, &compressionParams, &windowFrac)) { badUsage(programName, originalArgument); CLEAN_RETURN(1); } ; cType = FIO_zstdCompression; continue; }
                 if (longCommandWArg(&argument, "--stream-size")) { NEXT_TSIZE(streamSrcSize); continue; }
                 if (longCommandWArg(&argument, "--target-compressed-block-size")) { NEXT_TSIZE(targetCBlockSize); continue; }
                 if (longCommandWArg(&argument, "--size-hint")) { NEXT_TSIZE(srcSizeHint); continue; }
@@ -1600,6 +1602,7 @@ int main(int argCount, const char* argv[])
         FIO_setSrcSizeHint(prefs, srcSizeHint);
         FIO_setLiteralCompressionMode(prefs, literalCompressionMode);
         FIO_setSparseWrite(prefs, 0);
+        FIO_setWindowFrac(prefs, windowFrac);
         if (adaptMin > cLevel) cLevel = adaptMin;
         if (adaptMax < cLevel) cLevel = adaptMax;
 

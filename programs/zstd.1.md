@@ -387,6 +387,18 @@ The list of available _options_:
     Note: If `windowLog` is set to larger than 27, `--long=windowLog` or
     `--memory=windowSize` needs to be passed to the decompressor.
 
+- `windowFrac`=_wfrac_, `wfrac`=_wfrac_:
+    Set the window size to a non-power-of-two value, as an adjustment to the
+    power-of-two window size set by the `windowLog` parameter.
+
+    The Zstd format supports expressing window sizes as
+    `(1 + wfrac / 8) * (2 ^ wlog)` where `wfrac` has an integer value between
+    0 and 7 inclusive and `wlog` has an integer value between 10 and 41.
+    (Although see the documentation on `windowLog` above.)
+
+    This parameter has no effect unless the `windowLog` is also set. It also
+    has no effect when the `windowLog` is set to its maximum supported value.
+
 - `hashLog`=_hlog_, `hlog`=_hlog_:
     Specify the maximum number of bits for a hash table.
 

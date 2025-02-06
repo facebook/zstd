@@ -1161,7 +1161,7 @@ MEM_STATIC void ZSTD_setMinimalWindowLogAndFrac(ZSTD_CParams* cParams, const U32
     } else {
         const U32 srcSizeMinusOne = srcSize - 1;
         cParams->windowLog = ZSTD_highbit32(srcSizeMinusOne);
-        cParams->windowFrac = (((srcSizeMinusOne << 3) >> cParams->windowLog) & 7) + 1;
+        cParams->windowFrac = ((srcSizeMinusOne >> (cParams->windowLog - 3)) & 7) + 1;
         if (cParams->windowFrac == 8) {
             cParams->windowFrac = 0;
             cParams->windowLog++;

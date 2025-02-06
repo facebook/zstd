@@ -1510,7 +1510,7 @@ ZSTD_adjustCParams_internal(ZSTD_CParams cPar,
                             ZSTD_ParamSwitch_e useRowMatchFinder)
 {
     const U64 minSrcSize = 513; /* (1<<9) + 1 */
-    const U64 maxWindowResize = 1ULL << (ZSTD_WINDOWLOG_MAX-1);
+    const U64 maxWindowResize = 15ULL << (ZSTD_WINDOWLOG_MAX-4);
     assert(ZSTD_checkCParams_internal(cPar)==0);
 
     /* Cascade the selected strategy down to the next-highest one built into
@@ -1591,7 +1591,15 @@ ZSTD_adjustCParams_internal(ZSTD_CParams cPar,
             if (tSize < hashSizeMin) {
                 cPar.windowLog = ZSTD_HASHLOG_MIN;
                 cPar.windowFrac = 0;
-            } else {
+            } else
+#if !ZSTD_WINDOW_ALLOW_PICKING_FRACTIONAL_SIZES
+            /* Prevents adjustment in the scenario where we have explicitly
+             * selected a fractional window size that is slightly larger than
+             * the src size hint. If we allow picking without this check, we
+             * might end up growing the window to the next power of two. */
+            if (ZSTD_windowSize(&cPar) > (1u << (ZSTD_highbit32(tSize - 1) + 1)))
+#endif
+            {
                 ZSTD_setMinimalWindowLogAndFrac(&cPar, tSize);
             }
         }

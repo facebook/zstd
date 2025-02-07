@@ -254,7 +254,7 @@ static size_t ZSTD_ldm_fillFastTables(ZSTD_MatchState_t* ms,
 {
     const BYTE* const iend = (const BYTE*)end;
 
-    switch(ms->cParams.strategy)
+    switch(ms->cctxParams->cParams.strategy)
     {
     case ZSTD_fast:
         ZSTD_fillHashTable(ms, iend, ZSTD_dtlm_fast, ZSTD_tfp_forCCtx);
@@ -684,7 +684,7 @@ size_t ZSTD_ldm_blockCompress(RawSeqStore_t* rawSeqStore,
     ZSTD_ParamSwitch_e useRowMatchFinder,
     void const* src, size_t srcSize)
 {
-    const ZSTD_CParams* const cParams = &ms->cParams;
+    const ZSTD_CParams* const cParams = &ms->cctxParams->cParams;
     unsigned const minMatch = cParams->minMatch;
     ZSTD_BlockCompressor_f const blockCompressor =
         ZSTD_selectBlockCompressor(cParams->strategy, useRowMatchFinder, ZSTD_matchState_dictMode(ms));

@@ -445,7 +445,7 @@ U32 ZSTD_insertBt1(
                 U32 const target,
                 U32 const mls, const int extDict)
 {
-    const ZSTD_CParams* const cParams = &ms->cParams;
+    const ZSTD_CParams* const cParams = &ms->cctxParams->cParams;
     U32*   const hashTable = ms->hashTable;
     U32    const hashLog = cParams->hashLog;
     size_t const h  = ZSTD_hashPtr(ip, hashLog, mls);
@@ -581,7 +581,7 @@ void ZSTD_updateTree_internal(
 }
 
 void ZSTD_updateTree(ZSTD_MatchState_t* ms, const BYTE* ip, const BYTE* iend) {
-    ZSTD_updateTree_internal(ms, ip, iend, ms->cParams.minMatch, ZSTD_noDict);
+    ZSTD_updateTree_internal(ms, ip, iend, ms->cctxParams->cParams.minMatch, ZSTD_noDict);
 }
 
 FORCE_INLINE_TEMPLATE
@@ -598,7 +598,7 @@ ZSTD_insertBtAndGetAllMatches (
                 const U32 lengthToBeat,
                 const U32 mls /* template */)
 {
-    const ZSTD_CParams* const cParams = &ms->cParams;
+    const ZSTD_CParams* const cParams = &ms->cctxParams->cParams;
     U32 const sufficient_len = MIN(cParams->targetLength, ZSTD_OPT_NUM -1);
     const BYTE* const base = ms->window.base;
     U32 const curr = (U32)(ip-base);
@@ -627,7 +627,7 @@ ZSTD_insertBtAndGetAllMatches (
 
     const ZSTD_MatchState_t* dms    = dictMode == ZSTD_dictMatchState ? ms->dictMatchState : NULL;
     const ZSTD_CParams* const dmsCParams =
-                                      dictMode == ZSTD_dictMatchState ? &dms->cParams : NULL;
+                                      dictMode == ZSTD_dictMatchState ? &dms->cctxParams->cParams : NULL;
     const BYTE* const dmsBase       = dictMode == ZSTD_dictMatchState ? dms->window.base : NULL;
     const BYTE* const dmsEnd        = dictMode == ZSTD_dictMatchState ? dms->window.nextSrc : NULL;
     U32         const dmsHighLimit  = dictMode == ZSTD_dictMatchState ? (U32)(dmsEnd - dmsBase) : 0;
@@ -841,7 +841,7 @@ U32 ZSTD_btGetAllMatches_internal(
         const ZSTD_dictMode_e dictMode,
         const U32 mls)
 {
-    assert(BOUNDED(3, ms->cParams.minMatch, 6) == mls);
+    assert(BOUNDED(3, ms->cctxParams->cParams.minMatch, 6) == mls);
     DEBUGLOG(8, "ZSTD_BtGetAllMatches(dictMode=%d, mls=%u)", (int)dictMode, mls);
     if (ip < ms->window.base + ms->nextToUpdate)
         return 0;   /* skipped area */
@@ -893,7 +893,7 @@ ZSTD_selectBtGetAllMatches(ZSTD_MatchState_t const* ms, ZSTD_dictMode_e const di
         ZSTD_BT_GET_ALL_MATCHES_ARRAY(extDict),
         ZSTD_BT_GET_ALL_MATCHES_ARRAY(dictMatchState)
     };
-    U32 const mls = BOUNDED(3, ms->cParams.minMatch, 6);
+    U32 const mls = BOUNDED(3, ms->cctxParams->cParams.minMatch, 6);
     assert((U32)dictMode < 3);
     assert(mls - 3 < 4);
     return getAllMatchesFns[(int)dictMode][mls - 3];
@@ -1089,7 +1089,7 @@ ZSTD_compressBlock_opt_generic(ZSTD_MatchState_t* ms,
     const BYTE* const ilimit = iend - 8;
     const BYTE* const base = ms->window.base;
     const BYTE* const prefixStart = base + ms->window.dictLimit;
-    const ZSTD_CParams* const cParams = &ms->cParams;
+    const ZSTD_CParams* const cParams = &ms->cctxParams->cParams;
 
     ZSTD_getAllMatchesFn getAllMatches = ZSTD_selectBtGetAllMatches(ms, dictMode);
 

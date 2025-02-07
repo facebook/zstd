@@ -87,6 +87,7 @@ struct ZSTD_CDict_s {
     ZSTD_compressedBlockState_t cBlockState;
     ZSTD_customMem customMem;
     U32 dictID;
+    ZSTD_CCtx_params params; /* storage for matchState.cctxParams pointer */
     int compressionLevel; /* 0 indicates that advanced API was used to select CDict params */
     ZSTD_ParamSwitch_e useRowMatchFinder; /* Indicates whether the CDict was created with params that would use
                                            * row-based matchfinder. Unless the cdict is reloaded, we will use
@@ -2102,12 +2103,12 @@ static void ZSTD_advanceHashSalt(ZSTD_MatchState_t* ms) {
 static size_t
 ZSTD_reset_matchState(ZSTD_MatchState_t* ms,
                       ZSTD_cwksp* ws,
-                const ZSTD_CParams* cParams,
-                const ZSTD_ParamSwitch_e useRowMatchFinder,
                 const ZSTD_compResetPolicy_e crp,
                 const ZSTD_indexResetPolicy_e forceResetIndex,
                 const ZSTD_resetTarget_e forWho)
 {
+    const ZSTD_CParams* const cParams = &ms->cctxParams->cParams;
+    const ZSTD_ParamSwitch_e useRowMatchFinder = ms->cctxParams->useRowMatchFinder;
     /* disable chain table allocation for fast or row-based strategies */
     size_t const chainSize = ZSTD_allocateChainTable(cParams->strategy, useRowMatchFinder,
                                                      ms->dedicatedDictSearch && (forWho == ZSTD_resetTarget_CDict))
@@ -2178,8 +2179,6 @@ ZSTD_reset_matchState(ZSTD_MatchState_t* ms,
         ms->opt.matchTable = (ZSTD_match_t*)ZSTD_cwksp_reserve_aligned64(ws, ZSTD_OPT_SIZE * sizeof(ZSTD_match_t));
         ms->opt.priceTable = (ZSTD_optimal_t*)ZSTD_cwksp_reserve_aligned64(ws, ZSTD_OPT_SIZE * sizeof(ZSTD_optimal_t));
     }
-
-    ms->cParams = *cParams;
 
     RETURN_ERROR_IF(ZSTD_cwksp_reserve_failed(ws), memory_allocation,
                     "failed a workspace allocation in ZSTD_reset_matchState");
@@ -2307,7 +2306,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         ZSTD_cwksp_clear(ws);
 
         /* init params */
-        zc->blockState.matchState.cParams = params->cParams;
+        zc->blockState.matchState.cctxParams = params;
         zc->blockState.matchState.prefetchCDictTables = params->prefetchCDictTables == ZSTD_ps_enable;
         zc->pledgedSrcSizePlusOne = pledgedSrcSize+1;
         zc->consumedSrcSize = 0;
@@ -2328,8 +2327,6 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         FORWARD_IF_ERROR(ZSTD_reset_matchState(
                 &zc->blockState.matchState,
                 ws,
-                &params->cParams,
-                params->useRowMatchFinder,
                 crp,
                 needsIndexReset,
                 ZSTD_resetTarget_CCtx), "");
@@ -2428,7 +2425,7 @@ static int ZSTD_shouldAttachDict(const ZSTD_CDict* cdict,
                                  const ZSTD_CCtx_params* params,
                                  U64 pledgedSrcSize)
 {
-    size_t cutoff = attachDictSizeCutoffs[cdict->matchState.cParams.strategy];
+    size_t cutoff = attachDictSizeCutoffs[cdict->params.cParams.strategy];
     int const dedicatedDictSearch = cdict->matchState.dedicatedDictSearch;
     return dedicatedDictSearch
         || ( ( pledgedSrcSize <= cutoff
@@ -2449,7 +2446,7 @@ ZSTD_resetCCtx_byAttachingCDict(ZSTD_CCtx* cctx,
     DEBUGLOG(4, "ZSTD_resetCCtx_byAttachingCDict() pledgedSrcSize=%llu",
                 (unsigned long long)pledgedSrcSize);
     {
-        ZSTD_CParams adjusted_cdict_cParams = cdict->matchState.cParams;
+        ZSTD_CParams adjusted_cdict_cParams = cdict->params.cParams;
         unsigned const windowLog = params.cParams.windowLog;
         unsigned const windowFrac = params.cParams.windowFrac;
         assert(windowLog != 0);
@@ -2525,7 +2522,7 @@ static size_t ZSTD_resetCCtx_byCopyingCDict(ZSTD_CCtx* cctx,
                             U64 pledgedSrcSize,
                             ZSTD_buffered_policy_e zbuff)
 {
-    const ZSTD_CParams *cdict_cParams = &cdict->matchState.cParams;
+    const ZSTD_CParams *cdict_cParams = &cdict->params.cParams;
 
     assert(!cdict->matchState.dedicatedDictSearch);
     DEBUGLOG(4, "ZSTD_resetCCtx_byCopyingCDict() pledgedSrcSize=%llu",
@@ -3389,8 +3386,7 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
     ZSTD_MatchState_t* const ms = &zc->blockState.matchState;
     DEBUGLOG(5, "ZSTD_buildSeqStore (srcSize=%zu)", srcSize);
     assert(srcSize <= ZSTD_BLOCKSIZE_MAX);
-    /* Assert that we have correctly flushed the ctx params into the ms's copy */
-    ZSTD_assertEqualCParams(zc->appliedParams.cParams, ms->cParams);
+    assert(&zc->appliedParams == ms->cctxParams);
     /* TODO: See 3090. We reduced MIN_CBLOCK_SIZE from 3 to 2 so to compensate we are adding
      * additional 1. We need to revisit and change this logic to be more consistent */
     if (srcSize < MIN_CBLOCK_SIZE+ZSTD_blockHeaderSize+1+1) {
@@ -5034,7 +5030,7 @@ ZSTD_loadDictionaryContent(ZSTD_MatchState_t* ms,
     int const loadLdmDict = params->ldmParams.enableLdm == ZSTD_ps_enable && ls != NULL;
 
     /* Assert that the ms params match the params we're being given */
-    ZSTD_assertEqualCParams(params->cParams, ms->cParams);
+    ZSTD_assertEqualCParams(params->cParams, ms->cctxParams->cParams);
 
     {   /* Ensure large dictionaries can't cause index overflow */
 
@@ -5689,8 +5685,10 @@ static size_t ZSTD_initCDict_internal(
                     ZSTD_CCtx_params params)
 {
     DEBUGLOG(3, "ZSTD_initCDict_internal (dictContentType:%u)", (unsigned)dictContentType);
+
     assert(!ZSTD_checkCParams_internal(params.cParams));
-    cdict->matchState.cParams = params.cParams;
+    cdict->params = params;
+    cdict->matchState.cctxParams = &cdict->params;
     cdict->matchState.dedicatedDictSearch = params.enableDedicatedDictSearch;
     if ((dictLoadMethod == ZSTD_dlm_byRef) || (!dictBuffer) || (!dictSize)) {
         cdict->dictContent = dictBuffer;
@@ -5711,8 +5709,6 @@ static size_t ZSTD_initCDict_internal(
     FORWARD_IF_ERROR(ZSTD_reset_matchState(
         &cdict->matchState,
         &cdict->workspace,
-        &params.cParams,
-        params.useRowMatchFinder,
         ZSTDcrp_makeClean,
         ZSTDirp_reset,
         ZSTD_resetTarget_CDict), "");
@@ -5953,7 +5949,7 @@ const ZSTD_CDict* ZSTD_initStaticCDict(
 ZSTD_CParams ZSTD_getCParamsFromCDict(const ZSTD_CDict* cdict)
 {
     assert(cdict != NULL);
-    return cdict->matchState.cParams;
+    return cdict->params.cParams;
 }
 
 /*! ZSTD_getDictID_fromCDict() :

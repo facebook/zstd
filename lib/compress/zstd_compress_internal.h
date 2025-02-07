@@ -321,7 +321,9 @@ struct ZSTD_MatchState_t {
                                */
     optState_t opt;         /* optimal parser state */
     const ZSTD_MatchState_t* dictMatchState;
-    ZSTD_CParams cParams;
+
+    const ZSTD_CCtx_params* cctxParams;
+
     const RawSeqStore_t* ldmSeqStore;
 
     /* Controls prefetching in some dictMatchState matchfinders.
@@ -1508,7 +1510,7 @@ U32 ZSTD_window_update(ZSTD_window_t* window,
  */
 MEM_STATIC U32 ZSTD_getLowestMatchIndex(const ZSTD_MatchState_t* ms, U32 curr)
 {
-    U32 const maxDistance = ZSTD_windowSize(&ms->cParams);
+    U32 const maxDistance = ZSTD_windowSize(&ms->cctxParams->cParams);
     U32 const lowestValid = ms->window.lowLimit;
     U32 const withinWindow = (curr - lowestValid > maxDistance) ? curr - maxDistance : lowestValid;
     U32 const isDictionary = (ms->loadedDictEnd != 0);
@@ -1525,7 +1527,7 @@ MEM_STATIC U32 ZSTD_getLowestMatchIndex(const ZSTD_MatchState_t* ms, U32 curr)
  */
 MEM_STATIC U32 ZSTD_getLowestPrefixIndex(const ZSTD_MatchState_t* ms, U32 curr)
 {
-    U32    const maxDistance = ZSTD_windowSize(&ms->cParams);
+    U32    const maxDistance = ZSTD_windowSize(&ms->cctxParams->cParams);
     U32    const lowestValid = ms->window.dictLimit;
     U32    const withinWindow = (curr - lowestValid > maxDistance) ? curr - maxDistance : lowestValid;
     U32    const isDictionary = (ms->loadedDictEnd != 0);

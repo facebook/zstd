@@ -1490,7 +1490,7 @@ static void ZSTD_dictAndWindowLog(ZSTD_CParams* cParams, U64 srcSize, U64 dictSi
         if (windowSize >= dictSize + srcSize) {
             /* Window size large enough already */
         } else {
-            ZSTD_setMinimalWindowLogAndFrac(cParams, dictAndWindowSize);
+            ZSTD_setMinimalWindowLogAndFrac(cParams, (U32)dictAndWindowSize);
         }
     }
 }
@@ -1677,43 +1677,43 @@ ZSTD_adjustCParams(ZSTD_compressionParameters cPar,
 
 ZSTD_CParams ZSTD_getCParamsFromPublicCParams(
         ZSTD_compressionParameters cParams) {
-    return (ZSTD_CParams){
-        cParams.windowLog,
-        0, /* windowFrac */
-        cParams.chainLog,
-        cParams.hashLog,
-        cParams.searchLog,
-        cParams.minMatch,
-        cParams.targetLength,
-        cParams.strategy
-    };
+    ZSTD_CParams ret;
+    ret.windowLog    = cParams.windowLog;
+    ret.windowFrac   = 0;
+    ret.chainLog     = cParams.chainLog;
+    ret.hashLog      = cParams.hashLog;
+    ret.searchLog    = cParams.searchLog;
+    ret.minMatch     = cParams.minMatch;
+    ret.targetLength = cParams.targetLength;
+    ret.strategy     = cParams.strategy;
+    return ret;
 }
 
 ZSTD_compressionParameters ZSTD_getPublicCParamsFromCParams(
         ZSTD_CParams cParams) {
-    return (ZSTD_compressionParameters){
-        cParams.windowLog,
-        cParams.chainLog,
-        cParams.hashLog,
-        cParams.searchLog,
-        cParams.minMatch,
-        cParams.targetLength,
-        cParams.strategy
-    };
+    ZSTD_compressionParameters ret;
+    ret.windowLog    = cParams.windowLog;
+    ret.chainLog     = cParams.chainLog;
+    ret.hashLog      = cParams.hashLog;
+    ret.searchLog    = cParams.searchLog;
+    ret.minMatch     = cParams.minMatch;
+    ret.targetLength = cParams.targetLength;
+    ret.strategy     = cParams.strategy;
+    return ret;
 }
 
 ZSTD_Params ZSTD_getParamsFromPublicParams(ZSTD_parameters params) {
-    return (ZSTD_Params){
-        ZSTD_getCParamsFromPublicCParams(params.cParams),
-        params.fParams
-    };
+    ZSTD_Params ret;
+    ret.cParams = ZSTD_getCParamsFromPublicCParams(params.cParams);
+    ret.fParams = params.fParams;
+    return ret;
 }
 
 ZSTD_parameters ZSTD_getPublicParamsFromParams(ZSTD_Params params) {
-    return (ZSTD_parameters){
-        ZSTD_getPublicCParamsFromCParams(params.cParams),
-        params.fParams
-    };
+    ZSTD_parameters ret;
+    ret.cParams = ZSTD_getPublicCParamsFromCParams(params.cParams);
+    ret.fParams = params.fParams;
+    return ret;
 }
 
 static ZSTD_CParams ZSTD_getCParams_internal(int compressionLevel, unsigned long long srcSizeHint, size_t dictSize, ZSTD_CParamMode_e mode);

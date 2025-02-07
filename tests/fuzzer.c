@@ -3399,7 +3399,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
                     int hint;
                     for (hint = 0; hint <= 1; hint++) {
                         unsigned long long inputSize;
-                        for (inputSize = 100; inputSize < (3ull << ZSTD_WINDOWLOG_MAX); inputSize += (1ull << (ZSTD_highbit32(inputSize >> 4)))) {
+                        for (inputSize = 100; inputSize < (3ull << ZSTD_WINDOWLOG_MAX); inputSize += (1ull << (ZSTD_highbit32((U32)(inputSize >> 4))))) {
                             ZSTD_inBuffer input = {CNBuffer, CNBuffSize, 0};
                             ZSTD_outBuffer compressed = {compressedBuffer, compressedBufferSize, 0};
                             ZSTD_FrameHeader zfh;
@@ -3426,7 +3426,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
                                 if (inputSize >= (1ull << 31)) {
                                     CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_srcSizeHint, (int)((1ull << 31) - 1)));
                                 } else {
-                                    CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_srcSizeHint, inputSize));
+                                    CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_srcSizeHint, (int)inputSize));
                                 }
                             } else {
                                 CHECK_Z(ZSTD_CCtx_setPledgedSrcSize(cctx, inputSize));

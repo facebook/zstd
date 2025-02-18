@@ -1152,11 +1152,11 @@ MEM_STATIC int ZSTD_windowLogAndFracAreMinimal(ZSTD_CParams* cParams, const U32 
  * Calculates the minimum legal window log and fraction that contain the
  * provided source size.
  */
-MEM_STATIC void ZSTD_setMinimalWindowLogAndFrac(ZSTD_CParams* cParams, const U32 srcSize) {
-    const U32 minSize = 1u << ZSTD_WINDOWLOG_ABSOLUTEMIN;
+MEM_STATIC void ZSTD_setMinimalWindowLogAndFrac(ZSTD_CParams* cParams, const U32 srcSize, const U32 minWindowLog) {
+    const U32 minSize = 1u << minWindowLog;
 #if ZSTD_WINDOW_ALLOW_PICKING_FRACTIONAL_SIZES
     if (srcSize < minSize) {
-        cParams->windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;
+        cParams->windowLog = minWindowLog;
         cParams->windowFrac = 0;
     } else {
         const U32 srcSizeMinusOne = srcSize - 1;
@@ -1169,7 +1169,7 @@ MEM_STATIC void ZSTD_setMinimalWindowLogAndFrac(ZSTD_CParams* cParams, const U32
     }
 #else
     if (srcSize < minSize) {
-        cParams->windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;
+        cParams->windowLog = minWindowLog;
         cParams->windowFrac = 0;
     } else {
         cParams->windowLog = ZSTD_highbit32(srcSize - 1) + 1;

@@ -1490,7 +1490,7 @@ static void ZSTD_dictAndWindowLog(ZSTD_CParams* cParams, U64 srcSize, U64 dictSi
         if (windowSize >= dictSize + srcSize) {
             /* Window size large enough already */
         } else {
-            ZSTD_setMinimalWindowLogAndFrac(cParams, (U32)dictAndWindowSize);
+            ZSTD_setMinimalWindowLogAndFrac(cParams, (U32)dictAndWindowSize, ZSTD_WINDOWLOG_MIN);
         }
     }
 }
@@ -1600,7 +1600,8 @@ ZSTD_adjustCParams_internal(ZSTD_CParams cPar,
             if (ZSTD_windowSize(&cPar) > (1u << (ZSTD_highbit32(tSize - 1) + 1)))
 #endif
             {
-                ZSTD_setMinimalWindowLogAndFrac(&cPar, tSize);
+                const U32 tmpMinWindowLog = ZSTD_HASHLOG_MIN < ZSTD_WINDOWLOG_MIN ? ZSTD_HASHLOG_MIN : ZSTD_WINDOWLOG_MIN;
+                ZSTD_setMinimalWindowLogAndFrac(&cPar, tSize, tmpMinWindowLog);
             }
         }
     }
@@ -6000,7 +6001,7 @@ static size_t ZSTD_compressBegin_usingCDict_internal(
     if (pledgedSrcSize != ZSTD_CONTENTSIZE_UNKNOWN) {
         U32 const limitedSrcSize = (U32)MIN(pledgedSrcSize, 1U << 19);
         if (limitedSrcSize > 1 && ZSTD_windowSize(&cctxParams.cParams) < limitedSrcSize) {
-            ZSTD_setMinimalWindowLogAndFrac(&cctxParams.cParams, limitedSrcSize);
+            ZSTD_setMinimalWindowLogAndFrac(&cctxParams.cParams, limitedSrcSize, ZSTD_WINDOWLOG_MIN);
         }
     }
     return ZSTD_compressBegin_internal(cctx,

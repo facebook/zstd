@@ -87,12 +87,10 @@ struct ZSTD_CDict_s {
     ZSTD_compressedBlockState_t cBlockState;
     ZSTD_customMem customMem;
     U32 dictID;
-    ZSTD_CCtx_params params; /* storage for matchState.cctxParams pointer */
+    ZSTD_CCtx_params params; /* Storage for matchState.cctxParams pointer.
+                              * Not all member fields are used. Used fields:
+                              * cParams, useRowMatchFinder. */
     int compressionLevel; /* 0 indicates that advanced API was used to select CDict params */
-    ZSTD_ParamSwitch_e useRowMatchFinder; /* Indicates whether the CDict was created with params that would use
-                                           * row-based matchfinder. Unless the cdict is reloaded, we will use
-                                           * the same greedy/lazy matchfinder at compression time.
-                                           */
 };  /* typedef'd to ZSTD_CDict within "zstd.h" */
 
 ZSTD_CCtx* ZSTD_createCCtx(void)
@@ -2463,7 +2461,7 @@ ZSTD_resetCCtx_byAttachingCDict(ZSTD_CCtx* cctx,
                                                      params.useRowMatchFinder);
         params.cParams.windowLog  = windowLog;
         params.cParams.windowFrac = windowFrac;
-        params.useRowMatchFinder = cdict->useRowMatchFinder;    /* cdict overrides */
+        params.useRowMatchFinder = cdict->params.useRowMatchFinder;    /* cdict overrides */
         FORWARD_IF_ERROR(ZSTD_resetCCtx_internal(cctx, &params, pledgedSrcSize,
                                                  /* loadedDictSize */ 0,
                                                  ZSTDcrp_makeClean, zbuff), "");
@@ -2535,7 +2533,7 @@ static size_t ZSTD_resetCCtx_byCopyingCDict(ZSTD_CCtx* cctx,
         params.cParams = *cdict_cParams;
         params.cParams.windowLog  = windowLog;
         params.cParams.windowFrac = windowFrac;
-        params.useRowMatchFinder = cdict->useRowMatchFinder;
+        params.useRowMatchFinder = cdict->params.useRowMatchFinder;
         FORWARD_IF_ERROR(ZSTD_resetCCtx_internal(cctx, &params, pledgedSrcSize,
                                                  /* loadedDictSize */ 0,
                                                  ZSTDcrp_leaveDirty, zbuff), "");
@@ -2548,7 +2546,7 @@ static size_t ZSTD_resetCCtx_byCopyingCDict(ZSTD_CCtx* cctx,
     assert(params.useRowMatchFinder != ZSTD_ps_auto);
 
     /* copy tables */
-    {   size_t const chainSize = ZSTD_allocateChainTable(cdict_cParams->strategy, cdict->useRowMatchFinder, 0 /* DDS guaranteed disabled */)
+    {   size_t const chainSize = ZSTD_allocateChainTable(cdict_cParams->strategy, cdict->params.useRowMatchFinder, 0 /* DDS guaranteed disabled */)
                                                             ? ((size_t)1 << cdict_cParams->chainLog)
                                                             : 0;
         size_t const hSize =  (size_t)1 << cdict_cParams->hashLog;
@@ -2564,7 +2562,7 @@ static size_t ZSTD_resetCCtx_byCopyingCDict(ZSTD_CCtx* cctx,
                                     chainSize, cdict_cParams);
         }
         /* copy tag table */
-        if (ZSTD_rowMatchFinderUsed(cdict_cParams->strategy, cdict->useRowMatchFinder)) {
+        if (ZSTD_rowMatchFinderUsed(cdict_cParams->strategy, cdict->params.useRowMatchFinder)) {
             size_t const tagTableSize = hSize;
             ZSTD_memcpy(cctx->blockState.matchState.tagTable,
                         cdict->matchState.tagTable,
@@ -5763,7 +5761,7 @@ ZSTD_createCDict_advanced_internal(size_t dictSize,
         ZSTD_cwksp_move(&cdict->workspace, &ws);
         cdict->customMem = customMem;
         cdict->compressionLevel = ZSTD_NO_CLEVEL; /* signals advanced API usage */
-        cdict->useRowMatchFinder = useRowMatchFinder;
+        cdict->params.useRowMatchFinder = useRowMatchFinder;
         return cdict;
     }
 }
@@ -5934,7 +5932,6 @@ const ZSTD_CDict* ZSTD_initStaticCDict(
     ZSTD_CCtxParams_init(&params, 0);
     params.cParams = cParams;
     params.useRowMatchFinder = useRowMatchFinder;
-    cdict->useRowMatchFinder = useRowMatchFinder;
     cdict->compressionLevel = ZSTD_NO_CLEVEL;
 
     if (ZSTD_isError( ZSTD_initCDict_internal(cdict,

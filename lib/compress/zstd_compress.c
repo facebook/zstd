@@ -89,8 +89,8 @@ struct ZSTD_CDict_s {
     U32 dictID;
     ZSTD_CCtx_params params; /* Storage for matchState.cctxParams pointer.
                               * Not all member fields are used. Used fields:
-                              * cParams, useRowMatchFinder. */
-    int compressionLevel; /* 0 indicates that advanced API was used to select CDict params */
+                              * cParams, compressionLevel, useRowMatchFinder. */
+    /* A compression level of 0 indicates that advanced API was used to select CDict params */
 };  /* typedef'd to ZSTD_CDict within "zstd.h" */
 
 ZSTD_CCtx* ZSTD_createCCtx(void)
@@ -5372,7 +5372,7 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
       && ( pledgedSrcSize < ZSTD_USE_CDICT_PARAMS_SRCSIZE_CUTOFF
         || pledgedSrcSize < cdict->dictContentSize * ZSTD_USE_CDICT_PARAMS_DICTSIZE_MULTIPLIER
         || pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN
-        || cdict->compressionLevel == 0)
+        || cdict->params.compressionLevel == 0)
       && (params->attachDictPref != ZSTD_dictForceLoad) ) {
         return ZSTD_resetCCtx_usingCDict(cctx, cdict, params, pledgedSrcSize, zbuff);
     }
@@ -5760,7 +5760,7 @@ ZSTD_createCDict_advanced_internal(size_t dictSize,
         assert(cdict != NULL);
         ZSTD_cwksp_move(&cdict->workspace, &ws);
         cdict->customMem = customMem;
-        cdict->compressionLevel = ZSTD_NO_CLEVEL; /* signals advanced API usage */
+        cdict->params.compressionLevel = ZSTD_NO_CLEVEL; /* signals advanced API usage */
         cdict->params.useRowMatchFinder = useRowMatchFinder;
         return cdict;
     }
@@ -5855,7 +5855,7 @@ ZSTD_CDict* ZSTD_createCDict(const void* dict, size_t dictSize, int compressionL
             ZSTD_dlm_byCopy, ZSTD_dct_auto,
             cParams, ZSTD_defaultCMem);
     if (cdict)
-        cdict->compressionLevel = (compressionLevel == 0) ? ZSTD_CLEVEL_DEFAULT : compressionLevel;
+        cdict->params.compressionLevel = (compressionLevel == 0) ? ZSTD_CLEVEL_DEFAULT : compressionLevel;
     return cdict;
 }
 
@@ -5867,7 +5867,7 @@ ZSTD_CDict* ZSTD_createCDict_byReference(const void* dict, size_t dictSize, int 
             ZSTD_dlm_byRef, ZSTD_dct_auto,
             cParams, ZSTD_defaultCMem);
     if (cdict)
-        cdict->compressionLevel = (compressionLevel == 0) ? ZSTD_CLEVEL_DEFAULT : compressionLevel;
+        cdict->params.compressionLevel = (compressionLevel == 0) ? ZSTD_CLEVEL_DEFAULT : compressionLevel;
     return cdict;
 }
 
@@ -5932,7 +5932,7 @@ const ZSTD_CDict* ZSTD_initStaticCDict(
     ZSTD_CCtxParams_init(&params, 0);
     params.cParams = cParams;
     params.useRowMatchFinder = useRowMatchFinder;
-    cdict->compressionLevel = ZSTD_NO_CLEVEL;
+    params.compressionLevel = ZSTD_NO_CLEVEL;
 
     if (ZSTD_isError( ZSTD_initCDict_internal(cdict,
                                               dict, dictSize,
@@ -5976,16 +5976,16 @@ static size_t ZSTD_compressBegin_usingCDict_internal(
         if ( pledgedSrcSize < ZSTD_USE_CDICT_PARAMS_SRCSIZE_CUTOFF
                         || pledgedSrcSize < cdict->dictContentSize * ZSTD_USE_CDICT_PARAMS_DICTSIZE_MULTIPLIER
                         || pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN
-                        || cdict->compressionLevel == 0 ) {
+                        || cdict->params.compressionLevel == 0 ) {
             params.cParams = ZSTD_getCParamsFromCDict(cdict);
         } else {
             params.cParams = ZSTD_getCParams_internal(
-                    cdict->compressionLevel,
+                    cdict->params.compressionLevel,
                     pledgedSrcSize,
                     cdict->dictContentSize,
                     ZSTD_cpm_unknown);
         }
-        ZSTD_CCtxParams_init_internal(&cctxParams, &params, cdict->compressionLevel);
+        ZSTD_CCtxParams_init_internal(&cctxParams, &params, cdict->params.compressionLevel);
     }
     /* Increase window log to fit the entire dictionary and source if the
      * source size is known. Limit the increase to 19, which is the
@@ -6508,7 +6508,7 @@ static size_t ZSTD_CCtx_init_compressStream2(ZSTD_CCtx* cctx,
          * But do not take the cdict's compression level if the "cdict" is actually a localDict
          * generated from ZSTD_initLocalDict().
          */
-        params.compressionLevel = cctx->cdict->compressionLevel;
+        params.compressionLevel = cctx->cdict->params.compressionLevel;
     }
     DEBUGLOG(4, "ZSTD_CCtx_init_compressStream2 : transparent init stage");
     if (endOp == ZSTD_e_end) cctx->pledgedSrcSizePlusOne = inSize + 1;  /* auto-determine pledgedSrcSize */

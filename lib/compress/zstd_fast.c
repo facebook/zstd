@@ -513,7 +513,7 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
 
     /* if a dictionary is still attached, it necessarily means that
      * it is within window size. So we just check it. */
-    const U32 maxDistance = ZSTD_windowSize(cParams);
+    const U32 maxDistance = ZSTD_windowSize(ms->cctxParams);
     const U32 endIndex = (U32)((size_t)(istart - base) + srcSize);
     assert(endIndex - prefixStartIndex <= maxDistance);
     (void)maxDistance; (void)endIndex;   /* these variables are not used when assert() is disabled */

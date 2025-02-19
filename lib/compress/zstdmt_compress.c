@@ -494,7 +494,7 @@ ZSTDMT_serialState_reset(SerialState* serialState,
 {
     /* Adjust parameters */
     if (params.ldmParams.enableLdm == ZSTD_ps_enable) {
-        DEBUGLOG(4, "LDM window size = %u KB", ZSTD_windowSize(&params.cParams) >> 10);
+        DEBUGLOG(4, "LDM window size = %u KB", ZSTD_windowSize(&params) >> 10);
         ZSTD_ldm_adjustParameters(&params.ldmParams, &params.cParams);
         assert(params.ldmParams.hashLog >= params.ldmParams.bucketSizeLog);
         assert(params.ldmParams.hashRateLog < 32);
@@ -1315,7 +1315,7 @@ size_t ZSTDMT_initCStream_internal(
     ZSTDMT_setBufferSize(mtctx->bufPool, ZSTD_compressBound(mtctx->targetSectionSize));
     {
         /* If ldm is enabled we need windowSize space. */
-        size_t const windowSize = mtctx->params.ldmParams.enableLdm == ZSTD_ps_enable ? ZSTD_windowSize(&mtctx->params.cParams) : 0;
+        size_t const windowSize = mtctx->params.ldmParams.enableLdm == ZSTD_ps_enable ? ZSTD_windowSize(&mtctx->params) : 0;
         /* Two buffers of slack, plus extra space for the overlap
          * This is the minimum slack that LDM works with. One extra because
          * flush might waste up to targetSectionSize-1 bytes. Another extra

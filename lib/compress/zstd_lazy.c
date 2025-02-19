@@ -94,7 +94,7 @@ void ZSTD_insertDUBT1(const ZSTD_MatchState_t* ms,
     U32 matchIndex = *smallerPtr;   /* this candidate is unsorted : next sorted candidate is reached through *smallerPtr, while *largerPtr contains previous unsorted candidate (which is already saved and can be overwritten) */
     U32 dummy32;   /* to be nullified at the end */
     U32 const windowValid = ms->window.lowLimit;
-    U32 const maxDistance = ZSTD_windowSize(cParams);
+    U32 const maxDistance = ZSTD_windowSize(ms->cctxParams);
     U32 const windowLow = (curr - windowValid > maxDistance) ? curr - maxDistance : windowValid;
 
 
@@ -681,7 +681,7 @@ size_t ZSTD_HcFindBestMatch(
     const BYTE* const prefixStart = base + dictLimit;
     const BYTE* const dictEnd = dictBase + dictLimit;
     const U32 curr = (U32)(ip-base);
-    const U32 maxDistance = ZSTD_windowSize(cParams);
+    const U32 maxDistance = ZSTD_windowSize(ms->cctxParams);
     const U32 lowestValid = ms->window.lowLimit;
     const U32 withinMaxDistance = (curr - lowestValid > maxDistance) ? curr - maxDistance : lowestValid;
     const U32 isDictionary = (ms->loadedDictEnd != 0);
@@ -1157,7 +1157,7 @@ size_t ZSTD_RowFindBestMatch(
     const BYTE* const prefixStart = base + dictLimit;
     const BYTE* const dictEnd = dictBase + dictLimit;
     const U32 curr = (U32)(ip-base);
-    const U32 maxDistance = ZSTD_windowSize(cParams);
+    const U32 maxDistance = ZSTD_windowSize(ms->cctxParams);
     const U32 lowestValid = ms->window.lowLimit;
     const U32 withinMaxDistance = (curr - lowestValid > maxDistance) ? curr - maxDistance : lowestValid;
     const U32 isDictionary = (ms->loadedDictEnd != 0);

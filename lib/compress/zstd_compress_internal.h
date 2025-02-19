@@ -1119,8 +1119,8 @@ MEM_STATIC ZSTD_dictMode_e ZSTD_matchState_dictMode(const ZSTD_MatchState_t *ms)
  * Return the window size described by the windowLog and windowFrac in the
  * provided CParams.
  */
-MEM_STATIC U32 ZSTD_windowSize(const ZSTD_CParams* cParams) {
-    return (U32)(((8ull + cParams->windowFrac) << cParams->windowLog) >> 3);
+MEM_STATIC U32 ZSTD_windowSize(const ZSTD_CCtx_params* params) {
+    return (U32)(((8ull + params->cParams.windowFrac) << params->cParams.windowLog) >> 3);
 }
 MEM_STATIC U32 ZSTD_windowSizeLDM(const ldmParams_t* ldmParams) {
     return (U32)(((8ull + ldmParams->windowFrac) << ldmParams->windowLog) >> 3);
@@ -1133,14 +1133,14 @@ MEM_STATIC U32 ZSTD_windowSizeLDM(const ldmParams_t* ldmParams) {
  * 1.125 or 2, depending on whether we're allowed to pick fractional window
  * sizes.
  */
-MEM_STATIC int ZSTD_windowLogAndFracAreMinimal(ZSTD_CParams* cParams, const U32 srcSize) {
+MEM_STATIC int ZSTD_windowLogAndFracAreMinimal(const ZSTD_CCtx_params* params, const U32 srcSize) {
     const U32 lowerBound = MIN(srcSize, 1u << ZSTD_WINDOWLOG_MAX);
 #if ZSTD_WINDOW_ALLOW_PICKING_FRACTIONAL_SIZES
     const U32 upperBound = MAX(lowerBound + (lowerBound >> 3), 1u << ZSTD_WINDOWLOG_ABSOLUTEMIN);
 #else
     const U32 upperBound = MAX(2 * lowerBound - 1, 1u << ZSTD_WINDOWLOG_ABSOLUTEMIN);
 #endif
-    const U32 windowSize = ZSTD_windowSize(cParams);
+    const U32 windowSize = ZSTD_windowSize(params);
     if (windowSize < lowerBound) {
         return 0;
     }
@@ -1154,35 +1154,35 @@ MEM_STATIC int ZSTD_windowLogAndFracAreMinimal(ZSTD_CParams* cParams, const U32 
  * Calculates the minimum legal window log and fraction that contain the
  * provided source size.
  */
-MEM_STATIC void ZSTD_setMinimalWindowLogAndFrac(ZSTD_CParams* cParams, const U32 srcSize, const U32 minWindowLog) {
+MEM_STATIC void ZSTD_setMinimalWindowLogAndFrac(ZSTD_CCtx_params* params, const U32 srcSize, const U32 minWindowLog) {
     const U32 minSize = 1u << minWindowLog;
 #if ZSTD_WINDOW_ALLOW_PICKING_FRACTIONAL_SIZES
     if (srcSize < minSize) {
-        cParams->windowLog = minWindowLog;
-        cParams->windowFrac = 0;
+        params->cParams.windowLog = minWindowLog;
+        params->cParams.windowFrac = 0;
     } else {
         const U32 srcSizeMinusOne = srcSize - 1;
-        cParams->windowLog = ZSTD_highbit32(srcSizeMinusOne);
-        cParams->windowFrac = ((srcSizeMinusOne >> (cParams->windowLog - 3)) & 7) + 1;
-        if (cParams->windowFrac == 8) {
-            cParams->windowFrac = 0;
-            cParams->windowLog++;
+        params->cParams.windowLog = ZSTD_highbit32(srcSizeMinusOne);
+        params->cParams.windowFrac = ((srcSizeMinusOne >> (params->cParams.windowLog - 3)) & 7) + 1;
+        if (params->cParams.windowFrac == 8) {
+            params->cParams.windowFrac = 0;
+            params->cParams.windowLog++;
         }
     }
 #else
     if (srcSize < minSize) {
-        cParams->windowLog = minWindowLog;
-        cParams->windowFrac = 0;
+        params->cParams.windowLog = minWindowLog;
+        params->cParams.windowFrac = 0;
     } else {
-        cParams->windowLog = ZSTD_highbit32(srcSize - 1) + 1;
-        cParams->windowFrac = 0;
+        params->cParams.windowLog = ZSTD_highbit32(srcSize - 1) + 1;
+        params->cParams.windowFrac = 0;
     }
 #endif
-    if (cParams->windowLog + !!cParams->windowFrac > ZSTD_WINDOWLOG_MAX) {
-        cParams->windowLog = ZSTD_WINDOWLOG_MAX;
-        cParams->windowFrac = 0;
+    if (params->cParams.windowLog + !!params->cParams.windowFrac > ZSTD_WINDOWLOG_MAX) {
+        params->cParams.windowLog = ZSTD_WINDOWLOG_MAX;
+        params->cParams.windowFrac = 0;
     }
-    assert(ZSTD_windowLogAndFracAreMinimal(cParams, srcSize));
+    assert(ZSTD_windowLogAndFracAreMinimal(params, srcSize));
 }
 
 /* Defining this macro to non-zero tells zstd to run the overflow correction
@@ -1510,7 +1510,7 @@ U32 ZSTD_window_update(ZSTD_window_t* window,
  */
 MEM_STATIC U32 ZSTD_getLowestMatchIndex(const ZSTD_MatchState_t* ms, U32 curr)
 {
-    U32 const maxDistance = ZSTD_windowSize(&ms->cctxParams->cParams);
+    U32 const maxDistance = ZSTD_windowSize(ms->cctxParams);
     U32 const lowestValid = ms->window.lowLimit;
     U32 const withinWindow = (curr - lowestValid > maxDistance) ? curr - maxDistance : lowestValid;
     U32 const isDictionary = (ms->loadedDictEnd != 0);
@@ -1527,7 +1527,7 @@ MEM_STATIC U32 ZSTD_getLowestMatchIndex(const ZSTD_MatchState_t* ms, U32 curr)
  */
 MEM_STATIC U32 ZSTD_getLowestPrefixIndex(const ZSTD_MatchState_t* ms, U32 curr)
 {
-    U32    const maxDistance = ZSTD_windowSize(&ms->cctxParams->cParams);
+    U32    const maxDistance = ZSTD_windowSize(ms->cctxParams);
     U32    const lowestValid = ms->window.dictLimit;
     U32    const withinWindow = (curr - lowestValid > maxDistance) ? curr - maxDistance : lowestValid;
     U32    const isDictionary = (ms->loadedDictEnd != 0);

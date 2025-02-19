@@ -363,7 +363,7 @@ size_t ZSTD_compressBlock_doubleFast_dictMatchState_generic(
     DEBUGLOG(5, "ZSTD_compressBlock_doubleFast_dictMatchState_generic");
 
     /* if a dictionary is attached, it must be within window range */
-    assert(ms->window.dictLimit + ZSTD_windowSize(cParams) >= endIndex);
+    assert(ms->window.dictLimit + ZSTD_windowSize(ms->cctxParams) >= endIndex);
 
     if (ms->prefetchCDictTables) {
         size_t const hashTableBytes = (((size_t)1) << dictCParams->hashLog) * sizeof(U32);

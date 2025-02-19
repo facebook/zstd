@@ -1471,16 +1471,16 @@ U32 ZSTD_cycleLog(U32 chainLog, ZSTD_strategy strat)
  * the hashLog and windowLog.
  * NOTE: srcSize must not be ZSTD_CONTENTSIZE_UNKNOWN.
  */
-static void ZSTD_dictAndWindowLog(ZSTD_CParams* cParams, U64 srcSize, U64 dictSize)
+static void ZSTD_dictAndWindowLog(ZSTD_CCtx_params* params, U64 srcSize, U64 dictSize)
 {
     /* No dictionary ==> No change */
     if (dictSize == 0) {
         return;
     }
-    assert(cParams->windowLog + !!cParams->windowFrac <= ZSTD_WINDOWLOG_MAX);
+    assert(params->cParams.windowLog + !!params->cParams.windowFrac <= ZSTD_WINDOWLOG_MAX);
     assert(srcSize != ZSTD_CONTENTSIZE_UNKNOWN); /* Handled in ZSTD_adjustCParams_internal() */
     {
-        U64 const windowSize = ZSTD_windowSize(cParams);
+        U64 const windowSize = ZSTD_windowSize(params);
         U64 const dictAndWindowSize = dictSize + windowSize;
         /* If the window size is already large enough to fit both the source and the dictionary
          * then just use the window size. Otherwise adjust so that it fits the dictionary and
@@ -1489,7 +1489,7 @@ static void ZSTD_dictAndWindowLog(ZSTD_CParams* cParams, U64 srcSize, U64 dictSi
         if (windowSize >= dictSize + srcSize) {
             /* Window size large enough already */
         } else {
-            ZSTD_setMinimalWindowLogAndFrac(cParams, (U32)dictAndWindowSize, ZSTD_WINDOWLOG_MIN);
+            ZSTD_setMinimalWindowLogAndFrac(params, (U32)dictAndWindowSize, ZSTD_WINDOWLOG_MIN);
         }
     }
 }
@@ -1587,7 +1587,7 @@ ZSTD_adjustCParams_internal(ZSTD_CCtx_params* params,
       && (dictSize <= maxWindowResize) )  {
         U32 const tSize = (U32)(srcSize + dictSize);
         static U32 const hashSizeMin = 1 << ZSTD_HASHLOG_MIN;
-        if (ZSTD_windowSize(cPar) > tSize) {
+        if (ZSTD_windowSize(params) > tSize) {
             if (tSize < hashSizeMin) {
                 cPar->windowLog = ZSTD_HASHLOG_MIN;
                 cPar->windowFrac = 0;
@@ -1597,27 +1597,27 @@ ZSTD_adjustCParams_internal(ZSTD_CCtx_params* params,
              * selected a fractional window size that is slightly larger than
              * the src size hint. If we allow picking without this check, we
              * might end up growing the window to the next power of two. */
-            if (ZSTD_windowSize(cPar) > (1u << (ZSTD_highbit32(tSize - 1) + 1)))
+            if (ZSTD_windowSize(params) > (1u << (ZSTD_highbit32(tSize - 1) + 1)))
 #endif
             {
                 const U32 tmpMinWindowLog = ZSTD_HASHLOG_MIN < ZSTD_WINDOWLOG_MIN ? ZSTD_HASHLOG_MIN : ZSTD_WINDOWLOG_MIN;
-                ZSTD_setMinimalWindowLogAndFrac(cPar, tSize, tmpMinWindowLog);
+                ZSTD_setMinimalWindowLogAndFrac(params, tSize, tmpMinWindowLog);
             }
         }
     }
     if (srcSize != ZSTD_CONTENTSIZE_UNKNOWN) {
-        ZSTD_CParams dictWindowCParams = *cPar;
+        ZSTD_CCtx_params dictWindowParams = *params;
         U32 const cycleLog = ZSTD_cycleLog(cPar->chainLog, cPar->strategy);
-        ZSTD_dictAndWindowLog(&dictWindowCParams, (U64)srcSize, (U64)dictSize);
-        if (dictWindowCParams.windowFrac != 0) {
+        ZSTD_dictAndWindowLog(&dictWindowParams, (U64)srcSize, (U64)dictSize);
+        if (dictWindowParams.cParams.windowFrac != 0) {
             /* Round up to a whole power of two. */
-            dictWindowCParams.windowLog++;
-            dictWindowCParams.windowFrac = 0;
+            dictWindowParams.cParams.windowLog++;
+            dictWindowParams.cParams.windowFrac = 0;
         }
-        if (cPar->hashLog > dictWindowCParams.windowLog+1)
-            cPar->hashLog = dictWindowCParams.windowLog+1;
-        if (cycleLog > dictWindowCParams.windowLog)
-            cPar->chainLog -= (cycleLog - dictWindowCParams.windowLog);
+        if (cPar->hashLog > dictWindowParams.cParams.windowLog+1)
+            cPar->hashLog = dictWindowParams.cParams.windowLog+1;
+        if (cycleLog > dictWindowParams.cParams.windowLog)
+            cPar->chainLog -= (cycleLog - dictWindowParams.cParams.windowLog);
     }
 
     if (cPar->windowLog < ZSTD_WINDOWLOG_ABSOLUTEMIN) {
@@ -1816,7 +1816,7 @@ static size_t ZSTD_estimateCCtxSize_usingCCtxParams_internal(
         const U64 pledgedSrcSize)
 {
     int const useSequenceProducer = ZSTD_hasExtSeqProd(params);
-    size_t const windowSize = (size_t) BOUNDED(1ULL, ZSTD_windowSize(&params->cParams), pledgedSrcSize);
+    size_t const windowSize = (size_t) BOUNDED(1ULL, ZSTD_windowSize(params), pledgedSrcSize);
     size_t const blockSize = MIN(ZSTD_resolveMaxBlockSize(params->maxBlockSize), windowSize);
     size_t const maxNbSeq = ZSTD_maxNbSeq(blockSize, params->cParams.minMatch, useSequenceProducer);
     size_t const tokenSpace = ZSTD_cwksp_alloc_size(WILDCOPY_OVERLENGTH + blockSize)
@@ -1925,7 +1925,7 @@ size_t ZSTD_estimateCStreamSize_usingCCtxParams(const ZSTD_CCtx_params* params)
     RETURN_ERROR_IF(par.nbWorkers > 0, GENERIC, "Estimate CCtx size is supported for single-threaded compression only.");
     par.cParams = ZSTD_getCParamsFromCCtxParams(params, ZSTD_CONTENTSIZE_UNKNOWN, 0, ZSTD_cpm_noAttachDict);
     {
-        size_t const windowSize = ZSTD_windowSize(&par.cParams);
+        size_t const windowSize = ZSTD_windowSize(&par);
         size_t const blockSize = MIN(ZSTD_resolveMaxBlockSize(params->maxBlockSize), windowSize);
         size_t const inBuffSize = (params->inBufferMode == ZSTD_bm_buffered)
                 ? windowSize + blockSize
@@ -2246,7 +2246,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         assert(params->ldmParams.hashRateLog < 32);
     }
 
-    {   size_t const windowSize = MAX(1, (size_t)MIN(ZSTD_windowSize(&params->cParams), pledgedSrcSize));
+    {   size_t const windowSize = MAX(1, (size_t)MIN(ZSTD_windowSize(params), pledgedSrcSize));
         size_t const blockSize = MIN(params->maxBlockSize, windowSize);
         size_t const maxNbSeq = ZSTD_maxNbSeq(blockSize, params->cParams.minMatch, ZSTD_hasExtSeqProd(params));
         size_t const buffOutSize = (zbuff == ZSTDb_buffered && params->outBufferMode == ZSTD_bm_buffered)
@@ -3475,7 +3475,7 @@ static size_t ZSTD_buildSeqStore(ZSTD_CCtx* zc, const void* src, size_t srcSize)
             );
             assert(zc->appliedParams.extSeqProdFunc != NULL);
 
-            {   U32 const windowSize = ZSTD_windowSize(&zc->appliedParams.cParams);
+            {   U32 const windowSize = ZSTD_windowSize(&zc->appliedParams);
 
                 size_t const nbExternalSeqs = (zc->appliedParams.extSeqProdFunc)(
                     zc->appliedParams.extSeqProdState,
@@ -4651,7 +4651,7 @@ static void ZSTD_overflowCorrectIfNeeded(ZSTD_MatchState_t* ms,
                                          void const* iend)
 {
     U32 const cycleLog = ZSTD_cycleLog(params->cParams.chainLog, params->cParams.strategy);
-    U32 const maxDist = ZSTD_windowSize(&params->cParams);
+    U32 const maxDist = ZSTD_windowSize(params);
     if (ZSTD_window_needOverflowCorrection(ms->window, cycleLog, maxDist, ms->loadedDictEnd, ip, iend)) {
         U32 const correction = ZSTD_window_correctOverflow(&ms->window, cycleLog, maxDist, ip);
         ZSTD_STATIC_ASSERT(ZSTD_CHAINLOG_MAX <= 30);
@@ -4719,7 +4719,7 @@ static size_t ZSTD_compress_frameChunk(ZSTD_CCtx* cctx,
     const BYTE* ip = (const BYTE*)src;
     BYTE* const ostart = (BYTE*)dst;
     BYTE* op = ostart;
-    U32 const maxDist = ZSTD_windowSize(&cctx->appliedParams.cParams);
+    U32 const maxDist = ZSTD_windowSize(&cctx->appliedParams);
     S64 savings = (S64)cctx->consumedSrcSize - (S64)cctx->producedCSize;
 
     assert(cctx->appliedParams.cParams.windowLog + !!cctx->appliedParams.cParams.windowFrac <= ZSTD_WINDOWLOG_MAX);
@@ -4821,7 +4821,7 @@ static size_t ZSTD_writeFrameHeader(void* dst, size_t dstCapacity,
     U32   const dictIDSizeCodeLength = (dictID>0) + (dictID>=256) + (dictID>=65536);   /* 0-3 */
     U32   const dictIDSizeCode = params->fParams.noDictIDFlag ? 0 : dictIDSizeCodeLength;   /* 0-3 */
     U32   const checksumFlag = params->fParams.checksumFlag>0;
-    U32   const windowSize = ZSTD_windowSize(&params->cParams);
+    U32   const windowSize = ZSTD_windowSize(params);
     U32   const singleSegment = params->fParams.contentSizeFlag && (windowSize >= pledgedSrcSize);
     BYTE  const windowByte = (BYTE)(((params->cParams.windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN) << 3) | (params->cParams.windowFrac & 7));
     U32   const fcsCode = params->fParams.contentSizeFlag ?
@@ -4989,9 +4989,8 @@ size_t ZSTD_compressContinue(ZSTD_CCtx* cctx,
 
 static size_t ZSTD_getBlockSize_deprecated(const ZSTD_CCtx* cctx)
 {
-    ZSTD_CParams const cParams = cctx->appliedParams.cParams;
-    assert(!ZSTD_checkCParams_internal(cParams));
-    return MIN(cctx->appliedParams.maxBlockSize, (size_t)ZSTD_windowSize(&cParams));
+    assert(!ZSTD_checkCParams_internal(cctx->appliedParams.cParams));
+    return MIN(cctx->appliedParams.maxBlockSize, (size_t)ZSTD_windowSize(&cctx->appliedParams));
 }
 
 /* NOTE: Must just wrap ZSTD_getBlockSize_deprecated() */
@@ -5997,8 +5996,8 @@ static size_t ZSTD_compressBegin_usingCDict_internal(
      */
     if (pledgedSrcSize != ZSTD_CONTENTSIZE_UNKNOWN) {
         U32 const limitedSrcSize = (U32)MIN(pledgedSrcSize, 1U << 19);
-        if (limitedSrcSize > 1 && ZSTD_windowSize(&cctxParams.cParams) < limitedSrcSize) {
-            ZSTD_setMinimalWindowLogAndFrac(&cctxParams.cParams, limitedSrcSize, ZSTD_WINDOWLOG_MIN);
+        if (limitedSrcSize > 1 && ZSTD_windowSize(&cctxParams) < limitedSrcSize) {
+            ZSTD_setMinimalWindowLogAndFrac(&cctxParams, limitedSrcSize, ZSTD_WINDOWLOG_MIN);
         }
     }
     return ZSTD_compressBegin_internal(cctx,
@@ -6754,17 +6753,17 @@ size_t ZSTD_compress2(ZSTD_CCtx* cctx,
  */
 static size_t
 ZSTD_validateSequence(
-        U32 offBase, U32 matchLength, const ZSTD_CParams* cParams,
+        U32 offBase, U32 matchLength, const ZSTD_CCtx_params* params,
         size_t posInSrc, size_t dictSize, int useSequenceProducer)
 {
-    U32 const windowSize = ZSTD_windowSize(cParams);
+    U32 const windowSize = ZSTD_windowSize(params);
     /* posInSrc represents the amount of data the decoder would decode up to this point.
      * As long as the amount of data decoded is less than or equal to window size, offsets may be
      * larger than the total length of output decoded in order to reference the dict, even larger than
      * window size. After output surpasses windowSize, we're limited to windowSize offsets again.
      */
     size_t const offsetBound = posInSrc > windowSize ? (size_t)windowSize : posInSrc + (size_t)dictSize;
-    size_t const matchLenLowerBound = (cParams->minMatch == 3 || useSequenceProducer) ? 3 : 4;
+    size_t const matchLenLowerBound = (params->cParams.minMatch == 3 || useSequenceProducer) ? 3 : 4;
     RETURN_ERROR_IF(offBase > OFFSET_TO_OFFBASE(offsetBound), externalSequences_invalid, "Offset too large!");
     /* Validate maxNbSeq is large enough for the given matchLength and minMatch */
     RETURN_ERROR_IF(matchLength < matchLenLowerBound, externalSequences_invalid, "Matchlength too small for the minMatch");
@@ -6835,7 +6834,7 @@ ZSTD_transferSequences_wBlockDelim(ZSTD_CCtx* cctx,
         if (cctx->appliedParams.validateSequences) {
             seqPos->posInSrc += litLength + matchLength;
             FORWARD_IF_ERROR(ZSTD_validateSequence(
-                    offBase, matchLength, &cctx->appliedParams.cParams,
+                    offBase, matchLength, &cctx->appliedParams,
                     seqPos->posInSrc, dictSize, ZSTD_hasExtSeqProd(&cctx->appliedParams)),
                     "Sequence validation failed");
         }
@@ -6989,7 +6988,7 @@ ZSTD_transferSequences_noDelim(ZSTD_CCtx* cctx,
         if (cctx->appliedParams.validateSequences) {
             seqPos->posInSrc += litLength + matchLength;
             FORWARD_IF_ERROR(ZSTD_validateSequence(
-                    offBase, matchLength, &cctx->appliedParams.cParams,
+                    offBase, matchLength, &cctx->appliedParams,
                     seqPos->posInSrc, dictSize, ZSTD_hasExtSeqProd(&cctx->appliedParams)),
                     "Sequence validation failed");
         }

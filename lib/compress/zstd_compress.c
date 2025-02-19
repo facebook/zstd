@@ -1501,56 +1501,57 @@ static void ZSTD_dictAndWindowLog(ZSTD_CParams* cParams, U64 srcSize, U64 dictSi
  * `mode` is the mode for parameter adjustment. See docs for `ZSTD_CParamMode_e`.
  *  note : `srcSize==0` means 0!
  *  condition : cPar is presumed validated (can be checked using ZSTD_checkCParams()). */
-static ZSTD_CParams
-ZSTD_adjustCParams_internal(ZSTD_CParams cPar,
+static void
+ZSTD_adjustCParams_internal(ZSTD_CCtx_params* params,
                             unsigned long long srcSize,
                             size_t dictSize,
                             ZSTD_CParamMode_e mode,
                             ZSTD_ParamSwitch_e useRowMatchFinder)
 {
+    ZSTD_CParams* cPar = &params->cParams;
     const U64 minSrcSize = 513; /* (1<<9) + 1 */
     const U64 maxWindowResize = 15ULL << (ZSTD_WINDOWLOG_MAX-4);
-    assert(ZSTD_checkCParams_internal(cPar)==0);
+    assert(ZSTD_checkCParams_internal(*cPar)==0);
 
     /* Cascade the selected strategy down to the next-highest one built into
      * this binary. */
 #ifdef ZSTD_EXCLUDE_BTULTRA_BLOCK_COMPRESSOR
-    if (cPar.strategy == ZSTD_btultra2) {
-        cPar.strategy = ZSTD_btultra;
+    if (cPar->strategy == ZSTD_btultra2) {
+        cPar->strategy = ZSTD_btultra;
     }
-    if (cPar.strategy == ZSTD_btultra) {
-        cPar.strategy = ZSTD_btopt;
+    if (cPar->strategy == ZSTD_btultra) {
+        cPar->strategy = ZSTD_btopt;
     }
 #endif
 #ifdef ZSTD_EXCLUDE_BTOPT_BLOCK_COMPRESSOR
-    if (cPar.strategy == ZSTD_btopt) {
-        cPar.strategy = ZSTD_btlazy2;
+    if (cPar->strategy == ZSTD_btopt) {
+        cPar->strategy = ZSTD_btlazy2;
     }
 #endif
 #ifdef ZSTD_EXCLUDE_BTLAZY2_BLOCK_COMPRESSOR
-    if (cPar.strategy == ZSTD_btlazy2) {
-        cPar.strategy = ZSTD_lazy2;
+    if (cPar->strategy == ZSTD_btlazy2) {
+        cPar->strategy = ZSTD_lazy2;
     }
 #endif
 #ifdef ZSTD_EXCLUDE_LAZY2_BLOCK_COMPRESSOR
-    if (cPar.strategy == ZSTD_lazy2) {
-        cPar.strategy = ZSTD_lazy;
+    if (cPar->strategy == ZSTD_lazy2) {
+        cPar->strategy = ZSTD_lazy;
     }
 #endif
 #ifdef ZSTD_EXCLUDE_LAZY_BLOCK_COMPRESSOR
-    if (cPar.strategy == ZSTD_lazy) {
-        cPar.strategy = ZSTD_greedy;
+    if (cPar->strategy == ZSTD_lazy) {
+        cPar->strategy = ZSTD_greedy;
     }
 #endif
 #ifdef ZSTD_EXCLUDE_GREEDY_BLOCK_COMPRESSOR
-    if (cPar.strategy == ZSTD_greedy) {
-        cPar.strategy = ZSTD_dfast;
+    if (cPar->strategy == ZSTD_greedy) {
+        cPar->strategy = ZSTD_dfast;
     }
 #endif
 #ifdef ZSTD_EXCLUDE_DFAST_BLOCK_COMPRESSOR
-    if (cPar.strategy == ZSTD_dfast) {
-        cPar.strategy = ZSTD_fast;
-        cPar.targetLength = 0;
+    if (cPar->strategy == ZSTD_dfast) {
+        cPar->strategy = ZSTD_fast;
+        cPar->targetLength = 0;
     }
 #endif
 
@@ -1586,54 +1587,54 @@ ZSTD_adjustCParams_internal(ZSTD_CParams cPar,
       && (dictSize <= maxWindowResize) )  {
         U32 const tSize = (U32)(srcSize + dictSize);
         static U32 const hashSizeMin = 1 << ZSTD_HASHLOG_MIN;
-        if (ZSTD_windowSize(&cPar) > tSize) {
+        if (ZSTD_windowSize(cPar) > tSize) {
             if (tSize < hashSizeMin) {
-                cPar.windowLog = ZSTD_HASHLOG_MIN;
-                cPar.windowFrac = 0;
+                cPar->windowLog = ZSTD_HASHLOG_MIN;
+                cPar->windowFrac = 0;
             } else
 #if !ZSTD_WINDOW_ALLOW_PICKING_FRACTIONAL_SIZES
             /* Prevents adjustment in the scenario where we have explicitly
              * selected a fractional window size that is slightly larger than
              * the src size hint. If we allow picking without this check, we
              * might end up growing the window to the next power of two. */
-            if (ZSTD_windowSize(&cPar) > (1u << (ZSTD_highbit32(tSize - 1) + 1)))
+            if (ZSTD_windowSize(cPar) > (1u << (ZSTD_highbit32(tSize - 1) + 1)))
 #endif
             {
                 const U32 tmpMinWindowLog = ZSTD_HASHLOG_MIN < ZSTD_WINDOWLOG_MIN ? ZSTD_HASHLOG_MIN : ZSTD_WINDOWLOG_MIN;
-                ZSTD_setMinimalWindowLogAndFrac(&cPar, tSize, tmpMinWindowLog);
+                ZSTD_setMinimalWindowLogAndFrac(cPar, tSize, tmpMinWindowLog);
             }
         }
     }
     if (srcSize != ZSTD_CONTENTSIZE_UNKNOWN) {
-        ZSTD_CParams dictWindowCParams = cPar;
-        U32 const cycleLog = ZSTD_cycleLog(cPar.chainLog, cPar.strategy);
+        ZSTD_CParams dictWindowCParams = *cPar;
+        U32 const cycleLog = ZSTD_cycleLog(cPar->chainLog, cPar->strategy);
         ZSTD_dictAndWindowLog(&dictWindowCParams, (U64)srcSize, (U64)dictSize);
         if (dictWindowCParams.windowFrac != 0) {
             /* Round up to a whole power of two. */
             dictWindowCParams.windowLog++;
             dictWindowCParams.windowFrac = 0;
         }
-        if (cPar.hashLog > dictWindowCParams.windowLog+1)
-            cPar.hashLog = dictWindowCParams.windowLog+1;
+        if (cPar->hashLog > dictWindowCParams.windowLog+1)
+            cPar->hashLog = dictWindowCParams.windowLog+1;
         if (cycleLog > dictWindowCParams.windowLog)
-            cPar.chainLog -= (cycleLog - dictWindowCParams.windowLog);
+            cPar->chainLog -= (cycleLog - dictWindowCParams.windowLog);
     }
 
-    if (cPar.windowLog < ZSTD_WINDOWLOG_ABSOLUTEMIN) {
-        cPar.windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;  /* minimum wlog required for valid frame header */
-        cPar.windowFrac = 0;
+    if (cPar->windowLog < ZSTD_WINDOWLOG_ABSOLUTEMIN) {
+        cPar->windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;  /* minimum wlog required for valid frame header */
+        cPar->windowFrac = 0;
     }
 
     /* We can't use more than 32 bits of hash in total, so that means that we require:
      * (hashLog + 8) <= 32 && (chainLog + 8) <= 32
      */
-    if (mode == ZSTD_cpm_createCDict && ZSTD_CDictIndicesAreTagged(&cPar)) {
+    if (mode == ZSTD_cpm_createCDict && ZSTD_CDictIndicesAreTagged(cPar)) {
         U32 const maxShortCacheHashLog = 32 - ZSTD_SHORT_CACHE_TAG_BITS;
-        if (cPar.hashLog > maxShortCacheHashLog) {
-            cPar.hashLog = maxShortCacheHashLog;
+        if (cPar->hashLog > maxShortCacheHashLog) {
+            cPar->hashLog = maxShortCacheHashLog;
         }
-        if (cPar.chainLog > maxShortCacheHashLog) {
-            cPar.chainLog = maxShortCacheHashLog;
+        if (cPar->chainLog > maxShortCacheHashLog) {
+            cPar->chainLog = maxShortCacheHashLog;
         }
     }
 
@@ -1649,18 +1650,16 @@ ZSTD_adjustCParams_internal(ZSTD_CParams cPar,
     /* We can't hash more than 32-bits in total. So that means that we require:
      * (hashLog - rowLog + 8) <= 32
      */
-    if (ZSTD_rowMatchFinderUsed(cPar.strategy, useRowMatchFinder)) {
+    if (ZSTD_rowMatchFinderUsed(cPar->strategy, useRowMatchFinder)) {
         /* Switch to 32-entry rows if searchLog is 5 (or more) */
-        U32 const rowLog = BOUNDED(4, cPar.searchLog, 6);
+        U32 const rowLog = BOUNDED(4, cPar->searchLog, 6);
         U32 const maxRowHashLog = 32 - ZSTD_ROW_HASH_TAG_BITS;
         U32 const maxHashLog = maxRowHashLog + rowLog;
-        assert(cPar.hashLog >= rowLog);
-        if (cPar.hashLog > maxHashLog) {
-            cPar.hashLog = maxHashLog;
+        assert(cPar->hashLog >= rowLog);
+        if (cPar->hashLog > maxHashLog) {
+            cPar->hashLog = maxHashLog;
         }
     }
-
-    return cPar;
 }
 
 ZSTD_compressionParameters
@@ -1668,11 +1667,13 @@ ZSTD_adjustCParams(ZSTD_compressionParameters cPar,
                    unsigned long long srcSize,
                    size_t dictSize)
 {
-    ZSTD_CParams cParams = ZSTD_getCParamsFromPublicCParams(cPar);
-    cParams = ZSTD_clampCParams(cParams);   /* resulting cPar is necessarily valid (all parameters within range) */
+    ZSTD_CCtx_params params;
+    ZSTD_CCtxParams_init(&params, 0);
+    params.cParams = ZSTD_getCParamsFromPublicCParams(cPar);
+    params.cParams = ZSTD_clampCParams(params.cParams);   /* resulting cPar is necessarily valid (all parameters within range) */
     if (srcSize == 0) srcSize = ZSTD_CONTENTSIZE_UNKNOWN;
-    cParams = ZSTD_adjustCParams_internal(cParams, srcSize, dictSize, ZSTD_cpm_unknown, ZSTD_ps_auto);
-    return ZSTD_getPublicCParamsFromCParams(cParams);
+    ZSTD_adjustCParams_internal(&params, srcSize, dictSize, ZSTD_cpm_unknown, ZSTD_ps_auto);
+    return ZSTD_getPublicCParamsFromCParams(params.cParams);
 }
 
 ZSTD_CParams ZSTD_getCParamsFromPublicCParams(
@@ -1735,22 +1736,27 @@ static void ZSTD_overrideCParams(
 }
 
 ZSTD_CParams ZSTD_getCParamsFromCCtxParams(
-        const ZSTD_CCtx_params* CCtxParams, U64 srcSizeHint, size_t dictSize, ZSTD_CParamMode_e mode)
+        const ZSTD_CCtx_params* cctxParams, U64 srcSizeHint, size_t dictSize, ZSTD_CParamMode_e mode)
 {
-    ZSTD_CParams cParams;
-    if (srcSizeHint == ZSTD_CONTENTSIZE_UNKNOWN && CCtxParams->srcSizeHint > 0) {
-        assert(CCtxParams->srcSizeHint>=0);
-        srcSizeHint = (U64)CCtxParams->srcSizeHint;
+    ZSTD_CCtx_params params = *cctxParams;
+    if (srcSizeHint == ZSTD_CONTENTSIZE_UNKNOWN && params.srcSizeHint > 0) {
+        assert(params.srcSizeHint>=0);
+        srcSizeHint = (U64)params.srcSizeHint;
     }
-    cParams = ZSTD_getCParams_internal(CCtxParams->compressionLevel, srcSizeHint, dictSize, mode);
-    if (CCtxParams->ldmParams.enableLdm == ZSTD_ps_enable) {
-        cParams.windowLog = ZSTD_LDM_DEFAULT_WINDOW_LOG;
-        cParams.windowFrac = 0;
+    {
+        ZSTD_CParams cParams = ZSTD_getCParams_internal(params.compressionLevel, srcSizeHint, dictSize, mode);
+        if (params.ldmParams.enableLdm == ZSTD_ps_enable) {
+            cParams.windowLog = ZSTD_LDM_DEFAULT_WINDOW_LOG;
+            cParams.windowFrac = 0;
+        }
+        ZSTD_overrideCParams(&cParams, &params.cParams);
+        params.cParams = cParams;
+        assert(!ZSTD_checkCParams_internal(cParams));
     }
-    ZSTD_overrideCParams(&cParams, &CCtxParams->cParams);
-    assert(!ZSTD_checkCParams_internal(cParams));
+
     /* srcSizeHint == 0 means 0 */
-    return ZSTD_adjustCParams_internal(cParams, srcSizeHint, dictSize, mode, CCtxParams->useRowMatchFinder);
+    ZSTD_adjustCParams_internal(&params, srcSizeHint, dictSize, mode, params.useRowMatchFinder);
+    return params.cParams;
 }
 
 static size_t
@@ -2444,7 +2450,7 @@ ZSTD_resetCCtx_byAttachingCDict(ZSTD_CCtx* cctx,
     DEBUGLOG(4, "ZSTD_resetCCtx_byAttachingCDict() pledgedSrcSize=%llu",
                 (unsigned long long)pledgedSrcSize);
     {
-        ZSTD_CParams adjusted_cdict_cParams = cdict->params.cParams;
+        ZSTD_CCtx_params adjusted_cdict_params = cdict->params;
         unsigned const windowLog = params.cParams.windowLog;
         unsigned const windowFrac = params.cParams.windowFrac;
         assert(windowLog != 0);
@@ -2453,19 +2459,20 @@ ZSTD_resetCCtx_byAttachingCDict(ZSTD_CCtx* cctx,
         /* pledgedSrcSize == 0 means 0! */
 
         if (cdict->matchState.dedicatedDictSearch) {
-            ZSTD_dedicatedDictSearch_revertCParams(&adjusted_cdict_cParams);
+            ZSTD_dedicatedDictSearch_revertCParams(&adjusted_cdict_params.cParams);
         }
 
-        params.cParams = ZSTD_adjustCParams_internal(adjusted_cdict_cParams, pledgedSrcSize,
-                                                     cdict->dictContentSize, ZSTD_cpm_attachDict,
-                                                     params.useRowMatchFinder);
+        ZSTD_adjustCParams_internal(&adjusted_cdict_params, pledgedSrcSize,
+                                    cdict->dictContentSize, ZSTD_cpm_attachDict,
+                                    params.useRowMatchFinder);
+        params.cParams = adjusted_cdict_params.cParams;
         params.cParams.windowLog  = windowLog;
         params.cParams.windowFrac = windowFrac;
         params.useRowMatchFinder = cdict->params.useRowMatchFinder;    /* cdict overrides */
         FORWARD_IF_ERROR(ZSTD_resetCCtx_internal(cctx, &params, pledgedSrcSize,
                                                  /* loadedDictSize */ 0,
                                                  ZSTDcrp_makeClean, zbuff), "");
-        assert(cctx->appliedParams.cParams.strategy == adjusted_cdict_cParams.strategy);
+        assert(cctx->appliedParams.cParams.strategy == adjusted_cdict_params.cParams.strategy);
     }
 
     {   const U32 cdictEnd = (U32)( cdict->matchState.window.nextSrc
@@ -7922,15 +7929,18 @@ static ZSTD_CParams ZSTD_getCParams_internal(
     else if (compressionLevel > ZSTD_MAX_CLEVEL) row = ZSTD_MAX_CLEVEL;
     else row = compressionLevel;
 
-    {   ZSTD_CParams cp = ZSTD_defaultCParameters[tableID][row];
-        DEBUGLOG(5, "ZSTD_getCParams_internal selected tableID: %u row: %u strat: %u", tableID, row, (U32)cp.strategy);
+    {   ZSTD_CCtx_params params;
+        ZSTD_CCtxParams_init(&params, compressionLevel);
+        params.cParams = ZSTD_defaultCParameters[tableID][row];
+        DEBUGLOG(5, "ZSTD_getCParams_internal selected tableID: %u row: %u strat: %u", tableID, row, (U32)params.cParams.strategy);
         /* acceleration factor */
         if (compressionLevel < 0) {
             int const clampedCompressionLevel = MAX(ZSTD_minCLevel(), compressionLevel);
-            cp.targetLength = (unsigned)(-clampedCompressionLevel);
+            params.cParams.targetLength = (unsigned)(-clampedCompressionLevel);
         }
         /* refine parameters based on srcSize & dictSize */
-        return ZSTD_adjustCParams_internal(cp, srcSizeHint, dictSize, mode, ZSTD_ps_auto);
+        ZSTD_adjustCParams_internal(&params, srcSizeHint, dictSize, mode, ZSTD_ps_auto);
+        return params.cParams;
     }
 }
 

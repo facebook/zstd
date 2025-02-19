@@ -1809,29 +1809,26 @@ static size_t ZSTD_maxNbSeq(size_t blockSize, unsigned minMatch, int useSequence
 }
 
 static size_t ZSTD_estimateCCtxSize_usingCCtxParams_internal(
-        const ZSTD_CParams* cParams,
-        const ldmParams_t* ldmParams,
+        const ZSTD_CCtx_params* params,
         const int isStatic,
-        const ZSTD_ParamSwitch_e useRowMatchFinder,
         const size_t buffInSize,
         const size_t buffOutSize,
-        const U64 pledgedSrcSize,
-        int useSequenceProducer,
-        size_t maxBlockSize)
+        const U64 pledgedSrcSize)
 {
-    size_t const windowSize = (size_t) BOUNDED(1ULL, ZSTD_windowSize(cParams), pledgedSrcSize);
-    size_t const blockSize = MIN(ZSTD_resolveMaxBlockSize(maxBlockSize), windowSize);
-    size_t const maxNbSeq = ZSTD_maxNbSeq(blockSize, cParams->minMatch, useSequenceProducer);
+    int const useSequenceProducer = ZSTD_hasExtSeqProd(params);
+    size_t const windowSize = (size_t) BOUNDED(1ULL, ZSTD_windowSize(&params->cParams), pledgedSrcSize);
+    size_t const blockSize = MIN(ZSTD_resolveMaxBlockSize(params->maxBlockSize), windowSize);
+    size_t const maxNbSeq = ZSTD_maxNbSeq(blockSize, params->cParams.minMatch, useSequenceProducer);
     size_t const tokenSpace = ZSTD_cwksp_alloc_size(WILDCOPY_OVERLENGTH + blockSize)
                             + ZSTD_cwksp_aligned64_alloc_size(maxNbSeq * sizeof(SeqDef))
                             + 3 * ZSTD_cwksp_alloc_size(maxNbSeq * sizeof(BYTE));
     size_t const tmpWorkSpace = ZSTD_cwksp_alloc_size(TMP_WORKSPACE_SIZE);
     size_t const blockStateSpace = 2 * ZSTD_cwksp_alloc_size(sizeof(ZSTD_compressedBlockState_t));
-    size_t const matchStateSize = ZSTD_sizeof_matchState(cParams, useRowMatchFinder, /* enableDedicatedDictSearch */ 0, /* forCCtx */ 1);
+    size_t const matchStateSize = ZSTD_sizeof_matchState(&params->cParams, params->useRowMatchFinder, /* enableDedicatedDictSearch */ 0, /* forCCtx */ 1);
 
-    size_t const ldmSpace = ZSTD_ldm_getTableSize(*ldmParams);
-    size_t const maxNbLdmSeq = ZSTD_ldm_getMaxNbSeq(*ldmParams, blockSize);
-    size_t const ldmSeqSpace = ldmParams->enableLdm == ZSTD_ps_enable ?
+    size_t const ldmSpace = ZSTD_ldm_getTableSize(params->ldmParams);
+    size_t const maxNbLdmSeq = ZSTD_ldm_getMaxNbSeq(params->ldmParams, blockSize);
+    size_t const ldmSeqSpace = params->ldmParams.enableLdm == ZSTD_ps_enable ?
         ZSTD_cwksp_aligned64_alloc_size(maxNbLdmSeq * sizeof(rawSeq)) : 0;
 
 
@@ -1862,17 +1859,16 @@ static size_t ZSTD_estimateCCtxSize_usingCCtxParams_internal(
 
 size_t ZSTD_estimateCCtxSize_usingCCtxParams(const ZSTD_CCtx_params* params)
 {
-    ZSTD_CParams const cParams =
-                ZSTD_getCParamsFromCCtxParams(params, ZSTD_CONTENTSIZE_UNKNOWN, 0, ZSTD_cpm_noAttachDict);
-    ZSTD_ParamSwitch_e const useRowMatchFinder = ZSTD_resolveRowMatchFinderMode(params->useRowMatchFinder,
-                                                                               &cParams);
+    ZSTD_CCtx_params par = *params;
+    par.cParams = ZSTD_getCParamsFromCCtxParams(&par, ZSTD_CONTENTSIZE_UNKNOWN, 0, ZSTD_cpm_noAttachDict);
+    par.useRowMatchFinder = ZSTD_resolveRowMatchFinderMode(par.useRowMatchFinder, &par.cParams);
 
-    RETURN_ERROR_IF(params->nbWorkers > 0, GENERIC, "Estimate CCtx size is supported for single-threaded compression only.");
+    RETURN_ERROR_IF(par.nbWorkers > 0, GENERIC, "Estimate CCtx size is supported for single-threaded compression only.");
     /* estimateCCtxSize is for one-shot compression. So no buffers should
      * be needed. However, we still allocate two 0-sized buffers, which can
      * take space under ASAN. */
     return ZSTD_estimateCCtxSize_usingCCtxParams_internal(
-        &cParams, &params->ldmParams, 1, useRowMatchFinder, 0, 0, ZSTD_CONTENTSIZE_UNKNOWN, ZSTD_hasExtSeqProd(params), params->maxBlockSize);
+        &par, 1, 0, 0, ZSTD_CONTENTSIZE_UNKNOWN);
 }
 
 static size_t ZSTD_estimateCCtxSize_usingCParams_internal(ZSTD_CParams cParams)
@@ -1925,10 +1921,11 @@ size_t ZSTD_estimateCCtxSize(int compressionLevel)
 
 size_t ZSTD_estimateCStreamSize_usingCCtxParams(const ZSTD_CCtx_params* params)
 {
-    RETURN_ERROR_IF(params->nbWorkers > 0, GENERIC, "Estimate CCtx size is supported for single-threaded compression only.");
-    {   ZSTD_CParams const cParams =
-                ZSTD_getCParamsFromCCtxParams(params, ZSTD_CONTENTSIZE_UNKNOWN, 0, ZSTD_cpm_noAttachDict);
-        size_t const windowSize = ZSTD_windowSize(&cParams);
+    ZSTD_CCtx_params par = *params;
+    RETURN_ERROR_IF(par.nbWorkers > 0, GENERIC, "Estimate CCtx size is supported for single-threaded compression only.");
+    par.cParams = ZSTD_getCParamsFromCCtxParams(params, ZSTD_CONTENTSIZE_UNKNOWN, 0, ZSTD_cpm_noAttachDict);
+    {
+        size_t const windowSize = ZSTD_windowSize(&par.cParams);
         size_t const blockSize = MIN(ZSTD_resolveMaxBlockSize(params->maxBlockSize), windowSize);
         size_t const inBuffSize = (params->inBufferMode == ZSTD_bm_buffered)
                 ? windowSize + blockSize
@@ -1936,11 +1933,11 @@ size_t ZSTD_estimateCStreamSize_usingCCtxParams(const ZSTD_CCtx_params* params)
         size_t const outBuffSize = (params->outBufferMode == ZSTD_bm_buffered)
                 ? ZSTD_compressBound(blockSize) + 1
                 : 0;
-        ZSTD_ParamSwitch_e const useRowMatchFinder = ZSTD_resolveRowMatchFinderMode(params->useRowMatchFinder, &params->cParams);
+        par.useRowMatchFinder = ZSTD_resolveRowMatchFinderMode(par.useRowMatchFinder, &par.cParams);
 
         return ZSTD_estimateCCtxSize_usingCCtxParams_internal(
-            &cParams, &params->ldmParams, 1, useRowMatchFinder, inBuffSize, outBuffSize,
-            ZSTD_CONTENTSIZE_UNKNOWN, ZSTD_hasExtSeqProd(params), params->maxBlockSize);
+            &par, 1, inBuffSize, outBuffSize,
+            ZSTD_CONTENTSIZE_UNKNOWN);
     }
 }
 
@@ -2267,8 +2264,8 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
 
         size_t const neededSpace =
             ZSTD_estimateCCtxSize_usingCCtxParams_internal(
-                &params->cParams, &params->ldmParams, zc->staticSize != 0, params->useRowMatchFinder,
-                buffInSize, buffOutSize, pledgedSrcSize, ZSTD_hasExtSeqProd(params), params->maxBlockSize);
+                params, zc->staticSize != 0,
+                buffInSize, buffOutSize, pledgedSrcSize);
 
         FORWARD_IF_ERROR(neededSpace, "cctx size estimate failed!");
 

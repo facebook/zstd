@@ -1446,10 +1446,9 @@ size_t ZSTD_checkCParams(ZSTD_compressionParameters cParams)
 }
 
 /** ZSTD_clampCParams() :
- *  make CParam values within valid range.
- *  @return : valid CParams */
-static ZSTD_CParams
-ZSTD_clampCParams(ZSTD_CParams cParams)
+ *  make CParam values within valid range. */
+static void
+ZSTD_clampCParams(ZSTD_CCtx_params* params)
 {
 #   define CLAMP_TYPE(cParam, val, type)                                      \
         do {                                                                  \
@@ -1458,18 +1457,17 @@ ZSTD_clampCParams(ZSTD_CParams cParams)
             else if ((int)val>bounds.upperBound) val=(type)bounds.upperBound; \
         } while (0)
 #   define CLAMP(cParam, val) CLAMP_TYPE(cParam, val, unsigned)
-    CLAMP(ZSTD_c_windowLog,     cParams.windowLog);
+    CLAMP(ZSTD_c_windowLog,     params->cParams.windowLog);
     if (ZSTD_c_windowLog == ZSTD_WINDOWLOG_MAX) {
-        cParams.windowFrac = 0;
+        params->cParams.windowFrac = 0;
     }
-    CLAMP(ZSTD_c_windowFrac,    cParams.windowFrac);
-    CLAMP(ZSTD_c_chainLog,      cParams.chainLog);
-    CLAMP(ZSTD_c_hashLog,       cParams.hashLog);
-    CLAMP(ZSTD_c_searchLog,     cParams.searchLog);
-    CLAMP(ZSTD_c_minMatch,      cParams.minMatch);
-    CLAMP(ZSTD_c_targetLength,  cParams.targetLength);
-    CLAMP_TYPE(ZSTD_c_strategy, cParams.strategy, ZSTD_strategy);
-    return cParams;
+    CLAMP(ZSTD_c_windowFrac,    params->cParams.windowFrac);
+    CLAMP(ZSTD_c_chainLog,      params->cParams.chainLog);
+    CLAMP(ZSTD_c_hashLog,       params->cParams.hashLog);
+    CLAMP(ZSTD_c_searchLog,     params->cParams.searchLog);
+    CLAMP(ZSTD_c_minMatch,      params->cParams.minMatch);
+    CLAMP(ZSTD_c_targetLength,  params->cParams.targetLength);
+    CLAMP_TYPE(ZSTD_c_strategy, params->cParams.strategy, ZSTD_strategy);
 }
 
 /** ZSTD_cycleLog() :
@@ -1687,7 +1685,7 @@ ZSTD_adjustCParams(ZSTD_compressionParameters cPar,
     ZSTD_CCtx_params params;
     ZSTD_CCtxParams_init(&params, 0);
     params.cParams = ZSTD_getCParamsFromPublicCParams(cPar);
-    params.cParams = ZSTD_clampCParams(params.cParams);   /* resulting cPar is necessarily valid (all parameters within range) */
+    ZSTD_clampCParams(&params);   /* resulting cPar is necessarily valid (all parameters within range) */
     if (srcSize == 0) srcSize = ZSTD_CONTENTSIZE_UNKNOWN;
     ZSTD_adjustCParams_internal(&params, srcSize, dictSize, ZSTD_cpm_unknown, ZSTD_ps_auto);
     return ZSTD_getPublicCParamsFromCParams(params.cParams);

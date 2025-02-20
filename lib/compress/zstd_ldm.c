@@ -133,10 +133,10 @@ done:
 }
 
 void ZSTD_ldm_adjustParameters(ldmParams_t* params,
-                               const ZSTD_CParams* cParams)
+                               const ZSTD_CCtx_params* cctxParams)
 {
-    params->windowLog = cParams->windowLog;
-    params->windowFrac = cParams->windowFrac;
+    params->windowLog = cctxParams->cParams.windowLog;
+    params->windowFrac = cctxParams->cParams.windowFrac;
     ZSTD_STATIC_ASSERT(LDM_BUCKET_SIZE_LOG <= ZSTD_LDM_BUCKETSIZELOG_MAX);
     DEBUGLOG(4, "ZSTD_ldm_adjustParameters");
     if (params->hashRateLog == 0) {
@@ -147,9 +147,9 @@ void ZSTD_ldm_adjustParameters(ldmParams_t* params,
                 params->hashRateLog = params->windowLog - params->hashLog;
             }
         } else {
-            assert(1 <= (int)cParams->strategy && (int)cParams->strategy <= 9);
+            assert(1 <= (int)cctxParams->cParams.strategy && (int)cctxParams->cParams.strategy <= 9);
             /* mapping from [fast, rate7] to [btultra2, rate4] */
-            params->hashRateLog = 7 - (cParams->strategy/3);
+            params->hashRateLog = 7 - (cctxParams->cParams.strategy/3);
         }
     }
     if (params->hashLog == 0) {
@@ -157,12 +157,12 @@ void ZSTD_ldm_adjustParameters(ldmParams_t* params,
     }
     if (params->minMatchLength == 0) {
         params->minMatchLength = LDM_MIN_MATCH_LENGTH;
-        if (cParams->strategy >= ZSTD_btultra)
+        if (cctxParams->cParams.strategy >= ZSTD_btultra)
             params->minMatchLength /= 2;
     }
     if (params->bucketSizeLog==0) {
-        assert(1 <= (int)cParams->strategy && (int)cParams->strategy <= 9);
-        params->bucketSizeLog = BOUNDED(LDM_BUCKET_SIZE_LOG, (U32)cParams->strategy, ZSTD_LDM_BUCKETSIZELOG_MAX);
+        assert(1 <= (int)cctxParams->cParams.strategy && (int)cctxParams->cParams.strategy <= 9);
+        params->bucketSizeLog = BOUNDED(LDM_BUCKET_SIZE_LOG, (U32)cctxParams->cParams.strategy, ZSTD_LDM_BUCKETSIZELOG_MAX);
     }
     params->bucketSizeLog = MIN(params->bucketSizeLog, params->hashLog);
 }

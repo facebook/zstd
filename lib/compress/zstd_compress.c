@@ -311,7 +311,7 @@ static ZSTD_CCtx_params ZSTD_makeCCtxParamsFromCParams(
     /* Adjust advanced params according to cParams */
     cctxParams.ldmParams.enableLdm = ZSTD_resolveEnableLdm(cctxParams.ldmParams.enableLdm, &cParams);
     if (cctxParams.ldmParams.enableLdm == ZSTD_ps_enable) {
-        ZSTD_ldm_adjustParameters(&cctxParams.ldmParams, &cParams);
+        ZSTD_ldm_adjustParameters(&cctxParams.ldmParams, &cctxParams);
         assert(cctxParams.ldmParams.hashLog >= cctxParams.ldmParams.bucketSizeLog);
         assert(cctxParams.ldmParams.hashRateLog < 32);
     }
@@ -2256,7 +2256,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
     assert(params->maxBlockSize != 0);
     if (params->ldmParams.enableLdm == ZSTD_ps_enable) {
         /* Adjust long distance matching parameters */
-        ZSTD_ldm_adjustParameters(&zc->appliedParams.ldmParams, &params->cParams);
+        ZSTD_ldm_adjustParameters(&zc->appliedParams.ldmParams, params);
         assert(params->ldmParams.hashLog >= params->ldmParams.bucketSizeLog);
         assert(params->ldmParams.hashRateLog < 32);
     }

@@ -495,7 +495,7 @@ ZSTDMT_serialState_reset(SerialState* serialState,
     /* Adjust parameters */
     if (params.ldmParams.enableLdm == ZSTD_ps_enable) {
         DEBUGLOG(4, "LDM window size = %u KB", ZSTD_windowSize(&params) >> 10);
-        ZSTD_ldm_adjustParameters(&params.ldmParams, &params.cParams);
+        ZSTD_ldm_adjustParameters(&params.ldmParams, &params);
         assert(params.ldmParams.hashLog >= params.ldmParams.bucketSizeLog);
         assert(params.ldmParams.hashRateLog < 32);
     } else {

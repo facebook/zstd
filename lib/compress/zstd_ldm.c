@@ -136,7 +136,7 @@ void ZSTD_ldm_adjustParameters(ldmParams_t* params,
                                const ZSTD_CCtx_params* cctxParams)
 {
     params->windowLog = cctxParams->cParams.windowLog;
-    params->windowFrac = cctxParams->cParams.windowFrac;
+    params->windowFrac = cctxParams->windowFrac;
     ZSTD_STATIC_ASSERT(LDM_BUCKET_SIZE_LOG <= ZSTD_LDM_BUCKETSIZELOG_MAX);
     DEBUGLOG(4, "ZSTD_ldm_adjustParameters");
     if (params->hashRateLog == 0) {

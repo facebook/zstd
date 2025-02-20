@@ -195,8 +195,7 @@ size_t ZSTD_buildBlockEntropyStats(
  * Internal equivalent of public ZSTD_compressionParameters struct.
  */
 typedef struct {
-    unsigned windowLog;       /**< largest match distance : larger == more compression, more memory needed during decompression */
-    unsigned windowFrac;      /**< fractional component of window size representation */
+    unsigned windowLog;       /**< largest match distance : larger == more compression, more memory needed during decompression, see also `windowFrac` in CCtxParams */
     unsigned chainLog;        /**< fully searched segment : larger == more compression, slower, more memory (useless for fast) */
     unsigned hashLog;         /**< dispatch table : larger == faster, more memory */
     unsigned searchLog;       /**< nb of searches : larger == more compression, slower */
@@ -388,6 +387,7 @@ typedef struct {
 struct ZSTD_CCtx_params_s {
     ZSTD_format_e format;
     ZSTD_CParams cParams;
+    unsigned windowFrac;  /* Additional CParam controlling sub-power-of-two window sizing. */
     ZSTD_frameParameters fParams;
 
     int compressionLevel;
@@ -1120,7 +1120,7 @@ MEM_STATIC ZSTD_dictMode_e ZSTD_matchState_dictMode(const ZSTD_MatchState_t *ms)
  * provided CParams.
  */
 MEM_STATIC U32 ZSTD_windowSize(const ZSTD_CCtx_params* params) {
-    return (U32)(((8ull + params->cParams.windowFrac) << params->cParams.windowLog) >> 3);
+    return (U32)(((8ull + params->windowFrac) << params->cParams.windowLog) >> 3);
 }
 MEM_STATIC U32 ZSTD_windowSizeLDM(const ldmParams_t* ldmParams) {
     return (U32)(((8ull + ldmParams->windowFrac) << ldmParams->windowLog) >> 3);
@@ -1159,28 +1159,28 @@ MEM_STATIC void ZSTD_setMinimalWindowLogAndFrac(ZSTD_CCtx_params* params, const 
 #if ZSTD_WINDOW_ALLOW_PICKING_FRACTIONAL_SIZES
     if (srcSize < minSize) {
         params->cParams.windowLog = minWindowLog;
-        params->cParams.windowFrac = 0;
+        params->windowFrac = 0;
     } else {
         const U32 srcSizeMinusOne = srcSize - 1;
         params->cParams.windowLog = ZSTD_highbit32(srcSizeMinusOne);
-        params->cParams.windowFrac = ((srcSizeMinusOne >> (params->cParams.windowLog - 3)) & 7) + 1;
-        if (params->cParams.windowFrac == 8) {
-            params->cParams.windowFrac = 0;
+        params->windowFrac = ((srcSizeMinusOne >> (params->cParams.windowLog - 3)) & 7) + 1;
+        if (params->windowFrac == 8) {
+            params->windowFrac = 0;
             params->cParams.windowLog++;
         }
     }
 #else
     if (srcSize < minSize) {
         params->cParams.windowLog = minWindowLog;
-        params->cParams.windowFrac = 0;
+        params->windowFrac = 0;
     } else {
         params->cParams.windowLog = ZSTD_highbit32(srcSize - 1) + 1;
-        params->cParams.windowFrac = 0;
+        params->windowFrac = 0;
     }
 #endif
-    if (params->cParams.windowLog + !!params->cParams.windowFrac > ZSTD_WINDOWLOG_MAX) {
+    if (params->cParams.windowLog + !!params->windowFrac > ZSTD_WINDOWLOG_MAX) {
         params->cParams.windowLog = ZSTD_WINDOWLOG_MAX;
-        params->cParams.windowFrac = 0;
+        params->windowFrac = 0;
     }
     assert(ZSTD_windowLogAndFracAreMinimal(params, srcSize));
 }

@@ -801,18 +801,18 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
             BOUNDCHECK(ZSTD_c_windowLog, value);
         CCtxParams->cParams.windowLog = (U32)value;
         if (value == ZSTD_WINDOWLOG_MAX) {
-            CCtxParams->cParams.windowFrac = 0;
+            CCtxParams->windowFrac = 0;
         }
         return CCtxParams->cParams.windowLog;
 
     case ZSTD_c_windowFrac :
         BOUNDCHECK(ZSTD_c_windowFrac, value);
         if (CCtxParams->cParams.windowLog != ZSTD_WINDOWLOG_MAX) {
-            CCtxParams->cParams.windowFrac = (U32)value;
+            CCtxParams->windowFrac = (U32)value;
         } else {
-            CCtxParams->cParams.windowFrac = 0;
+            CCtxParams->windowFrac = 0;
         }
-        return CCtxParams->cParams.windowFrac;
+        return CCtxParams->windowFrac;
 
     case ZSTD_c_hashLog :
         if (value!=0)   /* 0 => use default */
@@ -1060,7 +1060,7 @@ size_t ZSTD_CCtxParams_getParameter(
         *value = (int)CCtxParams->cParams.windowLog;
         break;
     case ZSTD_c_windowFrac :
-        *value = (int)CCtxParams->cParams.windowFrac;
+        *value = (int)CCtxParams->windowFrac;
         break;
     case ZSTD_c_hashLog :
         *value = (int)CCtxParams->cParams.hashLog;
@@ -1407,10 +1407,6 @@ size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx, ZSTD_ResetDirective reset)
 size_t ZSTD_checkCParams_internal(const ZSTD_CParams* cParams)
 {
     BOUNDCHECK(ZSTD_c_windowLog,    (int)cParams->windowLog);
-    BOUNDCHECK(ZSTD_c_windowFrac,   (int)cParams->windowFrac);
-    RETURN_ERROR_IF(
-            cParams->windowLog + !!cParams->windowFrac > ZSTD_WINDOWLOG_MAX,
-            parameter_outOfBound, "Param out of bounds");
     BOUNDCHECK(ZSTD_c_chainLog,     (int)cParams->chainLog);
     BOUNDCHECK(ZSTD_c_hashLog,      (int)cParams->hashLog);
     BOUNDCHECK(ZSTD_c_searchLog,    (int)cParams->searchLog);
@@ -1423,9 +1419,9 @@ size_t ZSTD_checkCParams_internal(const ZSTD_CParams* cParams)
 size_t ZSTD_checkCCtxCParams_internal(const ZSTD_CCtx_params* params)
 {
     BOUNDCHECK(ZSTD_c_windowLog,    (int)params->cParams.windowLog);
-    BOUNDCHECK(ZSTD_c_windowFrac,   (int)params->cParams.windowFrac);
+    BOUNDCHECK(ZSTD_c_windowFrac,   (int)params->windowFrac);
     RETURN_ERROR_IF(
-            params->cParams.windowLog + !!params->cParams.windowFrac > ZSTD_WINDOWLOG_MAX,
+            params->cParams.windowLog + !!params->windowFrac > ZSTD_WINDOWLOG_MAX,
             parameter_outOfBound, "Param out of bounds");
     BOUNDCHECK(ZSTD_c_chainLog,     (int)params->cParams.chainLog);
     BOUNDCHECK(ZSTD_c_hashLog,      (int)params->cParams.hashLog);
@@ -1458,10 +1454,10 @@ ZSTD_clampCParams(ZSTD_CCtx_params* params)
         } while (0)
 #   define CLAMP(cParam, val) CLAMP_TYPE(cParam, val, unsigned)
     CLAMP(ZSTD_c_windowLog,     params->cParams.windowLog);
-    if (ZSTD_c_windowLog == ZSTD_WINDOWLOG_MAX) {
-        params->cParams.windowFrac = 0;
+    if (params->cParams.windowLog == ZSTD_WINDOWLOG_MAX) {
+        params->windowFrac = 0;
     }
-    CLAMP(ZSTD_c_windowFrac,    params->cParams.windowFrac);
+    CLAMP(ZSTD_c_windowFrac,    params->windowFrac);
     CLAMP(ZSTD_c_chainLog,      params->cParams.chainLog);
     CLAMP(ZSTD_c_hashLog,       params->cParams.hashLog);
     CLAMP(ZSTD_c_searchLog,     params->cParams.searchLog);
@@ -1492,7 +1488,7 @@ static void ZSTD_dictAndWindowLog(ZSTD_CCtx_params* params, U64 srcSize, U64 dic
     if (dictSize == 0) {
         return;
     }
-    assert(params->cParams.windowLog + !!params->cParams.windowFrac <= ZSTD_WINDOWLOG_MAX);
+    assert(params->cParams.windowLog + !!params->windowFrac <= ZSTD_WINDOWLOG_MAX);
     assert(srcSize != ZSTD_CONTENTSIZE_UNKNOWN); /* Handled in ZSTD_adjustCParams_internal() */
     {
         U64 const windowSize = ZSTD_windowSize(params);
@@ -1605,7 +1601,7 @@ ZSTD_adjustCParams_internal(ZSTD_CCtx_params* params,
         if (ZSTD_windowSize(params) > tSize) {
             if (tSize < hashSizeMin) {
                 cPar->windowLog = ZSTD_HASHLOG_MIN;
-                cPar->windowFrac = 0;
+                params->windowFrac = 0;
             } else
 #if !ZSTD_WINDOW_ALLOW_PICKING_FRACTIONAL_SIZES
             /* Prevents adjustment in the scenario where we have explicitly
@@ -1624,10 +1620,10 @@ ZSTD_adjustCParams_internal(ZSTD_CCtx_params* params,
         ZSTD_CCtx_params dictWindowParams = *params;
         U32 const cycleLog = ZSTD_cycleLog(cPar->chainLog, cPar->strategy);
         ZSTD_dictAndWindowLog(&dictWindowParams, (U64)srcSize, (U64)dictSize);
-        if (dictWindowParams.cParams.windowFrac != 0) {
+        if (dictWindowParams.windowFrac != 0) {
             /* Round up to a whole power of two. */
             dictWindowParams.cParams.windowLog++;
-            dictWindowParams.cParams.windowFrac = 0;
+            dictWindowParams.windowFrac = 0;
         }
         if (cPar->hashLog > dictWindowParams.cParams.windowLog+1)
             cPar->hashLog = dictWindowParams.cParams.windowLog+1;
@@ -1637,7 +1633,7 @@ ZSTD_adjustCParams_internal(ZSTD_CCtx_params* params,
 
     if (cPar->windowLog < ZSTD_WINDOWLOG_ABSOLUTEMIN) {
         cPar->windowLog = ZSTD_WINDOWLOG_ABSOLUTEMIN;  /* minimum wlog required for valid frame header */
-        cPar->windowFrac = 0;
+        params->windowFrac = 0;
     }
 
     /* We can't use more than 32 bits of hash in total, so that means that we require:
@@ -1695,7 +1691,6 @@ ZSTD_CParams ZSTD_getCParamsFromPublicCParams(
         ZSTD_compressionParameters cParams) {
     ZSTD_CParams ret;
     ret.windowLog    = cParams.windowLog;
-    ret.windowFrac   = 0;
     ret.chainLog     = cParams.chainLog;
     ret.hashLog      = cParams.hashLog;
     ret.searchLog    = cParams.searchLog;
@@ -1740,8 +1735,6 @@ static void ZSTD_overrideCParams(
         const ZSTD_CParams* overrides)
 {
     if (overrides->windowLog)    cParams->windowLog    = overrides->windowLog;
-    /* An explicit windowFrac only applies if windowLog is set explicitly. */
-    if (overrides->windowLog)    cParams->windowFrac   = overrides->windowFrac;
     if (overrides->hashLog)      cParams->hashLog      = overrides->hashLog;
     if (overrides->chainLog)     cParams->chainLog     = overrides->chainLog;
     if (overrides->searchLog)    cParams->searchLog    = overrides->searchLog;
@@ -1762,7 +1755,6 @@ ZSTD_CParams ZSTD_getCParamsFromCCtxParams(
         ZSTD_CParams cParams = ZSTD_getCParams_internal(params.compressionLevel, srcSizeHint, dictSize, mode);
         if (params.ldmParams.enableLdm == ZSTD_ps_enable) {
             cParams.windowLog = ZSTD_LDM_DEFAULT_WINDOW_LOG;
-            cParams.windowFrac = 0;
         }
         ZSTD_overrideCParams(&cParams, &params.cParams);
         params.cParams = cParams;
@@ -2041,7 +2033,6 @@ static void ZSTD_assertEqualCParams(ZSTD_CParams cParams1,
     (void)cParams1;
     (void)cParams2;
     assert(cParams1.windowLog    == cParams2.windowLog);
-    assert(cParams1.windowFrac   == cParams2.windowFrac);
     assert(cParams1.chainLog     == cParams2.chainLog);
     assert(cParams1.hashLog      == cParams2.hashLog);
     assert(cParams1.searchLog    == cParams2.searchLog);
@@ -2464,7 +2455,7 @@ ZSTD_resetCCtx_byAttachingCDict(ZSTD_CCtx* cctx,
     {
         ZSTD_CCtx_params adjusted_cdict_params = cdict->params;
         unsigned const windowLog = params.cParams.windowLog;
-        unsigned const windowFrac = params.cParams.windowFrac;
+        unsigned const windowFrac = params.windowFrac;
         assert(windowLog != 0);
         /* Resize working context table params for input only, since the dict
          * has its own tables. */
@@ -2479,7 +2470,7 @@ ZSTD_resetCCtx_byAttachingCDict(ZSTD_CCtx* cctx,
                                     params.useRowMatchFinder);
         params.cParams = adjusted_cdict_params.cParams;
         params.cParams.windowLog  = windowLog;
-        params.cParams.windowFrac = windowFrac;
+        params.windowFrac = windowFrac;
         params.useRowMatchFinder = cdict->params.useRowMatchFinder;    /* cdict overrides */
         FORWARD_IF_ERROR(ZSTD_resetCCtx_internal(cctx, &params, pledgedSrcSize,
                                                  /* loadedDictSize */ 0,
@@ -2546,12 +2537,12 @@ static size_t ZSTD_resetCCtx_byCopyingCDict(ZSTD_CCtx* cctx,
                 (unsigned long long)pledgedSrcSize);
 
     {   unsigned const windowLog  = params.cParams.windowLog;
-        unsigned const windowFrac = params.cParams.windowFrac;
+        unsigned const windowFrac = params.windowFrac;
         assert(windowLog != 0);
         /* Copy only compression parameters related to tables. */
         params.cParams = *cdict_cParams;
         params.cParams.windowLog  = windowLog;
-        params.cParams.windowFrac = windowFrac;
+        params.windowFrac = windowFrac;
         params.useRowMatchFinder = cdict->params.useRowMatchFinder;
         FORWARD_IF_ERROR(ZSTD_resetCCtx_internal(cctx, &params, pledgedSrcSize,
                                                  /* loadedDictSize */ 0,
@@ -2671,7 +2662,7 @@ static size_t ZSTD_copyCCtx_internal(ZSTD_CCtx* dstCCtx,
                                 /* loadedDictSize */ 0,
                                 ZSTDcrp_leaveDirty, zbuff);
         assert(dstCCtx->appliedParams.cParams.windowLog == srcCCtx->appliedParams.cParams.windowLog);
-        assert(dstCCtx->appliedParams.cParams.windowFrac == srcCCtx->appliedParams.cParams.windowFrac);
+        assert(dstCCtx->appliedParams.windowFrac == srcCCtx->appliedParams.windowFrac);
         assert(dstCCtx->appliedParams.cParams.strategy == srcCCtx->appliedParams.cParams.strategy);
         assert(dstCCtx->appliedParams.cParams.hashLog == srcCCtx->appliedParams.cParams.hashLog);
         assert(dstCCtx->appliedParams.cParams.chainLog == srcCCtx->appliedParams.cParams.chainLog);
@@ -4737,7 +4728,7 @@ static size_t ZSTD_compress_frameChunk(ZSTD_CCtx* cctx,
     U32 const maxDist = ZSTD_windowSize(&cctx->appliedParams);
     S64 savings = (S64)cctx->consumedSrcSize - (S64)cctx->producedCSize;
 
-    assert(cctx->appliedParams.cParams.windowLog + !!cctx->appliedParams.cParams.windowFrac <= ZSTD_WINDOWLOG_MAX);
+    assert(cctx->appliedParams.cParams.windowLog + !!cctx->appliedParams.windowFrac <= ZSTD_WINDOWLOG_MAX);
 
     DEBUGLOG(5, "ZSTD_compress_frameChunk (srcSize=%u, blockSizeMax=%u)", (unsigned)srcSize, (unsigned)blockSizeMax);
     if (cctx->appliedParams.fParams.checksumFlag && srcSize)
@@ -4838,7 +4829,7 @@ static size_t ZSTD_writeFrameHeader(void* dst, size_t dstCapacity,
     U32   const checksumFlag = params->fParams.checksumFlag>0;
     U32   const windowSize = ZSTD_windowSize(params);
     U32   const singleSegment = params->fParams.contentSizeFlag && (windowSize >= pledgedSrcSize);
-    BYTE  const windowByte = (BYTE)(((params->cParams.windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN) << 3) | (params->cParams.windowFrac & 7));
+    BYTE  const windowByte = (BYTE)(((params->cParams.windowLog - ZSTD_WINDOWLOG_ABSOLUTEMIN) << 3) | (params->windowFrac & 7));
     U32   const fcsCode = params->fParams.contentSizeFlag ?
                      (pledgedSrcSize>=256) + (pledgedSrcSize>=65536+256) + (pledgedSrcSize>=0xFFFFFFFFU) : 0;  /* 0-3 */
     BYTE  const frameHeaderDescriptionByte = (BYTE)(dictIDSizeCode + (checksumFlag<<2) + (singleSegment<<5) + (fcsCode<<6) );

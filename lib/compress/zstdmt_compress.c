@@ -1258,7 +1258,7 @@ size_t ZSTDMT_initCStream_internal(
                 (U32)pledgedSrcSize, params.nbWorkers, mtctx->cctxPool->totalCCtx);
 
     /* params supposed partially fully validated at this point */
-    assert(!ZSTD_isError(ZSTD_checkCParams_internal(params.cParams)));
+    assert(!ZSTD_isError(ZSTD_checkCCtxCParams_internal(&params)));
     assert(!((dict) && (cdict)));  /* either dict or cdict, not both */
 
     /* init */

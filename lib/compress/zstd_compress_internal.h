@@ -1698,7 +1698,15 @@ void ZSTD_resetSeqStore(SeqStore_t* ssPtr);
  *  as the name implies */
 ZSTD_CParams ZSTD_getCParamsFromCDict(const ZSTD_CDict* cdict);
 
-size_t ZSTD_checkCParams_internal(ZSTD_CParams cParams);
+/*! ZSTD_checkCParams_internal() :
+ *  Only used for cparams coming from the user. Checks are limited compared to
+ *  checking the whole CCtxParams via the below. */
+size_t ZSTD_checkCParams_internal(const ZSTD_CParams* cParams);
+
+/*! ZSTD_checkCCtxCParams_internal() :
+ *  Checks the CParams in the CCtxParams (including related parameters not
+ * *actually* stored in the CParams struct). */
+size_t ZSTD_checkCCtxCParams_internal(const ZSTD_CCtx_params* params);
 
 /* ZSTD_createCDict_internal() :
  * Private use only. To be called from zstdmt_compress.c. */

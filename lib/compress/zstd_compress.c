@@ -321,7 +321,7 @@ static ZSTD_CCtx_params ZSTD_makeCCtxParamsFromCParams(
     cctxParams.maxBlockSize = ZSTD_resolveMaxBlockSize(cctxParams.maxBlockSize);
     cctxParams.searchForExternalRepcodes = ZSTD_resolveExternalRepcodeSearch(cctxParams.searchForExternalRepcodes,
                                                                              cctxParams.compressionLevel);
-    assert(!ZSTD_checkCParams_internal(cParams));
+    assert(!ZSTD_checkCCtxCParams_internal(&cctxParams));
     return cctxParams;
 }
 
@@ -374,7 +374,7 @@ ZSTD_CCtxParams_init_internal(ZSTD_CCtx_params* cctxParams,
                         const ZSTD_Params* params,
                               int compressionLevel)
 {
-    assert(!ZSTD_checkCParams_internal(params->cParams));
+    assert(!ZSTD_checkCParams_internal(&params->cParams));
     ZSTD_memset(cctxParams, 0, sizeof(*cctxParams));
     cctxParams->cParams = params->cParams;
     cctxParams->fParams = params->fParams;
@@ -396,7 +396,7 @@ size_t ZSTD_CCtxParams_init_advanced(ZSTD_CCtx_params* cctxParams, ZSTD_paramete
 {
     ZSTD_Params params = ZSTD_getParamsFromPublicParams(publicParams);
     RETURN_ERROR_IF(!cctxParams, GENERIC, "NULL pointer!");
-    FORWARD_IF_ERROR( ZSTD_checkCParams_internal(params.cParams) , "");
+    FORWARD_IF_ERROR( ZSTD_checkCParams_internal(&params.cParams) , "");
     ZSTD_CCtxParams_init_internal(cctxParams, &params, ZSTD_NO_CLEVEL);
     return 0;
 }
@@ -408,7 +408,7 @@ size_t ZSTD_CCtxParams_init_advanced(ZSTD_CCtx_params* cctxParams, ZSTD_paramete
 static void ZSTD_CCtxParams_setZstdParams(
         ZSTD_CCtx_params* cctxParams, const ZSTD_Params* params)
 {
-    assert(!ZSTD_checkCParams_internal(params->cParams));
+    assert(!ZSTD_checkCParams_internal(&params->cParams));
     cctxParams->cParams = params->cParams;
     cctxParams->fParams = params->fParams;
     /* Should not matter, as all cParams are presumed properly defined.
@@ -1404,19 +1404,35 @@ size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx, ZSTD_ResetDirective reset)
     return 0;
 }
 
-size_t ZSTD_checkCParams_internal(ZSTD_CParams cParams)
+size_t ZSTD_checkCParams_internal(const ZSTD_CParams* cParams)
 {
-    BOUNDCHECK(ZSTD_c_windowLog,    (int)cParams.windowLog);
-    BOUNDCHECK(ZSTD_c_windowFrac,   (int)cParams.windowFrac);
+    BOUNDCHECK(ZSTD_c_windowLog,    (int)cParams->windowLog);
+    BOUNDCHECK(ZSTD_c_windowFrac,   (int)cParams->windowFrac);
     RETURN_ERROR_IF(
-            cParams.windowLog + !!cParams.windowFrac > ZSTD_WINDOWLOG_MAX,
+            cParams->windowLog + !!cParams->windowFrac > ZSTD_WINDOWLOG_MAX,
             parameter_outOfBound, "Param out of bounds");
-    BOUNDCHECK(ZSTD_c_chainLog,     (int)cParams.chainLog);
-    BOUNDCHECK(ZSTD_c_hashLog,      (int)cParams.hashLog);
-    BOUNDCHECK(ZSTD_c_searchLog,    (int)cParams.searchLog);
-    BOUNDCHECK(ZSTD_c_minMatch,     (int)cParams.minMatch);
-    BOUNDCHECK(ZSTD_c_targetLength, (int)cParams.targetLength);
-    BOUNDCHECK(ZSTD_c_strategy,     (int)cParams.strategy);
+    BOUNDCHECK(ZSTD_c_chainLog,     (int)cParams->chainLog);
+    BOUNDCHECK(ZSTD_c_hashLog,      (int)cParams->hashLog);
+    BOUNDCHECK(ZSTD_c_searchLog,    (int)cParams->searchLog);
+    BOUNDCHECK(ZSTD_c_minMatch,     (int)cParams->minMatch);
+    BOUNDCHECK(ZSTD_c_targetLength, (int)cParams->targetLength);
+    BOUNDCHECK(ZSTD_c_strategy,     (int)cParams->strategy);
+    return 0;
+}
+
+size_t ZSTD_checkCCtxCParams_internal(const ZSTD_CCtx_params* params)
+{
+    BOUNDCHECK(ZSTD_c_windowLog,    (int)params->cParams.windowLog);
+    BOUNDCHECK(ZSTD_c_windowFrac,   (int)params->cParams.windowFrac);
+    RETURN_ERROR_IF(
+            params->cParams.windowLog + !!params->cParams.windowFrac > ZSTD_WINDOWLOG_MAX,
+            parameter_outOfBound, "Param out of bounds");
+    BOUNDCHECK(ZSTD_c_chainLog,     (int)params->cParams.chainLog);
+    BOUNDCHECK(ZSTD_c_hashLog,      (int)params->cParams.hashLog);
+    BOUNDCHECK(ZSTD_c_searchLog,    (int)params->cParams.searchLog);
+    BOUNDCHECK(ZSTD_c_minMatch,     (int)params->cParams.minMatch);
+    BOUNDCHECK(ZSTD_c_targetLength, (int)params->cParams.targetLength);
+    BOUNDCHECK(ZSTD_c_strategy,     (int)params->cParams.strategy);
     return 0;
 }
 
@@ -1425,7 +1441,8 @@ size_t ZSTD_checkCParams_internal(ZSTD_CParams cParams)
     @return : 0, or an error code if one value is beyond authorized range */
 size_t ZSTD_checkCParams(ZSTD_compressionParameters cParams)
 {
-    return ZSTD_checkCParams_internal(ZSTD_getCParamsFromPublicCParams(cParams));
+    ZSTD_CParams cPar = ZSTD_getCParamsFromPublicCParams(cParams);
+    return ZSTD_checkCParams_internal(&cPar);
 }
 
 /** ZSTD_clampCParams() :
@@ -1511,7 +1528,7 @@ ZSTD_adjustCParams_internal(ZSTD_CCtx_params* params,
     ZSTD_CParams* cPar = &params->cParams;
     const U64 minSrcSize = 513; /* (1<<9) + 1 */
     const U64 maxWindowResize = 15ULL << (ZSTD_WINDOWLOG_MAX-4);
-    assert(ZSTD_checkCParams_internal(*cPar)==0);
+    assert(ZSTD_checkCCtxCParams_internal(params)==0);
 
     /* Cascade the selected strategy down to the next-highest one built into
      * this binary. */
@@ -1751,7 +1768,7 @@ ZSTD_CParams ZSTD_getCParamsFromCCtxParams(
         }
         ZSTD_overrideCParams(&cParams, &params.cParams);
         params.cParams = cParams;
-        assert(!ZSTD_checkCParams_internal(cParams));
+        assert(!ZSTD_checkCCtxCParams_internal(&params));
     }
 
     /* srcSizeHint == 0 means 0 */
@@ -2225,7 +2242,7 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
     ZSTD_cwksp* const ws = &zc->workspace;
     DEBUGLOG(4, "ZSTD_resetCCtx_internal: pledgedSrcSize=%u, wlog=%u, useRowMatchFinder=%d useBlockSplitter=%d",
                 (U32)pledgedSrcSize, params->cParams.windowLog, (int)params->useRowMatchFinder, (int)params->postBlockSplitter);
-    assert(!ZSTD_isError(ZSTD_checkCParams_internal(params->cParams)));
+    assert(!ZSTD_isError(ZSTD_checkCCtxCParams_internal(params)));
 
     zc->isFirstBlock = 1;
 
@@ -4989,7 +5006,7 @@ size_t ZSTD_compressContinue(ZSTD_CCtx* cctx,
 
 static size_t ZSTD_getBlockSize_deprecated(const ZSTD_CCtx* cctx)
 {
-    assert(!ZSTD_checkCParams_internal(cctx->appliedParams.cParams));
+    assert(!ZSTD_checkCCtxCParams_internal(&cctx->appliedParams));
     return MIN(cctx->appliedParams.maxBlockSize, (size_t)ZSTD_windowSize(&cctx->appliedParams));
 }
 
@@ -5368,7 +5385,7 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
 #endif
     DEBUGLOG(4, "ZSTD_compressBegin_internal: wlog=%u", params->cParams.windowLog);
     /* params are supposed to be fully validated at this point */
-    assert(!ZSTD_isError(ZSTD_checkCParams_internal(params->cParams)));
+    assert(!ZSTD_isError(ZSTD_checkCCtxCParams_internal(params)));
     assert(!((dict) && (cdict)));  /* either dict or cdict, not both */
     if ( (cdict)
       && (cdict->dictContentSize > 0)
@@ -5411,7 +5428,7 @@ size_t ZSTD_compressBegin_advanced_internal(ZSTD_CCtx* cctx,
 {
     DEBUGLOG(4, "ZSTD_compressBegin_advanced_internal: wlog=%u", params->cParams.windowLog);
     /* compression parameters verification and optimization */
-    FORWARD_IF_ERROR( ZSTD_checkCParams_internal(params->cParams) , "");
+    FORWARD_IF_ERROR( ZSTD_checkCCtxCParams_internal(params) , "");
     return ZSTD_compressBegin_internal(cctx,
                                        dict, dictSize, dictContentType, dtlm,
                                        cdict,
@@ -5567,7 +5584,7 @@ size_t ZSTD_compress_advanced (ZSTD_CCtx* cctx,
 {
     ZSTD_Params params = ZSTD_getParamsFromPublicParams(publicParams);
     DEBUGLOG(4, "ZSTD_compress_advanced");
-    FORWARD_IF_ERROR(ZSTD_checkCParams_internal(params.cParams), "");
+    FORWARD_IF_ERROR(ZSTD_checkCParams_internal(&params.cParams), "");
     ZSTD_CCtxParams_init_internal(&cctx->simpleApiParams, &params, ZSTD_NO_CLEVEL);
     return ZSTD_compress_advanced_internal(cctx,
                                            dst, dstCapacity,
@@ -5687,7 +5704,7 @@ static size_t ZSTD_initCDict_internal(
 {
     DEBUGLOG(3, "ZSTD_initCDict_internal (dictContentType:%u)", (unsigned)dictContentType);
 
-    assert(!ZSTD_checkCParams_internal(params.cParams));
+    assert(!ZSTD_checkCCtxCParams_internal(&params));
     cdict->params = params;
     cdict->matchState.cctxParams = &cdict->params;
     cdict->matchState.dedicatedDictSearch = params.enableDedicatedDictSearch;
@@ -6141,7 +6158,7 @@ size_t ZSTD_initCStream_internal(ZSTD_CStream* zcs,
     DEBUGLOG(4, "ZSTD_initCStream_internal");
     FORWARD_IF_ERROR( ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only) , "");
     FORWARD_IF_ERROR( ZSTD_CCtx_setPledgedSrcSize(zcs, pledgedSrcSize) , "");
-    assert(!ZSTD_isError(ZSTD_checkCParams_internal(params->cParams)));
+    assert(!ZSTD_isError(ZSTD_checkCCtxCParams_internal(params)));
     zcs->requestedParams = *params;
     assert(!((dict) && (cdict)));  /* either dict or cdict, not both */
     if (dict) {
@@ -6195,7 +6212,7 @@ size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs,
     DEBUGLOG(4, "ZSTD_initCStream_advanced");
     FORWARD_IF_ERROR( ZSTD_CCtx_reset(zcs, ZSTD_reset_session_only) , "");
     FORWARD_IF_ERROR( ZSTD_CCtx_setPledgedSrcSize(zcs, pledgedSrcSize) , "");
-    FORWARD_IF_ERROR( ZSTD_checkCParams_internal(params.cParams) , "");
+    FORWARD_IF_ERROR( ZSTD_checkCParams_internal(&params.cParams) , "");
     ZSTD_CCtxParams_setZstdParams(&zcs->requestedParams, &params);
     FORWARD_IF_ERROR( ZSTD_CCtx_loadDictionary(zcs, dict, dictSize) , "");
     return 0;
@@ -6569,7 +6586,7 @@ static size_t ZSTD_CCtx_init_compressStream2(ZSTD_CCtx* cctx,
     } else
 #endif  /* ZSTD_MULTITHREAD */
     {   U64 const pledgedSrcSize = cctx->pledgedSrcSizePlusOne - 1;
-        assert(!ZSTD_isError(ZSTD_checkCParams_internal(params.cParams)));
+        assert(!ZSTD_isError(ZSTD_checkCCtxCParams_internal(&params)));
         FORWARD_IF_ERROR( ZSTD_compressBegin_internal(cctx,
                 prefixDict.dict, prefixDict.dictSize, prefixDict.dictContentType, ZSTD_dtlm_fast,
                 cctx->cdict,

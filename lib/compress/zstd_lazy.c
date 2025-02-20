@@ -30,7 +30,7 @@ void ZSTD_updateDUBT(ZSTD_MatchState_t* ms,
                 const BYTE* ip, const BYTE* iend,
                 U32 mls)
 {
-    const ZSTD_CParams* const cParams = &ms->cctxParams->cParams;
+    const ZSTD_compressionParameters* const cParams = &ms->cctxParams->cParams;
     U32* const hashTable = ms->hashTable;
     U32  const hashLog = cParams->hashLog;
 
@@ -76,7 +76,7 @@ void ZSTD_insertDUBT1(const ZSTD_MatchState_t* ms,
                  U32 nbCompares, U32 btLow,
                  const ZSTD_dictMode_e dictMode)
 {
-    const ZSTD_CParams* const cParams = &ms->cctxParams->cParams;
+    const ZSTD_compressionParameters* const cParams = &ms->cctxParams->cParams;
     U32* const bt = ms->chainTable;
     U32  const btLog  = cParams->chainLog - 1;
     U32  const btMask = (1 << btLog) - 1;
@@ -171,7 +171,7 @@ size_t ZSTD_DUBT_findBetterDictMatch (
         const ZSTD_dictMode_e dictMode)
 {
     const ZSTD_MatchState_t * const dms = ms->dictMatchState;
-    const ZSTD_CParams* const dmsCParams = &dms->cctxParams->cParams;
+    const ZSTD_compressionParameters* const dmsCParams = &dms->cctxParams->cParams;
     const U32 * const dictHashTable = dms->hashTable;
     U32         const hashLog = dmsCParams->hashLog;
     size_t      const h  = ZSTD_hashPtr(ip, hashLog, mls);
@@ -246,7 +246,7 @@ size_t ZSTD_DUBT_findBestMatch(ZSTD_MatchState_t* ms,
                         U32 const mls,
                         const ZSTD_dictMode_e dictMode)
 {
-    const ZSTD_CParams* const cParams = &ms->cctxParams->cParams;
+    const ZSTD_compressionParameters* const cParams = &ms->cctxParams->cParams;
     U32*   const hashTable = ms->hashTable;
     U32    const hashLog = cParams->hashLog;
     size_t const h  = ZSTD_hashPtr(ip, hashLog, mls);
@@ -410,7 +410,7 @@ size_t ZSTD_BtFindBestMatch( ZSTD_MatchState_t* ms,
 
 void ZSTD_dedicatedDictSearch_lazy_loadDictionary(ZSTD_MatchState_t* ms, const BYTE* const ip)
 {
-    const ZSTD_CParams* const cParams = &ms->cctxParams->cParams;
+    const ZSTD_compressionParameters* const cParams = &ms->cctxParams->cParams;
     const BYTE* const base = ms->window.base;
     U32 const target = (U32)(ip - base);
     U32* const hashTable = ms->hashTable;
@@ -632,7 +632,7 @@ FORCE_INLINE_TEMPLATE
 ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
 U32 ZSTD_insertAndFindFirstIndex_internal(
                         ZSTD_MatchState_t* ms,
-                        const ZSTD_CParams* const cParams,
+                        const ZSTD_compressionParameters* const cParams,
                         const BYTE* ip, U32 const mls, U32 const lazySkipping)
 {
     U32* const hashTable  = ms->hashTable;
@@ -658,7 +658,7 @@ U32 ZSTD_insertAndFindFirstIndex_internal(
 }
 
 U32 ZSTD_insertAndFindFirstIndex(ZSTD_MatchState_t* ms, const BYTE* ip) {
-    const ZSTD_CParams* const cParams = &ms->cctxParams->cParams;
+    const ZSTD_compressionParameters* const cParams = &ms->cctxParams->cParams;
     return ZSTD_insertAndFindFirstIndex_internal(ms, cParams, ip, cParams->minMatch, /* lazySkipping*/ 0);
 }
 
@@ -671,7 +671,7 @@ size_t ZSTD_HcFindBestMatch(
                         size_t* offsetPtr,
                         const U32 mls, const ZSTD_dictMode_e dictMode)
 {
-    const ZSTD_CParams* const cParams = &ms->cctxParams->cParams;
+    const ZSTD_compressionParameters* const cParams = &ms->cctxParams->cParams;
     U32* const chainTable = ms->chainTable;
     const U32 chainSize = (1 << cParams->chainLog);
     const U32 chainMask = chainSize-1;
@@ -1150,7 +1150,7 @@ size_t ZSTD_RowFindBestMatch(
     BYTE* const tagTable = ms->tagTable;
     U32* const hashCache = ms->hashCache;
     const U32 hashLog = ms->rowHashLog;
-    const ZSTD_CParams* const cParams = &ms->cctxParams->cParams;
+    const ZSTD_compressionParameters* const cParams = &ms->cctxParams->cParams;
     const BYTE* const base = ms->window.base;
     const BYTE* const dictBase = ms->window.dictBase;
     const U32 dictLimit = ms->window.dictLimit;

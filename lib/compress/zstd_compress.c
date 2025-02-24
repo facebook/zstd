@@ -365,6 +365,29 @@ size_t ZSTD_CCtxParams_init(ZSTD_CCtx_params* cctxParams, int compressionLevel) 
 
 #define ZSTD_NO_CLEVEL 0
 
+static void ZSTD_CCtxParams_init_fromCCtxParams(
+        ZSTD_CCtx_params* cctxParams,
+  const ZSTD_CCtx_params* srcParams)
+{
+    assert(!ZSTD_checkCCtxCParams_internal(srcParams));
+    ZSTD_memset(cctxParams, 0, sizeof(*cctxParams));
+    cctxParams->cParams = srcParams->cParams;
+    cctxParams->windowFrac = srcParams->windowFrac;
+    cctxParams->fParams = srcParams->fParams;
+    /* Should not matter, as all cParams are presumed properly defined.
+     * But, set it for tracing anyway.
+     */
+    cctxParams->compressionLevel = srcParams->compressionLevel;
+    cctxParams->useRowMatchFinder = ZSTD_resolveRowMatchFinderMode(cctxParams->useRowMatchFinder, &cctxParams->cParams);
+    cctxParams->postBlockSplitter = ZSTD_resolveBlockSplitterMode(cctxParams->postBlockSplitter, &cctxParams->cParams);
+    cctxParams->ldmParams.enableLdm = ZSTD_resolveEnableLdm(cctxParams->ldmParams.enableLdm, &cctxParams->cParams);
+    cctxParams->validateSequences = ZSTD_resolveExternalSequenceValidation(cctxParams->validateSequences);
+    cctxParams->maxBlockSize = ZSTD_resolveMaxBlockSize(cctxParams->maxBlockSize);
+    cctxParams->searchForExternalRepcodes = ZSTD_resolveExternalRepcodeSearch(cctxParams->searchForExternalRepcodes, cctxParams->compressionLevel);
+    DEBUGLOG(4, "ZSTD_CCtxParams_init_internal: useRowMatchFinder=%d, useBlockSplitter=%d ldm=%d",
+                cctxParams->useRowMatchFinder, cctxParams->postBlockSplitter, cctxParams->ldmParams.enableLdm);
+}
+
 /**
  * Initializes `cctxParams` from `params` and `compressionLevel`.
  * @param compressionLevel If params are derived from a compression level then that compression level, otherwise ZSTD_NO_CLEVEL.
@@ -374,22 +397,12 @@ ZSTD_CCtxParams_init_internal(ZSTD_CCtx_params* cctxParams,
                         const ZSTD_parameters* params,
                               int compressionLevel)
 {
-    assert(!ZSTD_checkCParams(params->cParams));
-    ZSTD_memset(cctxParams, 0, sizeof(*cctxParams));
-    cctxParams->cParams = params->cParams;
-    cctxParams->fParams = params->fParams;
-    /* Should not matter, as all cParams are presumed properly defined.
-     * But, set it for tracing anyway.
-     */
-    cctxParams->compressionLevel = compressionLevel;
-    cctxParams->useRowMatchFinder = ZSTD_resolveRowMatchFinderMode(cctxParams->useRowMatchFinder, &cctxParams->cParams);
-    cctxParams->postBlockSplitter = ZSTD_resolveBlockSplitterMode(cctxParams->postBlockSplitter, &cctxParams->cParams);
-    cctxParams->ldmParams.enableLdm = ZSTD_resolveEnableLdm(cctxParams->ldmParams.enableLdm, &cctxParams->cParams);
-    cctxParams->validateSequences = ZSTD_resolveExternalSequenceValidation(cctxParams->validateSequences);
-    cctxParams->maxBlockSize = ZSTD_resolveMaxBlockSize(cctxParams->maxBlockSize);
-    cctxParams->searchForExternalRepcodes = ZSTD_resolveExternalRepcodeSearch(cctxParams->searchForExternalRepcodes, compressionLevel);
-    DEBUGLOG(4, "ZSTD_CCtxParams_init_internal: useRowMatchFinder=%d, useBlockSplitter=%d ldm=%d",
-                cctxParams->useRowMatchFinder, cctxParams->postBlockSplitter, cctxParams->ldmParams.enableLdm);
+    ZSTD_CCtx_params tmpParams;
+    ZSTD_memset(&tmpParams, 0, sizeof(tmpParams));
+    tmpParams.cParams = params->cParams;
+    tmpParams.fParams = params->fParams;
+    tmpParams.compressionLevel = compressionLevel;
+    return ZSTD_CCtxParams_init_fromCCtxParams(cctxParams, &tmpParams);
 }
 
 size_t ZSTD_CCtxParams_init_advanced(ZSTD_CCtx_params* cctxParams, ZSTD_parameters params)
@@ -5419,8 +5432,8 @@ static size_t
 ZSTD_compressBegin_usingDict_deprecated(ZSTD_CCtx* cctx, const void* dict, size_t dictSize, int compressionLevel)
 {
     ZSTD_CCtx_params cctxParams;
-    {   ZSTD_parameters const params = ZSTD_getParams_internal(compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize, ZSTD_cpm_noAttachDict);
-        ZSTD_CCtxParams_init_internal(&cctxParams, &params, (compressionLevel == 0) ? ZSTD_CLEVEL_DEFAULT : compressionLevel);
+    {   ZSTD_CCtx_params const tmpParams = ZSTD_getCCtxParams_internal((compressionLevel == 0) ? ZSTD_CLEVEL_DEFAULT : compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize, ZSTD_cpm_noAttachDict);
+        ZSTD_CCtxParams_init_fromCCtxParams(&cctxParams, &tmpParams);
     }
     DEBUGLOG(4, "ZSTD_compressBegin_usingDict (dictSize=%u)", (unsigned)dictSize);
     return ZSTD_compressBegin_internal(cctx, dict, dictSize, ZSTD_dct_auto, ZSTD_dtlm_fast, NULL,
@@ -5577,9 +5590,9 @@ size_t ZSTD_compress_usingDict(ZSTD_CCtx* cctx,
                                int compressionLevel)
 {
     {
-        ZSTD_parameters const params = ZSTD_getParams_internal(compressionLevel, srcSize, dict ? dictSize : 0, ZSTD_cpm_noAttachDict);
-        assert(params.fParams.contentSizeFlag == 1);
-        ZSTD_CCtxParams_init_internal(&cctx->simpleApiParams, &params, (compressionLevel == 0) ? ZSTD_CLEVEL_DEFAULT: compressionLevel);
+        ZSTD_CCtx_params const tmpParams = ZSTD_getCCtxParams_internal((compressionLevel == 0) ? ZSTD_CLEVEL_DEFAULT : compressionLevel, srcSize, dict ? dictSize : 0, ZSTD_cpm_noAttachDict);
+        assert(tmpParams.fParams.contentSizeFlag == 1);
+        ZSTD_CCtxParams_init_fromCCtxParams(&cctx->simpleApiParams, &tmpParams);
     }
     DEBUGLOG(4, "ZSTD_compress_usingDict (srcSize=%u)", (unsigned)srcSize);
     return ZSTD_compress_advanced_internal(cctx, dst, dstCapacity, src, srcSize, dict, dictSize, &cctx->simpleApiParams);
@@ -5930,24 +5943,19 @@ static size_t ZSTD_compressBegin_usingCDict_internal(
     RETURN_ERROR_IF(cdict==NULL, dictionary_wrong, "NULL pointer!");
     /* Initialize the cctxParams from the cdict */
     {
-        ZSTD_parameters params;
-        params.fParams = fParams;
         if ( pledgedSrcSize < ZSTD_USE_CDICT_PARAMS_SRCSIZE_CUTOFF
                         || pledgedSrcSize < cdict->dictContentSize * ZSTD_USE_CDICT_PARAMS_DICTSIZE_MULTIPLIER
                         || pledgedSrcSize == ZSTD_CONTENTSIZE_UNKNOWN
                         || cdict->params.compressionLevel == 0 ) {
-            params.cParams = ZSTD_getCParamsFromCDict(cdict);
-            ZSTD_CCtxParams_init_internal(&cctxParams, &params, cdict->params.compressionLevel);
+            ZSTD_CCtxParams_init_fromCCtxParams(&cctxParams, &cdict->params);
         } else {
-            /* I'm pretty sure this incorrectly discards the windowFrac... */
-            ZSTD_CCtx_params const tmpParams = ZSTD_getCCtxParams_internal(
+            ZSTD_CCtx_params tmpParams = ZSTD_getCCtxParams_internal(
                     cdict->params.compressionLevel,
                     pledgedSrcSize,
                     cdict->dictContentSize,
                     ZSTD_cpm_unknown);
-            params.cParams = tmpParams.cParams;
-            ZSTD_CCtxParams_init_internal(&cctxParams, &params, cdict->params.compressionLevel);
-            cctxParams.windowFrac = tmpParams.windowFrac;
+            tmpParams.fParams = fParams;
+            ZSTD_CCtxParams_init_fromCCtxParams(&cctxParams, &tmpParams);
         }
     }
     /* Increase window log to fit the entire dictionary and source if the

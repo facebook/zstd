@@ -5954,9 +5954,9 @@ static size_t ZSTD_compressBegin_usingCDict_internal(
                     pledgedSrcSize,
                     cdict->dictContentSize,
                     ZSTD_cpm_unknown);
-            tmpParams.fParams = fParams;
             ZSTD_CCtxParams_init_fromCCtxParams(&cctxParams, &tmpParams);
         }
+        cctxParams.fParams = fParams;
     }
     /* Increase window log to fit the entire dictionary and source if the
      * source size is known. Limit the increase to 19, which is the

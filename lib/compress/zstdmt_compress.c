@@ -1095,14 +1095,19 @@ static size_t ZSTDMT_resize(ZSTDMT_CCtx* mtctx, unsigned nbWorkers)
  *  New parameters will be applied to next compression job. */
 void ZSTDMT_updateCParams_whileCompressing(ZSTDMT_CCtx* mtctx, const ZSTD_CCtx_params* cctxParams)
 {
-    U32 const saved_wlog = mtctx->params.cParams.windowLog;    /* Do not modify windowLog  while compressing */
+    U32 const saved_wlog  = mtctx->params.cParams.windowLog;    /* Do not modify windowLog  while compressing */
+    U32 const saved_wfrac = mtctx->params.windowFrac;           /* Do not modify windowFrac while compressing */
     int const compressionLevel = cctxParams->compressionLevel;
     DEBUGLOG(5, "ZSTDMT_updateCParams_whileCompressing (level:%i)",
                 compressionLevel);
     mtctx->params.compressionLevel = compressionLevel;
-    {   ZSTD_compressionParameters cParams = ZSTD_getCParamsFromCCtxParams(cctxParams, ZSTD_CONTENTSIZE_UNKNOWN, 0, ZSTD_cpm_noAttachDict);
-        cParams.windowLog = saved_wlog;
-        mtctx->params.cParams = cParams;
+    {
+        ZSTD_CCtx_params params = *cctxParams;
+        ZSTD_fillCParamsInCCtxParams(&params, ZSTD_CONTENTSIZE_UNKNOWN, 0, ZSTD_cpm_noAttachDict);
+        params.cParams.windowLog = saved_wlog;
+        params.windowFrac = saved_wfrac;
+        mtctx->params.cParams = params.cParams;
+        mtctx->params.windowFrac = params.windowFrac;
     }
 }
 

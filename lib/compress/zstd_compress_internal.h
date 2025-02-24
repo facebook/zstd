@@ -1632,13 +1632,13 @@ BlockSummary ZSTD_get1BlockSummary(const ZSTD_Sequence* seqs, size_t nbSeqs);
  * These prototypes shall only be called from within lib/compress
  * ============================================================== */
 
-/* ZSTD_getCParamsFromCCtxParams() :
+/* ZSTD_fillCParamsInCCtxParams() :
  * cParams are built depending on compressionLevel, src size hints,
  * LDM and manually set compression parameters.
  * Note: srcSizeHint == 0 means 0!
  */
-ZSTD_compressionParameters ZSTD_getCParamsFromCCtxParams(
-        const ZSTD_CCtx_params* CCtxParams, U64 srcSizeHint, size_t dictSize, ZSTD_CParamMode_e mode);
+void ZSTD_fillCParamsInCCtxParams(
+        ZSTD_CCtx_params* cctxParams, U64 srcSizeHint, size_t dictSize, ZSTD_CParamMode_e mode);
 
 /*! ZSTD_initCStream_internal() :
  *  Private use only. Init streaming operation.

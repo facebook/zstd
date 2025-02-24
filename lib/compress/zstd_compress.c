@@ -402,7 +402,7 @@ ZSTD_CCtxParams_init_internal(ZSTD_CCtx_params* cctxParams,
     tmpParams.cParams = params->cParams;
     tmpParams.fParams = params->fParams;
     tmpParams.compressionLevel = compressionLevel;
-    return ZSTD_CCtxParams_init_fromCCtxParams(cctxParams, &tmpParams);
+    ZSTD_CCtxParams_init_fromCCtxParams(cctxParams, &tmpParams);
 }
 
 size_t ZSTD_CCtxParams_init_advanced(ZSTD_CCtx_params* cctxParams, ZSTD_parameters params)

@@ -168,4 +168,23 @@
 # define ZSTD_CET_ENDBRANCH
 #endif
 
+/**
+ * ZSTD_IS_DETERMINISTIC_BUILD must be set to 0 if any compilation macro is
+ * active that impacts the compressed output.
+ *
+ * NOTE: ZSTD_MULTITHREAD is allowed to be set or unset.
+ */
+#if defined(ZSTD_CLEVEL_DEFAULT) \
+    || defined(ZSTD_EXCLUDE_DFAST_BLOCK_COMPRESSOR) \
+    || defined(ZSTD_EXCLUDE_GREEDY_BLOCK_COMPRESSOR) \
+    || defined(ZSTD_EXCLUDE_LAZY_BLOCK_COMPRESSOR) \
+    || defined(ZSTD_EXCLUDE_LAZY2_BLOCK_COMPRESSOR) \
+    || defined(ZSTD_EXCLUDE_BTLAZY2_BLOCK_COMPRESSOR) \
+    || defined(ZSTD_EXCLUDE_BTOPT_BLOCK_COMPRESSOR) \
+    || defined(ZSTD_EXCLUDE_BTULTRA_BLOCK_COMPRESSOR)
+# define ZSTD_IS_DETERMINISTIC_BUILD 0
+#else
+# define ZSTD_IS_DETERMINISTIC_BUILD 1
+#endif
+
 #endif /* ZSTD_PORTABILITY_MACROS_H */

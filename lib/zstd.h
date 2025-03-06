@@ -3138,6 +3138,18 @@ ZSTDLIB_STATIC_API ZSTD_nextInputType_e ZSTD_nextInputType(ZSTD_DCtx* dctx);
 
 
 
+/*! ZSTD_isDeterministicBuild() :
+ * Returns 1 if the library is built using standard compilation flags,
+ * and participates in determinism guarantees with other builds of the
+ * same version.
+ * If this function returns 0, it means the library was compiled with
+ * non-standard compilation flags that change the output of the
+ * compressor.
+ * This is mainly used for Zstd's determinism test suite, which is only
+ * run when this function returns 1.
+ */
+ZSTDLIB_API int ZSTD_isDeterministicBuild(void);
+
 
 /* ========================================= */
 /**       Block level API (DEPRECATED)       */

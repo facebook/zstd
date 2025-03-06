@@ -695,7 +695,10 @@ static void printVersion(void)
         #ifdef PLATFORM_POSIX_VERSION
             DISPLAYOUT("PLATFORM_POSIX_VERSION defined: %ldL\n", (long) PLATFORM_POSIX_VERSION);
         #endif
-    }   }
+
+            if (!ZSTD_isDeterministicBuild()) {
+                DISPLAYOUT("non-deterministic build\n");
+    }   }   }
 }
 
 #define ZSTD_NB_STRATEGIES 9

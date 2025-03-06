@@ -36,6 +36,7 @@ jobs:
         sudo apt update
         APT_PACKAGES="gcc-multilib" make apt-install
         CFLAGS="-m32 -O1 -fstack-protector" make check V=1
+        CFLAGS="-m32 -O1 -fstack-protector" make V=1 -C tests test-cli-tests
 
   build-c89:
     runs-on: ubuntu-latest
@@ -496,6 +497,7 @@ jobs:
       run: |
         make clean
         LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make -j check
+        LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make -j -C tests test-cli-tests
 # This test is only compatible with standard libraries that support BTI (Branch Target Identification).
 # Unfortunately, the standard library provided on Ubuntu 24.04 does not have this feature enabled.
 #        make clean
@@ -734,3 +736,4 @@ jobs:
       run: |
         source /opt/intel/oneapi/setvars.sh
         make CC=icx check
+        make CC=icx -C tests test-cli-tests

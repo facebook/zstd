@@ -359,7 +359,11 @@ test-zstd test-zstd32 test-zstd-nolegacy test-zstd-dll: datagen
 test-cli-tests: ZSTD = $(PRGDIR)/zstd
 test-cli-tests: zstd datagen
 	file $(ZSTD)
-	./cli-tests/run.py --exec-prefix="$(QEMU_SYS)" --zstd="$(ZSTD)" --datagen=./datagen
+	./cli-tests/run.py --exec-prefix="$(QEMU_SYS)" --zstd="$(ZSTD)" --datagen=./datagen $(CLI_TEST_ARGS)
+
+.PHONY: update-cli-tests
+update-cli-tests: CLI_TEST_ARGS = --set-exact-output
+update-cli-tests: test-cli-tests
 
 .PHONY: test-fullbench
 test-fullbench: fullbench datagen

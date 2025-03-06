@@ -705,6 +705,7 @@ if __name__ == "__main__":
     env["DATAGEN_BIN"] = os.path.abspath(args.datagen)
     env["ZSTDGREP_BIN"] = os.path.abspath(args.zstdgrep)
     env["ZSTDLESS_BIN"] = os.path.abspath(args.zstdless)
+    env["CLI_TESTS"] = os.path.abspath(args.test_dir)
     env["COMMON"] = os.path.abspath(os.path.join(args.test_dir, "common"))
     env["PATH"] = bin_dir + ":" + os.getenv("PATH", "")
     env["LC_ALL"] = "C"

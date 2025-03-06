@@ -1,0 +1,30 @@
+#!/bin/sh
+
+set -e
+
+. "$COMMON/platform.sh"
+
+
+mkdir files/
+
+datagen -g0 > files/g0
+datagen -g1 > files/g1
+datagen -g10 > files/g10
+datagen -g100 > files/g100
+datagen -g1000 > files/g1000
+datagen -g10000 > files/g10000
+datagen -g20000 > files/g20000
+datagen -g30000 > files/g30000
+datagen -g50000 > files/g50000
+datagen -g100000 > files/g100000
+datagen -g200000 > files/g200000
+datagen -g500000 > files/g500000
+datagen -g1000000 > files/g1000000
+
+datagen -g10000 -P0 > files/g10000-P0
+datagen -g10000 -P10 > files/g10000-P10
+datagen -g10000 -P25 > files/g10000-P25
+datagen -g10000 -P50 > files/g10000-P50
+datagen -g10000 -P75 > files/g10000-P75
+datagen -g10000 -P90 > files/g10000-P90
+datagen -g10000 -P100 > files/g10000-P100

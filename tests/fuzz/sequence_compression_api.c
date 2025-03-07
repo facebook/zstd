@@ -142,10 +142,11 @@ static size_t decodeSequences(void* dst, size_t nbSequences,
  */
 static size_t generateRandomSequences(FUZZ_dataProducer_t* producer,
                                       size_t literalsSizeLimit, size_t dictSize,
-                                      size_t windowLog, ZSTD_SequenceFormat_e mode)
+                                      uint32_t windowLog, uint32_t windowFrac,
+                                      ZSTD_SequenceFormat_e mode)
 {
     const uint32_t repCode = 0;  /* not used by sequence ingestion api */
-    size_t windowSize = 1ULL << windowLog;
+    uint64_t windowSize = ((8ULL + windowFrac) << windowLog) >> 3;
     size_t blockSizeMax = MIN(ZSTD_BLOCKSIZE_MAX, windowSize);
     uint32_t matchLengthMax = ZSTD_FUZZ_MATCHLENGTH_MAXSIZE;
     uint32_t bytesGenerated = 0;
@@ -346,6 +347,7 @@ int LLVMFuzzerTestOneInput(const uint8_t* src, size_t size)
     size_t dictSize = 0;
     unsigned hasDict;
     unsigned wLog;
+    unsigned wFrac;
     int cLevel;
     ZSTD_SequenceFormat_e mode;
 
@@ -361,8 +363,12 @@ int LLVMFuzzerTestOneInput(const uint8_t* src, size_t size)
         FUZZ_ASSERT(dctx);
     }
 
-    /* Generate window log first so we don't generate offsets too large */
+    /* Generate window size first so we don't generate offsets too large */
     wLog = FUZZ_dataProducer_uint32Range(producer, ZSTD_WINDOWLOG_MIN, ZSTD_WINDOWLOG_MAX);
+    wFrac = FUZZ_dataProducer_uint32Range(producer, 0, 7);
+    if (wLog == ZSTD_WINDOWLOG_MAX) {
+        wFrac = 0;
+    }
     cLevel = FUZZ_dataProducer_int32Range(producer, -3, 22);
     mode = (ZSTD_SequenceFormat_e)FUZZ_dataProducer_int32Range(producer, 0, 1);
 
@@ -370,6 +376,7 @@ int LLVMFuzzerTestOneInput(const uint8_t* src, size_t size)
     ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 0);
     ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, cLevel);
     ZSTD_CCtx_setParameter(cctx, ZSTD_c_windowLog, (int)wLog);
+    ZSTD_CCtx_setParameter(cctx, ZSTD_c_windowFrac, (int)wFrac);
     ZSTD_CCtx_setParameter(cctx, ZSTD_c_minMatch, ZSTD_MINMATCH_MIN);
     ZSTD_CCtx_setParameter(cctx, ZSTD_c_validateSequences, 1);
     ZSTD_CCtx_setParameter(cctx, ZSTD_c_blockDelimiters, (int)mode);
@@ -415,7 +422,7 @@ int LLVMFuzzerTestOneInput(const uint8_t* src, size_t size)
         generatedSrc = FUZZ_malloc(ZSTD_FUZZ_GENERATED_SRC_MAXSIZE);
     }
 
-    nbSequences = generateRandomSequences(producer, ZSTD_FUZZ_GENERATED_LITERALS_SIZE, dictSize, wLog, mode);
+    nbSequences = generateRandomSequences(producer, ZSTD_FUZZ_GENERATED_LITERALS_SIZE, dictSize, wLog, wFrac, mode);
     generatedSrcSize = decodeSequences(generatedSrc, nbSequences, ZSTD_FUZZ_GENERATED_LITERALS_SIZE, dictBuffer, dictSize, mode);
 
     /* Note : in explicit block delimiters mode,

@@ -372,7 +372,10 @@ typedef enum {
                               * Must be clamped between ZSTD_WINDOWLOG_MIN and ZSTD_WINDOWLOG_MAX.
                               * Special: value 0 means "use default windowLog".
                               * Note: Using a windowLog greater than ZSTD_WINDOWLOG_LIMIT_DEFAULT
-                              *       requires explicitly allowing such size at streaming decompression stage. */
+                              *       requires explicitly allowing such size at streaming
+                              *       decompression stage.
+                              * Note: The ZSTD_c_windowFrac parameter allows finer-grained
+                              *       tweaking of the window size set by this parameter. */
     ZSTD_c_hashLog=102,      /* Size of the initial probe table, as a power of 2.
                               * Resulting memory usage is (1 << (hashLog+2)).
                               * Must be clamped between ZSTD_HASHLOG_MIN and ZSTD_HASHLOG_MAX.
@@ -538,7 +541,8 @@ typedef enum {
      ZSTD_c_experimentalParam17=1014,
      ZSTD_c_experimentalParam18=1015,
      ZSTD_c_experimentalParam19=1016,
-     ZSTD_c_experimentalParam20=1017
+     ZSTD_c_experimentalParam20=1017,
+     ZSTD_c_experimentalParam21=1018
 } ZSTD_cParameter;
 
 typedef struct {
@@ -2355,6 +2359,19 @@ ZSTDLIB_STATIC_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const vo
 #define ZSTD_c_repcodeResolution ZSTD_c_experimentalParam19
 #define ZSTD_c_searchForExternalRepcodes ZSTD_c_experimentalParam19 /* older name */
 
+/* ZSTD_c_windowFrac
+ * The Zstandard format allows expressing window sizes in a more fine-grained
+ * way than just the power-of-two sizes captured by the windowLog parameter.
+ * The window size is `(1 + WF / 8) * 2 ^ WL` bytes, where WL is the windowLog
+ * and WF is the windowFrac.
+ *
+ * The valid range of values for this parameter is 0 to 7. The default value
+ * is 0. The value configured only takes effect if the windowLog has also
+ * explicitly been set. The windowFrac is ignored when the windowLog is
+ * ZSTD_WINDOWLOG_MAX (you can't select a window size larger than
+ * `2 ^ ZSTD_WINDOWLOG_MAX`).
+ */
+#define ZSTD_c_windowFrac ZSTD_c_experimentalParam21
 
 /*! ZSTD_CCtx_getParameter() :
  *  Get the requested compression parameter value, selected by enum ZSTD_cParameter,

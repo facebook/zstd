@@ -30,7 +30,7 @@ void ZSTD_updateDUBT(ZSTD_MatchState_t* ms,
                 const BYTE* ip, const BYTE* iend,
                 U32 mls)
 {
-    const ZSTD_compressionParameters* const cParams = &ms->cParams;
+    const ZSTD_CParams* const cParams = &ms->cParams;
     U32* const hashTable = ms->hashTable;
     U32  const hashLog = cParams->hashLog;
 
@@ -76,7 +76,7 @@ void ZSTD_insertDUBT1(const ZSTD_MatchState_t* ms,
                  U32 nbCompares, U32 btLow,
                  const ZSTD_dictMode_e dictMode)
 {
-    const ZSTD_compressionParameters* const cParams = &ms->cParams;
+    const ZSTD_CParams* const cParams = &ms->cParams;
     U32* const bt = ms->chainTable;
     U32  const btLog  = cParams->chainLog - 1;
     U32  const btMask = (1 << btLog) - 1;
@@ -94,7 +94,7 @@ void ZSTD_insertDUBT1(const ZSTD_MatchState_t* ms,
     U32 matchIndex = *smallerPtr;   /* this candidate is unsorted : next sorted candidate is reached through *smallerPtr, while *largerPtr contains previous unsorted candidate (which is already saved and can be overwritten) */
     U32 dummy32;   /* to be nullified at the end */
     U32 const windowValid = ms->window.lowLimit;
-    U32 const maxDistance = 1U << cParams->windowLog;
+    U32 const maxDistance = ZSTD_windowSize(cParams);
     U32 const windowLow = (curr - windowValid > maxDistance) ? curr - maxDistance : windowValid;
 
 
@@ -171,7 +171,7 @@ size_t ZSTD_DUBT_findBetterDictMatch (
         const ZSTD_dictMode_e dictMode)
 {
     const ZSTD_MatchState_t * const dms = ms->dictMatchState;
-    const ZSTD_compressionParameters* const dmsCParams = &dms->cParams;
+    const ZSTD_CParams* const dmsCParams = &dms->cParams;
     const U32 * const dictHashTable = dms->hashTable;
     U32         const hashLog = dmsCParams->hashLog;
     size_t      const h  = ZSTD_hashPtr(ip, hashLog, mls);
@@ -246,7 +246,7 @@ size_t ZSTD_DUBT_findBestMatch(ZSTD_MatchState_t* ms,
                         U32 const mls,
                         const ZSTD_dictMode_e dictMode)
 {
-    const ZSTD_compressionParameters* const cParams = &ms->cParams;
+    const ZSTD_CParams* const cParams = &ms->cParams;
     U32*   const hashTable = ms->hashTable;
     U32    const hashLog = cParams->hashLog;
     size_t const h  = ZSTD_hashPtr(ip, hashLog, mls);
@@ -254,7 +254,7 @@ size_t ZSTD_DUBT_findBestMatch(ZSTD_MatchState_t* ms,
 
     const BYTE* const base = ms->window.base;
     U32    const curr = (U32)(ip-base);
-    U32    const windowLow = ZSTD_getLowestMatchIndex(ms, curr, cParams->windowLog);
+    U32    const windowLow = ZSTD_getLowestMatchIndex(ms, curr);
 
     U32*   const bt = ms->chainTable;
     U32    const btLog  = cParams->chainLog - 1;
@@ -631,7 +631,7 @@ FORCE_INLINE_TEMPLATE
 ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
 U32 ZSTD_insertAndFindFirstIndex_internal(
                         ZSTD_MatchState_t* ms,
-                        const ZSTD_compressionParameters* const cParams,
+                        const ZSTD_CParams* const cParams,
                         const BYTE* ip, U32 const mls, U32 const lazySkipping)
 {
     U32* const hashTable  = ms->hashTable;
@@ -657,7 +657,7 @@ U32 ZSTD_insertAndFindFirstIndex_internal(
 }
 
 U32 ZSTD_insertAndFindFirstIndex(ZSTD_MatchState_t* ms, const BYTE* ip) {
-    const ZSTD_compressionParameters* const cParams = &ms->cParams;
+    const ZSTD_CParams* const cParams = &ms->cParams;
     return ZSTD_insertAndFindFirstIndex_internal(ms, cParams, ip, ms->cParams.minMatch, /* lazySkipping*/ 0);
 }
 
@@ -670,7 +670,7 @@ size_t ZSTD_HcFindBestMatch(
                         size_t* offsetPtr,
                         const U32 mls, const ZSTD_dictMode_e dictMode)
 {
-    const ZSTD_compressionParameters* const cParams = &ms->cParams;
+    const ZSTD_CParams* const cParams = &ms->cParams;
     U32* const chainTable = ms->chainTable;
     const U32 chainSize = (1 << cParams->chainLog);
     const U32 chainMask = chainSize-1;
@@ -680,7 +680,7 @@ size_t ZSTD_HcFindBestMatch(
     const BYTE* const prefixStart = base + dictLimit;
     const BYTE* const dictEnd = dictBase + dictLimit;
     const U32 curr = (U32)(ip-base);
-    const U32 maxDistance = 1U << cParams->windowLog;
+    const U32 maxDistance = ZSTD_windowSize(cParams);
     const U32 lowestValid = ms->window.lowLimit;
     const U32 withinMaxDistance = (curr - lowestValid > maxDistance) ? curr - maxDistance : lowestValid;
     const U32 isDictionary = (ms->loadedDictEnd != 0);
@@ -1149,14 +1149,14 @@ size_t ZSTD_RowFindBestMatch(
     BYTE* const tagTable = ms->tagTable;
     U32* const hashCache = ms->hashCache;
     const U32 hashLog = ms->rowHashLog;
-    const ZSTD_compressionParameters* const cParams = &ms->cParams;
+    const ZSTD_CParams* const cParams = &ms->cParams;
     const BYTE* const base = ms->window.base;
     const BYTE* const dictBase = ms->window.dictBase;
     const U32 dictLimit = ms->window.dictLimit;
     const BYTE* const prefixStart = base + dictLimit;
     const BYTE* const dictEnd = dictBase + dictLimit;
     const U32 curr = (U32)(ip-base);
-    const U32 maxDistance = 1U << cParams->windowLog;
+    const U32 maxDistance = ZSTD_windowSize(cParams);
     const U32 lowestValid = ms->window.lowLimit;
     const U32 withinMaxDistance = (curr - lowestValid > maxDistance) ? curr - maxDistance : lowestValid;
     const U32 isDictionary = (ms->loadedDictEnd != 0);
@@ -1551,7 +1551,7 @@ size_t ZSTD_compressBlock_lazy_generic(
     ip += (dictAndPrefixLength == 0);
     if (dictMode == ZSTD_noDict) {
         U32 const curr = (U32)(ip - base);
-        U32 const windowLow = ZSTD_getLowestPrefixIndex(ms, curr, ms->cParams.windowLog);
+        U32 const windowLow = ZSTD_getLowestPrefixIndex(ms, curr);
         U32 const maxRep = curr - windowLow;
         if (offset_2 > maxRep) offsetSaved2 = offset_2, offset_2 = 0;
         if (offset_1 > maxRep) offsetSaved1 = offset_1, offset_1 = 0;
@@ -1951,7 +1951,6 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
     const BYTE* const dictBase = ms->window.dictBase;
     const BYTE* const dictEnd  = dictBase + dictLimit;
     const BYTE* const dictStart  = dictBase + ms->window.lowLimit;
-    const U32 windowLog = ms->cParams.windowLog;
     const U32 mls = BOUNDED(4, ms->cParams.minMatch, 6);
     const U32 rowLog = BOUNDED(4, ms->cParams.searchLog, 6);
 
@@ -1982,7 +1981,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
         U32 curr = (U32)(ip-base);
 
         /* check repCode */
-        {   const U32 windowLow = ZSTD_getLowestMatchIndex(ms, curr+1, windowLog);
+        {   const U32 windowLow = ZSTD_getLowestMatchIndex(ms, curr+1);
             const U32 repIndex = (U32)(curr+1 - offset_1);
             const BYTE* const repBase = repIndex < dictLimit ? dictBase : base;
             const BYTE* const repMatch = repBase + repIndex;
@@ -2023,7 +2022,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
             curr++;
             /* check repCode */
             if (offBase) {
-                const U32 windowLow = ZSTD_getLowestMatchIndex(ms, curr, windowLog);
+                const U32 windowLow = ZSTD_getLowestMatchIndex(ms, curr);
                 const U32 repIndex = (U32)(curr - offset_1);
                 const BYTE* const repBase = repIndex < dictLimit ? dictBase : base;
                 const BYTE* const repMatch = repBase + repIndex;
@@ -2055,7 +2054,7 @@ size_t ZSTD_compressBlock_lazy_extDict_generic(
                 curr++;
                 /* check repCode */
                 if (offBase) {
-                    const U32 windowLow = ZSTD_getLowestMatchIndex(ms, curr, windowLog);
+                    const U32 windowLow = ZSTD_getLowestMatchIndex(ms, curr);
                     const U32 repIndex = (U32)(curr - offset_1);
                     const BYTE* const repBase = repIndex < dictLimit ? dictBase : base;
                     const BYTE* const repMatch = repBase + repIndex;
@@ -2109,7 +2108,7 @@ _storeSequence:
         /* check immediate repcode */
         while (ip <= ilimit) {
             const U32 repCurrent = (U32)(ip-base);
-            const U32 windowLow = ZSTD_getLowestMatchIndex(ms, repCurrent, windowLog);
+            const U32 windowLow = ZSTD_getLowestMatchIndex(ms, repCurrent);
             const U32 repIndex = repCurrent - offset_2;
             const BYTE* const repBase = repIndex < dictLimit ? dictBase : base;
             const BYTE* const repMatch = repBase + repIndex;

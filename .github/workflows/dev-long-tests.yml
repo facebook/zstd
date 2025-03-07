@@ -28,7 +28,7 @@ jobs:
     steps:
     - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
     - name: make test
-      run: make test
+      run: MOREFLAGS="-DZSTD_WINDOW_ALLOW_PICKING_FRACTIONAL_SIZES=1" make test
 
   # lasts ~26mn
   make-test-macos:
@@ -51,7 +51,7 @@ jobs:
         sudo apt-get -qqq update
         make libc6install
         make clean
-        CFLAGS="-m32 -O2" make -j test V=1
+        CFLAGS="-m32 -O2" MOREFLAGS="-DZSTD_WINDOW_ALLOW_PICKING_FRACTIONAL_SIZES=1" make -j test V=1
 
   no-intrinsics-fuzztest:
     runs-on: ubuntu-latest
@@ -72,7 +72,7 @@ jobs:
     steps:
     - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
     - name: ub + address sanitizer on zstreamtest
-      run: CC=clang make uasan-test-zstream
+      run: CC=clang MOREFLAGS="-DZSTD_WINDOW_ALLOW_PICKING_FRACTIONAL_SIZES=1" make uasan-test-zstream
 
   # lasts ~15mn
   tsan-fuzztest:
@@ -91,7 +91,7 @@ jobs:
       run: |
         sudo apt-get -qqq update
         make libc6install
-        CC=clang make -C tests test-zstream32 FUZZER_FLAGS="--big-tests"
+        CC=clang MOREFLAGS="-DZSTD_WINDOW_ALLOW_PICKING_FRACTIONAL_SIZES=1" make -C tests test-zstream32 FUZZER_FLAGS="--big-tests"
 
   # lasts ~23mn
   gcc-8-asan-ubsan-testzstd:
@@ -121,7 +121,7 @@ jobs:
       run: |
         sudo apt-get -qqq update
         make libc6install
-        make -j uasan-test-zstd32 V=1
+        MOREFLAGS="-DZSTD_WINDOW_ALLOW_PICKING_FRACTIONAL_SIZES=1" make -j uasan-test-zstd32 V=1
 
     # Note : external libraries must be turned off when using MSAN tests,
     # because they are not msan-instrumented,
@@ -144,7 +144,7 @@ jobs:
     steps:
     - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
     - name: clang + ASan + UBSan + Fuzz Test
-      run: CC=clang FUZZER_FLAGS="--long-tests" make clean uasan-fuzztest
+      run: CC=clang FUZZER_FLAGS="--long-tests" MOREFLAGS="-DZSTD_WINDOW_ALLOW_PICKING_FRACTIONAL_SIZES=1" make clean uasan-fuzztest
 
   gcc-asan-ubsan-fuzz32:
     runs-on: ubuntu-latest
@@ -154,7 +154,7 @@ jobs:
       run: |
         sudo apt-get -qqq update
         make libc6install
-        CFLAGS="-O3 -m32" FUZZER_FLAGS="--long-tests" make uasan-fuzztest
+        CFLAGS="-O3 -m32" MOREFLAGS="-DZSTD_WINDOW_ALLOW_PICKING_FRACTIONAL_SIZES=1" FUZZER_FLAGS="--long-tests" make uasan-fuzztest
 
   clang-asan-fuzz32:
     runs-on: ubuntu-latest

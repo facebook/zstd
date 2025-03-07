@@ -445,7 +445,7 @@ U32 ZSTD_insertBt1(
                 U32 const target,
                 U32 const mls, const int extDict)
 {
-    const ZSTD_compressionParameters* const cParams = &ms->cParams;
+    const ZSTD_CParams* const cParams = &ms->cParams;
     U32*   const hashTable = ms->hashTable;
     U32    const hashLog = cParams->hashLog;
     size_t const h  = ZSTD_hashPtr(ip, hashLog, mls);
@@ -468,7 +468,7 @@ U32 ZSTD_insertBt1(
     /* windowLow is based on target because
      * we only need positions that will be in the window at the end of the tree update.
      */
-    U32 const windowLow = ZSTD_getLowestMatchIndex(ms, target, cParams->windowLog);
+    U32 const windowLow = ZSTD_getLowestMatchIndex(ms, target);
     U32 matchEndIdx = curr+8+1;
     size_t bestLength = 8;
     U32 nbCompares = 1U << cParams->searchLog;
@@ -598,7 +598,7 @@ ZSTD_insertBtAndGetAllMatches (
                 const U32 lengthToBeat,
                 const U32 mls /* template */)
 {
-    const ZSTD_compressionParameters* const cParams = &ms->cParams;
+    const ZSTD_CParams* const cParams = &ms->cParams;
     U32 const sufficient_len = MIN(cParams->targetLength, ZSTD_OPT_NUM -1);
     const BYTE* const base = ms->window.base;
     U32 const curr = (U32)(ip-base);
@@ -616,7 +616,7 @@ ZSTD_insertBtAndGetAllMatches (
     const BYTE* const dictEnd = dictBase + dictLimit;
     const BYTE* const prefixStart = base + dictLimit;
     U32 const btLow = (btMask >= curr) ? 0 : curr - btMask;
-    U32 const windowLow = ZSTD_getLowestMatchIndex(ms, curr, cParams->windowLog);
+    U32 const windowLow = ZSTD_getLowestMatchIndex(ms, curr);
     U32 const matchLow = windowLow ? windowLow : 1;
     U32* smallerPtr = bt + 2*(curr&btMask);
     U32* largerPtr  = bt + 2*(curr&btMask) + 1;
@@ -626,7 +626,7 @@ ZSTD_insertBtAndGetAllMatches (
     U32 nbCompares = 1U << cParams->searchLog;
 
     const ZSTD_MatchState_t* dms    = dictMode == ZSTD_dictMatchState ? ms->dictMatchState : NULL;
-    const ZSTD_compressionParameters* const dmsCParams =
+    const ZSTD_CParams* const dmsCParams =
                                       dictMode == ZSTD_dictMatchState ? &dms->cParams : NULL;
     const BYTE* const dmsBase       = dictMode == ZSTD_dictMatchState ? dms->window.base : NULL;
     const BYTE* const dmsEnd        = dictMode == ZSTD_dictMatchState ? dms->window.nextSrc : NULL;
@@ -1089,7 +1089,7 @@ ZSTD_compressBlock_opt_generic(ZSTD_MatchState_t* ms,
     const BYTE* const ilimit = iend - 8;
     const BYTE* const base = ms->window.base;
     const BYTE* const prefixStart = base + ms->window.dictLimit;
-    const ZSTD_compressionParameters* const cParams = &ms->cParams;
+    const ZSTD_CParams* const cParams = &ms->cParams;
 
     ZSTD_getAllMatchesFn getAllMatches = ZSTD_selectBtGetAllMatches(ms, dictMode);
 

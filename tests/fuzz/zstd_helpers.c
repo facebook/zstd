@@ -102,6 +102,7 @@ void FUZZ_setRandomParameters(ZSTD_CCtx *cctx, size_t srcSize, FUZZ_dataProducer
 {
     ZSTD_compressionParameters cParams = FUZZ_randomCParams(srcSize, producer);
     set(cctx, ZSTD_c_windowLog, cParams.windowLog);
+    setRand(cctx, ZSTD_c_windowFrac, 0, 7, producer);
     set(cctx, ZSTD_c_hashLog, cParams.hashLog);
     set(cctx, ZSTD_c_chainLog, cParams.chainLog);
     set(cctx, ZSTD_c_searchLog, cParams.searchLog);

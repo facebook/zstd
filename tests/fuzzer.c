@@ -43,6 +43,7 @@
 #include "timefn.h"       /* SEC_TO_MICRO, UTIL_time_t, UTIL_TIME_INITIALIZER, UTIL_clockSpanMicro, UTIL_getTime */
 /* must be included after util.h, due to ERROR macro redefinition issue on Visual Studio */
 #include "zstd_internal.h" /* ZSTD_WORKSPACETOOLARGE_MAXDURATION, ZSTD_WORKSPACETOOLARGE_FACTOR, KB, MB */
+#include "zstd_compress_internal.h" /* ZSTD_WINDOW_ALLOW_PICKING_FRACTIONAL_SIZES */
 #include "threading.h"    /* ZSTD_pthread_create, ZSTD_pthread_join */
 
 
@@ -707,8 +708,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
         params.hashLog = 19;
         params.chainLog = 19;
         params = ZSTD_adjustCParams(params, 1000, 100000);
-        if (params.hashLog != 18) goto _output_error;
-        if (params.chainLog != 17) goto _output_error;
+        CHECK_EQ(params.chainLog, 17);
+        CHECK_EQ(params.hashLog, 18);
     }
     DISPLAYLEVEL(3, "OK \n");
 
@@ -1771,6 +1772,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_windowLog, &value));
         CHECK_EQ(value, 0);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_windowFrac, &value));
+        CHECK_EQ(value, 0);
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_chainLog, &value));
         CHECK_EQ(value, 0);
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_hashLog, &value));
@@ -1789,6 +1792,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_windowLog, &value));
         CHECK_EQ(value, (int)cparams.windowLog);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_windowFrac, &value));
+        CHECK_EQ(value, 0);
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_chainLog, &value));
         CHECK_EQ(value, (int)cparams.chainLog);
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_hashLog, &value));
@@ -1839,6 +1844,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_windowLog, &value));
         CHECK_EQ(value, 0);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_windowFrac, &value));
+        CHECK_EQ(value, 0);
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_chainLog, &value));
         CHECK_EQ(value, 0);
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_hashLog, &value));
@@ -1866,6 +1873,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_windowLog, &value));
         CHECK_EQ(value, (int)params.cParams.windowLog);
+        CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_windowFrac, &value));
+        CHECK_EQ(value, 0);
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_chainLog, &value));
         CHECK_EQ(value, (int)params.cParams.chainLog);
         CHECK_Z(ZSTD_CCtx_getParameter(cctx, ZSTD_c_hashLog, &value));
@@ -3377,6 +3386,108 @@ static int basicUnitTests(U32 const seed, double compressibility)
         }
         DISPLAYLEVEL(3, "OK \n");
 
+        DISPLAYLEVEL(3, "test%3i : check fractional window sizes : \n", testNb++);
+        {
+            int windowLog;
+            int windowFrac;
+
+            for (windowLog = 0; windowLog <= ZSTD_WINDOWLOG_MAX; windowLog++) {
+                if (windowLog == 1) {
+                    windowLog = ZSTD_WINDOWLOG_MIN;
+                }
+                for (windowFrac = 0; windowFrac <= 7; windowFrac++) {
+                    int hint;
+                    for (hint = 0; hint <= 1; hint++) {
+                        unsigned long long inputSize;
+                        for (inputSize = 100; inputSize < (3ull << ZSTD_WINDOWLOG_MAX); inputSize += (1ull << (ZSTD_highbit32((U32)(inputSize >> 4))))) {
+                            ZSTD_inBuffer input = {CNBuffer, CNBuffSize, 0};
+                            ZSTD_outBuffer compressed = {compressedBuffer, compressedBufferSize, 0};
+                            ZSTD_FrameHeader zfh;
+                            unsigned long long maxWindowSize;
+
+                            DISPLAYLEVEL(5,
+                                "Checking %s input = 0x%16llx, windowLog = %2d, windowFrac = %d: ",
+                                hint ? "hinted" : " fixed",
+                                inputSize, windowLog, windowFrac);
+
+                            if (input.size > 16) {
+                                /* We don't have to compress too much. */
+                                input.size = 16;
+                            }
+                            if (input.size > inputSize) {
+                                input.size = (size_t)inputSize;
+                            }
+
+                            ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
+                            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, 1));
+                            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_windowLog, windowLog));
+                            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_windowFrac, windowFrac));
+                            if (hint) {
+                                if (inputSize >= (1ull << 31)) {
+                                    CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_srcSizeHint, (int)((1ull << 31) - 1)));
+                                } else {
+                                    CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_srcSizeHint, (int)inputSize));
+                                }
+                            } else {
+                                CHECK_Z(ZSTD_CCtx_setPledgedSrcSize(cctx, inputSize));
+                            }
+
+                            CHECK_Z(ZSTD_compressStream2(cctx, &compressed, &input, inputSize == 0 ? ZSTD_e_end : ZSTD_e_flush));
+                            CHECK_LT(0, compressed.size);
+
+                            CHECK_Z(ZSTD_getFrameHeader(&zfh, compressed.dst, compressed.pos));
+                            if (!hint) {
+                                CHECK_EQ(zfh.frameContentSize, inputSize);
+                            }
+
+                            DISPLAYLEVEL(5,
+                                "got frame size = 0x%16llx, window size = 0x%8llx, ",
+                                zfh.frameContentSize, zfh.windowSize);
+
+                            maxWindowSize = 1ull << ZSTD_WINDOWLOG_MAX;
+
+                            if (windowLog != 0 && maxWindowSize > (1ull << windowLog)) {
+                                maxWindowSize = ((8ull + windowFrac) << windowLog) >> 3;
+                            }
+
+                            if (!hint) {
+                                if (maxWindowSize > inputSize) {
+                                    maxWindowSize = inputSize;
+                                }
+                            } else {
+                                int winLogAndFrac;
+                                for (winLogAndFrac = ZSTD_WINDOWLOG_MIN << 3; winLogAndFrac < (ZSTD_WINDOWLOG_MAX << 3); winLogAndFrac++) {
+                                    unsigned long long candidateWindowSize = ((8ull + (winLogAndFrac & 7)) << (winLogAndFrac >> 3)) >> 3;
+                                    if (candidateWindowSize >= inputSize && (windowLog == 0 || maxWindowSize > candidateWindowSize)) {
+                                        maxWindowSize = candidateWindowSize;
+                                        break;
+                                    }
+#if !ZSTD_WINDOW_ALLOW_PICKING_FRACTIONAL_SIZES
+                                    winLogAndFrac += 7; /* skip over fractional windows */
+#endif
+                                }
+                            }
+
+                            if (hint && (maxWindowSize < (1ull << ZSTD_WINDOWLOG_MIN))) {
+                                maxWindowSize = 1ull << ZSTD_WINDOWLOG_MIN;
+                            }
+
+                            DISPLAYLEVEL(5,
+                                "expected window size = 0x%16llx\n",
+                                maxWindowSize);
+
+                            if (windowLog != 0) {
+                                CHECK_EQ(zfh.windowSize, maxWindowSize);
+                            } else {
+                                CHECK_LT(zfh.windowSize, maxWindowSize + 1);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        DISPLAYLEVEL(3, "OK \n");
+
         ZSTD_freeCCtx(cctx);
         free(dictBuffer);
         free(samplesSizes);
@@ -3670,7 +3781,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
     {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
         ZSTD_DCtx* const dctx = ZSTD_createDCtx();
         static const size_t dictSize = 65 KB;
-        static const size_t blockSize = 100 KB;   /* won't cause pb with small dict size */
+        static const size_t blockSize = 71 KB;   /* won't cause pb with small dict size */
         size_t cSize2;
         assert(cctx != NULL); assert(dctx != NULL);
 
@@ -3734,6 +3845,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         {   ZSTD_CDict* const cdict = ZSTD_createCDict(CNBuffer, dictSize, 3);
             if (cdict==NULL) goto _output_error;
             CHECK_Z( ZSTD_compressBegin_usingCDict(cctx, cdict) );
+            CHECK_Z( ZSTD_getBlockSize(cctx) >= blockSize);
             CHECK_Z( ZSTD_compressBlock(cctx, compressedBuffer, ZSTD_compressBound(blockSize), (char*)CNBuffer+dictSize, blockSize) );
             ZSTD_freeCDict(cdict);
         }

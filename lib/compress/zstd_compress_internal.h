@@ -298,7 +298,9 @@ struct ZSTD_MatchState_t {
                                */
     optState_t opt;         /* optimal parser state */
     const ZSTD_MatchState_t* dictMatchState;
-    ZSTD_compressionParameters cParams;
+
+    const ZSTD_CCtx_params* cctxParams;
+
     const RawSeqStore_t* ldmSeqStore;
 
     /* Controls prefetching in some dictMatchState matchfinders.
@@ -348,8 +350,9 @@ typedef struct {
     U32 hashLog;            /* Log size of hashTable */
     U32 bucketSizeLog;      /* Log bucket size for collision resolution, at most 8 */
     U32 minMatchLength;     /* Minimum match length */
-    U32 hashRateLog;       /* Log number of entries to skip */
+    U32 hashRateLog;        /* Log number of entries to skip */
     U32 windowLog;          /* Window log for the LDM */
+    U32 windowFrac;         /* Window log for the LDM */
 } ldmParams_t;
 
 typedef struct {
@@ -362,6 +365,7 @@ typedef struct {
 struct ZSTD_CCtx_params_s {
     ZSTD_format_e format;
     ZSTD_compressionParameters cParams;
+    unsigned windowFrac;  /* Additional CParam controlling sub-power-of-two window sizing. */
     ZSTD_frameParameters fParams;
 
     int compressionLevel;
@@ -1077,6 +1081,88 @@ MEM_STATIC ZSTD_dictMode_e ZSTD_matchState_dictMode(const ZSTD_MatchState_t *ms)
             ZSTD_noDict;
 }
 
+/**
+ * Fractional window sizes can always be picked by the user explicitly
+ * setting ZSTD_c_windowFrac. This macro controls whether, when Zstd is
+ * picking a window size itself, it is allowed to pick a non-power-of-two
+ * window size.
+ *
+ * For now, this defaults to false.
+ */
+#ifndef ZSTD_WINDOW_ALLOW_PICKING_FRACTIONAL_SIZES
+#define ZSTD_WINDOW_ALLOW_PICKING_FRACTIONAL_SIZES 0
+#endif
+
+/**
+ * Return the window size described by the windowLog and windowFrac in the
+ * provided CParams.
+ */
+MEM_STATIC U32 ZSTD_windowSize(const ZSTD_CCtx_params* params) {
+    return (U32)(((8ull + params->windowFrac) << params->cParams.windowLog) >> 3);
+}
+MEM_STATIC U32 ZSTD_windowSizeLDM(const ldmParams_t* ldmParams) {
+    return (U32)(((8ull + ldmParams->windowFrac) << ldmParams->windowLog) >> 3);
+}
+
+/**
+ * Checks that the selected windowSize satisfies the inequality
+ * `srcSize <= windowSize <= srcSize * margin`, in the range where the window
+ * isn't pressed up against one of the hard bounds, where `margin` is either
+ * 1.125 or 2, depending on whether we're allowed to pick fractional window
+ * sizes.
+ */
+MEM_STATIC int ZSTD_windowLogAndFracAreMinimal(const ZSTD_CCtx_params* params, const U32 srcSize) {
+    const U32 lowerBound = MIN(srcSize, 1u << ZSTD_WINDOWLOG_MAX);
+#if ZSTD_WINDOW_ALLOW_PICKING_FRACTIONAL_SIZES
+    const U32 upperBound = MAX(lowerBound + (lowerBound >> 3), 1u << ZSTD_WINDOWLOG_ABSOLUTEMIN);
+#else
+    const U32 upperBound = MAX(2 * lowerBound - 1, 1u << ZSTD_WINDOWLOG_ABSOLUTEMIN);
+#endif
+    const U32 windowSize = ZSTD_windowSize(params);
+    if (windowSize < lowerBound) {
+        return 0;
+    }
+    if (windowSize > upperBound) {
+        return 0;
+    }
+    return 1;
+}
+
+/**
+ * Calculates the minimum legal window log and fraction that contain the
+ * provided source size.
+ */
+MEM_STATIC void ZSTD_setMinimalWindowLogAndFrac(ZSTD_CCtx_params* params, const U32 srcSize, const U32 minWindowLog) {
+    const U32 minSize = 1u << minWindowLog;
+#if ZSTD_WINDOW_ALLOW_PICKING_FRACTIONAL_SIZES
+    if (srcSize < minSize) {
+        params->cParams.windowLog = minWindowLog;
+        params->windowFrac = 0;
+    } else {
+        const U32 srcSizeMinusOne = srcSize - 1;
+        params->cParams.windowLog = ZSTD_highbit32(srcSizeMinusOne);
+        params->windowFrac = ((srcSizeMinusOne >> (params->cParams.windowLog - 3)) & 7) + 1;
+        if (params->windowFrac == 8) {
+            params->windowFrac = 0;
+            params->cParams.windowLog++;
+        }
+    }
+#else
+    if (srcSize < minSize) {
+        params->cParams.windowLog = minWindowLog;
+        params->windowFrac = 0;
+    } else {
+        params->cParams.windowLog = ZSTD_highbit32(srcSize - 1) + 1;
+        params->windowFrac = 0;
+    }
+#endif
+    if (params->cParams.windowLog + !!params->windowFrac > ZSTD_WINDOWLOG_MAX) {
+        params->cParams.windowLog = ZSTD_WINDOWLOG_MAX;
+        params->windowFrac = 0;
+    }
+    assert(ZSTD_windowLogAndFracAreMinimal(params, srcSize));
+}
+
 /* Defining this macro to non-zero tells zstd to run the overflow correction
  * code much more frequently. This is very inefficient, and should only be
  * used for tests and fuzzers.
@@ -1100,10 +1186,12 @@ MEM_STATIC U32 ZSTD_window_canOverflowCorrect(ZSTD_window_t const window,
                                               U32 loadedDictEnd,
                                               void const* src)
 {
+    /* overflow correction only handles power-of-two index moves. */
+    U32 const roundedMaxDist = 1u << (ZSTD_highbit32(maxDist - 1) + 1);
     U32 const cycleSize = 1u << cycleLog;
     U32 const curr = (U32)((BYTE const*)src - window.base);
     U32 const minIndexToOverflowCorrect = cycleSize
-                                        + MAX(maxDist, cycleSize)
+                                        + MAX(roundedMaxDist, cycleSize)
                                         + ZSTD_WINDOW_START_INDEX;
 
     /* Adjust the min index to backoff the overflow correction frequency,
@@ -1178,23 +1266,29 @@ U32 ZSTD_window_correctOverflow(ZSTD_window_t* window, U32 cycleLog,
      * 3. (cctx->lowLimit + 1<<windowLog) < 1<<32:
      *    windowLog <= 31 ==> 3<<29 + 1<<windowLog < 7<<29 < 1<<32.
      */
+    U32 const roundedMaxDist = 1u << (ZSTD_highbit32(maxDist - 1) + 1);
     U32 const cycleSize = 1u << cycleLog;
     U32 const cycleMask = cycleSize - 1;
     U32 const curr = (U32)((BYTE const*)src - window->base);
     U32 const currentCycle = curr & cycleMask;
-    /* Ensure newCurrent - maxDist >= ZSTD_WINDOW_START_INDEX. */
+    /* Ensure newCurrent - roundedMaxDist >= ZSTD_WINDOW_START_INDEX. */
     U32 const currentCycleCorrection = currentCycle < ZSTD_WINDOW_START_INDEX
                                      ? MAX(cycleSize, ZSTD_WINDOW_START_INDEX)
                                      : 0;
     U32 const newCurrent = currentCycle
                          + currentCycleCorrection
-                         + MAX(maxDist, cycleSize);
+                         + MAX(roundedMaxDist, cycleSize);
     U32 const correction = curr - newCurrent;
     /* maxDist must be a power of two so that:
      *   (newCurrent & cycleMask) == (curr & cycleMask)
      * This is required to not corrupt the chains / binary tree.
+     *
+     * Now that window sizes can be non-power-of-two, we round it up to the
+     * next power of two.
      */
-    assert((maxDist & (maxDist - 1)) == 0);
+    assert(roundedMaxDist >= maxDist);
+    assert(roundedMaxDist < maxDist + 7 * (maxDist >> 3));
+    assert((roundedMaxDist & (roundedMaxDist - 1)) == 0);
     assert((curr & cycleMask) == (newCurrent & cycleMask));
     assert(curr > newCurrent);
     if (!ZSTD_WINDOW_OVERFLOW_CORRECT_FREQUENTLY) {
@@ -1392,9 +1486,9 @@ U32 ZSTD_window_update(ZSTD_window_t* window,
 /**
  * Returns the lowest allowed match index. It may either be in the ext-dict or the prefix.
  */
-MEM_STATIC U32 ZSTD_getLowestMatchIndex(const ZSTD_MatchState_t* ms, U32 curr, unsigned windowLog)
+MEM_STATIC U32 ZSTD_getLowestMatchIndex(const ZSTD_MatchState_t* ms, U32 curr)
 {
-    U32 const maxDistance = 1U << windowLog;
+    U32 const maxDistance = ZSTD_windowSize(ms->cctxParams);
     U32 const lowestValid = ms->window.lowLimit;
     U32 const withinWindow = (curr - lowestValid > maxDistance) ? curr - maxDistance : lowestValid;
     U32 const isDictionary = (ms->loadedDictEnd != 0);
@@ -1409,9 +1503,9 @@ MEM_STATIC U32 ZSTD_getLowestMatchIndex(const ZSTD_MatchState_t* ms, U32 curr, u
 /**
  * Returns the lowest allowed match index in the prefix.
  */
-MEM_STATIC U32 ZSTD_getLowestPrefixIndex(const ZSTD_MatchState_t* ms, U32 curr, unsigned windowLog)
+MEM_STATIC U32 ZSTD_getLowestPrefixIndex(const ZSTD_MatchState_t* ms, U32 curr)
 {
-    U32    const maxDistance = 1U << windowLog;
+    U32    const maxDistance = ZSTD_windowSize(ms->cctxParams);
     U32    const lowestValid = ms->window.dictLimit;
     U32    const withinWindow = (curr - lowestValid > maxDistance) ? curr - maxDistance : lowestValid;
     U32    const isDictionary = (ms->loadedDictEnd != 0);
@@ -1538,13 +1632,13 @@ BlockSummary ZSTD_get1BlockSummary(const ZSTD_Sequence* seqs, size_t nbSeqs);
  * These prototypes shall only be called from within lib/compress
  * ============================================================== */
 
-/* ZSTD_getCParamsFromCCtxParams() :
+/* ZSTD_fillCParamsInCCtxParams() :
  * cParams are built depending on compressionLevel, src size hints,
  * LDM and manually set compression parameters.
  * Note: srcSizeHint == 0 means 0!
  */
-ZSTD_compressionParameters ZSTD_getCParamsFromCCtxParams(
-        const ZSTD_CCtx_params* CCtxParams, U64 srcSizeHint, size_t dictSize, ZSTD_CParamMode_e mode);
+void ZSTD_fillCParamsInCCtxParams(
+        ZSTD_CCtx_params* cctxParams, U64 srcSizeHint, size_t dictSize, ZSTD_CParamMode_e mode);
 
 /*! ZSTD_initCStream_internal() :
  *  Private use only. Init streaming operation.
@@ -1561,6 +1655,11 @@ void ZSTD_resetSeqStore(SeqStore_t* ssPtr);
 /*! ZSTD_getCParamsFromCDict() :
  *  as the name implies */
 ZSTD_compressionParameters ZSTD_getCParamsFromCDict(const ZSTD_CDict* cdict);
+
+/*! ZSTD_checkCCtxCParams_internal() :
+ *  Checks the CParams in the CCtxParams (including related parameters not
+ * *actually* stored in the CParams struct). */
+size_t ZSTD_checkCCtxCParams_internal(const ZSTD_CCtx_params* params);
 
 /* ZSTD_compressBegin_advanced_internal() :
  * Private use only. To be called from zstdmt_compress.c. */

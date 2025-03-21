@@ -1,0 +1,50 @@
+{
+    "name": "zstd",
+    "version": "1.5.5",
+    "description": "Zstandard - Fast real-time compression algorithm",
+    "keywords": "compression, zstd, zstandard, decompression, lossless",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/facebook/zstd.git"
+    },
+    "authors": [
+        {
+            "name": "Facebook, Inc.",
+            "url": "https://github.com/facebook/zstd/graphs/contributors"
+        }
+    ],
+    "license": "BSD-3-Clause",
+    "homepage": "https://facebook.github.io/zstd/",
+    "frameworks": "*",
+    "platforms": "*",
+    "export": {
+        "include": [
+            "common/*",
+            "compress/*",
+            "decompress/*"
+        ],
+        "exclude": [
+            "legacy/*",
+            "dll/*",
+            "dictBuilder/*",
+            "deprecated/*",
+            "contrib/*"
+        ]
+    },
+    "build": {
+        "srcDir": "lib",
+        "includeDir": "lib",
+        "srcFilter": [
+            "+<common/*.c>",
+            "+<compress/*.c>",
+            "+<decompress/*.c>"
+        ],
+        "flags": [
+            "-O3",
+            "-DZSTD_LIB_COMPRESSION",
+            "-DZSTD_LIB_DECOMPRESSION",
+            "-DZSTD_COMPRESS_HEAPMODE=1",
+            "-DZSTD_DECOMPRESS_HEAPMODE=1"
+        ]
+    }
+}

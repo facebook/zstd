@@ -27,10 +27,12 @@
 #include <stdio.h>    /* fprintf, fopen */
 #include <stdlib.h>   /* malloc, free */
 #include <string.h>   /* memset, strerror */
+#include "counters.h"
 #include "util.h"     /* UTIL_getFileSize, UTIL_sleep */
 #include "../lib/common/mem.h"
 #include "benchfn.h"
 #include "timefn.h" /* UTIL_time_t */
+
 #ifndef ZSTD_STATIC_LINKING_ONLY
 #    define ZSTD_STATIC_LINKING_ONLY
 #endif
@@ -541,6 +543,9 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
                 "Warning : time measurements may be incorrect in multithreading mode... \n")
     }
 
+    /* FIXME(cavalcanti): only include this for Linux (!Android)@x86 */
+    BMK_linuxPerfCounters_t counters;
+
     /* Bench */
     {
         U64 const crcOrig = (adv->mode == BMK_decodeOnly)
@@ -598,6 +603,12 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
                 marks[markNb],
                 displayName,
                 (unsigned)srcSize);
+
+        /* FIXME(cavalcanti): only include this for Linux (!Android)@x86 */
+        if (adv->cpuCounters) {
+            BMK_countersInit(&counters);
+            BMK_eventStart(&counters);
+        }
 
         while (!(compressionCompleted && decompressionCompleted)) {
             if (!compressionCompleted) {
@@ -679,6 +690,13 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
             }
             markNb = (markNb + 1) % NB_MARKS;
         } /* while (!(compressionCompleted && decompressionCompleted)) */
+
+        /* FIXME(cavalcanti): only include this for Linux (!Android)@x86 */
+        if (adv->cpuCounters) {
+            BMK_eventStop(&counters);
+            BMK_countersClose(&counters);
+            fprintf(stdout, "###### Perf cycles: %llu\n", counters.cycles);
+        }
 
         /* CRC Checking */
         {   const BYTE* resultBuffer = (const BYTE*)(*resultBufferPtr);
@@ -763,6 +781,7 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
 
     benchResult.cMem =
             (1ULL << (comprParams->windowLog)) + ZSTD_sizeof_CCtx(cctx);
+
     return BMK_benchOutcome_setValidResult(benchResult);
 }
 

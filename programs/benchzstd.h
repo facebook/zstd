@@ -106,6 +106,7 @@ typedef struct {
     int ldmHashRateLog;
     ZSTD_ParamSwitch_e literalCompressionMode;
     int useRowMatchFinder;  /* use row-based matchfinder if possible */
+    int cpuCounters;
 } BMK_advancedParams_t;
 
 /* returns default parameters used by nonAdvanced functions */

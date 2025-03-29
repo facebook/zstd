@@ -309,6 +309,7 @@ static void usageAdvanced(const char* programName)
     DISPLAYOUT("  -b#                           Perform benchmarking with compression level #. [Default: %d]\n", ZSTDCLI_CLEVEL_DEFAULT);
     DISPLAYOUT("  -e#                           Test all compression levels up to #; starting level is `-b#`. [Default: 1]\n");
     DISPLAYOUT("  -i#                           Set the minimum evaluation to time # seconds. [Default: 3]\n");
+    DISPLAYOUT("  -y#                           Collect CPU counters.\n");
     DISPLAYOUT("  --split=#                     Split input into independent chunks of size #. [Default: No chunking]\n");
     DISPLAYOUT("  -S                            Output one benchmark result per input file. [Default: Consolidated result]\n");
     DISPLAYOUT("  -D dictionary                 Benchmark using dictionary \n");
@@ -882,6 +883,7 @@ int main(int argCount, const char* argv[])
         cLevelLast = MINCLEVEL - 1, /* for benchmark range */
         setThreads_non1 = 0;
     unsigned nbWorkers = init_nbWorkers();
+    unsigned cpuCounters = 0; /* wether we want to harvest CPU counters during benchmark */
     ZSTD_ParamSwitch_e mmapDict = ZSTD_ps_auto;
     ZSTD_ParamSwitch_e useRowMatchFinder = ZSTD_ps_auto;
     FIO_compressionType_t cType = FIO_zstdCompression;
@@ -1316,6 +1318,15 @@ int main(int argCount, const char* argv[])
                     compressibility = (double)readU32FromChar(&argument) / 100;
                     break;
 
+                    /* Harvest performance counters */
+                case 'y':
+                    argument++;
+                    cpuCounters = 1;
+                    /* Collecting performance counters requires single threaded mode for now */
+                    nbWorkers = 0;
+                    singleThread = 1;
+                    break;
+
                     /* unknown command */
                 default :
                     {   char shortArgument[3] = {'-', 0, 0};
@@ -1423,6 +1434,7 @@ int main(int argCount, const char* argv[])
         benchParams.ldmMinMatch = (int)g_ldmMinMatch;
         benchParams.ldmHashLog = (int)g_ldmHashLog;
         benchParams.useRowMatchFinder = (int)useRowMatchFinder;
+        benchParams.cpuCounters = (int)cpuCounters;
         if (g_ldmBucketSizeLog != LDM_PARAM_DEFAULT) {
             benchParams.ldmBucketSizeLog = (int)g_ldmBucketSizeLog;
         }

@@ -37,7 +37,6 @@ project(zstd
   VERSION "${ZSTD_FULL_VERSION}"
   LANGUAGES C   # Main library is in C
             ASM # And ASM
-            CXX # Testing contributed code also utilizes CXX
   )
 
 message(STATUS "ZSTD VERSION: ${zstd_VERSION}")
@@ -53,12 +52,6 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 include(GNUInstallDirs)
-
-#-----------------------------------------------------------------------------
-# Add extra compilation flags
-#-----------------------------------------------------------------------------
-include(AddZstdCompilationFlags)
-ADD_ZSTD_COMPILATION_FLAGS()
 
 # Always hide XXHash symbols
 add_definitions(-DXXH_NAMESPACE=ZSTD_)
@@ -122,6 +115,19 @@ option(ZSTD_BUILD_TESTS "BUILD TESTS" ${ZSTD_BUILD_TESTS_default})
 if (MSVC)
     option(ZSTD_USE_STATIC_RUNTIME "LINK TO STATIC RUN-TIME LIBRARIES" OFF)
 endif ()
+
+# Enable C++ support for testing.
+set(ZSTD_ENABLE_CXX ${ZSTD_BUILD_TESTS})
+
+if(ZSTD_ENABLE_CXX)
+    enable_language(CXX)
+endif()
+
+#-----------------------------------------------------------------------------
+# Add extra compilation flags
+#-----------------------------------------------------------------------------
+include(AddZstdCompilationFlags)
+ADD_ZSTD_COMPILATION_FLAGS(ON ZSTD_ENABLE_CXX ON) # C CXX LD
 
 #-----------------------------------------------------------------------------
 # External dependencies

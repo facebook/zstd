@@ -1,4 +1,4 @@
-@echo off
+@echo on
 
 rem build 32-bit
 call "%~p0%build.generic.cmd" VS2017Enterprise Win32 Release v141

@@ -82,7 +82,9 @@ static void TRACE_log(char const* method, PTime duration, ZSTD_Trace const* trac
     int level = 0;
     int workers = 0;
     double const ratio = (double)trace->uncompressedSize / (double)trace->compressedSize;
-    double const speed = ((double)trace->uncompressedSize * 1000) / (double)duration;
+    const double speed = duration != 0
+        ? ((double)trace->uncompressedSize * 1000) / (double)duration
+        : 0.0;
     if (trace->params) {
         ZSTD_CCtxParams_getParameter(trace->params, ZSTD_c_compressionLevel, &level);
         ZSTD_CCtxParams_getParameter(trace->params, ZSTD_c_nbWorkers, &workers);

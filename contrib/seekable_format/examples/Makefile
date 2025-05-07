@@ -28,7 +28,7 @@ all: seekable_compression seekable_decompression seekable_decompression_mem \
 	parallel_processing
 
 $(ZSTDLIB):
-	make -C $(ZSTDLIB_PATH) $(ZSTDLIB_NAME)
+	$(MAKE) -C $(ZSTDLIB_PATH) $(ZSTDLIB_NAME)
 
 seekable_compression : seekable_compression.c $(SEEKABLE_OBJS)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $^ $(LDFLAGS) -o $@

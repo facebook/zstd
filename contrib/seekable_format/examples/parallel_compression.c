@@ -110,7 +110,7 @@ static void flushFrame(struct state* state, struct job* job)
     fwrite_orDie(job->dst, job->dstSize, state->fout);
     free(job->dst);
 
-    size_t ret = ZSTD_seekable_logFrame(state->frameLog, job->dstSize, job->srcSize, job->checksum);
+    size_t ret = ZSTD_seekable_logFrame(state->frameLog, (unsigned)job->dstSize, (unsigned)job->srcSize, job->checksum);
     if (ZSTD_isError(ret)) {
         fprintf(stderr, "ZSTD_seekable_logFrame() error : %s \n", ZSTD_getErrorName(ret));
         exit(12);
@@ -141,7 +141,7 @@ static void compressFrame(void* opaque)
 {
     struct job* job = opaque;
 
-    job->checksum = XXH64(job->src, job->srcSize, 0);
+    job->checksum = (unsigned)XXH64(job->src, job->srcSize, 0);
 
     size_t ret = ZSTD_compress(job->dst, job->dstSize, job->src, job->srcSize, job->state->compressionLevel);
     if (ZSTD_isError(ret)) {
@@ -179,7 +179,7 @@ static void openInOut_orDie(const char* fname, FILE** fin, FILE** fout) {
     }
 }
 
-static void compressFile_orDie(const char* fname, int cLevel, unsigned frameSize, int nbThreads)
+static void compressFile_orDie(const char* fname, int cLevel, unsigned frameSize, size_t nbThreads)
 {
     struct state state = {
         .nextID = 0,
@@ -197,7 +197,7 @@ static void compressFile_orDie(const char* fname, int cLevel, unsigned frameSize
     openInOut_orDie(fname, &fin, &state.fout);
 
     if (ZSTD_compressBound(frameSize) > 0xFFFFFFFFU) { fprintf(stderr, "Frame size too large \n"); exit(10); }
-    unsigned dstSize = ZSTD_compressBound(frameSize);
+    size_t dstSize = ZSTD_compressBound(frameSize);
 
     for (size_t id = 0; 1; id++) {
         struct job* job = malloc_orDie(sizeof(struct job));
@@ -245,7 +245,7 @@ int main(int argc, const char** argv) {
 
     {   const char* const inFileName = argv[1];
         unsigned const frameSize = (unsigned)atoi(argv[2]);
-        int const nbThreads = atoi(argv[3]);
+        size_t const nbThreads = (size_t)atoi(argv[3]);
 
         compressFile_orDie(inFileName, 5, frameSize, nbThreads);
     }

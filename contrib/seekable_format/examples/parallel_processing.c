@@ -100,13 +100,11 @@ struct sum_job {
     const char* fname;
     unsigned long long sum;
     unsigned frameNb;
-    int done;
 };
 
 static void sumFrame(void* opaque)
 {
     struct sum_job* job = (struct sum_job*)opaque;
-    job->done = 0;
 
     FILE* const fin = fopen_orDie(job->fname, "rb");
 
@@ -128,7 +126,6 @@ static void sumFrame(void* opaque)
         sum += data[i];
     }
     job->sum = sum;
-    job->done = 1;
 
     fclose(fin);
     ZSTD_seekable_free(seekable);
@@ -153,14 +150,14 @@ static void sumFile_orDie(const char* fname, int nbThreads)
 
     unsigned fnb;
     for (fnb = 0; fnb < numFrames; fnb++) {
-        jobs[fnb] = (struct sum_job){ fname, 0, fnb, 0 };
+        jobs[fnb] = (struct sum_job){ fname, 0, fnb };
         POOL_add(pool, sumFrame, &jobs[fnb]);
     }
+    POOL_joinJobs(pool);
 
     unsigned long long total = 0;
 
     for (fnb = 0; fnb < numFrames; fnb++) {
-        while (!jobs[fnb].done) SLEEP(5); /* wake up every 5 milliseconds to check */
         total += jobs[fnb].sum;
     }
 

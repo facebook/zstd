@@ -351,7 +351,7 @@ apt-add-repo:
 	sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
 	sudo apt-get update -y -qq
 
-.PHONY: ppcinstall arminstall valgrindinstall libc6install gcc6install gcc7install gcc8install gpp6install clang38install lz4install
+.PHONY: ppcinstall arminstall valgrindinstall libc6install gcc6install gcc7install gcc8install gpp6install clang38install
 ppcinstall:
 	APT_PACKAGES="qemu-system-ppc qemu-user-static gcc-powerpc-linux-gnu" $(MAKE) apt-install
 
@@ -378,10 +378,6 @@ gpp6install: apt-add-repo
 
 clang38install:
 	APT_PACKAGES="clang-3.8" $(MAKE) apt-install
-
-# Ubuntu 14.04 ships a too-old lz4
-lz4install:
-	[ -e lz4 ] || git clone https://github.com/lz4/lz4 && sudo $(MAKE) -C lz4 install
 
 endif
 

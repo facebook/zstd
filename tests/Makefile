@@ -447,9 +447,9 @@ test-decodecorpus-cli: decodecorpus
 test-pool: poolTests
 	$(QEMU_SYS) ./poolTests
 
-test-lz4: ZSTD = LD_LIBRARY_PATH=/usr/local/lib $(PRGDIR)/zstd
-test-lz4: ZSTD_LZ4 = LD_LIBRARY_PATH=/usr/local/lib ./lz4
-test-lz4: ZSTD_UNLZ4 = LD_LIBRARY_PATH=/usr/local/lib ./unlz4
+test-lz4: ZSTD = $(PRGDIR)/zstd
+test-lz4: ZSTD_LZ4 = ./lz4
+test-lz4: ZSTD_UNLZ4 = ./unlz4
 test-lz4: zstd decodecorpus datagen
 	[ -f lz4 ] || ln -s $(PRGDIR)/zstd lz4
 	[ -f unlz4 ] || ln -s $(PRGDIR)/zstd unlz4

@@ -214,6 +214,7 @@ static void compressFile_orDie(const char* fname, int cLevel, unsigned frameSize
     }
 
     POOL_joinJobs(pool);
+    POOL_free(pool);
     if (state.pending) {
         fprintf(stderr, "Unexpected leftover output blocks!\n");
         exit(13);

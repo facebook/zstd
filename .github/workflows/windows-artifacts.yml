@@ -14,50 +14,50 @@ jobs:
     permissions:
       contents: write # to fetch code and upload artifacts
     # For msys2, see https://ariya.io/2020/07/on-github-actions-with-msys2
-    runs-on: ${{ matrix.build_type == 'cmake' && 'windows-11-arm' || 'windows-latest' }}
+    runs-on: ${{ matrix.shell == 'cmake' && 'windows-11-arm' || 'windows-latest' }}
     strategy:
       # For msys2, see https://github.com/msys2/setup-msys2
       matrix:
         include:
-          - { msystem: mingw64, env: x86_64, ziparch: win64, build_type: msys2 }
-          - { msystem: mingw32, env: i686, ziparch: win32, build_type: msys2 }
-          - { msystem: null, env: arm64, ziparch: win-arm64, build_type: cmake }
+          - { msystem: mingw64, env: x86_64, ziparch: win64, shell: msys2 }
+          - { msystem: mingw32, env: i686, ziparch: win32, shell: msys2 }
+          - { msystem: null, env: arm64, ziparch: win-arm64, shell: cmake }
     
     defaults:
       run:
-        shell: ${{ matrix.build_type == 'cmake' && 'pwsh' || 'msys2 {0}' }}
+        shell: ${{ matrix.shell == 'cmake' && 'pwsh' || 'msys2 {0}' }}
     
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
       
       # MSYS2 setup
       - uses: msys2/setup-msys2@40677d36a502eb2cf0fb808cc9dec31bf6152638 # tag=v2.28.0
-        if: matrix.build_type == 'msys2'
+        if: matrix.shell == 'msys2'
         with:
           msystem: ${{ matrix.msystem }}
           install: make p7zip git mingw-w64-${{matrix.env}}-gcc
           update: true
       
       - name: display versions (MSYS2)
-        if: matrix.build_type == 'msys2'
+        if: matrix.shell == 'msys2'
         run: |
           make -v
           cc -v
       
       - name: display versions (CMake)
-        if: matrix.build_type == 'cmake'
+        if: matrix.shell == 'cmake'
         run: |
           cmake --version
       
       # Build dependencies (MSYS2 only)
       - name: Building zlib to static link
-        if: matrix.build_type == 'msys2'
+        if: matrix.shell == 'msys2'
         run: |
           git clone --depth 1 --branch v1.3.1 https://github.com/madler/zlib
           make -C zlib -f win32/Makefile.gcc libz.a
       
       - name: Building lz4 to static link
-        if: matrix.build_type == 'msys2'
+        if: matrix.shell == 'msys2'
         run: |
           git clone --depth 1 --branch v1.10.0 https://github.com/lz4/lz4
           # ensure both libraries use the same version of libxxhash
@@ -66,12 +66,12 @@ jobs:
       
       # Build zstd
       - name: Building zstd programs
-        if: matrix.build_type == 'msys2'
+        if: matrix.shell == 'msys2'
         run: |
           CPPFLAGS="-I../zlib -I../lz4/lib" LDFLAGS=-static make -j allzstd V=1 HAVE_ZLIB=1 HAVE_LZ4=1 HAVE_LZMA=0 LDLIBS="../zlib/libz.a ../lz4/lib/liblz4.a"
       
       - name: Build zstd (CMake ARM64)
-        if: matrix.build_type == 'cmake'
+        if: matrix.shell == 'cmake'
         run: |
           cd build\cmake
           mkdir build
@@ -80,13 +80,13 @@ jobs:
           cmake.exe --build . --config Release --parallel
       
       - name: Create artifacts (MSYS2)
-        if: matrix.build_type == 'msys2'
+        if: matrix.shell == 'msys2'
         run: |
           ./lib/dll/example/build_package.bat || exit 1
           mv bin/ zstd-${{ github.ref_name }}-${{matrix.ziparch}}/
       
       - name: Create artifacts (CMake)
-        if: matrix.build_type == 'cmake'
+        if: matrix.shell == 'cmake'
         run: |
           .\lib\dll\example\build_package.bat
           if ($LASTEXITCODE -ne 0) { exit 1 }
@@ -101,12 +101,12 @@ jobs:
           name: zstd-${{ github.ref_name }}-${{matrix.ziparch}}
       
       - name: Package artifact for upload (MSYS2)
-        if: matrix.build_type == 'msys2'
+        if: matrix.shell == 'msys2'
         run: |
           7z a -tzip -mx9 "$(cygpath -u '${{ github.workspace }}/zstd-${{ github.ref_name }}-${{ matrix.ziparch }}.zip')" "$(cygpath -u '${{ github.workspace }}/zstd-${{ github.ref_name }}-${{ matrix.ziparch }}')"
       
       - name: Package artifact for upload (CMake)
-        if: matrix.build_type == 'cmake'
+        if: matrix.shell == 'cmake'
         run: |
           Compress-Archive -Path "zstd-${{ github.ref_name }}-${{ matrix.ziparch }}" -DestinationPath "zstd-${{ github.ref_name }}-${{ matrix.ziparch }}.zip" -CompressionLevel Optimal
       

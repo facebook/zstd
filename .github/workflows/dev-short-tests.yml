@@ -461,9 +461,9 @@ jobs:
       if: ${{ matrix.name == 'RISC-V' }}
       run: |
         LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
-        CFLAGS="-march=rv64gcv -O3" LDFLAGS="-static" CC=$XCC QEMU_SYS="$XEMU -cpu rv64,v=true,vlen=128" make clean check
-        CFLAGS="-march=rv64gcv -O3" LDFLAGS="-static" CC=$XCC QEMU_SYS="$XEMU -cpu rv64,v=true,vlen=256" make clean check
-        CFLAGS="-march=rv64gcv -O3" LDFLAGS="-static" CC=$XCC QEMU_SYS="$XEMU -cpu rv64,v=true,vlen=512" make clean check
+        CFLAGS="-march=rv64gcv -O3" LDFLAGS="-static -DMEM_FORCE_MEMORY_ACCESS=0" CC=$XCC QEMU_SYS="$XEMU -cpu rv64,v=true,vlen=128" make clean check
+        CFLAGS="-march=rv64gcv -O3" LDFLAGS="-static -DMEM_FORCE_MEMORY_ACCESS=0" CC=$XCC QEMU_SYS="$XEMU -cpu rv64,v=true,vlen=256" make clean check
+        CFLAGS="-march=rv64gcv -O3" LDFLAGS="-static -DMEM_FORCE_MEMORY_ACCESS=0" CC=$XCC QEMU_SYS="$XEMU -cpu rv64,v=true,vlen=512" make clean check
     - name: M68K
       if: ${{ matrix.name == 'M68K' }}
       run: |

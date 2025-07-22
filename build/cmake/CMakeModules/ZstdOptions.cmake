@@ -23,7 +23,7 @@ endif()
 if(ANDROID)
     set(ZSTD_MULTITHREAD_SUPPORT_DEFAULT OFF)
     # Handle old Android API levels
-    if((NOT ANDROID_PLATFORM_LEVEL) OR (ANDROID_PLATFORM_LEVEL VERSION_LESS 24))
+    if((NOT ANDROID_PLATFORM_LEVEL) OR ANDROID_PLATFORM_LEVEL VERSION_LESS 24)
         message(STATUS "Configuring for old Android API - disabling fseeko/ftello")
         add_compile_definitions(LIBC_NO_FSEEKO)
     endif()

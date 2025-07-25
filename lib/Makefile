@@ -134,7 +134,7 @@ endif
 
 ifneq (,$(filter Windows%,$(TARGET_SYSTEM)))
 
-LIBZSTD = dll/libzstd.dll
+LIBZSTD = dll/libzstd-$(LIBVER_MAJOR).dll
 $(LIBZSTD): $(ZSTD_FILES)
 	@echo compiling dynamic library $(LIBVER)
 	$(CC) $(FLAGS) -DZSTD_DLL_EXPORT=1 -Wl,--out-implib,dll/libzstd.dll.a -shared $^ -o $@
@@ -284,6 +284,12 @@ exec_prefix ?= $(PREFIX)
 EXEC_PREFIX ?= $(exec_prefix)
 libdir      ?= $(EXEC_PREFIX)/lib
 LIBDIR      ?= $(libdir)
+ifeq (,$(filter Windows%,$(TARGET_SYSTEM)))
+shlibdir    ?= $(libdir)
+else
+shlibdir    ?= $(EXEC_PREFIX)/bin
+endif
+SHLIBDIR    ?= $(shlibdir)
 includedir  ?= $(PREFIX)/include
 INCLUDEDIR  ?= $(includedir)
 
@@ -360,11 +366,15 @@ install-static:
 install-shared:
 	# only generate libzstd.so if it's not already present
 	[ -e $(LIBZSTD) ] || $(MAKE) libzstd-release
-	[ -e $(DESTDIR)$(LIBDIR) ] || $(INSTALL) -d -m 755 $(DESTDIR)$(LIBDIR)/
+	[ -e $(DESTDIR)$(SHLIBDIR) ] || $(INSTALL) -d -m 755 $(DESTDIR)$(SHLIBDIR)/
 	@echo Installing shared library
-	$(INSTALL_PROGRAM) $(LIBZSTD) $(DESTDIR)$(LIBDIR)
-	ln -sf $(LIBZSTD) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR)
-	ln -sf $(LIBZSTD) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT)
+	$(INSTALL_PROGRAM) $(LIBZSTD) $(DESTDIR)$(SHLIBDIR)
+ifeq (,$(filter Windows%,$(TARGET_SYSTEM)))
+	ln -sf $(LIBZSTD) $(DESTDIR)$(SHLIBDIR)/libzstd.$(SHARED_EXT_MAJOR)
+	ln -sf $(LIBZSTD) $(DESTDIR)$(SHLIBDIR)/libzstd.$(SHARED_EXT)
+else
+	$(INSTALL_PROGRAM) dll/libzstd.dll.a $(DESTDIR)$(LIBDIR)
+endif
 
 .PHONY: install-includes
 install-includes:
@@ -377,9 +387,10 @@ install-includes:
 .PHONY: uninstall
 uninstall:
 	$(RM) $(DESTDIR)$(LIBDIR)/libzstd.a
-	$(RM) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT)
-	$(RM) $(DESTDIR)$(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR)
-	$(RM) $(DESTDIR)$(LIBDIR)/$(LIBZSTD)
+	$(RM) $(DESTDIR)$(SHLIBDIR)/libzstd.$(SHARED_EXT)
+	$(RM) $(DESTDIR)$(SHLIBDIR)/libzstd.$(SHARED_EXT_MAJOR)
+	$(RM) $(DESTDIR)$(SHLIBDIR)/$(LIBZSTD)
+	$(RM) $(DESTDIR)$(LIBDIR)/libzstd.dll.a
 	$(RM) $(DESTDIR)$(PKGCONFIGDIR)/libzstd.pc
 	$(RM) $(DESTDIR)$(INCLUDEDIR)/zstd.h
 	$(RM) $(DESTDIR)$(INCLUDEDIR)/zstd_errors.h

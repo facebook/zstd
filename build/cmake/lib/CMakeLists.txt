@@ -140,7 +140,8 @@ endif ()
 if (ZSTD_BUILD_STATIC)
     add_library(libzstd_static STATIC ${Sources} ${Headers})
     target_include_directories(libzstd_static INTERFACE $<BUILD_INTERFACE:${PUBLIC_INCLUDE_DIRS}>)
-    list(APPEND library_targets libzstd_static)
+    # - The static library is not added to the array to avoid requiring it when looking for zstd 
+    # - list(APPEND library_targets libzstd_static)
     if (ZSTD_MULTITHREAD_SUPPORT)
         target_compile_definitions(libzstd_static PUBLIC ZSTD_MULTITHREAD)
         if (UNIX)
@@ -284,6 +285,18 @@ install(TARGETS ${library_targets}
     FRAMEWORK DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT runtime OPTIONAL
     PUBLIC_HEADER DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
     )
+
+if(ZSTD_BUILD_STATIC)
+    install(TARGETS libzstd_static
+        INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+        ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+        LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+        RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+        BUNDLE DESTINATION "${CMAKE_INSTALL_BINDIR}"
+        FRAMEWORK DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT runtime OPTIONAL
+        PUBLIC_HEADER DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+        )
+endif()
 
 # uninstall target
 if (NOT TARGET uninstall)

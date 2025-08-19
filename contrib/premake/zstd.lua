@@ -2,6 +2,7 @@
 -- Basic usage: project_zstd(ZSTD_DIR)
 
 function project_zstd(dir, compression, decompression, deprecated, dictbuilder, legacy)
+	if string.sub(dir, -1, 1) ~= '/' then dir = dir .. '/' end
 	if compression == nil then compression = true end
 	if decompression == nil then decompression = true end
 	if deprecated == nil then deprecated = false end

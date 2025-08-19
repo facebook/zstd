@@ -28,7 +28,7 @@ jobs:
     name: "CMake Ubuntu Basic Build"
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: Install dependencies
       run: |
         sudo apt install liblzma-dev  # Required for compression algorithms
@@ -58,7 +58,7 @@ jobs:
     env:
       SRC_DIR: "source directory with spaces"
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
       with:
         path: "${{ env.SRC_DIR }}"
     - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
@@ -116,7 +116,7 @@ jobs:
             runner: "windows-2022"
             cmake_extra_flags: "-DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DZSTD_BUILD_TESTS=ON"
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # tag=v2.0.0
     - name: "Configure CMake (${{ matrix.name }})"
@@ -141,7 +141,7 @@ jobs:
     name: "CMake macOS ARM64 (Apple Silicon)"
     runs-on: macos-14  # ARM64 runner
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: "CMake build and test (ARM64)"
       run: |
         # Configure and build with ARM64-specific optimizations

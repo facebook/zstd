@@ -17,7 +17,7 @@ jobs:
         image: fbopensource/zstd-circleci-primary:0.0.1
         options: --entrypoint /bin/bash
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Install Dependencies
       run: |
         sudo apt-get update
@@ -40,7 +40,7 @@ jobs:
         image: fbopensource/zstd-circleci-primary:0.0.1
         options: --entrypoint /bin/bash
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Install Dependencies
       run: |
         sudo apt-get update
@@ -73,7 +73,7 @@ jobs:
     env:
       CIRCLE_ARTIFACTS: "/tmp/circleci-artifacts"
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: restore_cache
       uses: actions/cache@v4
       with:

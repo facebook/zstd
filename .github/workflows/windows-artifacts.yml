@@ -25,7 +25,7 @@ jobs:
       run:
         shell: msys2 {0}
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - uses: msys2/setup-msys2@40677d36a502eb2cf0fb808cc9dec31bf6152638 # tag=v2.28.0
       with:
         msystem: ${{ matrix.msystem }}

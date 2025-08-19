@@ -16,7 +16,7 @@ jobs:
   make-all:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: make all
       run: make all
 
@@ -27,7 +27,7 @@ jobs:
       DEVNULLRIGHTS: 1
       READFROMBLOCKDEVICE: 1
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: make test
       run: |
         make test
@@ -38,7 +38,7 @@ jobs:
   make-test-macos:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: make test on macos
       run: make test
 
@@ -49,7 +49,7 @@ jobs:
       DEVNULLRIGHTS: 1
       READFROMBLOCKDEVICE: 1
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: make test # note: `make -j test success` seems to require a clean state
       run: |
         sudo apt-get -qqq update
@@ -61,7 +61,7 @@ jobs:
   test-largeDictionary:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: largeDictionary
       run: |
         CFLAGS="-Werror -O3" make -j -C tests test-largeDictionary
@@ -70,7 +70,7 @@ jobs:
   no-intrinsics-fuzztest:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: no intrinsics fuzztest
       run: MOREFLAGS="-DZSTD_NO_INTRINSICS" make -C tests fuzztest
 
@@ -78,14 +78,14 @@ jobs:
   tsan-zstreamtest:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: thread sanitizer zstreamtest
       run: CC=clang ZSTREAM_TESTTIME=-T3mn make tsan-test-zstream
 
   uasan-zstreamtest:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: ub + address sanitizer on zstreamtest
       run: CC=clang make uasan-test-zstream
 
@@ -93,14 +93,14 @@ jobs:
   tsan-fuzztest:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: thread sanitizer fuzztest
       run: CC=clang make tsan-fuzztest
 
   big-tests-zstreamtest32:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: zstream tests in 32bit mode, with big tests
       run: |
         sudo apt-get -qqq update
@@ -111,7 +111,7 @@ jobs:
   gcc-8-asan-ubsan-testzstd:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: gcc-8 + ASan + UBSan + Test Zstd
       # See https://askubuntu.com/a/1428822
       run: |
@@ -123,14 +123,14 @@ jobs:
   clang-asan-ubsan-testzstd:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: clang + ASan + UBSan + Test Zstd
       run: CC=clang make -j uasan-test-zstd </dev/null V=1
 
   gcc-asan-ubsan-testzstd-32bit:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: ASan + UBSan + Test Zstd, 32bit mode
       run: |
         sudo apt-get -qqq update
@@ -144,7 +144,7 @@ jobs:
   gcc-8-asan-ubsan-fuzz:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: gcc-8 + ASan + UBSan + Fuzz Test
       # See https://askubuntu.com/a/1428822
       run: |
@@ -156,14 +156,14 @@ jobs:
   clang-asan-ubsan-fuzz:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: clang + ASan + UBSan + Fuzz Test
       run: CC=clang FUZZER_FLAGS="--long-tests" make clean uasan-fuzztest
 
   gcc-asan-ubsan-fuzz32:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: ASan + UBSan + Fuzz Test 32bit
       run: |
         sudo apt-get -qqq update
@@ -173,7 +173,7 @@ jobs:
   clang-asan-fuzz32:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: clang + ASan + Fuzz Test 32bit
       run: |
         sudo apt-get -qqq update
@@ -188,7 +188,7 @@ jobs:
 #  clang-asan-ubsan-fuzz32:
 #    runs-on: ubuntu-20.04
 #    steps:
-#    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+#    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
 #    - name: clang + ASan + UBSan + Fuzz Test 32bit
 #      run: |
 #        sudo apt-get -qqq update
@@ -198,28 +198,28 @@ jobs:
   asan-ubsan-regression:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: ASan + UBSan + Regression Test
       run: make -j uasanregressiontest
 
   clang-asan-ubsan-regression:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: clang + ASan + UBSan + Regression Test
       run: CC=clang make -j uasanregressiontest
 
   msan-regression:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: MSan + Regression Test
       run: make -j msanregressiontest
 
   clang-msan-fuzz-unoptimized:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
       - name: clang + MSan + Fuzz Test
         run: |
           sudo apt-get -qqq update
@@ -229,7 +229,7 @@ jobs:
   clang-msan-fuzz:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: clang + MSan + Fuzz Test
       run: |
         sudo apt-get -qqq update
@@ -239,7 +239,7 @@ jobs:
   clang-msan-testzstd:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: clang + MSan + Test Zstd
       run: |
         CC=clang make -j msan-test-zstd HAVE_ZLIB=0 HAVE_LZ4=0 HAVE_LZMA=0 V=1
@@ -247,7 +247,7 @@ jobs:
   armfuzz:
       runs-on: ubuntu-latest
       steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
       - name: Qemu ARM emulation + Fuzz Test
         run: |
           sudo apt-get -qqq update
@@ -257,7 +257,7 @@ jobs:
   valgrind-fuzz-test:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: valgrind + fuzz test stack mode    # ~ 7mn
       shell: 'script -q -e -c "bash {0}"'
       run: |
@@ -273,7 +273,7 @@ jobs:
       run:
         shell: msys2 {0}
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - uses: msys2/setup-msys2@40677d36a502eb2cf0fb808cc9dec31bf6152638 # tag=v2.28.0
       with:
         msystem: MINGW64

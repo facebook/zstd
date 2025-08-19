@@ -16,21 +16,21 @@ jobs:
   linux-kernel:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: linux kernel, library + build + test
       run: make -C contrib/linux-kernel test CFLAGS="-Werror -Wunused-const-variable -Wunused-but-set-variable"
 
   benchmarking:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: make benchmarking
       run: make benchmarking
 
   check-32bit: # designed to catch https://github.com/facebook/zstd/issues/2428
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: make check on 32-bit
       run: |
         sudo apt update
@@ -41,7 +41,7 @@ jobs:
   build-c89:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: ensure zstd can be built with c89/c90 compilers (+ long long support + variadic macros)
       run: |
         make c89build V=1
@@ -49,7 +49,7 @@ jobs:
   build-zstd-dll:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: build zstd bin against a dynamic lib (debuglevel for more dependencies)
       run: |
         make -C lib lib-mt-release
@@ -58,7 +58,7 @@ jobs:
   gcc-7-libzstd:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: gcc-7 + libzstdmt compilation
       # See https://askubuntu.com/a/1428822
       run: |
@@ -75,7 +75,7 @@ jobs:
   cpp-gnu90-c99-compatibility:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: C++, gnu90 and c99 compatibility
       run: |
         make cxxtest
@@ -89,7 +89,7 @@ jobs:
   mingw-cross-compilation:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: mingw cross-compilation
       run: |
         # sudo update-alternatives --set x86_64-w64-mingw32-g++ /usr/bin/x86_64-w64-mingw32-g++-posix; (doesn't work)
@@ -100,7 +100,7 @@ jobs:
   armbuild:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: ARM Build Test
       run: |
         sudo apt-get -qqq update
@@ -110,7 +110,7 @@ jobs:
   bourne-shell:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: Bourne shell compatibility (shellcheck)
       run: |
         wget https://github.com/koalaman/shellcheck/releases/download/v0.7.1/shellcheck-v0.7.1.linux.x86_64.tar.xz
@@ -120,7 +120,7 @@ jobs:
   zlib-wrapper:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: install valgrind
       run: |
         sudo apt-get -qqq update
@@ -133,7 +133,7 @@ jobs:
   lz4-threadpool-libs:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: LZ4, thread pool, and libs build testslib wrapper test
       run: |
         make -C tests test-lz4
@@ -146,7 +146,7 @@ jobs:
   gcc-make-all-avx2:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: Make all, with AVX2
       run: |
         sudo apt-get -qqq update
@@ -156,7 +156,7 @@ jobs:
   gcc-make-all-32bit:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: Make all, 32bit mode
       run: |
         sudo apt-get -qqq update
@@ -166,7 +166,7 @@ jobs:
   gcc-make-all-32bit-avx2:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: Make all, 32bit + AVX2 mode
       run: |
         sudo apt-get -qqq update
@@ -177,7 +177,7 @@ jobs:
   gcc-8-make:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
       - name: gcc-8 build
         # See https://askubuntu.com/a/1428822
         run: |
@@ -200,7 +200,7 @@ jobs:
             flags: "HAVE_ZLIB=0 HAVE_LZ4=0 HAVE_LZMA=1"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
       - name: Build with ${{matrix.name}}
         run: |
           sudo apt install liblzma-dev
@@ -210,7 +210,7 @@ jobs:
   implicit-fall-through:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
       - name: -Wimplicit-fallthrough build
         run: |
           make clean
@@ -221,7 +221,7 @@ jobs:
   meson-linux:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
       - name: Install packages
         run: |
           sudo apt-get update
@@ -245,7 +245,7 @@ jobs:
   meson-mingw-cross-compilation:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
       - name: Install packages
         run: |
           sudo apt-get -qqq update
@@ -289,7 +289,7 @@ jobs:
   meson-windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
       - name: Install packages
         run: pip install --pre meson
       - name: Configure with Meson
@@ -319,7 +319,7 @@ jobs:
         ]
     runs-on: ${{matrix.runner}}
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # tag=v2.0.0
     - name: Build ${{matrix.name}}
@@ -344,7 +344,7 @@ jobs:
   libzstd-size:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: libzstd size test
       run: |
         make clean && make -j -C lib libzstd && ./tests/check_size.py lib/libzstd.so 1100000
@@ -355,7 +355,7 @@ jobs:
   minimal-decompressor-macros:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: minimal decompressor macros
       run: |
         make clean && make -j all ZSTD_LIB_MINIFY=1 MOREFLAGS="-Werror"
@@ -372,7 +372,7 @@ jobs:
   dynamic-bmi2:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: dynamic bmi2 tests
       run: |
         make clean && make -j check MOREFLAGS="-O0 -Werror -mbmi2"
@@ -384,7 +384,7 @@ jobs:
   test-variants:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: make all variants & validate
       run: |
         make -j -C programs allVariants MOREFLAGS=-O0
@@ -411,7 +411,7 @@ jobs:
       XCC: ${{ matrix.xcc }}
       XEMU: ${{ matrix.xemu }}
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: apt update & install
       run: |
         sudo apt-get update
@@ -486,7 +486,7 @@ jobs:
       run:
         shell: msys2 {0}
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - uses: msys2/setup-msys2@40677d36a502eb2cf0fb808cc9dec31bf6152638 # tag=v2.28.0
       with:
         msystem: ${{ matrix.msystem }}
@@ -522,7 +522,7 @@ jobs:
         platform: [x64, Win32]
         configuration: [Release]
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # tag=v2.0.0
     - name: Build and run tests
@@ -543,7 +543,7 @@ jobs:
     runs-on: windows-latest
     steps:
     - run: git config --global core.autocrlf input
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - uses: cygwin/cygwin-install-action@f2009323764960f80959895c7bc3bb30210afe4d # tag=v6
       with:
         platform: x86_64
@@ -575,7 +575,7 @@ jobs:
     container:
       image: debian:testing
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
       - name: Install dependencies
         run: |
           apt -y update
@@ -590,7 +590,7 @@ jobs:
   versions-compatibility:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: Versions Compatibility Test
       run: |
         make -C tests versionsTest
@@ -598,7 +598,7 @@ jobs:
   clangbuild:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: make clangbuild
       run: |
         make clangbuild
@@ -606,7 +606,7 @@ jobs:
   gcc-pgo:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: Build PGO Zstd with GCC
       env:
         CC: gcc
@@ -617,7 +617,7 @@ jobs:
   clang-pgo:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: Build PGO Zstd with Clang
       env:
         CC: clang
@@ -630,7 +630,7 @@ jobs:
   musl-build:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
       - name: Install musl-tools
         run: |
           sudo apt install -y musl-tools
@@ -641,7 +641,7 @@ jobs:
   intel-cet-compatibility:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: Build Zstd
       run: |
         make -j zstd V=1
@@ -672,7 +672,7 @@ jobs:
         echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/oneAPI.list
         sudo apt-get update
         sudo apt-get install -y intel-basekit intel-hpckit
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
     - name: make check
       run: |
         source /opt/intel/oneapi/setvars.sh

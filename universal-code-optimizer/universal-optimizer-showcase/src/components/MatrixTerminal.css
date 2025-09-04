@@ -1,0 +1,244 @@
+.matrix-terminal {
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+  color: #00ff00;
+  font-family: 'Courier New', 'Monaco', 'Lucida Console', monospace;
+  padding: 20px;
+  border-radius: 15px;
+  box-shadow: 0 0 50px rgba(0, 255, 0, 0.3);
+  position: relative;
+  overflow: hidden;
+  min-height: 600px;
+}
+
+.matrix-terminal::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 25% 25%, rgba(0, 255, 0, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 75% 75%, rgba(0, 255, 255, 0.1) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.ascii-art {
+  position: absolute;
+  top: 0;
+  right: 0;
+  opacity: 0.1;
+  z-index: 1;
+  font-size: 8px;
+  line-height: 0.8;
+  color: #00ff00;
+  overflow: hidden;
+  max-width: 50%;
+}
+
+.ascii-art pre {
+  margin: 0;
+  white-space: pre;
+  font-family: 'Courier New', monospace;
+}
+
+.terminal-header {
+  text-align: center;
+  margin-bottom: 30px;
+  z-index: 2;
+  position: relative;
+}
+
+.terminal-title {
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin: 0;
+  text-shadow: 
+    0 0 10px #00ff00,
+    0 0 20px #00ff00,
+    0 0 30px #00ff00;
+  animation: glow 2s ease-in-out infinite alternate;
+  background: linear-gradient(45deg, #00ff00, #00ffff, #00ff00);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.terminal-subtitle {
+  font-size: 1.2rem;
+  margin: 10px 0 0 0;
+  color: #00ffff;
+  text-shadow: 0 0 10px #00ffff;
+  font-weight: normal;
+  letter-spacing: 2px;
+}
+
+@keyframes glow {
+  from {
+    text-shadow: 
+      0 0 10px #00ff00,
+      0 0 20px #00ff00,
+      0 0 30px #00ff00;
+  }
+  to {
+    text-shadow: 
+      0 0 20px #00ff00,
+      0 0 30px #00ff00,
+      0 0 40px #00ff00;
+  }
+}
+
+.terminal-content {
+  background: rgba(0, 0, 0, 0.7);
+  border: 2px solid #00ff00;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+  min-height: 300px;
+  position: relative;
+  z-index: 2;
+  box-shadow: 
+    inset 0 0 20px rgba(0, 255, 0, 0.1),
+    0 0 20px rgba(0, 255, 0, 0.2);
+}
+
+.terminal-output {
+  font-size: 14px;
+  line-height: 1.4;
+  color: #00ff00;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.terminal-output pre {
+  margin: 0;
+  font-family: inherit;
+}
+
+.cursor {
+  background: #00ff00;
+  color: #000;
+  animation: blink 1s infinite;
+  font-weight: bold;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.terminal-stats {
+  display: flex;
+  justify-content: space-around;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid #00ff00;
+  border-radius: 8px;
+  padding: 15px;
+  position: relative;
+  z-index: 2;
+}
+
+.stat-item {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #888;
+  letter-spacing: 1px;
+}
+
+.stat-value {
+  font-size: 16px;
+  font-weight: bold;
+  color: #00ffff;
+  text-shadow: 0 0 10px currentColor;
+}
+
+.stat-value.online {
+  color: #00ff00;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .matrix-terminal {
+    padding: 15px;
+    min-height: 400px;
+  }
+  
+  .terminal-title {
+    font-size: 1.8rem;
+  }
+  
+  .terminal-subtitle {
+    font-size: 1rem;
+  }
+  
+  .ascii-art {
+    display: none;
+  }
+  
+  .terminal-stats {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .stat-item {
+    flex-direction: row;
+    justify-content: space-between;
+  }
+}
+
+/* Matrix rain effect */
+@keyframes matrix-rain {
+  0% {
+    transform: translateY(-100vh);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh);
+    opacity: 0;
+  }
+}
+
+.matrix-terminal::after {
+  content: 'αβγδεζηθικλμνξοπρστυφχψω';
+  position: absolute;
+  top: -100px;
+  left: 10%;
+  font-size: 20px;
+  color: rgba(0, 255, 0, 0.3);
+  animation: matrix-rain 8s infinite linear;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Glitch effect for title */
+@keyframes glitch {
+  0% { transform: translate(0); }
+  20% { transform: translate(-2px, 2px); }
+  40% { transform: translate(-2px, -2px); }
+  60% { transform: translate(2px, 2px); }
+  80% { transform: translate(2px, -2px); }
+  100% { transform: translate(0); }
+}
+
+.terminal-title:hover {
+  animation: glitch 0.3s, glow 2s ease-in-out infinite alternate;
+}

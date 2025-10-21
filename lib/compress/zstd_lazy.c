@@ -19,6 +19,11 @@
 
 #define kLazySkippingStep 8
 
+#ifdef ZSTD_ENABLE_SEARCH_SKIP_HIGH
+    #define ZSTD_MATCH_BACKCHECK_OFFSET 2
+#else
+    #define ZSTD_MATCH_BACKCHECK_OFFSET 3
+#endif
 
 /*-*************************************
 *  Binary Tree search
@@ -1304,8 +1309,8 @@ size_t ZSTD_RowFindBestMatch(
             if ((dictMode != ZSTD_extDict) || matchIndex >= dictLimit) {
                 const BYTE* const match = base + matchIndex;
                 assert(matchIndex >= dictLimit);   /* ensures this is true if dictMode != ZSTD_extDict */
-                /* read 4B starting from (match + ml + 1 - sizeof(U32)) */
-                if (MEM_read32(match + ml - 3) == MEM_read32(ip + ml - 3))   /* potentially better */
+                /* read 4B starting from (match + ml - ZSTD_MATCH_BACKCHECK_OFFSET) */
+                if (MEM_read32(match + ml - ZSTD_MATCH_BACKCHECK_OFFSET) == MEM_read32(ip + ml - ZSTD_MATCH_BACKCHECK_OFFSET))   /* potentially better */
                     currentMl = ZSTD_count(ip, match, iLimit);
             } else {
                 const BYTE* const match = dictBase + matchIndex;

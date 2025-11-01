@@ -126,10 +126,13 @@ MEM_STATIC size_t MEM_swapST(size_t in);
  * Method 1 : Use compiler extension to set unaligned access.
  * Method 2 : direct access. This method is portable but violate C standard.
  *            It can generate buggy code on targets depending on alignment.
- * Default  : method 1 if supported, else method 0
+ * Default  : method 2 for RISC-V with zicclsm extension (GNUC), 
+ *            method 1 for other GNUC environments, else method 0
  */
 #ifndef MEM_FORCE_MEMORY_ACCESS   /* can be defined externally, on command line for example */
-#  ifdef __GNUC__
+#  if defined(__GNUC__) && (defined(__riscv) && defined(__riscv_zicclsm))
+#    define MEM_FORCE_MEMORY_ACCESS 2
+#  elif defined(__GNUC__)
 #    define MEM_FORCE_MEMORY_ACCESS 1
 #  endif
 #endif

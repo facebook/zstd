@@ -1593,7 +1593,9 @@ int UTIL_countCores(int logical)
 
         int siblings = 0;
         int cpu_cores = 0;
+     #ifdef ZSTD_PARSEFULL_CPUINFO
         int procs = 0;
+     #endif
         int ratio = 1;
 
         if (cpuinfo == NULL) {
@@ -1623,6 +1625,7 @@ int UTIL_countCores(int logical)
 
                     cpu_cores = atoi(sep + 1);
                 }
+      #ifdef ZSTD_PARSEFULL_CPUINFO
                 if (strncmp(buff, "processor", 9) == 0) {
                     const char* const sep = strchr(buff, ':');
                     if (sep == NULL || *sep == '\0') {
@@ -1632,6 +1635,7 @@ int UTIL_countCores(int logical)
 
                     procs++;
                 }
+      #endif
             } else if (ferror(cpuinfo)) {
                 /* fall back on the sysconf value */
                 goto failed;
@@ -1643,9 +1647,11 @@ int UTIL_countCores(int logical)
         if (ratio && numCores > ratio && !logical) {
             numCores = numCores / ratio;
         }
+#ifdef ZSTD_PARSEFULL_CPUINFO
         if (procs) {
             numCores = procs;
         }
+#endif
 
 failed:
         fclose(cpuinfo);

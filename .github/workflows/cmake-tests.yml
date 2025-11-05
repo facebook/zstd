@@ -21,11 +21,26 @@ env:
   COMMON_CMAKE_FLAGS: "-DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DZSTD_BUILD_TESTS=ON"
 
 jobs:
+  # Basic cmake build using the root CMakeLists.txt
+  # Provides a lightweight sanity check that the top-level project config builds
+  # with the default Unix Makefiles generator driven purely through cmake commands
+  cmake-root-basic:
+    name: "CMake Root Build"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
+    - name: Configure (Root)
+      run: |
+        cmake -S . -B cmake-build -DCMAKE_BUILD_TYPE=Release ${{ env.COMMON_CMAKE_FLAGS }}
+    - name: Build (Root)
+      run: |
+        cmake --build cmake-build --config Release
+
   # Ubuntu-based cmake build using make wrapper
   # This test uses the make-driven cmake build to ensure compatibility
   # with the existing build system integration
   cmake-ubuntu-basic:
-    name: "CMake Ubuntu Basic Build"
+    name: "CMake build using make wrapper"
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0

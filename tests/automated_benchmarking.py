@@ -225,7 +225,7 @@ def get_regressions_dictionary(baseline_build, test_build, filenames_directory, 
     for j, level in enumerate(levels):
         old_cspeed, old_dspeed = old[j]
         new_cspeed, new_dspeed = new[j]
-        cspeed_reg, dspeed_reg, baesline_label, test_label = parse_regressions_and_labels(
+        cspeed_reg, dspeed_reg, baseline_label, test_label = parse_regressions_and_labels(
             old_cspeed, new_cspeed, old_dspeed, new_dspeed, baseline_build, test_build
         )
         if cspeed_reg > CSPEED_REGRESSION_TOLERANCE:
@@ -315,7 +315,7 @@ if __name__ == "__main__":
         quit()
 
     if mode == "onetime":
-        main(filenames, levels, iterations, frequency=frequenc, dictionary_filename=dictionary_filename)
+        main(filenames, levels, iterations, frequency=frequency, dictionary_filename=dictionary_filename)
     elif mode == "current":
         builds = [{"user": None, "branch": "None", "hash": None}]
         main(filenames, levels, iterations, builds, frequency=frequency, dictionary_filename=dictionary_filename)

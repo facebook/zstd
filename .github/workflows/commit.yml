@@ -99,6 +99,6 @@ jobs:
         echo "      are still good, copy it into the repo and commit it."
         echo "> diff tests/regression/results.csv $CIRCLE_ARTIFACTS/results.csv"
         diff tests/regression/results.csv $CIRCLE_ARTIFACTS/results.csv
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v5
       with:
         path: "/tmp/circleci-artifacts"

@@ -87,6 +87,10 @@
 #  define UTIL_STATIC static  /* this version may generate warnings for unused static functions; disable the relevant warning */
 #endif
 
+#ifndef ZSTD_PARSEFULL_CPUINFO
+#  define ZSTD_PARSEFULL_CPUINFO 0
+#endif
+
 
 #if defined (__cplusplus)
 extern "C" {

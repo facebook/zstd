@@ -90,8 +90,8 @@
 /* enable or disable (default) parsing all /proc/cpuinfo to cout all cpu cores number
  * That ruins physical/logical logics
  */
-#ifndef ZSTD_PARSEFULL_CPUINFO
-#  define ZSTD_PARSEFULL_CPUINFO 0
+#ifndef ZSTD_PARSE_FULL_CPUINFO
+#  define ZSTD_PARSE_FULL_CPUINFO 0
 #endif
 
 

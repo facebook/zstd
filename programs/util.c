@@ -1593,7 +1593,7 @@ int UTIL_countCores(int logical)
 
         int siblings = 0;
         int cpu_cores = 0;
-     #ifdef ZSTD_PARSEFULL_CPUINFO
+     #if ZSTD_PARSE_FULL_CPUINFO == 1
         int procs = 0;
      #endif
         int ratio = 1;
@@ -1625,7 +1625,7 @@ int UTIL_countCores(int logical)
 
                     cpu_cores = atoi(sep + 1);
                 }
-      #ifdef ZSTD_PARSEFULL_CPUINFO
+      #if ZSTD_PARSE_FULL_CPUINFO == 1
                 if (strncmp(buff, "processor", 9) == 0) {
                     const char* const sep = strchr(buff, ':');
                     if (sep == NULL || *sep == '\0') {
@@ -1647,7 +1647,7 @@ int UTIL_countCores(int logical)
         if (ratio && numCores > ratio && !logical) {
             numCores = numCores / ratio;
         }
-#ifdef ZSTD_PARSEFULL_CPUINFO
+#if ZSTD_PARSE_FULL_CPUINFO == 1
         if (procs) {
             numCores = procs;
         }

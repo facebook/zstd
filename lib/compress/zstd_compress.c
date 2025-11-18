@@ -5260,6 +5260,13 @@ static size_t ZSTD_compressBegin_internal(ZSTD_CCtx* cctx,
                                     ZSTD_buffered_policy_e zbuff)
 {
     size_t const dictContentSize = cdict ? cdict->dictContentSize : dictSize;
+#ifdef ZSTD_LAZY_SKIP_LONG_MATCHES
+    int compressionLevel = (params->compressionLevel == 0) ? cctx->requestedParams.compressionLevel 
+                                                       : params->compressionLevel;
+    compressionLevel = MIN(MAX(0, compressionLevel), ZSTD_maxCLevel());
+    assert(compressionLevel >= 0 && compressionLevel <= ZSTD_MAX_CLEVEL);
+    cctx->seqStore.lazyLimit = ZSTD_compressFastLazyLimit[compressionLevel];
+#endif
 #if ZSTD_TRACE
     cctx->traceCtx = (ZSTD_trace_compress_begin != NULL) ? ZSTD_trace_compress_begin(cctx) : 0;
 #endif
@@ -8288,7 +8295,14 @@ static ZSTD_compressionParameters ZSTD_getCParams_internal(int compressionLevel,
     else if (compressionLevel > ZSTD_MAX_CLEVEL) row = ZSTD_MAX_CLEVEL;
     else row = compressionLevel;
 
+#ifdef ZSTD_LAZY_SKIP_LONG_MATCHES
+    {   ZSTD_compressionParameters cp = 
+            ((unsigned)(compressionLevel - 6) <= 1)  /* compressionLevel == 6 || compressionLevel == 7 */
+                ? ZSTD_CParametersFastCompress[tableID][compressionLevel - 6]
+                : ZSTD_defaultCParameters[tableID][row];
+#else
     {   ZSTD_compressionParameters cp = ZSTD_defaultCParameters[tableID][row];
+#endif
         DEBUGLOG(5, "ZSTD_getCParams_internal selected tableID: %u row: %u strat: %u", tableID, row, (U32)cp.strategy);
         /* acceleration factor */
         if (compressionLevel < 0) {

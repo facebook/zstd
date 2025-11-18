@@ -39,6 +39,38 @@
                                        The benefit is that ZSTD_DUBT_UNSORTED_MARK cannot be mishandled after table reuse with a different strategy.
                                        This constant is required by ZSTD_compressBlock_btlazy2() and ZSTD_reduceTable_internal() */
 
+#ifdef ZSTD_LAZY_SKIP_LONG_MATCHES
+/* Lazy evaluation is performed only if the first match length 
+ * is <= ZSTD_compressFastLazyLimit */
+#define ZSTD_COMPRESS_FAST_BASE_LAZY_LIMIT 5
+
+#define ZSTD_MAX_CLEVEL     22
+static const size_t ZSTD_compressFastLazyLimit[ZSTD_MAX_CLEVEL + 1] = {
+    ZSTD_COMPRESS_FAST_BASE_LAZY_LIMIT,      /* base for negative levels */
+    0,  /* level  1 */
+    0,  /* level  2 */
+    0,  /* level  3 */
+    0,  /* level  4 */
+    0,  /* level  5 */
+    ZSTD_COMPRESS_FAST_BASE_LAZY_LIMIT,      /* level  6 */
+    ZSTD_COMPRESS_FAST_BASE_LAZY_LIMIT + 1,  /* level  7 */
+    0,  /* level  8.*/
+    0,  /* level  9.*/
+    0,  /* level 10.*/
+    0,  /* level 11.*/
+    0,  /* level 12.*/
+    0,  /* level 13 */
+    0,  /* level 14 */
+    0,  /* level 15 */
+    0,  /* level 16 */
+    0,  /* level 17 */
+    0,  /* level 18 */
+    0,  /* level 19 */
+    0,  /* level 20 */
+    0,  /* level 21 */
+    0,  /* level 22 */
+};
+#endif
 
 /*-*************************************
 *  Context memory management
@@ -105,6 +137,9 @@ typedef struct {
     BYTE*  ofCode;
     size_t maxNbSeq;
     size_t maxNbLit;
+#ifdef ZSTD_LAZY_SKIP_LONG_MATCHES
+    size_t lazyLimit;      /* Match length limit to allow lazy evaluation */
+#endif
 
     /* longLengthPos and longLengthType to allow us to represent either a single litLength or matchLength
      * in the seqStore that has a value larger than U16 (if it exists). To do so, we increment

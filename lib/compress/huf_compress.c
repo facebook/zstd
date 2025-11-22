@@ -242,7 +242,7 @@ static void HUF_writeCTableHeader(HUF_CElt* ctable, U32 tableLog, U32 maxSymbolV
 typedef struct {
     HUF_CompressWeightsWksp wksp;
     BYTE bitsToWeight[HUF_TABLELOG_MAX + 1];   /* precomputed conversion table */
-    BYTE huffWeight[HUF_SYMBOLVALUE_MAX];
+    BYTE huffWeight[HUF_SYMBOLVALUE_MAX + 1];
 } HUF_WriteCTableWksp;
 
 size_t HUF_writeCTable_wksp(void* dst, size_t maxDstSize,
@@ -279,7 +279,6 @@ size_t HUF_writeCTable_wksp(void* dst, size_t maxDstSize,
     }   }
 
     /* write raw values as 4-bits (max : 15) */
-    if (maxSymbolValue > (256-128)) return ERROR(GENERIC);   /* should not happen : likely means source cannot be compressed */
     if (((maxSymbolValue+1)/2) + 1 > maxDstSize) return ERROR(dstSize_tooSmall);   /* not enough space within dst buffer */
     op[0] = (BYTE)(128 /*special case*/ + (maxSymbolValue-1));
     wksp->huffWeight[maxSymbolValue] = 0;   /* to be sure it doesn't cause msan issue in final combination */

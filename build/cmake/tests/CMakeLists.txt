@@ -116,3 +116,10 @@ if (UNIX)
 else()
     target_link_libraries(paramgrill libzstd_static)
 endif ()
+
+#
+# huf_max_symbol_test
+#
+add_executable(huf_max_symbol_test ${TESTS_DIR}/huf_max_symbol_test.c)
+target_link_libraries(huf_max_symbol_test libzstd_static)
+add_test(NAME huf_max_symbol_test COMMAND "$<TARGET_FILE:huf_max_symbol_test>")

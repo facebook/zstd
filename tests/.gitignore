@@ -26,6 +26,7 @@ decodecorpus
 pool
 poolTests
 invalidDictionaries
+huf_max_symbol_test
 checkTag
 zcat
 zstdcat

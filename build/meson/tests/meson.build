@@ -102,6 +102,12 @@ invalidDictionaries = executable('invalidDictionaries',
   dependencies: [ libzstd_dep ],
   install: false)
 
+huf_max_symbol_test_sources = [join_paths(zstd_rootdir, 'tests/huf_max_symbol_test.c')]
+huf_max_symbol_test = executable('huf_max_symbol_test',
+  huf_max_symbol_test_sources,
+  dependencies: [ libzstd_internal_dep ],
+  install: false)
+
 if 0 < legacy_level and legacy_level <= 4
   legacy_sources = [join_paths(zstd_rootdir, 'tests/legacy.c')]
   legacy = executable('legacy',
@@ -199,6 +205,7 @@ test('test-zstream-3',
   timeout: 120)
 test('test-longmatch', longmatch, timeout: 36)
 test('test-invalidDictionaries', invalidDictionaries) # should be fast
+test('test-huf-max-symbol', huf_max_symbol_test) # should be fast
 if 0 < legacy_level and legacy_level <= 4
   test('test-legacy', legacy) # should be fast
 endif

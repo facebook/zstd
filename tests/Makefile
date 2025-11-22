@@ -232,6 +232,9 @@ largeDictionary: $(ZSTDMT_OBJECTS) $(PRGDIR)/datagen.c largeDictionary.c
 CLEAN += invalidDictionaries
 invalidDictionaries : $(ZSTD_OBJECTS) invalidDictionaries.c
 
+CLEAN += huf_max_symbol_test
+huf_max_symbol_test : $(ZSTD_OBJECTS) huf_max_symbol_test.c
+
 CLEAN += legacy
 legacy : CPPFLAGS += -UZSTD_LEGACY_SUPPORT -DZSTD_LEGACY_SUPPORT=4
 legacy : $(ZSTD_FILES) legacy.c
@@ -323,7 +326,7 @@ check: test-zstd
 fuzztest: test-fuzzer test-zstream test-decodecorpus
 
 .PHONY: test
-test: test-zstd test-cli-tests test-fullbench test-fuzzer test-zstream test-invalidDictionaries test-legacy test-decodecorpus
+test: test-zstd test-cli-tests test-fullbench test-fuzzer test-zstream test-invalidDictionaries test-huf-max-symbol test-legacy test-decodecorpus
 ifeq ($(QEMU_SYS),)
 test: test-pool
 endif
@@ -404,6 +407,9 @@ test-largeDictionary: largeDictionary
 
 test-invalidDictionaries: invalidDictionaries
 	$(QEMU_SYS) ./invalidDictionaries
+
+test-huf-max-symbol: huf_max_symbol_test
+	$(QEMU_SYS) ./huf_max_symbol_test
 
 test-legacy: legacy
 	$(QEMU_SYS) ./legacy

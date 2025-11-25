@@ -28,7 +28,7 @@ jobs:
         shell: ${{ matrix.shell == 'cmake' && 'pwsh' || 'msys2 {0}' }}
 
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # tag=v5.0.0
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # tag=v6.0.0
 
       # MSYS2 setup
       - uses: msys2/setup-msys2@fb197b72ce45fb24f17bf3f807a388985654d1f2 # tag=v2.29.0

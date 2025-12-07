@@ -245,6 +245,7 @@ static void usageAdvanced(const char* programName)
     DISPLAYOUT("  --exclude-compressed          Only compress files that are not already compressed.\n\n");
 
     DISPLAYOUT("  --stream-size=#               Specify size of streaming input from STDIN.\n");
+    DISPLAYOUT("  --ibuf-size=#                 Specify input buffer size for decompression. Helps with large files on slow disks.\n");
     DISPLAYOUT("  --size-hint=#                 Optimize compression parameters for streaming input of approximately size #.\n");
     DISPLAYOUT("  --target-compressed-block-size=#\n");
     DISPLAYOUT("                                Generate compressed blocks of approximately # size.\n\n");
@@ -912,6 +913,7 @@ int main(int argCount, const char* argv[])
     size_t streamSrcSize = 0;
     size_t targetCBlockSize = 0;
     size_t srcSizeHint = 0;
+    size_t inputBufferSize = 0;
     size_t nbInputFileNames = 0;
     int dictCLevel = g_defaultDictCLevel;
     unsigned dictSelect = g_defaultSelectivityLevel;
@@ -1096,6 +1098,7 @@ int main(int argCount, const char* argv[])
                 if (longCommandWArg(&argument, "--dictID")) { NEXT_UINT32(dictID); continue; }
                 if (longCommandWArg(&argument, "--zstd=")) { if (!parseCompressionParameters(argument, &compressionParams)) { badUsage(programName, originalArgument); CLEAN_RETURN(1); } ; cType = FIO_zstdCompression; continue; }
                 if (longCommandWArg(&argument, "--stream-size")) { NEXT_TSIZE(streamSrcSize); continue; }
+                if (longCommandWArg(&argument, "--ibuf-size")) { NEXT_TSIZE(inputBufferSize); continue; }
                 if (longCommandWArg(&argument, "--target-compressed-block-size")) { NEXT_TSIZE(targetCBlockSize); continue; }
                 if (longCommandWArg(&argument, "--size-hint")) { NEXT_TSIZE(srcSizeHint); continue; }
                 if (longCommandWArg(&argument, "--output-dir-flat")) {
@@ -1615,6 +1618,7 @@ int main(int argCount, const char* argv[])
         FIO_setStreamSrcSize(prefs, streamSrcSize);
         FIO_setTargetCBlockSize(prefs, targetCBlockSize);
         FIO_setSrcSizeHint(prefs, srcSizeHint);
+        FIO_setInputBufferSize(prefs, inputBufferSize);
         FIO_setLiteralCompressionMode(prefs, literalCompressionMode);
         FIO_setSparseWrite(prefs, 0);
         if (adaptMin > cLevel) cLevel = adaptMin;

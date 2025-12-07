@@ -44,6 +44,16 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 #-----------------------------------------------------------------------------
+# Add "_d" debug postfix to libraries on Windows
+# since Release and Debug binaries are not compatible on this platform
+#-----------------------------------------------------------------------------
+
+if(NOT DEFINED CMAKE_DEBUG_POSTFIX AND WIN32)
+    message(STATUS "Setting debug postfix to '_d' on Windows.")
+    set(CMAKE_DEBUG_POSTFIX "_d")
+endif()
+
+#-----------------------------------------------------------------------------
 # Include standard modules
 #-----------------------------------------------------------------------------
 include(GNUInstallDirs)

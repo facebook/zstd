@@ -1236,7 +1236,7 @@ FORCE_INLINE_TEMPLATE seq_t
 ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets, const int isLastSeq)
 {
     seq_t seq;
-#if defined(__aarch64__)
+#if defined(__aarch64__) || (defined(__riscv) && (__riscv_xlen == 64))
     size_t prevOffset0 = seqState->prevOffset[0];
     size_t prevOffset1 = seqState->prevOffset[1];
     size_t prevOffset2 = seqState->prevOffset[2];

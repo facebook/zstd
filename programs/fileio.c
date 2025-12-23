@@ -1050,7 +1050,9 @@ static size_t FIO_setDictBufferMMap(FIO_Dict_t* dict, const char* fileName, FIO_
     }
 
     *bufferPtr = mmap(NULL, (size_t)fileSize, PROT_READ, MAP_PRIVATE, fileHandle, 0);
-    if (*bufferPtr==NULL) EXM_THROW(34, "%s", strerror(errno));
+    if (*bufferPtr == MAP_FAILED) {
+      EXM_THROW(34, "%s", strerror(errno))
+    }
 
     close(fileHandle);
     return (size_t)fileSize;

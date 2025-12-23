@@ -146,15 +146,20 @@ POOL_ctx* POOL_create_advanced(size_t numThreads, size_t queueSize,
     /* Check for errors */
     if (!ctx->threads || !ctx->queue) { POOL_free(ctx); return NULL; }
     /* Initialize the threads */
-    {   size_t i;
+    {   
+        size_t i;
         for (i = 0; i < numThreads; ++i) {
             if (ZSTD_pthread_create(&ctx->threads[i], NULL, &POOL_thread, ctx)) {
                 ctx->threadCapacity = i;
                 POOL_free(ctx);
                 return NULL;
-        }   }
+            }   
+        }
         ctx->threadCapacity = numThreads;
+
+        ZSTD_pthread_mutex_lock(&ctx->queueMutex);
         ctx->threadLimit = numThreads;
+        ZSTD_pthread_mutex_unlock(&ctx->queueMutex);
     }
     return ctx;
 }

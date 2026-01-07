@@ -323,4 +323,24 @@ MEM_STATIC int ZSTD_cpuSupportsBmi2(void)
     return ZSTD_cpuid_bmi1(cpuid) && ZSTD_cpuid_bmi2(cpuid);
 }
 
+#if defined(__aarch64__) || defined(_M_ARM64)
+/**
+ * @returns true iff the CPU supports SVE.
+ */
+MEM_STATIC int ZSTD_cpuSupportsSve(void)
+{
+    ZSTD_arm_cpuinfo_t cpuinfo = ZSTD_arm_cpuinfo();
+    return ZSTD_arm_cpuinfo_sve(cpuinfo);
+}
+
+/**
+ * @returns true iff the CPU supports SVE2.
+ */
+MEM_STATIC int ZSTD_cpuSupportsSve2(void)
+{
+    ZSTD_arm_cpuinfo_t cpuinfo = ZSTD_arm_cpuinfo();
+    return ZSTD_arm_cpuinfo_sve2(cpuinfo);
+}
+#endif
+
 #endif   /* ZSTD_CCOMMON_H_MODULE */

@@ -22,6 +22,16 @@
 #include <intrin.h>
 #endif
 
+/* Include headers needed for ARM feature detection */
+#if defined(__aarch64__) || defined(_M_ARM64)
+#  if defined(__linux__) || defined(__ANDROID__)
+#    include <sys/auxv.h>
+#  elif defined(__APPLE__)
+#    include <sys/types.h>
+#    include <sys/sysctl.h>
+#  endif
+#endif
+
 typedef struct {
     U32 f1c;
     U32 f1d;
@@ -245,5 +255,60 @@ MEM_STATIC ZSTD_cpuid_t ZSTD_cpuid(void) {
 #undef C
 
 #undef X
+
+/* ====================================================
+ * ARM CPU feature detection
+ * ==================================================== */
+#if defined(__aarch64__) || defined(_M_ARM64)
+
+typedef struct {
+    unsigned long hwcap;
+    unsigned long hwcap2;
+} ZSTD_arm_cpuinfo_t;
+
+MEM_STATIC ZSTD_arm_cpuinfo_t ZSTD_arm_cpuinfo(void) {
+    ZSTD_arm_cpuinfo_t info;
+    info.hwcap = 0;
+    info.hwcap2 = 0;
+
+#if defined(__linux__) || defined(__ANDROID__)
+    /* Use getauxval() to read AT_HWCAP and AT_HWCAP2 */
+#  ifndef AT_HWCAP
+#    define AT_HWCAP 16
+#  endif
+#  ifndef AT_HWCAP2
+#    define AT_HWCAP2 26
+#  endif
+    info.hwcap = getauxval(AT_HWCAP);
+    info.hwcap2 = getauxval(AT_HWCAP2);
+
+#elif defined(__APPLE__)
+    /* Apple Silicon (M1/M2/M3 etc.) does not implement SVE/SVE2.
+     * Apple uses a custom ARM ISA with different extensions (AMX, etc.).
+     * Leave hwcap as 0 to indicate no SVE/SVE2 support. */
+    (void)info;
+
+#elif defined(_WIN32)
+    /* Windows on ARM - use IsProcessorFeaturePresent() */
+    /* Note: As of 2024, Windows on ARM doesn't expose SVE/SVE2 through this API */
+    /* We leave hwcap as 0, which will disable runtime detection */
+    (void)info;
+#endif
+
+    return info;
+}
+
+#define ZSTD_ARM_HWCAP_SVE_BIT  22
+#define ZSTD_ARM_HWCAP2_SVE2_BIT 1
+
+MEM_STATIC int ZSTD_arm_cpuinfo_sve(ZSTD_arm_cpuinfo_t const cpuinfo) {
+    return ((cpuinfo.hwcap) & (1UL << ZSTD_ARM_HWCAP_SVE_BIT)) != 0;
+}
+
+MEM_STATIC int ZSTD_arm_cpuinfo_sve2(ZSTD_arm_cpuinfo_t const cpuinfo) {
+    return ((cpuinfo.hwcap2) & (1UL << ZSTD_ARM_HWCAP2_SVE2_BIT)) != 0;
+}
+
+#endif /* __aarch64__ || _M_ARM64 */
 
 #endif /* ZSTD_COMMON_CPU_H */

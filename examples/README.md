@@ -1,46 +1,39 @@
-Zstandard library : usage examples
-==================================
+# Zstandard Zig Examples
 
-- [Simple compression](simple_compression.c) :
+This directory contains Zig examples demonstrating the usage of the zstd library.
+
+- **[Simple compression](simple_compression.zig)**:
   Compress a single file.
-  Introduces usage of : `ZSTD_compress()`
+  Usage: `zig build run-simple_compression -- <file>`
 
-- [Simple decompression](simple_decompression.c) :
-  Decompress a single file.
-  Only compatible with simple compression.
-  Result remains in memory.
-  Introduces usage of : `ZSTD_decompress()`
+- **[Simple decompression](simple_decompression.zig)**:
+  Decompress a single file (in memory).
+  Usage: `zig build run-simple_decompression -- <file.zst>`
 
-- [Multiple simple compression](multiple_simple_compression.c) :
-  Compress multiple files (in simple mode) in a single command line.
-  Demonstrates memory preservation technique that
-  minimizes malloc()/free() calls by re-using existing resources.
-  Introduces usage of : `ZSTD_compressCCtx()`
+- **[Multiple simple compression](multiple_simple_compression.zig)**:
+  Compress multiple files reusing resources.
+  Usage: `zig build run-multiple_simple_compression -- <file1> <file2> ...`
 
-- [Streaming memory usage](streaming_memory_usage.c) :
-  Provides amount of memory used by streaming context.
-  Introduces usage of : `ZSTD_sizeof_CStream()`
+- **[Streaming memory usage](streaming_memory_usage.zig)**:
+  Check memory usage of streaming context.
+  Usage: `zig build run-streaming_memory_usage`
 
-- [Streaming compression](streaming_compression.c) :
-  Compress a single file.
-  Introduces usage of : `ZSTD_compressStream()`
+- **[Streaming compression](streaming_compression.zig)**:
+  Compress a single file using streaming API.
+  Usage: `zig build run-streaming_compression -- <file>`
 
-- [Multiple Streaming compression](multiple_streaming_compression.c) :
-  Compress multiple files (in streaming mode) in a single command line.
-  Introduces memory usage preservation technique,
-  reducing impact of malloc()/free() and memset() by re-using existing resources.
+- **[Multiple Streaming compression](multiple_streaming_compression.zig)**:
+  Compress multiple files reusing streaming resources.
+  Usage: `zig build run-multiple_streaming_compression -- <file1> <file2> ...`
 
-- [Streaming decompression](streaming_decompression.c) :
-  Decompress a single file compressed by zstd.
-  Compatible with both simple and streaming compression.
-  Result is sent to stdout.
-  Introduces usage of : `ZSTD_decompressStream()`
+- **[Streaming decompression](streaming_decompression.zig)**:
+  Decompress a file to stdout using streaming API.
+  Usage: `zig build run-streaming_decompression -- <file.zst>`
 
-- [Dictionary compression](dictionary_compression.c) :
-  Compress multiple files using the same dictionary.
-  Introduces usage of : `ZSTD_createCDict()` and `ZSTD_compress_usingCDict()`
+- **[Dictionary compression](dictionary_compression.zig)**:
+  Compress multiple files using a dictionary.
+  Usage: `zig build run-dictionary_compression -- <file1> <file2> <dictionary>`
 
-- [Dictionary decompression](dictionary_decompression.c) :
-  Decompress multiple files using the same dictionary.
-  Result remains in memory.
-  Introduces usage of : `ZSTD_createDDict()` and `ZSTD_decompress_usingDDict()`
+- **[Dictionary decompression](dictionary_decompression.zig)**:
+  Decompress multiple files using a dictionary.
+  Usage: `zig build run-dictionary_decompression -- <file1.zst> <file2.zst> <dictionary>`

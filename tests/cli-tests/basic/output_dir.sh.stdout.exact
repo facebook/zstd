@@ -1,2 +1,0 @@
-+ zstd -r * --output-dir-mirror=""
-+ zstd -r * --output-dir-flat=""

@@ -1,9 +1,0 @@
-task:
-  name: FreeBSD (make check)
-  freebsd_instance:
-    matrix:
-      image_family: freebsd-15-0-amd64-zfs
-  install_script: pkg install -y gmake coreutils
-  script: |
-    MOREFLAGS="-Werror" gmake -j all
-    gmake check

@@ -1,64 +1,20 @@
-# Object files
+# Zig
+.zig-cache/
+zig-cache/
+zig-out/
+build/
 *.o
-*.ko
-*.dSYM
-
-# Libraries
+*.obj
+*.pdb
 *.lib
 *.a
-
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
-*.framework
-*.xcframework
-
-# Executables
-/zstd
-zstdmt
 *.exe
-*.out
-*.app
-
-# Build artefacts
-contrib/linux-kernel/linux/
-projects/
-bin/
-.buckd/
-buck-out/
-build-*
-*.gcda
-cmakebuild/
-cmake-build/
-
-# Test artefacts
-tmp*
+# Temp
+tmp/
 *.zst
-*.zstd
-dictionary.
-dictionary
-NUL
-install/
-
+*.tmp
 # IDE
-.clang_complete
-compile_flags.txt
-.clang-format
-
-# Other files
-.directory
-_codelite/
-_zstdbench/
-*.idea
+.vscode/
+.idea/
 *.swp
-.DS_Store
-googletest/
-*.d
-*.vscode
-*.code-workspace
-compile_commands.json
-.clangd
-perf.data
-perf.data.old
+*~

@@ -12,6 +12,8 @@ zig build docs
 
 The documentation will be generated in `zig-out/docs`.
 
+For detailed C API reference, please consult the official [Zstandard Manual](https://facebook.github.io/zstd/doc/api_manual_latest.html).
+
 ## Installation
 
 ### Zig Fetch

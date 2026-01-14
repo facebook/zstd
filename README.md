@@ -16,7 +16,7 @@ The generated documentation will be available in:
 zig-out/docs
 ```
 
-For **AI-generated documentation on zig**, visit:
+For **AI-generated documentation on zstd.zig**, visit:
 [https://deepwiki.com/muhammad-fiaz/zstd.zig/](https://deepwiki.com/muhammad-fiaz/zstd.zig/)
 
 For a detailed reference of the **C API**, please consult the official **Zstandard API Manual**:

@@ -7,6 +7,8 @@
         "build.zig.zon",
         "lib",
         "LICENSE",
+        "src",
+        "examples",
         "COPYING",
         "README.md",
     },

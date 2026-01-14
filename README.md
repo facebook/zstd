@@ -4,15 +4,24 @@ A Zig library for Facebook's [zstd](https://github.com/facebook/zstd) fast compr
 
 ## Documentation
 
-You can generate the documentation locally using:
+You can generate the documentation locally by running:
 
 ```bash
 zig build docs
 ```
 
-The documentation will be generated in `zig-out/docs`.
+The generated documentation will be available in:
 
-For detailed C API reference, please consult the official [Zstandard Manual](https://facebook.github.io/zstd/doc/api_manual_latest.html).
+```txt
+zig-out/docs
+```
+
+For **AI-generated documentation on zig**, visit:
+[https://deepwiki.com/muhammad-fiaz/zstd.zig/](https://deepwiki.com/muhammad-fiaz/zstd.zig/)
+
+For a detailed reference of the **C API**, please consult the official **Zstandard API Manual**:
+[https://facebook.github.io/zstd/doc/api_manual_latest.html](https://facebook.github.io/zstd/doc/api_manual_latest.html)
+
 
 ## Installation
 

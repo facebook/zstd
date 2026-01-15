@@ -855,11 +855,30 @@ MEM_STATIC size_t ZSTD_count(const BYTE* pIn, const BYTE* pMatch, const BYTE* co
 {
     const BYTE* const pStart = pIn;
     const BYTE* const pInLoopLimit = pInLimit - (sizeof(size_t)-1);
+#if defined(ZSTD_ARCH_X86_SSE2)
+    const BYTE* const pInLimit16 = pInLimit - (sizeof(__m128i)-1);
+#endif
 
     if (pIn < pInLoopLimit) {
         { size_t const diff = MEM_readST(pMatch) ^ MEM_readST(pIn);
           if (diff) return ZSTD_NbCommonBytes(diff); }
         pIn+=sizeof(size_t); pMatch+=sizeof(size_t);
+#if defined(ZSTD_ARCH_X86_SSE2)
+        if ((size_t)(pInLimit - pIn) >= 32) {
+            while (pIn < pInLimit16) {
+                __m128i const matchVec = _mm_loadu_si128((const __m128i*)pMatch);
+                __m128i const inVec = _mm_loadu_si128((const __m128i*)pIn);
+                U32 const matchMask = (U32)_mm_movemask_epi8(_mm_cmpeq_epi8(matchVec, inVec));
+                if (matchMask != 0xFFFF) {
+                    U32 const diffMask = ~matchMask & 0xFFFF;
+                    pIn += ZSTD_countTrailingZeros32(diffMask);
+                    return (size_t)(pIn - pStart);
+                }
+                pIn += sizeof(__m128i);
+                pMatch += sizeof(__m128i);
+            }
+        }
+#endif
         while (pIn < pInLoopLimit) {
             size_t const diff = MEM_readST(pMatch) ^ MEM_readST(pIn);
             if (!diff) { pIn+=sizeof(size_t); pMatch+=sizeof(size_t); continue; }

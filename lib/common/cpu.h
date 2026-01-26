@@ -266,6 +266,9 @@ typedef struct {
     unsigned long hwcap2;
 } ZSTD_arm_cpuinfo_t;
 
+#define ZSTD_ARM_HWCAP_SVE_BIT  22
+#define ZSTD_ARM_HWCAP2_SVE2_BIT 1
+
 MEM_STATIC ZSTD_arm_cpuinfo_t ZSTD_arm_cpuinfo(void) {
     ZSTD_arm_cpuinfo_t info;
     info.hwcap = 0;
@@ -290,16 +293,23 @@ MEM_STATIC ZSTD_arm_cpuinfo_t ZSTD_arm_cpuinfo(void) {
 
 #elif defined(_WIN32)
     /* Windows on ARM - use IsProcessorFeaturePresent() */
-    /* Note: As of 2024, Windows on ARM doesn't expose SVE/SVE2 through this API */
-    /* We leave hwcap as 0, which will disable runtime detection */
-    (void)info;
+#  ifndef PF_ARM_SVE_INSTRUCTIONS_AVAILABLE
+#    define PF_ARM_SVE_INSTRUCTIONS_AVAILABLE 46
+#  endif
+#  ifndef PF_ARM_SVE2_INSTRUCTIONS_AVAILABLE
+#    define PF_ARM_SVE2_INSTRUCTIONS_AVAILABLE 47
+#  endif
+    /* Map Windows processor features to Linux-style hwcap bits for consistency */
+    if (IsProcessorFeaturePresent(PF_ARM_SVE_INSTRUCTIONS_AVAILABLE)) {
+        info.hwcap |= (1UL << ZSTD_ARM_HWCAP_SVE_BIT);
+    }
+    if (IsProcessorFeaturePresent(PF_ARM_SVE2_INSTRUCTIONS_AVAILABLE)) {
+        info.hwcap2 |= (1UL << ZSTD_ARM_HWCAP2_SVE2_BIT);
+    }
 #endif
 
     return info;
 }
-
-#define ZSTD_ARM_HWCAP_SVE_BIT  22
-#define ZSTD_ARM_HWCAP2_SVE2_BIT 1
 
 MEM_STATIC int ZSTD_arm_cpuinfo_sve(ZSTD_arm_cpuinfo_t const cpuinfo) {
     return ((cpuinfo.hwcap) & (1UL << ZSTD_ARM_HWCAP_SVE_BIT)) != 0;

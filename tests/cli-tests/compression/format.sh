@@ -7,7 +7,7 @@ set -e
 # Test --format
 zstd --format=zstd file -f
 zstd -t file.zst
-for format in "gzip" "lz4" "xz" "lzma"; do
+for format in "gzip" "zlib" "lz4" "xz" "lzma"; do
 	if zstd_supports_format $format; then
 		zstd --format=$format file
 		zstd -t file.$(format_extension $format)

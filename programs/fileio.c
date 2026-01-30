@@ -1484,7 +1484,7 @@ static void FIO_freeCResources(cRess_t* const ress)
 static unsigned long long
 FIO_compressGzFrame(cRess_t* ress,
                     const char* srcFileName, U64 const srcFileSize,
-                    int compressionLevel, U64* readsize)
+                    int compressionLevel, U64* readsize, int plain_zlib)
 {
     FIO_SyncCompressIO* const syncIO = &ress->io;
     unsigned long long inFileSize = 0, outFileSize = 0;
@@ -1498,7 +1498,7 @@ FIO_compressGzFrame(cRess_t* ress,
     strm.opaque = Z_NULL;
 
     {   int const ret = deflateInit2(&strm, compressionLevel, Z_DEFLATED,
-                        15 /* maxWindowLogSize */ + 16 /* gzip only */,
+                        15 /* maxWindowLogSize */ + (plain_zlib ? 0 /* zlib */: 16 /* gzip only */),
                         8, Z_DEFAULT_STRATEGY); /* see https://www.zlib.net/manual.html */
         if (ret != Z_OK) {
             EXM_THROW(71, "zstd: %s: deflateInit2 error %d \n", srcFileName, ret);
@@ -2010,11 +2010,12 @@ FIO_compressFilename_internal(FIO_ctx_t* const fCtx,
             break;
 
         case FIO_gzipCompression:
+        case FIO_zlibCompression:
 #ifdef ZSTD_GZCOMPRESS
-            compressedfilesize = FIO_compressGzFrame(ress, srcFileName, fileSize, compressionLevel, &readsize);
+            compressedfilesize = FIO_compressGzFrame(ress, srcFileName, fileSize, compressionLevel, &readsize, prefs->compressionType==FIO_zlibCompression);
 #else
             (void)compressionLevel;
-            EXM_THROW(20, "zstd: %s: file cannot be compressed as gzip (zstd compiled without ZSTD_GZCOMPRESS) -- ignored \n",
+            EXM_THROW(20, "zstd: %s: file cannot be compressed as gzip/zlib (zstd compiled without ZSTD_GZCOMPRESS) -- ignored \n",
                             srcFileName);
 #endif
             break;
@@ -2155,6 +2156,7 @@ static const char *compressedFileExtensions[] = {
     ZSTD_EXTENSION,
     TZSTD_EXTENSION,
     GZ_EXTENSION,
+    ZLIB_EXTENSION,
     TGZ_EXTENSION,
     LZMA_EXTENSION,
     XZ_EXTENSION,
@@ -2358,8 +2360,8 @@ checked_index(const char* options[], size_t length, size_t index) {
 
 void FIO_displayCompressionParameters(const FIO_prefs_t* prefs)
 {
-    static const char* formatOptions[5] = {ZSTD_EXTENSION, GZ_EXTENSION, XZ_EXTENSION,
-                                           LZMA_EXTENSION, LZ4_EXTENSION};
+    static const char* formatOptions[6] = {ZSTD_EXTENSION, GZ_EXTENSION, XZ_EXTENSION,
+                                           ZLIB_EXTENSION, LZMA_EXTENSION, LZ4_EXTENSION};
     static const char* sparseOptions[3] = {" --no-sparse", "", " --sparse"};
     static const char* checkSumOptions[3] = {" --no-check", "", " --check"};
     static const char* rowMatchFinderOptions[3] = {"", " --no-row-match-finder", " --row-match-finder"};
@@ -2758,7 +2760,7 @@ FIO_decompressZstdFrame(FIO_ctx_t* const fCtx, dRess_t* ress,
 
 #ifdef ZSTD_GZDECOMPRESS
 static unsigned long long
-FIO_decompressGzFrame(dRess_t* ress, const char* srcFileName)
+FIO_decompressGzFrame(dRess_t* ress, const char* srcFileName, int plain_zlib)
 {
     unsigned long long outFileSize = 0;
     z_stream strm;
@@ -2772,7 +2774,7 @@ FIO_decompressGzFrame(dRess_t* ress, const char* srcFileName)
     strm.next_in = 0;
     strm.avail_in = 0;
     /* see https://www.zlib.net/manual.html */
-    if (inflateInit2(&strm, 15 /* maxWindowLogSize */ + 16 /* gzip only */) != Z_OK)
+    if (inflateInit2(&strm, 15 /* maxWindowLogSize */ + (plain_zlib ? 0 /* zlib */: 16 /* gzip only */)) != Z_OK)
         return FIO_ERROR_FRAME_DECODING;
 
     writeJob = AIO_WritePool_acquireJob(ress->writeCtx);
@@ -3015,13 +3017,17 @@ static int FIO_decompressFrames(FIO_ctx_t* const fCtx,
             unsigned long long const frameSize = FIO_decompressZstdFrame(fCtx, &ress, prefs, srcFileName, filesize);
             if (frameSize == FIO_ERROR_FRAME_DECODING) return 1;
             filesize += frameSize;
-        } else if (buf[0] == 31 && buf[1] == 139) { /* gz magic number */
+        } else if ((buf[0] == 31 && buf[1] == 139)  /* gz magic number */
+                || (buf[0] == 0x78 && buf[1] == 0x01)  /* zlib header (no compression) */
+                || (buf[0] == 0x78 && buf[1] == 0x5E)  /* zlib header (fast compression) */
+                || (buf[0] == 0x78 && buf[1] == 0x9C)  /* zlib header (best compression) */
+                || (buf[0] == 0x78 && buf[1] == 0xDA)) { /* zlib header (default compression) */
 #ifdef ZSTD_GZDECOMPRESS
-            unsigned long long const frameSize = FIO_decompressGzFrame(&ress, srcFileName);
+            unsigned long long const frameSize = FIO_decompressGzFrame(&ress, srcFileName, buf[0] != 31);
             if (frameSize == FIO_ERROR_FRAME_DECODING) return 1;
             filesize += frameSize;
 #else
-            DISPLAYLEVEL(1, "zstd: %s: gzip file cannot be uncompressed (zstd compiled without HAVE_ZLIB) -- ignored \n", srcFileName);
+            DISPLAYLEVEL(1, "zstd: %s: gzip/zlib file cannot be uncompressed (zstd compiled without HAVE_ZLIB) -- ignored \n", srcFileName);
             return 1;
 #endif
         } else if ((buf[0] == 0xFD && buf[1] == 0x37)  /* xz magic number */
@@ -3210,6 +3216,7 @@ static const char *suffixList[] = {
     ZSTD_ALT_EXTENSION,
 #endif
 #ifdef ZSTD_GZDECOMPRESS
+    ZLIB_EXTENSION,
     GZ_EXTENSION,
     TGZ_EXTENSION,
 #endif
@@ -3228,7 +3235,7 @@ static const char *suffixList[] = {
 static const char *suffixListStr =
     ZSTD_EXTENSION "/" TZSTD_EXTENSION
 #ifdef ZSTD_GZDECOMPRESS
-    "/" GZ_EXTENSION "/" TGZ_EXTENSION
+    "/" ZLIB_EXTENSION "/" GZ_EXTENSION "/" TGZ_EXTENSION
 #endif
 #ifdef ZSTD_LZMADECOMPRESS
     "/" LZMA_EXTENSION "/" XZ_EXTENSION "/" TXZ_EXTENSION

@@ -1345,8 +1345,11 @@ println "\n===>  gzip frame tests "
 
 if [ $GZIPMODE -eq 1 ]; then
     datagen > tmp
+    zstd -f --format=zlib tmp
     zstd -f --format=gzip tmp
     zstd -f tmp
+    zstd -d -f -v tmp.gz
+    zstd -d -f -v tmp.zlib
     cat tmp.gz tmp.zst tmp.gz tmp.zst | zstd -d -f -o tmp
     truncateLastByte tmp.gz | zstd -t > $INTOVOID && die "incomplete frame not detected !"
     rm -f tmp*

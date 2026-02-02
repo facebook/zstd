@@ -14,4 +14,4 @@
 #define ZSTD_STATIC_LINKING_ONLY
 #include "../zdict.h"
 
-#endif /* ZSTD_SHIM_H */
+#endif /* ZSTD_ZDICT_SHIM_H */

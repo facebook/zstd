@@ -12,6 +12,7 @@ let package = Package(
         // Products define the executables and libraries a package produces, and make them visible to other packages.
         .library(
             name: "libzstd",
+            type: .static,
             targets: [ "libzstd" ])
     ],
     dependencies: [
@@ -25,7 +26,7 @@ let package = Package(
             name: "libzstd",
             path: "lib",
             sources: [ "common", "compress", "decompress", "dictBuilder" ],
-            publicHeadersPath: ".",
+            publicHeadersPath: "spm",
             cSettings: [
                 .headerSearchPath(".")
             ])

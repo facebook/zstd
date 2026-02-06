@@ -224,7 +224,7 @@ Advanced compression options:
   --format=gzip                 Compress files to the `.gz` format.
   --format=xz                   Compress files to the `.xz` format.
   --format=lzma                 Compress files to the `.lzma` format.
-  --format=lz4                 Compress files to the `.lz4` format.
+  --format=lz4                  Compress files to the `.lz4` format.
 
 Advanced decompression options:
   -l                            Print information about Zstandard-compressed files.

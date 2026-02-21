@@ -180,33 +180,37 @@ static void test_f2fs(void) {
   fprintf(stderr, "Ok\n");
 }
 
-static char *g_stack = NULL;
+typedef struct {
+  char *buf;
+  size_t size;
+} stack_info_t;
+
+static stack_info_t g_stack = { NULL, 0 };
 
 static void __attribute__((noinline)) use(void *x) {
   asm volatile("" : "+r"(x));
 }
 
 static void __attribute__((noinline)) fill_stack(void) {
-  memset(g_stack, 0x33, 8192);
+  char buf[8192];
+  memset(buf, 0x33, sizeof(buf));
+  g_stack.buf = buf;
+  g_stack.size = sizeof(buf);
+  use(g_stack.buf);
+  g_stack.buf = NULL;
 }
 
 static void __attribute__((noinline)) set_stack(void) {
 
   char stack[8192];
-  g_stack = stack;
-  use(g_stack);
+  g_stack.size = sizeof(stack);
+  use(stack);
 }
 
 static void __attribute__((noinline)) check_stack(void) {
-  size_t cleanStack = 0;
-  while (cleanStack < 8192 && g_stack[cleanStack] == 0x33) {
-    ++cleanStack;
-  }
-  {
-    size_t const stackSize = 8192 - cleanStack;
-    fprintf(stderr, "Maximum stack size: %zu\n", stackSize);
-    CONTROL(stackSize <= 2048 + 512);
-  }
+  size_t const stackSize = g_stack.size;
+  fprintf(stderr, "Maximum stack size: %zu\n", stackSize);
+  CONTROL(stackSize <= 2048 + 512);
 }
 
 static void test_stack_usage(test_data_t const *data) {

@@ -155,6 +155,8 @@ static COVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
   const U32 d = parameters.d;
   const U32 f = ctx->f;
   const U32 dmersInK = k - d + 1;
+  /* Last position where a full d-byte dmer can be read without OOB.  See #4499. */
+  const U32 hashEnd = (end >= d) ? end - d + 1 : begin;
 
   /* Try each segment (activeSegment) and save the best (bestSegment) */
   COVER_segment_t bestSegment = {0, 0, 0};
@@ -168,8 +170,12 @@ static COVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
 
   /* Slide the activeSegment through the whole epoch.
    * Save the best segment in bestSegment.
+   *
+   * We need at least d bytes starting from activeSegment.end to compute
+   * a dmer hash, so stop d-1 bytes before the epoch end to avoid an
+   * out-of-bounds read.  See #4499.
    */
-  while (activeSegment.end < end) {
+  while (activeSegment.end < hashEnd) {
     /* Get hash value of current dmer */
     const size_t idx = FASTCOVER_hashPtrToIndex(ctx->samples + activeSegment.end, f, d);
 
@@ -200,7 +206,7 @@ static COVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
   }
 
   /* Zero out rest of segmentFreqs array */
-  while (activeSegment.begin < end) {
+  while (activeSegment.begin < hashEnd) {
     const size_t delIndex = FASTCOVER_hashPtrToIndex(ctx->samples + activeSegment.begin, f, d);
     segmentFreqs[delIndex] -= 1;
     activeSegment.begin += 1;
@@ -209,7 +215,8 @@ static COVER_segment_t FASTCOVER_selectSegment(const FASTCOVER_ctx_t *ctx,
   {
     /*  Zero the frequency of hash value of each dmer covered by the chosen segment. */
     U32 pos;
-    for (pos = bestSegment.begin; pos != bestSegment.end; ++pos) {
+    const U32 bestEnd = (bestSegment.end <= hashEnd) ? bestSegment.end : hashEnd;
+    for (pos = bestSegment.begin; pos != bestEnd; ++pos) {
       const size_t i = FASTCOVER_hashPtrToIndex(ctx->samples + pos, f, d);
       freqs[i] = 0;
     }
@@ -415,7 +422,12 @@ FASTCOVER_buildDictionary(const FASTCOVER_ctx_t* ctx,
    */
   for (epoch = 0; tail > 0; epoch = (epoch + 1) % epochs.num) {
     const U32 epochBegin = (U32)(epoch * epochs.size);
-    const U32 epochEnd = epochBegin + epochs.size;
+    /* Clamp epochEnd to the sample buffer size to avoid passing an
+     * out-of-bounds end position to FASTCOVER_selectSegment.  See #4499. */
+    const U32 epochEnd = MIN(epochBegin + epochs.size,
+                             (U32)ctx->nbTrainSamples > 0
+                                 ? (U32)ctx->offsets[ctx->nbTrainSamples]
+                                 : epochBegin);
     size_t segmentSize;
     /* Select a segment */
     COVER_segment_t segment = FASTCOVER_selectSegment(

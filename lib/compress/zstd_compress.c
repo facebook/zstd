@@ -1771,15 +1771,19 @@ size_t ZSTD_estimateCCtxSize_usingCCtxParams(const ZSTD_CCtx_params* params)
 {
     ZSTD_compressionParameters const cParams =
                 ZSTD_getCParamsFromCCtxParams(params, ZSTD_CONTENTSIZE_UNKNOWN, 0, ZSTD_cpm_noAttachDict);
+    ldmParams_t ldmParams = params->ldmParams;
     ZSTD_ParamSwitch_e const useRowMatchFinder = ZSTD_resolveRowMatchFinderMode(params->useRowMatchFinder,
                                                                                &cParams);
 
     RETURN_ERROR_IF(params->nbWorkers > 0, GENERIC, "Estimate CCtx size is supported for single-threaded compression only.");
+    if (ldmParams.enableLdm == ZSTD_ps_enable) {
+        ZSTD_ldm_adjustParameters(&ldmParams, &cParams);
+    }
     /* estimateCCtxSize is for one-shot compression. So no buffers should
      * be needed. However, we still allocate two 0-sized buffers, which can
      * take space under ASAN. */
     return ZSTD_estimateCCtxSize_usingCCtxParams_internal(
-        &cParams, &params->ldmParams, 1, useRowMatchFinder, 0, 0, ZSTD_CONTENTSIZE_UNKNOWN, ZSTD_hasExtSeqProd(params), params->maxBlockSize);
+        &cParams, &ldmParams, 1, useRowMatchFinder, 0, 0, ZSTD_CONTENTSIZE_UNKNOWN, ZSTD_hasExtSeqProd(params), params->maxBlockSize);
 }
 
 size_t ZSTD_estimateCCtxSize_usingCParams(ZSTD_compressionParameters cParams)
@@ -1829,6 +1833,7 @@ size_t ZSTD_estimateCStreamSize_usingCCtxParams(const ZSTD_CCtx_params* params)
     RETURN_ERROR_IF(params->nbWorkers > 0, GENERIC, "Estimate CCtx size is supported for single-threaded compression only.");
     {   ZSTD_compressionParameters const cParams =
                 ZSTD_getCParamsFromCCtxParams(params, ZSTD_CONTENTSIZE_UNKNOWN, 0, ZSTD_cpm_noAttachDict);
+        ldmParams_t ldmParams = params->ldmParams;
         size_t const blockSize = MIN(ZSTD_resolveMaxBlockSize(params->maxBlockSize), (size_t)1 << cParams.windowLog);
         size_t const inBuffSize = (params->inBufferMode == ZSTD_bm_buffered)
                 ? ((size_t)1 << cParams.windowLog) + blockSize
@@ -1838,8 +1843,11 @@ size_t ZSTD_estimateCStreamSize_usingCCtxParams(const ZSTD_CCtx_params* params)
                 : 0;
         ZSTD_ParamSwitch_e const useRowMatchFinder = ZSTD_resolveRowMatchFinderMode(params->useRowMatchFinder, &params->cParams);
 
+        if (ldmParams.enableLdm == ZSTD_ps_enable) {
+            ZSTD_ldm_adjustParameters(&ldmParams, &cParams);
+        }
         return ZSTD_estimateCCtxSize_usingCCtxParams_internal(
-            &cParams, &params->ldmParams, 1, useRowMatchFinder, inBuffSize, outBuffSize,
+            &cParams, &ldmParams, 1, useRowMatchFinder, inBuffSize, outBuffSize,
             ZSTD_CONTENTSIZE_UNKNOWN, ZSTD_hasExtSeqProd(params), params->maxBlockSize);
     }
 }

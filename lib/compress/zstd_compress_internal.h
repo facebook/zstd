@@ -27,27 +27,29 @@
 #include "../common/mem.h" /* MEM_isLittleEndian */
 #include "zstd_preSplit.h" /* ZSTD_SLIPBLOCK_WORKSPACESIZE */
 
-// 32-bit builds with SSE 4.2 do not have _mm_crc32_u64, so the
-// __x86_64__ condition is necessary.
+/*
+   32-bit builds with SSE 4.2 do not have _mm_crc32_u64, so the
+   __x86_64__ condition is necessary.
+*/
 #if defined(__SSE4_2__) && defined(__x86_64__)
 
 #include <x86intrin.h>
 #define ZSTD_COMPRESS_INTERNAL_CRC32_U64 _mm_crc32_u64
 
-// 32-bit builds with AVX do not have _mm_crc32_u64, so the _M_X64 condition is
-// necessary.
+/*
+    32-bit builds with AVX do not have _mm_crc32_u64, so the _M_X64 condition is
+    necessary.
+*/
 #elif defined(_MSC_VER) && !defined(__clang__) && defined(__AVX__) && \
     defined(_M_X64)
 
-// MSVC AVX (/arch:AVX) implies SSE 4.2.
 #include <intrin.h>
 #define ZSTD_COMPRESS_INTERNAL_CRC32_U64 _mm_crc32_u64
 
 #elif defined(__ARM_FEATURE_CRC32)
 
 #include <arm_acle.h>
-// Casting to U32 to be consistent with x86 intrinsic (_mm_crc32_u64
-// accepts crc as 64 bit integer).
+
 #define ZSTD_COMPRESS_INTERNAL_CRC32_U64(crc, data) __crc32cd((U32)(crc), data)
 
 #else
@@ -109,10 +111,12 @@ HINT_INLINE U32 ZSTD_COMPRESS_INTERNAL_CRC32_U64(U32 seed, U64 data) {
   };
 
   U32 crc = seed;
-  const char* p = (const char*)&data;
-
-  for (int i = 0; i < 8; ++i) {
-    char c = MEM_isLittleEndian() ? p[i] : p[7 - i];
+  const char* p;
+  int i;
+  char c;
+  p = (const char*)&data;
+  for (i = 0; i < 8; ++i) {
+    c = MEM_isLittleEndian() ? p[i] : p[7 - i];
     crc = crc32_table[(crc ^ c) & 0xff] ^ (crc >> 8);
   }
 
@@ -991,8 +995,9 @@ ZSTD_count_2segments(const BYTE* ip, const BYTE* match,
  *  Hashes
  ***************************************/
 static size_t ZSTD_hashimpl(U64 u, U32 h, U64 s) {
+  size_t hash;
   assert(h <= 64);
-  size_t hash = ZSTD_COMPRESS_INTERNAL_CRC32_U64(s, u);
+  hash = ZSTD_COMPRESS_INTERNAL_CRC32_U64(s, u);
   hash &= (1 << h) - 1;
   return hash;
 }
@@ -1023,8 +1028,7 @@ size_t ZSTD_hashPtr(const void* p, U32 hBits, U32 mls)
      * To be on the safe side, always avoid hBits > 32. */
     assert(hBits <= 32);
 
-    U64 data = MEM_readLE64(p) << (64 - 8 * mls);
-    return ZSTD_hashimpl(data, hBits, 0);
+    return ZSTD_hashimpl(MEM_readLE64(p) << (64 - 8 * mls), hBits, 0);
 }
 
 MEM_STATIC FORCE_INLINE_ATTR
@@ -1033,8 +1037,7 @@ size_t ZSTD_hashPtrSalted(const void* p, U32 hBits, U32 mls, const U64 hashSalt)
      * To be on the safe side, always avoid hBits > 32. */
     assert(hBits <= 32);
 
-    U64 data = MEM_readLE64(p) << (64 - 8 * mls);
-    return ZSTD_hashimpl(data, hBits, hashSalt);
+    return ZSTD_hashimpl(MEM_readLE64(p) << (64 - 8 * mls), hBits, hashSalt);
 }
 
 

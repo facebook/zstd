@@ -996,9 +996,9 @@ ZSTD_count_2segments(const BYTE* ip, const BYTE* match,
  ***************************************/
 static size_t ZSTD_hashimpl(U64 u, U32 h, U64 s) {
   size_t hash;
-  assert(h <= 64);
+  assert(h < 64);
   hash = (size_t)ZSTD_COMPRESS_INTERNAL_CRC32_U64((U32)s, u);
-  hash &= (1 << h) - 1;
+  hash &= ((size_t)1 << h) - 1;
   return hash;
 }
 

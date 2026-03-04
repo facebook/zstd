@@ -52,7 +52,7 @@
 
 #else
 
-HINT_INLINE MEM_STATIC U32 ZSTD_COMPRESS_INTERNAL_CRC32_U64(U32 seed, U64 data) {
+HINT_INLINE U32 ZSTD_COMPRESS_INTERNAL_CRC32_U64(U32 seed, U64 data) {
   static const U32 crc32_table[] = {
       0x00000000U, 0xf26b8303U, 0xe13b70f7U, 0x1350f3f4U, 0xc79a971fU,
       0x35f1141cU, 0x26a1e7e8U, 0xd4ca64ebU, 0x8ad958cfU, 0x78b2dbccU,
@@ -1009,6 +1009,7 @@ static UNUSED_ATTR size_t ZSTD_hash5Ptr(const void* p, U32 h) { return ZSTD_hash
 static UNUSED_ATTR size_t ZSTD_hash6(U64 u, U32 h, U64 s) { return ZSTD_hashimpl(u << (64-48), h, s); }
 static UNUSED_ATTR size_t ZSTD_hash6Ptr(const void* p, U32 h) { return ZSTD_hash6(MEM_readLE64(p), h, 0); }
 
+static const U64 prime8bytes = 0xCF1BBCDCB7A56463ULL;
 static UNUSED_ATTR size_t ZSTD_hash7(U64 u, U32 h, U64 s) { return ZSTD_hashimpl(u << (64-56), h, s); }
 static UNUSED_ATTR size_t ZSTD_hash7Ptr(const void* p, U32 h) { return ZSTD_hash7(MEM_readLE64(p), h, 0); }
 

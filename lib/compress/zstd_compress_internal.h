@@ -997,15 +997,15 @@ ZSTD_count_2segments(const BYTE* ip, const BYTE* match,
 static size_t ZSTD_hashimpl(U64 u, U32 h, U64 s) {
   size_t hash;
   assert(h <= 64);
-  hash = ZSTD_COMPRESS_INTERNAL_CRC32_U64(s, u);
+  hash = (size_t)ZSTD_COMPRESS_INTERNAL_CRC32_U64((U32)s, u);
   hash &= (1 << h) - 1;
   return hash;
 }
 
-static UNUSED_ATTR U32    ZSTD_hash3(U32 u, U32 h, U32 s) { return ZSTD_hashimpl(u << (32 - 24), h, s); }
+static UNUSED_ATTR size_t     ZSTD_hash3(U32 u, U32 h, U32 s) { return ZSTD_hashimpl(u << (32 - 24), h, s); }
 MEM_STATIC UNUSED_ATTR size_t ZSTD_hash3Ptr(const void* ptr, U32 h) { return ZSTD_hash3(MEM_readLE32(ptr), h, 0); } /* only in zstd_opt.h */
 
-static UNUSED_ATTR U32    ZSTD_hash4(U32 u, U32 h, U32 s) { return ZSTD_hashimpl(u, h, s); }
+static UNUSED_ATTR size_t ZSTD_hash4(U32 u, U32 h, U32 s) { return ZSTD_hashimpl(u, h, s); }
 static UNUSED_ATTR size_t ZSTD_hash4Ptr(const void* ptr, U32 h) { return ZSTD_hash4(MEM_readLE32(ptr), h, 0); }
 
 static UNUSED_ATTR size_t ZSTD_hash5(U64 u, U32 h, U64 s) { return ZSTD_hashimpl(u << (64-40), h, s); }

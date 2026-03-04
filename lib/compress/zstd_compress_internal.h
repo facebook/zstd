@@ -994,11 +994,16 @@ ZSTD_count_2segments(const BYTE* ip, const BYTE* match,
 /*-*************************************
  *  Hashes
  ***************************************/
+
+/*
+  The implicit assumption:
+  ZSTD_hash(p, h, s) >> n == ZSTD_hash(p, h - n, s)
+*/
 static size_t ZSTD_hashimpl(U64 u, U32 h, U64 s) {
-  size_t hash;
+  U32 hash;
   assert(h <= 32);
-  hash = (size_t)ZSTD_COMPRESS_INTERNAL_CRC32_U64((U32)s, u);
-  hash &= ((U64)1 << h) - 1;
+  hash = (U32)ZSTD_COMPRESS_INTERNAL_CRC32_U64((U32)s, u);
+  hash >>= (32 - h);
   return hash;
 }
 

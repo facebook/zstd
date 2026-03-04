@@ -52,7 +52,7 @@
 
 #else
 
-inline U32 ZSTD_COMPRESS_INTERNAL_CRC32_U64(U32 seed, U64 data) {
+HINT_INLINE MEM_STATIC U32 ZSTD_COMPRESS_INTERNAL_CRC32_U64(U32 seed, U64 data) {
   static const U32 crc32_table[] = {
       0x00000000U, 0xf26b8303U, 0xe13b70f7U, 0x1350f3f4U, 0xc79a971fU,
       0x35f1141cU, 0x26a1e7e8U, 0xd4ca64ebU, 0x8ad958cfU, 0x78b2dbccU,
@@ -997,35 +997,23 @@ static size_t ZSTD_hashimpl(U64 u, U32 h, U64 s) {
   return hash;
 }
 
-static const U32 prime3bytes = 506832829U;
-static U32    ZSTD_hash3(U32 u, U32 h, U32 s) { return ZSTD_hashimpl(u << (32 - 24), h, s); }
-MEM_STATIC size_t ZSTD_hash3Ptr(const void* ptr, U32 h) { return ZSTD_hash3(MEM_readLE32(ptr), h, 0); } /* only in zstd_opt.h */
-MEM_STATIC size_t ZSTD_hash3PtrS(const void* ptr, U32 h, U32 s) { return ZSTD_hash3(MEM_readLE32(ptr), h, s); }
+static UNUSED_ATTR U32    ZSTD_hash3(U32 u, U32 h, U32 s) { return ZSTD_hashimpl(u << (32 - 24), h, s); }
+MEM_STATIC UNUSED_ATTR size_t ZSTD_hash3Ptr(const void* ptr, U32 h) { return ZSTD_hash3(MEM_readLE32(ptr), h, 0); } /* only in zstd_opt.h */
 
-static const U32 prime4bytes = 2654435761U;
-static U32    ZSTD_hash4(U32 u, U32 h, U32 s) { return ZSTD_hashimpl(u, h, s); }
-static size_t ZSTD_hash4Ptr(const void* ptr, U32 h) { return ZSTD_hash4(MEM_readLE32(ptr), h, 0); }
-static size_t ZSTD_hash4PtrS(const void* ptr, U32 h, U32 s) { return ZSTD_hash4(MEM_readLE32(ptr), h, s); }
+static UNUSED_ATTR U32    ZSTD_hash4(U32 u, U32 h, U32 s) { return ZSTD_hashimpl(u, h, s); }
+static UNUSED_ATTR size_t ZSTD_hash4Ptr(const void* ptr, U32 h) { return ZSTD_hash4(MEM_readLE32(ptr), h, 0); }
 
-static const U64 prime5bytes = 889523592379ULL;
-static size_t ZSTD_hash5(U64 u, U32 h, U64 s) { return ZSTD_hashimpl(u << (64-40), h, s); }
-static size_t ZSTD_hash5Ptr(const void* p, U32 h) { return ZSTD_hash5(MEM_readLE64(p), h, 0); }
-static size_t ZSTD_hash5PtrS(const void* p, U32 h, U64 s) { return ZSTD_hash5(MEM_readLE64(p), h, s); }
+static UNUSED_ATTR size_t ZSTD_hash5(U64 u, U32 h, U64 s) { return ZSTD_hashimpl(u << (64-40), h, s); }
+static UNUSED_ATTR size_t ZSTD_hash5Ptr(const void* p, U32 h) { return ZSTD_hash5(MEM_readLE64(p), h, 0); }
 
-static const U64 prime6bytes = 227718039650203ULL;
-static size_t ZSTD_hash6(U64 u, U32 h, U64 s) { return ZSTD_hashimpl(u << (64-48), h, s); }
-static size_t ZSTD_hash6Ptr(const void* p, U32 h) { return ZSTD_hash6(MEM_readLE64(p), h, 0); }
-static size_t ZSTD_hash6PtrS(const void* p, U32 h, U64 s) { return ZSTD_hash6(MEM_readLE64(p), h, s); }
+static UNUSED_ATTR size_t ZSTD_hash6(U64 u, U32 h, U64 s) { return ZSTD_hashimpl(u << (64-48), h, s); }
+static UNUSED_ATTR size_t ZSTD_hash6Ptr(const void* p, U32 h) { return ZSTD_hash6(MEM_readLE64(p), h, 0); }
 
-static const U64 prime7bytes = 58295818150454627ULL;
-static size_t ZSTD_hash7(U64 u, U32 h, U64 s) { return ZSTD_hashimpl(u << (64-56), h, s); }
-static size_t ZSTD_hash7Ptr(const void* p, U32 h) { return ZSTD_hash7(MEM_readLE64(p), h, 0); }
-static size_t ZSTD_hash7PtrS(const void* p, U32 h, U64 s) { return ZSTD_hash7(MEM_readLE64(p), h, s); }
+static UNUSED_ATTR size_t ZSTD_hash7(U64 u, U32 h, U64 s) { return ZSTD_hashimpl(u << (64-56), h, s); }
+static UNUSED_ATTR size_t ZSTD_hash7Ptr(const void* p, U32 h) { return ZSTD_hash7(MEM_readLE64(p), h, 0); }
 
-static const U64 prime8bytes = 0xCF1BBCDCB7A56463ULL;
-static size_t ZSTD_hash8(U64 u, U32 h, U64 s) { return ZSTD_hashimpl(u, h, s); }
-static size_t ZSTD_hash8Ptr(const void* p, U32 h) { return ZSTD_hash8(MEM_readLE64(p), h, 0); }
-static size_t ZSTD_hash8PtrS(const void* p, U32 h, U64 s) { return ZSTD_hash8(MEM_readLE64(p), h, s); }
+static UNUSED_ATTR size_t ZSTD_hash8(U64 u, U32 h, U64 s) { return ZSTD_hashimpl(u, h, s); }
+static UNUSED_ATTR size_t ZSTD_hash8Ptr(const void* p, U32 h) { return ZSTD_hash8(MEM_readLE64(p), h, 0); }
 
 MEM_STATIC FORCE_INLINE_ATTR
 size_t ZSTD_hashPtr(const void* p, U32 hBits, U32 mls)

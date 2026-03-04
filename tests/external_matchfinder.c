@@ -43,7 +43,7 @@ static size_t simpleSequenceProducer(
             hashTable[i] = BADIDX;
     }   }
 
-    while (ip + MLS < iend) {
+    while (ip + 8 < iend) {
         size_t const hash = ZSTD_hashPtr(ip, HLOG, MLS);
         U32 const matchIndex = hashTable[hash];
         hashTable[hash] = (U32)(ip - istart);

@@ -1096,8 +1096,8 @@ MEM_STATIC FORCE_INLINE_ATTR size_t ZSTD_extractHash(size_t hashAndTag, U32 tagB
     return hashAndTag & (((U64)1 << hashBits) - 1);
 }
 
-MEM_STATIC FORCE_INLINE_ATTR size_t ZSTD_extractIndex(size_t indexAndTag, U32 tagBits) {
-    return indexAndTag & (((U32)1 << (32 - tagBits)) - 1);
+MEM_STATIC FORCE_INLINE_ATTR U32 ZSTD_extractIndex(size_t indexAndTag, U32 tagBits) {
+    return (U32)(indexAndTag & (((U32)1 << (32 - tagBits)) - 1));
 }
 
 MEM_STATIC FORCE_INLINE_ATTR U32 ZSTD_extractTagFromHash(size_t hashAndTag, U32 tagBits, U32 hashBits) {
@@ -1122,8 +1122,8 @@ MEM_STATIC FORCE_INLINE_ATTR size_t ZSTD_extractHash(size_t hashAndTag, U32 tagB
     return hashAndTag >> tagBits;
 }
 
-MEM_STATIC FORCE_INLINE_ATTR size_t ZSTD_extractIndex(size_t indexAndTag, U32 tagBits) {
-    return ZSTD_extractHash(indexAndTag, tagBits, 0);
+MEM_STATIC FORCE_INLINE_ATTR U32 ZSTD_extractIndex(size_t indexAndTag, U32 tagBits) {
+    return (U32)ZSTD_extractHash(indexAndTag, tagBits, 0);
 }
 
 MEM_STATIC FORCE_INLINE_ATTR U32 ZSTD_extractTagFromHash(size_t hashAndTag, U32 tagBits, U32 hashBits) {

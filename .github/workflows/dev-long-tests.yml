@@ -42,6 +42,13 @@ jobs:
     - name: make test on macos
       run: make test
 
+  make-test-macos-crc32:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # tag=v6.0.2
+    - name: make test on macos with CRC32C
+      run: CFLAGS="-DZSTD_HASH_USE_CRC32C" make test
+
   # lasts ~10mn
   make-test-32bit:
     runs-on: ubuntu-latest
@@ -73,6 +80,21 @@ jobs:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # tag=v6.0.2
     - name: no intrinsics fuzztest
       run: MOREFLAGS="-DZSTD_NO_INTRINSICS" make -C tests fuzztest
+
+  # lasts ~9mn
+  crc-sse42-fuzztest:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # tag=v6.0.2
+    - name: CRC32C fuzztest with sse4.2
+      run: MOREFLAGS="-DZSTD_HASH_USE_CRC32C -msse4.2" make -C tests fuzztest
+
+  crc-nosse42-fuzztest:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # tag=v6.0.2
+    - name: CRC32C fuzztest without sse4.2
+      run: MOREFLAGS="-DZSTD_HASH_USE_CRC32C" make -C tests fuzztest
 
   # lasts ~8mn
   tsan-zstreamtest:
@@ -208,6 +230,13 @@ jobs:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # tag=v6.0.2
     - name: clang + ASan + UBSan + Regression Test
       run: CC=clang make -j uasanregressiontest
+
+  clang-asan-ubsan-regressionCRC:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # tag=v6.0.2
+    - name: clang + ASan + UBSan + Regression Test + CRC hash
+      run: CC=clang make -j uasanregressiontestCRC
 
   msan-regression:
     runs-on: ubuntu-latest

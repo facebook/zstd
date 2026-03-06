@@ -2415,7 +2415,7 @@ static void ZSTD_copyCDictTableIntoCCtx(U32* dst, U32 const* src, size_t tableSi
         size_t i;
         for (i = 0; i < tableSize; i++) {
             U32 const taggedIndex = src[i];
-            U32 const index = taggedIndex >> ZSTD_SHORT_CACHE_TAG_BITS;
+            U32 const index = ZSTD_extractIndex(taggedIndex, ZSTD_SHORT_CACHE_TAG_BITS);
             dst[i] = index;
         }
     } else {

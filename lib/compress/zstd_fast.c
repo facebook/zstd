@@ -36,15 +36,15 @@ void ZSTD_fillHashTableForCDict(ZSTD_MatchState_t* ms,
     for ( ; ip + fastHashFillStep < iend + 2; ip += fastHashFillStep) {
         U32 const curr = (U32)(ip - base);
         {   size_t const hashAndTag = ZSTD_hashPtr(ip, hBits, mls);
-            ZSTD_writeTaggedIndex(hashTable, hashAndTag, curr);   }
+            ZSTD_writeTaggedIndex(hashTable, hashAndTag, cParams->hashLog, curr);   }
 
         if (dtlm == ZSTD_dtlm_fast) continue;
         /* Only load extra positions for ZSTD_dtlm_full */
         {   U32 p;
             for (p = 1; p < fastHashFillStep; ++p) {
                 size_t const hashAndTag = ZSTD_hashPtr(ip + p, hBits, mls);
-                if (hashTable[hashAndTag >> ZSTD_SHORT_CACHE_TAG_BITS] == 0) {  /* not yet filled */
-                    ZSTD_writeTaggedIndex(hashTable, hashAndTag, curr + p);
+                if (hashTable[ZSTD_extractHash(hashAndTag, ZSTD_SHORT_CACHE_TAG_BITS, cParams->hashLog)] == 0) {  /* not yet filled */
+                    ZSTD_writeTaggedIndex(hashTable, hashAndTag, cParams->hashLog, curr + p);
     }   }   }   }
 }
 
@@ -544,8 +544,8 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
         size_t hash0 = ZSTD_hashPtr(ip0, hlog, mls);
 
         size_t const dictHashAndTag0 = ZSTD_hashPtr(ip0, dictHBits, mls);
-        U32 dictMatchIndexAndTag = dictHashTable[dictHashAndTag0 >> ZSTD_SHORT_CACHE_TAG_BITS];
-        int dictTagsMatch = ZSTD_comparePackedTags(dictMatchIndexAndTag, dictHashAndTag0);
+        U32 dictMatchIndexAndTag = dictHashTable[ZSTD_extractHash(dictHashAndTag0, ZSTD_SHORT_CACHE_TAG_BITS, dictCParams->hashLog)];
+        int dictTagsMatch = ZSTD_comparePackedTags(dictMatchIndexAndTag, dictHashAndTag0, dictCParams->hashLog);
 
         U32 matchIndex = hashTable[hash0];
         U32 curr = (U32)(ip0 - base);
@@ -575,7 +575,7 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
 
             if (dictTagsMatch) {
                 /* Found a possible dict match */
-                const U32 dictMatchIndex = dictMatchIndexAndTag >> ZSTD_SHORT_CACHE_TAG_BITS;
+                const U32 dictMatchIndex = ZSTD_extractIndex(dictMatchIndexAndTag, ZSTD_SHORT_CACHE_TAG_BITS);
                 const BYTE* dictMatch = dictBase + dictMatchIndex;
                 if (dictMatchIndex > dictStartIndex &&
                     MEM_read32(dictMatch) == MEM_read32(ip0)) {
@@ -614,8 +614,8 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
             }
 
             /* Prepare for next iteration */
-            dictMatchIndexAndTag = dictHashTable[dictHashAndTag1 >> ZSTD_SHORT_CACHE_TAG_BITS];
-            dictTagsMatch = ZSTD_comparePackedTags(dictMatchIndexAndTag, dictHashAndTag1);
+            dictMatchIndexAndTag = dictHashTable[ZSTD_extractHash(dictHashAndTag1, ZSTD_SHORT_CACHE_TAG_BITS, dictCParams->hashLog)];
+            dictTagsMatch = ZSTD_comparePackedTags(dictMatchIndexAndTag, dictHashAndTag1, dictCParams->hashLog);
             matchIndex = hashTable[hash1];
 
             if (ip1 >= nextStep) {

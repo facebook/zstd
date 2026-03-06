@@ -153,6 +153,16 @@ jobs:
         make libc6install
         CFLAGS="-Werror -mavx2" make -j all
 
+  gcc-make-all-avx2-crc:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # tag=v6.0.2
+    - name: Make all, with AVX2 and CRC hash
+      run: |
+        sudo apt-get -qqq update
+        make libc6install
+        CFLAGS="-Werror -mavx2 -DZSTD_HASH_USE_CRC32C" make -j all
+
   gcc-make-all-32bit:
     runs-on: ubuntu-latest
     steps:
@@ -173,6 +183,15 @@ jobs:
         make libc6install
         CPPFLAGS="-DSTATIC_BMI2=1" CFLAGS="-Werror -m32 -mavx2 -mbmi2" make -j all32
 
+  gcc-make-all-32bit-avx2-crc:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # tag=v6.0.2
+    - name: Make all, 32bit + AVX2 mode and CRC hash
+      run: |
+        sudo apt-get -qqq update
+        make libc6install
+        CPPFLAGS="-DSTATIC_BMI2=1" CFLAGS="-Werror -m32 -mavx2 -mbmi2 -DZSTD_HASH_USE_CRC32C" make -j all32
 
   gcc-8-make:
     runs-on: ubuntu-latest
@@ -434,8 +453,8 @@ jobs:
         make clean
         LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make -j check
         LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make -j -C tests test-cli-tests
-        CFLAGS="-O3 -march=armv8.2-a+sve2" LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make -j check
-        CFLAGS="-O3 -march=armv8.2-a+sve2" LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make -j -C tests test-cli-tests
+        CFLAGS="-O3 -march=armv8.2-a+sve2+crc -DZSTD_HASH_USE_CRC32C" LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make -j check
+        CFLAGS="-O3 -march=armv8.2-a+sve2+crc -DZSTD_HASH_USE_CRC32C" LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make -j -C tests test-cli-tests
 # This test is only compatible with standard libraries that support BTI (Branch Target Identification).
 # Unfortunately, the standard library provided on Ubuntu 24.04 does not have this feature enabled.
 #        make clean

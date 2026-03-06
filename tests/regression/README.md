@@ -26,3 +26,5 @@ git diff
 
 # Then submit the PR
 ```
+
+Do the same for `CFLAGS=-DZSTD_HASH_USE_CRC32C` and update `results_crc32c.csv`.

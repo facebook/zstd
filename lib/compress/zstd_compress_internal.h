@@ -866,8 +866,8 @@ MEM_STATIC size_t ZSTD_count(const BYTE* pIn, const BYTE* pMatch, const BYTE* co
 #if defined(ZSTD_ARCH_X86_SSE2)
         if ((size_t)(pInLimit - pIn) >= 32) {
             while (pIn < pInLimit16) {
-                __m128i const matchVec = _mm_loadu_si128((const __m128i*)pMatch);
-                __m128i const inVec = _mm_loadu_si128((const __m128i*)pIn);
+                __m128i const matchVec = _mm_loadu_si128((const __m128i*)(const void*)pMatch);
+                __m128i const inVec = _mm_loadu_si128((const __m128i*)(const void*)pIn);
                 U32 const matchMask = (U32)_mm_movemask_epi8(_mm_cmpeq_epi8(matchVec, inVec));
                 if (matchMask != 0xFFFF) {
                     U32 const diffMask = ~matchMask & 0xFFFF;

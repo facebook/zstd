@@ -26,7 +26,11 @@
 #include "../common/bits.h" /* ZSTD_highbit32, ZSTD_NbCommonBytes */
 #include "zstd_preSplit.h" /* ZSTD_SLIPBLOCK_WORKSPACESIZE */
 
-#if !defined(ZSTD_NO_INTRINSICS) && defined(ZSTD_HASH_USE_CRC32C)
+#if defined(ZSTD_NO_INTRINSICS) && defined(ZSTD_HASH_USE_CRC32C)
+#undef ZSTD_HASH_USE_CRC32C
+#endif
+
+#if defined(ZSTD_HASH_USE_CRC32C)
 /*
    32-bit builds with SSE 4.2 do not have _mm_crc32_u64, so the
    __x86_64__ condition is necessary.
@@ -994,7 +998,7 @@ ZSTD_count_2segments(const BYTE* ip, const BYTE* match,
 
 MEM_STATIC U32 ZSTD_reduceHash32(U32 hash, U32 bits) {
     assert(bits <= 32);
-#if defined(ZSTD_HASH_INTERNAL_CRC32_U64)
+#if defined(ZSTD_HASH_USE_CRC32C)
     return hash & ((1ULL << bits) - 1);
 #else
     return hash >> (32 - bits);
@@ -1003,7 +1007,7 @@ MEM_STATIC U32 ZSTD_reduceHash32(U32 hash, U32 bits) {
 
 MEM_STATIC size_t ZSTD_reduceHash64(U64 hash, U32 bits) {
     assert(bits <= 32);
-#if defined(ZSTD_HASH_INTERNAL_CRC32_U64)
+#if defined(ZSTD_HASH_USE_CRC32C)
     return (size_t)(hash & ((1ULL << bits) - 1));
 #else
     return (size_t)(hash >> (64 - bits));
@@ -1089,7 +1093,7 @@ size_t ZSTD_hashPtrSalted(const void* p, U32 hBits, U32 mls, const U64 hashSalt)
     }
 }
 
-#if defined(ZSTD_HASH_INTERNAL_CRC32_U64)
+#if defined(ZSTD_HASH_USE_CRC32C)
 
 MEM_STATIC FORCE_INLINE_ATTR size_t ZSTD_extractHash(size_t hashAndTag, U32 tagBits, U32 hashBits) {
     (void)tagBits;

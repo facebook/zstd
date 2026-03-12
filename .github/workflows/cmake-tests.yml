@@ -28,7 +28,7 @@ jobs:
     name: "CMake Root Build"
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # tag=v6.0.1
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # tag=v6.0.2
     - name: Configure (Root)
       run: |
         cmake -S . -B cmake-build -DCMAKE_BUILD_TYPE=Release ${{ env.COMMON_CMAKE_FLAGS }}
@@ -43,7 +43,7 @@ jobs:
     name: "CMake build using make wrapper"
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # tag=v6.0.1
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # tag=v6.0.2
     - name: Install dependencies
       run: |
         sudo apt install liblzma-dev  # Required for compression algorithms
@@ -73,7 +73,7 @@ jobs:
     env:
       SRC_DIR: "source directory with spaces"
     steps:
-    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # tag=v6.0.1
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # tag=v6.0.2
       with:
         path: "${{ env.SRC_DIR }}"
     - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
@@ -131,7 +131,7 @@ jobs:
             runner: "windows-2022"
             cmake_extra_flags: "-DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DZSTD_BUILD_TESTS=ON"
     steps:
-    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # tag=v6.0.1
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # tag=v6.0.2
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # tag=v2.0.0
     - name: "Configure CMake (${{ matrix.name }})"
@@ -156,7 +156,7 @@ jobs:
     name: "CMake macOS ARM64 (Apple Silicon)"
     runs-on: macos-14  # ARM64 runner
     steps:
-    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # tag=v6.0.1
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # tag=v6.0.2
     - name: "CMake build and test (ARM64)"
       run: |
         # Configure and build with ARM64-specific optimizations

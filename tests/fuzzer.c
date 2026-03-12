@@ -2515,6 +2515,25 @@ static int basicUnitTests(U32 const seed, double compressibility)
                 }
             }
             DISPLAYLEVEL(3, "OK \n");
+
+            DISPLAYLEVEL(3, "test%3i : estimation functions with LDM enabled (issue #4590) : ", testNb++);
+            {
+                /* ZSTD_estimateCCtxSize_usingCCtxParams must adjust zeroed-out
+                 * LDM parameters when LDM is enabled, to avoid division by zero
+                 * in ZSTD_ldm_getMaxNbSeq. */
+                ZSTD_CCtx_params* params = ZSTD_createCCtxParams();
+                size_t cctxSize;
+                CHECK_Z(ZSTD_CCtxParams_setParameter(params, ZSTD_c_compressionLevel, 22));
+                CHECK_Z(ZSTD_CCtxParams_setParameter(params, ZSTD_c_enableLongDistanceMatching, ZSTD_ps_enable));
+                cctxSize = ZSTD_estimateCCtxSize_usingCCtxParams(params);
+                if (ZSTD_isError(cctxSize)) goto _output_error;
+                if (cctxSize == 0) goto _output_error;
+                cctxSize = ZSTD_estimateCStreamSize_usingCCtxParams(params);
+                if (ZSTD_isError(cctxSize)) goto _output_error;
+                if (cctxSize == 0) goto _output_error;
+                ZSTD_freeCCtxParams(params);
+            }
+            DISPLAYLEVEL(3, "OK \n");
         }
         free(staticCCtxBuffer);
         free(staticDCtxBuffer);

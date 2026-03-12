@@ -264,7 +264,7 @@ static void usageAdvanced(const char* programName)
     DISPLAYOUT("  --format=lzma                 Compress files to the `.lzma` format.\n");
 #endif
 #ifdef ZSTD_LZ4COMPRESS
-    DISPLAYOUT( "  --format=lz4                 Compress files to the `.lz4` format.\n");
+    DISPLAYOUT( "  --format=lz4                  Compress files to the `.lz4` format.\n");
 #endif
 #endif  /* !ZSTD_NOCOMPRESS */
 

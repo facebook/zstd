@@ -1040,8 +1040,12 @@ static size_t FIO_setDictBufferMMap(FIO_Dict_t* dict, const char* fileName, FIO_
         EXM_THROW(33, "Couldn't open dictionary %s: %s", fileName, strerror(errno));
     }
 
-    // filesize could be garbage if UTIL_getFileSizeStat fails
     fileSize = UTIL_getFileSizeStat(dictFileStat);
+    if (fileSize == UTIL_FILESIZE_UNKNOWN) {
+        EXM_THROW(35, "Could not determine size of dictionary %s", fileName);
+    }
+    if (fileSize == 0) return 0;
+
     {
         size_t const dictSizeMax = prefs->patchFromMode ? prefs->memLimit : DICTSIZE_MAX;
         if (fileSize >  dictSizeMax) {
@@ -1050,10 +1054,6 @@ static size_t FIO_setDictBufferMMap(FIO_Dict_t* dict, const char* fileName, FIO_
         }
     }
 
-    if (fileSize == 0) return 0;
-    if (fileSize == (unsigned long long)-1) {
-        EXM_THROW(35, "Could not determine size of dictionary %s", fileName);
-    }
 
     *bufferPtr = mmap(NULL, (size_t)fileSize, PROT_READ, MAP_PRIVATE, fileHandle, 0);
     if (*bufferPtr == MAP_FAILED) {

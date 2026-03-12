@@ -1627,7 +1627,7 @@ void HUF_decompress4X2_usingDTable_internal_fast_c_loop(HUF_DecompressFastArgs* 
         }                                                               \
     } while (0)
 
-#if defined(__aarch64__)
+#if defined(__aarch64__) || (defined(__riscv) && (__riscv_xlen == 64))
 #  define HUF_4X2_4WAY 1
 #else
 #  define HUF_4X2_4WAY 0

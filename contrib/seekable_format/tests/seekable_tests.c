@@ -197,7 +197,12 @@ int main(int argc, const char **argv) {
 
   printf("Test %u - check #2 that seekable decompress does not hang: ",
          testNb++);
+<<<<<<< HEAD
   { /* Github issue #FIXME */
+=======
+  { /* Regression test: seekable decompress with crafted data must not hang
+     * (variation of issue #2335 above with different crafted input) */
+>>>>>>> 9fbe9245 (seekable: fix PR template fixme comments)
     const size_t compressed_size = 27;
     const uint8_t compressed_data[27] = {
         (uint8_t)'\x28', (uint8_t)'\xb5', (uint8_t)'\x2f', (uint8_t)'\xfd',
@@ -382,6 +387,7 @@ int main(int argc, const char **argv) {
   }
   printf("Success!\n");
 
+<<<<<<< HEAD
   printf("Test %u - zero-byte round trip: ", testNb++);
   { /* Compressing and decompressing zero bytes should work correctly */
     size_t const seekCapacity = 1024;
@@ -619,6 +625,9 @@ int main(int argc, const char **argv) {
     ZSTD_seekable_free(stream);
   }
   printf("Success!\\n");
+=======
+    /* TODO: Add more tests */
+>>>>>>> 9fbe9245 (seekable: fix PR template fixme comments)
   printf("Finished tests\n");
   return 0;
 

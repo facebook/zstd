@@ -3781,6 +3781,29 @@ static int basicUnitTests(U32 const seed, double compressibility)
         if (dictID==0) goto _output_error;
         DISPLAYLEVEL(3, "OK : %u \n", (unsigned)dictID);
 
+        DISPLAYLEVEL(3, "test%3i : FASTCOVER with many small samples (issue #4499) : ", testNb++);
+        /* FASTCOVER_hashPtrToIndex reads d bytes from the sample buffer.
+         * When all samples are shorter than d, the sliding window must not
+         * read past the end of the buffer.  Triggered a stack-buffer-overflow
+         * with ASAN before the fix. */
+        {   const char smallData[8] = {'A','B','C','D','E','F','G','H'};
+            const size_t smallSizes[8] = {1,1,1,1,1,1,1,1};
+            ZDICT_fastCover_params_t fcParams;
+            char *smallDict = (char *)malloc(1024);
+            size_t smallDictSize;
+            if (!smallDict) goto _output_error;
+            memset(&fcParams, 0, sizeof(fcParams));
+            /* d=8 forces hash8Ptr path; samples are only 1 byte each */
+            fcParams.d = 8;
+            fcParams.k = 16;
+            smallDictSize = ZDICT_trainFromBuffer_fastCover(
+                smallDict, 1024, smallData, smallSizes, 8, fcParams);
+            /* May return an error (too-small corpus) but must NOT crash */
+            (void)smallDictSize;
+            free(smallDict);
+        }
+        DISPLAYLEVEL(3, "OK \n");
+
         ZSTD_freeCCtx(cctx);
         free(dictBuffer);
         free(samplesSizes);

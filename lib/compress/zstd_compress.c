@@ -7150,7 +7150,7 @@ size_t ZSTD_compressSequences(ZSTD_CCtx* cctx,
  * we use _mm256_permute4x64_epi64(..., 0xE8) to move lane2 into lane1,
  * then store the lower 16 bytes in one go.
  *
- * @returns 0 on succes, with no long length detected
+ * @returns 0 on success, with no long length detected
  * @returns > 0 if there is one long length (> 65535),
  * indicating the position, and type.
  */
@@ -7310,7 +7310,7 @@ size_t convertSequences_noRepcodes(
  *   - rep is ignored
  * Store only 8 bytes per SeqDef (offBase[4], litLength[2], mlBase[2]).
  *
- * @returns 0 on succes, with no long length detected
+ * @returns 0 on success, with no long length detected
  * @returns > 0 if there is one long length (> 65535),
  * indicating the position, and type.
  */

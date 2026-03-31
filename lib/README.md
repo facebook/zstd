@@ -201,7 +201,7 @@ The file structure is designed to make this selection manually achievable for an
   `ZSTDLIB_STATIC_API` and `ZDICTLIB_STATIC_API` can be overridden to control the visibility
   of zstd's static API. Specifically, it can be set to `ZSTDLIB_HIDDEN` to hide the symbols
   from the shared library. These macros default to `ZSTDLIB_VISIBILITY`,
-  `ZSTDERRORLIB_VSIBILITY`, and `ZDICTLIB_VISIBILITY` if unset, for backwards compatibility
+  `ZSTDERRORLIB_VISIBILITY`, and `ZDICTLIB_VISIBILITY` if unset, for backwards compatibility
   with the old macro names.
 
 - The C compiler macro `HUF_DISABLE_FAST_DECODE` disables the newer Huffman fast C

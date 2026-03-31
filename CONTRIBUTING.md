@@ -330,7 +330,7 @@ Instruments.
     * You will want a benchmark that runs for at least a few seconds (5 seconds will
     usually be long enough). This way the profiler will have something to work with
     and you will have ample time to attach your profiler to this process:)
-    * I will just use benchzstd as my benchmarmking script for this example:
+    * I will just use benchzstd as my benchmarking script for this example:
 ```
 $ zstd -b1 -i5 <my-data> # this will run for 5 seconds
 ```

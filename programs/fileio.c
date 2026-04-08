@@ -850,6 +850,7 @@ FIO_openDstFile(FIO_ctx_t* fCtx, FIO_prefs_t* const prefs,
                 const char* srcFileName, const char* dstFileName,
                 const int mode)
 {
+    int overwriteDstFile = prefs->overwrite;
     if (prefs->testMode) return NULL;  /* do not open file in test mode */
 
     assert(dstFileName != NULL);
@@ -879,7 +880,7 @@ FIO_openDstFile(FIO_ctx_t* fCtx, FIO_prefs_t* const prefs,
                         dstFileName);
         }
 #endif
-        if (!prefs->overwrite) {
+        if (!overwriteDstFile) {
             if (g_display_prefs.displayLevel <= 1) {
                 /* No interaction possible */
                 DISPLAYLEVEL(1, "zstd: %s already exists; not overwritten  \n",
@@ -889,9 +890,8 @@ FIO_openDstFile(FIO_ctx_t* fCtx, FIO_prefs_t* const prefs,
             DISPLAY("zstd: %s already exists; ", dstFileName);
             if (UTIL_requireUserConfirmation("overwrite (y/n) ? ", "Not overwritten  \n", "yY", fCtx->hasStdinInput))
                 return NULL;
+            overwriteDstFile = 1;
         }
-        /* need to unlink */
-        FIO_removeFile(dstFileName);
     }
 
     {
@@ -899,14 +899,22 @@ FIO_openDstFile(FIO_ctx_t* fCtx, FIO_prefs_t* const prefs,
 #if defined(_WIN32)
         /* Windows requires opening the file as a "binary" file to avoid
          * mangling. This macro doesn't exist on unix. */
-        const int openflags = O_WRONLY|O_CREAT|O_TRUNC|O_BINARY;
+        int openflags = O_WRONLY|O_CREAT|O_BINARY;
+        openflags |= overwriteDstFile ? O_TRUNC : O_EXCL;
         const int fd = _open(dstFileName, openflags, mode);
         FILE* f = NULL;
         if (fd != -1) {
             f = _fdopen(fd, "wb");
         }
 #else
-        const int openflags = O_WRONLY|O_CREAT|O_TRUNC;
+        int openflags = O_WRONLY|O_CREAT;
+        openflags |= overwriteDstFile ? O_TRUNC : O_EXCL;
+    #  ifdef O_CLOEXEC
+        openflags |= O_CLOEXEC;
+    #  endif
+    #  ifdef O_NOFOLLOW
+        openflags |= O_NOFOLLOW;
+    #  endif
         const int fd = open(dstFileName, openflags, mode);
         FILE* f = NULL;
         if (fd != -1) {
@@ -925,8 +933,14 @@ FIO_openDstFile(FIO_ctx_t* fCtx, FIO_prefs_t* const prefs,
         }
 
         if (f == NULL) {
-            if (UTIL_isFileDescriptorPipe(dstFileName)) {
+            if (!overwriteDstFile && errno == EEXIST) {
+                DISPLAYLEVEL(1, "zstd: %s already exists; not overwritten  \n", dstFileName);
+            } else if (UTIL_isFileDescriptorPipe(dstFileName)) {
                 DISPLAYLEVEL(1, "zstd: error: no output specified (use -o or -c). \n");
+#if defined(O_NOFOLLOW) && defined(ELOOP)
+            } else if (errno == ELOOP) {
+                DISPLAYLEVEL(1, "zstd: refusing to write through symbolic link: %s\n", dstFileName);
+#endif
             } else {
                 DISPLAYLEVEL(1, "zstd: %s: %s\n", dstFileName, strerror(errno));
             }

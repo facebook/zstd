@@ -1020,7 +1020,7 @@ size_t ZSTD_execSequence(BYTE* op,
     assert(op != NULL /* Precondition */);
     assert(oend_w < oend /* No underflow */);
 
-#if defined(__aarch64__)
+#if defined(__aarch64__) || defined(__riscv)
     /* prefetch sequence starting from match that will be used for copy later */
     PREFETCH_L1(match);
 #endif

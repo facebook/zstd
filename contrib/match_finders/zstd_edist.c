@@ -402,12 +402,19 @@ static void ZSTD_eDist_combineMatches(ZSTD_eDist_state* state)
 {
     /* Create a new buffer to put the combined matches into 
      * and memcpy to state->matches after */ 
-    ZSTD_eDist_match* combinedMatches = 
-        ZSTD_malloc(state->nbMatches * sizeof(ZSTD_eDist_match), 
-        ZSTD_defaultCMem);
-
+    ZSTD_eDist_match* combinedMatches;
     U32 nbCombinedMatches = 1;
     size_t i;
+
+    /* Guard against empty match list to avoid zero-size allocation and
+     * the unconditional memcpy below writing beyond an empty buffer */
+    if (state->nbMatches == 0) return;
+
+    combinedMatches = ZSTD_malloc(state->nbMatches * sizeof(ZSTD_eDist_match),
+        ZSTD_defaultCMem);
+
+    /* Guard against allocation failure before any memcpy */
+    if (combinedMatches == NULL) return;
 
     /* Make sure that the srcIdx and dictIdx are in sorted order.
      * The combination step won't work otherwise */ 
@@ -427,11 +434,15 @@ static void ZSTD_eDist_combineMatches(ZSTD_eDist_state* state)
                 nbCombinedMatches--;
             }
 
+            /* Bounds check: ensure we don't write beyond the allocated buffer */
+            if (nbCombinedMatches >= state->nbMatches) break;
+
             memcpy(combinedMatches + nbCombinedMatches, 
                 state->matches + i, sizeof(ZSTD_eDist_match));
             nbCombinedMatches++;
         }
     }
+    /* nbCombinedMatches <= state->nbMatches, so this is always within bounds */
     memcpy(state->matches, combinedMatches, nbCombinedMatches * sizeof(ZSTD_eDist_match));
     state->nbMatches = nbCombinedMatches;
     ZSTD_free(combinedMatches, ZSTD_defaultCMem);

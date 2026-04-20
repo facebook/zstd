@@ -174,8 +174,9 @@ sudo ninja install
 A Meson project is provided within [`build/meson`](build/meson). Follow
 build instructions in that directory.
 
-You can also take a look at [`.travis.yml`](.travis.yml) file for an
-example about how Meson is used to build this project.
+You can also take a look at the workflow files in
+[`.github/workflows/`](.github/workflows) for examples of how this project is
+built in CI.
 
 Note that default build type is **release**.
 
@@ -223,7 +224,8 @@ You can integrate zstd into your Bazel project by using the module hosted on the
 ## Testing
 
 You can run quick local smoke tests by running `make check`.
-If you can't use `make`, execute the `playTest.sh` script from the `src/tests` directory.
+If you can't use `make`, execute the `tests/playTests.sh` script from the
+repository root.
 Two env variables `$ZSTD_BIN` and `$DATAGEN_BIN` are needed for the test script to locate the `zstd` and `datagen` binary.
 For information on CI testing, please refer to `TESTING.md`.
 

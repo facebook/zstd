@@ -129,8 +129,14 @@ static size_t ZSTD_DDictHashSet_emplaceDDict(ZSTD_DDictHashSet* hashSet, const Z
  * Returns 0 on success, otherwise a zstd error code.
  */
 static size_t ZSTD_DDictHashSet_expand(ZSTD_DDictHashSet* hashSet, ZSTD_customMem customMem) {
-    size_t newTableSize = hashSet->ddictPtrTableSize * DDICT_HASHSET_RESIZE_FACTOR;
-    const ZSTD_DDict** newTable = (const ZSTD_DDict**)ZSTD_customCalloc(sizeof(ZSTD_DDict*) * newTableSize, customMem);
+    size_t const oldTableSize = hashSet->ddictPtrTableSize;
+    size_t const newTableSize = oldTableSize * DDICT_HASHSET_RESIZE_FACTOR;
+    const ZSTD_DDict** newTable;
+
+    DEBUGLOG(4, "Expanding DDict hash table! Old size: %zu new size: %zu", oldTableSize, newTableSize);
+    RETURN_ERROR_IF(newTableSize <= oldTableSize, memory_allocation, "Expanded hashset size overflow!");
+
+    newTable = (const ZSTD_DDict**)ZSTD_customCalloc2(newTableSize, sizeof(ZSTD_DDict*), customMem);
     const ZSTD_DDict** oldTable = hashSet->ddictPtrTable;
     size_t oldTableSize = hashSet->ddictPtrTableSize;
     size_t i;
@@ -180,7 +186,7 @@ static ZSTD_DDictHashSet* ZSTD_createDDictHashSet(ZSTD_customMem customMem) {
     DEBUGLOG(4, "Allocating new hash set");
     if (!ret)
         return NULL;
-    ret->ddictPtrTable = (const ZSTD_DDict**)ZSTD_customCalloc(DDICT_HASHSET_TABLE_BASE_SIZE * sizeof(ZSTD_DDict*), customMem);
+    ret->ddictPtrTable = (const ZSTD_DDict**)ZSTD_customCalloc2(DDICT_HASHSET_TABLE_BASE_SIZE, sizeof(ZSTD_DDict*), customMem);
     if (!ret->ddictPtrTable) {
         ZSTD_customFree(ret, customMem);
         return NULL;

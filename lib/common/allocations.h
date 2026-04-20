@@ -30,6 +30,12 @@ MEM_STATIC void* ZSTD_customMalloc(size_t size, ZSTD_customMem customMem)
     return ZSTD_malloc(size);
 }
 
+MEM_STATIC void* ZSTD_customMalloc2(size_t nmemb, size_t size, ZSTD_customMem customMem)
+{
+    if (nmemb > 0 && size > SIZE_MAX / nmemb) return NULL;
+    return ZSTD_customMalloc(nmemb * size, customMem);
+}
+
 MEM_STATIC void* ZSTD_customCalloc(size_t size, ZSTD_customMem customMem)
 {
     if (customMem.customAlloc) {
@@ -44,6 +50,12 @@ MEM_STATIC void* ZSTD_customCalloc(size_t size, ZSTD_customMem customMem)
         return ptr;
     }
     return ZSTD_calloc(1, size);
+}
+
+MEM_STATIC void* ZSTD_customCalloc2(size_t nmemb, size_t size, ZSTD_customMem customMem)
+{
+    if (nmemb > 0 && size > SIZE_MAX / nmemb) return NULL;
+    return ZSTD_customCalloc(nmemb * size, customMem);
 }
 
 MEM_STATIC void ZSTD_customFree(void* ptr, ZSTD_customMem customMem)

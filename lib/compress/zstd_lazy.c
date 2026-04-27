@@ -846,7 +846,7 @@ void ZSTD_row_fillHashCache(ZSTD_MatchState_t* ms, const BYTE* base,
 
     for (; idx < lim; ++idx) {
         U32 const hash = (U32)ZSTD_hashPtrSalted(base + idx, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls, ms->hashSalt);
-        U32 const row = (hash >> ZSTD_ROW_HASH_TAG_BITS) << rowLog;
+        U32 const row = (U32)ZSTD_extractHash(hash, ZSTD_ROW_HASH_TAG_BITS, hashLog) << rowLog;
         ZSTD_row_prefetch(hashTable, tagTable, row, rowLog);
         ms->hashCache[idx & ZSTD_ROW_HASH_CACHE_MASK] = hash;
     }
@@ -869,7 +869,7 @@ U32 ZSTD_row_nextCachedHash(U32* cache, U32 const* hashTable,
                                                   U64 const hashSalt)
 {
     U32 const newHash = (U32)ZSTD_hashPtrSalted(base+idx+ZSTD_ROW_HASH_CACHE_SIZE, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls, hashSalt);
-    U32 const row = (newHash >> ZSTD_ROW_HASH_TAG_BITS) << rowLog;
+    U32 const row = (U32)ZSTD_extractHash(newHash, ZSTD_ROW_HASH_TAG_BITS, hashLog) << rowLog;
     ZSTD_row_prefetch(hashTable, tagTable, row, rowLog);
     {   U32 const hash = cache[idx & ZSTD_ROW_HASH_CACHE_MASK];
         cache[idx & ZSTD_ROW_HASH_CACHE_MASK] = newHash;
@@ -896,13 +896,13 @@ void ZSTD_row_update_internalImpl(ZSTD_MatchState_t* ms,
     for (; updateStartIdx < updateEndIdx; ++updateStartIdx) {
         U32 const hash = useCache ? ZSTD_row_nextCachedHash(ms->hashCache, hashTable, tagTable, base, updateStartIdx, hashLog, rowLog, mls, ms->hashSalt)
                                   : (U32)ZSTD_hashPtrSalted(base + updateStartIdx, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls, ms->hashSalt);
-        U32 const relRow = (hash >> ZSTD_ROW_HASH_TAG_BITS) << rowLog;
+        U32 const relRow = (U32)ZSTD_extractHash(hash, ZSTD_ROW_HASH_TAG_BITS, hashLog) << rowLog;
         U32* const row = hashTable + relRow;
         BYTE* tagRow = tagTable + relRow;
         U32 const pos = ZSTD_row_nextIndex(tagRow, rowMask);
 
         assert(hash == ZSTD_hashPtrSalted(base + updateStartIdx, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls, ms->hashSalt));
-        tagRow[pos] = hash & ZSTD_ROW_HASH_TAG_MASK;
+        tagRow[pos] = (BYTE)ZSTD_extractTagFromHash(hash, ZSTD_ROW_HASH_TAG_BITS, hashLog);
         row[pos] = updateStartIdx;
     }
 }
@@ -1238,8 +1238,8 @@ size_t ZSTD_RowFindBestMatch(
         U32* const dmsHashTable = dms->hashTable;
         BYTE* const dmsTagTable = dms->tagTable;
         U32 const dmsHash = (U32)ZSTD_hashPtr(ip, dms->rowHashLog + ZSTD_ROW_HASH_TAG_BITS, mls);
-        U32 const dmsRelRow = (dmsHash >> ZSTD_ROW_HASH_TAG_BITS) << rowLog;
-        dmsTag = dmsHash & ZSTD_ROW_HASH_TAG_MASK;
+        U32 const dmsRelRow = (U32)ZSTD_extractHash(dmsHash, ZSTD_ROW_HASH_TAG_BITS, dms->rowHashLog) << rowLog;
+        dmsTag = (BYTE)ZSTD_extractTagFromHash(dmsHash, ZSTD_ROW_HASH_TAG_BITS, dms->rowHashLog);
         dmsTagRow = (BYTE*)(dmsTagTable + dmsRelRow);
         dmsRow = dmsHashTable + dmsRelRow;
         ZSTD_row_prefetch(dmsHashTable, dmsTagTable, dmsRelRow, rowLog);
@@ -1259,8 +1259,8 @@ size_t ZSTD_RowFindBestMatch(
     ms->hashSaltEntropy += hash; /* collect salt entropy */
 
     {   /* Get the hash for ip, compute the appropriate row */
-        U32 const relRow = (hash >> ZSTD_ROW_HASH_TAG_BITS) << rowLog;
-        U32 const tag = hash & ZSTD_ROW_HASH_TAG_MASK;
+        U32 const relRow = (U32)ZSTD_extractHash(hash, ZSTD_ROW_HASH_TAG_BITS, hashLog) << rowLog;
+        U32 const tag = (U32)ZSTD_extractTagFromHash(hash, ZSTD_ROW_HASH_TAG_BITS, hashLog);
         U32* const row = hashTable + relRow;
         BYTE* tagRow = (BYTE*)(tagTable + relRow);
         U32 const headGrouped = (*tagRow & rowMask) * groupWidth;

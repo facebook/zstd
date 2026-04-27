@@ -51,12 +51,16 @@ jobs:
       run: make gnu99build && make clean
     - name: ppc64 build
       run: make ppc64build V=1 && make clean
+    - name: ppc64CRC build
+      run: make ppc64buildCRC V=1 && make clean
     - name: ppc build
       run: make ppcbuild V=1 && make clean
     - name: arm build
       run: make armbuild V=1 && make clean
     - name: aarch64 build
       run: make aarch64build V=1 && make clean
+    - name: aarch64CRC build
+      run: make aarch64buildCRC V=1 && make clean
     - name: test-legacy
       run: make -C tests test-legacy V=1 && make clean
     - name: test-longmatch
@@ -65,40 +69,81 @@ jobs:
       run: make -C lib libzstd-nomt V=1 && make clean
 
   regression-test:
-    runs-on: ubuntu-latest
+    name: regression-${{ matrix.config_name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - config_name: "default"
+            os: ubuntu-latest
+            baseline: "results.csv"
+            cflags: "-O3"
+
+          - config_name: "x86-crc"
+            os: ubuntu-latest
+            baseline: "results_crc32c.csv"
+            cflags: "-O3 -DZSTD_HASH_USE_CRC32C"
+
+          - config_name: "x86-sse4.2-crc"
+            os: ubuntu-latest
+            baseline: "results_crc32c.csv"
+            cflags: "-O3 -DZSTD_HASH_USE_CRC32C -msse4.2"
+
+          - config_name: "arm-v8.2-crc"
+            os: ubuntu-24.04-arm
+            baseline: "results_crc32c.csv"
+            cflags: "-O3 -DZSTD_HASH_USE_CRC32C -march=armv8.2-a+crc+crypto"
+
     services:
       docker:
         image: fbopensource/zstd-circleci-primary:0.0.1
         options: --entrypoint /bin/bash
+
     env:
       CIRCLE_ARTIFACTS: "/tmp/circleci-artifacts"
+      CFLAGS: ${{ matrix.cflags }}
+
     steps:
     - uses: actions/checkout@v6.0.2
+
     - name: restore_cache
       uses: actions/cache@v5
       with:
-        key: regression-cache-{{ checksum "tests/regression/data.c" }}-v0
+        # Use matrix config_name to keep cache keys unique per architecture/config
+        key: regression-cache-${{ matrix.config_name }}-${{ checksum "tests/regression/data.c" }}-v0
         path: tests/regression/cache
-        restore-keys: regression-cache-{{ checksum "tests/regression/data.c" }}-v0
+
     - name: Install Dependencies
       run: |
         sudo apt-get update
         sudo apt-get install libcurl4-gnutls-dev
+
     - name: Regression Test
       run: |
+        # Build zstd with the matrix-specific CFLAGS
         make -C programs zstd
         make -C tests/regression test
+
         mkdir -p $CIRCLE_ARTIFACTS
+
+        # Run the regression test tool
         ./tests/regression/test                     \
             --cache  tests/regression/cache         \
             --output $CIRCLE_ARTIFACTS/results.csv  \
             --zstd   programs/zstd
-        echo "NOTE: The new results.csv is uploaded as an artifact to this job"
-        echo "      If this fails, go to the Artifacts pane in CircleCI, "
-        echo "      download /tmp/circleci-artifacts/results.csv, and if they "
-        echo "      are still good, copy it into the repo and commit it."
-        echo "> diff tests/regression/results.csv $CIRCLE_ARTIFACTS/results.csv"
-        diff tests/regression/results.csv $CIRCLE_ARTIFACTS/results.csv
+
+        echo "Comparing against baseline: ${{ matrix.baseline }}"
+        # Check if the baseline exists (to avoid failing on the first run of a new config)
+        if [ -f "tests/regression/${{ matrix.baseline }}" ]; then
+            diff tests/regression/${{ matrix.baseline }} $CIRCLE_ARTIFACTS/results.csv
+        else
+            echo "Warning: Baseline tests/regression/${{ matrix.baseline }} not found."
+            echo "If this is a new configuration, please commit the generated results.csv as ${{ matrix.baseline }}."
+        fi
+
     - uses: actions/upload-artifact@v7.0.0
       with:
-        path: "/tmp/circleci-artifacts"
+        # Artifact name includes config for easy identification
+        name: results-${{ matrix.config_name }}
+        path: "$CIRCLE_ARTIFACTS/results.csv"

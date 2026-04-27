@@ -205,7 +205,7 @@ clangbuild-darwin-fat: clean
 	mv programs/zstd programs/zstd_x64
 	lipo -create programs/zstd_x64 programs/zstd_arm64 -output programs/zstd
 
-.PHONY: gcc5build gcc6build gcc7build clangbuild m32build armbuild aarch64build ppcbuild ppc64build
+.PHONY: gcc5build gcc6build gcc7build clangbuild m32build armbuild aarch64build aarch64buildCRC ppcbuild ppc64build ppc64buildCRC
 gcc5build: clean
 	gcc-5 -v
 	CC=gcc-5 $(MAKE) all MOREFLAGS="-Werror $(MOREFLAGS)"
@@ -232,11 +232,17 @@ armbuild: clean
 aarch64build: clean
 	CC=aarch64-linux-gnu-gcc CFLAGS="-Werror -O0" $(MAKE) allzstd
 
+aarch64buildCRC: clean
+	CC=aarch64-linux-gnu-gcc CFLAGS="-Werror -O0 -DZSTD_HASH_USE_CRC32C -march=armv8.2-a+crc+crypto" $(MAKE) allzstd
+
 ppcbuild: clean
 	CC=powerpc-linux-gnu-gcc CFLAGS="-m32 -Wno-attributes -Werror" $(MAKE) -j allzstd
 
 ppc64build: clean
 	CC=powerpc-linux-gnu-gcc CFLAGS="-m64 -Werror" $(MAKE) -j allzstd
+
+ppc64buildCRC: clean
+	CC=powerpc-linux-gnu-gcc CFLAGS="-m64 -Werror -DZSTD_HASH_USE_CRC32C" $(MAKE) -j allzstd
 
 .PHONY: armfuzz aarch64fuzz ppcfuzz ppc64fuzz
 armfuzz: clean
@@ -293,6 +299,9 @@ regressiontest:
 
 uasanregressiontest:
 	$(MAKE) -C $(FUZZDIR) regressiontest CC=clang CXX=clang++ CFLAGS="-O3 -fsanitize=address,undefined -Werror" CXXFLAGS="-O3 -fsanitize=address,undefined -Werror"
+
+uasanregressiontestCRC:
+	$(MAKE) -C $(FUZZDIR) regressiontest CC=clang CXX=clang++ CFLAGS="-O3 -fsanitize=address,undefined -Werror -DZSTD_HASH_USE_CRC32C" CXXFLAGS="-O3 -fsanitize=address,undefined -Werror"
 
 msanregressiontest:
 	$(MAKE) -C $(FUZZDIR) regressiontest CC=clang CXX=clang++ CFLAGS="-O3 -fsanitize=memory -Werror" CXXFLAGS="-O3 -fsanitize=memory -Werror"

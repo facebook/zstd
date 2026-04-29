@@ -148,7 +148,7 @@ static void usage(FILE* f, const char* programName)
     DISPLAY_F(f, "Compress or decompress the INPUT file(s); reads from STDIN if INPUT is `-` or not provided.\n\n");
     DISPLAY_F(f, "Usage: %s [OPTIONS...] [INPUT... | -] [-o OUTPUT]\n\n", programName);
     DISPLAY_F(f, "Options:\n");
-    DISPLAY_F(f, "  -o OUTPUT                     Write output to a single file, OUTPUT.\n");
+    DISPLAY_F(f, "  -o, --output OUTPUT           Write output to a single file, OUTPUT.\n");
     DISPLAY_F(f, "  -c, --stdout                  Write to STDOUT (even if it is a console) and keep the INPUT file(s).\n");
     DISPLAY_F(f, "  -k, --keep                    Preserve INPUT file(s). [Default] \n");
     DISPLAY_F(f, "  --rm                          Remove INPUT file(s) after successful (de)compression to file.\n");
@@ -1004,6 +1004,8 @@ int main(int argCount, const char* argv[])
                 if (!strcmp(argument, "--verbose")) { g_displayLevel++; continue; }
                 if (!strcmp(argument, "--quiet")) { g_displayLevel--; continue; }
                 if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; continue; }
+                if (!strcmp(argument, "--output")) { argument += 8; NEXT_FIELD(outFileName); continue; }
+                if (longCommandWArg(&argument, "--output=")) { outFileName = argument; continue; }
                 if (!strcmp(argument, "--ultra")) { ultra=1; continue; }
                 if (!strcmp(argument, "--check")) { FIO_setChecksumFlag(prefs, 2); continue; }
                 if (!strcmp(argument, "--no-check")) { FIO_setChecksumFlag(prefs, 0); continue; }

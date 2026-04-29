@@ -4,7 +4,7 @@ zstd(1) -- zstd, zstdmt, unzstd, zstdcat - Compress or decompress .zst files
 SYNOPSIS
 --------
 
-`zstd` [<OPTIONS>] [-|<INPUT-FILE>] [-o <OUTPUT-FILE>]
+`zstd` [<OPTIONS>] [-|<INPUT-FILE>] [-o|--output <OUTPUT-FILE>]
 
 `zstdmt` is equivalent to `zstd -T0`
 
@@ -244,7 +244,7 @@ the last one takes effect.
     unrecognized formats as-is.
 * `-c`, `--stdout`:
     write to standard output (even if it is the console); keep original files (disable `--rm`).
-* `-o FILE`:
+* `-o FILE`, `--output FILE`:
     save result into `FILE`.
     Note that this operation is in conflict with `-c`.
     If both operations are present on the command line, the last expressed one wins.
@@ -544,7 +544,7 @@ Compression of small files similar to the sample set will be greatly improved.
     The slower cover dictionary builder can be accessed with `--train-cover`.
     Default `--train` is equivalent to `--train-fastcover=d=8,steps=4`.
 
-* `-o FILE`:
+* `-o FILE`, `--output FILE`:
     Dictionary saved into `FILE` (default name: dictionary).
 * `--maxdict=#`:
     Limit dictionary to specified size (default: 112640 bytes).

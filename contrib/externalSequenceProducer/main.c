@@ -61,6 +61,7 @@ int main(int argc, char *argv[]) {
         assert(ret == 0);
     }
 
+    assert(srcSize != (size_t)-1);  /* prevent integer overflow in malloc argument */
     char* const src = malloc(srcSize + 1);
     assert(src);
     {

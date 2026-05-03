@@ -21,6 +21,11 @@
 #ifndef ZSTD_ALLOCATIONS_H
 #define ZSTD_ALLOCATIONS_H
 
+/* SIZE_MAX is from stdint.h, but may not be available in all environments. */
+#ifndef SIZE_MAX
+#  define SIZE_MAX ((size_t)-1)
+#endif
+
 /* custom memory allocation functions */
 
 MEM_STATIC void* ZSTD_customMalloc(size_t size, ZSTD_customMem customMem)

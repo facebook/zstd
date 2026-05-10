@@ -33,6 +33,9 @@ build-*
 cmakebuild/
 cmake-build/
 
+# Swift build artefacts
+.build/
+
 # Test artefacts
 tmp*
 *.zst

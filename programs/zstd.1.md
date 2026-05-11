@@ -114,6 +114,8 @@ the last one takes effect.
 * `--ultra`:
     unlocks high compression levels 20+ (maximum 22), using a lot more memory.
     Decompression will also need more memory when using these levels.
+    Data compressed at these levels may be rejected by third-party decoders
+    and is recommended primarily for archival purposes.
 * `--max`:
     set advanced parameters to reach maximum compression.
     warning: this setting is very slow and uses a lot of resources.

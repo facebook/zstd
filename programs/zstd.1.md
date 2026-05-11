@@ -6,7 +6,7 @@ SYNOPSIS
 
 `zstd` [<OPTIONS>] [-|<INPUT-FILE>] [-o <OUTPUT-FILE>]
 
-`zstdmt` is equivalent to `zstd -T0`
+`zstdmt` is equivalent to `zstd -T0`; prefer this form for multithreaded compression.
 
 `unzstd` is equivalent to `zstd -d`
 
@@ -123,6 +123,7 @@ the last one takes effect.
     If `=#` is not present, it defaults to `1`.
     The higher the value, the faster the compression speed,
     at the cost of some compression ratio.
+    These are the negative compression levels exposed by the library.
     This setting overwrites compression level if one was set previously.
     Similarly, if a compression level is set after `--fast`, it overrides it.
 * `-T#`, `--threads=#`:

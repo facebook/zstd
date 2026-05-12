@@ -60,19 +60,24 @@ struct SendableOpaquePointer: @unchecked Sendable {
 
 // MARK: - Error helpers
 
-struct ZstdError: Error, CustomStringConvertible {
-    let what: String
-    let code: Int
+enum ZstdError: Error, CustomStringConvertible {
+    case operation(_ what: String, code: Int)
+    case allocationFailed(_ what: String)
 
     var description: String {
-        "\(what) failed: \(String(cString: errorName(code)))"
+        switch self {
+        case .operation(let what, let code):
+            return "\(what) failed: \(String(cString: errorName(code)))"
+        case .allocationFailed(let what):
+            return "\(what) returned nil — zstd allocation failed"
+        }
     }
 }
 
 @discardableResult
 func check(_ result: Int, _ what: String = #function) throws -> Int {
     if isError(result) != 0 {
-        throw ZstdError(what: what, code: result)
+        throw ZstdError.operation(what, code: result)
     }
     return result
 }
@@ -172,7 +177,9 @@ extension ZstdExample {
     static func contextDemo(payload: [UInt8]) throws {
         print("# explicit context (CCtx / DCtx)")
 
-        let compressionContext = createCompressionContext()
+        guard let compressionContext = createCompressionContext() else {
+            throw ZstdError.allocationFailed("createCompressionContext")
+        }
         defer { _ = freeCompressionContext(compressionContext) }
 
         // Sticky parameters: persist for every subsequent compression on this context, so a server can configure once and reuse.
@@ -195,7 +202,9 @@ extension ZstdExample {
         )
         compressed.removeLast(bound - compressedSize)
 
-        let decompressionContext = createDecompressionContext()
+        guard let decompressionContext = createDecompressionContext() else {
+            throw ZstdError.allocationFailed("createDecompressionContext")
+        }
         defer { _ = freeDecompressionContext(decompressionContext) }
 
         var decompressed = [UInt8](repeating: 0, count: payload.count)
@@ -229,17 +238,21 @@ extension ZstdExample {
 
         let chunkSize = 4_096
 
-        let compressionContext = createCompressionContext()
+        guard let compressionContext = createCompressionContext() else {
+            throw ZstdError.allocationFailed("createCompressionContext")
+        }
         defer { _ = freeCompressionContext(compressionContext) }
 
         try check(setCompressionParameter(compressionContext, .compressionLevel, to: 5))
 
-        let compressed = try streamCompress(payload, using: compressionContext!, chunkSize: chunkSize)
+        let compressed = try streamCompress(payload, using: compressionContext, chunkSize: chunkSize)
 
-        let decompressionContext = createDecompressionContext()
+        guard let decompressionContext = createDecompressionContext() else {
+            throw ZstdError.allocationFailed("createDecompressionContext")
+        }
         defer { _ = freeDecompressionContext(decompressionContext) }
 
-        let decompressed = try streamDecompress(compressed, using: decompressionContext!, chunkSize: chunkSize)
+        let decompressed = try streamDecompress(compressed, using: decompressionContext, chunkSize: chunkSize)
 
         precondition(decompressed == payload)
 
@@ -357,26 +370,34 @@ extension ZstdExample {
 
         let dictionaryBytes = Array("The quick brown fox jumps over the lazy dog. ".utf8)
 
-        let compressionDictionary = dictionaryBytes.withUnsafeBufferPointer { bytes in
+        guard let compressionDictionary = (dictionaryBytes.withUnsafeBufferPointer { bytes in
             createCompressionDictionary(from: UnsafeRawPointer(bytes.baseAddress!),
                                         size: bytes.count,
                                         level: 5)
+        }) else {
+            throw ZstdError.allocationFailed("createCompressionDictionary")
         }
         defer { _ = freeCompressionDictionary(compressionDictionary) }
 
-        let decompressionDictionary = dictionaryBytes.withUnsafeBufferPointer { bytes in
+        guard let decompressionDictionary = (dictionaryBytes.withUnsafeBufferPointer { bytes in
             createDecompressionDictionary(from: UnsafeRawPointer(bytes.baseAddress!),
                                           size: bytes.count)
+        }) else {
+            throw ZstdError.allocationFailed("createDecompressionDictionary")
         }
         defer { _ = freeDecompressionDictionary(decompressionDictionary) }
 
         print("  CDict id = \(dictionaryID(fromCompressionDictionary: compressionDictionary)), memory = \(memoryUsage(ofCompressionDictionary: compressionDictionary)) bytes")
         print("  DDict id = \(dictionaryID(fromDecompressionDictionary: decompressionDictionary)), memory = \(memoryUsage(ofDecompressionDictionary: decompressionDictionary)) bytes")
 
-        let compressionContext = createCompressionContext()
+        guard let compressionContext = createCompressionContext() else {
+            throw ZstdError.allocationFailed("createCompressionContext")
+        }
         defer { _ = freeCompressionContext(compressionContext) }
 
-        let decompressionContext = createDecompressionContext()
+        guard let decompressionContext = createDecompressionContext() else {
+            throw ZstdError.allocationFailed("createDecompressionContext")
+        }
         defer { _ = freeDecompressionContext(decompressionContext) }
 
         let sampleInput = Array("The quick brown fox jumps over the lazy dog.".utf8)
@@ -419,12 +440,14 @@ extension ZstdExample {
         // Sendable dictionary: share across concurrent tasks
         print("# concurrent CDict sharing (Sendable)")
 
-        let sharedDictionary = SendableOpaquePointer(pointer: compressionDictionary!)
+        let sharedDictionary = SendableOpaquePointer(pointer: compressionDictionary)
 
-        await withTaskGroup(of: (Int, Int).self) { group in
+        try await withThrowingTaskGroup(of: (Int, Int).self) { group in
             for taskID in 0..<4 {
                 group.addTask {
-                    let compressionContext = createCompressionContext()
+                    guard let compressionContext = createCompressionContext() else {
+                        throw ZstdError.allocationFailed("createCompressionContext")
+                    }
                     defer { _ = freeCompressionContext(compressionContext) }
 
                     let phrase = "Task \(taskID): The quick brown fox jumps over the lazy dog."
@@ -447,7 +470,7 @@ extension ZstdExample {
                 }
             }
 
-            for await (taskID, size) in group {
+            for try await (taskID, size) in group {
                 print("  task \(taskID) → \(size) bytes")
             }
         }

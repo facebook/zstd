@@ -15,6 +15,12 @@
 /*======  Dependencies  ======*/
 #include <stddef.h>  /* size_t */
 
+#include "zstd_annotations.h"
+
+#if ZSTD_NULLABILITY
+#pragma clang assume_nonnull begin
+#endif
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
@@ -273,6 +279,10 @@ ZDICTLIB_API const char* ZDICT_getErrorName(size_t errorCode);
 
 #if defined (__cplusplus)
 }
+#endif
+
+#if ZSTD_NULLABILITY
+#pragma clang assume_nonnull end
 #endif
 
 #endif   /* ZSTD_ZDICT_H */

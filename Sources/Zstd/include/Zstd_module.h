@@ -11,12 +11,16 @@
  */
 
 /* Defined without a value so the Swift importer doesn't see it as a
- * top-level `let ZSTD_FOR_SWIFT_MODERN_API: Int32`. `#if defined(...)`
+ * top-level `let ZSTD_FOR_SWIFT_MODERN_API: Int32`.  `#if defined(...)`
  * still works the same. */
 #ifndef ZSTD_FOR_SWIFT_MODERN_API
 #  define ZSTD_FOR_SWIFT_MODERN_API
 #endif
 
+/* Nullability annotations and assume_nonnull are applied unconditionally
+ * inside zstd.h / zdict.h (clang's pragma is file-scoped).  The legacy
+ * libzstd umbrella forces ZSTD_NULLABILITY=0 to suppress them and
+ * preserve its pre-annotation Swift surface. */
 #include "zstd.h"
 #include "zdict.h"
 #include "zstd_errors.h"
@@ -68,6 +72,8 @@ static const unsigned long long contentSizeError            = ZSTD_CONTENTSIZE_E
  * site. */
 #include <stdbool.h>
 
+#pragma clang assume_nonnull begin
+
 static inline size_t Zstd_setCompressionFlag(ZSTD_CCtx* cctx,
                                              ZSTD_cParameter param,
                                              bool value) {
@@ -79,3 +85,12 @@ static inline size_t Zstd_setDecompressionFlag(ZSTD_DCtx* dctx,
                                                bool value) {
     return ZSTD_DCtx_setParameter(dctx, param, value ? 1 : 0);
 }
+
+#pragma clang assume_nonnull end
+
+/* Hide implementation-detail macros from Swift, which would otherwise
+ * import them as top-level `let` constants (`ZSTD_NULLABILITY`, the
+ * `<stdbool.h>` sentinel).  The features they control are already in
+ * scope; the macro values are not part of the API.  */
+#undef ZSTD_NULLABILITY
+#undef __bool_true_false_are_defined

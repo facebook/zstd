@@ -11,6 +11,12 @@
 #ifndef ZSTD_ERRORS_H_398273423
 #define ZSTD_ERRORS_H_398273423
 
+#include "zstd_annotations.h"
+
+#if ZSTD_NULLABILITY
+#pragma clang assume_nonnull begin
+#endif
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
@@ -102,6 +108,10 @@ ZSTDERRORLIB_API const char* ZSTD_getErrorString(ZSTD_ErrorCode code);   /**< Sa
 
 #if defined (__cplusplus)
 }
+#endif
+
+#if ZSTD_NULLABILITY
+#pragma clang assume_nonnull end
 #endif
 
 #endif /* ZSTD_ERRORS_H_398273423 */

@@ -1,0 +1,11 @@
+// Modulemap for the modern Zstd Swift module.
+// Includes textual references to the real headers (which live in lib/),
+// then the umbrella header sets the ZSTD_FOR_SWIFT_MODERN_API macro
+// and `#include`s those headers, picking up the modern annotations.
+module Zstd [extern_c] {
+    header "Zstd_module.h"
+    textual header "../../../lib/zstd.h"
+    textual header "../../../lib/zdict.h"
+    textual header "../../../lib/zstd_errors.h"
+    export *
+}

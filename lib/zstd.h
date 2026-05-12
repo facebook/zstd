@@ -15,6 +15,33 @@
 /* ======   Dependencies   ======*/
 #include <stddef.h>   /* size_t */
 
+/* ZSTD_ENUM_{OPEN,CLOSED} : optionally tag enums with
+ * `__attribute__((enum_extensibility(...)))`. Only the modern `Zstd` Swift
+ * module enables this (via its umbrella header `Zstd_module.h`); the legacy
+ * `libzstd` module and plain C consumers see no-ops, so the enums import /
+ * compile exactly as they did pre-annotation. The macros are gated on
+ * `__has_attribute(enum_extensibility)` for safety on older compilers.
+ *
+ * Defined here (before `zstd_errors.h` is included) so that header can use
+ * the same macros when declaring `ZSTD_ErrorCode`. */
+#if defined(ZSTD_FOR_SWIFT_MODERN_API) && defined(__has_attribute) && __has_attribute(enum_extensibility)
+#  define ZSTD_ENUM_OPEN   __attribute__((enum_extensibility(open)))
+#  define ZSTD_ENUM_CLOSED __attribute__((enum_extensibility(closed)))
+#else
+#  define ZSTD_ENUM_OPEN
+#  define ZSTD_ENUM_CLOSED
+#endif
+
+/* Struct field renames for the modern Swift import. apinotes doesn't
+ * support a `Fields:` section, so we use `swift_name` directly on the
+ * field declarations — gated on the modern-API macro so the libzstd
+ * module sees the original C names unchanged. */
+#if defined(ZSTD_FOR_SWIFT_MODERN_API) && defined(__has_attribute) && __has_attribute(swift_name)
+#  define ZSTD_SWIFT_FIELD(name) __attribute__((swift_name(name)))
+#else
+#  define ZSTD_SWIFT_FIELD(name)
+#endif
+
 #include "zstd_errors.h" /* list of errors */
 #if defined(ZSTD_STATIC_LINKING_ONLY) && !defined(ZSTD_H_ZSTD_STATIC_LINKING_ONLY)
 #include <limits.h>   /* INT_MAX */
@@ -332,21 +359,23 @@ ZSTDLIB_API size_t ZSTD_decompressDCtx(ZSTD_DCtx* dctx,
  */
 
 
-/* Compression strategies, listed from fastest to strongest */
-typedef enum { ZSTD_fast=1,
-               ZSTD_dfast=2,
-               ZSTD_greedy=3,
-               ZSTD_lazy=4,
-               ZSTD_lazy2=5,
-               ZSTD_btlazy2=6,
-               ZSTD_btopt=7,
-               ZSTD_btultra=8,
-               ZSTD_btultra2=9
+/* Compression strategies, listed from fastest to strongest.
+ * Marked open: zstd reserves the right to add new strategies in the future. */
+typedef enum ZSTD_ENUM_OPEN {
+                ZSTD_fast=1,
+                ZSTD_dfast=2,
+                ZSTD_greedy=3,
+                ZSTD_lazy=4,
+                ZSTD_lazy2=5,
+                ZSTD_btlazy2=6,
+                ZSTD_btopt=7,
+                ZSTD_btultra=8,
+                ZSTD_btultra2=9
                /* note : new strategies _might_ be added in the future.
                          Only the order (from fast to strong) is guaranteed */
 } ZSTD_strategy;
 
-typedef enum {
+typedef enum ZSTD_ENUM_OPEN {
 
     /* compression parameters
      * Note: When compressing with a ZSTD_CDict these parameters are superseded
@@ -586,7 +615,7 @@ ZSTDLIB_API size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param
  */
 ZSTDLIB_API size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long long pledgedSrcSize);
 
-typedef enum {
+typedef enum ZSTD_ENUM_CLOSED {
     ZSTD_reset_session_only = 1,
     ZSTD_reset_parameters = 2,
     ZSTD_reset_session_and_parameters = 3
@@ -637,7 +666,7 @@ ZSTDLIB_API size_t ZSTD_compress2( ZSTD_CCtx* cctx,
  *        Therefore, no new decompression function is necessary.
  */
 
-typedef enum {
+typedef enum ZSTD_ENUM_OPEN {
 
     ZSTD_d_windowLogMax=100, /* Select a size limit (in power of 2) beyond which
                               * the streaming API will refuse to allocate memory buffer
@@ -699,15 +728,15 @@ ZSTDLIB_API size_t ZSTD_DCtx_reset(ZSTD_DCtx* dctx, ZSTD_ResetDirective reset);
 ****************************/
 
 typedef struct ZSTD_inBuffer_s {
-  const void* src;    /**< start of input buffer */
-  size_t size;        /**< size of input buffer */
-  size_t pos;         /**< position where reading stopped. Will be updated. Necessarily 0 <= pos <= size */
+  const void* src        ZSTD_SWIFT_FIELD("source");   /**< start of input buffer */
+  size_t size;                                         /**< size of input buffer */
+  size_t pos             ZSTD_SWIFT_FIELD("position"); /**< position where reading stopped. Will be updated. Necessarily 0 <= pos <= size */
 } ZSTD_inBuffer;
 
 typedef struct ZSTD_outBuffer_s {
-  void*  dst;         /**< start of output buffer */
-  size_t size;        /**< size of output buffer */
-  size_t pos;         /**< position where writing stopped. Will be updated. Necessarily 0 <= pos <= size */
+  void* dst              ZSTD_SWIFT_FIELD("destination"); /**< start of output buffer */
+  size_t size;                                            /**< size of output buffer */
+  size_t pos             ZSTD_SWIFT_FIELD("position");    /**< position where writing stopped. Will be updated. Necessarily 0 <= pos <= size */
 } ZSTD_outBuffer;
 
 
@@ -780,7 +809,7 @@ ZSTDLIB_API ZSTD_CStream* ZSTD_createCStream(void);
 ZSTDLIB_API size_t ZSTD_freeCStream(ZSTD_CStream* zcs);  /* accept NULL pointer */
 
 /*===== Streaming compression functions =====*/
-typedef enum {
+typedef enum ZSTD_ENUM_CLOSED {
     ZSTD_e_continue=0, /* collect more data, encoder decides when to output compressed result, for optimal compression ratio */
     ZSTD_e_flush=1,    /* flush any data provided so far,
                         * it creates (at least) one new block, that can be decoded immediately on reception;
@@ -1370,37 +1399,37 @@ typedef struct {
     ZSTD_frameParameters fParams;
 } ZSTD_parameters;
 
-typedef enum {
+typedef enum ZSTD_ENUM_CLOSED {
     ZSTD_dct_auto = 0,       /* dictionary is "full" when starting with ZSTD_MAGIC_DICTIONARY, otherwise it is "rawContent" */
     ZSTD_dct_rawContent = 1, /* ensures dictionary is always loaded as rawContent, even if it starts with ZSTD_MAGIC_DICTIONARY */
     ZSTD_dct_fullDict = 2    /* refuses to load a dictionary if it does not respect Zstandard's specification, starting with ZSTD_MAGIC_DICTIONARY */
 } ZSTD_dictContentType_e;
 
-typedef enum {
+typedef enum ZSTD_ENUM_CLOSED {
     ZSTD_dlm_byCopy = 0,  /**< Copy dictionary content internally */
     ZSTD_dlm_byRef = 1    /**< Reference dictionary content -- the dictionary buffer must outlive its users. */
 } ZSTD_dictLoadMethod_e;
 
-typedef enum {
+typedef enum ZSTD_ENUM_CLOSED {
     ZSTD_f_zstd1 = 0,           /* zstd frame format, specified in zstd_compression_format.md (default) */
     ZSTD_f_zstd1_magicless = 1  /* Variant of zstd frame format, without initial 4-bytes magic number.
                                  * Useful to save 4 bytes per generated frame.
                                  * Decoder cannot recognise automatically this format, requiring this instruction. */
 } ZSTD_format_e;
 
-typedef enum {
+typedef enum ZSTD_ENUM_CLOSED {
     /* Note: this enum controls ZSTD_d_forceIgnoreChecksum */
     ZSTD_d_validateChecksum = 0,
     ZSTD_d_ignoreChecksum = 1
 } ZSTD_forceIgnoreChecksum_e;
 
-typedef enum {
+typedef enum ZSTD_ENUM_CLOSED {
     /* Note: this enum controls ZSTD_d_refMultipleDDicts */
     ZSTD_rmd_refSingleDDict = 0,
     ZSTD_rmd_refMultipleDDicts = 1
 } ZSTD_refMultipleDDicts_e;
 
-typedef enum {
+typedef enum ZSTD_ENUM_CLOSED {
     /* Note: this enum and the behavior it controls are effectively internal
      * implementation details of the compressor. They are expected to continue
      * to evolve and should be considered only in the context of extremely
@@ -1439,7 +1468,7 @@ typedef enum {
     ZSTD_dictForceLoad     = 3  /* Always reload the dictionary */
 } ZSTD_dictAttachPref_e;
 
-typedef enum {
+typedef enum ZSTD_ENUM_CLOSED {
   ZSTD_lcm_auto = 0,          /**< Automatically determine the compression mode based on the compression level.
                                *   Negative compression levels will be uncompressed, and positive compression
                                *   levels will be compressed. */
@@ -1448,7 +1477,7 @@ typedef enum {
   ZSTD_lcm_uncompressed = 2   /**< Always emit uncompressed literals. */
 } ZSTD_literalCompressionMode_e;
 
-typedef enum {
+typedef enum ZSTD_ENUM_CLOSED {
   /* Note: This enum controls features which are conditionally beneficial.
    * Zstd can take a decision on whether or not to enable the feature (ZSTD_ps_auto),
    * but setting the switch to ZSTD_ps_enable or ZSTD_ps_disable force enable/disable the feature.
@@ -1507,7 +1536,7 @@ ZSTDLIB_STATIC_API unsigned long long ZSTD_decompressBound(const void* src, size
  *           or an error code (if srcSize is too small) */
 ZSTDLIB_STATIC_API size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize);
 
-typedef enum { ZSTD_frame, ZSTD_skippableFrame } ZSTD_FrameType_e;
+typedef enum ZSTD_ENUM_CLOSED { ZSTD_frame, ZSTD_skippableFrame } ZSTD_FrameType_e;
 #define ZSTD_frameType_e ZSTD_FrameType_e /* old name */
 typedef struct {
     unsigned long long frameContentSize; /* if == ZSTD_CONTENTSIZE_UNKNOWN, it means this field is not available. 0 means "empty" */
@@ -1578,7 +1607,7 @@ ZSTDLIB_STATIC_API size_t ZSTD_decompressionMargin(const void* src, size_t srcSi
         (blockSize)                                                                    /* One block of margin */   \
     ))
 
-typedef enum {
+typedef enum ZSTD_ENUM_CLOSED {
   ZSTD_sf_noBlockDelimiters = 0,         /* ZSTD_Sequence[] has no block delimiters, just sequences */
   ZSTD_sf_explicitBlockDelimiters = 1    /* ZSTD_Sequence[] contains explicit block delimiters */
 } ZSTD_SequenceFormat_e;
@@ -3132,7 +3161,7 @@ ZSTDLIB_STATIC_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, si
 /* misc */
 ZSTD_DEPRECATED("This function will likely be removed in the next minor release. It is misleading and has very limited utility.")
 ZSTDLIB_STATIC_API void   ZSTD_copyDCtx(ZSTD_DCtx* dctx, const ZSTD_DCtx* preparedDCtx);
-typedef enum { ZSTDnit_frameHeader, ZSTDnit_blockHeader, ZSTDnit_block, ZSTDnit_lastBlock, ZSTDnit_checksum, ZSTDnit_skippableFrame } ZSTD_nextInputType_e;
+typedef enum ZSTD_ENUM_CLOSED { ZSTDnit_frameHeader, ZSTDnit_blockHeader, ZSTDnit_block, ZSTDnit_lastBlock, ZSTDnit_checksum, ZSTDnit_skippableFrame } ZSTD_nextInputType_e;
 ZSTDLIB_STATIC_API ZSTD_nextInputType_e ZSTD_nextInputType(ZSTD_DCtx* dctx);
 
 

@@ -57,7 +57,7 @@ extern "C" {
  *           This is the only supported way to use the error list < v1.3.1
  *  note 3 : ZSTD_isError() is always correct, whatever the library version.
  **********************************************/
-typedef enum {
+typedef enum ZSTD_ENUM_OPEN {
   ZSTD_error_no_error = 0,
   ZSTD_error_GENERIC  = 1,
   ZSTD_error_prefix_unknown                = 10,

@@ -16,7 +16,7 @@ Distribution of this document is unlimited.
 
 ### Version
 
-0.4.4 (2025-03-22)
+0.4.5 (2026-05-14)
 
 
 Introduction
@@ -387,19 +387,23 @@ When `Block_Type` is `RLE_Block`, since `Block_Content`’s size is always 1,
 
 __`Block_Content`__ and __`Block_Maximum_Size`__
 
-The size of `Block_Content` is limited by `Block_Maximum_Size`,
-which is the smallest of:
+The size of `Block_Content` is limited by `Block_Maximum_Size`, which is
+determined once for a given frame and is the smallest of:
 -  `Window_Size`
 -  128 KiB (131.072 bytes)
 
-`Block_Maximum_Size` is constant for a given frame.
-This maximum is applicable to both the decompressed size
-and the compressed size of any block in the frame.
+Both the `Block_Content` and the decompressed size of any block in the frame must
+be no larger than `Block_Maximum_Size`.
 
 The reasoning for this limit is that a decoder can read this information
 at the beginning of a frame and use it to allocate buffers.
 The guarantees on the size of blocks ensure that
 the buffers will be large enough for any following block of the valid frame.
+
+If a compressed block is larger than its uncompressed content, it is recommended
+to send it uncompressed (i.e., a `Raw_Block`). However, as long as
+`Block_Content` is no larger than `Block_Maximum_Size`, it is legal to send such
+a compressed block, even if it's larger than its uncompressed content.
 
 
 Compressed Blocks
@@ -1742,6 +1746,7 @@ or at least provide a meaningful error code explaining for which reason it canno
 
 Version changes
 ---------------
+- 0.4.5 : minor clarification regarding Block_Maximum_Size
 - 0.4.4 : minor clarification for block size
 - 0.4.3 : clarifications for Huffman prefix code assignment example
 - 0.4.2 : refactor FSE table construction process, inspired by Donald Pian

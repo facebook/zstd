@@ -79,6 +79,20 @@ There are however other Makefile targets that create different variations of CLI
   This can be useful to produce smaller binaries.
   A corresponding `Makefile` target using this ability is `zstd-compress`.
 
+- __ZSTDCLI_CLEVEL_DEFAULT__ : Controls the default compression level of `zstd`.
+  The default value is `3`. Runtime parameters, such as `-#` or `ZSTD_CLEVEL`,
+  take precedence over this compile-time default.
+  Example : `CPPFLAGS="-DZSTDCLI_CLEVEL_DEFAULT=5" make`
+
+- __ZSTDCLI_CLEVEL_MAX__ : Controls the maximum compression level accepted by
+  `zstd` without `--ultra`. The default value is `19`.
+  Example : `CPPFLAGS="-DZSTDCLI_CLEVEL_MAX=22" make`
+
+- __ZSTDCLI_NBTHREADS_DEFAULT__ : Controls the default number of worker threads
+  selected by `zstd`. Runtime parameters, such as `-T#` or `ZSTD_NBTHREADS`,
+  take precedence over this compile-time default.
+  Example : `CPPFLAGS="-DZSTDCLI_NBTHREADS_DEFAULT=8" make`
+
 - __ZSTD_DISPLAY_LEVEL_DEFAULT__ : Controls the default verbosity level of `zstd` output.
   The default value is `2`. Lower values (e.g., `1`) reduce output verbosity,
   while higher values (e.g., `3`) increase it.

@@ -126,14 +126,14 @@ pub fn build(b: *std.Build) void {
     zstd_lib.root_module.addIncludePath(b.path("lib/dictBuilder"));
 
     // Common sources
-    zstd_lib.addCSourceFiles(.{
+    zstd_lib.root_module.addCSourceFiles(.{
         .root = b.path("lib/common"),
         .files = &common_sources,
         .flags = flags,
     });
 
     if (build_compression) {
-        zstd_lib.addCSourceFiles(.{
+        zstd_lib.root_module.addCSourceFiles(.{
             .root = b.path("lib/compress"),
             .files = &compress_sources,
             .flags = flags,
@@ -141,7 +141,7 @@ pub fn build(b: *std.Build) void {
     }
 
     if (build_decompression) {
-        zstd_lib.addCSourceFiles(.{
+        zstd_lib.root_module.addCSourceFiles(.{
             .root = b.path("lib/decompress"),
             .files = &decompress_sources,
             .flags = flags,
@@ -149,7 +149,7 @@ pub fn build(b: *std.Build) void {
 
         // ASM support only if NOT freestanding (or carefully checked)
         if (target.result.os.tag != .freestanding and target.result.cpu.arch == .x86_64) {
-            zstd_lib.addCSourceFiles(.{
+            zstd_lib.root_module.addCSourceFiles(.{
                 .root = b.path("lib/decompress"),
                 .files = &.{"huf_decompress_amd64.S"},
                 .flags = flags,
@@ -161,7 +161,7 @@ pub fn build(b: *std.Build) void {
 
     if (build_dictbuilder and target.result.os.tag != .freestanding) {
         // DictBuilder often needs math/stdlib, might fail in pure freestanding without hard-float/libm
-        zstd_lib.addCSourceFiles(.{
+        zstd_lib.root_module.addCSourceFiles(.{
             .root = b.path("lib/dictBuilder"),
             .files = &dictbuilder_sources,
             .flags = flags,
@@ -169,7 +169,7 @@ pub fn build(b: *std.Build) void {
     }
 
     if (build_deprecated) {
-        zstd_lib.addCSourceFiles(.{
+        zstd_lib.root_module.addCSourceFiles(.{
             .root = b.path("lib/deprecated"),
             .files = &deprecated_sources,
             .flags = flags,
@@ -179,7 +179,7 @@ pub fn build(b: *std.Build) void {
     if (build_legacy) {
         zstd_lib.root_module.addCMacro("ZSTD_LEGACY_SUPPORT", "1");
         zstd_lib.root_module.addIncludePath(b.path("lib/legacy"));
-        zstd_lib.addCSourceFiles(.{
+        zstd_lib.root_module.addCSourceFiles(.{
             .root = b.path("lib/legacy"),
             .files = &legacy_sources,
             .flags = flags,
@@ -245,7 +245,7 @@ pub fn build(b: *std.Build) void {
                 }),
             });
             exe.root_module.addImport("zstd", zstd_module);
-            exe.linkLibrary(zstd_lib);
+            exe.root_module.linkLibrary(zstd_lib);
 
             b.installArtifact(exe);
 
@@ -277,7 +277,7 @@ pub fn build(b: *std.Build) void {
             }),
         });
         simple_compression_exe.root_module.addImport("zstd", zstd_module);
-        simple_compression_exe.linkLibrary(zstd_lib);
+        simple_compression_exe.root_module.linkLibrary(zstd_lib);
 
         const run_compress = b.addRunArtifact(simple_compression_exe);
         run_compress.addArgs(&.{"README.md"});

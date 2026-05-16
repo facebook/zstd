@@ -125,6 +125,13 @@ pub fn build(b: *std.Build) void {
     zstd_lib.root_module.addIncludePath(b.path("lib/decompress"));
     zstd_lib.root_module.addIncludePath(b.path("lib/dictBuilder"));
 
+    // On Apple ARM (macOS aarch64) disable intrinsics/ASM to avoid
+    // NEON/assembly builtin issues when compiling vendored C sources with Zig.
+    if (target.result.os.tag == .macos and target.result.cpu.arch == .aarch64) {
+        zstd_lib.root_module.addCMacro("ZSTD_NO_INTRINSICS", "");
+        zstd_lib.root_module.addCMacro("ZSTD_DISABLE_ASM", "");
+    }
+
     // Common sources
     zstd_lib.root_module.addCSourceFiles(.{
         .root = b.path("lib/common"),

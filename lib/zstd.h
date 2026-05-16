@@ -1255,6 +1255,10 @@ ZSTDLIB_API size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict);
 #if defined(ZSTD_STATIC_LINKING_ONLY) && !defined(ZSTD_H_ZSTD_STATIC_LINKING_ONLY)
 #define ZSTD_H_ZSTD_STATIC_LINKING_ONLY
 
+#if ZSTD_NULLABILITY
+#pragma clang assume_nonnull begin
+#endif
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
@@ -1764,7 +1768,7 @@ ZSTDLIB_STATIC_API size_t ZSTD_writeSkippableFrame(void* dst, size_t dstCapacity
  * @return : number of bytes written or a ZSTD error.
  */
 ZSTDLIB_STATIC_API size_t ZSTD_readSkippableFrame(void* dst, size_t dstCapacity,
-                                                  unsigned* magicVariant,
+                                                  unsigned* ZSTD_NULLABLE magicVariant,
                                                   const void* src, size_t srcSize);
 
 /*! ZSTD_isSkippableFrame() :
@@ -1866,22 +1870,22 @@ ZSTDLIB_STATIC_API size_t ZSTD_estimateDDictSize(size_t dictSize, ZSTD_dictLoadM
  *  Limitation 2 : static cctx currently not compatible with multi-threading.
  *  Limitation 3 : static dctx is incompatible with legacy support.
  */
-ZSTDLIB_STATIC_API ZSTD_CCtx*    ZSTD_initStaticCCtx(void* workspace, size_t workspaceSize);
-ZSTDLIB_STATIC_API ZSTD_CStream* ZSTD_initStaticCStream(void* workspace, size_t workspaceSize);    /**< same as ZSTD_initStaticCCtx() */
+ZSTDLIB_STATIC_API ZSTD_CCtx*    ZSTD_NULLABLE ZSTD_initStaticCCtx(void* workspace, size_t workspaceSize);
+ZSTDLIB_STATIC_API ZSTD_CStream* ZSTD_NULLABLE ZSTD_initStaticCStream(void* workspace, size_t workspaceSize);    /**< same as ZSTD_initStaticCCtx() */
 
-ZSTDLIB_STATIC_API ZSTD_DCtx*    ZSTD_initStaticDCtx(void* workspace, size_t workspaceSize);
-ZSTDLIB_STATIC_API ZSTD_DStream* ZSTD_initStaticDStream(void* workspace, size_t workspaceSize);    /**< same as ZSTD_initStaticDCtx() */
+ZSTDLIB_STATIC_API ZSTD_DCtx*    ZSTD_NULLABLE ZSTD_initStaticDCtx(void* workspace, size_t workspaceSize);
+ZSTDLIB_STATIC_API ZSTD_DStream* ZSTD_NULLABLE ZSTD_initStaticDStream(void* workspace, size_t workspaceSize);    /**< same as ZSTD_initStaticDCtx() */
 
-ZSTDLIB_STATIC_API const ZSTD_CDict* ZSTD_initStaticCDict(
+ZSTDLIB_STATIC_API const ZSTD_CDict* ZSTD_NULLABLE ZSTD_initStaticCDict(
                                         void* workspace, size_t workspaceSize,
-                                        const void* dict, size_t dictSize,
+                                        const void* ZSTD_NULLABLE dict, size_t dictSize,
                                         ZSTD_dictLoadMethod_e dictLoadMethod,
                                         ZSTD_dictContentType_e dictContentType,
                                         ZSTD_compressionParameters cParams);
 
-ZSTDLIB_STATIC_API const ZSTD_DDict* ZSTD_initStaticDDict(
+ZSTDLIB_STATIC_API const ZSTD_DDict* ZSTD_NULLABLE ZSTD_initStaticDDict(
                                         void* workspace, size_t workspaceSize,
-                                        const void* dict, size_t dictSize,
+                                        const void* ZSTD_NULLABLE dict, size_t dictSize,
                                         ZSTD_dictLoadMethod_e dictLoadMethod,
                                         ZSTD_dictContentType_e dictContentType);
 
@@ -1891,9 +1895,9 @@ ZSTDLIB_STATIC_API const ZSTD_DDict* ZSTD_initStaticDDict(
  *  ZSTD_customMem is provided at creation time, using ZSTD_create*_advanced() variants listed below.
  *  All allocation/free operations will be completed using these custom variants instead of regular <stdlib.h> ones.
  */
-typedef void* (*ZSTD_allocFunction) (void* opaque, size_t size);
-typedef void  (*ZSTD_freeFunction) (void* opaque, void* address);
-typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; void* opaque; } ZSTD_customMem;
+typedef void* ZSTD_NULLABLE (*ZSTD_allocFunction) (void* ZSTD_NULLABLE opaque, size_t size);
+typedef void  (*ZSTD_freeFunction) (void* ZSTD_NULLABLE opaque, void* ZSTD_NULLABLE address);
+typedef struct { ZSTD_allocFunction customAlloc; ZSTD_freeFunction customFree; void* ZSTD_NULLABLE opaque; } ZSTD_customMem;
 #if defined(__clang__) && __clang_major__ >= 5
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wzero-as-null-pointer-constant"
@@ -1907,12 +1911,12 @@ ZSTD_customMem const ZSTD_defaultCMem = { NULL, NULL, NULL };  /**< this constan
 #pragma clang diagnostic pop
 #endif
 
-ZSTDLIB_STATIC_API ZSTD_CCtx*    ZSTD_createCCtx_advanced(ZSTD_customMem customMem);
-ZSTDLIB_STATIC_API ZSTD_CStream* ZSTD_createCStream_advanced(ZSTD_customMem customMem);
-ZSTDLIB_STATIC_API ZSTD_DCtx*    ZSTD_createDCtx_advanced(ZSTD_customMem customMem);
-ZSTDLIB_STATIC_API ZSTD_DStream* ZSTD_createDStream_advanced(ZSTD_customMem customMem);
+ZSTDLIB_STATIC_API ZSTD_CCtx*    ZSTD_NULLABLE ZSTD_createCCtx_advanced(ZSTD_customMem customMem);
+ZSTDLIB_STATIC_API ZSTD_CStream* ZSTD_NULLABLE ZSTD_createCStream_advanced(ZSTD_customMem customMem);
+ZSTDLIB_STATIC_API ZSTD_DCtx*    ZSTD_NULLABLE ZSTD_createDCtx_advanced(ZSTD_customMem customMem);
+ZSTDLIB_STATIC_API ZSTD_DStream* ZSTD_NULLABLE ZSTD_createDStream_advanced(ZSTD_customMem customMem);
 
-ZSTDLIB_STATIC_API ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_t dictSize,
+ZSTDLIB_STATIC_API ZSTD_CDict* ZSTD_NULLABLE ZSTD_createCDict_advanced(const void* ZSTD_NULLABLE dict, size_t dictSize,
                                                   ZSTD_dictLoadMethod_e dictLoadMethod,
                                                   ZSTD_dictContentType_e dictContentType,
                                                   ZSTD_compressionParameters cParams,
@@ -1929,23 +1933,23 @@ ZSTDLIB_STATIC_API ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_
  *  ZSTD_freeThreadPool frees a thread pool, accepts NULL pointer.
  */
 typedef struct POOL_ctx_s ZSTD_threadPool;
-ZSTDLIB_STATIC_API ZSTD_threadPool* ZSTD_createThreadPool(size_t numThreads);
-ZSTDLIB_STATIC_API void ZSTD_freeThreadPool (ZSTD_threadPool* pool);  /* accept NULL pointer */
-ZSTDLIB_STATIC_API size_t ZSTD_CCtx_refThreadPool(ZSTD_CCtx* cctx, ZSTD_threadPool* pool);
+ZSTDLIB_STATIC_API ZSTD_threadPool* ZSTD_NULLABLE ZSTD_createThreadPool(size_t numThreads);
+ZSTDLIB_STATIC_API void ZSTD_freeThreadPool (ZSTD_threadPool* ZSTD_NULLABLE pool);  /* accept NULL pointer */
+ZSTDLIB_STATIC_API size_t ZSTD_CCtx_refThreadPool(ZSTD_CCtx* cctx, ZSTD_threadPool* ZSTD_NULLABLE pool);
 
 
 /*
  * This API is temporary and is expected to change or disappear in the future!
  */
-ZSTDLIB_STATIC_API ZSTD_CDict* ZSTD_createCDict_advanced2(
-    const void* dict, size_t dictSize,
+ZSTDLIB_STATIC_API ZSTD_CDict* ZSTD_NULLABLE ZSTD_createCDict_advanced2(
+    const void* ZSTD_NULLABLE dict, size_t dictSize,
     ZSTD_dictLoadMethod_e dictLoadMethod,
     ZSTD_dictContentType_e dictContentType,
     const ZSTD_CCtx_params* cctxParams,
     ZSTD_customMem customMem);
 
-ZSTDLIB_STATIC_API ZSTD_DDict* ZSTD_createDDict_advanced(
-    const void* dict, size_t dictSize,
+ZSTDLIB_STATIC_API ZSTD_DDict* ZSTD_NULLABLE ZSTD_createDDict_advanced(
+    const void* ZSTD_NULLABLE dict, size_t dictSize,
     ZSTD_dictLoadMethod_e dictLoadMethod,
     ZSTD_dictContentType_e dictContentType,
     ZSTD_customMem customMem);
@@ -1961,7 +1965,7 @@ ZSTDLIB_STATIC_API ZSTD_DDict* ZSTD_createDDict_advanced(
  *  As a consequence, `dictBuffer` **must** outlive CDict,
  *  and its content must remain unmodified throughout the lifetime of CDict.
  *  note: equivalent to ZSTD_createCDict_advanced(), with dictLoadMethod==ZSTD_dlm_byRef */
-ZSTDLIB_STATIC_API ZSTD_CDict* ZSTD_createCDict_byReference(const void* dictBuffer, size_t dictSize, int compressionLevel);
+ZSTDLIB_STATIC_API ZSTD_CDict* ZSTD_NULLABLE ZSTD_createCDict_byReference(const void* ZSTD_NULLABLE dictBuffer, size_t dictSize, int compressionLevel);
 
 /*! ZSTD_getCParams() :
  * @return ZSTD_compressionParameters structure for a selected compression level and estimated srcSize.
@@ -2016,7 +2020,7 @@ ZSTDLIB_STATIC_API
 size_t ZSTD_compress_advanced(ZSTD_CCtx* cctx,
                               void* dst, size_t dstCapacity,
                         const void* src, size_t srcSize,
-                        const void* dict,size_t dictSize,
+                        const void* ZSTD_NULLABLE dict, size_t dictSize,
                               ZSTD_parameters params);
 
 /*! ZSTD_compress_usingCDict_advanced() :
@@ -2035,18 +2039,18 @@ size_t ZSTD_compress_usingCDict_advanced(ZSTD_CCtx* cctx,
 /*! ZSTD_CCtx_loadDictionary_byReference() :
  *  Same as ZSTD_CCtx_loadDictionary(), but dictionary content is referenced, instead of being copied into CCtx.
  *  It saves some memory, but also requires that `dict` outlives its usage within `cctx` */
-ZSTDLIB_STATIC_API size_t ZSTD_CCtx_loadDictionary_byReference(ZSTD_CCtx* cctx, const void* dict, size_t dictSize);
+ZSTDLIB_STATIC_API size_t ZSTD_CCtx_loadDictionary_byReference(ZSTD_CCtx* cctx, const void* ZSTD_NULLABLE dict, size_t dictSize);
 
 /*! ZSTD_CCtx_loadDictionary_advanced() :
  *  Same as ZSTD_CCtx_loadDictionary(), but gives finer control over
  *  how to load the dictionary (by copy ? by reference ?)
  *  and how to interpret it (automatic ? force raw mode ? full mode only ?) */
-ZSTDLIB_STATIC_API size_t ZSTD_CCtx_loadDictionary_advanced(ZSTD_CCtx* cctx, const void* dict, size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMethod, ZSTD_dictContentType_e dictContentType);
+ZSTDLIB_STATIC_API size_t ZSTD_CCtx_loadDictionary_advanced(ZSTD_CCtx* cctx, const void* ZSTD_NULLABLE dict, size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMethod, ZSTD_dictContentType_e dictContentType);
 
 /*! ZSTD_CCtx_refPrefix_advanced() :
  *  Same as ZSTD_CCtx_refPrefix(), but gives finer control over
  *  how to interpret prefix content (automatic ? force raw mode (default) ? full mode only ?) */
-ZSTDLIB_STATIC_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* prefix, size_t prefixSize, ZSTD_dictContentType_e dictContentType);
+ZSTDLIB_STATIC_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const void* ZSTD_NULLABLE prefix, size_t prefixSize, ZSTD_dictContentType_e dictContentType);
 
 /* ===   experimental parameters   === */
 /* these parameters can be used with ZSTD_setParameter()
@@ -2406,8 +2410,8 @@ ZSTDLIB_STATIC_API size_t ZSTD_CCtx_getParameter(const ZSTD_CCtx* cctx, ZSTD_cPa
  *  This can be used with ZSTD_estimateCCtxSize_advanced_usingCCtxParams()
  *  for static allocation of CCtx for single-threaded compression.
  */
-ZSTDLIB_STATIC_API ZSTD_CCtx_params* ZSTD_createCCtxParams(void);
-ZSTDLIB_STATIC_API size_t ZSTD_freeCCtxParams(ZSTD_CCtx_params* params);  /* accept NULL pointer */
+ZSTDLIB_STATIC_API ZSTD_CCtx_params* ZSTD_NULLABLE ZSTD_createCCtxParams(void);
+ZSTDLIB_STATIC_API size_t ZSTD_freeCCtxParams(ZSTD_CCtx_params* ZSTD_NULLABLE params);  /* accept NULL pointer */
 
 /*! ZSTD_CCtxParams_reset() :
  *  Reset params to default values.
@@ -2482,26 +2486,26 @@ ZSTDLIB_STATIC_API unsigned ZSTD_isFrame(const void* buffer, size_t size);
  *  Dictionary content is referenced, and therefore stays in dictBuffer.
  *  It is important that dictBuffer outlives DDict,
  *  it must remain read accessible throughout the lifetime of DDict */
-ZSTDLIB_STATIC_API ZSTD_DDict* ZSTD_createDDict_byReference(const void* dictBuffer, size_t dictSize);
+ZSTDLIB_STATIC_API ZSTD_DDict* ZSTD_NULLABLE ZSTD_createDDict_byReference(const void* ZSTD_NULLABLE dictBuffer, size_t dictSize);
 
 /*! ZSTD_DCtx_loadDictionary_byReference() :
  *  Same as ZSTD_DCtx_loadDictionary(),
  *  but references `dict` content instead of copying it into `dctx`.
  *  This saves memory if `dict` remains around.,
  *  However, it's imperative that `dict` remains accessible (and unmodified) while being used, so it must outlive decompression. */
-ZSTDLIB_STATIC_API size_t ZSTD_DCtx_loadDictionary_byReference(ZSTD_DCtx* dctx, const void* dict, size_t dictSize);
+ZSTDLIB_STATIC_API size_t ZSTD_DCtx_loadDictionary_byReference(ZSTD_DCtx* dctx, const void* ZSTD_NULLABLE dict, size_t dictSize);
 
 /*! ZSTD_DCtx_loadDictionary_advanced() :
  *  Same as ZSTD_DCtx_loadDictionary(),
  *  but gives direct control over
  *  how to load the dictionary (by copy ? by reference ?)
  *  and how to interpret it (automatic ? force raw mode ? full mode only ?). */
-ZSTDLIB_STATIC_API size_t ZSTD_DCtx_loadDictionary_advanced(ZSTD_DCtx* dctx, const void* dict, size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMethod, ZSTD_dictContentType_e dictContentType);
+ZSTDLIB_STATIC_API size_t ZSTD_DCtx_loadDictionary_advanced(ZSTD_DCtx* dctx, const void* ZSTD_NULLABLE dict, size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMethod, ZSTD_dictContentType_e dictContentType);
 
 /*! ZSTD_DCtx_refPrefix_advanced() :
  *  Same as ZSTD_DCtx_refPrefix(), but gives finer control over
  *  how to interpret prefix content (automatic ? force raw mode (default) ? full mode only ?) */
-ZSTDLIB_STATIC_API size_t ZSTD_DCtx_refPrefix_advanced(ZSTD_DCtx* dctx, const void* prefix, size_t prefixSize, ZSTD_dictContentType_e dictContentType);
+ZSTDLIB_STATIC_API size_t ZSTD_DCtx_refPrefix_advanced(ZSTD_DCtx* dctx, const void* ZSTD_NULLABLE prefix, size_t prefixSize, ZSTD_dictContentType_e dictContentType);
 
 /*! ZSTD_DCtx_setMaxWindowSize() :
  *  Refuses allocating internal buffers for frames requiring a window size larger than provided limit.
@@ -2682,7 +2686,7 @@ size_t ZSTD_initCStream_srcSize(ZSTD_CStream* zcs,
 ZSTD_DEPRECATED("use ZSTD_CCtx_reset, see zstd.h for detailed instructions")
 ZSTDLIB_STATIC_API
 size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs,
-                     const void* dict, size_t dictSize,
+                     const void* ZSTD_NULLABLE dict, size_t dictSize,
                            int compressionLevel);
 
 /*! ZSTD_initCStream_advanced() :
@@ -2700,7 +2704,7 @@ size_t ZSTD_initCStream_usingDict(ZSTD_CStream* zcs,
 ZSTD_DEPRECATED("use ZSTD_CCtx_reset, see zstd.h for detailed instructions")
 ZSTDLIB_STATIC_API
 size_t ZSTD_initCStream_advanced(ZSTD_CStream* zcs,
-                    const void* dict, size_t dictSize,
+                    const void* ZSTD_NULLABLE dict, size_t dictSize,
                           ZSTD_parameters params,
                           unsigned long long pledgedSrcSize);
 
@@ -2802,7 +2806,7 @@ ZSTDLIB_STATIC_API size_t ZSTD_toFlushNow(ZSTD_CCtx* cctx);
  * note: no dictionary will be used if dict == NULL or dictSize < 8
  */
 ZSTD_DEPRECATED("use ZSTD_DCtx_reset + ZSTD_DCtx_loadDictionary, see zstd.h for detailed instructions")
-ZSTDLIB_STATIC_API size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* dict, size_t dictSize);
+ZSTDLIB_STATIC_API size_t ZSTD_initDStream_usingDict(ZSTD_DStream* zds, const void* ZSTD_NULLABLE dict, size_t dictSize);
 
 /*!
  * This function is deprecated, and is equivalent to:
@@ -2953,10 +2957,10 @@ ZSTDLIB_STATIC_API size_t ZSTD_resetDStream(ZSTD_DStream* zds);
 #define ZSTD_SEQUENCE_PRODUCER_ERROR ((size_t)(-1))
 
 typedef size_t (*ZSTD_sequenceProducer_F) (
-  void* sequenceProducerState,
+  void* ZSTD_NULLABLE sequenceProducerState,
   ZSTD_Sequence* outSeqs, size_t outSeqsCapacity,
   const void* src, size_t srcSize,
-  const void* dict, size_t dictSize,
+  const void* ZSTD_NULLABLE dict, size_t dictSize,
   int compressionLevel,
   size_t windowSize
 );
@@ -2983,8 +2987,8 @@ typedef size_t (*ZSTD_sequenceProducer_F) (
 ZSTDLIB_STATIC_API void
 ZSTD_registerSequenceProducer(
   ZSTD_CCtx* cctx,
-  void* sequenceProducerState,
-  ZSTD_sequenceProducer_F sequenceProducer
+  void* ZSTD_NULLABLE sequenceProducerState,
+  ZSTD_sequenceProducer_F ZSTD_NULLABLE sequenceProducer
 );
 
 /*! ZSTD_CCtxParams_registerSequenceProducer() :
@@ -2999,8 +3003,8 @@ ZSTD_registerSequenceProducer(
 ZSTDLIB_STATIC_API void
 ZSTD_CCtxParams_registerSequenceProducer(
   ZSTD_CCtx_params* params,
-  void* sequenceProducerState,
-  ZSTD_sequenceProducer_F sequenceProducer
+  void* ZSTD_NULLABLE sequenceProducerState,
+  ZSTD_sequenceProducer_F ZSTD_NULLABLE sequenceProducer
 );
 
 
@@ -3051,7 +3055,7 @@ ZSTD_CCtxParams_registerSequenceProducer(
 ZSTD_DEPRECATED("The buffer-less API is deprecated in favor of the normal streaming API. See docs.")
 ZSTDLIB_STATIC_API size_t ZSTD_compressBegin(ZSTD_CCtx* cctx, int compressionLevel);
 ZSTD_DEPRECATED("The buffer-less API is deprecated in favor of the normal streaming API. See docs.")
-ZSTDLIB_STATIC_API size_t ZSTD_compressBegin_usingDict(ZSTD_CCtx* cctx, const void* dict, size_t dictSize, int compressionLevel);
+ZSTDLIB_STATIC_API size_t ZSTD_compressBegin_usingDict(ZSTD_CCtx* cctx, const void* ZSTD_NULLABLE dict, size_t dictSize, int compressionLevel);
 ZSTD_DEPRECATED("The buffer-less API is deprecated in favor of the normal streaming API. See docs.")
 ZSTDLIB_STATIC_API size_t ZSTD_compressBegin_usingCDict(ZSTD_CCtx* cctx, const ZSTD_CDict* cdict); /**< note: fails if cdict==NULL */
 
@@ -3230,6 +3234,10 @@ ZSTDLIB_STATIC_API size_t ZSTD_insertBlock    (ZSTD_DCtx* dctx, const void* bloc
 
 #if defined (__cplusplus)
 }
+#endif
+
+#if ZSTD_NULLABILITY
+#pragma clang assume_nonnull end
 #endif
 
 #endif   /* ZSTD_H_ZSTD_STATIC_LINKING_ONLY */

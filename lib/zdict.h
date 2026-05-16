@@ -290,6 +290,10 @@ ZDICTLIB_API const char* ZDICT_getErrorName(size_t errorCode);
 #if defined(ZDICT_STATIC_LINKING_ONLY) && !defined(ZSTD_ZDICT_H_STATIC)
 #define ZSTD_ZDICT_H_STATIC
 
+#if ZSTD_NULLABILITY
+#pragma clang assume_nonnull begin
+#endif
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
@@ -486,6 +490,10 @@ size_t ZDICT_addEntropyTablesFromBuffer(void* dictBuffer, size_t dictContentSize
 
 #if defined (__cplusplus)
 }
+#endif
+
+#if ZSTD_NULLABILITY
+#pragma clang assume_nonnull end
 #endif
 
 #endif   /* ZSTD_ZDICT_H_STATIC */

@@ -68,6 +68,13 @@
 
 #if ZSTD_NULLABILITY
 #  define ZSTD_NULLABLE _Nullable
+   /* `_Nullable` is a clang language extension, so its mere presence
+    * trips `-Wnullability-extension` under `-Wpedantic`. The warning is
+    * not actionable for us — the whole point is to use the extension —
+    * so disable it for any TU that includes a zstd header. */
+#  if defined(__clang__)
+#    pragma clang diagnostic ignored "-Wnullability-extension"
+#  endif
 #else
 #  define ZSTD_NULLABLE
 #endif

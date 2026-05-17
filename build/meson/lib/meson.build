@@ -172,4 +172,5 @@ pkgconfig.generate(libzstd,
 
 install_headers(join_paths(zstd_rootdir, 'lib/zstd.h'),
   join_paths(zstd_rootdir, 'lib/zdict.h'),
-  join_paths(zstd_rootdir, 'lib/zstd_errors.h'))
+  join_paths(zstd_rootdir, 'lib/zstd_errors.h'),
+  join_paths(zstd_rootdir, 'lib/zstd_annotations.h'))

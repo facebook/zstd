@@ -34,6 +34,17 @@
  *
  * Note: multithreading is enabled for all platforms apart from Emscripten.
  */
+/* The amalgamation concatenates zstd's public headers (which carry
+ * nullability annotations) with the internal headers (which don't), in
+ * a single translation unit.  That trips clang's `-Wnullability-
+ * completeness` on the unannotated internal declarations.  Suppress
+ * the warning here, at the very top of the amalgam, so it covers every
+ * line that follows. */
+#if defined(__clang__)
+#pragma clang diagnostic ignored "-Wnullability-completeness"
+#pragma clang diagnostic ignored "-Wnullability-extension"
+#endif
+
 #define DEBUGLEVEL 0
 #define MEM_MODULE
 #undef  XXH_NAMESPACE

@@ -229,6 +229,12 @@ println "test : compress to named file (-o)"
 rm -f tmpCompressed
 zstd tmp -o tmpCompressed
 test -f tmpCompressed   # file must be created
+rm -f tmpCompressed
+zstd tmp --output tmpCompressed
+test -f tmpCompressed   # file must be created
+rm -f tmpCompressed
+zstd tmp --output=tmpCompressed
+test -f tmpCompressed   # file must be created
 
 println "test : force write, correct order"
 zstd tmp -fo tmpCompressed

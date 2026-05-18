@@ -5,7 +5,7 @@
 \fBzstd\fR \- zstd, zstdmt, unzstd, zstdcat \- Compress or decompress \.zst files
 .
 .SH "SYNOPSIS"
-\fBzstd\fR [\fIOPTIONS\fR] [\-|\fIINPUT\-FILE\fR] [\-o \fIOUTPUT\-FILE\fR]
+\fBzstd\fR [\fIOPTIONS\fR] [\-|\fIINPUT\-FILE\fR] [\-o|\-\-output \fIOUTPUT\-FILE\fR]
 .
 .P
 \fBzstdmt\fR is equivalent to \fBzstd \-T0\fR
@@ -192,7 +192,7 @@ Additionally, this can be used to limit memory for dictionary training\. This pa
 \fB\-c\fR, \fB\-\-stdout\fR: write to standard output (even if it is the console); keep original files (disable \fB\-\-rm\fR)\.
 .
 .IP "\(bu" 4
-\fB\-o FILE\fR: save result into \fBFILE\fR\. Note that this operation is in conflict with \fB\-c\fR\. If both operations are present on the command line, the last expressed one wins\.
+\fB\-o FILE\fR, \fB\-\-output FILE\fR: save result into \fBFILE\fR\. Note that this operation is in conflict with \fB\-c\fR\. If both operations are present on the command line, the last expressed one wins\.
 .
 .IP "\(bu" 4
 \fB\-\-[no\-]sparse\fR: enable / disable sparse FS support, to make files with many zeroes smaller on disk\. Creating sparse files may save disk space and speed up decompression by reducing the amount of disk I/O\. default: enabled when output is into a file, and disabled when output is stdout\. This setting overrides default and can force sparse mode over stdout\.
@@ -434,7 +434,7 @@ Since dictionary compression is mostly effective for small files, the expectatio
 \fB\-\-train\fR supports multithreading if \fBzstd\fR is compiled with threading support (default)\. Additional advanced parameters can be specified with \fB\-\-train\-fastcover\fR\. The legacy dictionary builder can be accessed with \fB\-\-train\-legacy\fR\. The slower cover dictionary builder can be accessed with \fB\-\-train\-cover\fR\. Default \fB\-\-train\fR is equivalent to \fB\-\-train\-fastcover=d=8,steps=4\fR\.
 .
 .TP
-\fB\-o FILE\fR
+\fB\-o FILE\fR, \fB\-\-output FILE\fR
 Dictionary saved into \fBFILE\fR (default name: dictionary)\.
 .
 .TP

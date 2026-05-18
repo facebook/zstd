@@ -158,7 +158,7 @@ Compress or decompress the INPUT file(s); reads from STDIN if INPUT is `-` or no
 Usage: zstd [OPTIONS...] [INPUT... | -] [-o OUTPUT]
 
 Options:
-  -o OUTPUT                     Write output to a single file, OUTPUT.
+  -o, --output OUTPUT           Write output to a single file, OUTPUT.
   -k, --keep                    Preserve INPUT file(s). [Default]
   --rm                          Remove INPUT file(s) after successful (de)compression to file.
 

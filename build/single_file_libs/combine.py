@@ -230,5 +230,6 @@ try:
         destn = args.output
     add_file(args.input)
 finally:
-    if (destn):
+    # Only close a file we opened; never close sys.stdout (the default).
+    if (destn is not sys.stdout):
         destn.close()

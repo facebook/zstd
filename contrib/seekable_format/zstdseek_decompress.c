@@ -393,8 +393,16 @@ static size_t ZSTD_seekable_loadSeekTable(ZSTD_seekable* zs)
 
     {   U32 const numFrames = MEM_readLE32(zs->inBuff);
         U32 const sizePerEntry = 8 + (checksumFlag?4:0);
-        U32 const tableSize = sizePerEntry * numFrames;
-        U32 const frameSize = tableSize + ZSTD_seekTableFooterSize + ZSTD_SKIPPABLEHEADERSIZE;
+        U32 tableSize;
+        U32 frameSize;
+
+        /* numFrames is bounded by ZSTD_SEEKABLE_MAXFRAMES on write; reject larger
+         * values to avoid overflowing the entry-array allocation below. */
+        if (numFrames > ZSTD_SEEKABLE_MAXFRAMES) {
+            return ERROR(corruption_detected);
+        }
+        tableSize = sizePerEntry * numFrames;
+        frameSize = tableSize + ZSTD_seekTableFooterSize + ZSTD_SKIPPABLEHEADERSIZE;
 
         U32 remaining = frameSize - ZSTD_seekTableFooterSize; /* don't need to re-read footer */
         {   U32 const toRead = MIN(remaining, SEEKABLE_BUFF_SIZE);

@@ -644,6 +644,16 @@ static size_t COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
                  (unsigned)(totalSamplesSize>>20), (COVER_MAX_SAMPLES_SIZE >> 20));
     return ERROR(srcSize_wrong);
   }
+  /* The training set must be large enough for the partial suffix array, whose
+   * size is `trainingSamplesSize - MAX(d, sizeof(U64)) + 1`. When splitPoint
+   * < 1.0 the training set is a subset of the corpus, so it can be smaller
+   * than the total even after the check above. Guard against the size_t
+   * subtraction underflowing into a huge allocation. */
+  if (trainingSamplesSize < MAX(d, sizeof(U64))) {
+    DISPLAYLEVEL(1, "Training samples size is too small (%u), minimum size is %u\n",
+                 (unsigned)trainingSamplesSize, (unsigned)MAX(d, sizeof(U64)));
+    return ERROR(srcSize_wrong);
+  }
   /* Check if there are at least 5 training samples */
   if (nbTrainSamples < 5) {
     DISPLAYLEVEL(1, "Total number of training samples is %u and is invalid.", nbTrainSamples);

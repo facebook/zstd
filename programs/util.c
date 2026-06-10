@@ -1210,9 +1210,15 @@ static char* mallocAndJoin2Dir(const char *dir1, const char *dir2)
     assert(dir1 != NULL && dir2 != NULL);
     {   const size_t dir1Size = strlen(dir1);
         const size_t dir2Size = strlen(dir2);
+        size_t outDirBufferSize;
         char *outDirBuffer, *buffer;
 
-        outDirBuffer = (char *) malloc(dir1Size + dir2Size + 2);
+        CONTROL(dir1Size <= (size_t)-1 - dir2Size);
+        outDirBufferSize = dir1Size + dir2Size;
+        CONTROL(outDirBufferSize <= (size_t)-1 - 2);
+        outDirBufferSize += 2;
+
+        outDirBuffer = (char *) malloc(outDirBufferSize);
         CONTROL(outDirBuffer != NULL);
 
         memcpy(outDirBuffer, dir1, dir1Size);

@@ -3807,6 +3807,25 @@ static int basicUnitTests(U32 const seed, double compressibility)
         if (ZDICT_isError(optDictSize)) goto _output_error;
         DISPLAYLEVEL(3, "OK, created dictionary of size %u \n", (unsigned)optDictSize);
 
+        DISPLAYLEVEL(3, "test%3i : ZDICT_optimizeTrainFromBuffer_cover with tiny training set : ", testNb++);
+        {   BYTE tinySamples[10];
+            size_t tinySampleSizes[10];
+            size_t result;
+            U32 u;
+            for (u=0; u<10; u++) {
+                tinySamples[u] = (BYTE)u;
+                tinySampleSizes[u] = 1;
+            }
+            memset(&params, 0, sizeof(params));
+            params.splitPoint = 0.5;
+            result = ZDICT_optimizeTrainFromBuffer_cover(dictBuffer, optDictSize,
+                                                         tinySamples, tinySampleSizes,
+                                                         10, &params);
+            if (!ZDICT_isError(result)) goto _output_error;
+            if (ZSTD_getErrorCode(result) != ZSTD_error_srcSize_wrong) goto _output_error;
+        }
+        DISPLAYLEVEL(3, "OK \n");
+
         DISPLAYLEVEL(3, "test%3i : check dictID : ", testNb++);
         dictID = ZDICT_getDictID(dictBuffer, optDictSize);
         if (dictID==0) goto _output_error;

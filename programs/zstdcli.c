@@ -1632,6 +1632,8 @@ int main(int argCount, const char* argv[])
         fileSize = UTIL_getFileSize(filenames->fileNames[0]);
         if (fileSize == UTIL_FILESIZE_UNKNOWN) {
             DISPLAYLEVEL(2, "Cannot determine file size, using default level %d\n", cLevel);
+        } else if (fileSize > (U64)100 * 1024 * 1024) {
+            DISPLAYLEVEL(2, "File too large for auto-detection, using default level %d\n", cLevel);
         } else {
             /* Read source file into memory for analysis */
             f = fopen(filenames->fileNames[0], "rb");

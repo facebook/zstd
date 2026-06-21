@@ -224,9 +224,61 @@ void ZSTD_wildcopy(void* dst, const void* src, size_t length, ZSTD_overlap_e con
 
     if (ovtype == ZSTD_overlap_src_before_dst && diff < WILDCOPY_VECLEN) {
         /* Handle short offset copies. */
+#if defined(ZSTD_ARCH_ARM_NEON)
+        /* The source and destination overlap with period `diff` (1 <= diff < 16).
+         * Build one 16-byte register holding the repeating pattern, then store 16
+         * bytes per iteration (vs 8 with COPY8), advancing the pattern with a single
+         * table lookup. There is no load inside the loop.
+         *   init[diff][j] = j % diff        : build the pattern from a 16-byte load
+         *   adv[diff][j]  = (16 + j) % diff : shift the pattern forward by 16 bytes */
+        static const uint8_t init[16][16] = {
+            { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+            { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+            { 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1},
+            { 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0},
+            { 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3},
+            { 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0},
+            { 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3},
+            { 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6, 0, 1},
+            { 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7},
+            { 0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1, 2, 3, 4, 5, 6},
+            { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5},
+            { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10, 0, 1, 2, 3, 4},
+            { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11, 0, 1, 2, 3},
+            { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12, 0, 1, 2},
+            { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13, 0, 1},
+            { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14, 0},
+        };
+        static const uint8_t adv[16][16] = {
+            { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+            { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+            { 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1},
+            { 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1},
+            { 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3},
+            { 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1},
+            { 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1},
+            { 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3},
+            { 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7},
+            { 7, 8, 0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1, 2, 3, 4},
+            { 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1},
+            { 5, 6, 7, 8, 9,10, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+            { 4, 5, 6, 7, 8, 9,10,11, 0, 1, 2, 3, 4, 5, 6, 7},
+            { 3, 4, 5, 6, 7, 8, 9,10,11,12, 0, 1, 2, 3, 4, 5},
+            { 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13, 0, 1, 2, 3},
+            { 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14, 0, 1},
+        };
+        uint8x16_t pattern = vqtbl1q_u8(vld1q_u8((const uint8_t*)ip), vld1q_u8(init[diff]));
+        uint8x16_t const advance = vld1q_u8(adv[diff]);
+        do {
+            vst1q_u8((uint8_t*)op, pattern);
+            pattern = vqtbl1q_u8(pattern, advance);
+            op += 16;
+        } while (op < oend);
+#else
         do {
             COPY8(op, ip);
         } while (op < oend);
+#endif
     } else {
         assert(diff >= WILDCOPY_VECLEN || diff <= -WILDCOPY_VECLEN);
         /* Separate out the first COPY16() call because the copy length is

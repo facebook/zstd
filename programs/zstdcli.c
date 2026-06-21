@@ -29,6 +29,7 @@
 #  include "zstdcli_trace.h"
 #endif
 #include "../lib/zstd.h"  /* ZSTD_VERSION_STRING, ZSTD_minCLevel, ZSTD_maxCLevel */
+#include "../lib/compress/zstd_spectral_gap.h"  /* ZSTD_autoDetectLevel */
 #include "fileio_asyncio.h"
 #include "fileio_common.h"
 
@@ -225,6 +226,7 @@ static void usageAdvanced(const char* programName)
     DISPLAYOUT("\n");
     DISPLAYOUT("Advanced compression options:\n");
     DISPLAYOUT("  --ultra                       Enable levels beyond %i, up to %i; requires more memory.\n", ZSTDCLI_CLEVEL_MAX, ZSTD_maxCLevel());
+    DISPLAYOUT("  --auto                        Auto-detect optimal compression level (spectral gap analysis).\n");
     DISPLAYOUT("  --fast[=#]                    Use to very fast compression levels. [Default: %u]\n", 1);
 #ifdef ZSTD_GZCOMPRESS
     if (exeNameMatch(programName, ZSTD_GZ)) {     /* behave like gzip */
@@ -897,6 +899,7 @@ int main(int argCount, const char* argv[])
         removeSrcFile = 0,
         cLevel = init_cLevel(),
         ultra = 0,
+        autoMode = 0,
         cLevelLast = MINCLEVEL - 1, /* for benchmark range */
         setThreads_non1 = 0;
     unsigned nbWorkers = init_nbWorkers(NBWORKERS_UNSET);
@@ -1005,6 +1008,7 @@ int main(int argCount, const char* argv[])
                 if (!strcmp(argument, "--quiet")) { g_displayLevel--; continue; }
                 if (!strcmp(argument, "--stdout")) { forceStdout=1; outFileName=stdoutmark; continue; }
                 if (!strcmp(argument, "--ultra")) { ultra=1; continue; }
+                if (!strcmp(argument, "--auto")) { autoMode=1; continue; }
                 if (!strcmp(argument, "--check")) { FIO_setChecksumFlag(prefs, 2); continue; }
                 if (!strcmp(argument, "--no-check")) { FIO_setChecksumFlag(prefs, 0); continue; }
                 if (!strcmp(argument, "--sparse")) { FIO_setSparseWrite(prefs, 2); continue; }
@@ -1615,6 +1619,32 @@ int main(int argCount, const char* argv[])
     if (patchFromDictFileName != NULL)
         dictFileName = patchFromDictFileName;
     FIO_setMemLimit(prefs, memLimit);
+    /* Auto-detect optimal compression level using spectral gap analysis */
+    if (autoMode && operation==zom_compress && filenames->tableSize > 0) {
+        FILE* f;
+        size_t srcSize;
+        void* src;
+        double epsilon;
+        int autoLevel;
+        DISPLAYLEVEL(2, "Auto-detecting optimal compression level...\n");
+        /* Read source file into memory for analysis */
+        f = fopen(filenames->fileNames[0], "rb");
+        if (f) {
+            fseek(f, 0, SEEK_END);
+            srcSize = (size_t)ftell(f);
+            fseek(f, 0, SEEK_SET);
+            src = malloc(srcSize);
+            if (src && fread(src, 1, srcSize, f) == srcSize) {
+                epsilon = 0;
+                autoLevel = ZSTD_autoDetectLevel(src, srcSize, &epsilon);
+                cLevel = autoLevel;
+                DISPLAYLEVEL(2, "Auto-detected level %d (epsilon=%.4f) for %s (%zu bytes)\n",
+                            autoLevel, epsilon, filenames->fileNames[0], srcSize);
+            }
+            free(src);
+            fclose(f);
+        }
+    }
     if (operation==zom_compress) {
 #ifndef ZSTD_NOCOMPRESS
         FIO_setCompressionType(prefs, cType);

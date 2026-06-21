@@ -15,22 +15,42 @@
 #include <math.h>
 #include "../zstd.h"
 
+/* M_PI not guaranteed on all C standards */
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+/* Skip auto-detection for files larger than this (use default level) */
+#define AUTO_MAX_FILE_SIZE ((size_t)100 * 1024 * 1024)  /* 100 MB */
+
 static double calibrate_epsilon(const void* src, size_t srcSize) {
-    double epsilon = M_PI / sqrt((double)SPECTRAL_GAP_MAX_LEVEL);
+    double epsilon;
+    size_t bound;
+    void* out;
+    double max_gain;
+    size_t prev_size;
+    int first;
+    int sample_levels[9];
+    int n_samples;
+    int i;
+
+    epsilon = M_PI / sqrt((double)SPECTRAL_GAP_MAX_LEVEL);
     if (epsilon > 0.02) epsilon = 0.02;
     if (epsilon < 0.0005) epsilon = 0.0005;
 
-    size_t bound = ZSTD_compressBound(srcSize);
-    void* out = malloc(bound);
+    bound = ZSTD_compressBound(srcSize);
+    out = malloc(bound);
     if (!out) return epsilon;
 
-    double max_gain = 0.0;
-    size_t prev_size = 0;
-    int first = 1;
-    int sample_levels[] = {1, 3, 5, 7, 9, 11, 15, 19, 22};
-    int n_samples = sizeof(sample_levels) / sizeof(sample_levels[0]);
+    max_gain = 0.0;
+    prev_size = 0;
+    first = 1;
+    sample_levels[0] = 1; sample_levels[1] = 3; sample_levels[2] = 5;
+    sample_levels[3] = 7; sample_levels[4] = 9; sample_levels[5] = 11;
+    sample_levels[6] = 15; sample_levels[7] = 19; sample_levels[8] = 22;
+    n_samples = 9;
 
-    for (int i = 0; i < n_samples; i++) {
+    for (i = 0; i < n_samples; i++) {
         size_t csize = ZSTD_compress(out, bound, src, srcSize,
                                       sample_levels[i]);
         if (ZSTD_isError(csize)) continue;
@@ -56,21 +76,34 @@ static double calibrate_epsilon(const void* src, size_t srcSize) {
 
 int ZSTD_autoDetectLevel(const void* src, size_t srcSize,
                           double* out_epsilon) {
-    if (!src || srcSize == 0) return 1;
+    double epsilon;
+    size_t bound;
+    void* out;
+    size_t prev_size;
+    int optimal_level;
+    int converged_streak;
+    int first;
+    int level;
 
-    double epsilon = calibrate_epsilon(src, srcSize);
+    if (!src || srcSize == 0) return 1;
+    /* For very large files, auto-detection would be too expensive.
+     * Fall back to default level — the spectral gap still applies
+     * at the block level inside ZSTD_compress. */
+    if (srcSize > AUTO_MAX_FILE_SIZE) return 3;
+
+    epsilon = calibrate_epsilon(src, srcSize);
     if (out_epsilon) *out_epsilon = epsilon;
 
-    size_t bound = ZSTD_compressBound(srcSize);
-    void* out = malloc(bound);
+    bound = ZSTD_compressBound(srcSize);
+    out = malloc(bound);
     if (!out) return 3;
 
-    size_t prev_size = 0;
-    int optimal_level = 1;
-    int converged_streak = 0;
-    int first = 1;
+    prev_size = 0;
+    optimal_level = 1;
+    converged_streak = 0;
+    first = 1;
 
-    for (int level = 1; level <= SPECTRAL_GAP_MAX_LEVEL; level++) {
+    for (level = 1; level <= SPECTRAL_GAP_MAX_LEVEL; level++) {
         size_t csize = ZSTD_compress(out, bound, src, srcSize, level);
         if (ZSTD_isError(csize)) break;
 

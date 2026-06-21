@@ -1621,28 +1621,33 @@ int main(int argCount, const char* argv[])
     FIO_setMemLimit(prefs, memLimit);
     /* Auto-detect optimal compression level using spectral gap analysis */
     if (autoMode && operation==zom_compress && filenames->tableSize > 0) {
+        U64 fileSize;
         FILE* f;
         size_t srcSize;
         void* src;
         double epsilon;
         int autoLevel;
         DISPLAYLEVEL(2, "Auto-detecting optimal compression level...\n");
-        /* Read source file into memory for analysis */
-        f = fopen(filenames->fileNames[0], "rb");
-        if (f) {
-            fseek(f, 0, SEEK_END);
-            srcSize = (size_t)ftell(f);
-            fseek(f, 0, SEEK_SET);
-            src = malloc(srcSize);
-            if (src && fread(src, 1, srcSize, f) == srcSize) {
-                epsilon = 0;
-                autoLevel = ZSTD_autoDetectLevel(src, srcSize, &epsilon);
-                cLevel = autoLevel;
-                DISPLAYLEVEL(2, "Auto-detected level %d (epsilon=%.4f) for %s (%zu bytes)\n",
-                            autoLevel, epsilon, filenames->fileNames[0], srcSize);
+        /* Use 64-bit file size to avoid ftell() overflow on large files */
+        fileSize = UTIL_getFileSize(filenames->fileNames[0]);
+        if (fileSize == UTIL_FILESIZE_UNKNOWN) {
+            DISPLAYLEVEL(2, "Cannot determine file size, using default level %d\n", cLevel);
+        } else {
+            /* Read source file into memory for analysis */
+            f = fopen(filenames->fileNames[0], "rb");
+            if (f) {
+                srcSize = (size_t)fileSize;
+                src = malloc(srcSize);
+                if (src && fread(src, 1, srcSize, f) == srcSize) {
+                    epsilon = 0;
+                    autoLevel = ZSTD_autoDetectLevel(src, srcSize, &epsilon);
+                    cLevel = autoLevel;
+                    DISPLAYLEVEL(2, "Auto-detected level %d (epsilon=%.4f) for %s (%zu bytes)\n",
+                                autoLevel, epsilon, filenames->fileNames[0], srcSize);
+                }
+                free(src);
+                fclose(f);
             }
-            free(src);
-            fclose(f);
         }
     }
     if (operation==zom_compress) {

@@ -30,10 +30,6 @@ endif()
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
-if (CMAKE_USE_PTHREADS_INIT)
-  target_link_libraries(pzstd ${ZSTD_LIB} ${CMAKE_THREAD_LIBS_INIT})
-else()
-    message(SEND_ERROR "ZSTD currently does not support thread libraries other than pthreads")
-endif()
+target_link_libraries(pzstd ${ZSTD_LIB} ${CMAKE_THREAD_LIBS_INIT})
 
 install(TARGETS pzstd RUNTIME DESTINATION "bin")

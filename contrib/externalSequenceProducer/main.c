@@ -55,14 +55,33 @@ int main(int argc, char *argv[]) {
         int const ret = fseek(f, 0, SEEK_END);
         assert(ret == 0);
     }
-    size_t const srcSize = ftell(f);
+    long const fileSize = ftell(f);
+    if (fileSize < 0) {
+        fprintf(stderr, "ERROR: ftell failed\n");
+        fclose(f);
+        ZSTD_freeCCtx(zc);
+        return 1;
+    }
+
+    size_t const srcSize = (size_t)fileSize;
+    if (srcSize == SIZE_MAX) {
+        fprintf(stderr, "ERROR: input file too large\n");
+        fclose(f);
+        ZSTD_freeCCtx(zc);
+        return 1;
+    }
     {
         int const ret = fseek(f, 0, SEEK_SET);
         assert(ret == 0);
     }
 
     char* const src = malloc(srcSize + 1);
-    assert(src);
+    if (src == NULL) {
+        fprintf(stderr, "ERROR: allocation failed\n");
+        fclose(f);
+        ZSTD_freeCCtx(zc);
+        return 1;
+    }
     {
         size_t const ret = fread(src, srcSize, 1, f);
         assert(ret == 1);

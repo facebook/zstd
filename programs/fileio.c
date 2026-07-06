@@ -899,22 +899,23 @@ FIO_openDstFile(FIO_ctx_t* fCtx, FIO_prefs_t* const prefs,
 #if defined(_WIN32)
         /* Windows requires opening the file as a "binary" file to avoid
          * mangling. This macro doesn't exist on unix. */
-        int openflags = O_WRONLY|O_CREAT|O_BINARY;
-        openflags |= overwriteDstFile ? O_TRUNC : O_EXCL;
+        const int openflags = O_WRONLY|O_CREAT|O_BINARY
+                            | (overwriteDstFile ? O_TRUNC : O_EXCL);
         const int fd = _open(dstFileName, openflags, mode);
         FILE* f = NULL;
         if (fd != -1) {
             f = _fdopen(fd, "wb");
         }
 #else
-        int openflags = O_WRONLY|O_CREAT;
-        openflags |= overwriteDstFile ? O_TRUNC : O_EXCL;
+        const int openflags = O_WRONLY|O_CREAT
+                            | (overwriteDstFile ? O_TRUNC : O_EXCL)
     #  ifdef O_CLOEXEC
-        openflags |= O_CLOEXEC;
+                            | O_CLOEXEC
     #  endif
     #  ifdef O_NOFOLLOW
-        openflags |= O_NOFOLLOW;
+                            | O_NOFOLLOW
     #  endif
+                            ;
         const int fd = open(dstFileName, openflags, mode);
         FILE* f = NULL;
         if (fd != -1) {

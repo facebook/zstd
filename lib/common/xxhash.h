@@ -458,6 +458,9 @@
 #  define XXH64_freeState XXH_NAME2(XXH_NAMESPACE, XXH64_freeState)
 #  define XXH64_reset XXH_NAME2(XXH_NAMESPACE, XXH64_reset)
 #  define XXH64_update XXH_NAME2(XXH_NAMESPACE, XXH64_update)
+#  define XXH64_update_apxf XXH_NAME2(XXH_NAMESPACE, XXH64_update_apxf)
+#  define XXH64_update_body XXH_NAME2(XXH_NAMESPACE, XXH64_update_body)
+#  define XXH_cpuSupportsApxf XXH_NAME2(XXH_NAMESPACE, XXH_cpuSupportsApxf)
 #  define XXH64_digest XXH_NAME2(XXH_NAMESPACE, XXH64_digest)
 #  define XXH64_copyState XXH_NAME2(XXH_NAMESPACE, XXH64_copyState)
 #  define XXH64_canonicalFromHash XXH_NAME2(XXH_NAMESPACE, XXH64_canonicalFromHash)
@@ -978,6 +981,10 @@ XXH_PUBLIC_API XXH_errorcode XXH64_reset  (XXH_NOESCAPE XXH64_state_t* statePtr,
  *
  * @note Call this to incrementally consume blocks of data.
  */
+#if defined(DYNAMIC_APXF) && (DYNAMIC_APXF != 0)
+XXH_PUBLIC_API XXH_errorcode XXH64_update_apxf (XXH_NOESCAPE XXH64_state_t* statePtr, XXH_NOESCAPE const void* input, size_t length);
+#endif
+
 XXH_PUBLIC_API XXH_errorcode XXH64_update (XXH_NOESCAPE XXH64_state_t* statePtr, XXH_NOESCAPE const void* input, size_t length);
 
 /*!
@@ -3569,8 +3576,8 @@ XXH_PUBLIC_API XXH_errorcode XXH64_reset(XXH_NOESCAPE XXH64_state_t* statePtr, X
 }
 
 /*! @ingroup XXH64_family */
-XXH_PUBLIC_API XXH_errorcode
-XXH64_update (XXH_NOESCAPE XXH64_state_t* state, XXH_NOESCAPE const void* input, size_t len)
+XXH_FORCE_INLINE XXH_errorcode
+XXH64_update_body(XXH_NOESCAPE XXH64_state_t* state, XXH_NOESCAPE const void* input, size_t len)
 {
     if (input==NULL) {
         XXH_ASSERT(len == 0);
@@ -3617,6 +3624,32 @@ XXH64_update (XXH_NOESCAPE XXH64_state_t* state, XXH_NOESCAPE const void* input,
     }
 
     return XXH_OK;
+}
+
+#if defined(DYNAMIC_APXF) && (DYNAMIC_APXF != 0)
+#include "cpu.h"
+XXH_FORCE_INLINE int XXH_cpuSupportsApxf(void)
+{
+    return ZSTD_cpuSupportsApx();
+}
+
+APXF_TARGET_ATTRIBUTE XXH_PUBLIC_API XXH_errorcode
+XXH64_update_apxf(XXH_NOESCAPE XXH64_state_t* state, XXH_NOESCAPE const void* input, size_t len)
+{
+    return XXH64_update_body(state, input, len);
+}
+#endif
+
+/*! @ingroup XXH64_family */
+XXH_PUBLIC_API XXH_errorcode
+XXH64_update (XXH_NOESCAPE XXH64_state_t* state, XXH_NOESCAPE const void* input, size_t len)
+{
+#if defined(DYNAMIC_APXF) && (DYNAMIC_APXF != 0)
+    if (XXH_cpuSupportsApxf()) {
+        return XXH64_update_apxf(state, input, len);
+    }
+#endif
+    return XXH64_update_body(state, input, len);
 }
 
 

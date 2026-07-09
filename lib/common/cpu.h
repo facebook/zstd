@@ -246,4 +246,40 @@ MEM_STATIC ZSTD_cpuid_t ZSTD_cpuid(void) {
 
 #undef X
 
+#if DYNAMIC_APXF
+/* APX detection is kept out of ZSTD_cpuid(), which is called each time a
+ * context is initialized. CPUID can be expensive (e.g. a VM exit under a
+ * hypervisor), so APX support is probed once and cached. The probe only
+ * needs to support x86-64 with GCC or Clang, as required by DYNAMIC_APXF.
+ *
+ * APX is usable when CPUID.(EAX=7,ECX=1):EDX[21] (APX_F) is set and the OS
+ * has enabled the APX extended GPR state, XCR0[19]. */
+MEM_STATIC int ZSTD_cpuid_probeApx(void)
+{
+    U32 a, b, c, d;
+    __asm__("cpuid" : "=a"(a), "=b"(b), "=c"(c), "=d"(d) : "a"(0), "c"(0));
+    if (a < 7) return 0;
+    __asm__("cpuid" : "=a"(a), "=b"(b), "=c"(c), "=d"(d) : "a"(1), "c"(0));
+    if (!(c & (1U << 27))) return 0;  /* OSXSAVE */
+    __asm__(".byte 0x0f, 0x01, 0xd0" : "=a"(a), "=d"(d) : "c"(0));  /* XGETBV */
+    if (!(a & (1U << 19))) return 0;
+    __asm__("cpuid" : "=a"(a), "=b"(b), "=c"(c), "=d"(d) : "a"(7), "c"(1));
+    return (d >> 21) & 1;
+}
+
+/* @returns 1 if the CPU and OS support APX, 0 otherwise.
+ * The result is cached; concurrent first calls may each probe, which is
+ * harmless since they all store the same value. */
+MEM_STATIC int ZSTD_cpuSupportsApx(void)
+{
+    static int cached = -1;
+    int supported = __atomic_load_n(&cached, __ATOMIC_RELAXED);
+    if (supported < 0) {
+        supported = ZSTD_cpuid_probeApx();
+        __atomic_store_n(&cached, supported, __ATOMIC_RELAXED);
+    }
+    return supported;
+}
+#endif /* DYNAMIC_APXF */
+
 #endif /* ZSTD_COMMON_CPU_H */

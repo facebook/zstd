@@ -108,6 +108,11 @@ use_lz4 = lz4_dep.found()
 
 add_project_arguments('-DXXH_NAMESPACE=ZSTD_', language: ['c'])
 
+use_selective_lazy = get_option('selective_lazy')
+if use_selective_lazy
+  add_project_arguments('-DZSTD_SELECTIVE_LAZY', language: ['c'])
+endif
+
 pzstd_warning_flags = []
 if [compiler_gcc, compiler_clang].contains(cc_id)
   common_warning_flags = [ '-Wundef', '-Wshadow', '-Wcast-align', '-Wcast-qual' ]

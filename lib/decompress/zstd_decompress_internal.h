@@ -160,6 +160,9 @@ struct ZSTD_DCtx_s
                                    * which also handles builds
                                    * where cached CPU state is not used. */
 #endif
+#if DYNAMIC_APXF
+    int apxf;                     /* == 1 if the CPU supports APXF and 0 otherwise. CPU support is determined dynamically once per context lifetime. */
+#endif
 
     /* dictionary */
     ZSTD_DDict* ddictLocal;
@@ -227,6 +230,15 @@ struct ZSTD_DCtx_s
 MEM_STATIC int ZSTD_DCtx_get_bmi2(const struct ZSTD_DCtx_s *dctx) {
 #if DYNAMIC_BMI2
     return dctx->bmi2;
+#else
+    (void)dctx;
+    return 0;
+#endif
+}
+
+MEM_STATIC int ZSTD_DCtx_get_apxf(const struct ZSTD_DCtx_s *dctx) {
+#if DYNAMIC_APXF
+    return dctx->apxf;
 #else
     (void)dctx;
     return 0;

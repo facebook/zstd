@@ -339,6 +339,12 @@ FASTCOVER_ctx_init(FASTCOVER_ctx_t* ctx,
         return ERROR(srcSize_wrong);
     }
 
+    /* Check the training set can hold at least one dmer, otherwise nbDmers underflows below */
+    if (trainingSamplesSize < MAX(d, sizeof(U64))) {
+        DISPLAYLEVEL(1, "Total training samples size is %u and is invalid.\n", (unsigned)trainingSamplesSize);
+        return ERROR(srcSize_wrong);
+    }
+
     /* Zero the context */
     memset(ctx, 0, sizeof(*ctx));
     DISPLAYLEVEL(2, "Training on %u samples of total size %u\n", nbTrainSamples,

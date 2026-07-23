@@ -517,7 +517,7 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
                                 : chunkSize;
                 srcPtr += chunkSize;
                 cPtr += cCapacities[chunkID];
-                resPtr += chunkSize;
+                resPtr += resSizes[chunkID];
                 remaining -= chunkSize;
                 if (adv->mode == BMK_decodeOnly) {
                     cSizes[chunkID]  = chunkSize;

@@ -27,7 +27,13 @@ zig-out/docs
 
 ### Stable Release (Recommended)
 
-For production projects, pin to a released version tag.
+For production projects, install the latest stable release:
+
+```bash
+zig fetch --save git+https://github.com/muhammad-fiaz/zstd.zig.git#1.6.0
+```
+
+Or add the dependency manually to your `build.zig.zon`:
 
 #### build.zig.zon
 
@@ -46,14 +52,16 @@ For production projects, pin to a released version tag.
 
 ### Nightly
 
-Use the latest development version from the `dev` branch or pin a specific commit.
+Use the latest development version or pin a specific commit.
 
 #### Latest
 
+```bash
+zig fetch --save git+https://github.com/muhammad-fiaz/zstd.zig.git
+```
+
 ```zig
 .{
-    .name = "my-project",
-    .version = "0.1.0",
     .dependencies = .{
         .zstd = .{
             .url = "git+https://github.com/muhammad-fiaz/zstd.zig.git",
@@ -65,10 +73,12 @@ Use the latest development version from the `dev` branch or pin a specific commi
 
 #### Specific Commit
 
+```bash
+zig fetch --save git+https://github.com/muhammad-fiaz/zstd.zig.git#COMMIT_HASH
+```
+
 ```zig
 .{
-    .name = "my-project",
-    .version = "0.1.0",
     .dependencies = .{
         .zstd = .{
             .url = "git+https://github.com/muhammad-fiaz/zstd.zig.git#COMMIT_HASH",

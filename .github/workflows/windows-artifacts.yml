@@ -1,0 +1,119 @@
+name: windows-artifacts
+
+on:
+  push:
+    branches: [ test_artifacts, win_artifacts, release ]
+  release:
+    types:
+      - published
+
+permissions: read-all
+
+jobs:
+  windows-artifacts:
+    permissions:
+      contents: write # to fetch code and upload artifacts
+    # For msys2, see https://ariya.io/2020/07/on-github-actions-with-msys2
+    runs-on: ${{ matrix.shell == 'cmake' && 'windows-11-arm' || 'windows-latest' }}
+    strategy:
+      # For msys2, see https://github.com/msys2/setup-msys2
+      matrix:
+        include:
+          - { msystem: mingw64, env: x86_64, ziparch: win64, shell: msys2 }
+          - { msystem: mingw32, env: i686, ziparch: win32, shell: msys2 }
+          - { msystem: null, env: arm64, ziparch: win-arm64, shell: cmake }
+
+    defaults:
+      run:
+        shell: ${{ matrix.shell == 'cmake' && 'pwsh' || 'msys2 {0}' }}
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # tag=v6.0.2
+
+      # MSYS2 setup
+      - uses: msys2/setup-msys2@e9898307ac31d1a803454791be09ab9973336e1c # tag=v2.31.1
+        if: matrix.shell == 'msys2'
+        with:
+          msystem: ${{ matrix.msystem }}
+          install: make p7zip git mingw-w64-${{matrix.env}}-gcc
+          update: true
+
+      - name: display versions (MSYS2)
+        if: matrix.shell == 'msys2'
+        run: |
+          make -v
+          cc -v
+
+      - name: display versions (CMake)
+        if: matrix.shell == 'cmake'
+        run: |
+          cmake --version
+
+      # Build dependencies (MSYS2 only)
+      - name: Building zlib to static link
+        if: matrix.shell == 'msys2'
+        run: |
+          git clone --depth 1 --branch v1.3.1 https://github.com/madler/zlib
+          make -C zlib -f win32/Makefile.gcc libz.a
+
+      - name: Building lz4 to static link
+        if: matrix.shell == 'msys2'
+        run: |
+          git clone --depth 1 --branch v1.10.0 https://github.com/lz4/lz4
+          # ensure both libraries use the same version of libxxhash
+          cp lib/common/xxhash.* lz4/lib
+          CPPFLAGS=-DXXH_NAMESPACE=LZ4_ make -C lz4/lib liblz4.a V=1
+
+      # Build zstd
+      - name: Building zstd programs
+        if: matrix.shell == 'msys2'
+        run: |
+          CPPFLAGS="-I../zlib -I../lz4/lib" LDFLAGS=-static make -j allzstd V=1 HAVE_ZLIB=1 HAVE_LZ4=1 HAVE_LZMA=0 LDLIBS="../zlib/libz.a ../lz4/lib/liblz4.a"
+
+      - name: Build zstd (CMake ARM64)
+        if: matrix.shell == 'cmake'
+        run: |
+          cd build\cmake
+          mkdir build
+          cd build
+          cmake.exe -G "Visual Studio 17 2022" -A ARM64 -DCMAKE_BUILD_TYPE=Release -DZSTD_BUILD_PROGRAMS=ON -DZSTD_BUILD_SHARED=ON -DZSTD_BUILD_STATIC=ON ..
+          cmake.exe --build . --config Release --parallel
+
+      - name: Create artifacts (MSYS2)
+        if: matrix.shell == 'msys2'
+        run: |
+          ./lib/dll/example/build_package.bat || exit 1
+          mv bin/ zstd-${{ github.ref_name }}-${{matrix.ziparch}}/
+
+      - name: Create artifacts (CMake)
+        if: matrix.shell == 'cmake'
+        run: |
+          .\lib\dll\example\build_package.bat
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          mv bin/ zstd-${{ github.ref_name }}-${{matrix.ziparch}}/
+
+      - name: Publish zstd-$VERSION-${{matrix.ziparch}}.zip for manual inspection
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # tag=v7.0.1
+        with:
+          compression-level: 9  # maximum compression
+          if-no-files-found: error # defaults to `warn`
+          path: ${{ github.workspace }}/zstd-${{ github.ref_name }}-${{matrix.ziparch}}/
+          name: zstd-${{ github.ref_name }}-${{matrix.ziparch}}
+
+      - name: Package artifact for upload (MSYS2)
+        if: matrix.shell == 'msys2'
+        run: |
+          7z a -tzip -mx9 "$(cygpath -u '${{ github.workspace }}/zstd-${{ github.ref_name }}-${{ matrix.ziparch }}.zip')" "$(cygpath -u '${{ github.workspace }}/zstd-${{ github.ref_name }}-${{ matrix.ziparch }}')"
+
+      - name: Package artifact for upload (CMake)
+        if: matrix.shell == 'cmake'
+        run: |
+          Compress-Archive -Path "zstd-${{ github.ref_name }}-${{ matrix.ziparch }}" -DestinationPath "zstd-${{ github.ref_name }}-${{ matrix.ziparch }}.zip" -CompressionLevel Optimal
+
+      - name: Upload release asset
+        if: github.event_name == 'release'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.ref_name }}" "$env:GITHUB_WORKSPACE/zstd-${{ github.ref_name }}-${{ matrix.ziparch }}.zip" --clobber

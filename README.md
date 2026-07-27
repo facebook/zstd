@@ -16,26 +16,54 @@ The generated documentation will be available in:
 zig-out/docs
 ```
 
-For **AI-generated documentation on zstd.zig**, visit:
-[https://deepwiki.com/muhammad-fiaz/zstd.zig/](https://deepwiki.com/muhammad-fiaz/zstd.zig/)
+> [!NOTE]
+> **AI-generated documentation:** https://deepwiki.com/muhammad-fiaz/zstd.zig/
 
-For a detailed reference of the **C API**, please consult the official **Zstandard API Manual**:
-[https://facebook.github.io/zstd/doc/api_manual_latest.html](https://facebook.github.io/zstd/doc/api_manual_latest.html)
+> [!TIP]
+> **Official Zstandard C API Manual:** https://facebook.github.io/zstd/doc/api_manual_latest.html
 
 
 ## Installation
 
-### Zig Fetch
+### Stable Release (Recommended)
 
-You can fetch the package directly using `zig fetch`:
+For production projects, pin to a released version tag.
 
-```bash
-zig fetch --save git+https://github.com/muhammad-fiaz/zstd.zig.git
+#### build.zig.zon
+
+```zig
+.{
+    .name = "my-project",
+    .version = "0.1.0",
+    .dependencies = .{
+        .zstd = .{
+            .url = "git+https://github.com/muhammad-fiaz/zstd.zig.git#1.6.0",
+            .hash = "...", // Run `zig build` to obtain the correct hash
+        },
+    },
+}
 ```
 
-### Build.zig.zon
+### Nightly
 
-Alternatively, add the dependency manually to your `build.zig.zon`:
+Use the latest development version from the `dev` branch or pin a specific commit.
+
+#### Latest
+
+```zig
+.{
+    .name = "my-project",
+    .version = "0.1.0",
+    .dependencies = .{
+        .zstd = .{
+            .url = "git+https://github.com/muhammad-fiaz/zstd.zig.git",
+            .hash = "...", // Run `zig build` to obtain the correct hash
+        },
+    },
+}
+```
+
+#### Specific Commit
 
 ```zig
 .{
@@ -44,11 +72,15 @@ Alternatively, add the dependency manually to your `build.zig.zon`:
     .dependencies = .{
         .zstd = .{
             .url = "git+https://github.com/muhammad-fiaz/zstd.zig.git#COMMIT_HASH",
-            .hash = "...", // Run `zig build` to find the correct hash
+            .hash = "...", // Run `zig build` to obtain the correct hash
         },
     },
 }
 ```
+
+> [!TIP]
+> - Use **release tags** (for example `#1.6.0`) for stable, reproducible builds.
+> - Use the **Nightly** version or a **specific commit** only if you need unreleased features, fixes, or improvements.
 
 ## Usage
 

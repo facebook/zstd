@@ -2,7 +2,7 @@
 
 Zig bindings for Facebook's [zstd](https://github.com/facebook/zstd) (Zstandard) fast compression library. Wraps the full zstd C API (`zstd.h`, `zstd_errors.h`, `zdict.h`) into idiomatic, safe, well-documented Zig modules.
 
-> [!INFO]
+> [!IMPORTANT]
 > * **Binding version:** 0.0.1
 > * **Zig version:** 0.16.0 or later
 > * **zstd C library version:** 1.6.0 (upstream commit [`5c7b7bad`](https://github.com/facebook/zstd/commit/5c7b7bad26808e6b40ac3b3d0075466e27738a9d))
@@ -94,7 +94,7 @@ Or pin to a specific commit:
 ```zig
 .dependencies = .{
     .zstd = .{
-        .url = "git+https://github.com/muhammad-fiaz/zstd.zig.git#5c7b7bad",
+        .url = "git+https://github.com/muhammad-fiaz/zstd.zig.git#COMMIT_HASH",
         .hash = "...",
     },
 },

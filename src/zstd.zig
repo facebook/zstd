@@ -4,7 +4,7 @@
 //! compression library v1.6.0. This library wraps the full Facebook/Meta zstd
 //! C API surface through safe, well-documented Zig APIs.
 //!
-//! **Requires Zig 0.16.0** or later.
+//! Requires Zig 0.16.0 or later.
 //!
 //! ## Quick Start
 //!

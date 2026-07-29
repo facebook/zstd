@@ -2,7 +2,7 @@
 
 Zig bindings for Facebook's [zstd](https://github.com/facebook/zstd) (Zstandard) fast compression library. Wraps the full zstd C API (`zstd.h`, `zstd_errors.h`, `zdict.h`) into idiomatic, safe, well-documented Zig modules.
 
-**Zig version:** 0.16.0+
+**Zig version:** 0.16.0 or later
 **zstd C library version:** 1.6.0 (commit [`5c7b7bad`](https://github.com/facebook/zstd/commit/5c7b7bad26808e6b40ac3b3d0075466e27738a9d))
 **Binding version:** 0.0.1
 
@@ -25,6 +25,10 @@ pub fn main() !void {
 }
 ```
 
+## Requirements
+
+* Zig 0.16.0 or later
+
 ## Installation
 
 ### Option 1: Stable Release (Tag-based, Recommended)
@@ -41,7 +45,7 @@ Or add to your `build.zig.zon`:
 .dependencies = .{
     .zstd = .{
         .url = "git+https://github.com/muhammad-fiaz/zstd.zig.git#0.0.1",
-        .hash = "...", // Run `zig build` to obtain
+        .hash = "...", // Run zig build to obtain
     },
 },
 ```
@@ -81,7 +85,7 @@ git clone https://github.com/muhammad-fiaz/zstd.zig.git
 },
 ```
 
-### In your `build.zig`
+### In your build.zig
 
 ```zig
 const zstd_dep = b.dependency("zstd", .{});
@@ -111,15 +115,15 @@ const zstd = @import("zstd");
 
 | Type | Description |
 |---|---|
-| `zstd.StreamingCompressor` | Chunk-by-chunk compression for large data |
-| `zstd.StreamingDecompressor` | Chunk-by-chunk decompression for large data |
+| `zstd.StreamingCompressor` | Chunk by chunk compression for large data |
+| `zstd.StreamingDecompressor` | Chunk by chunk decompression for large data |
 
 ### Compression Context
 
 | Type | Description |
 |---|---|
-| `zstd.Compressor` | Explicit `CCtx` with full parameter control |
-| `zstd.Decompressor` | Explicit `DCtx` with full parameter control |
+| `zstd.Compressor` | Explicit CCtx with full parameter control |
+| `zstd.Decompressor` | Explicit DCtx with full parameter control |
 | `zstd.CDict` / `zstd.DDict` | Pre-loaded dictionaries for repeated use |
 
 ### Dictionary Builder
@@ -142,12 +146,12 @@ zig build example-simple-compress   # Run an example
 
 | Option | Default | Description |
 |---|---|---|
-| `-Dmultithread` | `true` | Enable multithreaded compression (`ZSTD_MULTITHREAD`) |
-| `-Dlegacy` | `false` | Enable legacy format decoding (v0.1-v0.7) |
+| `-Dmultithread` | `true` | Enable multithreaded compression (ZSTD_MULTITHREAD) |
+| `-Dlegacy` | `false` | Enable legacy format decoding (v0.1 to v0.7) |
 
 ## Examples
 
-Run any example with `zig build example-<name>`:
+Run any example with `zig build example-<name>`. See [examples/README.md](examples/README.md) for the full list.
 
 ```bash
 zig build example-simple-compress
@@ -158,16 +162,18 @@ zig build example-benchmark-levels
 
 ## Platform Support
 
-- Windows / macOS / Linux
-- x86_64, aarch64, and other targets supported by Zig and zstd
+* Windows, macOS, Linux
+* x86_64, aarch64, and other targets supported by Zig and zstd
 
 ## Authors
 
-- **Muhammad Fiaz** — Zig bindings, build system, and API design
-- **Meta Platforms (Facebook)** — Original zstd C library
+* **Muhammad Fiaz** (https://github.com/muhammad-fiaz) - Zig bindings, build system, and API design
+* **Meta Platforms (Facebook)** (https://github.com/facebook/zstd) - Original zstd C library
 
 ## License
 
 BSD + GPLv2 (see [LICENSE](LICENSE) and [COPYING](COPYING)).
+
 Original zstd code: Copyright (c) Meta Platforms, Inc. and affiliates.
+
 Zig bindings: Copyright (c) Muhammad Fiaz.

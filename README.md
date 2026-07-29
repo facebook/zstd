@@ -2,10 +2,6 @@
 
 Zig bindings for Facebook's [zstd](https://github.com/facebook/zstd) (Zstandard) fast compression library. Wraps the full zstd C API (`zstd.h`, `zstd_errors.h`, `zdict.h`) into idiomatic, safe, well-documented Zig modules.
 
-> [!IMPORTANT]
-> * **Binding version:** 0.0.1
-> * **Zig version:** 0.16.0 or later
-> * **zstd C library version:** 1.6.0 (upstream commit [`5c7b7bad`](https://github.com/facebook/zstd/commit/5c7b7bad26808e6b40ac3b3d0075466e27738a9d))
 
 ## Quick Start
 
@@ -57,7 +53,7 @@ defer allocator.free(compressed);
 
 ## Requirements
 
-> [!INFO]
+> [!NOTE]
 > * Zig 0.16.0 or later is required.
 
 ## Installation
@@ -571,12 +567,11 @@ zig build example-frame-content-size
 
 ## Platform Support
 
-> [!INFO]
+> [!NOTE]
 > Supported on Windows, macOS, and Linux. Works on x86_64, aarch64, and other targets supported by Zig and zstd.
 
 ## Authors
 
-> [!INFO]
 > * **Muhammad Fiaz** (https://github.com/muhammad-fiaz) - Zig bindings, build system, and API design
 > * **Meta Platforms (Facebook)** (https://github.com/facebook/zstd) - Original zstd C library
 

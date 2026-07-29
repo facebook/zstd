@@ -579,15 +579,13 @@ zig build example-cctx-parameters
 zig build example-frame-content-size
 ```
 
-## Platform Support
-
 > [!NOTE]
 > Supported on Windows, macOS, and Linux. Works on x86_64, aarch64, and other targets supported by Zig and zstd.
 
 ## Authors
 
-> * **Muhammad Fiaz** (https://github.com/muhammad-fiaz) - Zig bindings, build system, and API design
-> * **Meta Platforms (Facebook)** (https://github.com/facebook/zstd) - Original zstd C library
+ - **Muhammad Fiaz** (https://github.com/muhammad-fiaz) - Zig bindings, build system, and API design
+ - **Meta Platforms (Facebook)** (https://github.com/facebook/zstd) - Original zstd C library
 
 ## License
 

@@ -58,28 +58,30 @@ defer allocator.free(compressed);
 
 ## Installation
 
-### Option 1: Stable Release (Tag-based, Recommended)
+### Option 1: Stable Release (Recommended)
 
-Use a version tag for stable, reproducible builds:
+Install the latest stable release from the official release archive:
 
 ```bash
-zig fetch --save git+https://github.com/muhammad-fiaz/zstd.zig.git#0.0.1
+zig fetch --save https://github.com/muhammad-fiaz/zstd.zig/archive/refs/tags/0.0.1.tar.gz
 ```
 
-Or add to your `build.zig.zon`:
+Or add it directly to your `build.zig.zon`:
 
 ```zig
 .dependencies = .{
     .zstd = .{
-        .url = "git+https://github.com/muhammad-fiaz/zstd.zig.git#0.0.1",
-        .hash = "...", // Run zig build to obtain
+        .url = "https://github.com/muhammad-fiaz/zstd.zig/archive/refs/tags/0.0.1.tar.gz",
+        .hash = "...", // Run `zig build` to obtain the hash
     },
 },
 ```
 
-### Option 2: Nightly (Latest Commit)
+---
 
-Track the latest development changes:
+### Option 2: Nightly
+
+Track the latest development version from the repository:
 
 ```bash
 zig fetch --save git+https://github.com/muhammad-fiaz/zstd.zig.git
@@ -87,22 +89,32 @@ zig fetch --save git+https://github.com/muhammad-fiaz/zstd.zig.git
 
 Or pin to a specific commit:
 
+```bash
+zig fetch --save git+https://github.com/muhammad-fiaz/zstd.zig.git#COMMIT_HASH
+```
+
+Or add it to your `build.zig.zon`:
+
 ```zig
 .dependencies = .{
     .zstd = .{
         .url = "git+https://github.com/muhammad-fiaz/zstd.zig.git#COMMIT_HASH",
-        .hash = "...",
+        .hash = "...", // Run `zig build` to obtain the hash
     },
 },
 ```
 
+---
+
 ### Option 3: Local Path
 
-Clone and use as a local dependency:
+Clone the repository:
 
 ```bash
 git clone https://github.com/muhammad-fiaz/zstd.zig.git
 ```
+
+Then reference it from your `build.zig.zon`:
 
 ```zig
 .dependencies = .{
@@ -112,16 +124,18 @@ git clone https://github.com/muhammad-fiaz/zstd.zig.git
 },
 ```
 
-### In your build.zig
+---
+
+### Importing
+
+After adding the dependency, import the module in your `build.zig`:
 
 ```zig
 const zstd_dep = b.dependency("zstd", .{});
 exe.root_module.addImport("zstd", zstd_dep.module("zstd"));
 ```
 
-## API Reference
-
-All functions are available directly from `zstd`:
+Then use it in your Zig source:
 
 ```zig
 const zstd = @import("zstd");

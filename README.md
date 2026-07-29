@@ -1,172 +1,173 @@
 # zstd.zig
 
-A Zig library for Facebook's [zstd](https://github.com/facebook/zstd) fast compression algorithm (v1.6.0). This repository provides a Zig build system (`build.zig`, `build.zig.zon`) and Zig standard bindings for the zstd C library, allowing easy integration into Zig projects.
+Zig bindings for Facebook's [zstd](https://github.com/facebook/zstd) (Zstandard) fast compression library. Wraps the full zstd C API (`zstd.h`, `zstd_errors.h`, `zdict.h`) into idiomatic, safe, well-documented Zig modules.
 
-## Documentation
+**Zig version:** 0.16.0+
+**zstd C library version:** 1.6.0 (commit [`5c7b7bad`](https://github.com/facebook/zstd/commit/5c7b7bad26808e6b40ac3b3d0075466e27738a9d))
+**Binding version:** 0.0.1
 
-You can generate the documentation locally by running:
-
-```bash
-zig build docs
-```
-
-The generated documentation will be available in:
-
-```txt
-zig-out/docs
-```
-
-> [!NOTE]
-> **AI-generated documentation:** https://deepwiki.com/muhammad-fiaz/zstd.zig/
-
-> [!TIP]
-> **Official Zstandard C API Manual:** https://facebook.github.io/zstd/doc/api_manual_latest.html
-
-
-## Installation
-
-### Stable Release (Recommended)
-
-For production projects, install the latest stable release:
-
-```bash
-zig fetch --save git+https://github.com/muhammad-fiaz/zstd.zig.git#1.6.0
-```
-
-Or add the dependency manually to your `build.zig.zon`:
-
-#### build.zig.zon
-
-```zig
-.{
-    .name = "my-project",
-    .version = "0.1.0",
-    .dependencies = .{
-        .zstd = .{
-            .url = "git+https://github.com/muhammad-fiaz/zstd.zig.git#1.6.0",
-            .hash = "...", // Run `zig build` to obtain the correct hash
-        },
-    },
-}
-```
-
-### Nightly
-
-Use the latest development version or pin a specific commit.
-
-#### Latest
-
-```bash
-zig fetch --save git+https://github.com/muhammad-fiaz/zstd.zig.git
-```
-
-```zig
-.{
-    .dependencies = .{
-        .zstd = .{
-            .url = "git+https://github.com/muhammad-fiaz/zstd.zig.git",
-            .hash = "...", // Run `zig build` to obtain the correct hash
-        },
-    },
-}
-```
-
-#### Specific Commit
-
-```bash
-zig fetch --save git+https://github.com/muhammad-fiaz/zstd.zig.git#COMMIT_HASH
-```
-
-```zig
-.{
-    .dependencies = .{
-        .zstd = .{
-            .url = "git+https://github.com/muhammad-fiaz/zstd.zig.git#COMMIT_HASH",
-            .hash = "...", // Run `zig build` to obtain the correct hash
-        },
-    },
-}
-```
-
-> [!TIP]
-> - Use **release tags** (for example `#1.6.0`) for stable, reproducible builds.
-> - Use the **Nightly** version or a **specific commit** only if you need unreleased features, fixes, or improvements.
-
-## Usage
-
-### In your `build.zig`
-
-Add `zstd` as a dependency and import the module:
-
-```zig
-const std = @import("std");
-
-pub fn build(b: *std.Build) void {
-    const target = b.standardTargetOptions(.{});
-    const optimize = b.standardOptimizeOption(.{});
-
-    // Resolve dependencies
-    const zstd_dep = b.dependency("zstd", .{
-        .target = target,
-        .optimize = optimize,
-    });
-    const zstd_mod = zstd_dep.module("zstd");
-
-    const exe = b.addExecutable(.{
-        .name = "my-exe",
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
-    // Add zstd module
-    exe.root_module.addImport("zstd", zstd_mod);
-
-    // Link the library
-    // Note: The module automatically links the library, but if you need strictly C access:
-    // exe.linkLibrary(zstd_dep.artifact("zstd")); 
-
-    b.installArtifact(exe);
-}
-```
-
-### In your code
+## Quick Start
 
 ```zig
 const std = @import("std");
 const zstd = @import("zstd");
 
 pub fn main() !void {
-    const input = "Hello, Zstandard from Zig!";
-    
-    // Compression
-    const max_dst_size = zstd.c.ZSTD_compressBound(input.len);
-    const dest_buffer = try std.heap.c_allocator.alloc(u8, max_dst_size);
-    defer std.heap.c_allocator.free(dest_buffer);
-    
-    const cSize = zstd.c.ZSTD_compress(dest_buffer.ptr, max_dst_size, input.ptr, input.len, 1);
-    if (zstd.c.ZSTD_isError(cSize) != 0) {
-        return error.CompressionFailed;
-    }
-    
-    std.debug.print("Compressed size: {d}\n", .{cSize});
+    const data = "Hello, Zstandard from Zig!";
+
+    const compressed = try zstd.compress(std.heap.c_allocator, data, 3);
+    defer std.heap.c_allocator.free(compressed);
+
+    const decompressed = try zstd.decompress(std.heap.c_allocator, compressed, data.len);
+    defer std.heap.c_allocator.free(decompressed);
+
+    std.debug.print("Compressed {d} -> {d} bytes\n", .{ data.len, compressed.len });
 }
 ```
 
-## features
+## Installation
 
-- **Build System**: Pure Zig build system compatible with Zig 0.15+.
-- **Direct Source Integration**: Uses local C sources (forked from upstream zstd) avoiding external system dependencies.
-- **Configurable**: Supports standard zstd build options (Multithreading, legacy support, etc.).
-- **Examples**: Includes Zig translations of standard Zstd C examples.
+### Option 1: Stable Release (Tag-based, Recommended)
 
-## Supported Platforms
+Use a version tag for stable, reproducible builds:
 
-- Windows / MacOS / Linux
-- x86_64, aarch64, and other targets supported by Zig and Zstd.
+```bash
+zig fetch --save git+https://github.com/muhammad-fiaz/zstd.zig.git#0.0.1
+```
+
+Or add to your `build.zig.zon`:
+
+```zig
+.dependencies = .{
+    .zstd = .{
+        .url = "git+https://github.com/muhammad-fiaz/zstd.zig.git#0.0.1",
+        .hash = "...", // Run `zig build` to obtain
+    },
+},
+```
+
+### Option 2: Nightly (Latest Commit)
+
+Track the latest development changes:
+
+```bash
+zig fetch --save git+https://github.com/muhammad-fiaz/zstd.zig.git
+```
+
+Or pin to a specific commit:
+
+```zig
+.dependencies = .{
+    .zstd = .{
+        .url = "git+https://github.com/muhammad-fiaz/zstd.zig.git#5c7b7bad",
+        .hash = "...",
+    },
+},
+```
+
+### Option 3: Local Path
+
+Clone and use as a local dependency:
+
+```bash
+git clone https://github.com/muhammad-fiaz/zstd.zig.git
+```
+
+```zig
+.dependencies = .{
+    .zstd = .{
+        .path = "/path/to/zstd.zig",
+    },
+},
+```
+
+### In your `build.zig`
+
+```zig
+const zstd_dep = b.dependency("zstd", .{});
+exe.root_module.addImport("zstd", zstd_dep.module("zstd"));
+```
+
+## API
+
+All functions are available directly from `zstd`:
+
+```zig
+const zstd = @import("zstd");
+```
+
+### Single-shot
+
+| Function | Description |
+|---|---|
+| `zstd.compress(allocator, src, level)` | Compress data in one shot |
+| `zstd.decompress(allocator, src, expected_size)` | Decompress data in one shot |
+| `zstd.compressBound(src_size)` | Worst-case compressed size |
+| `zstd.getFrameContentSize(src)` | Decompressed size from frame header |
+| `zstd.findFrameCompressedSize(src)` | Compressed size of first frame |
+| `zstd.isFrame(src)` | Check for valid zstd frame magic |
+
+### Streaming
+
+| Type | Description |
+|---|---|
+| `zstd.StreamingCompressor` | Chunk-by-chunk compression for large data |
+| `zstd.StreamingDecompressor` | Chunk-by-chunk decompression for large data |
+
+### Compression Context
+
+| Type | Description |
+|---|---|
+| `zstd.Compressor` | Explicit `CCtx` with full parameter control |
+| `zstd.Decompressor` | Explicit `DCtx` with full parameter control |
+| `zstd.CDict` / `zstd.DDict` | Pre-loaded dictionaries for repeated use |
+
+### Dictionary Builder
+
+| Function | Description |
+|---|---|
+| `zstd.zdict.trainFromSamples()` | Train a dictionary from sample data |
+| `zstd.zdict.finalizeDictionary()` | Finalize a dictionary from raw content |
+
+## Building
+
+```bash
+zig build            # Build library
+zig build test       # Run unit tests
+zig build docs       # Generate documentation (zig-out/docs/)
+zig build example-simple-compress   # Run an example
+```
+
+### Build Options
+
+| Option | Default | Description |
+|---|---|---|
+| `-Dmultithread` | `true` | Enable multithreaded compression (`ZSTD_MULTITHREAD`) |
+| `-Dlegacy` | `false` | Enable legacy format decoding (v0.1-v0.7) |
+
+## Examples
+
+Run any example with `zig build example-<name>`:
+
+```bash
+zig build example-simple-compress
+zig build example-streaming-compress-file
+zig build example-dictionary-training
+zig build example-benchmark-levels
+```
+
+## Platform Support
+
+- Windows / macOS / Linux
+- x86_64, aarch64, and other targets supported by Zig and zstd
+
+## Authors
+
+- **Muhammad Fiaz** — Zig bindings, build system, and API design
+- **Meta Platforms (Facebook)** — Original zstd C library
 
 ## License
 
-This project is double-licensed under [BSD](LICENSE) and [GPLv2](COPYING).
-Original Zstd code is Copyright (c) Meta Platforms, Inc. and affiliates.
-Zig bindings and build system modifications are Copyright (c) Muhammad Fiaz.
+BSD + GPLv2 (see [LICENSE](LICENSE) and [COPYING](COPYING)).
+Original zstd code: Copyright (c) Meta Platforms, Inc. and affiliates.
+Zig bindings: Copyright (c) Muhammad Fiaz.

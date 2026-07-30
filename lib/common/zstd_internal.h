@@ -207,6 +207,91 @@ typedef enum {
     /*  ZSTD_overlap_dst_before_src, */
 } ZSTD_overlap_e;
 
+#if (defined(ZSTD_ARCH_ARM_NEON) && (defined(__aarch64__) || defined(_M_ARM64))) \
+    || defined(ZSTD_ARCH_X86_SSSE3)
+#define ZSTD_OVERLAPCOPY_VEC
+/*! ZSTD_overlapCopyShortOffset() :
+ *  Copy the overlapping pattern `[ip, ip+diff)` into `[op, oend)`, 8 <= diff < 16.
+ *  Deliberately not inlined: ZSTD_wildcopy is force-inlined into the hot
+ *  sequence-execution loops many times over, and expanding this (rarely hot)
+ *  path in place measurably regresses inputs that never take it. */
+FORCE_NOINLINE UNUSED_ATTR
+void ZSTD_overlapCopyShortOffset(BYTE* op, const BYTE* ip, BYTE* const oend, ptrdiff_t const diff)
+{
+    /* The source and destination overlap with period `diff` (8 <= diff < 16;
+     * smaller offsets are expanded to >= 8 with ZSTD_overlapCopy8 before this
+     * path is reached, matching the scalar COPY8 loop in ZSTD_wildcopy).
+     * First copy 16 bytes with COPY8, exactly like the scalar loop would:
+     * this both seeds `dst[0..15]` and materializes one full period of the
+     * repeating pattern in memory without reading a single byte that has not
+     * been written yet (the tail of a 16-byte load at `ip` would read
+     * uninitialized bytes of `dst`, which MemorySanitizer rejects even though
+     * a table lookup never selects them). Then store 16 bytes per iteration
+     * (vs 8 with COPY8), advancing the pattern register with a single table
+     * lookup (NEON `tbl` / SSSE3 `pshufb`) and no load inside the loop:
+     *   adv[diff][j] = (16 + j) % diff : shift the pattern forward by 16 bytes
+     * Each iteration stores WILDCOPY_VECLEN (16) bytes and stops as soon as
+     * `op >= oend`, so it overruns the logical end by at most WILDCOPY_VECLEN-1
+     * (15) bytes. Callers guarantee WILDCOPY_OVERLENGTH (32) bytes of slack
+     * past `oend`, so the overrun is always in bounds
+     * (see the ZSTD_STATIC_ASSERT below the table).
+     * The NEON path requires AArch64: `vqtbl1q_u8` does not exist on
+     * 32-bit ARM, whose `vtbl` can only look up in a 64-bit table. */
+    static const uint8_t adv[16][16] = {
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+        { 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1},
+        { 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1},
+        { 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3},
+        { 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1},
+        { 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1},
+        { 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3},
+        { 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7},
+        { 7, 8, 0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1, 2, 3, 4},
+        { 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1},
+        { 5, 6, 7, 8, 9,10, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
+        { 4, 5, 6, 7, 8, 9,10,11, 0, 1, 2, 3, 4, 5, 6, 7},
+        { 3, 4, 5, 6, 7, 8, 9,10,11,12, 0, 1, 2, 3, 4, 5},
+        { 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13, 0, 1, 2, 3},
+        { 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14, 0, 1},
+    };
+#if defined(ZSTD_ARCH_ARM_NEON)
+    uint8x16_t pattern;
+    uint8x16_t advance;
+    ZSTD_STATIC_ASSERT(WILDCOPY_VECLEN - 1 <= WILDCOPY_OVERLENGTH);
+    assert(diff >= 8);
+    COPY8(op, ip);
+    COPY8(op, ip);
+    pattern = vld1q_u8((const uint8_t*)(op - 16));
+    advance = vld1q_u8(adv[diff]);
+    while (op < oend) {
+        pattern = vqtbl1q_u8(pattern, advance);
+        vst1q_u8((uint8_t*)op, pattern);
+        op += 16;
+    }
+#else
+    /* `pshufb` selects byte `index[j]` of the input for each output lane `j`;
+     * all indices are < diff <= 15, so they stay in range.
+     * The casts go through `void*` because `_mm_loadu_si128`/`_mm_storeu_si128`
+     * do unaligned accesses, but a direct `BYTE*` -> `__m128i*` cast trips
+     * -Wcast-align. */
+    __m128i pattern;
+    __m128i advance;
+    ZSTD_STATIC_ASSERT(WILDCOPY_VECLEN - 1 <= WILDCOPY_OVERLENGTH);
+    assert(diff >= 8);
+    COPY8(op, ip);
+    COPY8(op, ip);
+    pattern = _mm_loadu_si128((const __m128i*)(const void*)(op - 16));
+    advance = _mm_loadu_si128((const __m128i*)(const void*)adv[diff]);
+    while (op < oend) {
+        pattern = _mm_shuffle_epi8(pattern, advance);
+        _mm_storeu_si128((__m128i*)(void*)op, pattern);
+        op += 16;
+    }
+#endif
+}
+#endif /* ZSTD_OVERLAPCOPY_VEC */
+
 /*! ZSTD_wildcopy() :
  *  Custom version of ZSTD_memcpy(), can over read/write up to WILDCOPY_OVERLENGTH bytes (if length==0)
  *  @param ovtype controls the overlap detection
@@ -224,79 +309,8 @@ void ZSTD_wildcopy(void* dst, const void* src, size_t length, ZSTD_overlap_e con
 
     if (ovtype == ZSTD_overlap_src_before_dst && diff < WILDCOPY_VECLEN) {
         /* Handle short offset copies. */
-#if (defined(ZSTD_ARCH_ARM_NEON) && (defined(__aarch64__) || defined(_M_ARM64))) \
-    || defined(ZSTD_ARCH_X86_SSSE3)
-        /* The source and destination overlap with period `diff` (8 <= diff < 16;
-         * smaller offsets are expanded to >= 8 with ZSTD_overlapCopy8 before this
-         * path is reached, matching the COPY8 fallback below). First copy 16 bytes
-         * with COPY8, exactly like the first two iterations of the fallback loop:
-         * this both seeds `dst[0..15]` and materializes one full period of the
-         * repeating pattern in memory without reading a single byte that has not
-         * been written yet (the tail of a 16-byte load at `ip` would read
-         * uninitialized bytes of `dst`, which MemorySanitizer rejects even though
-         * a table lookup never selects them). Then store 16 bytes per iteration
-         * (vs 8 with COPY8), advancing the pattern register with a single table
-         * lookup (NEON `tbl` / SSSE3 `pshufb`) and no load inside the loop:
-         *   adv[diff][j] = (16 + j) % diff : shift the pattern forward by 16 bytes
-         * Each iteration stores WILDCOPY_VECLEN (16) bytes and stops as soon as
-         * `op >= oend`, so it overruns the logical end by at most WILDCOPY_VECLEN-1
-         * (15) bytes. Callers guarantee WILDCOPY_OVERLENGTH (32) bytes of slack
-         * past `oend`, so the overrun is always in bounds
-         * (see the ZSTD_STATIC_ASSERT below the table).
-         * The NEON path requires AArch64: `vqtbl1q_u8` does not exist on
-         * 32-bit ARM, whose `vtbl` can only look up in a 64-bit table. */
-        static const uint8_t adv[16][16] = {
-            { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-            { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-            { 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1},
-            { 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1},
-            { 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3},
-            { 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 0, 1},
-            { 4, 5, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 0, 1},
-            { 2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3},
-            { 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7},
-            { 7, 8, 0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1, 2, 3, 4},
-            { 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1},
-            { 5, 6, 7, 8, 9,10, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
-            { 4, 5, 6, 7, 8, 9,10,11, 0, 1, 2, 3, 4, 5, 6, 7},
-            { 3, 4, 5, 6, 7, 8, 9,10,11,12, 0, 1, 2, 3, 4, 5},
-            { 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13, 0, 1, 2, 3},
-            { 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14, 0, 1},
-        };
-#if defined(ZSTD_ARCH_ARM_NEON)
-        uint8x16_t pattern;
-        uint8x16_t advance;
-        ZSTD_STATIC_ASSERT(WILDCOPY_VECLEN - 1 <= WILDCOPY_OVERLENGTH);
-        assert(diff >= 8);
-        COPY8(op, ip);
-        COPY8(op, ip);
-        pattern = vld1q_u8((const uint8_t*)(op - 16));
-        advance = vld1q_u8(adv[diff]);
-        while (op < oend) {
-            pattern = vqtbl1q_u8(pattern, advance);
-            vst1q_u8((uint8_t*)op, pattern);
-            op += 16;
-        }
-#else
-        /* `pshufb` selects byte `index[j]` of the input for each output lane `j`;
-         * all indices are < diff <= 15, so they stay in range.
-         * The casts go through `void*` because `_mm_loadu_si128`/`_mm_storeu_si128`
-         * do unaligned accesses, but a direct `BYTE*` -> `__m128i*` cast trips
-         * -Wcast-align. */
-        __m128i pattern;
-        __m128i advance;
-        ZSTD_STATIC_ASSERT(WILDCOPY_VECLEN - 1 <= WILDCOPY_OVERLENGTH);
-        assert(diff >= 8);
-        COPY8(op, ip);
-        COPY8(op, ip);
-        pattern = _mm_loadu_si128((const __m128i*)(const void*)(op - 16));
-        advance = _mm_loadu_si128((const __m128i*)(const void*)adv[diff]);
-        while (op < oend) {
-            pattern = _mm_shuffle_epi8(pattern, advance);
-            _mm_storeu_si128((__m128i*)(void*)op, pattern);
-            op += 16;
-        }
-#endif
+#ifdef ZSTD_OVERLAPCOPY_VEC
+        ZSTD_overlapCopyShortOffset(op, ip, oend, diff);
 #else
         do {
             COPY8(op, ip);

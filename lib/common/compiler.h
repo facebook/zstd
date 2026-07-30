@@ -212,6 +212,9 @@
 #  if defined(__AVX2__)
 #    define ZSTD_ARCH_X86_AVX2
 #  endif
+#  if defined(__SSSE3__)
+#    define ZSTD_ARCH_X86_SSSE3
+#  endif
 #  if defined(__SSE2__) || defined(_M_X64) || (defined (_M_IX86) && defined(_M_IX86_FP) && (_M_IX86_FP >= 2))
 #    define ZSTD_ARCH_X86_SSE2
 #  endif
@@ -233,6 +236,8 @@
 #
 #  if defined(ZSTD_ARCH_X86_AVX2)
 #    include <immintrin.h>
+#  elif defined(ZSTD_ARCH_X86_SSSE3)
+#    include <tmmintrin.h>
 #  endif
 #  if defined(ZSTD_ARCH_X86_SSE2)
 #    include <emmintrin.h>

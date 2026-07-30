@@ -2,54 +2,8 @@
 
 Zig bindings for Facebook's [zstd](https://github.com/facebook/zstd) (Zstandard) fast compression library. Wraps the full zstd C API (`zstd.h`, `zstd_errors.h`, `zdict.h`) into idiomatic, safe, well-documented Zig modules.
 
-
-## Quick Start
-
-### Compress and Decompress
-
-```zig
-const std = @import("std");
-const zstd = @import("zstd");
-
-pub fn main() !void {
-    const data = "Hello, Zstandard from Zig!";
-
-    // Compress
-    const compressed = try zstd.compress(std.heap.c_allocator, data, 3);
-    defer std.heap.c_allocator.free(compressed);
-
-    // Decompress
-    const decompressed = try zstd.decompress(std.heap.c_allocator, compressed, data.len);
-    defer std.heap.c_allocator.free(decompressed);
-
-    std.debug.print("Compressed {d} -> {d} bytes\n", .{ data.len, compressed.len });
-}
-```
-
-### Streaming Compression
-
-```zig
-var scomp = try zstd.StreamingCompressor.init();
-defer scomp.deinit();
-
-try scomp.setParameter(.compression_level, 6);
-
-var output: [4096]u8 = undefined;
-const res = try scomp.compressChunk(data, &output, .end);
-const compressed_data = output[0..res.bytes_written];
-```
-
-### Dictionary Compression
-
-```zig
-// Train a dictionary from sample data
-const dict = try zstd.zdict.trainFromSamples(allocator, samples, 1 << 14, .{});
-defer allocator.free(dict);
-
-// Compress with dictionary
-const compressed = try zstd.zdict.compressUsingDict(allocator, data, dict, 3);
-defer allocator.free(compressed);
-```
+> [!NOTE]
+> These bindings track and are upstreamed against Facebook Zstandard [commit `5c7b7ba`](https://github.com/facebook/zstd/commit/5c7b7bad26808e6b40ac3b3d0075466e27738a9d).
 
 ## Requirements
 
@@ -140,6 +94,56 @@ Then use it in your Zig source:
 ```zig
 const zstd = @import("zstd");
 ```
+
+
+## Quick Start
+
+### Compress and Decompress
+
+```zig
+const std = @import("std");
+const zstd = @import("zstd");
+
+pub fn main() !void {
+    const data = "Hello, Zstandard from Zig!";
+
+    // Compress
+    const compressed = try zstd.compress(std.heap.c_allocator, data, 3);
+    defer std.heap.c_allocator.free(compressed);
+
+    // Decompress
+    const decompressed = try zstd.decompress(std.heap.c_allocator, compressed, data.len);
+    defer std.heap.c_allocator.free(decompressed);
+
+    std.debug.print("Compressed {d} -> {d} bytes\n", .{ data.len, compressed.len });
+}
+```
+
+### Streaming Compression
+
+```zig
+var scomp = try zstd.StreamingCompressor.init();
+defer scomp.deinit();
+
+try scomp.setParameter(.compression_level, 6);
+
+var output: [4096]u8 = undefined;
+const res = try scomp.compressChunk(data, &output, .end);
+const compressed_data = output[0..res.bytes_written];
+```
+
+### Dictionary Compression
+
+```zig
+// Train a dictionary from sample data
+const dict = try zstd.zdict.trainFromSamples(allocator, samples, 1 << 14, .{});
+defer allocator.free(dict);
+
+// Compress with dictionary
+const compressed = try zstd.zdict.compressUsingDict(allocator, data, dict, 3);
+defer allocator.free(compressed);
+```
+
 
 ### Single-shot Compression
 

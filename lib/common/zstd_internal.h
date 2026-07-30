@@ -224,7 +224,8 @@ void ZSTD_wildcopy(void* dst, const void* src, size_t length, ZSTD_overlap_e con
 
     if (ovtype == ZSTD_overlap_src_before_dst && diff < WILDCOPY_VECLEN) {
         /* Handle short offset copies. */
-#if defined(ZSTD_ARCH_ARM_NEON) || defined(ZSTD_ARCH_X86_SSSE3)
+#if (defined(ZSTD_ARCH_ARM_NEON) && (defined(__aarch64__) || defined(_M_ARM64))) \
+    || defined(ZSTD_ARCH_X86_SSSE3)
         /* The source and destination overlap with period `diff` (8 <= diff < 16;
          * smaller offsets are expanded to >= 8 with ZSTD_overlapCopy8 before this
          * path is reached, matching the COPY8 fallback below). First copy 16 bytes
@@ -241,7 +242,9 @@ void ZSTD_wildcopy(void* dst, const void* src, size_t length, ZSTD_overlap_e con
          * `op >= oend`, so it overruns the logical end by at most WILDCOPY_VECLEN-1
          * (15) bytes. Callers guarantee WILDCOPY_OVERLENGTH (32) bytes of slack
          * past `oend`, so the overrun is always in bounds
-         * (see the ZSTD_STATIC_ASSERT below the table). */
+         * (see the ZSTD_STATIC_ASSERT below the table).
+         * The NEON path requires AArch64: `vqtbl1q_u8` does not exist on
+         * 32-bit ARM, whose `vtbl` can only look up in a 64-bit table. */
         static const uint8_t adv[16][16] = {
             { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
             { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},

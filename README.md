@@ -1,9 +1,34 @@
+<div align="center">
+
 # zstd.zig
 
-Zig bindings for Facebook's [zstd](https://github.com/facebook/zstd) (Zstandard) fast compression library. Wraps the full zstd C API (`zstd.h`, `zstd_errors.h`, `zdict.h`) into idiomatic, safe, well-documented Zig modules.
+<a href="https://ziglang.org/"><img src="https://img.shields.io/badge/Zig-0.16.0-orange.svg?logo=zig" alt="Zig Version"></a>
+<a href="https://github.com/muhammad-fiaz/zstd.zig"><img src="https://img.shields.io/github/stars/muhammad-fiaz/zstd.zig" alt="GitHub stars"></a>
+<a href="https://github.com/muhammad-fiaz/zstd.zig/issues"><img src="https://img.shields.io/github/issues/muhammad-fiaz/zstd.zig" alt="GitHub issues"></a>
+<a href="https://github.com/muhammad-fiaz/zstd.zig/pulls"><img src="https://img.shields.io/github/issues-pr/muhammad-fiaz/zstd.zig" alt="GitHub pull requests"></a>
+<a href="https://github.com/muhammad-fiaz/zstd.zig"><img src="https://img.shields.io/github/last-commit/muhammad-fiaz/zstd.zig" alt="GitHub last commit"></a>
+<a href="https://github.com/muhammad-fiaz/zstd.zig/blob/dev/LICENSE"><img src="https://img.shields.io/github/license/muhammad-fiaz/zstd.zig" alt="License"></a>
+<a href="https://github.com/muhammad-fiaz/zstd.zig/actions/workflows/ci.yml"><img src="https://github.com/muhammad-fiaz/zstd.zig/actions/workflows/ci.yml/badge.svg?branch=dev" alt="CI"></a>
+<img src="https://img.shields.io/badge/platforms-linux%20%7C%20windows%20%7C%20macos-blue" alt="Supported Platforms">
+<a href="https://github.com/muhammad-fiaz/zstd.zig/releases/latest"><img src="https://img.shields.io/github/v/release/muhammad-fiaz/zstd.zig?label=Latest%20Release&style=flat-square" alt="Latest Release"></a>
+<a href="https://hits.sh/muhammad-fiaz/zstd.zig/"><img src="https://hits.sh/muhammad-fiaz/zstd.zig.svg?label=Visitors&extraCount=0&color=green" alt="Repo Visitors"></a>
+
+<p><em>High-level native Zig bindings for Facebook's Zstandard fast compression library.</em></p>
+
+<b><a href="#installation">Installation</a> |
+<a href="#quick-start">Quick Start</a> |
+<a href="#feature-coverage">Features</a> |
+<a href="#api-reference">API</a> |
+<a href="#license">License</a></b>
+
+</div>
+
+---
+
+High-level native Zig bindings for Facebook's [zstd](https://github.com/facebook/zstd) (Zstandard) fast compression library. Wraps the full zstd C API (`zstd.h`, `zstd_errors.h`, `zdict.h`) into idiomatic, safe, well-documented Zig modules.
 
 > [!NOTE]
-> These bindings track and are upstreamed against Facebook Zstandard [commit `5c7b7ba`](https://github.com/facebook/zstd/commit/5c7b7bad26808e6b40ac3b3d0075466e27738a9d).
+> These bindings track upstream Facebook zstd commit [`5c7b7bad`](https://github.com/facebook/zstd/commit/5c7b7bad26808e6b40ac3b3d0075466e27738a9d) (v1.6.0).
 
 ## Requirements
 
@@ -95,7 +120,6 @@ Then use it in your Zig source:
 const zstd = @import("zstd");
 ```
 
-
 ## Quick Start
 
 ### Compress and Decompress
@@ -144,95 +168,37 @@ const compressed = try zstd.zdict.compressUsingDict(allocator, data, dict, 3);
 defer allocator.free(compressed);
 ```
 
+## Feature Coverage
 
-### Single-shot Compression
-
-Compress and decompress data in one call. Best for data that fits in memory.
-
-| Function | Signature | Description |
+| Feature | Supported | Zig Entry Point |
 |---|---|---|
-| `zstd.compress` | `(allocator, src: []const u8, level: i32) ZstdError![]u8` | Compress data. Returns allocated buffer. |
-| `zstd.decompress` | `(allocator, src: []const u8, expected_size: usize) ZstdError![]u8` | Decompress data. Returns allocated buffer. |
-| `zstd.compressBound` | `(src_size: usize) ZstdError!usize` | Worst-case compressed size for allocation. |
-| `zstd.getFrameContentSize` | `(src: []const u8) ContentSizeResult` | Decompressed size from frame header. |
-| `zstd.findFrameCompressedSize` | `(src: []const u8) ZstdError!usize` | Compressed size of first frame in buffer. |
-| `zstd.isFrame` | `(src: []const u8) bool` | Check for valid zstd frame magic number. |
-| `zstd.findDecompressedSize` | `(src: []const u8) ZstdError!u64` | Total decompressed size (deprecated, use getFrameContentSize). |
+| One-shot Compress | Yes | `zstd.compress` |
+| One-shot Decompress | Yes | `zstd.decompress` |
+| Compress Bound | Yes | `zstd.compressBound` |
+| Frame Content Size | Yes | `zstd.getFrameContentSize` |
+| Frame Detection | Yes | `zstd.isFrame` |
+| Streaming Compress | Yes | `zstd.StreamingCompressor` |
+| Streaming Decompress | Yes | `zstd.StreamingDecompressor` |
+| Compression Context (CCtx) | Yes | `zstd.Compressor` |
+| Decompression Context (DCtx) | Yes | `zstd.Decompressor` |
+| Compression Parameters | Yes | `zstd.CParameter` (13 variants) |
+| Decompression Parameters | Yes | `zstd.DParameter` |
+| Compression Strategies | Yes | `zstd.Strategy` (9 levels) |
+| CDict (Prepared Dict) | Yes | `zstd.CDict` |
+| DDict (Prepared Dict) | Yes | `zstd.DDict` |
+| Dictionary Builder (ZDICT) | Yes | `zstd.zdict.trainFromSamples` |
+| Finalize Dictionary | Yes | `zstd.zdict.finalizeDictionary` |
+| Multithreaded Compression | Yes | `CParameter.nb_workers` |
+| Legacy Format Support | Yes | Build option `-Dlegacy=true` |
+| Custom Allocator | Yes | All `init`/`compress`/`decompress` accept `std.mem.Allocator` |
+| Error Handling | Yes | `zstd.ZstdError` (30+ error codes) |
+| Version Query | Yes | `zstd.versionString` / `zstd.versionNumber` |
 
-**ContentSizeResult** is a tagged union:
-* `.known: u64` - size is known
-* `.unknown` - size not stored in frame header
-* `.@"error"` - invalid frame or source too small
+## Usage
 
-**Example:**
+See the [examples/](examples/) directory for complete, runnable programs.
 
-```zig
-const compressed = try zstd.compress(allocator, "hello world", 3);
-defer allocator.free(compressed);
-
-// Check frame info
-const size = zstd.getFrameContentSize(compressed);
-switch (size) {
-    .known => |s| std.debug.print("Decompressed size: {d}\n", .{s}),
-    .unknown => std.debug.print("Size unknown\n", .{}),
-    .@"error" => unreachable,
-}
-```
-
-### Streaming Compression and Decompression
-
-Process data in chunks. Use for data too large to fit in memory or for real-time compression.
-
-#### StreamingCompressor
-
-| Method | Signature | Description |
-|---|---|---|
-| `init` | `() !StreamingCompressor` | Create a new streaming compressor. |
-| `deinit` | `(self) void` | Free the compressor. |
-| `initStream` | `(self, level: i32) ZstdError!void` | Initialize for a new compression run. |
-| `reset` | `(self) ZstdError!void` | Reset session state. |
-| `setParameter` | `(self, param: CParameter, value: i32) ZstdError!void` | Set a compression parameter. |
-| `compressChunk` | `(self, input: []const u8, output: []u8, end_op: EndDirective) ZstdError!StreamResult` | Compress a chunk of data. |
-| `endStream` | `(self, output: []u8) ZstdError!StreamResult` | Flush and close the frame. |
-| `flushStream` | `(self, output: []u8) ZstdError!StreamResult` | Flush without closing. |
-
-#### StreamingDecompressor
-
-| Method | Signature | Description |
-|---|---|---|
-| `init` | `() !StreamingDecompressor` | Create a new streaming decompressor. |
-| `deinit` | `(self) void` | Free the decompressor. |
-| `initStream` | `(self) ZstdError!void` | Initialize for a new decompression run. |
-| `decompressChunk` | `(self, input: []const u8, output: []u8) ZstdError!StreamResult` | Decompress a chunk of data. |
-
-#### StreamResult
-
-```zig
-pub const StreamResult = struct {
-    bytes_written: usize,  // Bytes written to output buffer
-    remaining: usize,      // Bytes still in internal buffers (0 = done)
-};
-```
-
-#### EndDirective
-
-```zig
-pub const EndDirective = enum(c_int) {
-    @"continue" = 0,  // Collect more data
-    flush = 1,        // Flush what you have
-    end = 2,          // Flush and close frame
-};
-```
-
-**Buffer size recommendations:**
-
-```zig
-const in_buf_size = zstd.stream.cStreamInSize();   // ~128 KB
-const out_buf_size = zstd.stream.cStreamOutSize();  // ~128 KB
-const dstream_out = zstd.stream.dStreamOutSize();   // Recommended decompress buffer
-```
-
-**Example:**
+### Streaming Example
 
 ```zig
 var scomp = try zstd.StreamingCompressor.init();
@@ -256,74 +222,7 @@ if (final.bytes_written > 0) {
 }
 ```
 
-### Compression Context (CCtx)
-
-Full control over compression parameters. Reuse across multiple operations.
-
-#### Compressor
-
-| Method | Signature | Description |
-|---|---|---|
-| `init` | `() !Compressor` | Create a new compression context. |
-| `deinit` | `(self) void` | Free the context. |
-| `setParameter` | `(self, param: CParameter, value: i32) ZstdError!void` | Set a compression parameter. |
-| `setPledgedSrcSize` | `(self, src_size: u64) ZstdError!void` | Set input size for frame header. |
-| `reset` | `(self, directive: ResetDirective) ZstdError!void` | Reset session/parameters/both. |
-| `compress2` | `(self, dst: []u8, src: []const u8) ZstdError!usize` | Compress into pre-allocated buffer. |
-| `compressAlloc` | `(self, allocator, src: []const u8) ZstdError![]u8` | Compress into newly allocated buffer. |
-| `loadDictionary` | `(self, dict: ?[]const u8) ZstdError!void` | Load a raw dictionary. |
-| `refCDict` | `(self, cdict: ?*const CDict) ZstdError!void` | Reference a prepared dictionary. |
-| `refPrefix` | `(self, prefix: ?[]const u8) ZstdError!void` | Reference a single-use prefix dictionary. |
-| `sizeof` | `(self) usize` | Current memory usage in bytes. |
-
-#### CParameter
-
-| Variant | Value | Description |
-|---|---|---|
-| `compression_level` | 100 | Compression level (1 to 22, default 3) |
-| `window_log` | 101 | Maximum back-reference distance (log2) |
-| `hash_log` | 102 | Hash table size (log2) |
-| `chain_log` | 103 | Chain table size (log2, greedy+) |
-| `search_log` | 104 | Search depth (log2, lazy+) |
-| `min_match` | 105 | Minimum match length |
-| `target_length` | 106 | Target match length |
-| `strategy` | 107 | Compression strategy (see Strategy enum) |
-| `content_size_flag` | 200 | Write content size in frame header |
-| `checksum_flag` | 201 | Add XXH64 checksum to frame |
-| `dict_id_flag` | 202 | Write dictionary ID in frame |
-| `nb_workers` | 400 | Number of compression threads (0 = single-threaded) |
-| `job_size` | 401 | Size of each compression job |
-| `overlap_log` | 402 | Overlap between jobs |
-
-#### Strategy
-
-From fastest to strongest:
-
-```zig
-pub const Strategy = enum(c_int) {
-    fast = 1,      // Fastest, lowest ratio
-    dfast = 2,     // Double-fast
-    greedy = 3,    // Greedy
-    lazy = 4,      // Lazy
-    lazy2 = 5,     // Lazy2
-    btlazy2 = 6,   // BT lazy2
-    btopt = 7,     // BT optimal
-    btultra = 8,   // BT ultra
-    btultra2 = 9,  // BT ultra2 (strongest)
-};
-```
-
-#### ResetDirective
-
-```zig
-pub const ResetDirective = enum(c_int) {
-    session_only = 1,           // Start new frame, keep parameters
-    parameters = 2,             // Reset parameters, keep session
-    session_and_parameters = 3, // Reset both
-};
-```
-
-**Example:**
+### Compression Context Example
 
 ```zig
 var comp = try zstd.Compressor.init();
@@ -337,141 +236,9 @@ const compressed = try comp.compressAlloc(allocator, data);
 defer allocator.free(compressed);
 ```
 
-#### cParamGetBounds
-
-Query valid range for a compression parameter:
+### Dictionary Training Example
 
 ```zig
-const bounds = try zstd.cctx.cParamGetBounds(.compression_level);
-std.debug.print("Level range: [{d}, {d}]\n", .{ bounds.lower_bound, bounds.upper_bound });
-```
-
-### Decompression Context (DCtx)
-
-Full control over decompression parameters.
-
-#### Decompressor
-
-| Method | Signature | Description |
-|---|---|---|
-| `init` | `() !Decompressor` | Create a new decompression context. |
-| `deinit` | `(self) void` | Free the context. |
-| `setParameter` | `(self, param: DParameter, value: i32) ZstdError!void` | Set a decompression parameter. |
-| `reset` | `(self, directive: ResetDirective) ZstdError!void` | Reset session/parameters/both. |
-| `decompress` | `(self, dst: []u8, src: []const u8) ZstdError!usize` | Decompress into pre-allocated buffer. |
-| `decompressAlloc` | `(self, allocator, src: []const u8, expected: usize) ZstdError![]u8` | Decompress into newly allocated buffer. |
-| `loadDDictionary` | `(self, dict: ?[]const u8) ZstdError!void` | Load a raw dictionary. |
-| `refDDict` | `(self, ddict: ?*const DDict) ZstdError!void` | Reference a prepared dictionary. |
-| `refPrefix` | `(self, prefix: ?[]const u8) ZstdError!void` | Reference a single-use prefix dictionary. |
-| `sizeof` | `(self) usize` | Current memory usage in bytes. |
-
-#### DParameter
-
-| Variant | Value | Description |
-|---|---|---|
-| `window_log_max` | 100 | Maximum window size for decompression |
-
-**Example:**
-
-```zig
-var decomp = try zstd.Decompressor.init();
-defer decomp.deinit();
-
-const decompressed = try decomp.decompressAlloc(allocator, compressed, 1024);
-defer allocator.free(decompressed);
-```
-
-### Dictionary Compression
-
-Reuse learned dictionaries for better compression on similar data.
-
-#### Function-based (one-shot)
-
-| Function | Signature | Description |
-|---|---|---|
-| `zstd.zdict.compressUsingDict` | `(allocator, src, dict, level) ZstdError![]u8` | Compress with a raw dictionary. |
-| `zstd.zdict.decompressUsingDict` | `(allocator, src, ddict, expected) ZstdError![]u8` | Decompress with a raw dictionary. |
-| `zstd.zdict.compressUsingCDict` | `(allocator, src, cdict, level) ZstdError![]u8` | Compress with a prepared CDict. |
-| `zstd.zdict.decompressUsingDDict` | `(allocator, src, ddict, expected) ZstdError![]u8` | Decompress with a prepared DDict. |
-
-#### Dictionary Types
-
-**CDict** (prepared compression dictionary):
-
-| Method | Description |
-|---|---|
-| `CDict.init(dict_buffer, level)` | Create from raw dictionary bytes. |
-| `CDict.deinit()` | Free the dictionary. |
-| `CDict.getDictId()` | Get the dictionary ID. |
-| `CDict.sizeof()` | Memory usage in bytes. |
-
-**DDict** (prepared decompression dictionary):
-
-| Method | Description |
-|---|---|
-| `DDict.init(dict_buffer)` | Create from raw dictionary bytes. |
-| `DDict.deinit()` | Free the dictionary. |
-| `DDict.getDictId()` | Get the dictionary ID. |
-| `DDict.sizeof()` | Memory usage in bytes. |
-
-**Example:**
-
-```zig
-// Create dictionaries from raw dictionary bytes
-var cdict = try zstd.CDict.init(dict_bytes, 3);
-defer cdict.deinit();
-
-var ddict = try zstd.DDict.init(dict_bytes);
-defer ddict.deinit();
-
-// Compress and decompress with prepared dictionaries
-const compressed = try zstd.zdict.compressUsingCDict(allocator, data, &cdict, 3);
-defer allocator.free(compressed);
-
-const decompressed = try zstd.zdict.decompressUsingDDict(allocator, compressed, &ddict, data.len);
-defer allocator.free(decompressed);
-```
-
-### Dictionary Builder (ZDICT)
-
-Train compression dictionaries from sample data.
-
-| Function | Signature | Description |
-|---|---|---|
-| `zstd.zdict.trainFromSamples` | `(allocator, samples, dict_capacity, params) ZstdError![]u8` | Train dictionary from samples. |
-| `zstd.zdict.finalizeDictionary` | `(allocator, dict_content, samples, params) ZstdError![]u8` | Finalize a custom dictionary. |
-| `zstd.zdict.getDictID` | `(dict: []const u8) u32` | Get dictionary ID from raw dict. |
-| `zstd.zdict.getDictHeaderSize` | `(dict: []const u8) usize` | Get header size of a dictionary. |
-| `zstd.zdict.isError` | `(result: usize) bool` | Check if a ZDICT result is an error. |
-| `zstd.zdict.dictErrorName` | `(result: usize) [*:0]const u8` | Get error name string. |
-
-#### DictParams
-
-```zig
-pub const DictParams = struct {
-    compression_level: i32 = 0,
-    notification_level: u32 = 0,
-    dict_id: u32 = 0,
-};
-```
-
-#### CoverParams
-
-```zig
-pub const CoverParams = struct {
-    k: u32 = 0,           // Number of patterns
-    d: u32 = 0,           // Derivative level
-    steps: u32 = 0,       // Number of steps
-    nb_threads: u32 = 0,  // Number of threads
-    split_point: f64 = 0, // Split point for training
-    // ...
-};
-```
-
-**Example:**
-
-```zig
-// Prepare sample data
 const samples = [_][]const u8{
     "sample one for training",
     "sample two for training",
@@ -479,81 +246,68 @@ const samples = [_][]const u8{
 };
 
 // Train a 16 KB dictionary
-const dict = try zstd.zdict.trainFromSamples(
-    allocator,
-    &samples,
-    1 << 14, // 16 KB
-    .{},
-);
+const dict = try zstd.zdict.trainFromSamples(allocator, &samples, 1 << 14, .{});
 defer allocator.free(dict);
-
-std.debug.print("Trained dictionary: {d} bytes\n", .{dict.len});
 ```
 
-### Error Handling
+## API Reference
 
-All zstd errors are mapped to the Zig `ZstdError` error set:
-
-| Error | zstd Error Code | Description |
-|---|---|---|
-| `OutOfMemory` | N/A | Zig allocator failure |
-| `GenericError` | 1 | Generic error |
-| `PrefixUnknown` | 10 | Unknown frame prefix |
-| `VersionUnsupported` | 12 | Unsupported version |
-| `FrameParameterUnsupported` | 14 | Unsupported frame parameter |
-| `FrameParameterWindowTooLarge` | 16 | Window size too large |
-| `CorruptionDetected` | 20 | Data corruption detected |
-| `ChecksumWrong` | 22 | Frame checksum mismatch |
-| `LiteralsHeaderWrong` | 24 | Invalid literals header |
-| `DictionaryCorrupted` | 30 | Dictionary corrupted |
-| `DictionaryWrong` | 32 | Dictionary incompatible |
-| `DictionaryCreationFailed` | 34 | Failed to create dictionary |
-| `ParameterUnsupported` | 40 | Unsupported parameter |
-| `ParameterCombinationUnsupported` | 41 | Invalid parameter combination |
-| `ParameterOutOfBound` | 42 | Parameter out of valid range |
-| `MemoryAllocation` | 64 | C library memory allocation failed |
-| `DstSizeTooSmall` | 70 | Destination buffer too small |
-| `SrcSizeWrong` | 72 | Invalid source size |
-| `DstBufferNull` | 74 | Destination buffer is null |
-
-**Example:**
-
-```zig
-const compressed = zstd.compress(allocator, data, 3) catch |err| switch (err) {
-    error.DstSizeTooSmall => {
-        std.debug.print("Buffer too small\n", .{});
-        return;
-    },
-    error.OutOfMemory => return error.OutOfMemory,
-    else => {
-        std.debug.print("Compression error: {s}\n", .{@errorName(err)});
-        return;
-    },
-};
-```
-
-### Version Queries
+### Single-shot
 
 | Function | Signature | Description |
 |---|---|---|
-| `zstd.versionNumber` | `() u32` | Version as `MAJOR*10000 + MINOR*100 + RELEASE` |
-| `zstd.versionString` | `() [*:0]const u8` | Version string, e.g. `"1.6.0"` |
-| `zstd.minCLevel` | `() i32` | Minimum compression level (negative, ultra-fast) |
-| `zstd.maxCLevel` | `() i32` | Maximum compression level (22) |
-| `zstd.defaultCLevel` | `() i32` | Default compression level (3) |
+| `zstd.compress` | `(allocator, src, level) ZstdError![]u8` | Compress data in one shot |
+| `zstd.decompress` | `(allocator, src, expected_size) ZstdError![]u8` | Decompress data in one shot |
+| `zstd.compressBound` | `(src_size) ZstdError!usize` | Worst-case compressed size |
+| `zstd.getFrameContentSize` | `(src) ContentSizeResult` | Decompressed size from frame header |
+| `zstd.findFrameCompressedSize` | `(src) ZstdError!usize` | Compressed size of first frame |
+| `zstd.isFrame` | `(src) bool` | Check for valid zstd frame magic |
 
-**Example:**
+### Streaming
 
-```zig
-std.debug.print("zstd version: {s}\n", .{zstd.versionString()});
-std.debug.print("Level range: [{d}, {d}], default: {d}\n", .{
-    zstd.minCLevel(),
-    zstd.maxCLevel(),
-    zstd.defaultCLevel(),
-});
-```
+| Type | Description |
+|---|---|
+| `zstd.StreamingCompressor` | Chunk by chunk compression for large data |
+| `zstd.StreamingDecompressor` | Chunk by chunk decompression for large data |
+| `zstd.StreamResult` | Result with `bytes_written` and `remaining` fields |
+| `zstd.EndDirective` | `.continue`, `.flush`, or `.end` |
 
-## Building
+### Compression Context
+
+| Type | Description |
+|---|---|
+| `zstd.Compressor` | Explicit CCtx with full parameter control |
+| `zstd.CParameter` | 13 compression parameters (level, window, strategy, threads, etc.) |
+| `zstd.Strategy` | 9 strategies from `fast` to `btultra2` |
+| `zstd.ResetDirective` | `session_only`, `parameters`, `session_and_parameters` |
+
+### Decompression Context
+
+| Type | Description |
+|---|---|
+| `zstd.Decompressor` | Explicit DCtx with full parameter control |
+| `zstd.DParameter` | Decompression parameters |
+
+### Dictionary
+
+| Type | Description |
+|---|---|
+| `zstd.CDict` | Prepared compression dictionary |
+| `zstd.DDict` | Prepared decompression dictionary |
+| `zstd.zdict.trainFromSamples` | Train dictionary from sample data |
+| `zstd.zdict.finalizeDictionary` | Finalize a custom dictionary |
+
+### Error Handling
+
+| Error | Description |
+|---|---|
+| `error.CorruptionDetected` | Data corruption detected |
+| `error.DstSizeTooSmall` | Destination buffer too small |
+| `error.MemoryAllocation` | C memory allocation failed |
+| `error.ParameterOutOfBound` | Parameter out of valid range |
+| ... | 30+ errors total, see `errors.zig` |
+
+## Building & Testing
 
 ```bash
 zig build            # Build library
@@ -569,32 +323,32 @@ zig build example-simple-compress   # Run an example
 | `-Dmultithread` | `true` | Enable multithreaded compression (ZSTD_MULTITHREAD) |
 | `-Dlegacy` | `false` | Enable legacy format decoding (v0.1 to v0.7) |
 
-## Examples
+## API Modules
 
-Run any example with `zig build example-<name>`. See [examples/README.md](examples/README.md) for the full list.
+| Module | Description |
+|---|---|
+| `zstd` | Public root module with re-exported convenience functions |
+| `zstd.simple` | One-shot compress/decompress |
+| `zstd.cctx` | Compression context, CParameter, Strategy |
+| `zstd.dctx` | Decompression context, DParameter |
+| `zstd.stream` | StreamingCompressor, StreamingDecompressor |
+| `zstd.dict` | Dictionary compression with CDict/DDict |
+| `zstd.zdict` | Dictionary builder (ZDICT) |
+| `zstd.errors` | ZstdError error set and error code mapping |
+| `zstd.version` | Version and capability queries |
 
-```bash
-zig build example-simple-compress
-zig build example-streaming-compress-file
-zig build example-dictionary-training
-zig build example-benchmark-levels
-zig build example-error-handling
-zig build example-cctx-parameters
-zig build example-frame-content-size
-```
+## Contributing
 
-> [!NOTE]
-> Supported on Windows, macOS, and Linux. Works on x86_64, aarch64, and other targets supported by Zig and zstd.
-
-## Authors
-
- - **Muhammad Fiaz** (https://github.com/muhammad-fiaz) - Zig bindings, build system, and API design
- - **Meta Platforms (Facebook)** (https://github.com/facebook/zstd) - Original zstd C library
+Contributions are welcome! Please open an issue or pull request on GitHub.
 
 ## License
 
-BSD + GPLv2 (see [LICENSE](LICENSE) and [COPYING](COPYING)).
+BSD + GPLv2 - see [LICENSE](LICENSE) and [COPYING](COPYING).
 
 Original zstd code: Copyright (c) Meta Platforms, Inc. and affiliates.
 
 Zig bindings: Copyright (c) Muhammad Fiaz.
+
+## Author
+
+**Muhammad Fiaz** (https://github.com/muhammad-fiaz) - Zig bindings, build system, and API design

@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [dev]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - run: zig build
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - run: zig build test
+
+  examples:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        example:
+          - simple-compress
+          - compress-bound
+          - frame-content-size
+          - cctx-parameters
+          - multithreaded-compress
+          - dctx-parameters
+          - streaming-compress-file
+          - streaming-decompress-file
+          - dictionary-compress
+          - dictionary-decompress
+          - dictionary-training
+          - error-handling
+          - benchmark-levels
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - run: zig build example-${{ matrix.example }}

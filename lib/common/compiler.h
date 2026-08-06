@@ -201,7 +201,16 @@
  * If you can remove a LIKELY/UNLIKELY annotation without speed changes in gcc
  * and clang, please do.
  */
-#if defined(__GNUC__)
+#if defined(__has_builtin)
+#  if __has_builtin(__builtin_expect)
+#    define ZSTD_HAS_BUILTIN_EXPECT 1
+#  endif
+#endif
+#if !defined(ZSTD_HAS_BUILTIN_EXPECT) && defined(__GNUC__)
+#  define ZSTD_HAS_BUILTIN_EXPECT 1
+#endif
+
+#if defined(ZSTD_HAS_BUILTIN_EXPECT)
 #define LIKELY(x) (__builtin_expect((x), 1))
 #define UNLIKELY(x) (__builtin_expect((x), 0))
 #else

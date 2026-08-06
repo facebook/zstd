@@ -118,8 +118,26 @@
 #endif
 
 
-/* target attribute */
-#if defined(__GNUC__) || defined(__IAR_SYSTEMS_ICC__)
+/* target attribute
+ *
+ * This condition must stay in sync with the one DYNAMIC_BMI2 uses in
+ * portability_macros.h. clang in MSVC-compatible mode (clang-cl) supports
+ * __attribute__((__target__)) but does not define __GNUC__, so testing
+ * __GNUC__ alone silently expands this to nothing while DYNAMIC_BMI2
+ * remains enabled -- the runtime dispatch then calls _bmi2 entry points
+ * that were compiled with no BMI2 at all.
+ */
+#if defined(__has_attribute)
+#  if __has_attribute(__target__)
+#    define ZSTD_HAS_TARGET_ATTRIBUTE 1
+#  endif
+#endif
+#if !defined(ZSTD_HAS_TARGET_ATTRIBUTE) && \
+    (defined(__GNUC__) || defined(__IAR_SYSTEMS_ICC__))
+#  define ZSTD_HAS_TARGET_ATTRIBUTE 1
+#endif
+
+#if defined(ZSTD_HAS_TARGET_ATTRIBUTE)
 #  define TARGET_ATTRIBUTE(target) __attribute__((__target__(target)))
 #else
 #  define TARGET_ATTRIBUTE(target)

@@ -115,8 +115,7 @@ static size_t ZSTD_DDictHashSet_emplaceDDict(ZSTD_DDictHashSet* hashSet, const Z
             hashSet->ddictPtrTable[idx] = ddict;
             return 0;
         }
-        idx &= idxRangeMask;
-        idx++;
+        idx = (idx + 1) & idxRangeMask;
     }
     DEBUGLOG(4, "Final idx after probing for dictID %u is: %zu", dictID, idx);
     hashSet->ddictPtrTable[idx] = ddict;
@@ -163,8 +162,7 @@ static const ZSTD_DDict* ZSTD_DDictHashSet_getDDict(ZSTD_DDictHashSet* hashSet, 
             /* currDictID == 0 implies a NULL ddict entry */
             break;
         } else {
-            idx &= idxRangeMask;    /* Goes to start of table when we reach the end */
-            idx++;
+            idx = (idx + 1) & idxRangeMask;    /* Goes to start of table when we reach the end */
         }
     }
     DEBUGLOG(4, "Final idx after probing for dictID %u is: %zu", dictID, idx);

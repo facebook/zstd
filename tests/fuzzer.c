@@ -3867,7 +3867,79 @@ static int basicUnitTests(U32 const seed, double compressibility)
             goto _output_error;
         _oob_skip2: ;
         }
-        DISPLAYLEVEL(3, "OK (ASAN would report OOB if vulnerable)\n");
+        DISPLAYLEVEL(3, "OK (ASAN would report OOB read if vulnerable)\n");
+
+        DISPLAYLEVEL(3, "test%3i : DDict hashset OOB write T283341343 (ASAN) : ", testNb++);
+        {
+            /* Write path version of above: same colliding IDs 3 and 47 → slot 63.
+             * Insertion does while(table[idx]!=NULL) { idx&=mask; idx++; }
+             * Second insertion with colliding ID should wrap to slot 0, but buggy code
+             * writes to slot 64 OOB (8-byte write). With ASAN this is heap-buffer-overflow
+             * on write. Without ASAN glibc slack hides it.
+             */
+            U32 victimID2;
+            U32 attackerID2;
+            size_t vIdx2;
+            size_t aIdx2;
+            ZSTD_DCtx* dctx3;
+            char* dictBufV2;
+            char* dictBufA2;
+            ZSTD_DDict* victimDDict2;
+            ZSTD_DDict* attackerDDict2;
+
+            victimID2 = 3;
+            attackerID2 = 47;
+            vIdx2 = XXH64(&victimID2, sizeof(victimID2), 0) & 63;
+            aIdx2 = XXH64(&attackerID2, sizeof(attackerID2), 0) & 63;
+            if (vIdx2 != 63 || aIdx2 != 63) {
+                DISPLAY("hash assumption broken for write test\n");
+                goto _output_error;
+            }
+
+            dctx3 = ZSTD_createDCtx();
+            dictBufV2 = (char*)malloc(dictBufferFixedSize);
+            dictBufA2 = (char*)malloc(dictBufferFixedSize);
+            victimDDict2 = NULL;
+            attackerDDict2 = NULL;
+
+            if (!dctx3 || !dictBufV2 || !dictBufA2) {
+                DISPLAY("alloc failed for OOB write test\n");
+                goto _oob_write_error2;
+            }
+
+            ZSTD_memcpy(dictBufV2, dictBufferFixed, dictBufferFixedSize);
+            ZSTD_memcpy(dictBufA2, dictBufferFixed, dictBufferFixedSize);
+            MEM_writeLE32(dictBufV2 + ZSTD_FRAMEIDSIZE, victimID2);
+            MEM_writeLE32(dictBufA2 + ZSTD_FRAMEIDSIZE, attackerID2);
+
+            victimDDict2 = ZSTD_createDDict(dictBufV2, dictBufferFixedSize);
+            attackerDDict2 = ZSTD_createDDict(dictBufA2, dictBufferFixedSize);
+            if (!victimDDict2 || !attackerDDict2) {
+                DISPLAY("DDict creation failed for write test\n");
+                goto _oob_write_error2;
+            }
+
+            CHECK_Z( ZSTD_DCtx_setParameter(dctx3, ZSTD_d_refMultipleDDicts, ZSTD_rmd_refMultipleDDicts) );
+            CHECK_Z( ZSTD_DCtx_refDDict(dctx3, victimDDict2) );
+            /* Second colliding insertion - triggers OOB write in buggy emplaceDDict */
+            CHECK_Z( ZSTD_DCtx_refDDict(dctx3, attackerDDict2) );
+
+            ZSTD_freeDDict(victimDDict2);
+            ZSTD_freeDDict(attackerDDict2);
+            ZSTD_freeDCtx(dctx3);
+            free(dictBufV2);
+            free(dictBufA2);
+            goto _oob_write_skip2;
+        _oob_write_error2:
+            if (victimDDict2) ZSTD_freeDDict(victimDDict2);
+            if (attackerDDict2) ZSTD_freeDDict(attackerDDict2);
+            if (dctx3) ZSTD_freeDCtx(dctx3);
+            if (dictBufV2) free(dictBufV2);
+            if (dictBufA2) free(dictBufA2);
+            goto _output_error;
+        _oob_write_skip2: ;
+        }
+        DISPLAYLEVEL(3, "OK (ASAN would report OOB write if vulnerable)\n");
 
         ZSTD_freeCCtx(cctx);
         free(dictBuffer);

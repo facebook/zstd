@@ -3758,6 +3758,117 @@ static int basicUnitTests(U32 const seed, double compressibility)
         }
         DISPLAYLEVEL(3, "OK \n");
 
+        DISPLAYLEVEL(3, "test%3i : DDict hashset OOB T283341343 (ASAN) : ", testNb++);
+        {
+            /* Simplified repro for T283341343 - relies on ASAN to catch OOB read.
+             * Original bug: probe does idx &= mask; idx++ -> idx can become 64 OOB.
+             * IDs 3 and 47 both hash XXH64(id) & 63 == 63 (last slot).
+             * Setup: register dict 3 (occupies slot 63), then decompress frame
+             * whose header dictID is patched to 47 (collides to same slot).
+             * Buggy getDDict reads slot 64 OOB. With ASAN=1 this is reported as
+             * heap-buffer-overflow even though glibc would see 0 and return
+             * "dictionary mismatch". No custom allocator needed.
+             * See P2447503582 mode 0.
+             */
+            U32 victimID;
+            U32 attackerID;
+            size_t victimIdx;
+            size_t attackerIdx;
+            ZSTD_DCtx* dctx2;
+            ZSTD_CCtx* cctx2;
+            char* dictBufVictim;
+            ZSTD_DDict* victimDDict;
+            size_t srcSize;
+            BYTE* frame;
+            BYTE fhd;
+            int dictIDSizeCode;
+            int nb;
+            int singleSegment;
+            int pos;
+            int i;
+
+            victimID = 3;
+            attackerID = 47;
+            victimIdx = XXH64(&victimID, sizeof(victimID), 0) & 63;
+            attackerIdx = XXH64(&attackerID, sizeof(attackerID), 0) & 63;
+            if (victimIdx != 63 || attackerIdx != 63) {
+                DISPLAY("hash assumption broken\n");
+                goto _output_error;
+            }
+
+            dctx2 = ZSTD_createDCtx();
+            cctx2 = ZSTD_createCCtx();
+            dictBufVictim = (char*)malloc(dictBufferFixedSize);
+            victimDDict = NULL;
+
+            if (!dctx2 || !cctx2 || !dictBufVictim) {
+                DISPLAY("alloc failed\n");
+                goto _oob_error2;
+            }
+
+            ZSTD_memcpy(dictBufVictim, dictBufferFixed, dictBufferFixedSize);
+            MEM_writeLE32(dictBufVictim + ZSTD_FRAMEIDSIZE, victimID);
+            victimDDict = ZSTD_createDDict(dictBufVictim, dictBufferFixedSize);
+            if (!victimDDict) {
+                DISPLAY("DDict creation failed\n");
+                goto _oob_error2;
+            }
+
+            CHECK_Z( ZSTD_DCtx_setParameter(dctx2, ZSTD_d_refMultipleDDicts, ZSTD_rmd_refMultipleDDicts) );
+            CHECK_Z( ZSTD_DCtx_refDDict(dctx2, victimDDict) );
+
+            ZSTD_CCtx_reset(cctx2, ZSTD_reset_session_and_parameters);
+            srcSize = MIN(CNBuffSize, 1 KB);
+            cSize = ZSTD_compress_usingDict(cctx2, compressedBuffer, compressedBufferSize,
+                                            CNBuffer, srcSize,
+                                            dictBufVictim, dictBufferFixedSize, 3);
+            if (ZSTD_isError(cSize)) {
+                DISPLAY("compress_usingDict failed %s\n", ZSTD_getErrorName(cSize));
+                goto _oob_error2;
+            }
+
+            /* Patch dictID in frame header to attackerID (47) */
+            frame = (BYTE*)compressedBuffer;
+            fhd = frame[4];
+            dictIDSizeCode = fhd & 3;
+            nb = (dictIDSizeCode == 3) ? 4 : dictIDSizeCode;
+            singleSegment = (fhd >> 5) & 1;
+            pos = 4 + 1 + (singleSegment ? 0 : 1);
+            if (nb == 0) {
+                DISPLAY("frame has no dictID field\n");
+                goto _oob_error2;
+            }
+            for (i = 0; i < nb; i++) frame[pos + i] = (BYTE)(attackerID >> (8 * i));
+
+            /* With ASAN=1 buggy code triggers heap-buffer-overflow here.
+             * Without ASAN it just returns dictionary_wrong, which is OK for fixed code.
+             * So this test always passes without ASAN, but fails under ASAN if bug present.
+             */
+            {
+                size_t const ret = ZSTD_decompressDCtx(dctx2, decodedBuffer, CNBuffSize, compressedBuffer, cSize);
+                if (!ZSTD_isError(ret)) {
+                    DISPLAY("unexpected success %zu (should be dict mismatch)\n", ret);
+                    goto _oob_error2;
+                }
+                /* Expected: dictionary_wrong / mismatch -> OK means OOB was not taken as success,
+                 * but ASAN would have already aborted if OOB read happened. */
+            }
+
+            ZSTD_freeDDict(victimDDict);
+            ZSTD_freeDCtx(dctx2);
+            ZSTD_freeCCtx(cctx2);
+            free(dictBufVictim);
+            goto _oob_skip2;
+        _oob_error2:
+            if (victimDDict) ZSTD_freeDDict(victimDDict);
+            if (dctx2) ZSTD_freeDCtx(dctx2);
+            if (cctx2) ZSTD_freeCCtx(cctx2);
+            if (dictBufVictim) free(dictBufVictim);
+            goto _output_error;
+        _oob_skip2: ;
+        }
+        DISPLAYLEVEL(3, "OK (ASAN would report OOB if vulnerable)\n");
+
         ZSTD_freeCCtx(cctx);
         free(dictBuffer);
         free(samplesSizes);

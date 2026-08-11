@@ -1236,7 +1236,7 @@ FORCE_INLINE_TEMPLATE seq_t
 ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets, const int isLastSeq)
 {
     seq_t seq;
-#if defined(__aarch64__)
+#if defined(__aarch64__) || (defined(__x86_64__) && !defined(__ILP32__))
     size_t prevOffset0 = seqState->prevOffset[0];
     size_t prevOffset1 = seqState->prevOffset[1];
     size_t prevOffset2 = seqState->prevOffset[2];
@@ -1248,7 +1248,7 @@ ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets, c
      * operations that cause performance drop. This can be avoided by using this
      * ZSTD_memcpy hack.
      */
-#  if defined(__GNUC__) && !defined(__clang__)
+#  if defined(__aarch64__) && defined(__GNUC__) && !defined(__clang__)
     ZSTD_seqSymbol llDInfoS, mlDInfoS, ofDInfoS;
     ZSTD_seqSymbol* const llDInfo = &llDInfoS;
     ZSTD_seqSymbol* const mlDInfo = &mlDInfoS;
@@ -1348,7 +1348,7 @@ ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets, c
     seqState->prevOffset[0] = prevOffset0;
     seqState->prevOffset[1] = prevOffset1;
     seqState->prevOffset[2] = prevOffset2;
-#else   /* !defined(__aarch64__) */
+#else   /* scalar-repoffset arm not selected */
     const ZSTD_seqSymbol* const llDInfo = seqState->stateLL.table + seqState->stateLL.state;
     const ZSTD_seqSymbol* const mlDInfo = seqState->stateML.table + seqState->stateML.state;
     const ZSTD_seqSymbol* const ofDInfo = seqState->stateOffb.table + seqState->stateOffb.state;
@@ -1441,7 +1441,7 @@ ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets, c
             BIT_reloadDStream(&seqState->DStream);
         }
     }
-#endif  /* defined(__aarch64__) */
+#endif  /* scalar-repoffset arm */
 
     return seq;
 }

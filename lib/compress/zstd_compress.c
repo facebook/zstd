@@ -646,6 +646,11 @@ ZSTD_bounds ZSTD_cParam_getBounds(ZSTD_cParameter param)
         bounds.upperBound = (int)ZSTD_ps_disable;
         return bounds;
 
+    case ZSTD_c_constrainWindowForProtocol:
+        bounds.lowerBound = (int)ZSTD_ConstrainWindow_auto;
+        bounds.upperBound = (int)ZSTD_ConstrainWindow_HTTP_DCZ;
+        return bounds;
+
     default:
         bounds.error = ERROR(parameter_unsupported);
         return bounds;
@@ -716,6 +721,7 @@ static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
     case ZSTD_c_enableSeqProducerFallback:
     case ZSTD_c_maxBlockSize:
     case ZSTD_c_repcodeResolution:
+    case ZSTD_c_constrainWindowForProtocol:
     default:
         return 0;
     }
@@ -776,6 +782,7 @@ size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value)
     case ZSTD_c_enableSeqProducerFallback:
     case ZSTD_c_maxBlockSize:
     case ZSTD_c_repcodeResolution:
+    case ZSTD_c_constrainWindowForProtocol:
         break;
 
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
@@ -1032,6 +1039,14 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
         CCtxParams->searchForExternalRepcodes = (ZSTD_ParamSwitch_e)value;
         return CCtxParams->searchForExternalRepcodes;
 
+    case ZSTD_c_constrainWindowForProtocol:
+        BOUNDCHECK(ZSTD_c_constrainWindowForProtocol, value);
+        RETURN_ERROR_IF(
+                value == (int)ZSTD_ps_enable,
+                parameter_outOfBound, "Param out of bounds");
+        CCtxParams->constrainWindowForProtocol = (ZSTD_ConstrainWindow_e)value;
+        return CCtxParams->constrainWindowForProtocol;
+
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
     }
 }
@@ -1178,6 +1193,9 @@ size_t ZSTD_CCtxParams_getParameter(
         break;
     case ZSTD_c_repcodeResolution:
         *value = (int)CCtxParams->searchForExternalRepcodes;
+        break;
+    case ZSTD_c_constrainWindowForProtocol:
+        *value = (int)CCtxParams->constrainWindowForProtocol;
         break;
     default: RETURN_ERROR(parameter_unsupported, "unknown parameter");
     }
@@ -1478,6 +1496,35 @@ static U32 ZSTD_dictAndWindowLog(U32 windowLog, U64 srcSize, U64 dictSize)
     }
 }
 
+static U32 ZSTD_windowConstraintForProtocol(
+        ZSTD_ConstrainWindow_e protocol,
+        U64 srcSize,
+        size_t dictSize) {
+    (void)srcSize;
+    switch (protocol) {
+    case ZSTD_ConstrainWindow_auto:
+    case ZSTD_ConstrainWindow_disable:
+    default:
+        return ZSTD_WINDOWLOG_MAX;
+    case ZSTD_ConstrainWindow_HTTP_Zstd:
+        return 23; /* 8 MB */
+    case ZSTD_ConstrainWindow_HTTP_DCZ: {
+        U32 wlog;
+        if (dictSize < 8 MB) {
+            wlog = 23; /* 8 MB */
+        } else if (dictSize >= 128 MB) {
+            wlog = 27; /* 128 MB */
+        } else {
+            dictSize += dictSize >> 2; /* dictSize *= 1.25 */
+            wlog = ZSTD_highbit32((U32)dictSize);
+        }
+        assert(wlog >= 23);
+        assert(wlog <= 27);
+        return wlog;
+    }
+    }
+}
+
 /** ZSTD_adjustCParams_internal() :
  *  optimize `cPar` for a specified input (`srcSize` and `dictSize`).
  *  mostly downsize to reduce memory consumption and initialization latency.
@@ -1490,7 +1537,8 @@ ZSTD_adjustCParams_internal(ZSTD_compressionParameters cPar,
                             unsigned long long srcSize,
                             size_t dictSize,
                             ZSTD_CParamMode_e mode,
-                            ZSTD_ParamSwitch_e useRowMatchFinder)
+                            ZSTD_ParamSwitch_e useRowMatchFinder,
+                            ZSTD_ConstrainWindow_e constrainWindowForProtocol)
 {
     const U64 minSrcSize = 513; /* (1<<9) + 1 */
     const U64 maxWindowResize = 1ULL << (ZSTD_WINDOWLOG_MAX-1);
@@ -1537,6 +1585,16 @@ ZSTD_adjustCParams_internal(ZSTD_compressionParameters cPar,
         cPar.targetLength = 0;
     }
 #endif
+
+    /* Shrink window to comply with protocols that place restrictions on the
+     * window size. */
+    {
+        U32 const windowConstraint = ZSTD_windowConstraintForProtocol(
+                constrainWindowForProtocol, srcSize, dictSize);
+        if (cPar.windowLog > windowConstraint) {
+            cPar.windowLog = windowConstraint;
+        }
+    }
 
     switch (mode) {
     case ZSTD_cpm_unknown:
@@ -1631,11 +1689,23 @@ ZSTD_adjustCParams(ZSTD_compressionParameters cPar,
 {
     cPar = ZSTD_clampCParams(cPar);   /* resulting cPar is necessarily valid (all parameters within range) */
     if (srcSize == 0) srcSize = ZSTD_CONTENTSIZE_UNKNOWN;
-    return ZSTD_adjustCParams_internal(cPar, srcSize, dictSize, ZSTD_cpm_unknown, ZSTD_ps_auto);
+    return ZSTD_adjustCParams_internal(
+            cPar, srcSize, dictSize, ZSTD_cpm_unknown,
+            ZSTD_ps_auto, ZSTD_ConstrainWindow_auto);
 }
 
-static ZSTD_compressionParameters ZSTD_getCParams_internal(int compressionLevel, unsigned long long srcSizeHint, size_t dictSize, ZSTD_CParamMode_e mode);
-static ZSTD_parameters ZSTD_getParams_internal(int compressionLevel, unsigned long long srcSizeHint, size_t dictSize, ZSTD_CParamMode_e mode);
+static ZSTD_compressionParameters ZSTD_getCParams_internal(
+        int compressionLevel,
+        unsigned long long srcSizeHint,
+        size_t dictSize,
+        ZSTD_CParamMode_e mode,
+        ZSTD_ConstrainWindow_e constrainWindowForProtocol);
+static ZSTD_parameters ZSTD_getParams_internal(
+        int compressionLevel,
+        unsigned long long srcSizeHint,
+        size_t dictSize,
+        ZSTD_CParamMode_e mode,
+        ZSTD_ConstrainWindow_e constrainWindowForProtocol);
 
 static void ZSTD_overrideCParams(
               ZSTD_compressionParameters* cParams,
@@ -1658,12 +1728,17 @@ ZSTD_compressionParameters ZSTD_getCParamsFromCCtxParams(
         assert(CCtxParams->srcSizeHint>=0);
         srcSizeHint = (U64)CCtxParams->srcSizeHint;
     }
-    cParams = ZSTD_getCParams_internal(CCtxParams->compressionLevel, srcSizeHint, dictSize, mode);
+    cParams = ZSTD_getCParams_internal(
+            CCtxParams->compressionLevel, srcSizeHint, dictSize,
+            mode, CCtxParams->constrainWindowForProtocol);
     if (CCtxParams->ldmParams.enableLdm == ZSTD_ps_enable) cParams.windowLog = ZSTD_LDM_DEFAULT_WINDOW_LOG;
     ZSTD_overrideCParams(&cParams, &CCtxParams->cParams);
     assert(!ZSTD_checkCParams(cParams));
     /* srcSizeHint == 0 means 0 */
-    return ZSTD_adjustCParams_internal(cParams, srcSizeHint, dictSize, mode, CCtxParams->useRowMatchFinder);
+    return ZSTD_adjustCParams_internal(
+            cParams, srcSizeHint, dictSize, mode,
+            CCtxParams->useRowMatchFinder,
+            CCtxParams->constrainWindowForProtocol);
 }
 
 static size_t
@@ -1810,7 +1885,9 @@ static size_t ZSTD_estimateCCtxSize_internal(int compressionLevel)
     static const unsigned long long srcSizeTiers[4] = {16 KB, 128 KB, 256 KB, ZSTD_CONTENTSIZE_UNKNOWN};
     for (; tier < 4; ++tier) {
         /* Choose the set of cParams for a given level across all srcSizes that give the largest cctxSize */
-        ZSTD_compressionParameters const cParams = ZSTD_getCParams_internal(compressionLevel, srcSizeTiers[tier], 0, ZSTD_cpm_noAttachDict);
+        ZSTD_compressionParameters const cParams = ZSTD_getCParams_internal(
+                compressionLevel, srcSizeTiers[tier], 0,
+                ZSTD_cpm_noAttachDict, ZSTD_ConstrainWindow_auto);
         largestSize = MAX(ZSTD_estimateCCtxSize_usingCParams(cParams), largestSize);
     }
     return largestSize;
@@ -1871,7 +1948,9 @@ size_t ZSTD_estimateCStreamSize_usingCParams(ZSTD_compressionParameters cParams)
 
 static size_t ZSTD_estimateCStreamSize_internal(int compressionLevel)
 {
-    ZSTD_compressionParameters const cParams = ZSTD_getCParams_internal(compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, 0, ZSTD_cpm_noAttachDict);
+    ZSTD_compressionParameters const cParams = ZSTD_getCParams_internal(
+            compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, 0,
+            ZSTD_cpm_noAttachDict, ZSTD_ConstrainWindow_auto);
     return ZSTD_estimateCStreamSize_usingCParams(cParams);
 }
 
@@ -2366,9 +2445,11 @@ ZSTD_resetCCtx_byAttachingCDict(ZSTD_CCtx* cctx,
             ZSTD_dedicatedDictSearch_revertCParams(&adjusted_cdict_cParams);
         }
 
-        params.cParams = ZSTD_adjustCParams_internal(adjusted_cdict_cParams, pledgedSrcSize,
-                                                     cdict->dictContentSize, ZSTD_cpm_attachDict,
-                                                     params.useRowMatchFinder);
+        params.cParams = ZSTD_adjustCParams_internal(
+                adjusted_cdict_cParams, pledgedSrcSize,
+                cdict->dictContentSize, ZSTD_cpm_attachDict,
+                params.useRowMatchFinder,
+                params.constrainWindowForProtocol);
         params.cParams.windowLog = windowLog;
         params.useRowMatchFinder = cdict->useRowMatchFinder;    /* cdict overrides */
         FORWARD_IF_ERROR(ZSTD_resetCCtx_internal(cctx, &params, pledgedSrcSize,
@@ -5342,7 +5423,9 @@ static size_t
 ZSTD_compressBegin_usingDict_deprecated(ZSTD_CCtx* cctx, const void* dict, size_t dictSize, int compressionLevel)
 {
     ZSTD_CCtx_params cctxParams;
-    {   ZSTD_parameters const params = ZSTD_getParams_internal(compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize, ZSTD_cpm_noAttachDict);
+    {   ZSTD_parameters const params = ZSTD_getParams_internal(
+                compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize,
+                ZSTD_cpm_noAttachDict, ZSTD_ConstrainWindow_auto);
         ZSTD_CCtxParams_init_internal(&cctxParams, &params, (compressionLevel == 0) ? ZSTD_CLEVEL_DEFAULT : compressionLevel);
     }
     DEBUGLOG(4, "ZSTD_compressBegin_usingDict (dictSize=%u)", (unsigned)dictSize);
@@ -5500,7 +5583,9 @@ size_t ZSTD_compress_usingDict(ZSTD_CCtx* cctx,
                                int compressionLevel)
 {
     {
-        ZSTD_parameters const params = ZSTD_getParams_internal(compressionLevel, srcSize, dict ? dictSize : 0, ZSTD_cpm_noAttachDict);
+        ZSTD_parameters const params = ZSTD_getParams_internal(
+                compressionLevel, srcSize, dict ? dictSize : 0,
+                ZSTD_cpm_noAttachDict, ZSTD_ConstrainWindow_auto);
         assert(params.fParams.contentSizeFlag == 1);
         ZSTD_CCtxParams_init_internal(&cctx->simpleApiParams, &params, (compressionLevel == 0) ? ZSTD_CLEVEL_DEFAULT: compressionLevel);
     }
@@ -5559,7 +5644,9 @@ size_t ZSTD_estimateCDictSize_advanced(
 
 size_t ZSTD_estimateCDictSize(size_t dictSize, int compressionLevel)
 {
-    ZSTD_compressionParameters const cParams = ZSTD_getCParams_internal(compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize, ZSTD_cpm_createCDict);
+    ZSTD_compressionParameters const cParams = ZSTD_getCParams_internal(
+            compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize,
+            ZSTD_cpm_createCDict, ZSTD_ConstrainWindow_auto);
     return ZSTD_estimateCDictSize_advanced(dictSize, cParams, ZSTD_dlm_byCopy);
 }
 
@@ -5733,7 +5820,9 @@ ZSTD_CDict* ZSTD_createCDict_advanced2(
 
 ZSTD_CDict* ZSTD_createCDict(const void* dict, size_t dictSize, int compressionLevel)
 {
-    ZSTD_compressionParameters cParams = ZSTD_getCParams_internal(compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize, ZSTD_cpm_createCDict);
+    ZSTD_compressionParameters cParams = ZSTD_getCParams_internal(
+            compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize,
+            ZSTD_cpm_createCDict, ZSTD_ConstrainWindow_auto);
     ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dict, dictSize,
                                                   ZSTD_dlm_byCopy, ZSTD_dct_auto,
                                                   cParams, ZSTD_defaultCMem);
@@ -5744,7 +5833,9 @@ ZSTD_CDict* ZSTD_createCDict(const void* dict, size_t dictSize, int compressionL
 
 ZSTD_CDict* ZSTD_createCDict_byReference(const void* dict, size_t dictSize, int compressionLevel)
 {
-    ZSTD_compressionParameters cParams = ZSTD_getCParams_internal(compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize, ZSTD_cpm_createCDict);
+    ZSTD_compressionParameters cParams = ZSTD_getCParams_internal(
+            compressionLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize,
+            ZSTD_cpm_createCDict, ZSTD_ConstrainWindow_auto);
     ZSTD_CDict* const cdict = ZSTD_createCDict_advanced(dict, dictSize,
                                      ZSTD_dlm_byRef, ZSTD_dct_auto,
                                      cParams, ZSTD_defaultCMem);
@@ -8203,7 +8294,9 @@ int ZSTD_defaultCLevel(void) { return ZSTD_CLEVEL_DEFAULT; }
 
 static ZSTD_compressionParameters ZSTD_dedicatedDictSearch_getCParams(int const compressionLevel, size_t const dictSize)
 {
-    ZSTD_compressionParameters cParams = ZSTD_getCParams_internal(compressionLevel, 0, dictSize, ZSTD_cpm_createCDict);
+    ZSTD_compressionParameters cParams = ZSTD_getCParams_internal(
+            compressionLevel, 0, dictSize,
+            ZSTD_cpm_createCDict, ZSTD_ConstrainWindow_auto);
     switch (cParams.strategy) {
         case ZSTD_fast:
         case ZSTD_dfast:
@@ -8283,7 +8376,12 @@ static U64 ZSTD_getCParamRowSize(U64 srcSizeHint, size_t dictSize, ZSTD_CParamMo
  *  Note: srcSizeHint 0 means 0, use ZSTD_CONTENTSIZE_UNKNOWN for unknown.
  *        Use dictSize == 0 for unknown or unused.
  *  Note: `mode` controls how we treat the `dictSize`. See docs for `ZSTD_CParamMode_e`. */
-static ZSTD_compressionParameters ZSTD_getCParams_internal(int compressionLevel, unsigned long long srcSizeHint, size_t dictSize, ZSTD_CParamMode_e mode)
+static ZSTD_compressionParameters ZSTD_getCParams_internal(
+        int compressionLevel,
+        unsigned long long srcSizeHint,
+        size_t dictSize,
+        ZSTD_CParamMode_e mode,
+        ZSTD_ConstrainWindow_e constrainWindowForProtocol)
 {
     U64 const rSize = ZSTD_getCParamRowSize(srcSizeHint, dictSize, mode);
     U32 const tableID = (rSize <= 256 KB) + (rSize <= 128 KB) + (rSize <= 16 KB);
@@ -8304,7 +8402,9 @@ static ZSTD_compressionParameters ZSTD_getCParams_internal(int compressionLevel,
             cp.targetLength = (unsigned)(-clampedCompressionLevel);
         }
         /* refine parameters based on srcSize & dictSize */
-        return ZSTD_adjustCParams_internal(cp, srcSizeHint, dictSize, mode, ZSTD_ps_auto);
+        return ZSTD_adjustCParams_internal(
+                cp, srcSizeHint, dictSize, mode,
+                ZSTD_ps_auto, constrainWindowForProtocol);
     }
 }
 
@@ -8314,18 +8414,26 @@ static ZSTD_compressionParameters ZSTD_getCParams_internal(int compressionLevel,
 ZSTD_compressionParameters ZSTD_getCParams(int compressionLevel, unsigned long long srcSizeHint, size_t dictSize)
 {
     if (srcSizeHint == 0) srcSizeHint = ZSTD_CONTENTSIZE_UNKNOWN;
-    return ZSTD_getCParams_internal(compressionLevel, srcSizeHint, dictSize, ZSTD_cpm_unknown);
+    return ZSTD_getCParams_internal(
+            compressionLevel, srcSizeHint, dictSize,
+            ZSTD_cpm_unknown, ZSTD_ConstrainWindow_auto);
 }
 
 /*! ZSTD_getParams() :
  *  same idea as ZSTD_getCParams()
  * @return a `ZSTD_parameters` structure (instead of `ZSTD_compressionParameters`).
  *  Fields of `ZSTD_frameParameters` are set to default values */
-static ZSTD_parameters
-ZSTD_getParams_internal(int compressionLevel, unsigned long long srcSizeHint, size_t dictSize, ZSTD_CParamMode_e mode)
+static ZSTD_parameters ZSTD_getParams_internal(
+        int compressionLevel,
+        unsigned long long srcSizeHint,
+        size_t dictSize,
+        ZSTD_CParamMode_e mode,
+        ZSTD_ConstrainWindow_e constrainWindowForProtocol)
 {
     ZSTD_parameters params;
-    ZSTD_compressionParameters const cParams = ZSTD_getCParams_internal(compressionLevel, srcSizeHint, dictSize, mode);
+    ZSTD_compressionParameters const cParams = ZSTD_getCParams_internal(
+            compressionLevel, srcSizeHint, dictSize,
+            mode, constrainWindowForProtocol);
     DEBUGLOG(5, "ZSTD_getParams (cLevel=%i)", compressionLevel);
     ZSTD_memset(&params, 0, sizeof(params));
     params.cParams = cParams;
@@ -8340,7 +8448,9 @@ ZSTD_getParams_internal(int compressionLevel, unsigned long long srcSizeHint, si
 ZSTD_parameters ZSTD_getParams(int compressionLevel, unsigned long long srcSizeHint, size_t dictSize)
 {
     if (srcSizeHint == 0) srcSizeHint = ZSTD_CONTENTSIZE_UNKNOWN;
-    return ZSTD_getParams_internal(compressionLevel, srcSizeHint, dictSize, ZSTD_cpm_unknown);
+    return ZSTD_getParams_internal(
+            compressionLevel, srcSizeHint, dictSize,
+            ZSTD_cpm_unknown, ZSTD_ConstrainWindow_auto);
 }
 
 void ZSTD_registerSequenceProducer(

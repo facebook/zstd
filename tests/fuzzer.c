@@ -147,7 +147,11 @@ static U32 FUZ_highbit32(U32 v32)
     }                                                             \
 }
 #define CHECK_EQ(lhs, rhs) CHECK_OP(==, lhs, rhs)
+#define CHECK_NE(lhs, rhs) CHECK_OP(!=, lhs, rhs)
 #define CHECK_LT(lhs, rhs) CHECK_OP(<, lhs, rhs)
+#define CHECK_GT(lhs, rhs) CHECK_OP(>, lhs, rhs)
+#define CHECK_LE(lhs, rhs) CHECK_OP(<=, lhs, rhs)
+#define CHECK_GE(lhs, rhs) CHECK_OP(>=, lhs, rhs)
 
 
 /*=============================================
@@ -3755,6 +3759,128 @@ static int basicUnitTests(U32 const seed, double compressibility)
             free(dictBufferMulti);
             free(ddictTable);
             free(cdictTable);
+        }
+        DISPLAYLEVEL(3, "OK \n");
+
+        DISPLAYLEVEL(3, "test%3i : check window size when applying protocol constraints : \n", testNb++);
+        {
+            const size_t dictSizes[] = { 0, 128, 128 KB, 4 MB, 13421772, 13421773, 107374182, 107374183, 150 MB};
+            const size_t nbDictSizes = sizeof(dictSizes) / sizeof(dictSizes[0]);
+            size_t dictSizeIdx;
+            const size_t bigDictSize = dictSizes[nbDictSizes - 1];
+            char* bigDictBuffer = malloc(bigDictSize);
+            const ZSTD_ConstrainWindow_e constraints[] = {
+                ZSTD_ConstrainWindow_disable,
+                ZSTD_ConstrainWindow_HTTP_Zstd,
+                ZSTD_ConstrainWindow_HTTP_DCZ
+            };
+            const char* constraintNames[] = {
+                "ZSTD_ConstrainWindow_disable",
+                "ZSTD_ConstrainWindow_HTTP_Zstd",
+                "ZSTD_ConstrainWindow_HTTP_DCZ"
+            };
+            const size_t nbConstraints = sizeof(constraints) / sizeof(constraints[0]);
+            size_t constraintIdx;
+            const unsigned long long inputSizes[] = { 0, 1ull << 10, 1ull << 23, 1ull << 27, 1ull << 31, 1ull << 63, ZSTD_CONTENTSIZE_UNKNOWN };
+            const size_t nbInputSizes = sizeof(inputSizes) / sizeof(inputSizes[0]);
+            size_t inputSizeIdx;
+            const int windowLogs[] = { 0, 15, 25, ZSTD_WINDOWLOG_MAX };
+            const size_t nbWindowLogs = sizeof(windowLogs) / sizeof(windowLogs[0]);
+            size_t windowLogIdx;
+
+            CHECK_NE(bigDictBuffer, NULL);
+            memset(bigDictBuffer, 0, bigDictSize);
+
+            for (constraintIdx = 0; constraintIdx < nbConstraints; constraintIdx++) {
+                const ZSTD_ConstrainWindow_e constraint = constraints[constraintIdx];
+                for (inputSizeIdx = 0; inputSizeIdx < nbInputSizes; inputSizeIdx++) {
+                    const unsigned long long inputSize = inputSizes[inputSizeIdx];
+                    for (dictSizeIdx = 0; dictSizeIdx < nbDictSizes; dictSizeIdx++) {
+                        dictSize = dictSizes[dictSizeIdx];
+                        if (constraint != ZSTD_ConstrainWindow_HTTP_DCZ && (dictSize != 0 && dictSize != dictSizes[nbDictSizes - 1])) {
+                            continue;
+                        }
+                        for (windowLogIdx = 0; windowLogIdx < nbWindowLogs; windowLogIdx++) {
+                            const int windowLog = windowLogs[windowLogIdx];
+                            ZSTD_inBuffer input = {CNBuffer, CNBuffSize, 0};
+                            ZSTD_outBuffer compressed = {compressedBuffer, compressedBufferSize, 0};
+                            ZSTD_FrameHeader zfh;
+                            unsigned long long maxWindowSize;
+
+                            DISPLAYLEVEL(5,
+                                "Checking constraint = %-30s "
+                                "with input size = %20llu and dict size = %9zu "
+                                "and windowLog = %2d: ",
+                                constraintNames[constraintIdx],
+                                inputSize, dictSize, windowLog);
+
+                            if (input.size > 200 KB) {
+                                input.size = 200 KB;
+                            }
+                            if (input.size > inputSize) {
+                                input.size = (size_t)inputSize;
+                            }
+
+                            ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters);
+                            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_constrainWindowForProtocol, constraint));
+                            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, 1));
+                            CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_windowLog, windowLog));
+                            CHECK_Z(ZSTD_CCtx_setPledgedSrcSize(cctx, inputSize));
+                            if (dictSize != 0) {
+                                CHECK_Z(ZSTD_CCtx_loadDictionary_advanced(cctx, bigDictBuffer, dictSize, ZSTD_dlm_byRef, ZSTD_dct_rawContent));
+                            }
+                            CHECK_Z(ZSTD_compressStream2(cctx, &compressed, &input, inputSize == 0 ? ZSTD_e_end : ZSTD_e_flush));
+
+                            CHECK_GT(compressed.size, 0);
+
+                            CHECK_Z(ZSTD_getFrameHeader(&zfh, compressed.dst, compressed.pos));
+
+                            DISPLAYLEVEL(5,
+                                "got window size = %10llu, Frame size = %20llu, ",
+                                zfh.windowSize, zfh.frameContentSize);
+
+                            CHECK_EQ(zfh.frameContentSize, inputSize);
+
+                            switch (constraint) {
+                            case ZSTD_ConstrainWindow_auto:
+                            case ZSTD_ConstrainWindow_disable:
+                                maxWindowSize = 1ull << ZSTD_WINDOWLOG_MAX;
+                                break;
+                            case ZSTD_ConstrainWindow_HTTP_Zstd:
+                                maxWindowSize = 8 MB;
+                                break;
+                            case ZSTD_ConstrainWindow_HTTP_DCZ:
+                                maxWindowSize = dictSize + (dictSize >> 2);
+                                maxWindowSize = maxWindowSize < 8 MB ? 8 MB : maxWindowSize > 128 MB ? 128 MB : maxWindowSize;
+                                maxWindowSize = 1ull << ZSTD_highbit32((U32)maxWindowSize);
+                                break;
+                            default:
+                                CHECK(0);
+                            }
+
+                            if (windowLog != 0 && maxWindowSize > (1ull << windowLog)) {
+                                maxWindowSize = 1ull << windowLog;
+                            }
+
+                            if (maxWindowSize > inputSize) {
+                                maxWindowSize = inputSize;
+                            }
+
+                            DISPLAYLEVEL(5,
+                                "expected window size = %20llu\n",
+                                maxWindowSize);
+
+                            if (windowLog != 0) {
+                                CHECK_EQ(zfh.windowSize, maxWindowSize);
+                            } else {
+                                CHECK_LE(zfh.windowSize, maxWindowSize);
+                            }
+                        }
+                    }
+                }
+            }
+
+            free(bigDictBuffer);
         }
         DISPLAYLEVEL(3, "OK \n");
 

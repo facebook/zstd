@@ -515,6 +515,7 @@ typedef enum {
      * ZSTD_c_prefetchCDictTables
      * ZSTD_c_enableSeqProducerFallback
      * ZSTD_c_maxBlockSize
+     * ZSTD_c_constrainWindowForProtocol
      * Because they are not stable, it's necessary to define ZSTD_STATIC_LINKING_ONLY to access them.
      * note : never ever use experimentalParam? names directly;
      *        also, the enums values themselves are unstable and can still change.
@@ -538,7 +539,8 @@ typedef enum {
      ZSTD_c_experimentalParam17=1014,
      ZSTD_c_experimentalParam18=1015,
      ZSTD_c_experimentalParam19=1016,
-     ZSTD_c_experimentalParam20=1017
+     ZSTD_c_experimentalParam20=1017,
+     ZSTD_c_experimentalParam21=1018
 } ZSTD_cParameter;
 
 typedef struct {
@@ -2353,6 +2355,70 @@ ZSTDLIB_STATIC_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const vo
  */
 #define ZSTD_c_repcodeResolution ZSTD_c_experimentalParam19
 #define ZSTD_c_searchForExternalRepcodes ZSTD_c_experimentalParam19 /* older name */
+
+/**
+ * Used in conjunction with the `ZSTD_c_constrainWindowForProtocol` option
+ * described below.
+ */
+typedef enum {
+  /* Equivalent to disabling. */
+  ZSTD_ConstrainWindow_auto = ZSTD_ps_auto,
+
+  /* No equivalent for ZSTD_ps_enable: you need to specify which protocol. */
+
+  /* No constraints imposed. */
+  ZSTD_ConstrainWindow_disable = ZSTD_ps_disable,
+
+  /* Constrains the window size to comply with the limits imposed on the
+   * `zstd` Content-Encoding, specified by RFCs 8878 and 9659. I.e., liimits
+   * the window to <= 8MB. */
+  ZSTD_ConstrainWindow_HTTP_Zstd = 3,
+
+  /* Constrains the window size to comply with the limits imposed on the
+   * `dcz` Content-Encoding, as specified by the Compression Dictionary
+   * Transport protocol.
+   *
+   * Note: as of the writing of this version of zstd, this protocol has not
+   * been finalized and published as an RFC. This implementation is written to
+   * comply with draft-ietf-httpbis-compression-dictionary-19.
+   *
+   * The likeliness that the window sizing constraints between this draft and
+   * the final document is judged to be low enough that we aren't bothering with
+   * an interim enum value representing this draft version, which would impose
+   * almost certainly needless migration burden once the RFC is published.
+   * However, the macro `ZSTD_CONSTRAINWINDOW_HTTP_DCZ_DRAFT_VERSION` is defined
+   * during the transition to help libraries validate that they have the
+   * behavior they expect. It will be updated and then removed once the draft
+   * is published as an RFC. */
+  ZSTD_ConstrainWindow_HTTP_DCZ = 4
+} ZSTD_ConstrainWindow_e;
+
+#define ZSTD_CONSTRAINWINDOW_HTTP_DCZ_DRAFT_VERSION 19
+
+/**
+ * ZSTD_c_constrainWindowForProtocol
+ *
+ * This option constrains the window size of compressions to comply with limits
+ * imposed by protocols that use Zstandard. This option clamps the selected
+ * window size of a compression into the range allowed by the selected protocol.
+ * If the window size a compression would use is already inside that range,
+ * this option will not change the resolved window size. (E.g., if a compression
+ * would use a 1 MB window, selecting `ZSTD_ConstrainWindow_HTTP_Zstd` won't
+ * *raise* the window size to the 8 MB limit imposed by that protocol).
+ *
+ * This is intended to be a convenience option, and save users the burden of
+ * implementing these constraints themselves, because doing that properly would
+ * not be simple. In normal operation with only a compression level selected by
+ * the user, zstd has non-trivial internal logic to select a window size. The
+ * user would have to reimplement that logic and then apply the protocol's
+ * limits. This option lets zstd continue to use its internal logic to resolve
+ * an appropriate window size and then applies the protocol constraint.
+ *
+ * The currently understood protocols, and the values that should be used to
+ * indicate them, are defined and described in the `ZSTD_ConstrainWindow_e`
+ * enum.
+ */
+#define ZSTD_c_constrainWindowForProtocol ZSTD_c_experimentalParam21
 
 
 /*! ZSTD_CCtx_getParameter() :

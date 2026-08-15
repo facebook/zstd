@@ -91,6 +91,9 @@ void FIO_setTestMode(FIO_prefs_t* const prefs, int testMode);
 void FIO_setLiteralCompressionMode(
         FIO_prefs_t* const prefs,
         ZSTD_ParamSwitch_e mode);
+void FIO_setConstrainWindowForProtocol(
+        FIO_prefs_t* const prefs,
+        ZSTD_ConstrainWindow_e constraint);
 
 void FIO_setProgressSetting(FIO_progressSetting_e progressSetting);
 void FIO_setNotificationLevel(int level);

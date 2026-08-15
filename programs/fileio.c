@@ -573,6 +573,7 @@ FIO_prefs_t* FIO_createPreferences(void)
     ret->allowBlockDevices = 0;
     ret->asyncIO = AIO_supported();
     ret->passThrough = -1;
+    ret->constrainWindowForProtocol = ZSTD_ConstrainWindow_auto;
     return ret;
 }
 
@@ -753,6 +754,12 @@ void FIO_setPassThroughFlag(FIO_prefs_t* const prefs, int value) {
 void FIO_setMMapDict(FIO_prefs_t* const prefs, ZSTD_ParamSwitch_e value)
 {
     prefs->mmapDict = value;
+}
+
+void FIO_setConstrainWindowForProtocol(
+        FIO_prefs_t* const prefs,
+        ZSTD_ConstrainWindow_e constraint) {
+    prefs->constrainWindowForProtocol = constraint;
 }
 
 /* FIO_ctx_t functions */
@@ -1463,6 +1470,7 @@ static cRess_t FIO_createCResources(FIO_prefs_t* const prefs,
         CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_overlapLog, prefs->overlapLog) );
     }
     CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_rsyncable, prefs->rsyncable) );
+    CHECK( ZSTD_CCtx_setParameter(ress.cctx, ZSTD_c_constrainWindowForProtocol, prefs->constrainWindowForProtocol) );
 #endif
     /* dictionary */
     if (prefs->patchFromMode) {

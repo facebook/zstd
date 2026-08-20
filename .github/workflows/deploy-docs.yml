@@ -1,0 +1,70 @@
+name: Deploy Docs
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build-docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Cache Bun modules
+        uses: actions/cache@v4
+        with:
+          path: docs/node_modules
+          key: bun-${{ runner.os }}-${{ hashFiles('docs/bun.lock', 'docs/package.json') }}
+          restore-keys: bun-${{ runner.os }}-
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Install dependencies
+        working-directory: ./docs
+        run: bun install
+
+      - name: Build with VitePress
+        working-directory: ./docs
+        run: bun run docs:build
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: docs/.vitepress/dist
+
+  deploy:
+    needs: build-docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    name: Deploy
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

@@ -1,0 +1,17 @@
+name: Documentation Issue
+description: Report errors or missing information in documentation
+title: "[Docs]: "
+labels: ["documentation", "triage"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What is wrong or missing in the documentation?
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: URL
+      description: Link to the page with the issue

@@ -1,0 +1,71 @@
+name: Bug Report
+description: Create a report to help us improve tint.zig
+title: "[Bug]: "
+labels: ["bug", "triage"]
+assignees:
+  - muhammad-fiaz
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out a bug report!
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: I am experiencing an issue where...
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction Steps
+      description: Steps to reproduce the behavior.
+      placeholder: |
+        1. Initialize project with tint.zig
+        2. Run `zig build run-example`
+        3. See error
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: A clear and concise description of what you expected to happen.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: tint.zig Version
+      description: What version of tint.zig are you using?
+      placeholder: 0.0.1
+    validations:
+      required: true
+  - type: input
+    id: zig_version
+    attributes:
+      label: Zig Version
+      description: What version of Zig are you using?
+      placeholder: 0.16.0
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - Windows
+        - Linux
+        - macOS
+        - FreeBSD
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Please describe any relevant log output.
+      render: shell

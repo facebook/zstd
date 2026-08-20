@@ -1,0 +1,12 @@
+name: Help Wanted
+description: Ask a question or request help
+title: "[Help]: "
+labels: ["question", "triage"]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What do you need help with?
+    validations:
+      required: true

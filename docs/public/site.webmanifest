@@ -1,0 +1,16 @@
+{
+  "name": "zstd.zig",
+  "short_name": "zstd.zig",
+  "description": "Native Zig compression library",
+  "start_url": "/zstd.zig/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#F7C948",
+  "icons": [
+    {
+      "src": "/zstd.zig/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

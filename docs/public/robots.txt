@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://muhammad-fiaz.github.io/zstd.zig/sitemap.xml

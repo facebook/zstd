@@ -1,0 +1,12 @@
+name: Feature Request
+description: Suggest an idea for this project
+title: "[Feature]: "
+labels: ["enhancement", "triage"]
+body:
+  - type: textarea
+    id: pitch
+    attributes:
+      label: Pitch
+      description: A clear and concise description of what the problem is and your proposed solution.
+    validations:
+      required: true

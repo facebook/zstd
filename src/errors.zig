@@ -1,15 +1,47 @@
-//! Error handling for the zstd compression library.
-//!
-//! Wraps `zstd_errors.h` and provides a unified Zig `error` set that maps every
-//! `ZSTD_ErrorCode` to a named error. The `check` function converts raw C
-//! `size_t` return values into Zig error unions.
-
 const std = @import("std");
 
-/// All error codes from `ZSTD_ErrorCode` in `zstd_errors.h`.
+pub const ErrorCode = enum(c_int) {
+    no_error = 0,
+    generic = 1,
+    prefix_unknown = 10,
+    version_unsupported = 12,
+    frame_parameter_unsupported = 14,
+    frame_parameter_window_too_large = 16,
+    corruption_detected = 20,
+    checksum_wrong = 22,
+    literals_header_wrong = 24,
+    dictionary_corrupted = 30,
+    dictionary_wrong = 32,
+    dictionary_creation_failed = 34,
+    parameter_unsupported = 40,
+    parameter_combination_unsupported = 41,
+    parameter_out_of_bound = 42,
+    table_log_too_large = 44,
+    max_symbol_value_too_large = 46,
+    max_symbol_value_too_small = 48,
+    cannot_produce_uncompressed_block = 49,
+    stability_condition_not_respected = 50,
+    stage_wrong = 60,
+    init_missing = 62,
+    memory_allocation = 64,
+    workspace_too_small = 66,
+    dst_size_too_small = 70,
+    src_size_wrong = 72,
+    dst_buffer_null = 74,
+    no_forward_progress_dest_full = 80,
+    no_forward_progress_input_empty = 82,
+    frame_index_too_large = 100,
+    seekable_io = 102,
+    dst_buffer_wrong = 104,
+    src_buffer_wrong = 105,
+    sequence_producer_failed = 106,
+    external_sequences_invalid = 107,
+    max_code = 120,
+};
+
 pub const ZstdError = error{
     OutOfMemory,
-    GenericError,
+    Generic,
     PrefixUnknown,
     VersionUnsupported,
     FrameParameterUnsupported,
@@ -31,7 +63,7 @@ pub const ZstdError = error{
     StageWrong,
     InitMissing,
     MemoryAllocation,
-    WorkSpaceTooSmall,
+    WorkspaceTooSmall,
     DstSizeTooSmall,
     SrcSizeWrong,
     DstBufferNull,
@@ -43,99 +75,138 @@ pub const ZstdError = error{
     SrcBufferWrong,
     SequenceProducerFailed,
     ExternalSequencesInvalid,
+    BadMagic,
+    BlockOversize,
+    MalformedFrame,
+    MalformedBlock,
+    MalformedCompressedBlock,
+    MalformedLiteralsSection,
+    MalformedLiteralsHeader,
+    MalformedSequence,
+    MalformedFseTable,
+    MalformedFseBits,
+    MalformedHuffmanTree,
+    MalformedAccuracyLog,
+    MissingStartBit,
+    TreelessLiteralsFirst,
+    RepeatModeFirst,
+    InvalidBitStream,
+    UnexpectedEndOfLiteralStream,
+    ReadFailed,
+    EndOfStream,
+    OutputBufferUndersize,
+    InputBufferUndersize,
+    HuffmanTreeIncomplete,
+    SequenceBufferUndersize,
+    ReservedBitSet,
+    ReservedBlock,
+    WindowSizeUnknown,
+    WindowOversize,
+    ContentOversize,
+    DictionaryIdFlagUnsupported,
 };
 
-/// Maps a zstd `ZSTD_ErrorCode` integer to a `ZstdError` value.
-pub fn errorCodeToError(code: c_int) ZstdError {
+pub fn isError(result: usize) bool {
+    return (result >> (@sizeOf(usize) * 8 - 1)) != 0;
+}
+
+pub fn getErrorCode(result: usize) ErrorCode {
+    if (!isError(result)) return .no_error;
+    const val: c_int = @intCast(@as(isize, @bitCast(result)));
+    const code: ErrorCode = @fromBackingInt(@intCast(val));
+    return if (@backingInt(code) > @backingInt(ErrorCode.max_code)) .generic else code;
+}
+
+pub fn errorCodeToError(code: ErrorCode) ZstdError {
     return switch (code) {
-        0 => unreachable,
-        1 => error.GenericError,
-        10 => error.PrefixUnknown,
-        12 => error.VersionUnsupported,
-        14 => error.FrameParameterUnsupported,
-        16 => error.FrameParameterWindowTooLarge,
-        20 => error.CorruptionDetected,
-        22 => error.ChecksumWrong,
-        24 => error.LiteralsHeaderWrong,
-        30 => error.DictionaryCorrupted,
-        32 => error.DictionaryWrong,
-        34 => error.DictionaryCreationFailed,
-        40 => error.ParameterUnsupported,
-        41 => error.ParameterCombinationUnsupported,
-        42 => error.ParameterOutOfBound,
-        44 => error.TableLogTooLarge,
-        46 => error.MaxSymbolValueTooLarge,
-        48 => error.MaxSymbolValueTooSmall,
-        49 => error.CannotProduceUncompressedBlock,
-        50 => error.StabilityConditionNotRespected,
-        60 => error.StageWrong,
-        62 => error.InitMissing,
-        64 => error.MemoryAllocation,
-        66 => error.WorkSpaceTooSmall,
-        70 => error.DstSizeTooSmall,
-        72 => error.SrcSizeWrong,
-        74 => error.DstBufferNull,
-        80 => error.NoForwardProgressDestFull,
-        82 => error.NoForwardProgressInputEmpty,
-        100 => error.FrameIndexTooLarge,
-        102 => error.SeekableIO,
-        104 => error.DstBufferWrong,
-        105 => error.SrcBufferWrong,
-        106 => error.SequenceProducerFailed,
-        107 => error.ExternalSequencesInvalid,
-        else => error.GenericError,
+        .no_error => unreachable,
+        .generic => error.Generic,
+        .prefix_unknown => error.PrefixUnknown,
+        .version_unsupported => error.VersionUnsupported,
+        .frame_parameter_unsupported => error.FrameParameterUnsupported,
+        .frame_parameter_window_too_large => error.FrameParameterWindowTooLarge,
+        .corruption_detected => error.CorruptionDetected,
+        .checksum_wrong => error.ChecksumWrong,
+        .literals_header_wrong => error.LiteralsHeaderWrong,
+        .dictionary_corrupted => error.DictionaryCorrupted,
+        .dictionary_wrong => error.DictionaryWrong,
+        .dictionary_creation_failed => error.DictionaryCreationFailed,
+        .parameter_unsupported => error.ParameterUnsupported,
+        .parameter_combination_unsupported => error.ParameterCombinationUnsupported,
+        .parameter_out_of_bound => error.ParameterOutOfBound,
+        .table_log_too_large => error.TableLogTooLarge,
+        .max_symbol_value_too_large => error.MaxSymbolValueTooLarge,
+        .max_symbol_value_too_small => error.MaxSymbolValueTooSmall,
+        .cannot_produce_uncompressed_block => error.CannotProduceUncompressedBlock,
+        .stability_condition_not_respected => error.StabilityConditionNotRespected,
+        .stage_wrong => error.StageWrong,
+        .init_missing => error.InitMissing,
+        .memory_allocation => error.MemoryAllocation,
+        .workspace_too_small => error.WorkspaceTooSmall,
+        .dst_size_too_small => error.DstSizeTooSmall,
+        .src_size_wrong => error.SrcSizeWrong,
+        .dst_buffer_null => error.DstBufferNull,
+        .no_forward_progress_dest_full => error.NoForwardProgressDestFull,
+        .no_forward_progress_input_empty => error.NoForwardProgressInputEmpty,
+        .frame_index_too_large => error.FrameIndexTooLarge,
+        .seekable_io => error.SeekableIO,
+        .dst_buffer_wrong => error.DstBufferWrong,
+        .src_buffer_wrong => error.SrcBufferWrong,
+        .sequence_producer_failed => error.SequenceProducerFailed,
+        .external_sequences_invalid => error.ExternalSequencesInvalid,
+        .max_code => unreachable,
     };
 }
 
-/// Checks a zstd `size_t` return value. If it represents an error, converts it
-/// to a `ZstdError`; otherwise returns the unwrapped `usize` value.
-pub fn check(result: usize) ZstdError!usize {
-    if (c.ZSTD_isError(result) != 0) {
-        return errorCodeToError(@intCast(c.ZSTD_getErrorCode(result)));
-    }
-    return result;
+pub fn errorName(code: ErrorCode) []const u8 {
+    return switch (code) {
+        .no_error => "No error",
+        .generic => "Error (generic)",
+        .prefix_unknown => "Unknown frame descriptor",
+        .version_unsupported => "Version not supported",
+        .frame_parameter_unsupported => "Unsupported frame parameter",
+        .frame_parameter_window_too_large => "Window log parameter too large",
+        .corruption_detected => "Corruption detected",
+        .checksum_wrong => "Checksum mismatch",
+        .literals_header_wrong => "Literal header wrong",
+        .dictionary_corrupted => "Dictionary corruption detected",
+        .dictionary_wrong => "Dictionary mismatch",
+        .dictionary_creation_failed => "Dictionary creation failed",
+        .parameter_unsupported => "Unsupported parameter",
+        .parameter_combination_unsupported => "Unsupported parameter combination",
+        .parameter_out_of_bound => "Parameter out of bound",
+        .table_log_too_large => "Table log too large",
+        .max_symbol_value_too_large => "Max symbol value too large",
+        .max_symbol_value_too_small => "Max symbol value too small",
+        .cannot_produce_uncompressed_block => "Cannot produce uncompressed block",
+        .stability_condition_not_respected => "Stability condition not respected",
+        .stage_wrong => "Stage wrong",
+        .init_missing => "Init missing",
+        .memory_allocation => "Memory allocation failed",
+        .workspace_too_small => "Workspace too small",
+        .dst_size_too_small => "Destination buffer too small",
+        .src_size_wrong => "Source size wrong",
+        .dst_buffer_null => "Destination buffer is null",
+        .no_forward_progress_dest_full => "No forward progress: dest buffer full",
+        .no_forward_progress_input_empty => "No forward progress: input empty",
+        .frame_index_too_large => "Frame index too large",
+        .seekable_io => "Seekable IO error",
+        .dst_buffer_wrong => "Destination buffer wrong",
+        .src_buffer_wrong => "Source buffer wrong",
+        .sequence_producer_failed => "Sequence producer failed",
+        .external_sequences_invalid => "External sequences invalid",
+        .max_code => "Unspecified error",
+    };
 }
 
-/// Checks a ZDICT `size_t` return value. If it represents an error, converts it
-/// to a `ZstdError`; otherwise returns the unwrapped `usize` value.
-pub fn checkDict(result: usize) ZstdError!usize {
-    if (c.ZDICT_isError(result) != 0) {
-        const err_name = c.ZDICT_getErrorName(result);
-        _ = err_name;
-        return errorCodeToError(1);
-    }
-    return result;
+test "error conversion" {
+    const err = errorCodeToError(@fromBackingInt(@intCast(1)));
+    try std.testing.expectEqual(ZstdError.Generic, err);
 }
 
-/// Returns the human-readable error name for a zstd result value.
-pub fn errorName(result: usize) [*:0]const u8 {
-    return c.ZSTD_getErrorName(result);
-}
-
-/// Returns the human-readable error string for a `ZSTD_ErrorCode`.
-pub fn errorString(code: c_int) [*:0]const u8 {
-    return c.ZSTD_getErrorString(code);
-}
-
-/// Returns whether a `size_t` result from zstd is an error.
-pub fn isError(result: usize) bool {
-    return c.ZSTD_isError(result) != 0;
-}
-
-const c = @cImport({
-    @cInclude("zstd.h");
-    @cInclude("zstd_errors.h");
-    @cInclude("zdict.h");
-});
-
-test "ZstdError covers all error codes" {
-    try std.testing.expectEqual(error.GenericError, errorCodeToError(1));
-    try std.testing.expectEqual(error.PrefixUnknown, errorCodeToError(10));
-    try std.testing.expectEqual(error.DstSizeTooSmall, errorCodeToError(70));
-    try std.testing.expectEqual(error.GenericError, errorCodeToError(120));
-}
-
-test "check converts non-error to usize" {
-    const result = check(42);
-    try std.testing.expectEqual(@as(usize, 42), result catch unreachable);
+test "isError detects errors" {
+    const max: usize = @bitCast(@as(isize, -1));
+    try std.testing.expect(isError(max));
+    try std.testing.expect(!isError(0));
+    try std.testing.expect(!isError(42));
 }

@@ -1,0 +1,32 @@
+.vp-breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 8px 0;
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: var(--vp-c-text-2);
+  border-bottom: 1px solid var(--vp-c-divider);
+}
+
+.vp-breadcrumb a {
+  color: var(--vp-c-brand-1);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.vp-breadcrumb a:hover {
+  color: var(--vp-c-brand-2);
+  text-decoration: underline;
+}
+
+.breadcrumb-separator {
+  margin: 0 4px;
+  color: var(--vp-c-text-3);
+}
+
+.breadcrumb-current {
+  color: var(--vp-c-text-1);
+  font-weight: 500;
+}

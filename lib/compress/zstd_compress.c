@@ -2519,12 +2519,18 @@ static size_t ZSTD_resetCCtx_usingCDict(ZSTD_CCtx* cctx,
                 (unsigned)pledgedSrcSize);
 
     if (ZSTD_shouldAttachDict(cdict, params, pledgedSrcSize)) {
-        return ZSTD_resetCCtx_byAttachingCDict(
-            cctx, cdict, *params, pledgedSrcSize, zbuff);
+        FORWARD_IF_ERROR(ZSTD_resetCCtx_byAttachingCDict(
+            cctx, cdict, *params, pledgedSrcSize, zbuff), "");
     } else {
-        return ZSTD_resetCCtx_byCopyingCDict(
-            cctx, cdict, *params, pledgedSrcSize, zbuff);
+        FORWARD_IF_ERROR(ZSTD_resetCCtx_byCopyingCDict(
+            cctx, cdict, *params, pledgedSrcSize, zbuff), "");
     }
+
+    /* A byRef CDict's window still points into the caller's buffer, which may be
+     * adjacent to the input : same non-determinism as refPrefix. No-op when attached. */
+    cctx->blockState.matchState.forceNonContiguous = params->deterministicRefPrefix;
+
+    return 0;
 }
 
 /*! ZSTD_copyCCtx_internal() :

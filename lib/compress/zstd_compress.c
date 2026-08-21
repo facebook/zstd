@@ -8033,6 +8033,7 @@ ZSTD_compressSequencesAndLiterals_internal(ZSTD_CCtx* cctx,
         FORWARD_IF_ERROR(block.nbSequences, "Error while trying to determine nb of sequences for a block");
         assert(block.nbSequences <= nbSequences);
         RETURN_ERROR_IF(block.litSize > litSize, externalSequences_invalid, "discrepancy: Sequences require more literals than present in buffer");
+        RETURN_ERROR_IF(block.blockSize > cctx->blockSizeMax, externalSequences_invalid, "sequences incorrectly define a too large block");
         ZSTD_resetSeqStore(&cctx->seqStore);
 
         conversionStatus = ZSTD_convertBlockSequences(cctx,

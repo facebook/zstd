@@ -4379,7 +4379,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         BYTE litBuffer[32];
         ZSTD_Sequence seqs[2];
         ZSTD_CCtx* const cctx = ZSTD_createCCtx();
-        size_t cSize;
+        size_t cSizeTooLarge;
         size_t i;
 
         assert(cctx != NULL);
@@ -4395,11 +4395,11 @@ static int basicUnitTests(U32 const seed, double compressibility)
         seqs[1].rep = 0;
 
         CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_blockDelimiters, ZSTD_sf_explicitBlockDelimiters));
-        cSize = ZSTD_compressSequencesAndLiterals(cctx, dst, dstCapacity,
+        cSizeTooLarge = ZSTD_compressSequencesAndLiterals(cctx, dst, dstCapacity,
                                                   seqs, 2,
                                                   litBuffer, litLen, sizeof(litBuffer),
                                                   blockSize);
-        if (!ZSTD_isError(cSize)) {
+        if (!ZSTD_isError(cSizeTooLarge)) {
             DISPLAY("ZSTD_compressSequencesAndLiterals() should have failed: sequences define a block larger than ZSTD_BLOCKSIZE_MAX\n");
             ZSTD_freeCCtx(cctx);
             goto _output_error;

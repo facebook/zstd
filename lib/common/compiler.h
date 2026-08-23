@@ -131,6 +131,15 @@
  */
 #define BMI2_TARGET_ATTRIBUTE TARGET_ATTRIBUTE("lzcnt,bmi,bmi2")
 
+/* Target attributes for ARM SVE/SVE2 dynamic dispatch. */
+#if defined(__aarch64__) || defined(_M_ARM64)
+#  define SVE_TARGET_ATTRIBUTE TARGET_ATTRIBUTE("+sve")
+#  define SVE2_TARGET_ATTRIBUTE TARGET_ATTRIBUTE("+sve+sve2")
+#else
+#  define SVE_TARGET_ATTRIBUTE
+#  define SVE2_TARGET_ATTRIBUTE
+#endif
+
 /* prefetch
  * can be disabled, by declaring NO_PREFETCH build macro */
 #if defined(NO_PREFETCH)
@@ -218,10 +227,10 @@
 #  if defined(__ARM_NEON) || defined(_M_ARM64)
 #    define ZSTD_ARCH_ARM_NEON
 #  endif
-#  if defined(__ARM_FEATURE_SVE)
+#  if defined(__ARM_FEATURE_SVE) && !defined(__APPLE__)
 #    define ZSTD_ARCH_ARM_SVE
 #  endif
-#  if defined(__ARM_FEATURE_SVE2)
+#  if defined(__ARM_FEATURE_SVE2) && !defined(__APPLE__)
 #    define ZSTD_ARCH_ARM_SVE2
 #  endif
 #  if defined(__riscv) && defined(__riscv_vector)
@@ -239,7 +248,7 @@
 #  elif defined(ZSTD_ARCH_ARM_NEON)
 #    include <arm_neon.h>
 #  endif
-#  if defined(ZSTD_ARCH_ARM_SVE) || defined(ZSTD_ARCH_ARM_SVE2)
+#  if defined(ZSTD_ARCH_ARM_SVE) || defined(ZSTD_ARCH_ARM_SVE2) || DYNAMIC_SVE2
 #    include <arm_sve.h>
 #  endif
 #  if defined(ZSTD_ARCH_RISCV_RVV)

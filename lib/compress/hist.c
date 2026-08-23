@@ -17,6 +17,7 @@
 #include "../common/mem.h"             /* U32, BYTE, etc. */
 #include "../common/debug.h"           /* assert, DEBUGLOG */
 #include "../common/error_private.h"   /* ERROR */
+#include "../common/zstd_internal.h"   /* ZSTD_cpuSupportsSve2 */
 #include "hist.h"
 
 #if defined(ZSTD_ARCH_ARM_SVE2)
@@ -71,9 +72,23 @@ unsigned HIST_count_simple(unsigned* count, unsigned* maxSymbolValuePtr,
 
 typedef enum { trustInput, checkMaxSymbolValue } HIST_checkInput_e;
 
-#if defined(ZSTD_ARCH_ARM_SVE2)
+/* ========================================================================
+ * ARM SVE2 Histogram Implementation
+ * ========================================================================
+ * Uses SVE2-specific instructions (svhistseg_u8, svaddwb_u16, svaddwt_u16)
+ * which are not available in base SVE.
+ *
+ * NOTE: CPUs with SVE but not SVE2 (e.g., Fujitsu A64FX) could benefit from
+ * an SVE-only implementation using base SVE instructions. This would require
+ * rewriting the histogram algorithm without SVE2's specialized histogram and
+ * widening add instructions.
+ * ======================================================================== */
+#if defined(ZSTD_ARCH_ARM_SVE2) || (DYNAMIC_SVE2 && (defined(__aarch64__) || defined(_M_ARM64)))
 FORCE_INLINE_TEMPLATE size_t min_size(size_t a, size_t b) { return a < b ? a : b; }
 
+#if DYNAMIC_SVE2
+SVE2_TARGET_ATTRIBUTE
+#endif
 static
 svuint16_t HIST_count_6_sve2(const BYTE* const src, size_t size, U32* const dst,
                              const svuint8_t c0, const svuint8_t c1,
@@ -174,6 +189,9 @@ svuint16_t HIST_count_6_sve2(const BYTE* const src, size_t size, U32* const dst,
     return svmax_u16_x(vl128, hh0, hh8);
 }
 
+#if DYNAMIC_SVE2
+SVE2_TARGET_ATTRIBUTE
+#endif
 static size_t HIST_count_sve2(unsigned* count, unsigned* maxSymbolValuePtr,
                               const void* source, size_t sourceSize,
                               HIST_checkInput_e check)
@@ -397,15 +415,25 @@ size_t HIST_countFast_wksp(unsigned* count, unsigned* maxSymbolValuePtr,
 {
     if (sourceSize < HIST_FAST_THRESHOLD) /* heuristic threshold */
         return HIST_count_simple(count, maxSymbolValuePtr, source, sourceSize);
+
 #if defined(ZSTD_ARCH_ARM_SVE2)
+    /* Static SVE2: always use SVE2 path */
     (void)workSpace;
     (void)workSpaceSize;
     return HIST_count_sve2(count, maxSymbolValuePtr, source, sourceSize, trustInput);
-#else
+#elif DYNAMIC_SVE2
+    /* Dynamic SVE2: check at runtime */
+    if (ZSTD_cpuSupportsSve2()) {
+        (void)workSpace;
+        (void)workSpaceSize;
+        return HIST_count_sve2(count, maxSymbolValuePtr, source, sourceSize, trustInput);
+    }
+#endif
+
+    /* Default implementation */
     if ((size_t)workSpace & 3) return ERROR(GENERIC);  /* must be aligned on 4-bytes boundaries */
     if (workSpaceSize < HIST_WKSP_SIZE) return ERROR(workSpace_tooSmall);
     return HIST_count_parallel_wksp(count, maxSymbolValuePtr, source, sourceSize, trustInput, (U32*)workSpace);
-#endif
 }
 
 /* HIST_count_wksp() :
@@ -416,14 +444,22 @@ size_t HIST_count_wksp(unsigned* count, unsigned* maxSymbolValuePtr,
                        void* workSpace, size_t workSpaceSize)
 {
 #if defined(ZSTD_ARCH_ARM_SVE2)
+    /* Static SVE2: always use SVE2 path */
     if (*maxSymbolValuePtr < 255)
         return HIST_count_sve2(count, maxSymbolValuePtr, source, sourceSize, checkMaxSymbolValue);
-#else
+#elif DYNAMIC_SVE2
+    /* Dynamic SVE2: check at runtime */
+    if (*maxSymbolValuePtr < 255 && ZSTD_cpuSupportsSve2()) {
+        return HIST_count_sve2(count, maxSymbolValuePtr, source, sourceSize, checkMaxSymbolValue);
+    }
+#endif
+
+    /* Default implementation */
     if ((size_t)workSpace & 3) return ERROR(GENERIC);  /* must be aligned on 4-bytes boundaries */
     if (workSpaceSize < HIST_WKSP_SIZE) return ERROR(workSpace_tooSmall);
     if (*maxSymbolValuePtr < 255)
         return HIST_count_parallel_wksp(count, maxSymbolValuePtr, source, sourceSize, checkMaxSymbolValue, (U32*)workSpace);
-#endif
+
     *maxSymbolValuePtr = 255;
     return HIST_countFast_wksp(count, maxSymbolValuePtr, source, sourceSize, workSpace, workSpaceSize);
 }

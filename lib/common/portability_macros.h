@@ -102,6 +102,42 @@
 #  endif
 #endif
 
+/* Enable runtime SVE dispatch based on the CPU.
+ * Enabled for gcc & clang on aarch64 when SVE isn't enabled by default.
+ * Disabled on Apple platforms as they don't support SVE.
+ *
+ * NOTE: Currently not used - no SVE-only (without SVE2) optimizations exist.
+ * CPUs with SVE but not SVE2 (e.g., Fujitsu A64FX) could benefit from
+ * SVE-only implementations in the future.
+ */
+#ifndef DYNAMIC_SVE
+#  if ((defined(__clang__) && __has_attribute(__target__)) \
+      || defined(__GNUC__)) \
+      && (defined(__aarch64__) || defined(_M_ARM64)) \
+      && !defined(__ARM_FEATURE_SVE) \
+      && !defined(__APPLE__)
+#    define DYNAMIC_SVE 1
+#  else
+#    define DYNAMIC_SVE 0
+#  endif
+#endif
+
+/* Enable runtime SVE2 dispatch based on the CPU.
+ * Enabled for gcc & clang on aarch64 when SVE2 isn't enabled by default.
+ * Disabled on Apple platforms as they don't support SVE2.
+ */
+#ifndef DYNAMIC_SVE2
+#  if ((defined(__clang__) && __has_attribute(__target__)) \
+      || defined(__GNUC__)) \
+      && (defined(__aarch64__) || defined(_M_ARM64)) \
+      && !defined(__ARM_FEATURE_SVE2) \
+      && !defined(__APPLE__)
+#    define DYNAMIC_SVE2 1
+#  else
+#    define DYNAMIC_SVE2 0
+#  endif
+#endif
+
 /**
  * Only enable assembly for GNU C compatible compilers,
  * because other platforms may not support GAS assembly syntax.

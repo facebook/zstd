@@ -21,7 +21,8 @@ all: simple_compression simple_decompression \
 	multiple_simple_compression\
 	dictionary_compression dictionary_decompression \
 	streaming_compression streaming_decompression \
-	multiple_streaming_compression streaming_memory_usage
+	multiple_streaming_compression streaming_memory_usage \
+	streaming_dictionary_compression
 
 $(LIB) :
 	$(MAKE) -C $(LIBDIR) libzstd.a
@@ -53,6 +54,9 @@ streaming_decompression : $(LIB)
 streaming_memory_usage.o: common.h
 streaming_memory_usage : $(LIB)
 
+streaming_dictionary_compression.o: common.h
+streaming_dictionary_compression : $(LIB)
+
 
 .PHONY:clean
 clean:
@@ -61,7 +65,8 @@ clean:
         multiple_simple_compression \
         dictionary_compression dictionary_decompression \
         streaming_compression streaming_decompression \
-        multiple_streaming_compression streaming_memory_usage
+        multiple_streaming_compression streaming_memory_usage \
+        streaming_dictionary_compression
 	@echo Cleaning completed
 
 .PHONY:test

@@ -44,3 +44,7 @@ Zstandard library : usage examples
   Decompress multiple files using the same dictionary.
   Result remains in memory.
   Introduces usage of : `ZSTD_createDDict()` and `ZSTD_decompress_usingDDict()`
+
+- [Streaming dictionary compression](streaming_dictionary_compression.c) :
+  Compress multiple files in streaming mode using the same dictionary.
+  Introduces usage of : `ZSTD_CCtx_loadDictionary()` and `ZSTD_compressStream2()`

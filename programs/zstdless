@@ -1,8 +1,33 @@
 #!/bin/sh
 
+# zstdless - a zstd-aware wrapper for less
+# Decompresses .zst files on the fly and pipes them to less.
+
 zstd=${ZSTD:-zstd}
 
-# TODO: Address quirks and bugs tied to old versions of less, provide a mechanism to pass flags directly to zstd
+# Support --help / -h
+if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+    echo "Usage: zstdless [OPTIONS] [FILE...]"
+    echo ""
+    echo "View zstd-compressed files using 'less'."
+    echo "Any .zst file will be automatically decompressed for viewing."
+    echo ""
+    echo "Environment variables:"
+    echo "  ZSTD            Path to zstd binary (default: zstd)"
+    echo "  ZSTDLESS_FLAGS  Additional flags to pass to zstd (e.g. '-D dict')"
+    echo ""
+    echo "All other options are passed directly to 'less'."
+    exit 0
+fi
 
-export LESSOPEN="|-${zstd} -cdfq %s"
+# Support --version / -V
+if [ "$1" = "--version" ] || [ "$1" = "-V" ]; then
+    ${zstd} --version
+    exit $?
+fi
+
+# Allow users to pass custom flags to zstd via ZSTDLESS_FLAGS
+zstd_flags=${ZSTDLESS_FLAGS:-}
+
+export LESSOPEN="|-${zstd} -cdfq ${zstd_flags} %s"
 exec less "$@"

@@ -323,4 +323,16 @@ MEM_STATIC int ZSTD_cpuSupportsBmi2(void)
     return ZSTD_cpuid_bmi1(cpuid) && ZSTD_cpuid_bmi2(cpuid);
 }
 
+/**
+ * @returns true iff the CPU supports dynamic SVE dispatch.
+ */
+MEM_STATIC int ZSTD_cpuSupportsSve(void)
+{
+#if defined(__aarch64__) && defined(__linux__)
+    return (getauxval(AT_HWCAP) & HWCAP_SVE) != 0;
+#else
+    return 0;
+#endif
+}
+
 #endif   /* ZSTD_CCOMMON_H_MODULE */

@@ -102,6 +102,21 @@
 #  endif
 #endif
 
+/* Enable runtime SVE dispatch based on the CPU.
+ * Enabled for clang & gcc on aarch64 / linux (or other targets with a
+ * getauxval-equivalent) when SVE isn't already enabled at compile time.
+ */
+#ifndef DYNAMIC_SVE
+#  if ((defined(__clang__) && __has_attribute(__target__)) \
+      || (defined(__GNUC__) && __GNUC__ >= 9)) \
+      && defined(__aarch64__) \
+      && (defined(__linux__) || defined(__ANDROID__))
+#    define DYNAMIC_SVE 1
+#  else
+#    define DYNAMIC_SVE 0
+#  endif
+#endif
+
 /**
  * Only enable assembly for GNU C compatible compilers,
  * because other platforms may not support GAS assembly syntax.

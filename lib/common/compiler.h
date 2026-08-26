@@ -131,6 +131,9 @@
  */
 #define BMI2_TARGET_ATTRIBUTE TARGET_ATTRIBUTE("lzcnt,bmi,bmi2")
 
+/* Target attribute for SVE dynamic dispatch. */
+#define SVE_TARGET_ATTRIBUTE TARGET_ATTRIBUTE("+sve")
+
 /* prefetch
  * can be disabled, by declaring NO_PREFETCH build macro */
 #if defined(NO_PREFETCH)

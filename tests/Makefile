@@ -244,6 +244,10 @@ CLEAN += poolTests
 poolTests : $(PRGDIR)/util.c $(PRGDIR)/timefn.c poolTests.c $(LIB_SRCDIR)/common/pool.c $(LIB_SRCDIR)/common/threading.c $(LIB_SRCDIR)/common/zstd_common.c $(LIB_SRCDIR)/common/error_private.c
 	$(LINK.c) $(MULTITHREAD) $^ -o $@$(EXT)
 
+CLEAN += landlockTests
+landlockTests : $(PRGDIR)/util.c landlockTests.c
+	$(LINK.c) $^ -o $@$(EXT)
+
 .PHONY: versionsTest
 versionsTest: clean
 	$(PYTHON) test-zstd-versions.py
@@ -314,7 +318,7 @@ list:
 
 .PHONY: check
 check: ZSTDRTTEST=  # remove long tests
-check: test-zstd
+check: test-zstd test-landlock
 	@echo "\n******************************"
 	@echo "All tests completed successfully"
 	@echo "******************************"
@@ -325,7 +329,7 @@ fuzztest: test-fuzzer test-zstream test-decodecorpus
 .PHONY: test
 test: test-zstd test-cli-tests test-fullbench test-fuzzer test-zstream test-invalidDictionaries test-legacy test-decodecorpus
 ifeq ($(QEMU_SYS),)
-test: test-pool
+test: test-pool test-landlock
 endif
 	@echo "\n******************************"
 	@echo "All tests completed successfully"
@@ -446,6 +450,10 @@ test-decodecorpus-cli: decodecorpus
 
 test-pool: poolTests
 	$(QEMU_SYS) ./poolTests
+
+.PHONY: test-landlock
+test-landlock: landlockTests
+	./landlockTests
 
 test-lz4: ZSTD = $(PRGDIR)/zstd
 test-lz4: ZSTD_LZ4 = ./lz4

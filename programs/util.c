@@ -8,6 +8,10 @@
  * You may select, at your option, one of the above-listed licenses.
  */
 
+#if defined(__linux__) && !defined(_DEFAULT_SOURCE)
+#  define _DEFAULT_SOURCE
+#endif
+
 /*-****************************************
 *  Dependencies
 ******************************************/
@@ -17,6 +21,14 @@
 #include <time.h>       /* clock_t, clock, CLOCKS_PER_SEC, nanosleep */
 #include <errno.h>
 #include <assert.h>
+
+#if defined(__linux__)
+#  include <fcntl.h>       /* open, O_CLOEXEC, O_PATH */
+#  include <stdint.h>      /* uint64_t, int32_t */
+#  include <sys/prctl.h>   /* prctl, PR_SET_NO_NEW_PRIVS */
+#  include <sys/syscall.h> /* SYS_landlock_* */
+#  include <sys/vfs.h>     /* statfs */
+#endif
 
 #if defined(__FreeBSD__)
 #include <sys/param.h> /* __FreeBSD_version */
@@ -75,6 +87,63 @@
 static int g_traceDepth = 0;
 int g_traceFileStat = 0;
 
+/*
+ * Keep the Landlock dependency at the syscall ABI boundary. This lets zstd
+ * continue to build against Linux libc/kernel headers that predate Landlock.
+ */
+#if defined(__linux__) \
+ && defined(SYS_landlock_create_ruleset) \
+ && defined(SYS_landlock_add_rule) \
+ && defined(SYS_landlock_restrict_self)
+#  define UTIL_HAS_LANDLOCK 1
+#  define UTIL_LANDLOCK_CREATE_RULESET_VERSION 1U
+#  define UTIL_LANDLOCK_RULE_PATH_BENEATH 1
+#  define UTIL_LANDLOCK_ACCESS_FS_WRITE_FILE   (1ULL << 1)
+#  define UTIL_LANDLOCK_ACCESS_FS_MAKE_CHAR    (1ULL << 6)
+#  define UTIL_LANDLOCK_ACCESS_FS_REMOVE_DIR   (1ULL << 4)
+#  define UTIL_LANDLOCK_ACCESS_FS_REMOVE_FILE  (1ULL << 5)
+#  define UTIL_LANDLOCK_ACCESS_FS_MAKE_DIR     (1ULL << 7)
+#  define UTIL_LANDLOCK_ACCESS_FS_MAKE_REG     (1ULL << 8)
+#  define UTIL_LANDLOCK_ACCESS_FS_MAKE_SOCK    (1ULL << 9)
+#  define UTIL_LANDLOCK_ACCESS_FS_MAKE_FIFO    (1ULL << 10)
+#  define UTIL_LANDLOCK_ACCESS_FS_MAKE_BLOCK   (1ULL << 11)
+#  define UTIL_LANDLOCK_ACCESS_FS_MAKE_SYM     (1ULL << 12)
+#  define UTIL_LANDLOCK_ACCESS_FS_REFER        (1ULL << 13)
+#  define UTIL_LANDLOCK_ACCESS_FS_TRUNCATE     (1ULL << 14)
+#  define UTIL_LANDLOCK_ACCESS_FS_IOCTL_DEV    (1ULL << 15)
+#  define UTIL_LANDLOCK_ACCESS_FS_RESOLVE_UNIX (1ULL << 16)
+#  define UTIL_LANDLOCK_ACCESS_NET_BIND_TCP    (1ULL << 0)
+#  define UTIL_LANDLOCK_ACCESS_NET_CONNECT_TCP (1ULL << 1)
+#  define UTIL_LANDLOCK_ACCESS_NET_BIND_UDP    (1ULL << 2)
+#  define UTIL_LANDLOCK_ACCESS_NET_CONNECT_SEND_UDP (1ULL << 3)
+#  define UTIL_LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET (1ULL << 0)
+#  define UTIL_LANDLOCK_SCOPE_SIGNAL           (1ULL << 1)
+#  define UTIL_V9FS_MAGIC 0x01021997
+
+#  ifndef O_PATH
+#    define O_PATH 010000000
+#  endif
+#  ifndef O_CLOEXEC
+#    define O_CLOEXEC 0
+#  endif
+
+typedef struct {
+    uint64_t handledAccessFs;
+    uint64_t handledAccessNet;
+    uint64_t scoped;
+} UTIL_LandlockRulesetAttr;
+
+#  if defined(__GNUC__) || defined(__clang__)
+#    define UTIL_PACKED __attribute__((packed))
+#  else
+#    define UTIL_PACKED
+#  endif
+typedef struct UTIL_PACKED {
+    uint64_t allowedAccess;
+    int32_t parentFd;
+} UTIL_LandlockPathBeneathAttr;
+#endif
+
 #define UTIL_TRACE_CALL(...)                                         \
     {                                                                \
         if (g_traceFileStat) {                                       \
@@ -92,6 +161,137 @@ int g_traceFileStat = 0;
             UTIL_DISPLAY("Trace:FileStat: %*s< %d\n", g_traceDepth, "", (ret)); \
         }                                                                      \
     }
+
+int UTIL_landlockRestrict(const char* const* writablePaths, size_t writablePathCount)
+{
+#if defined(UTIL_HAS_LANDLOCK)
+    UTIL_LandlockRulesetAttr rulesetAttr;
+    uint64_t handledAccessFs =
+          UTIL_LANDLOCK_ACCESS_FS_WRITE_FILE
+        | UTIL_LANDLOCK_ACCESS_FS_REMOVE_DIR
+        | UTIL_LANDLOCK_ACCESS_FS_REMOVE_FILE
+        | UTIL_LANDLOCK_ACCESS_FS_MAKE_CHAR
+        | UTIL_LANDLOCK_ACCESS_FS_MAKE_DIR
+        | UTIL_LANDLOCK_ACCESS_FS_MAKE_REG
+        | UTIL_LANDLOCK_ACCESS_FS_MAKE_SOCK
+        | UTIL_LANDLOCK_ACCESS_FS_MAKE_FIFO
+        | UTIL_LANDLOCK_ACCESS_FS_MAKE_BLOCK
+        | UTIL_LANDLOCK_ACCESS_FS_MAKE_SYM;
+    uint64_t allowedAccessFs =
+          UTIL_LANDLOCK_ACCESS_FS_WRITE_FILE
+        | UTIL_LANDLOCK_ACCESS_FS_REMOVE_FILE
+        | UTIL_LANDLOCK_ACCESS_FS_MAKE_DIR
+        | UTIL_LANDLOCK_ACCESS_FS_MAKE_REG;
+    long const abi = syscall(SYS_landlock_create_ruleset, NULL, 0,
+                             UTIL_LANDLOCK_CREATE_RULESET_VERSION);
+    int rulesetFd;
+    size_t rulesetAttrSize;
+    size_t pathNb;
+
+    if (abi < 0)
+        return 0;
+
+    /* WSL's 9p/DrvFS currently accepts rules but does not propagate them to
+     * nested paths. Enforcing such a ruleset would break valid output. */
+    for (pathNb = 0; pathNb < writablePathCount; ++pathNb) {
+        struct statfs fs;
+        if (statfs(writablePaths[pathNb], &fs) < 0)
+            return -1;
+        if ((unsigned long)fs.f_type == UTIL_V9FS_MAGIC)
+            return 0;
+    }
+
+    if (abi >= 2)
+        handledAccessFs |= UTIL_LANDLOCK_ACCESS_FS_REFER;
+    if (abi >= 3) {
+        handledAccessFs |= UTIL_LANDLOCK_ACCESS_FS_TRUNCATE;
+        allowedAccessFs |= UTIL_LANDLOCK_ACCESS_FS_TRUNCATE;
+    }
+    if (abi >= 5)
+        handledAccessFs |= UTIL_LANDLOCK_ACCESS_FS_IOCTL_DEV;
+    if (abi >= 9)
+        handledAccessFs |= UTIL_LANDLOCK_ACCESS_FS_RESOLVE_UNIX;
+
+    memset(&rulesetAttr, 0, sizeof(rulesetAttr));
+    rulesetAttr.handledAccessFs = handledAccessFs;
+    rulesetAttrSize = sizeof(rulesetAttr.handledAccessFs);
+    if (abi >= 4) {
+        rulesetAttr.handledAccessNet =
+              UTIL_LANDLOCK_ACCESS_NET_BIND_TCP
+            | UTIL_LANDLOCK_ACCESS_NET_CONNECT_TCP;
+        rulesetAttrSize = sizeof(rulesetAttr.handledAccessFs) +
+                          sizeof(rulesetAttr.handledAccessNet);
+    }
+    if (abi >= 6) {
+        rulesetAttr.scoped =
+              UTIL_LANDLOCK_SCOPE_ABSTRACT_UNIX_SOCKET
+            | UTIL_LANDLOCK_SCOPE_SIGNAL;
+        rulesetAttrSize = sizeof(rulesetAttr);
+    }
+    if (abi >= 10) {
+        rulesetAttr.handledAccessNet |=
+              UTIL_LANDLOCK_ACCESS_NET_BIND_UDP
+            | UTIL_LANDLOCK_ACCESS_NET_CONNECT_SEND_UDP;
+    }
+
+    rulesetFd = (int)syscall(SYS_landlock_create_ruleset, &rulesetAttr,
+                             rulesetAttrSize, 0);
+    if (rulesetFd < 0)
+        return -1;
+
+    for (pathNb = 0; pathNb < writablePathCount; ++pathNb) {
+        UTIL_LandlockPathBeneathAttr pathBeneath;
+        struct stat pathStat;
+        int const parentFd = open(writablePaths[pathNb], O_PATH | O_CLOEXEC);
+        if (parentFd < 0) {
+            int const savedErrno = errno;
+            close(rulesetFd);
+            errno = savedErrno;
+            return -1;
+        }
+        if (fstat(parentFd, &pathStat) < 0) {
+            int const savedErrno = errno;
+            close(parentFd);
+            close(rulesetFd);
+            errno = savedErrno;
+            return -1;
+        }
+        memset(&pathBeneath, 0, sizeof(pathBeneath));
+        pathBeneath.allowedAccess = S_ISDIR(pathStat.st_mode) ? allowedAccessFs :
+              allowedAccessFs & (UTIL_LANDLOCK_ACCESS_FS_WRITE_FILE |
+                                 UTIL_LANDLOCK_ACCESS_FS_TRUNCATE);
+        pathBeneath.parentFd = parentFd;
+        if (syscall(SYS_landlock_add_rule, rulesetFd,
+                    UTIL_LANDLOCK_RULE_PATH_BENEATH, &pathBeneath, 0) < 0) {
+            int const savedErrno = errno;
+            close(parentFd);
+            close(rulesetFd);
+            errno = savedErrno;
+            return -1;
+        }
+        close(parentFd);
+    }
+
+    if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) < 0) {
+        int const savedErrno = errno;
+        close(rulesetFd);
+        errno = savedErrno;
+        return -1;
+    }
+    if (syscall(SYS_landlock_restrict_self, rulesetFd, 0) < 0) {
+        int const savedErrno = errno;
+        close(rulesetFd);
+        errno = savedErrno;
+        return -1;
+    }
+    close(rulesetFd);
+    return 1;
+#else
+    (void)writablePaths;
+    (void)writablePathCount;
+    return 0;
+#endif
+}
 
 /* A modified version of realloc().
  * If UTIL_realloc() fails the original block is freed.

@@ -155,7 +155,9 @@ struct ZSTD_DCtx_s
     size_t staticSize;
     int isFrameDecompression;
 #if DYNAMIC_BMI2
-    int bmi2;                     /* == 1 if the CPU supports BMI2 and 0 otherwise. CPU support is determined dynamically once per context lifetime. */
+    int bmi2;                     /* == 1 if the CPU supports BMI1 & BMI2, determined once per context lifetime.
+                                   * Never read this directly: use ZSTD_DCtx_get_bmi2(), which also handles builds
+                                   * where BMI2 is enabled at compile time and this field does not exist. */
 #endif
 
     /* dictionary */
@@ -210,6 +212,15 @@ struct ZSTD_DCtx_s
 #endif
 };  /* typedef'd to ZSTD_DCtx within "zstd.h" */
 
+/**
+ * @returns 1 if calls should be dispatched to the BMI2_TARGET_ATTRIBUTE variant
+ *          of a function, rather than to its default variant.
+ *
+ * Beware: this is *not* a "does the CPU support BMI2" test. When BMI2 is enabled
+ * at compile time, DYNAMIC_BMI2 is 0: the whole library is already compiled with
+ * BMI2, no separate variant exists, and this returns 0 even though the CPU does
+ * support BMI2. Only ever use it to select between the two variants of a function.
+ */
 MEM_STATIC int ZSTD_DCtx_get_bmi2(const struct ZSTD_DCtx_s *dctx) {
 #if DYNAMIC_BMI2
     return dctx->bmi2;

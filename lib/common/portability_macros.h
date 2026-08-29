@@ -102,6 +102,23 @@
 #  endif
 #endif
 
+/* Whether two variants of the dispatched functions are compiled, one plain and
+ * one BMI2_TARGET_ATTRIBUTE, to be selected at runtime.
+ *
+ * This is what the dispatch machinery tests, rather than DYNAMIC_BMI2 directly.
+ * The two say the same thing today; separating them gives the guard sites one
+ * spelling, and a place to state the rule when it stops being a restatement.
+ *
+ * ODR: this controls whether ZSTD_CCtx and ZSTD_DCtx carry a bmi2 field, so it
+ * changes their layout and must be identical in every translation unit linked
+ * into one binary. Inherited from DYNAMIC_BMI2, which has the same property.
+ */
+#if DYNAMIC_BMI2
+#  define ZSTD_BMI2_DISPATCH 1
+#else
+#  define ZSTD_BMI2_DISPATCH 0
+#endif
+
 /**
  * Only enable assembly for GNU C compatible compilers,
  * because other platforms may not support GAS assembly syntax.
@@ -137,13 +154,13 @@
  * - ASM hasn't been explicitly disabled by defining ZSTD_DISABLE_ASM
  * - Assembly is supported
  * - We are compiling for x86-64 and either:
- *   - DYNAMIC_BMI2 is enabled
+ *   - runtime dispatch is compiled in
  *   - BMI2 is supported at compile time
  */
 #if !defined(ZSTD_DISABLE_ASM) &&                                 \
     ZSTD_ASM_SUPPORTED &&                                         \
     defined(__x86_64__) &&                                        \
-    (DYNAMIC_BMI2 || defined(__BMI2__))
+    (ZSTD_BMI2_DISPATCH || defined(__BMI2__))
 # define ZSTD_ENABLE_ASM_X86_64_BMI2 1
 #else
 # define ZSTD_ENABLE_ASM_X86_64_BMI2 0

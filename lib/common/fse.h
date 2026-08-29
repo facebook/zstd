@@ -185,7 +185,11 @@ FSE_PUBLIC_API size_t FSE_readNCount (short* normalizedCounter,
                            const void* rBuffer, size_t rBuffSize);
 
 /*! FSE_readNCount_bmi2():
- * Same as FSE_readNCount() but pass bmi2=1 when your CPU supports BMI2 and 0 otherwise.
+ * Same as FSE_readNCount(). Set bmi2=1 to dispatch to the BMI2 variant.
+ * Only pass 1 if the CPU supports BMI2 *and* BMI1: the call then goes straight
+ * to code compiled for "bmi,bmi2", without probing the CPU itself.
+ * Note this selects a function variant, it is not a CPU capability flag, and it
+ * is ignored unless the library was built with runtime BMI2 dispatch.
  */
 FSE_PUBLIC_API size_t FSE_readNCount_bmi2(short* normalizedCounter,
                            unsigned* maxSymbolValuePtr, unsigned* tableLogPtr,
@@ -273,7 +277,11 @@ FSE_PUBLIC_API size_t FSE_buildDTable_wksp(FSE_DTable* dt, const short* normaliz
 #define FSE_DECOMPRESS_WKSP_SIZE(maxTableLog, maxSymbolValue) (FSE_DECOMPRESS_WKSP_SIZE_U32(maxTableLog, maxSymbolValue) * sizeof(unsigned))
 size_t FSE_decompress_wksp_bmi2(void* dst, size_t dstCapacity, const void* cSrc, size_t cSrcSize, unsigned maxLog, void* workSpace, size_t wkspSize, int bmi2);
 /**< same as FSE_decompress(), using an externally allocated `workSpace` produced with `FSE_DECOMPRESS_WKSP_SIZE_U32(maxLog, maxSymbolValue)`.
- * Set bmi2 to 1 if your CPU supports BMI2 or 0 if it doesn't */
+ * Set bmi2=1 to dispatch to the BMI2 variant. Only pass 1 if the CPU supports
+ * BMI2 *and* BMI1: the call then goes straight to code compiled for
+ * "bmi,bmi2", without probing the CPU itself. Note this selects a function
+ * variant, it is not a CPU capability flag, and it is ignored unless the library
+ * was built with runtime BMI2 dispatch. */
 
 typedef enum {
    FSE_repeat_none,  /**< Cannot use the previous table */

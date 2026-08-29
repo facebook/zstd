@@ -194,7 +194,7 @@ static size_t FSE_readNCount_body_default(
     return FSE_readNCount_body(normalizedCounter, maxSVPtr, tableLogPtr, headerBuffer, hbSize);
 }
 
-#if DYNAMIC_BMI2
+#if ZSTD_BMI2_DISPATCH
 BMI2_TARGET_ATTRIBUTE static size_t FSE_readNCount_body_bmi2(
         short* normalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr,
         const void* headerBuffer, size_t hbSize)
@@ -207,7 +207,7 @@ size_t FSE_readNCount_bmi2(
         short* normalizedCounter, unsigned* maxSVPtr, unsigned* tableLogPtr,
         const void* headerBuffer, size_t hbSize, int bmi2)
 {
-#if DYNAMIC_BMI2
+#if ZSTD_BMI2_DISPATCH
     if (bmi2) {
         return FSE_readNCount_body_bmi2(normalizedCounter, maxSVPtr, tableLogPtr, headerBuffer, hbSize);
     }
@@ -314,7 +314,7 @@ static size_t HUF_readStats_body_default(BYTE* huffWeight, size_t hwSize, U32* r
     return HUF_readStats_body(huffWeight, hwSize, rankStats, nbSymbolsPtr, tableLogPtr, src, srcSize, workSpace, wkspSize, 0);
 }
 
-#if DYNAMIC_BMI2
+#if ZSTD_BMI2_DISPATCH
 static BMI2_TARGET_ATTRIBUTE size_t HUF_readStats_body_bmi2(BYTE* huffWeight, size_t hwSize, U32* rankStats,
                      U32* nbSymbolsPtr, U32* tableLogPtr,
                      const void* src, size_t srcSize,
@@ -330,7 +330,7 @@ size_t HUF_readStats_wksp(BYTE* huffWeight, size_t hwSize, U32* rankStats,
                      void* workSpace, size_t wkspSize,
                      int flags)
 {
-#if DYNAMIC_BMI2
+#if ZSTD_BMI2_DISPATCH
     if (flags & HUF_flags_bmi2) {
         return HUF_readStats_body_bmi2(huffWeight, hwSize, rankStats, nbSymbolsPtr, tableLogPtr, src, srcSize, workSpace, wkspSize);
     }

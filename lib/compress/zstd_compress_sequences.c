@@ -382,7 +382,7 @@ ZSTD_encodeSequences_body(
 }
 
 static size_t
-ZSTD_encodeSequences_default(
+ZSTD_encodeSequences_body_default(
             void* dst, size_t dstCapacity,
             FSE_CTable const* CTable_MatchLength, BYTE const* mlCodeTable,
             FSE_CTable const* CTable_OffsetBits, BYTE const* ofCodeTable,
@@ -397,10 +397,10 @@ ZSTD_encodeSequences_default(
 }
 
 
-#if DYNAMIC_BMI2
+#if ZSTD_BMI2_DISPATCH
 
 static BMI2_TARGET_ATTRIBUTE size_t
-ZSTD_encodeSequences_bmi2(
+ZSTD_encodeSequences_body_bmi2(
             void* dst, size_t dstCapacity,
             FSE_CTable const* CTable_MatchLength, BYTE const* mlCodeTable,
             FSE_CTable const* CTable_OffsetBits, BYTE const* ofCodeTable,
@@ -424,9 +424,9 @@ size_t ZSTD_encodeSequences(
             SeqDef const* sequences, size_t nbSeq, int longOffsets, int bmi2)
 {
     DEBUGLOG(5, "ZSTD_encodeSequences: dstCapacity = %u", (unsigned)dstCapacity);
-#if DYNAMIC_BMI2
+#if ZSTD_BMI2_DISPATCH
     if (bmi2) {
-        return ZSTD_encodeSequences_bmi2(dst, dstCapacity,
+        return ZSTD_encodeSequences_body_bmi2(dst, dstCapacity,
                                          CTable_MatchLength, mlCodeTable,
                                          CTable_OffsetBits, ofCodeTable,
                                          CTable_LitLength, llCodeTable,
@@ -434,7 +434,7 @@ size_t ZSTD_encodeSequences(
     }
 #endif
     (void)bmi2;
-    return ZSTD_encodeSequences_default(dst, dstCapacity,
+    return ZSTD_encodeSequences_body_default(dst, dstCapacity,
                                         CTable_MatchLength, mlCodeTable,
                                         CTable_OffsetBits, ofCodeTable,
                                         CTable_LitLength, llCodeTable,

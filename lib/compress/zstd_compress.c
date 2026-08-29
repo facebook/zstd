@@ -14,6 +14,7 @@
 #include "../common/allocations.h"  /* ZSTD_customMalloc, ZSTD_customCalloc, ZSTD_customFree */
 #include "../common/zstd_deps.h"  /* INT_MAX, ZSTD_memset, ZSTD_memcpy */
 #include "../common/mem.h"
+#include "../common/cpu.h"   /* ZSTD_cpuSupportsBmi2 */
 #include "../common/error_private.h"
 #include "hist.h"           /* HIST_countFast_wksp */
 #define FSE_STATIC_LINKING_ONLY   /* FSE_encodeSymbol */
@@ -112,7 +113,7 @@ static void ZSTD_initCCtx(ZSTD_CCtx* cctx, ZSTD_customMem memManager)
     assert(cctx != NULL);
     ZSTD_memset(cctx, 0, sizeof(*cctx));
     cctx->customMem = memManager;
-#if DYNAMIC_BMI2
+#if ZSTD_BMI2_DISPATCH
     cctx->bmi2 = ZSTD_cpuSupportsBmi2();
 #endif
     {   size_t const err = ZSTD_CCtx_reset(cctx, ZSTD_reset_parameters);
@@ -154,7 +155,7 @@ ZSTD_CCtx* ZSTD_initStaticCCtx(void* workspace, size_t workspaceSize)
     cctx->blockState.nextCBlock = (ZSTD_compressedBlockState_t*)ZSTD_cwksp_reserve_object(&cctx->workspace, sizeof(ZSTD_compressedBlockState_t));
     cctx->tmpWorkspace = ZSTD_cwksp_reserve_object(&cctx->workspace, TMP_WORKSPACE_SIZE);
     cctx->tmpWkspSize = TMP_WORKSPACE_SIZE;
-#if DYNAMIC_BMI2
+#if ZSTD_BMI2_DISPATCH
     cctx->bmi2 = ZSTD_cpuSupportsBmi2();
 #endif
     return cctx;

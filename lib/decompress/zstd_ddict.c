@@ -16,7 +16,6 @@
 *********************************************************/
 #include "../common/allocations.h"  /* ZSTD_customMalloc, ZSTD_customFree */
 #include "../common/zstd_deps.h"   /* ZSTD_memcpy, ZSTD_memmove, ZSTD_memset */
-#include "../common/cpu.h"         /* bmi2 */
 #include "../common/mem.h"         /* low level memory routines */
 #define FSE_STATIC_LINKING_ONLY
 #include "../common/fse.h"

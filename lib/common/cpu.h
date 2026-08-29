@@ -246,4 +246,18 @@ MEM_STATIC ZSTD_cpuid_t ZSTD_cpuid(void) {
 
 #undef X
 
+/**
+ * @returns 1 if the CPU can run code compiled with BMI2_TARGET_ATTRIBUTE.
+ *
+ * BMI1 is required as well as BMI2: BMI2_TARGET_ATTRIBUTE enables "bmi,bmi2",
+ * so a variant built with it may emit BMI1 instructions, not only BMI2 ones.
+ * These two bits are exactly what that attribute permits; see compiler.h for
+ * why LZCNT, which has a separate CPUID bit, is not part of it.
+ */
+MEM_STATIC int ZSTD_cpuSupportsBmi2(void)
+{
+    ZSTD_cpuid_t cpuid = ZSTD_cpuid();
+    return ZSTD_cpuid_bmi1(cpuid) && ZSTD_cpuid_bmi2(cpuid);
+}
+
 #endif /* ZSTD_COMMON_CPU_H */

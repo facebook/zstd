@@ -79,7 +79,11 @@ typedef U32 HUF_DTable;
  */
 typedef enum {
     /**
-     * If compiled with DYNAMIC_BMI2: Set flag only if the CPU supports BMI2 at runtime.
+     * If the build dispatches between BMI2 variants (ZSTD_BMI2_DISPATCH):
+     * set this flag only if the CPU supports BMI1 *and* BMI2 at runtime.
+     * Both are required: the dispatched variants are compiled with
+     * BMI2_TARGET_ATTRIBUTE, which enables "bmi,bmi2", so they may use either
+     * instruction set. ZSTD_cpuSupportsBmi2() tests exactly this pair.
      * Otherwise: Ignored.
      */
     HUF_flags_bmi2 = (1 << 0),
@@ -176,7 +180,7 @@ size_t HUF_readStats(BYTE* huffWeight, size_t hwSize,
 /*! HUF_readStats_wksp() :
  * Same as HUF_readStats() but takes an external workspace which must be
  * 4-byte aligned and its size must be >= HUF_READ_STATS_WORKSPACE_SIZE.
- * If the CPU has BMI2 support, pass bmi2=1, otherwise pass bmi2=0.
+ * Set HUF_flags_bmi2 in `flags` only if the CPU supports BMI1 and BMI2.
  */
 #define HUF_READ_STATS_WORKSPACE_SIZE_U32 FSE_DECOMPRESS_WKSP_SIZE_U32(6, HUF_TABLELOG_MAX-1)
 #define HUF_READ_STATS_WORKSPACE_SIZE (HUF_READ_STATS_WORKSPACE_SIZE_U32 * sizeof(unsigned))
@@ -259,7 +263,8 @@ size_t HUF_decompress1X2_DCtx_wksp(HUF_DTable* dctx, void* dst, size_t dstSize, 
 #endif
 
 /* BMI2 variants.
- * If the CPU has BMI2 support, pass bmi2=1, otherwise pass bmi2=0.
+ * Set HUF_flags_bmi2 in `flags` only if the CPU supports BMI1 and BMI2;
+ * see HUF_flags_bmi2 above for why both are required.
  */
 size_t HUF_decompress1X_usingDTable(void* dst, size_t maxDstSize, const void* cSrc, size_t cSrcSize, const HUF_DTable* DTable, int flags);
 #ifndef HUF_FORCE_DECOMPRESS_X2

@@ -50,11 +50,11 @@
 #error "Cannot force the use of the X1 and X2 decoders at the same time!"
 #endif
 
-/* When DYNAMIC_BMI2 is enabled, fast decoders are only called when bmi2 is
+/* When ZSTD_BMI2_DISPATCH is enabled, fast decoders are only called when bmi2 is
  * supported at runtime, so we can add the BMI2 target attribute.
  * When it is disabled, we will still get BMI2 if it is enabled statically.
  */
-#if DYNAMIC_BMI2
+#if ZSTD_BMI2_DISPATCH
 # define HUF_FAST_BMI2_ATTRS BMI2_TARGET_ATTRIBUTE
 #else
 # define HUF_FAST_BMI2_ATTRS
@@ -66,12 +66,6 @@
 # define HUF_EXTERN_C
 #endif
 #define HUF_ASM_DECL HUF_EXTERN_C
-
-#if DYNAMIC_BMI2
-# define HUF_NEED_BMI2_FUNCTION 1
-#else
-# define HUF_NEED_BMI2_FUNCTION 0
-#endif
 
 /* **************************************************************
 *  Error Management
@@ -94,11 +88,11 @@ typedef size_t (*HUF_DecompressUsingDTableFn)(void *dst, size_t dstSize,
                                               size_t cSrcSize,
                                               const HUF_DTable *DTable);
 
-#if DYNAMIC_BMI2
+#if ZSTD_BMI2_DISPATCH
 
 #define HUF_DGEN(fn)                                                        \
                                                                             \
-    static size_t fn##_default(                                             \
+    static size_t fn##_body_default(                                        \
                   void* dst,  size_t dstSize,                               \
             const void* cSrc, size_t cSrcSize,                              \
             const HUF_DTable* DTable)                                       \
@@ -106,7 +100,7 @@ typedef size_t (*HUF_DecompressUsingDTableFn)(void *dst, size_t dstSize,
         return fn##_body(dst, dstSize, cSrc, cSrcSize, DTable);             \
     }                                                                       \
                                                                             \
-    static BMI2_TARGET_ATTRIBUTE size_t fn##_bmi2(                          \
+    static BMI2_TARGET_ATTRIBUTE size_t fn##_body_bmi2(                     \
                   void* dst,  size_t dstSize,                               \
             const void* cSrc, size_t cSrcSize,                              \
             const HUF_DTable* DTable)                                       \
@@ -118,9 +112,9 @@ typedef size_t (*HUF_DecompressUsingDTableFn)(void *dst, size_t dstSize,
                      size_t cSrcSize, HUF_DTable const* DTable, int flags)  \
     {                                                                       \
         if (flags & HUF_flags_bmi2) {                                       \
-            return fn##_bmi2(dst, dstSize, cSrc, cSrcSize, DTable);         \
+            return fn##_body_bmi2(dst, dstSize, cSrc, cSrcSize, DTable);    \
         }                                                                   \
-        return fn##_default(dst, dstSize, cSrc, cSrcSize, DTable);          \
+        return fn##_body_default(dst, dstSize, cSrc, cSrcSize, DTable);     \
     }
 
 #else
@@ -698,16 +692,16 @@ HUF_decompress4X1_usingDTable_internal_body(
     }
 }
 
-#if HUF_NEED_BMI2_FUNCTION
+#if ZSTD_BMI2_DISPATCH
 static BMI2_TARGET_ATTRIBUTE
-size_t HUF_decompress4X1_usingDTable_internal_bmi2(void* dst, size_t dstSize, void const* cSrc,
+size_t HUF_decompress4X1_usingDTable_internal_body_bmi2(void* dst, size_t dstSize, void const* cSrc,
                     size_t cSrcSize, HUF_DTable const* DTable) {
     return HUF_decompress4X1_usingDTable_internal_body(dst, dstSize, cSrc, cSrcSize, DTable);
 }
 #endif
 
 static
-size_t HUF_decompress4X1_usingDTable_internal_default(void* dst, size_t dstSize, void const* cSrc,
+size_t HUF_decompress4X1_usingDTable_internal_body_default(void* dst, size_t dstSize, void const* cSrc,
                     size_t cSrcSize, HUF_DTable const* DTable) {
     return HUF_decompress4X1_usingDTable_internal_body(dst, dstSize, cSrc, cSrcSize, DTable);
 }
@@ -898,23 +892,21 @@ HUF_DGEN(HUF_decompress1X1_usingDTable_internal)
 static size_t HUF_decompress4X1_usingDTable_internal(void* dst, size_t dstSize, void const* cSrc,
                     size_t cSrcSize, HUF_DTable const* DTable, int flags)
 {
-    HUF_DecompressUsingDTableFn fallbackFn = HUF_decompress4X1_usingDTable_internal_default;
+    HUF_DecompressUsingDTableFn fallbackFn = HUF_decompress4X1_usingDTable_internal_body_default;
     HUF_DecompressFastLoopFn loopFn = HUF_decompress4X1_usingDTable_internal_fast_c_loop;
 
-#if DYNAMIC_BMI2
+#if ZSTD_BMI2_DISPATCH
     if (flags & HUF_flags_bmi2) {
-        fallbackFn = HUF_decompress4X1_usingDTable_internal_bmi2;
-# if ZSTD_ENABLE_ASM_X86_64_BMI2
-        if (!(flags & HUF_flags_disableAsm)) {
-            loopFn = HUF_decompress4X1_usingDTable_internal_fast_asm_loop;
-        }
-# endif
+        fallbackFn = HUF_decompress4X1_usingDTable_internal_body_bmi2;
     } else {
         return fallbackFn(dst, dstSize, cSrc, cSrcSize, DTable);
     }
 #endif
 
-#if ZSTD_ENABLE_ASM_X86_64_BMI2 && defined(__BMI2__)
+#if ZSTD_ENABLE_ASM_X86_64_BMI2
+    /* Reaching this point implies BMI2 is available: the block only exists when
+     * STATIC_BMI2 or ZSTD_BMI2_DISPATCH is set, and under dispatch the branch
+     * above has already returned unless the BMI2 variant was selected. */
     if (!(flags & HUF_flags_disableAsm)) {
         loopFn = HUF_decompress4X1_usingDTable_internal_fast_asm_loop;
     }
@@ -1501,16 +1493,16 @@ HUF_decompress4X2_usingDTable_internal_body(
     }
 }
 
-#if HUF_NEED_BMI2_FUNCTION
+#if ZSTD_BMI2_DISPATCH
 static BMI2_TARGET_ATTRIBUTE
-size_t HUF_decompress4X2_usingDTable_internal_bmi2(void* dst, size_t dstSize, void const* cSrc,
+size_t HUF_decompress4X2_usingDTable_internal_body_bmi2(void* dst, size_t dstSize, void const* cSrc,
                     size_t cSrcSize, HUF_DTable const* DTable) {
     return HUF_decompress4X2_usingDTable_internal_body(dst, dstSize, cSrc, cSrcSize, DTable);
 }
 #endif
 
 static
-size_t HUF_decompress4X2_usingDTable_internal_default(void* dst, size_t dstSize, void const* cSrc,
+size_t HUF_decompress4X2_usingDTable_internal_body_default(void* dst, size_t dstSize, void const* cSrc,
                     size_t cSrcSize, HUF_DTable const* DTable) {
     return HUF_decompress4X2_usingDTable_internal_body(dst, dstSize, cSrc, cSrcSize, DTable);
 }
@@ -1728,23 +1720,21 @@ HUF_decompress4X2_usingDTable_internal_fast(
 static size_t HUF_decompress4X2_usingDTable_internal(void* dst, size_t dstSize, void const* cSrc,
                     size_t cSrcSize, HUF_DTable const* DTable, int flags)
 {
-    HUF_DecompressUsingDTableFn fallbackFn = HUF_decompress4X2_usingDTable_internal_default;
+    HUF_DecompressUsingDTableFn fallbackFn = HUF_decompress4X2_usingDTable_internal_body_default;
     HUF_DecompressFastLoopFn loopFn = HUF_decompress4X2_usingDTable_internal_fast_c_loop;
 
-#if DYNAMIC_BMI2
+#if ZSTD_BMI2_DISPATCH
     if (flags & HUF_flags_bmi2) {
-        fallbackFn = HUF_decompress4X2_usingDTable_internal_bmi2;
-# if ZSTD_ENABLE_ASM_X86_64_BMI2
-        if (!(flags & HUF_flags_disableAsm)) {
-            loopFn = HUF_decompress4X2_usingDTable_internal_fast_asm_loop;
-        }
-# endif
+        fallbackFn = HUF_decompress4X2_usingDTable_internal_body_bmi2;
     } else {
         return fallbackFn(dst, dstSize, cSrc, cSrcSize, DTable);
     }
 #endif
 
-#if ZSTD_ENABLE_ASM_X86_64_BMI2 && defined(__BMI2__)
+#if ZSTD_ENABLE_ASM_X86_64_BMI2
+    /* Reaching this point implies BMI2 is available: the block only exists when
+     * STATIC_BMI2 or ZSTD_BMI2_DISPATCH is set, and under dispatch the branch
+     * above has already returned unless the BMI2 variant was selected. */
     if (!(flags & HUF_flags_disableAsm)) {
         loopFn = HUF_decompress4X2_usingDTable_internal_fast_asm_loop;
     }

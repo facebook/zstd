@@ -17,7 +17,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "common/cpu.h"
+#include "common/cpu.h"   /* ZSTD_cpuSupportsBmi2 */
 #include "compress/hist.h"
 #include "common/huf.h"
 #include "fuzz_helpers.h"
@@ -45,7 +45,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     int const streams = FUZZ_dataProducer_int32Range(producer, 0, 1);
     int const symbols = FUZZ_dataProducer_int32Range(producer, 0, 1);
     int const flags = 0
-        | (ZSTD_cpuid_bmi2(ZSTD_cpuid()) && FUZZ_dataProducer_int32Range(producer, 0, 1) ? HUF_flags_bmi2 : 0)
+        | (ZSTD_cpuSupportsBmi2() && FUZZ_dataProducer_int32Range(producer, 0, 1) ? HUF_flags_bmi2 : 0)
         | (FUZZ_dataProducer_int32Range(producer, 0, 1) ? HUF_flags_optimalDepth : 0)
         | (FUZZ_dataProducer_int32Range(producer, 0, 1) ? HUF_flags_preferRepeat : 0)
         | (FUZZ_dataProducer_int32Range(producer, 0, 1) ? HUF_flags_suspectUncompressible : 0)

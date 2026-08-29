@@ -60,6 +60,7 @@
 #include "../common/error_private.h"
 #include "../common/zstd_internal.h"  /* blockProperties_t */
 #include "../common/mem.h"         /* low level memory routines */
+#include "../common/cpu.h"         /* ZSTD_cpuSupportsBmi2 */
 #include "../common/bits.h"  /* ZSTD_highbit32 */
 #define FSE_STATIC_LINKING_ONLY
 #include "../common/fse.h"
@@ -266,7 +267,7 @@ static void ZSTD_initDCtx_internal(ZSTD_DCtx* dctx)
     dctx->noForwardProgress = 0;
     dctx->oversizedDuration = 0;
     dctx->isFrameDecompression = 1;
-#if DYNAMIC_BMI2
+#if ZSTD_BMI2_DISPATCH
     dctx->bmi2 = ZSTD_cpuSupportsBmi2();
 #endif
     dctx->ddictSet = NULL;

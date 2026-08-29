@@ -20,7 +20,6 @@
 *  Dependencies
 ***************************************/
 #include "compiler.h"
-#include "cpu.h"
 #include "mem.h"
 #include "debug.h"                 /* assert, DEBUGLOG, RAWLOG, g_debuglevel */
 #include "error_private.h"
@@ -313,14 +312,5 @@ size_t ZSTD_getcBlockSize(const void* src, size_t srcSize,
 /*  Used by: zstd_decompress_block, fullbench */
 size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
                        const void* src, size_t srcSize);
-
-/**
- * @returns true iff the CPU supports dynamic BMI2 dispatch.
- */
-MEM_STATIC int ZSTD_cpuSupportsBmi2(void)
-{
-    ZSTD_cpuid_t cpuid = ZSTD_cpuid();
-    return ZSTD_cpuid_bmi1(cpuid) && ZSTD_cpuid_bmi2(cpuid);
-}
 
 #endif   /* ZSTD_CCOMMON_H_MODULE */

@@ -294,7 +294,7 @@ static size_t FSE_decompress_wksp_body_default(void* dst, size_t dstCapacity, co
     return FSE_decompress_wksp_body(dst, dstCapacity, cSrc, cSrcSize, maxLog, workSpace, wkspSize, 0);
 }
 
-#if DYNAMIC_BMI2
+#if ZSTD_BMI2_DISPATCH
 BMI2_TARGET_ATTRIBUTE static size_t FSE_decompress_wksp_body_bmi2(void* dst, size_t dstCapacity, const void* cSrc, size_t cSrcSize, unsigned maxLog, void* workSpace, size_t wkspSize)
 {
     return FSE_decompress_wksp_body(dst, dstCapacity, cSrc, cSrcSize, maxLog, workSpace, wkspSize, 1);
@@ -303,7 +303,7 @@ BMI2_TARGET_ATTRIBUTE static size_t FSE_decompress_wksp_body_bmi2(void* dst, siz
 
 size_t FSE_decompress_wksp_bmi2(void* dst, size_t dstCapacity, const void* cSrc, size_t cSrcSize, unsigned maxLog, void* workSpace, size_t wkspSize, int bmi2)
 {
-#if DYNAMIC_BMI2
+#if ZSTD_BMI2_DISPATCH
     if (bmi2) {
         return FSE_decompress_wksp_body_bmi2(dst, dstCapacity, cSrc, cSrcSize, maxLog, workSpace, wkspSize);
     }

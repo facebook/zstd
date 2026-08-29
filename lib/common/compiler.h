@@ -128,6 +128,15 @@
 /* Target attribute for BMI2 dynamic dispatch.
  * Enable lzcnt, bmi, and bmi2.
  * We test for bmi1 & bmi2. lzcnt is included in bmi1.
+ *
+ * Naming convention for a dispatched function X:
+ *   X_body         the FORCE_INLINE_TEMPLATE holding the implementation
+ *   X_body_default instantiation without the attribute
+ *   X_body_bmi2    instantiation with it
+ *   X              the selector, calling one or the other
+ * Always carry the _body_ infix on the instantiations: a bare X_bmi2 would
+ * collide with the public FSE_readNCount_bmi2() / FSE_decompress_wksp_bmi2(),
+ * which are selectors taking an `int bmi2`, not BMI2 builds of anything.
  */
 #define BMI2_TARGET_ATTRIBUTE TARGET_ATTRIBUTE("lzcnt,bmi,bmi2")
 

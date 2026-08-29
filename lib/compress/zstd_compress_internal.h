@@ -472,10 +472,12 @@ typedef struct {
 struct ZSTD_CCtx_s {
     ZSTD_compressionStage_e stage;
     int cParamsChanged;                  /* == 1 if cParams(except wlog) or compression level are changed in requestedParams. Triggers transmission of new params to ZSTDMT (if available) then reset to 0. */
-#if DYNAMIC_BMI2
+#if ZSTD_BMI2_DISPATCH
     int bmi2;                            /* == 1 if the CPU supports BMI1 & BMI2, determined once per context lifetime.
                                           * Never read this directly: use ZSTD_CCtx_get_bmi2(), which also handles builds
-                                          * where BMI2 is enabled at compile time and this field does not exist. */
+                                          * where BMI2 is enabled at compile time and this field does not exist.
+                                          * ODR: ZSTD_BMI2_DISPATCH must match across all translation units,
+                                          * since it decides whether this field is here at all. */
 #endif
     ZSTD_CCtx_params requestedParams;
     ZSTD_CCtx_params appliedParams;
@@ -554,12 +556,12 @@ struct ZSTD_CCtx_s {
  *          of a function, rather than to its default variant.
  *
  * Beware: this is *not* a "does the CPU support BMI2" test. When BMI2 is enabled
- * at compile time, DYNAMIC_BMI2 is 0: the whole library is already compiled with
+ * at compile time, ZSTD_BMI2_DISPATCH is 0: the whole library is already compiled with
  * BMI2, no separate variant exists, and this returns 0 even though the CPU does
  * support BMI2. Only ever use it to select between the two variants of a function.
  */
 MEM_STATIC int ZSTD_CCtx_get_bmi2(const struct ZSTD_CCtx_s* cctx) {
-#if DYNAMIC_BMI2
+#if ZSTD_BMI2_DISPATCH
     return cctx->bmi2;
 #else
     (void)cctx;

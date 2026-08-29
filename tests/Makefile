@@ -365,6 +365,10 @@ test-cli-tests: zstd datagen
 update-cli-tests: CLI_TEST_ARGS = --set-exact-output
 update-cli-tests: test-cli-tests
 
+.PHONY: test-bmi2-dispatch
+test-bmi2-dispatch:
+	CC="$(CC)" ./check-bmi2-dispatch.sh
+
 .PHONY: test-fullbench
 test-fullbench: fullbench datagen
 	$(QEMU_SYS) ./fullbench -i1

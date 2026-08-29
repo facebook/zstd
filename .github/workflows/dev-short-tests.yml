@@ -373,6 +373,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # tag=v6.0.2
+    # These invariants are about object code, not behaviour: a build that still
+    # probes the CPU under -mbmi2, or one where DYNAMIC_BMI2=1 defeats
+    # STATIC_BMI2, passes every functional test on a BMI2-capable runner.
+    - name: bmi2 build-shape check
+      run: make -C tests test-bmi2-dispatch
     - name: dynamic bmi2 tests
       run: |
         make clean && make -j check MOREFLAGS="-O0 -Werror -mbmi2"
@@ -380,6 +385,37 @@ jobs:
         make clean && make -j check MOREFLAGS="-O0 -Werror -DDYNAMIC_BMI2=1 -mbmi2"
         make clean && make -j check MOREFLAGS="-O0 -Werror -DDYNAMIC_BMI2=0"
         make clean && make -j check MOREFLAGS="-O0 -Werror -DDYNAMIC_BMI2=0 -mbmi2"
+
+  # The Windows half of the check above. The rules genuinely differ there: cl
+  # has no bmi2 switch, so zstd reads /arch:AVX2, and no per-function target
+  # attributes, so it cannot dispatch; clang-cl defines _MSC_VER too but follows
+  # clang's rules. Nothing else pins those down, and getting them wrong is
+  # silent -- an MSVC build that quietly stops using bmi2 still passes its tests.
+  # Preprocessor only: no build, no ctest, four compiler invocations.
+  bmi2-state-windows:
+    name: "bmi2 state (${{ matrix.cc }} ${{ matrix.name }})"
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { cc: cl,       arch: "",           name: "default",    expect: NONE }
+          - { cc: cl,       arch: "/arch:AVX2", name: "/arch:AVX2", expect: EVERYWHERE }
+          - { cc: clang-cl, arch: "",           name: "default",    expect: DISPATCH }
+          - { cc: clang-cl, arch: "/arch:AVX2", name: "/arch:AVX2", expect: EVERYWHERE }
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # tag=v6.0.2
+    - name: "must resolve to ${{ matrix.expect }}"
+      shell: cmd
+      # vswhere ships with every Visual Studio install and is the supported way
+      # to locate one, rather than hardcoding an edition and version in a path.
+      # The probe includes no system header, so only the compiler itself has to
+      # be found; clang-cl comes from the runner's LLVM, already on PATH.
+      run: |
+        for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath`) do set "VSDIR=%%i"
+        if not defined VSDIR ( echo no Visual Studio found & exit /b 1 )
+        call "%VSDIR%\VC\Auxiliary\Build\vcvars64.bat" || exit /b 1
+        ${{ matrix.cc }} /nologo /c /I lib\common ${{ matrix.arch }} /DZSTD_EXPECT_${{ matrix.expect }} tests\check-bmi2-state.c
 
   test-variants:
     runs-on: ubuntu-latest

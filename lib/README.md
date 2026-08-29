@@ -164,31 +164,14 @@ The file structure is designed to make this selection manually achievable for an
   will expose the deprecated `ZSTDMT` API exposed by `zstdmt_compress.h` in
   the shared library, which is now hidden by default.
 
-- The build macro `STATIC_BMI2` can be set to 1 to force usage of `bmi2` instructions.
-  It is generally not necessary to set this build macro,
-  because `STATIC_BMI2` will be automatically set to 1
-  on detecting the presence of the corresponding instruction set in the compilation target.
-  It's nonetheless available as an optional manual toggle for better control,
-  and can also be used to forcefully disable `bmi2` instructions by setting it to 0.
-
-- The build macro `DYNAMIC_BMI2` can be set to 1 or 0 in order to generate binaries
-  which can detect at runtime the presence of BMI2 instructions, and use them only if present.
-  These instructions contribute to better performance, notably on the decoder side.
-  By default, this feature is automatically enabled on detecting
-  the right instruction set (x64) and compiler (clang or gcc >= 5).
-  It's obviously disabled for different cpus,
-  or when BMI2 instruction set is _required_ by the compiler command line
-  (in this case, only the BMI2 code path is generated).
-  Setting this macro will either force to generate the BMI2 dispatcher (1)
-  or prevent it (0). It overrides automatic detection.
-
 - The build macro `ZSTD_NO_UNUSED_FUNCTIONS` can be defined to hide the definitions of functions
   that zstd does not use. Not all unused functions are hidden, but they can be if needed.
   Currently, this macro will hide function definitions in FSE and HUF that use an excessive
   amount of stack space.
 
 - The build macro `ZSTD_NO_INTRINSICS` can be defined to disable all explicit intrinsics.
-  Compiler builtins are still used.
+  Compiler builtins are still used. See *Controlling which instructions zstd emits* below:
+  it is one of four separate switches, and none of them constrains your compiler.
 
 - The build macro `ZSTD_DECODER_INTERNAL_BUFFER` can be set to control
   the amount of extra memory used during decompression to store literals.
@@ -212,6 +195,106 @@ The file structure is designed to make this selection manually achievable for an
   which is useful when autodetection fails, for example with older versions of `musl`.
   For this scenario, it can be set as `ZDICT_QSORT=ZDICT_QSORT_C90`.
   Other selectable suffixes are `_GNU`, `_APPLE`, `_MSVC` and `_C11`.
+
+#### Controlling which instructions zstd emits
+
+Four independent switches, each covering a different kind of hand-written code:
+
+| macro | removes |
+|---|---|
+| `ZSTD_NO_INTRINSICS` | intrinsics: SIMD (AVX2, SSE2, NEON, SVE, RVV), the scalar bit and byteswap ones, and prefetch on MSVC. Compiler builtins stay |
+| `ZSTD_DISABLE_ASM` | the x86-64 Huffman decoding assembly |
+| `STATIC_BMI2=0` | zstd's `bmi2` code paths, assembly included (see below) |
+| `NO_PREFETCH` | prefetch hints |
+
+They do not imply one another. In particular `ZSTD_NO_INTRINSICS` leaves the
+assembly in place, so it is not a way to obtain a `bmi2`-free binary.
+
+**None of them constrains your compiler.** They only remove code zstd wrote by
+hand; what the compiler emits on its own is decided by your `-m` / `-march`
+flags. With `-mavx2`, most of the vector instructions in the resulting binary
+are the compiler's, and `ZSTD_NO_INTRINSICS` does not touch them. A build that
+must avoid a whole instruction set has to say so to the compiler too, as the
+Linux kernel does with `-mno-sse`.
+
+#### `bmi2` instructions, on x86
+
+`bmi2` speeds zstd up noticeably, mostly when decoding, but older x86 cpus do
+not have it. Every build lands in one of three states:
+
+| state | meaning | cost |
+|---|---|---|
+| **bmi2 everywhere** | the whole library is compiled with `bmi2`. Fastest, but the binary requires a cpu that has it, and crashes on one that does not. | none |
+| **runtime dispatch** | a few hot functions are compiled twice, and the cpu is probed once per compression or decompression context. Runs anywhere, near full speed where `bmi2` exists. | one CPUID per context |
+| **no zstd bmi2** | zstd emits no `bmi2` of its own. The compiler may still emit some, if you asked it to. | slower decoding |
+
+Normally the compiler flags alone decide: pass `-mbmi2` (or an `-march=`
+implying it) to get *bmi2 everywhere*, or pass nothing and get *runtime
+dispatch*. Two build macros are available when that is not enough.
+
+MSVC spells this differently: `cl` has no `bmi2` switch, so read `/arch:AVX2`
+wherever `-mbmi2` appears below. `cl` also has no per-function target
+attributes, so it cannot dispatch: a `cl` build is *bmi2 everywhere* or
+*no zstd bmi2*. `clang-cl` is a clang build and behaves like one here, including
+needing `-mbmi2` of its own — `/arch:AVX2` does not imply `bmi2` for it.
+
+- `STATIC_BMI2` says whether zstd may use `bmi2` in its own code: the
+  intrinsics, the Huffman assembly, and the dispatched variants.
+  Left unset it is detected, and is 1 exactly when the compilation target has
+  the instruction set.
+  Set to 1, zstd uses `bmi2` unconditionally. This is a promise that the
+  compiler was *also* told to emit `bmi2`; if it was not, or the target is not
+  x86, the build fails rather than produce something that would crash.
+  Set to 0, zstd uses none of its `bmi2` code paths, even where the cpu has the
+  instructions. This does not stop the *compiler* emitting `bmi2`: under
+  `-mbmi2` the binary still requires a capable cpu. Building twice, with
+  `-mbmi2` and with `-DSTATIC_BMI2=0 -mbmi2`, is how to measure what zstd's own
+  `bmi2` code is worth on top of what the compiler does by itself.
+
+- `DYNAMIC_BMI2` asks for the runtime dispatcher. It is only consulted when
+  `STATIC_BMI2` is left unset, since setting `STATIC_BMI2` already answers the
+  question and leaves nothing to dispatch.
+  Set to 0, no dispatcher is built; with no `-mbmi2` that gives *no zstd bmi2*.
+  Set to 1, one is built where that is possible. Where it is not, the request is
+  ignored rather than refused: off x86, on a compiler without per-function
+  target attributes, or under `-mbmi2`, where there would be no non-`bmi2`
+  variant to fall back to. A portable build system can therefore set it once and
+  build for every architecture.
+  The single refusal is `DYNAMIC_BMI2=1` together with an explicit
+  `STATIC_BMI2`. That is the build asking for two things that cannot both hold,
+  so it fails instead of silently dropping one.
+
+Every combination, first matching row wins:
+
+| arch | `STATIC_BMI2` | `DYNAMIC_BMI2` | `-mbmi2` | result |
+|---|---|---|---|---|
+| any     | 0 or 1     | 1          | any | **build fails**: contradictory request |
+| not x86 | 1          | any        | --  | **build fails**: no `bmi2` on this target |
+| not x86 | any        | any        | --  | no zstd bmi2 |
+| x86     | 1          | any        | no  | **build fails**: compiler not told to emit `bmi2` |
+| x86     | unset or 1 | any        | yes | bmi2 everywhere |
+| x86     | 0          | any        | any | no zstd bmi2 |
+| x86     | unset      | 0          | no  | no zstd bmi2 |
+| x86     | unset      | unset or 1 | no  | runtime dispatch |
+
+Off x86 there is no `-mbmi2` to speak of: the compiler rejects the flag.
+Every row above is asserted by `make -C tests test-bmi2-dispatch`.
+
+**Upgrading:** `STATIC_BMI2=0` used to be read as "no opinion" rather than as an
+instruction, so it is the one setting whose meaning changed.
+
+- `-DSTATIC_BMI2=0` on its own used to leave the dispatcher on, and with it the
+  `bmi2` variants and the assembly decoder. It now does what it says and turns
+  them off, which costs a few percent of decompression speed. Nothing warns
+  about it, since the build asked for it. Drop the flag to keep them: unset is
+  the default, and autodetects.
+- `-DSTATIC_BMI2=0 -DDYNAMIC_BMI2=1` used to build, and gave a dispatcher. It is
+  now refused as contradictory. Drop `STATIC_BMI2` to keep the dispatcher, or
+  `DYNAMIC_BMI2` to keep zstd's `bmi2` code paths off.
+
+These settings change the layout of `ZSTD_CCtx` and `ZSTD_DCtx`, so every
+translation unit linked into one binary must be compiled with the same
+`STATIC_BMI2`, `DYNAMIC_BMI2` and `-mbmi2`.
 
 #### Windows : using MinGW+MSYS to create DLL
 

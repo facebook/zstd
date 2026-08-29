@@ -33,8 +33,13 @@
 *  Target specific
 =========================================*/
 #ifndef ZSTD_NO_INTRINSICS
-#  if (defined(__BMI__) || defined(__BMI2__)) && defined(__GNUC__)
-#    include <immintrin.h>   /* support for bextr (experimental)/bzhi */
+/* Keyed on STATIC_BMI2, to match the condition under which BIT_getLowerBits()
+ * below calls _bzhi_*(). Testing __BMI2__ here instead would disagree with it:
+ * STATIC_BMI2 is also set for MSVC builds targeting AVX2. */
+#  if STATIC_BMI2 && defined(__GNUC__)
+#    include <immintrin.h>   /* _bzhi_u32, _bzhi_u64 */
+#  elif STATIC_BMI2 && defined(_MSC_VER)
+#    include <intrin.h>      /* _bzhi_u32, _bzhi_u64 */
 #  elif defined(__ICCARM__)
 #    include <intrinsics.h>
 #  endif

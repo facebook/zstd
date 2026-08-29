@@ -13,6 +13,15 @@
 
 #include "mem.h"
 
+#ifndef ZSTD_NO_INTRINSICS
+#  if defined(_MSC_VER)
+/* The MSVC paths below use _BitScanForward()/_BitScanReverse(), and under
+ * STATIC_BMI2 also _tzcnt_*()/_lzcnt_*(). mem.h happens to pull <intrin.h> in
+ * for _byteswap_*(), but do not rely on an unrelated header for them. */
+#    include <intrin.h>
+#  endif
+#endif
+
 MEM_STATIC unsigned ZSTD_countTrailingZeros32_fallback(U32 val)
 {
     assert(val != 0);
@@ -28,7 +37,7 @@ MEM_STATIC unsigned ZSTD_countTrailingZeros32_fallback(U32 val)
 MEM_STATIC unsigned ZSTD_countTrailingZeros32(U32 val)
 {
     assert(val != 0);
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(ZSTD_NO_INTRINSICS)
 #  if STATIC_BMI2
     return (unsigned)_tzcnt_u32(val);
 #  else
@@ -69,7 +78,7 @@ MEM_STATIC unsigned ZSTD_countLeadingZeros32_fallback(U32 val)
 MEM_STATIC unsigned ZSTD_countLeadingZeros32(U32 val)
 {
     assert(val != 0);
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(ZSTD_NO_INTRINSICS)
 #  if STATIC_BMI2
     return (unsigned)_lzcnt_u32(val);
 #  else
@@ -93,7 +102,7 @@ MEM_STATIC unsigned ZSTD_countLeadingZeros32(U32 val)
 MEM_STATIC unsigned ZSTD_countTrailingZeros64(U64 val)
 {
     assert(val != 0);
-#if defined(_MSC_VER) && defined(_WIN64)
+#if defined(_MSC_VER) && !defined(ZSTD_NO_INTRINSICS) && defined(_WIN64)
 #  if STATIC_BMI2
     return (unsigned)_tzcnt_u64(val);
 #  else
@@ -125,7 +134,7 @@ MEM_STATIC unsigned ZSTD_countTrailingZeros64(U64 val)
 MEM_STATIC unsigned ZSTD_countLeadingZeros64(U64 val)
 {
     assert(val != 0);
-#if defined(_MSC_VER) && defined(_WIN64)
+#if defined(_MSC_VER) && !defined(ZSTD_NO_INTRINSICS) && defined(_WIN64)
 #  if STATIC_BMI2
     return (unsigned)_lzcnt_u64(val);
 #  else

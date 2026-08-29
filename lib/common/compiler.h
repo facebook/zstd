@@ -125,9 +125,13 @@
 #  define TARGET_ATTRIBUTE(target)
 #endif
 
-/* Target attribute for BMI2 dynamic dispatch.
- * Enable lzcnt, bmi, and bmi2.
- * We test for bmi1 & bmi2. lzcnt is included in bmi1.
+/* Target attribute for BMI2 dynamic dispatch. Enables bmi and bmi2, and
+ * deliberately not lzcnt: LZCNT has its own CPUID bit, in extended leaf
+ * 0x80000001, which ZSTD_cpuSupportsBmi2() does not read. Every shipping CPU
+ * with BMI1 also has LZCNT, but a feature-masking hypervisor need not report
+ * it, and an unsupported LZCNT does not fault -- it decodes as BSR and quietly
+ * returns a different value. Leaving lzcnt out keeps the check exactly
+ * sufficient for what this attribute permits, and measures no slower.
  *
  * Naming convention for a dispatched function X:
  *   X_body         the FORCE_INLINE_TEMPLATE holding the implementation
@@ -138,7 +142,7 @@
  * collide with the public FSE_readNCount_bmi2() / FSE_decompress_wksp_bmi2(),
  * which are selectors taking an `int bmi2`, not BMI2 builds of anything.
  */
-#define BMI2_TARGET_ATTRIBUTE TARGET_ATTRIBUTE("lzcnt,bmi,bmi2")
+#define BMI2_TARGET_ATTRIBUTE TARGET_ATTRIBUTE("bmi,bmi2")
 
 /* prefetch
  * can be disabled, by declaring NO_PREFETCH build macro */

@@ -22,7 +22,7 @@ jobs:
         distribution: 'temurin'
 
     - name: Setup Android SDK
-      uses: android-actions/setup-android@651bceb6f9ca583f16b8d75b62c36ded2ae6fc9c # v4.0.0
+      uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
 
     - name: Install Android NDK
       run: |

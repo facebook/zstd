@@ -162,7 +162,7 @@ MEM_STATIC size_t BIT_initCStream(BIT_CStream_t* bitC,
 FORCE_INLINE_TEMPLATE BitContainerType BIT_getLowerBits(BitContainerType bitContainer, U32 const nbBits)
 {
 #if STATIC_BMI2 && !defined(ZSTD_NO_INTRINSICS)
-#  if (defined(__x86_64__) || defined(_M_X64)) && !defined(__ILP32__)
+#  if (defined(__x86_64__) || defined(_M_X64) || defined(__e2k__)) && !defined(__ILP32__)
     return _bzhi_u64(bitContainer, nbBits);
 #  else
     DEBUG_STATIC_ASSERT(sizeof(bitContainer) == sizeof(U32));

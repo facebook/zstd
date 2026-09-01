@@ -24,6 +24,7 @@ libzstd:
 		--rewrite-include '<stddef\.h>=<linux/types.h>' \
 		--rewrite-include '"\.\./zstd.h"=<linux/zstd.h>' \
 		--rewrite-include '"(\.\./)?zstd_errors.h"=<linux/zstd_errors.h>' \
+		--rewrite-include '"(\.\./)?zstd_annotations.h"=<linux/zstd_annotations.h>' \
 		--sed 's,/\*\*\*,/* *,g' \
 		--sed 's,/\*\*,/*,g' \
 		--spdx \
@@ -59,6 +60,7 @@ libzstd:
 	rm linux/lib/zstd/decompress/huf_decompress_amd64.S
 	mv linux/lib/zstd/zstd.h linux/include/linux/zstd_lib.h
 	mv linux/lib/zstd/zstd_errors.h linux/include/linux/
+	mv linux/lib/zstd/zstd_annotations.h linux/include/linux/
 	cp linux_zstd.h linux/include/linux/zstd.h
 	cp zstd_common_module.c linux/lib/zstd
 	cp zstd_compress_module.c linux/lib/zstd
@@ -72,10 +74,12 @@ LINUX ?= $(HOME)/repos/linux
 import: libzstd
 	rm -f $(LINUX)/include/linux/zstd.h
 	rm -f $(LINUX)/include/linux/zstd_errors.h
+	rm -f $(LINUX)/include/linux/zstd_annotations.h
 	rm -rf $(LINUX)/lib/zstd
 	cp linux/include/linux/zstd.h $(LINUX)/include/linux
 	cp linux/include/linux/zstd_lib.h $(LINUX)/include/linux
 	cp linux/include/linux/zstd_errors.h $(LINUX)/include/linux
+	cp linux/include/linux/zstd_annotations.h $(LINUX)/include/linux
 	cp -r linux/lib/zstd $(LINUX)/lib
 
 import-upstream:
@@ -86,6 +90,7 @@ import-upstream:
 	cp -r ../../lib/compress $(LINUX)/lib/zstd
 	cp -r ../../lib/decompress $(LINUX)/lib/zstd
 	mv $(LINUX)/lib/zstd/zstd_errors.h $(LINUX)/include/linux
+	mv $(LINUX)/lib/zstd/zstd_annotations.h $(LINUX)/include/linux
 	rm $(LINUX)/lib/zstd/common/threading.*
 	rm $(LINUX)/lib/zstd/common/pool.*
 	rm $(LINUX)/lib/zstd/common/xxhash.*

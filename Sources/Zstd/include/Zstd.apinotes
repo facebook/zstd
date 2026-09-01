@@ -1,0 +1,389 @@
+---
+Name: Zstd
+
+# ─── Type renames ────────────────────────────────────────────────────────────
+# C struct tags (the underlying `_s` suffixed names) and their corresponding
+# typedef aliases both need an entry — the Swift importer surfaces both.
+Tags:
+  - Name: ZSTD_inBuffer_s
+    SwiftName: 'InputBuffer'
+  - Name: ZSTD_outBuffer_s
+    SwiftName: 'OutputBuffer'
+  - Name: ZSTD_bounds
+    SwiftName: 'ParameterBounds'
+
+Typedefs:
+  - Name: ZSTD_inBuffer
+    SwiftName: 'InputBuffer'
+  - Name: ZSTD_outBuffer
+    SwiftName: 'OutputBuffer'
+  - Name: ZSTD_bounds
+    SwiftName: 'ParameterBounds'
+  - Name: ZDICT_params_t
+    SwiftName: 'DictionaryTrainingParameters'
+  - Name: ZSTD_strategy
+    SwiftName: 'Strategy'
+  - Name: ZSTD_cParameter
+    SwiftName: 'CompressionParameter'
+  - Name: ZSTD_dParameter
+    SwiftName: 'DecompressionParameter'
+  - Name: ZSTD_ResetDirective
+    SwiftName: 'ResetDirective'
+  - Name: ZSTD_EndDirective
+    SwiftName: 'EndDirective'
+  - Name: ZSTD_ErrorCode
+    SwiftName: 'ErrorCode'
+
+# ─── Enum case renames ───────────────────────────────────────────────────────
+# The clang importer's automatic prefix-stripping only removes `ZSTD_` here —
+# it stops at the type-name-shared boundary and won't strip a further `e_`,
+# `reset_`, or `error_` sub-prefix. We rename the cases explicitly.
+Enumerators:
+  # CompressionParameter — expand the few remaining abbreviations.
+  - Name: ZSTD_c_targetCBlockSize
+    SwiftName: 'targetCompressedBlockSize'
+  - Name: ZSTD_c_nbWorkers
+    SwiftName: 'workerCount'
+  - Name: ZSTD_c_contentSizeFlag
+    SwiftName: 'embedContentSize'
+  - Name: ZSTD_c_checksumFlag
+    SwiftName: 'embedChecksum'
+  - Name: ZSTD_c_dictIDFlag
+    SwiftName: 'embedDictionaryID'
+  - Name: ZSTD_c_experimentalParam1
+    SwiftName: 'experimentalParameter1'
+  - Name: ZSTD_c_experimentalParam2
+    SwiftName: 'experimentalParameter2'
+  - Name: ZSTD_c_experimentalParam3
+    SwiftName: 'experimentalParameter3'
+  - Name: ZSTD_c_experimentalParam4
+    SwiftName: 'experimentalParameter4'
+  - Name: ZSTD_c_experimentalParam5
+    SwiftName: 'experimentalParameter5'
+  - Name: ZSTD_c_experimentalParam7
+    SwiftName: 'experimentalParameter7'
+  - Name: ZSTD_c_experimentalParam8
+    SwiftName: 'experimentalParameter8'
+  - Name: ZSTD_c_experimentalParam9
+    SwiftName: 'experimentalParameter9'
+  - Name: ZSTD_c_experimentalParam10
+    SwiftName: 'experimentalParameter10'
+  - Name: ZSTD_c_experimentalParam11
+    SwiftName: 'experimentalParameter11'
+  - Name: ZSTD_c_experimentalParam12
+    SwiftName: 'experimentalParameter12'
+  - Name: ZSTD_c_experimentalParam13
+    SwiftName: 'experimentalParameter13'
+  - Name: ZSTD_c_experimentalParam14
+    SwiftName: 'experimentalParameter14'
+  - Name: ZSTD_c_experimentalParam15
+    SwiftName: 'experimentalParameter15'
+  - Name: ZSTD_c_experimentalParam16
+    SwiftName: 'experimentalParameter16'
+  - Name: ZSTD_c_experimentalParam17
+    SwiftName: 'experimentalParameter17'
+  - Name: ZSTD_c_experimentalParam18
+    SwiftName: 'experimentalParameter18'
+  - Name: ZSTD_c_experimentalParam19
+    SwiftName: 'experimentalParameter19'
+  - Name: ZSTD_c_experimentalParam20
+    SwiftName: 'experimentalParameter20'
+
+  # DecompressionParameter — experimental cases share the `d_experimentalParamN` form.
+  - Name: ZSTD_d_experimentalParam1
+    SwiftName: 'experimentalParameter1'
+  - Name: ZSTD_d_experimentalParam2
+    SwiftName: 'experimentalParameter2'
+  - Name: ZSTD_d_experimentalParam3
+    SwiftName: 'experimentalParameter3'
+  - Name: ZSTD_d_experimentalParam4
+    SwiftName: 'experimentalParameter4'
+  - Name: ZSTD_d_experimentalParam5
+    SwiftName: 'experimentalParameter5'
+  - Name: ZSTD_d_experimentalParam6
+    SwiftName: 'experimentalParameter6'
+
+  # EndDirective
+  - Name: ZSTD_e_continue
+    SwiftName: 'continue'
+  - Name: ZSTD_e_flush
+    SwiftName: 'flush'
+  - Name: ZSTD_e_end
+    SwiftName: 'end'
+
+  # ResetDirective
+  - Name: ZSTD_reset_session_only
+    SwiftName: 'sessionOnly'
+  - Name: ZSTD_reset_parameters
+    SwiftName: 'parameters'
+  - Name: ZSTD_reset_session_and_parameters
+    SwiftName: 'sessionAndParameters'
+
+  # ErrorCode
+  - Name: ZSTD_error_no_error
+    SwiftName: 'noError'
+  - Name: ZSTD_error_GENERIC
+    SwiftName: 'generic'
+  - Name: ZSTD_error_prefix_unknown
+    SwiftName: 'prefixUnknown'
+  - Name: ZSTD_error_version_unsupported
+    SwiftName: 'versionUnsupported'
+  - Name: ZSTD_error_frameParameter_unsupported
+    SwiftName: 'frameParameterUnsupported'
+  - Name: ZSTD_error_frameParameter_windowTooLarge
+    SwiftName: 'frameParameterWindowTooLarge'
+  - Name: ZSTD_error_corruption_detected
+    SwiftName: 'corruptionDetected'
+  - Name: ZSTD_error_checksum_wrong
+    SwiftName: 'checksumWrong'
+  - Name: ZSTD_error_literals_headerWrong
+    SwiftName: 'literalsHeaderWrong'
+  - Name: ZSTD_error_dictionary_corrupted
+    SwiftName: 'dictionaryCorrupted'
+  - Name: ZSTD_error_dictionary_wrong
+    SwiftName: 'dictionaryWrong'
+  - Name: ZSTD_error_dictionaryCreation_failed
+    SwiftName: 'dictionaryCreationFailed'
+  - Name: ZSTD_error_parameter_unsupported
+    SwiftName: 'parameterUnsupported'
+  - Name: ZSTD_error_parameter_combination_unsupported
+    SwiftName: 'parameterCombinationUnsupported'
+  - Name: ZSTD_error_parameter_outOfBound
+    SwiftName: 'parameterOutOfBound'
+  - Name: ZSTD_error_tableLog_tooLarge
+    SwiftName: 'tableLogTooLarge'
+  - Name: ZSTD_error_maxSymbolValue_tooLarge
+    SwiftName: 'maxSymbolValueTooLarge'
+  - Name: ZSTD_error_maxSymbolValue_tooSmall
+    SwiftName: 'maxSymbolValueTooSmall'
+  - Name: ZSTD_error_cannotProduce_uncompressedBlock
+    SwiftName: 'cannotProduceUncompressedBlock'
+  - Name: ZSTD_error_stabilityCondition_notRespected
+    SwiftName: 'stabilityConditionNotRespected'
+  - Name: ZSTD_error_stage_wrong
+    SwiftName: 'stageWrong'
+  - Name: ZSTD_error_init_missing
+    SwiftName: 'initMissing'
+  - Name: ZSTD_error_memory_allocation
+    SwiftName: 'memoryAllocation'
+  - Name: ZSTD_error_workSpace_tooSmall
+    SwiftName: 'workSpaceTooSmall'
+  - Name: ZSTD_error_dstSize_tooSmall
+    SwiftName: 'destinationSizeTooSmall'
+  - Name: ZSTD_error_srcSize_wrong
+    SwiftName: 'sourceSizeWrong'
+  - Name: ZSTD_error_dstBuffer_null
+    SwiftName: 'destinationBufferNull'
+  - Name: ZSTD_error_noForwardProgress_destFull
+    SwiftName: 'noForwardProgressDestinationFull'
+  - Name: ZSTD_error_noForwardProgress_inputEmpty
+    SwiftName: 'noForwardProgressInputEmpty'
+  - Name: ZSTD_error_frameIndex_tooLarge
+    SwiftName: 'frameIndexTooLarge'
+  - Name: ZSTD_error_seekableIO
+    SwiftName: 'seekableIO'
+  - Name: ZSTD_error_dstBuffer_wrong
+    SwiftName: 'destinationBufferWrong'
+  - Name: ZSTD_error_srcBuffer_wrong
+    SwiftName: 'sourceBufferWrong'
+  - Name: ZSTD_error_sequenceProducer_failed
+    SwiftName: 'sequenceProducerFailed'
+  - Name: ZSTD_error_externalSequences_invalid
+    SwiftName: 'externalSequencesInvalid'
+  - Name: ZSTD_error_maxCode
+    SwiftName: 'maxCode'
+
+# ─── Constants (Globals) ─────────────────────────────────────────────────────
+# `#define`d constants in the C headers are imported as Swift `let`s. Rename
+# them to camelCase without the ZSTD_ prefix. `defaultCompressionLevelValue`
+# is named with a `Value` suffix to avoid colliding with the function
+# `defaultCompressionLevel()`.
+Globals:
+  - Name: ZSTD_VERSION_MAJOR
+    SwiftName: 'versionMajor'
+  - Name: ZSTD_VERSION_MINOR
+    SwiftName: 'versionMinor'
+  - Name: ZSTD_VERSION_RELEASE
+    SwiftName: 'versionRelease'
+  - Name: ZSTD_MAGICNUMBER
+    SwiftName: 'magicNumber'
+  - Name: ZSTD_MAGIC_DICTIONARY
+    SwiftName: 'magicDictionary'
+  - Name: ZSTD_MAGIC_SKIPPABLE_START
+    SwiftName: 'magicSkippableStart'
+  - Name: ZSTD_MAGIC_SKIPPABLE_MASK
+    SwiftName: 'magicSkippableMask'
+  - Name: ZSTD_BLOCKSIZELOG_MAX
+    SwiftName: 'blockSizeLog2Max'
+  - Name: ZSTD_BLOCKSIZE_MAX
+    SwiftName: 'blockSizeMax'
+  - Name: ZSTD_CLEVEL_DEFAULT
+    SwiftName: 'defaultCompressionLevelValue'
+  - Name: ZSTD_CONTENTSIZE_UNKNOWN
+    SwiftName: 'contentSizeUnknown'
+  - Name: ZSTD_CONTENTSIZE_ERROR
+    SwiftName: 'contentSizeError'
+
+# ─── Functions ───────────────────────────────────────────────────────────────
+Functions:
+  - Name: ZSTD_versionNumber
+    SwiftName: 'versionNumber()'
+  - Name: ZSTD_versionString
+    SwiftName: 'versionString()'
+  - Name: ZSTD_compress
+    SwiftName: 'compress(into:capacity:from:size:level:)'
+  - Name: ZSTD_decompress
+    SwiftName: 'decompress(into:capacity:from:size:)'
+  - Name: ZSTD_getFrameContentSize
+    SwiftName: 'frameContentSize(of:size:)'
+  - Name: ZSTD_getDecompressedSize
+    SwiftName: 'decompressedSize(of:size:)'
+  - Name: ZSTD_findFrameCompressedSize
+    SwiftName: 'frameCompressedSize(of:size:)'
+  - Name: ZSTD_compressBound
+    SwiftName: 'compressionBound(_:)'
+  - Name: ZSTD_isError
+    SwiftName: 'isError(_:)'
+  - Name: ZSTD_getErrorCode
+    SwiftName: 'errorCode(_:)'
+  - Name: ZSTD_getErrorName
+    SwiftName: 'errorName(_:)'
+  - Name: ZSTD_minCLevel
+    SwiftName: 'minimumCompressionLevel()'
+  - Name: ZSTD_maxCLevel
+    SwiftName: 'maximumCompressionLevel()'
+  - Name: ZSTD_defaultCLevel
+    SwiftName: 'defaultCompressionLevel()'
+  - Name: ZSTD_createCCtx
+    SwiftName: 'createCompressionContext()'
+  - Name: ZSTD_freeCCtx
+    SwiftName: 'freeCompressionContext(_:)'
+  - Name: ZSTD_compressCCtx
+    SwiftName: 'compress(_:into:capacity:from:size:level:)'
+  - Name: ZSTD_createDCtx
+    SwiftName: 'createDecompressionContext()'
+  - Name: ZSTD_freeDCtx
+    SwiftName: 'freeDecompressionContext(_:)'
+  - Name: ZSTD_decompressDCtx
+    SwiftName: 'decompress(_:into:capacity:from:size:)'
+  - Name: ZSTD_cParam_getBounds
+    SwiftName: 'compressionParameterBounds(_:)'
+  - Name: ZSTD_CCtx_setParameter
+    SwiftName: 'setCompressionParameter(_:_:to:)'
+  - Name: ZSTD_CCtx_setPledgedSrcSize
+    SwiftName: 'setPledgedCompressionSourceSize(_:to:)'
+  - Name: ZSTD_CCtx_reset
+    SwiftName: 'resetCompressionContext(_:directive:)'
+  - Name: ZSTD_compress2
+    SwiftName: 'compress(_:into:capacity:from:size:)'
+  - Name: ZSTD_dParam_getBounds
+    SwiftName: 'decompressionParameterBounds(_:)'
+  - Name: ZSTD_DCtx_setParameter
+    SwiftName: 'setDecompressionParameter(_:_:to:)'
+  # Bool-typed convenience overloads (wrappers live in Zstd_module.h).
+  # Same Swift name as the int-typed setters above — Swift dispatches
+  # to whichever overload matches the literal's type at the call site.
+  - Name: Zstd_setCompressionFlag
+    SwiftName: 'setCompressionParameter(_:_:to:)'
+  - Name: Zstd_setDecompressionFlag
+    SwiftName: 'setDecompressionParameter(_:_:to:)'
+  - Name: ZSTD_DCtx_reset
+    SwiftName: 'resetDecompressionContext(_:directive:)'
+  - Name: ZSTD_createCStream
+    SwiftName: 'createCompressionStream()'
+  - Name: ZSTD_freeCStream
+    SwiftName: 'freeCompressionStream(_:)'
+  - Name: ZSTD_compressStream2
+    SwiftName: 'compressStream(_:output:input:directive:)'
+  - Name: ZSTD_CStreamInSize
+    SwiftName: 'compressionStreamInputSize()'
+  - Name: ZSTD_CStreamOutSize
+    SwiftName: 'compressionStreamOutputSize()'
+  - Name: ZSTD_initCStream
+    SwiftName: 'initializeCompressionStream(_:level:)'
+  - Name: ZSTD_compressStream
+    SwiftName: 'compressStream(_:output:input:)'
+  - Name: ZSTD_flushStream
+    SwiftName: 'flushStream(_:output:)'
+  - Name: ZSTD_endStream
+    SwiftName: 'endStream(_:output:)'
+  - Name: ZSTD_createDStream
+    SwiftName: 'createDecompressionStream()'
+  - Name: ZSTD_freeDStream
+    SwiftName: 'freeDecompressionStream(_:)'
+  - Name: ZSTD_initDStream
+    SwiftName: 'initializeDecompressionStream(_:)'
+  - Name: ZSTD_decompressStream
+    SwiftName: 'decompressStream(_:output:input:)'
+  - Name: ZSTD_DStreamInSize
+    SwiftName: 'decompressionStreamInputSize()'
+  - Name: ZSTD_DStreamOutSize
+    SwiftName: 'decompressionStreamOutputSize()'
+  - Name: ZSTD_compress_usingDict
+    SwiftName: 'compress(_:into:capacity:from:size:dictionary:dictionarySize:level:)'
+  - Name: ZSTD_decompress_usingDict
+    SwiftName: 'decompress(_:into:capacity:from:size:dictionary:dictionarySize:)'
+  - Name: ZSTD_createCDict
+    SwiftName: 'createCompressionDictionary(from:size:level:)'
+  - Name: ZSTD_freeCDict
+    SwiftName: 'freeCompressionDictionary(_:)'
+  - Name: ZSTD_compress_usingCDict
+    SwiftName: 'compress(_:into:capacity:from:size:dictionary:)'
+  - Name: ZSTD_createDDict
+    SwiftName: 'createDecompressionDictionary(from:size:)'
+  - Name: ZSTD_freeDDict
+    SwiftName: 'freeDecompressionDictionary(_:)'
+  - Name: ZSTD_decompress_usingDDict
+    SwiftName: 'decompress(_:into:capacity:from:size:dictionary:)'
+  - Name: ZSTD_getDictID_fromDict
+    SwiftName: 'dictionaryID(fromDictionary:size:)'
+  - Name: ZSTD_getDictID_fromCDict
+    SwiftName: 'dictionaryID(fromCompressionDictionary:)'
+  - Name: ZSTD_getDictID_fromDDict
+    SwiftName: 'dictionaryID(fromDecompressionDictionary:)'
+  - Name: ZSTD_getDictID_fromFrame
+    SwiftName: 'dictionaryID(fromFrame:size:)'
+  - Name: ZSTD_CCtx_loadDictionary
+    SwiftName: 'loadCompressionDictionary(_:from:size:)'
+  - Name: ZSTD_CCtx_refCDict
+    SwiftName: 'attachCompressionDictionary(_:_:)'
+  - Name: ZSTD_CCtx_refPrefix
+    SwiftName: 'attachCompressionPrefix(_:from:size:)'
+  - Name: ZSTD_DCtx_loadDictionary
+    SwiftName: 'loadDecompressionDictionary(_:from:size:)'
+  - Name: ZSTD_DCtx_refDDict
+    SwiftName: 'attachDecompressionDictionary(_:_:)'
+  - Name: ZSTD_DCtx_refPrefix
+    SwiftName: 'attachDecompressionPrefix(_:from:size:)'
+  - Name: ZSTD_sizeof_CCtx
+    SwiftName: 'memoryUsage(ofCompressionContext:)'
+  - Name: ZSTD_sizeof_DCtx
+    SwiftName: 'memoryUsage(ofDecompressionContext:)'
+  - Name: ZSTD_sizeof_CStream
+    SwiftName: 'memoryUsage(ofCompressionStream:)'
+  - Name: ZSTD_sizeof_DStream
+    SwiftName: 'memoryUsage(ofDecompressionStream:)'
+  - Name: ZSTD_sizeof_CDict
+    SwiftName: 'memoryUsage(ofCompressionDictionary:)'
+  - Name: ZSTD_sizeof_DDict
+    SwiftName: 'memoryUsage(ofDecompressionDictionary:)'
+  - Name: ZSTD_getErrorString
+    SwiftName: 'errorString(_:)'
+
+  # ─── ZDICT_* — dictionary builder ─────────────────────────────────────────
+  # `dictionaryID(fromTrainedDictionary:size:)` is the ZDICT counterpart of
+  # `dictionaryID(fromDictionary:size:)` (which lives in the main zstd lib);
+  # both extract a dictID from a raw buffer, but the distinguishing label
+  # makes the call-site source-of-truth obvious.
+  - Name: ZDICT_trainFromBuffer
+    SwiftName: 'trainDictionary(into:capacity:fromSamples:sampleSizes:sampleCount:)'
+  - Name: ZDICT_finalizeDictionary
+    SwiftName: 'finalizeDictionary(into:capacity:from:size:samples:sampleSizes:sampleCount:parameters:)'
+  - Name: ZDICT_getDictID
+    SwiftName: 'dictionaryID(fromTrainedDictionary:size:)'
+  - Name: ZDICT_getDictHeaderSize
+    SwiftName: 'dictionaryHeaderSize(of:size:)'
+  - Name: ZDICT_isError
+    SwiftName: 'isDictionaryError(_:)'
+  - Name: ZDICT_getErrorName
+    SwiftName: 'dictionaryErrorName(_:)'

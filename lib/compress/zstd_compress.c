@@ -28,7 +28,8 @@
 #include "zstd_opt.h"
 #include "zstd_ldm.h"
 #include "zstd_compress_superblock.h"
-#include  "../common/bits.h"      /* ZSTD_highbit32, ZSTD_rotateRight_U64 */
+#include "../common/bits.h"    /* ZSTD_highbit32, ZSTD_rotateRight_U64 */
+#include "../common/sha256.h"  /* ZSTD_SHA256_Result, ZSTD_SHA256_hash, ZSTD_SHA256_DIGEST_SIZE */
 
 /* ***************************************************************
 *  Tuning parameters
@@ -5231,7 +5232,7 @@ ZSTD_compress_insertDictionary(ZSTD_compressedBlockState_t* bs,
                                void* workspace)
 {
     DEBUGLOG(4, "ZSTD_compress_insertDictionary (dictSize=%u)", (U32)dictSize);
-    if ((dict==NULL) || (dictSize<8)) {
+    if ((dict == NULL) || (dictSize < ZSTD_DICTIONARYSIZE_MIN)) {
         RETURN_ERROR_IF(dictContentType == ZSTD_dct_fullDict, dictionary_wrong, "");
         return 0;
     }
@@ -8371,4 +8372,38 @@ void ZSTD_CCtxParams_registerSequenceProducer(
         params->extSeqProdFunc = NULL;
         params->extSeqProdState = NULL;
     }
+}
+
+size_t ZSTD_writeHeaderForHTTPDCZ(
+        void* dst, size_t dstCapacity,
+        const void* dict, size_t dictSize)
+{
+    ZSTD_SHA256_Result hash;
+    RETURN_ERROR_IF(dst == NULL, dstBuffer_null, "NULL dst buffer.");
+    RETURN_ERROR_IF(dstCapacity < ZSTD_HTTPDCZ_HEADER_SIZE,
+                    dstSize_tooSmall, "Too small to write frame header.");
+    RETURN_ERROR_IF(dict == NULL,
+                    dictionary_corrupted, "Dictionary invalid: NULL pointer.");
+    RETURN_ERROR_IF(dictSize < ZSTD_DICTIONARYSIZE_MIN,
+                    dictionary_corrupted, "Dictionary invalid: too small.");
+
+    hash = ZSTD_SHA256_hash(dict, dictSize);
+    return ZSTD_writeSkippableFrame(
+            dst, dstCapacity,
+            hash.digest, ZSTD_SHA256_DIGEST_SIZE,
+            ZSTD_HTTPDCZ_HEADER_SKIPPABLE_VARIANT);
+}
+
+size_t ZSTD_writeHeaderForHTTPDCZ_fromCDict(
+        void* dst, size_t dstCapacity,
+        const ZSTD_CDict* cdict)
+{
+    RETURN_ERROR_IF(cdict == NULL,
+                    parameter_unsupported, "NULL cdict pointer.");
+    RETURN_ERROR_IF(cdict->dictContentType != ZSTD_dct_rawContent,
+                    dictionary_corrupted,
+                    "Dictionary must be loaded as raw content for DCZ.");
+    return ZSTD_writeHeaderForHTTPDCZ(
+            dst, dstCapacity,
+            cdict->dictContent, cdict->dictContentSize);
 }

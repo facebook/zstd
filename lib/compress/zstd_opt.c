@@ -730,11 +730,11 @@ ZSTD_insertBtAndGetAllMatches (
         if ((dictMode == ZSTD_noDict) || (dictMode == ZSTD_dictMatchState) || (matchIndex+matchLength >= dictLimit)) {
             assert(matchIndex+matchLength >= dictLimit);  /* ensure the condition is correct when !extDict */
             match = base + matchIndex;
-            if (matchIndex >= dictLimit) assert(memcmp(match, ip, matchLength) == 0);  /* ensure early section of match is equal as expected */
+            if (matchIndex >= dictLimit) assert(ZSTD_memcmp(match, ip, matchLength) == 0);  /* ensure early section of match is equal as expected */
             matchLength += ZSTD_count(ip+matchLength, match+matchLength, iLimit);
         } else {
             match = dictBase + matchIndex;
-            assert(memcmp(match, ip, matchLength) == 0);  /* ensure early section of match is equal as expected */
+            assert(ZSTD_memcmp(match, ip, matchLength) == 0);  /* ensure early section of match is equal as expected */
             matchLength += ZSTD_count_2segments(ip+matchLength, match+matchLength, iLimit, dictEnd, prefixStart);
             if (matchIndex+matchLength >= dictLimit)
                 match = base + matchIndex;   /* prepare for match[matchLength] read */

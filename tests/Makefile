@@ -279,7 +279,7 @@ HOST_OS = POSIX
 .PHONY: test-valgrind
 test-valgrind: VALGRIND = valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1
 test-valgrind: zstd datagen fuzzer fullbench
-	@echo "\n ---- valgrind tests : memory analyzer ----"
+	@echo "---- valgrind tests : memory analyzer ----"
 	$(VALGRIND) ./datagen -g50M > $(VOID)
 	$(VALGRIND) $(PRGDIR)/zstd --fake-stdin-is-console ; if [ $$? -eq 0 ] ; then echo "zstd without argument should have failed"; false; fi
 	./datagen -g80 | $(VALGRIND) $(PRGDIR)/zstd - -c > $(VOID)
@@ -315,7 +315,7 @@ list:
 .PHONY: check
 check: ZSTDRTTEST=  # remove long tests
 check: test-zstd
-	@echo "\n******************************"
+	@echo "******************************"
 	@echo "All tests completed successfully"
 	@echo "******************************"
 
@@ -327,7 +327,7 @@ test: test-zstd test-cli-tests test-fullbench test-fuzzer test-zstream test-inva
 ifeq ($(QEMU_SYS),)
 test: test-pool
 endif
-	@echo "\n******************************"
+	@echo "******************************"
 	@echo "All tests completed successfully"
 	@echo "******************************"
 
@@ -412,7 +412,7 @@ test-decodecorpus: decodecorpus
 	$(QEMU_SYS) ./decodecorpus -t $(DECODECORPUS_TESTTIME)
 
 test-decodecorpus-cli: decodecorpus
-	@echo "\n ---- decodecorpus basic cli tests ----"
+	@echo "---- decodecorpus basic cli tests ----"
 	@mkdir testdir
 	./decodecorpus -n5 -otestdir -ptestdir
 	@cd testdir && \
@@ -428,7 +428,7 @@ test-decodecorpus-cli: decodecorpus
 	diff z000004 tmp4 && \
 	rm ./* && \
 	cd ..
-	@echo "\n ---- decodecorpus dictionary cli tests ----"
+	@echo "---- decodecorpus dictionary cli tests ----"
 	./decodecorpus -n5 -otestdir -ptestdir --use-dict=1MB
 	@cd testdir && \
 	$(ZSTD) -d z000000.zst -D dictionary -o tmp0 && \

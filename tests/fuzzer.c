@@ -3060,6 +3060,16 @@ static int basicUnitTests(U32 const seed, double compressibility)
         if (ZDICT_isError(dictSize)) goto _output_error;
         DISPLAYLEVEL(3, "OK, created dictionary of size %u \n", (unsigned)dictSize);
 
+        DISPLAYLEVEL(3, "test%3i : FASTCOVER dictBuilder samples smaller than a dmer (issue #4499) : ", testNb++);
+        {   const char smallData[8] = { 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H' };
+            const size_t smallSizes[8] = { 1, 1, 1, 1, 1, 1, 1, 1 };
+            size_t const r = ZDICT_trainFromBuffer(dictBuffer, dictBufferCapacity,
+                                                   smallData, smallSizes, 8);
+            if (!ZDICT_isError(r)) goto _output_error;
+            if (ZSTD_getErrorCode(r) != ZSTD_error_srcSize_wrong) goto _output_error;
+        }
+        DISPLAYLEVEL(3, "OK \n");
+
         DISPLAYLEVEL(3, "test%3i : Multithreaded COVER dictBuilder : ", testNb++);
         { U32 u; for (u=0; u<nbSamples; u++) samplesSizes[u] = sampleUnitSize; }
         {   ZDICT_cover_params_t coverParams;

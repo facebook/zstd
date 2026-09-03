@@ -3599,18 +3599,41 @@ size_t ZSTD_mergeBlockDelimiters(ZSTD_Sequence* sequences, size_t seqsSize) {
 /* Unrolled loop to read four size_ts of input at a time. Returns 1 if is RLE, 0 if not. */
 static int ZSTD_isRLE(const BYTE* src, size_t length) {
     const BYTE* ip = src;
-    const BYTE value = ip[0];
-    const size_t valueST = (size_t)((U64)value * 0x0101010101010101ULL);
-    const size_t unrollSize = sizeof(size_t) * 4;
-    const size_t unrollMask = unrollSize - 1;
-    const size_t prefixLength = length & unrollMask;
+    BYTE value;
+    size_t valueST;
+    size_t unrollSize;
+    size_t unrollMask;
+    size_t prefixLength;
     size_t i;
-    if (length == 1) return 1;
+    if (length <= 1) return (int)length;
+    value = ip[0];
+    valueST = (size_t)((U64)value * 0x0101010101010101ULL);
+    unrollSize = sizeof(size_t) * 4;
+    unrollMask = unrollSize - 1;
+    prefixLength = length & unrollMask;
+    i = prefixLength;
     /* Check if prefix is RLE first before using unrolled loop */
     if (prefixLength && ZSTD_count(ip+1, ip, ip+prefixLength) != prefixLength-1) {
         return 0;
     }
-    for (i = prefixLength; i != length; i += unrollSize) {
+#if defined(ZSTD_ARCH_ARM_NEON) && (defined(__aarch64__) || defined(_M_ARM64))
+    {
+        const uint8x16_t vval = vdupq_n_u8(value);
+        for (; i + 64 <= length; i += 64) {
+            const uint8x16_t q0 = veorq_u8(vld1q_u8(ip + i), vval);
+            const uint8x16_t q1 = veorq_u8(vld1q_u8(ip + i + 16), vval);
+            const uint8x16_t q2 = veorq_u8(vld1q_u8(ip + i + 32), vval);
+            const uint8x16_t q3 = veorq_u8(vld1q_u8(ip + i + 48), vval);
+            const uint8x16_t q_accum = vorrq_u8(vorrq_u8(q0, q1), vorrq_u8(q2, q3));
+            const U64 d0 = vgetq_lane_u64(vreinterpretq_u64_u8(q_accum), 0);
+            const U64 d1 = vgetq_lane_u64(vreinterpretq_u64_u8(q_accum), 1);
+            if ((d0 | d1) != 0) {
+                return 0;
+            }
+        }
+    }
+#endif
+    for (; i != length; i += unrollSize) {
         size_t u;
         for (u = 0; u < unrollSize; u += sizeof(size_t)) {
             if (MEM_readST(ip + i + u) != valueST) {

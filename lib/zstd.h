@@ -2278,6 +2278,9 @@ ZSTDLIB_STATIC_API size_t ZSTD_CCtx_refPrefix_advanced(ZSTD_CCtx* cctx, const vo
  * contiguous, and is free if they weren't contiguous. We don't expect that
  * intentionally making the dictionary and data contiguous will be worth the
  * cost to memcpy() the data.
+ *
+ * This covers ZSTD_CCtx_refPrefix(), ZSTD_CCtx_loadDictionary_byReference(),
+ * and CDicts created with ZSTD_dlm_byRef.
  */
 #define ZSTD_c_deterministicRefPrefix ZSTD_c_experimentalParam15
 

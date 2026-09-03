@@ -1516,6 +1516,56 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : testing CDict by reference for determinism : ", testNb++);
+    {   /* Same contract as the test above, for a CDict referencing the caller's
+         * buffer. ZSTD_dictForceCopy selects the affected path. */
+        size_t const testSize = 128 KB;
+        ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        char* const dict = (char*)malloc(2 * testSize);
+        int level;
+
+        if (cctx == NULL || dict == NULL) {
+            DISPLAY("Not enough memory, aborting\n");
+            testResult = 1;
+            goto _end;
+        }
+        RDG_genBuffer(dict, testSize, 0.5, 0.5, seed);
+        RDG_genBuffer(CNBuffer, testSize, 0.6, 0.6, seed);
+        memcpy(dict + testSize, CNBuffer, testSize);
+
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_deterministicRefPrefix, 1));
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_forceAttachDict, ZSTD_dictForceCopy));
+        for (level = 1; level <= 5; ++level) {
+            ZSTD_CDict* const cdict = ZSTD_createCDict_byReference(dict, testSize, level);
+            size_t cSize0;
+            XXH64_hash_t compressedChecksum0;
+
+            if (cdict == NULL) {
+                DISPLAY("Not enough memory, aborting\n");
+                testResult = 1;
+                goto _end;
+            }
+
+            CHECK_Z(ZSTD_CCtx_refCDict(cctx, cdict));
+            cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, testSize);
+            CHECK_Z(cSize);
+            cSize0 = cSize;
+            compressedChecksum0 = XXH64(compressedBuffer, cSize, 0);
+
+            CHECK_Z(ZSTD_CCtx_refCDict(cctx, cdict));
+            cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, dict + testSize, testSize);
+            CHECK_Z(cSize);
+            ZSTD_freeCDict(cdict);
+
+            if (cSize != cSize0) goto _output_error;
+            if (XXH64(compressedBuffer, cSize, 0) != compressedChecksum0) goto _output_error;
+        }
+
+        ZSTD_freeCCtx(cctx);
+        free(dict);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     DISPLAYLEVEL(3, "test%3i : LDM + opt parser with small uncompressible block ", testNb++);
     {   ZSTD_CCtx* cctx = ZSTD_createCCtx();
         ZSTD_DCtx* dctx = ZSTD_createDCtx();

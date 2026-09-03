@@ -89,6 +89,12 @@
 #      ifndef _POSIX_C_SOURCE
 #        define _POSIX_C_SOURCE 200809L  /* feature test macro : https://www.gnu.org/software/libc/manual/html_node/Feature-Test-Macros.html */
 #      endif
+#      ifndef _XOPEN_SOURCE
+         /* setpriority() and getrusage() are XSI, not base POSIX, so requesting
+          * _POSIX_C_SOURCE alone is not enough to declare them. glibc and musl
+          * expose them regardless; stricter libcs do not. */
+#        define _XOPEN_SOURCE 700
+#      endif
 #    endif
 #    include <unistd.h>  /* declares _POSIX_VERSION */
 #    if defined(_POSIX_VERSION)  /* POSIX compliant */

@@ -159,6 +159,9 @@ struct ZSTD_DCtx_s
                                    * Never read this directly: use ZSTD_DCtx_get_bmi2(), which also handles builds
                                    * where BMI2 is enabled at compile time and this field does not exist. */
 #endif
+#if DYNAMIC_SVE
+    int sve;                      /* == 1 if the CPU supports SVE and 0 otherwise. CPU support is determined dynamically once per context lifetime. */
+#endif
 
     /* dictionary */
     ZSTD_DDict* ddictLocal;
@@ -224,6 +227,15 @@ struct ZSTD_DCtx_s
 MEM_STATIC int ZSTD_DCtx_get_bmi2(const struct ZSTD_DCtx_s *dctx) {
 #if DYNAMIC_BMI2
     return dctx->bmi2;
+#else
+    (void)dctx;
+    return 0;
+#endif
+}
+
+MEM_STATIC int ZSTD_DCtx_get_sve(const struct ZSTD_DCtx_s *dctx) {
+#if DYNAMIC_SVE
+    return dctx->sve;
 #else
     (void)dctx;
     return 0;

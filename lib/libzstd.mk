@@ -49,6 +49,10 @@ else
   ZSTD_STRIP_ERROR_STRINGS ?= 0
 endif
 
+# Lazy match skip optimization (levels 6-7): skip lazy evaluation when
+# match length exceeds threshold, trading minimal compression for speed.
+ZSTD_LAZY_SKIP_LONG_MATCHES ?= 0
+
 # Assembly support
 ZSTD_NO_ASM ?= 0
 
@@ -150,6 +154,10 @@ ZSTD_DEPRECATED_FILES := $(sort $(wildcard $(LIB_SRCDIR)/deprecated/*.c))
 ZSTD_LEGACY_FILES :=
 
 ZSTD_DECOMPRESS_AMD64_ASM_FILES := $(sort $(wildcard $(LIB_SRCDIR)/decompress/*_amd64.S))
+
+ifneq ($(ZSTD_LAZY_SKIP_LONG_MATCHES), 0)
+  CFLAGS += -DZSTD_LAZY_SKIP_LONG_MATCHES
+endif
 
 ifneq ($(ZSTD_NO_ASM), 0)
   CPPFLAGS += -DZSTD_DISABLE_ASM

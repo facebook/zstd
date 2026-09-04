@@ -13,6 +13,7 @@
 ******************************************/
 #include "util.h"       /* note : ensure that platform.h is included first ! */
 #include <stdlib.h>     /* malloc, realloc, free */
+#include <stdint.h>     /* SIZE_MAX */
 #include <stdio.h>      /* fprintf */
 #include <time.h>       /* clock_t, clock, CLOCKS_PER_SEC, nanosleep */
 #include <errno.h>
@@ -1212,6 +1213,8 @@ static char* mallocAndJoin2Dir(const char *dir1, const char *dir2)
         const size_t dir2Size = strlen(dir2);
         char *outDirBuffer, *buffer;
 
+        /* reject sizes that would overflow the malloc() argument */
+        CONTROL(dir1Size <= SIZE_MAX - dir2Size - 2);
         outDirBuffer = (char *) malloc(dir1Size + dir2Size + 2);
         CONTROL(outDirBuffer != NULL);
 

@@ -87,6 +87,13 @@
 #  define UTIL_STATIC static  /* this version may generate warnings for unused static functions; disable the relevant warning */
 #endif
 
+/* enable or disable (default) parsing all /proc/cpuinfo to cout all cpu cores number
+ * That ruins physical/logical logics
+ */
+#ifndef ZSTD_PARSE_FULL_CPUINFO
+#  define ZSTD_PARSE_FULL_CPUINFO 0
+#endif
+
 
 #if defined (__cplusplus)
 extern "C" {

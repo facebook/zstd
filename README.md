@@ -10,7 +10,13 @@ and a command line utility producing and decoding `.zst`, `.gz`, `.xz` and `.lz4
 Should your project require another programming language,
 a list of known ports and bindings is provided on [Zstandard homepage](https://facebook.github.io/zstd/#other-languages).
 
-**Development branch status:**
+### New and Exciting: OpenZL
+
+If you love Zstandard but wish it was better at compressing structured and numeric data, check out [OpenZL](https://github.com/facebook/openzl)!
+OpenZL is a new, in-development compressor from the same team that brought you Zstandard.
+It extends Zstd (and other compression primitives), adding the ability to exploit the structure and semantics of the data it compresses.
+
+### Development branch status:
 
 [![Build Status][travisDevBadge]][travisLink]
 [![Build status][CircleDevBadge]][CircleLink]

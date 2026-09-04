@@ -6,7 +6,7 @@ SYNOPSIS
 
 `zstd` [<OPTIONS>] [-|<INPUT-FILE>] [-o <OUTPUT-FILE>]
 
-`zstdmt` is equivalent to `zstd -T0`
+`zstdmt` is equivalent to `zstd -T0`; prefer this form for multithreaded compression.
 
 `unzstd` is equivalent to `zstd -d`
 
@@ -114,6 +114,8 @@ the last one takes effect.
 * `--ultra`:
     unlocks high compression levels 20+ (maximum 22), using a lot more memory.
     Decompression will also need more memory when using these levels.
+    Data compressed at these levels may be rejected by third-party decoders
+    and is recommended primarily for archival purposes.
 * `--max`:
     set advanced parameters to reach maximum compression.
     warning: this setting is very slow and uses a lot of resources.
@@ -123,6 +125,7 @@ the last one takes effect.
     If `=#` is not present, it defaults to `1`.
     The higher the value, the faster the compression speed,
     at the cost of some compression ratio.
+    These are the negative compression levels exposed by the library.
     This setting overwrites compression level if one was set previously.
     Similarly, if a compression level is set after `--fast`, it overrides it.
 * `-T#`, `--threads=#`:

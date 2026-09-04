@@ -101,7 +101,7 @@ CLI supports aggregation of parameters i.e. `-b1`, `-e18`, and `-i1` can be join
 ### Symlink shortcuts
 It's possible to invoke `zstd` through a symlink.
 When the name of the symlink has a specific value, it triggers an associated behavior.
-- `zstdmt` : compress using all cores available on local system.
+- `zstdmt` : equivalent to `zstd -T0`; prefer this form for multithreaded compression.
 - `zcat` : will decompress and output target file using any of the supported formats. `gzcat` and `zstdcat` are also equivalent.
 - `gzip` : if zlib support is enabled, will mimic `gzip` by compressing file using `.gz` format, removing source file by default (use `--keep` to preserve). If zlib is not supported, triggers an error.
 - `xz` : if lzma support is enabled, will mimic `xz` by compressing file using `.xz` format, removing source file by default (use `--keep` to preserve). If xz is not supported, triggers an error.
@@ -159,8 +159,10 @@ Usage: zstd [OPTIONS...] [INPUT... | -] [-o OUTPUT]
 
 Options:
   -o OUTPUT                     Write output to a single file, OUTPUT.
+  -c, --stdout                  Write to STDOUT (even if it is a console) and keep the INPUT file(s).
   -k, --keep                    Preserve INPUT file(s). [Default]
   --rm                          Remove INPUT file(s) after successful (de)compression to file.
+  -q, --quiet                   Suppress warnings; pass twice to suppress errors.
 
   -#                            Desired compression level, where `#` is a number between 1 and 19;
                                 lower numbers provide faster compression, higher numbers yield
@@ -179,10 +181,7 @@ Options:
   -V, --version                 Display the program version and exit.
 
 Advanced options:
-  -c, --stdout                  Write to STDOUT (even if it is a console) and keep the INPUT file(s).
-
   -v, --verbose                 Enable verbose output; pass multiple times to increase verbosity.
-  -q, --quiet                   Suppress warnings; pass twice to suppress errors.
   --trace LOG                   Log tracing information to LOG.
 
   --[no-]progress               Forcibly show/hide the progress counter. NOTE: Any (de)compressed

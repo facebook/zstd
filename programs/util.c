@@ -1148,11 +1148,11 @@ static void convertPathnameToDirName(char *pathname)
     /* remove trailing '/' chars */
     len = strlen(pathname);
     assert(len > 0);
-    while (pathname[len] == PATH_SEP) {
-        pathname[len] = '\0';
+    while (pathname[len-1] == PATH_SEP) {
+        pathname[len-1] = '\0';
         len--;
+        if (len == 0) return;
     }
-    if (len == 0) return;
 
     /* if input is a single file, return '.' instead. i.e.
      * "xyz/abc/file.txt" => "xyz/abc"

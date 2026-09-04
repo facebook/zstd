@@ -13,6 +13,9 @@ jobs:
   windows-artifacts:
     permissions:
       contents: write # to fetch code and upload artifacts
+    env:
+      ZSTD_REF_NAME: ${{ github.ref_name }}
+      ZSTD_ZIP_ARCH: ${{ matrix.ziparch }}
     # For msys2, see https://ariya.io/2020/07/on-github-actions-with-msys2
     runs-on: ${{ matrix.shell == 'cmake' && 'windows-11-arm' || 'windows-latest' }}
     strategy:
@@ -83,14 +86,16 @@ jobs:
         if: matrix.shell == 'msys2'
         run: |
           ./lib/dll/example/build_package.bat || exit 1
-          mv bin/ zstd-${{ github.ref_name }}-${{matrix.ziparch}}/
+          artifact_dir="zstd-${ZSTD_REF_NAME}-${ZSTD_ZIP_ARCH}"
+          mv bin/ "${artifact_dir}/"
 
       - name: Create artifacts (CMake)
         if: matrix.shell == 'cmake'
         run: |
           .\lib\dll\example\build_package.bat
           if ($LASTEXITCODE -ne 0) { exit 1 }
-          mv bin/ zstd-${{ github.ref_name }}-${{matrix.ziparch}}/
+          $artifactDir = "zstd-{0}-{1}" -f $env:ZSTD_REF_NAME, $env:ZSTD_ZIP_ARCH
+          Move-Item -Path bin -Destination $artifactDir
 
       - name: Publish zstd-$VERSION-${{matrix.ziparch}}.zip for manual inspection
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # tag=v7.0.1
@@ -103,12 +108,14 @@ jobs:
       - name: Package artifact for upload (MSYS2)
         if: matrix.shell == 'msys2'
         run: |
-          7z a -tzip -mx9 "$(cygpath -u '${{ github.workspace }}/zstd-${{ github.ref_name }}-${{ matrix.ziparch }}.zip')" "$(cygpath -u '${{ github.workspace }}/zstd-${{ github.ref_name }}-${{ matrix.ziparch }}')"
+          artifact_base="${GITHUB_WORKSPACE}/zstd-${ZSTD_REF_NAME}-${ZSTD_ZIP_ARCH}"
+          7z a -tzip -mx9 "$(cygpath -u "${artifact_base}.zip")" "$(cygpath -u "${artifact_base}")"
 
       - name: Package artifact for upload (CMake)
         if: matrix.shell == 'cmake'
         run: |
-          Compress-Archive -Path "zstd-${{ github.ref_name }}-${{ matrix.ziparch }}" -DestinationPath "zstd-${{ github.ref_name }}-${{ matrix.ziparch }}.zip" -CompressionLevel Optimal
+          $artifactName = "zstd-{0}-{1}" -f $env:ZSTD_REF_NAME, $env:ZSTD_ZIP_ARCH
+          Compress-Archive -Path $artifactName -DestinationPath "$artifactName.zip" -CompressionLevel Optimal
 
       - name: Upload release asset
         if: github.event_name == 'release'
@@ -116,4 +123,5 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload "${{ github.ref_name }}" "$env:GITHUB_WORKSPACE/zstd-${{ github.ref_name }}-${{ matrix.ziparch }}.zip" --clobber
+          $artifactZip = Join-Path $env:GITHUB_WORKSPACE ("zstd-{0}-{1}.zip" -f $env:ZSTD_REF_NAME, $env:ZSTD_ZIP_ARCH)
+          gh release upload $env:ZSTD_REF_NAME $artifactZip --clobber

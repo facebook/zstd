@@ -573,6 +573,7 @@ FIO_prefs_t* FIO_createPreferences(void)
     ret->allowBlockDevices = 0;
     ret->asyncIO = AIO_supported();
     ret->passThrough = -1;
+    ret->inputBufferSize = 0;  /* 0 = use default */
     return ret;
 }
 
@@ -680,6 +681,10 @@ void FIO_setTargetCBlockSize(FIO_prefs_t* const prefs, size_t targetCBlockSize) 
 
 void FIO_setSrcSizeHint(FIO_prefs_t* const prefs, size_t srcSizeHint) {
     prefs->srcSizeHint = (int)MIN((size_t)INT_MAX, srcSizeHint);
+}
+
+void FIO_setInputBufferSize(FIO_prefs_t* const prefs, size_t inputBufferSize) {
+    prefs->inputBufferSize = inputBufferSize;
 }
 
 void FIO_setTestMode(FIO_prefs_t* const prefs, int testMode) {
@@ -2615,7 +2620,8 @@ static dRess_t FIO_createDResources(FIO_prefs_t* const prefs, const char* dictFi
     }
 
     ress.writeCtx = AIO_WritePool_create(prefs, ZSTD_DStreamOutSize());
-    ress.readCtx = AIO_ReadPool_create(prefs, ZSTD_DStreamInSize());
+    ress.readCtx = AIO_ReadPool_create(prefs, 
+        prefs->inputBufferSize > 0 ? prefs->inputBufferSize : ZSTD_DStreamInSize());
     return ress;
 }
 

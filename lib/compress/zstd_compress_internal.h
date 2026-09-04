@@ -882,15 +882,34 @@ MEM_STATIC size_t ZSTD_count(const BYTE* pIn, const BYTE* pMatch, const BYTE* co
         { size_t const diff = MEM_readST(pMatch) ^ MEM_readST(pIn);
           if (diff) return ZSTD_NbCommonBytes(diff); }
         pIn+=sizeof(size_t); pMatch+=sizeof(size_t);
-        while (pIn < pInLoopLimit) {
-            size_t const diff = MEM_readST(pMatch) ^ MEM_readST(pIn);
-            if (!diff) { pIn+=sizeof(size_t); pMatch+=sizeof(size_t); continue; }
-            pIn += ZSTD_NbCommonBytes(diff);
-            return (size_t)(pIn - pStart);
-    }   }
+    }
+#if defined(ZSTD_ARCH_RISCV_RVV)
+    {
+        size_t vl;
+        while (pIn < pInLimit) {
+            vl = __riscv_vsetvl_e8m1((size_t)(pInLimit - pIn));
+            vuint8m1_t v_in = __riscv_vle8_v_u8m1(pIn, vl);
+            vuint8m1_t v_match = __riscv_vle8_v_u8m1(pMatch, vl);
+            vbool8_t mask = __riscv_vmsne_vv_u8m1_b8(v_in, v_match, vl);
+            long first_diff = __riscv_vfirst_m_b8(mask, vl);
+            if (first_diff >= 0) {
+                return (size_t)(pIn + first_diff - pStart);
+            }
+            pIn += vl;
+            pMatch += vl;
+        }
+    }
+#else
+    while (pIn < pInLoopLimit) {
+        size_t const diff = MEM_readST(pMatch) ^ MEM_readST(pIn);
+        if (!diff) { pIn+=sizeof(size_t); pMatch+=sizeof(size_t); continue; }
+        pIn += ZSTD_NbCommonBytes(diff);
+        return (size_t)(pIn - pStart);
+    }
     if (MEM_64bits() && (pIn<(pInLimit-3)) && (MEM_read32(pMatch) == MEM_read32(pIn))) { pIn+=4; pMatch+=4; }
     if ((pIn<(pInLimit-1)) && (MEM_read16(pMatch) == MEM_read16(pIn))) { pIn+=2; pMatch+=2; }
     if ((pIn<pInLimit) && (*pMatch == *pIn)) pIn++;
+#endif
     return (size_t)(pIn - pStart);
 }
 

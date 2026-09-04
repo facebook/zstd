@@ -3412,6 +3412,7 @@ typedef struct {
     int numSkippableFrames;
     int decompUnavailable;
     int usesCheck;
+    int isGzip;
     BYTE checksum[4];
     U32 nbFiles;
     unsigned dictID;
@@ -3530,6 +3531,86 @@ FIO_analyzeFrames(fileInfo_t* info, FILE* const srcFile)
 }
 
 
+/* gzip header flags, see RFC 1952 */
+#define GZIP_HEADER_SIZE   10
+#define GZIP_TRAILER_SIZE  8
+#define GZIP_FLG_FHCRC     0x02
+#define GZIP_FLG_FEXTRA    0x04
+#define GZIP_FLG_FNAME     0x08
+#define GZIP_FLG_FCOMMENT  0x10
+#define GZIP_FLG_RESERVED  0xE0
+
+/* FIO_skipGzipString() :
+ * skips a zero-terminated string (FNAME or FCOMMENT field) */
+static InfoError
+FIO_skipGzipString(FILE* const srcFile)
+{
+    int c;
+    do {
+        c = fgetc(srcFile);
+        ERROR_IF(c == EOF, info_truncated_input, "Error: gzip header is truncated");
+    } while (c != 0);
+    return info_success;
+}
+
+/* FIO_analyzeGzip() :
+ * Requires the presence of the gzip magic number (checked by the caller).
+ * Parses the gzip header, then reads the checksum and the decompressed
+ * size from the trailer, without decompressing the file.
+ * As with `gzip -l`, the reported decompressed size is modulo 2^32,
+ * and accounts only for the last stream of a multi-stream file. */
+static InfoError
+FIO_analyzeGzip(fileInfo_t* info, FILE* const srcFile)
+{
+    long headerEnd;
+    BYTE header[GZIP_HEADER_SIZE];
+    ERROR_IF(fread(header, 1, sizeof(header), srcFile) != sizeof(header),
+            info_truncated_input, "Error: file too small to contain a gzip header");
+    assert(header[0] == 31 && header[1] == 139);
+    ERROR_IF(header[2] != 8, info_frame_error,
+            "Error: unsupported gzip compression method %u", header[2]);
+    {   BYTE const flags = header[3];
+        ERROR_IF(flags & GZIP_FLG_RESERVED, info_frame_error,
+                "Error: gzip header uses unknown reserved flags");
+        if (flags & GZIP_FLG_FEXTRA) {
+            BYTE xlenBuffer[2];
+            ERROR_IF(fread(xlenBuffer, 1, sizeof(xlenBuffer), srcFile) != sizeof(xlenBuffer),
+                    info_truncated_input, "Error: gzip header is truncated");
+            ERROR_IF(fseek(srcFile, (long)MEM_readLE16(xlenBuffer), SEEK_CUR) != 0,
+                    info_frame_error, "Error: could not skip gzip extra field");
+        }
+        if (flags & GZIP_FLG_FNAME) {
+            InfoError const status = FIO_skipGzipString(srcFile);
+            if (status != info_success) return status;
+        }
+        if (flags & GZIP_FLG_FCOMMENT) {
+            InfoError const status = FIO_skipGzipString(srcFile);
+            if (status != info_success) return status;
+        }
+        if (flags & GZIP_FLG_FHCRC) {
+            ERROR_IF(fseek(srcFile, 2, SEEK_CUR) != 0,
+                    info_frame_error, "Error: could not skip gzip header checksum");
+        }
+    }
+    headerEnd = LONG_TELL(srcFile);
+
+    /* read checksum and decompressed size from the trailer */
+    ERROR_IF(LONG_SEEK(srcFile, -(long)GZIP_TRAILER_SIZE, SEEK_END) != 0,
+            info_truncated_input, "Error: gzip file is truncated");
+    ERROR_IF(LONG_TELL(srcFile) < headerEnd,
+            info_truncated_input, "Error: gzip file is truncated");
+    {   BYTE trailer[GZIP_TRAILER_SIZE];
+        ERROR_IF(fread(trailer, 1, sizeof(trailer), srcFile) != sizeof(trailer),
+                info_truncated_input, "Error: gzip file is truncated");
+        memcpy(info->checksum, trailer, 4);
+        info->decompressedSize = MEM_readLE32(trailer + 4);
+    }
+    info->usesCheck = 1;
+    info->isGzip = 1;
+    info->numActualFrames = 1;
+    return info_success;
+}
+
 static InfoError
 getFileInfo_fileConfirmed(fileInfo_t* info, const char* inFileName)
 {
@@ -3539,7 +3620,15 @@ getFileInfo_fileConfirmed(fileInfo_t* info, const char* inFileName)
     ERROR_IF(srcFile == NULL, info_file_error, "Error: could not open source file %s", inFileName);
 
     info->compressedSize = UTIL_getFileSizeStat(&srcFileStat);
-    status = FIO_analyzeFrames(info, srcFile);
+    {   BYTE magic[2];
+        size_t const numBytesRead = fread(magic, 1, sizeof(magic), srcFile);
+        rewind(srcFile);
+        if (numBytesRead == sizeof(magic) && magic[0] == 31 && magic[1] == 139) {
+            status = FIO_analyzeGzip(info, srcFile);
+        } else {
+            status = FIO_analyzeFrames(info, srcFile);
+        }
+    }
 
     fclose(srcFile);
     info->nbFiles = 1;
@@ -3567,7 +3656,7 @@ displayInfo(const char* inFileName, const fileInfo_t* info, int displayLevel)
     UTIL_HumanReadableSize_t const compressed_hrs = UTIL_makeHumanReadableSize(info->compressedSize);
     UTIL_HumanReadableSize_t const decompressed_hrs = UTIL_makeHumanReadableSize(info->decompressedSize);
     double const ratio = (info->compressedSize == 0) ? 0 : ((double)info->decompressedSize)/(double)info->compressedSize;
-    const char* const checkString = (info->usesCheck ? "XXH64" : "None");
+    const char* const checkString = (info->isGzip ? "CRC32" : (info->usesCheck ? "XXH64" : "None"));
     if (displayLevel <= 2) {
         if (!info->decompUnavailable) {
             DISPLAYOUT("%6d  %5d  %6.*f%4s  %8.*f%4s  %5.3f  %5s  %s\n",
@@ -3583,6 +3672,20 @@ displayInfo(const char* inFileName, const fileInfo_t* info, int displayLevel)
                     compressed_hrs.precision, compressed_hrs.value, compressed_hrs.suffix,
                     checkString, inFileName);
         }
+    } else if (info->isGzip) {
+        DISPLAYOUT("%s \n", inFileName);
+        DISPLAYOUT("Format: Gzip\n");
+        DISPLAYOUT("Compressed Size: %.*f%s (%llu B)\n",
+                    compressed_hrs.precision, compressed_hrs.value, compressed_hrs.suffix,
+                    (unsigned long long)info->compressedSize);
+        DISPLAYOUT("Decompressed Size: %.*f%s (%llu B)\n",
+                    decompressed_hrs.precision, decompressed_hrs.value, decompressed_hrs.suffix,
+                    (unsigned long long)info->decompressedSize);
+        DISPLAYOUT("Ratio: %.4f\n", ratio);
+        DISPLAYOUT("Check: CRC32 %02x%02x%02x%02x\n",
+                info->checksum[3], info->checksum[2],
+                info->checksum[1], info->checksum[0]);
+        DISPLAYOUT("\n");
     } else {
         DISPLAYOUT("%s \n", inFileName);
         DISPLAYOUT("# Zstandard Frames: %d\n", info->numActualFrames);
@@ -3625,6 +3728,7 @@ static fileInfo_t FIO_addFInfo(fileInfo_t fi1, fileInfo_t fi2)
     total.decompressedSize = fi1.decompressedSize + fi2.decompressedSize;
     total.decompUnavailable = fi1.decompUnavailable | fi2.decompUnavailable;
     total.usesCheck = fi1.usesCheck & fi2.usesCheck;
+    total.isGzip = fi1.isGzip & fi2.isGzip;
     total.nbFiles = fi1.nbFiles + fi2.nbFiles;
     return total;
 }
@@ -3688,6 +3792,7 @@ int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int dis
         fileInfo_t total;
         memset(&total, 0, sizeof(total));
         total.usesCheck = 1;
+        total.isGzip = 1;
         /* --list each file, and check for any error */
         {   unsigned u;
             for (u=0; u<numFiles;u++) {
@@ -3697,7 +3802,7 @@ int FIO_listMultipleFiles(unsigned numFiles, const char** filenameTable, int dis
             UTIL_HumanReadableSize_t const compressed_hrs = UTIL_makeHumanReadableSize(total.compressedSize);
             UTIL_HumanReadableSize_t const decompressed_hrs = UTIL_makeHumanReadableSize(total.decompressedSize);
             double const ratio = (total.compressedSize == 0) ? 0 : ((double)total.decompressedSize)/(double)total.compressedSize;
-            const char* const checkString = (total.usesCheck ? "XXH64" : "");
+            const char* const checkString = (total.isGzip ? "CRC32" : (total.usesCheck ? "XXH64" : ""));
             DISPLAYOUT("----------------------------------------------------------------- \n");
             if (total.decompUnavailable) {
                 DISPLAYOUT("%6d  %5d  %6.*f%4s                       %5s  %u files\n",

@@ -28,7 +28,7 @@ struct FIO_display_prefs_s {
 };
 
 
-typedef enum { FIO_zstdCompression, FIO_gzipCompression, FIO_xzCompression, FIO_lzmaCompression, FIO_lz4Compression } FIO_compressionType_t;
+typedef enum { FIO_zstdCompression, FIO_gzipCompression, FIO_zlibCompression, FIO_xzCompression, FIO_lzmaCompression, FIO_lz4Compression } FIO_compressionType_t;
 
 typedef struct FIO_prefs_s {
 

@@ -201,12 +201,15 @@ Advanced options:
 
 Advanced compression options:
   --ultra                       Enable levels beyond 19, up to 22; requires more memory.
+  --max                         Set advanced parameters to reach maximum compression.
+                                Warning: very slow and uses a lot of resources; disabled in 32-bit mode.
   --fast[=#]                    Use to very fast compression levels. [Default: 1]
   --adapt                       Dynamically adapt compression level to I/O conditions.
   --long[=#]                    Enable long distance matching with window log #. [Default: 27]
   --patch-from=REF              Use REF as the reference point for Zstandard's diff engine.
 
-  -T#                           Spawn # compression threads. [Default: 1; pass 0 for core count.]
+  -T#                           Spawn # compression threads.
+                                [Default: between 1 and 4 depending on physical CPU cores; pass 0 for core count.]
   --single-thread               Share a single thread for I/O and compression (slightly different than `-T1`).
   --auto-threads={physical|logical}
                                 Use physical/logical cores when using `-T0`. [Default: Physical]

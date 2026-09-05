@@ -660,6 +660,14 @@ ZSTD_selectAddr(U32 index, U32 lowLimit, const BYTE* candidate, const BYTE* back
         : "r"(index), "r"(lowLimit), "r"(backup)
         );
     return candidate;
+#elif defined(__GNUC__) && defined(__aarch64__)
+    __asm__ (
+        "cmp %w1, %w2\n"
+        "csel %0, %3, %0, lo\n"
+        : "+r"(candidate)
+        : "r"(index), "r"(lowLimit), "r"(backup)
+        : "cc");
+    return candidate;
 #else
     return index >= lowLimit ? candidate : backup;
 #endif

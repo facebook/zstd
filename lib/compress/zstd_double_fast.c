@@ -188,7 +188,7 @@ size_t ZSTD_compressBlock_doubleFast_noDict_generic(
 
             /* check noDict repcode */
             if ((offset_1 > 0) & (MEM_read32(ip+1-offset_1) == MEM_read32(ip+1))) {
-                mLength = ZSTD_count(ip+1+4, ip+1+4-offset_1, iend) + 4;
+                mLength = ZSTD_count_inline(ip+1+4, ip+1+4-offset_1, iend) + 4;
                 ip++;
                 ZSTD_storeSeq(seqStore, (size_t)(ip-anchor), anchor, iend, REPCODE1_TO_OFFBASE, mLength);
                 goto _match_stored;
@@ -198,7 +198,7 @@ size_t ZSTD_compressBlock_doubleFast_noDict_generic(
 
             /* check prefix long match */
             if (matchLongFound(ip, matchl0, idxl0, prefixLowestIndex)) {
-                mLength = ZSTD_count(ip+8, matchl0+8, iend) + 8;
+                mLength = ZSTD_count_inline(ip+8, matchl0+8, iend) + 8;
                 offset = (U32)(ip-matchl0);
                 while (((ip>anchor) & (matchl0>prefixLowest)) && (ip[-1] == matchl0[-1])) { ip--; matchl0--; mLength++; } /* catch up */
                 goto _match_found;
@@ -244,12 +244,12 @@ _cleanup:
 _search_next_long:
 
         /* short match found: let's check for a longer one */
-        mLength = ZSTD_count(ip+4, matchs0+4, iend) + 4;
+        mLength = ZSTD_count_inline(ip+4, matchs0+4, iend) + 4;
         offset = (U32)(ip - matchs0);
 
         /* check long match at +1 position */
         if (matchLongFound(ip1, matchl1, idxl1, prefixLowestIndex)) {
-            size_t const l1len = ZSTD_count(ip1+8, matchl1+8, iend) + 8;
+            size_t const l1len = ZSTD_count_inline(ip1+8, matchl1+8, iend) + 8;
             if (l1len > mLength) {
                 /* use the long match instead */
                 ip = ip1;
@@ -300,7 +300,7 @@ _match_stored:
                  && ( (offset_2>0)
                     & (MEM_read32(ip) == MEM_read32(ip - offset_2)) )) {
                 /* store sequence */
-                size_t const rLength = ZSTD_count(ip+4, ip+4-offset_2, iend) + 4;
+                size_t const rLength = ZSTD_count_inline(ip+4, ip+4-offset_2, iend) + 4;
                 U32 const tmpOff = offset_2; offset_2 = offset_1; offset_1 = tmpOff;  /* swap offset_2 <=> offset_1 */
                 hashSmall[ZSTD_hashPtr(ip, hBitsS, mls)] = (U32)(ip-base);
                 hashLong[ZSTD_hashPtr(ip, hBitsL, 8)] = (U32)(ip-base);
@@ -399,7 +399,7 @@ size_t ZSTD_compressBlock_doubleFast_dictMatchState_generic(
         if ((ZSTD_index_overlap_check(prefixLowestIndex, repIndex))
             && (MEM_read32(repMatch) == MEM_read32(ip+1)) ) {
             const BYTE* repMatchEnd = repIndex < prefixLowestIndex ? dictEnd : iend;
-            mLength = ZSTD_count_2segments(ip+1+4, repMatch+4, iend, repMatchEnd, prefixLowest) + 4;
+            mLength = ZSTD_count_2segments_inline(ip+1+4, repMatch+4, iend, repMatchEnd, prefixLowest) + 4;
             ip++;
             ZSTD_storeSeq(seqStore, (size_t)(ip-anchor), anchor, iend, REPCODE1_TO_OFFBASE, mLength);
             goto _match_stored;
@@ -407,7 +407,7 @@ size_t ZSTD_compressBlock_doubleFast_dictMatchState_generic(
 
         if ((matchIndexL >= prefixLowestIndex) && (MEM_read64(matchLong) == MEM_read64(ip))) {
             /* check prefix long match */
-            mLength = ZSTD_count(ip+8, matchLong+8, iend) + 8;
+            mLength = ZSTD_count_inline(ip+8, matchLong+8, iend) + 8;
             offset = (U32)(ip-matchLong);
             while (((ip>anchor) & (matchLong>prefixLowest)) && (ip[-1] == matchLong[-1])) { ip--; matchLong--; mLength++; } /* catch up */
             goto _match_found;
@@ -418,7 +418,7 @@ size_t ZSTD_compressBlock_doubleFast_dictMatchState_generic(
             assert(dictMatchL < dictEnd);
 
             if (dictMatchL > dictStart && MEM_read64(dictMatchL) == MEM_read64(ip)) {
-                mLength = ZSTD_count_2segments(ip+8, dictMatchL+8, iend, dictEnd, prefixLowest) + 8;
+                mLength = ZSTD_count_2segments_inline(ip+8, dictMatchL+8, iend, dictEnd, prefixLowest) + 8;
                 offset = (U32)(curr - dictMatchIndexL - dictIndexDelta);
                 while (((ip>anchor) & (dictMatchL>dictStart)) && (ip[-1] == dictMatchL[-1])) { ip--; dictMatchL--; mLength++; } /* catch up */
                 goto _match_found;
@@ -456,7 +456,7 @@ _search_next_long:
 
             /* check prefix long +1 match */
             if ((matchIndexL3 >= prefixLowestIndex) && (MEM_read64(matchL3) == MEM_read64(ip+1))) {
-                mLength = ZSTD_count(ip+9, matchL3+8, iend) + 8;
+                mLength = ZSTD_count_inline(ip+9, matchL3+8, iend) + 8;
                 ip++;
                 offset = (U32)(ip-matchL3);
                 while (((ip>anchor) & (matchL3>prefixLowest)) && (ip[-1] == matchL3[-1])) { ip--; matchL3--; mLength++; } /* catch up */
@@ -467,7 +467,7 @@ _search_next_long:
                 const BYTE* dictMatchL3 = dictBase + dictMatchIndexL3;
                 assert(dictMatchL3 < dictEnd);
                 if (dictMatchL3 > dictStart && MEM_read64(dictMatchL3) == MEM_read64(ip+1)) {
-                    mLength = ZSTD_count_2segments(ip+1+8, dictMatchL3+8, iend, dictEnd, prefixLowest) + 8;
+                    mLength = ZSTD_count_2segments_inline(ip+1+8, dictMatchL3+8, iend, dictEnd, prefixLowest) + 8;
                     ip++;
                     offset = (U32)(curr + 1 - dictMatchIndexL3 - dictIndexDelta);
                     while (((ip>anchor) & (dictMatchL3>dictStart)) && (ip[-1] == dictMatchL3[-1])) { ip--; dictMatchL3--; mLength++; } /* catch up */
@@ -476,11 +476,11 @@ _search_next_long:
 
         /* if no long +1 match, explore the short match we found */
         if (matchIndexS < prefixLowestIndex) {
-            mLength = ZSTD_count_2segments(ip+4, match+4, iend, dictEnd, prefixLowest) + 4;
+            mLength = ZSTD_count_2segments_inline(ip+4, match+4, iend, dictEnd, prefixLowest) + 4;
             offset = (U32)(curr - matchIndexS);
             while (((ip>anchor) & (match>dictStart)) && (ip[-1] == match[-1])) { ip--; match--; mLength++; } /* catch up */
         } else {
-            mLength = ZSTD_count(ip+4, match+4, iend) + 4;
+            mLength = ZSTD_count_inline(ip+4, match+4, iend) + 4;
             offset = (U32)(ip - match);
             while (((ip>anchor) & (match>prefixLowest)) && (ip[-1] == match[-1])) { ip--; match--; mLength++; } /* catch up */
         }
@@ -516,7 +516,7 @@ _match_stored:
                 if ( (ZSTD_index_overlap_check(prefixLowestIndex, repIndex2))
                    && (MEM_read32(repMatch2) == MEM_read32(ip)) ) {
                     const BYTE* const repEnd2 = repIndex2 < prefixLowestIndex ? dictEnd : iend;
-                    size_t const repLength2 = ZSTD_count_2segments(ip+4, repMatch2+4, iend, repEnd2, prefixLowest) + 4;
+                    size_t const repLength2 = ZSTD_count_2segments_inline(ip+4, repMatch2+4, iend, repEnd2, prefixLowest) + 4;
                     U32 tmpOffset = offset_2; offset_2 = offset_1; offset_1 = tmpOffset;   /* swap offset_2 <=> offset_1 */
                     ZSTD_storeSeq(seqStore, 0, anchor, iend, REPCODE1_TO_OFFBASE, repLength2);
                     hashSmall[ZSTD_hashPtr(ip, hBitsS, mls)] = current2;
@@ -683,7 +683,7 @@ size_t ZSTD_compressBlock_doubleFast_extDict_generic(
             & (offset_1 <= curr+1 - dictStartIndex)) /* note: we are searching at curr+1 */
           && (MEM_read32(repMatch) == MEM_read32(ip+1)) ) {
             const BYTE* repMatchEnd = repIndex < prefixStartIndex ? dictEnd : iend;
-            mLength = ZSTD_count_2segments(ip+1+4, repMatch+4, iend, repMatchEnd, prefixStart) + 4;
+            mLength = ZSTD_count_2segments_inline(ip+1+4, repMatch+4, iend, repMatchEnd, prefixStart) + 4;
             ip++;
             ZSTD_storeSeq(seqStore, (size_t)(ip-anchor), anchor, iend, REPCODE1_TO_OFFBASE, mLength);
         } else {
@@ -691,7 +691,7 @@ size_t ZSTD_compressBlock_doubleFast_extDict_generic(
                 const BYTE* const matchEnd = matchLongIndex < prefixStartIndex ? dictEnd : iend;
                 const BYTE* const lowMatchPtr = matchLongIndex < prefixStartIndex ? dictStart : prefixStart;
                 U32 offset;
-                mLength = ZSTD_count_2segments(ip+8, matchLong+8, iend, matchEnd, prefixStart) + 8;
+                mLength = ZSTD_count_2segments_inline(ip+8, matchLong+8, iend, matchEnd, prefixStart) + 8;
                 offset = curr - matchLongIndex;
                 while (((ip>anchor) & (matchLong>lowMatchPtr)) && (ip[-1] == matchLong[-1])) { ip--; matchLong--; mLength++; }   /* catch up */
                 offset_2 = offset_1;
@@ -708,14 +708,14 @@ size_t ZSTD_compressBlock_doubleFast_extDict_generic(
                 if ( (matchIndex3 > dictStartIndex) && (MEM_read64(match3) == MEM_read64(ip+1)) ) {
                     const BYTE* const matchEnd = matchIndex3 < prefixStartIndex ? dictEnd : iend;
                     const BYTE* const lowMatchPtr = matchIndex3 < prefixStartIndex ? dictStart : prefixStart;
-                    mLength = ZSTD_count_2segments(ip+9, match3+8, iend, matchEnd, prefixStart) + 8;
+                    mLength = ZSTD_count_2segments_inline(ip+9, match3+8, iend, matchEnd, prefixStart) + 8;
                     ip++;
                     offset = curr+1 - matchIndex3;
                     while (((ip>anchor) & (match3>lowMatchPtr)) && (ip[-1] == match3[-1])) { ip--; match3--; mLength++; } /* catch up */
                 } else {
                     const BYTE* const matchEnd = matchIndex < prefixStartIndex ? dictEnd : iend;
                     const BYTE* const lowMatchPtr = matchIndex < prefixStartIndex ? dictStart : prefixStart;
-                    mLength = ZSTD_count_2segments(ip+4, match+4, iend, matchEnd, prefixStart) + 4;
+                    mLength = ZSTD_count_2segments_inline(ip+4, match+4, iend, matchEnd, prefixStart) + 4;
                     offset = curr - matchIndex;
                     while (((ip>anchor) & (match>lowMatchPtr)) && (ip[-1] == match[-1])) { ip--; match--; mLength++; }   /* catch up */
                 }
@@ -751,7 +751,7 @@ size_t ZSTD_compressBlock_doubleFast_extDict_generic(
                     & (offset_2 <= current2 - dictStartIndex))
                   && (MEM_read32(repMatch2) == MEM_read32(ip)) ) {
                     const BYTE* const repEnd2 = repIndex2 < prefixStartIndex ? dictEnd : iend;
-                    size_t const repLength2 = ZSTD_count_2segments(ip+4, repMatch2+4, iend, repEnd2, prefixStart) + 4;
+                    size_t const repLength2 = ZSTD_count_2segments_inline(ip+4, repMatch2+4, iend, repEnd2, prefixStart) + 4;
                     U32 const tmpOffset = offset_2; offset_2 = offset_1; offset_1 = tmpOffset;   /* swap offset_2 <=> offset_1 */
                     ZSTD_storeSeq(seqStore, 0, anchor, iend, REPCODE1_TO_OFFBASE, repLength2);
                     hashSmall[ZSTD_hashPtr(ip, hBitsS, mls)] = current2;

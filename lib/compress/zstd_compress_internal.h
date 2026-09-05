@@ -997,6 +997,45 @@ ZSTD_count_2segments(const BYTE* ip, const BYTE* match,
     return matchLength + ZSTD_count(ip+matchLength, iStart, iEnd);
 }
 
+/* ZSTD_count_inline(), ZSTD_count_2segments_inline() :
+ * same results as ZSTD_count() / ZSTD_count_2segments(), with inlining forced.
+ * For block compressors whose translation unit carries enough template
+ * specializations that the compiler's unit-growth limits would otherwise turn
+ * these few hot instructions into calls (seen with GCC 13-15 at -O3 on
+ * zstd_double_fast.c). Kept separate so that code generation for every other
+ * caller of ZSTD_count() is unchanged. */
+FORCE_INLINE_TEMPLATE size_t
+ZSTD_count_inline(const BYTE* pIn, const BYTE* pMatch, const BYTE* const pInLimit)
+{
+    const BYTE* const pStart = pIn;
+    const BYTE* const pInLoopLimit = pInLimit - (sizeof(size_t)-1);
+
+    if (pIn < pInLoopLimit) {
+        { size_t const diff = MEM_readST(pMatch) ^ MEM_readST(pIn);
+          if (diff) return ZSTD_NbCommonBytes(diff); }
+        pIn+=sizeof(size_t); pMatch+=sizeof(size_t);
+        while (pIn < pInLoopLimit) {
+            size_t const diff = MEM_readST(pMatch) ^ MEM_readST(pIn);
+            if (!diff) { pIn+=sizeof(size_t); pMatch+=sizeof(size_t); continue; }
+            pIn += ZSTD_NbCommonBytes(diff);
+            return (size_t)(pIn - pStart);
+    }   }
+    if (MEM_64bits() && (pIn<(pInLimit-3)) && (MEM_read32(pMatch) == MEM_read32(pIn))) { pIn+=4; pMatch+=4; }
+    if ((pIn<(pInLimit-1)) && (MEM_read16(pMatch) == MEM_read16(pIn))) { pIn+=2; pMatch+=2; }
+    if ((pIn<pInLimit) && (*pMatch == *pIn)) pIn++;
+    return (size_t)(pIn - pStart);
+}
+
+FORCE_INLINE_TEMPLATE size_t
+ZSTD_count_2segments_inline(const BYTE* ip, const BYTE* match,
+                            const BYTE* iEnd, const BYTE* mEnd, const BYTE* iStart)
+{
+    const BYTE* const vEnd = MIN( ip + (mEnd - match), iEnd);
+    size_t const matchLength = ZSTD_count_inline(ip, match, vEnd);
+    if (match + matchLength != mEnd) return matchLength;
+    return matchLength + ZSTD_count_inline(ip+matchLength, iStart, iEnd);
+}
+
 
 /*-*************************************
  *  Hashes

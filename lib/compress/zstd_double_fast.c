@@ -13,6 +13,7 @@
 
 #ifndef ZSTD_EXCLUDE_DFAST_BLOCK_COMPRESSOR
 
+
 static
 ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
 void ZSTD_fillDoubleHashTableForCDict(ZSTD_MatchState_t* ms,
@@ -104,7 +105,8 @@ FORCE_INLINE_TEMPLATE
 ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
 size_t ZSTD_compressBlock_doubleFast_noDict_generic(
         ZSTD_MatchState_t* ms, SeqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
-        void const* src, size_t srcSize, U32 const mls /* template */)
+        void const* src, size_t srcSize,
+        U32 const mls /* template */, int const useCmov /* template */)
 {
     ZSTD_compressionParameters const* cParams = &ms->cParams;
     U32* const hashLong = ms->hashTable;
@@ -142,14 +144,12 @@ size_t ZSTD_compressBlock_doubleFast_noDict_generic(
     const BYTE* matchl0; /* the long match for ip */
     const BYTE* matchs0; /* the short match for ip */
     const BYTE* matchl1; /* the long match for ip1 */
-    const BYTE* matchs0_safe; /* matchs0 or safe address */
 
     const BYTE* ip = istart; /* the current position */
     const BYTE* ip1; /* the next position */
-    /* Array of ~random data, should have low probability of matching data
-     * we load from here instead of from tables, if matchl0/matchl1 are
-     * invalid indices. Used to avoid unpredictable branches. */
-    const BYTE dummy[] = {0x12,0x34,0x56,0x78,0x9a,0xbc,0xde,0xf0,0xe2,0xb4};
+
+    const ZSTD_matchFound matchLongFound = useCmov ? ZSTD_match8Found_cmov : ZSTD_match8Found_branch;
+    const ZSTD_matchFound matchShortFound = useCmov ? ZSTD_match4Found_cmov : ZSTD_match4Found_branch;
 
     DEBUGLOG(5, "ZSTD_compressBlock_doubleFast_noDict_generic");
 
@@ -196,29 +196,20 @@ size_t ZSTD_compressBlock_doubleFast_noDict_generic(
 
             hl1 = ZSTD_hashPtr(ip1, hBitsL, 8);
 
-            /* idxl0 > prefixLowestIndex is a (somewhat) unpredictable branch.
-             * However expression below complies into conditional move. Since
-             * match is unlikely and we only *branch* on idxl0 > prefixLowestIndex
-             * if there is a match, all branches become predictable. */
-            {   const BYTE*  const matchl0_safe = ZSTD_selectAddr(idxl0, prefixLowestIndex, matchl0, &dummy[0]);
-
-                /* check prefix long match */
-                if (MEM_read64(matchl0_safe) == MEM_read64(ip) && matchl0_safe == matchl0) {
-                    mLength = ZSTD_count(ip+8, matchl0+8, iend) + 8;
-                    offset = (U32)(ip-matchl0);
-                    while (((ip>anchor) & (matchl0>prefixLowest)) && (ip[-1] == matchl0[-1])) { ip--; matchl0--; mLength++; } /* catch up */
-                    goto _match_found;
-            }   }
+            /* check prefix long match */
+            if (matchLongFound(ip, matchl0, idxl0, prefixLowestIndex)) {
+                mLength = ZSTD_count(ip+8, matchl0+8, iend) + 8;
+                offset = (U32)(ip-matchl0);
+                while (((ip>anchor) & (matchl0>prefixLowest)) && (ip[-1] == matchl0[-1])) { ip--; matchl0--; mLength++; } /* catch up */
+                goto _match_found;
+            }
 
             idxl1 = hashLong[hl1];
             matchl1 = base + idxl1;
 
-            /* Same optimization as matchl0 above */
-            matchs0_safe = ZSTD_selectAddr(idxs0, prefixLowestIndex, matchs0, &dummy[0]);
-
             /* check prefix short match */
-            if(MEM_read32(matchs0_safe) == MEM_read32(ip) && matchs0_safe == matchs0) {
-                  goto _search_next_long;
+            if (matchShortFound(ip, matchs0, idxs0, prefixLowestIndex)) {
+                goto _search_next_long;
             }
 
             if (ip1 >= nextStep) {
@@ -257,7 +248,7 @@ _search_next_long:
         offset = (U32)(ip - matchs0);
 
         /* check long match at +1 position */
-        if ((idxl1 > prefixLowestIndex) && (MEM_read64(matchl1) == MEM_read64(ip1))) {
+        if (matchLongFound(ip1, matchl1, idxl1, prefixLowestIndex)) {
             size_t const l1len = ZSTD_count(ip1+8, matchl1+8, iend) + 8;
             if (l1len > mLength) {
                 /* use the long match instead */
@@ -328,7 +319,7 @@ ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
 size_t ZSTD_compressBlock_doubleFast_dictMatchState_generic(
         ZSTD_MatchState_t* ms, SeqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],
         void const* src, size_t srcSize,
-        U32 const mls /* template */)
+        U32 const mls /* template */, int const useCmov)
 {
     ZSTD_compressionParameters const* cParams = &ms->cParams;
     U32* const hashLong = ms->hashTable;
@@ -361,6 +352,7 @@ size_t ZSTD_compressBlock_doubleFast_dictMatchState_generic(
     const U32 dictAndPrefixLength  = (U32)((ip - prefixLowest) + (dictEnd - dictStart));
 
     DEBUGLOG(5, "ZSTD_compressBlock_doubleFast_dictMatchState_generic");
+    (void)useCmov;
 
     /* if a dictionary is attached, it must be within window range */
     assert(ms->window.dictLimit + (1U << cParams->windowLog) >= endIndex);
@@ -546,23 +538,28 @@ _match_stored:
     return (size_t)(iend - anchor);
 }
 
-#define ZSTD_GEN_DFAST_FN(dictMode, mls)                                                                 \
-    static size_t ZSTD_compressBlock_doubleFast_##dictMode##_##mls(                                      \
-            ZSTD_MatchState_t* ms, SeqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],                          \
-            void const* src, size_t srcSize)                                                             \
-    {                                                                                                    \
-        return ZSTD_compressBlock_doubleFast_##dictMode##_generic(ms, seqStore, rep, src, srcSize, mls); \
+#define ZSTD_GEN_DFAST_FN(dictMode, mls, cmov)                                                                 \
+    static size_t ZSTD_compressBlock_doubleFast_##dictMode##_##mls##_##cmov(                                   \
+            ZSTD_MatchState_t* ms, SeqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],                                \
+            void const* src, size_t srcSize)                                                                   \
+    {                                                                                                          \
+        return ZSTD_compressBlock_doubleFast_##dictMode##_generic(ms, seqStore, rep, src, srcSize, mls, cmov); \
     }
 
-ZSTD_GEN_DFAST_FN(noDict, 4)
-ZSTD_GEN_DFAST_FN(noDict, 5)
-ZSTD_GEN_DFAST_FN(noDict, 6)
-ZSTD_GEN_DFAST_FN(noDict, 7)
+ZSTD_GEN_DFAST_FN(noDict, 4, 1)
+ZSTD_GEN_DFAST_FN(noDict, 5, 1)
+ZSTD_GEN_DFAST_FN(noDict, 6, 1)
+ZSTD_GEN_DFAST_FN(noDict, 7, 1)
 
-ZSTD_GEN_DFAST_FN(dictMatchState, 4)
-ZSTD_GEN_DFAST_FN(dictMatchState, 5)
-ZSTD_GEN_DFAST_FN(dictMatchState, 6)
-ZSTD_GEN_DFAST_FN(dictMatchState, 7)
+ZSTD_GEN_DFAST_FN(noDict, 4, 0)
+ZSTD_GEN_DFAST_FN(noDict, 5, 0)
+ZSTD_GEN_DFAST_FN(noDict, 6, 0)
+ZSTD_GEN_DFAST_FN(noDict, 7, 0)
+
+ZSTD_GEN_DFAST_FN(dictMatchState, 4, 0)
+ZSTD_GEN_DFAST_FN(dictMatchState, 5, 0)
+ZSTD_GEN_DFAST_FN(dictMatchState, 6, 0)
+ZSTD_GEN_DFAST_FN(dictMatchState, 7, 0)
 
 
 size_t ZSTD_compressBlock_doubleFast(
@@ -570,17 +567,40 @@ size_t ZSTD_compressBlock_doubleFast(
         void const* src, size_t srcSize)
 {
     const U32 mls = ms->cParams.minMatch;
-    switch(mls)
-    {
-    default: /* includes case 3 */
-    case 4 :
-        return ZSTD_compressBlock_doubleFast_noDict_4(ms, seqStore, rep, src, srcSize);
-    case 5 :
-        return ZSTD_compressBlock_doubleFast_noDict_5(ms, seqStore, rep, src, srcSize);
-    case 6 :
-        return ZSTD_compressBlock_doubleFast_noDict_6(ms, seqStore, rep, src, srcSize);
-    case 7 :
-        return ZSTD_compressBlock_doubleFast_noDict_7(ms, seqStore, rep, src, srcSize);
+    /* A table entry goes stale (falls out of the window) when its slot is not
+     * overwritten for a whole window span. With about one insertion per position
+     * that is rare once the window is much larger than the tables, and the
+     * "candidate in range" test then predicts perfectly: use a branch.
+     * Otherwise (small windows, or tables sized close to the window) many
+     * entries are stale and the test is unpredictable: use a cmov. */
+    int const useCmov = ms->cParams.windowLog < ms->cParams.hashLog + 4;
+    if (useCmov) {
+        switch(mls)
+        {
+        default: /* includes case 3 */
+        case 4 :
+            return ZSTD_compressBlock_doubleFast_noDict_4_1(ms, seqStore, rep, src, srcSize);
+        case 5 :
+            return ZSTD_compressBlock_doubleFast_noDict_5_1(ms, seqStore, rep, src, srcSize);
+        case 6 :
+            return ZSTD_compressBlock_doubleFast_noDict_6_1(ms, seqStore, rep, src, srcSize);
+        case 7 :
+            return ZSTD_compressBlock_doubleFast_noDict_7_1(ms, seqStore, rep, src, srcSize);
+        }
+    } else {
+        /* use a branch instead */
+        switch(mls)
+        {
+        default: /* includes case 3 */
+        case 4 :
+            return ZSTD_compressBlock_doubleFast_noDict_4_0(ms, seqStore, rep, src, srcSize);
+        case 5 :
+            return ZSTD_compressBlock_doubleFast_noDict_5_0(ms, seqStore, rep, src, srcSize);
+        case 6 :
+            return ZSTD_compressBlock_doubleFast_noDict_6_0(ms, seqStore, rep, src, srcSize);
+        case 7 :
+            return ZSTD_compressBlock_doubleFast_noDict_7_0(ms, seqStore, rep, src, srcSize);
+        }
     }
 }
 
@@ -594,13 +614,13 @@ size_t ZSTD_compressBlock_doubleFast_dictMatchState(
     {
     default: /* includes case 3 */
     case 4 :
-        return ZSTD_compressBlock_doubleFast_dictMatchState_4(ms, seqStore, rep, src, srcSize);
+        return ZSTD_compressBlock_doubleFast_dictMatchState_4_0(ms, seqStore, rep, src, srcSize);
     case 5 :
-        return ZSTD_compressBlock_doubleFast_dictMatchState_5(ms, seqStore, rep, src, srcSize);
+        return ZSTD_compressBlock_doubleFast_dictMatchState_5_0(ms, seqStore, rep, src, srcSize);
     case 6 :
-        return ZSTD_compressBlock_doubleFast_dictMatchState_6(ms, seqStore, rep, src, srcSize);
+        return ZSTD_compressBlock_doubleFast_dictMatchState_6_0(ms, seqStore, rep, src, srcSize);
     case 7 :
-        return ZSTD_compressBlock_doubleFast_dictMatchState_7(ms, seqStore, rep, src, srcSize);
+        return ZSTD_compressBlock_doubleFast_dictMatchState_7_0(ms, seqStore, rep, src, srcSize);
     }
 }
 
@@ -751,10 +771,18 @@ size_t ZSTD_compressBlock_doubleFast_extDict_generic(
     return (size_t)(iend - anchor);
 }
 
-ZSTD_GEN_DFAST_FN(extDict, 4)
-ZSTD_GEN_DFAST_FN(extDict, 5)
-ZSTD_GEN_DFAST_FN(extDict, 6)
-ZSTD_GEN_DFAST_FN(extDict, 7)
+#define ZSTD_GEN_DFAST_EXTDICT_FN(mls)                                                            \
+    static size_t ZSTD_compressBlock_doubleFast_extDict_##mls(                                    \
+            ZSTD_MatchState_t* ms, SeqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],                   \
+            void const* src, size_t srcSize)                                                      \
+    {                                                                                             \
+        return ZSTD_compressBlock_doubleFast_extDict_generic(ms, seqStore, rep, src, srcSize, mls); \
+    }
+
+ZSTD_GEN_DFAST_EXTDICT_FN(4)
+ZSTD_GEN_DFAST_EXTDICT_FN(5)
+ZSTD_GEN_DFAST_EXTDICT_FN(6)
+ZSTD_GEN_DFAST_EXTDICT_FN(7)
 
 size_t ZSTD_compressBlock_doubleFast_extDict(
         ZSTD_MatchState_t* ms, SeqStore_t* seqStore, U32 rep[ZSTD_REP_NUM],

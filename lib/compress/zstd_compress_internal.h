@@ -665,6 +665,82 @@ ZSTD_selectAddr(U32 index, U32 lowLimit, const BYTE* candidate, const BYTE* back
 #endif
 }
 
+/* ZSTD_match4Found_* / ZSTD_match8Found_* :
+ * @return 1 when the 4 (resp. 8) bytes at matchAddress equal those at currentPtr,
+ * for a hash-table candidate that may only be dereferenced when matchIdx >= idxLowLimit.
+ * The _cmov variants never branch on index validity: an out-of-range candidate is
+ * redirected to a dummy buffer, so the only branch left is on the byte comparison,
+ * which is rarely taken and predicts well. They are the right choice when validity
+ * is unpredictable, i.e. when the window is not much larger than the tables, so
+ * that many entries are stale, and in extDict mode where the valid range moves
+ * with every block.
+ * The _branch variants test validity first; they are faster when nearly every
+ * candidate is within range (large windows), where that branch is free and the
+ * select would only lengthen the dependency chain in front of the candidate load. */
+typedef int (*ZSTD_matchFound)(const BYTE* currentPtr, const BYTE* matchAddress, U32 matchIdx, U32 idxLowLimit);
+
+MEM_STATIC int
+ZSTD_match4Found_cmov(const BYTE* currentPtr, const BYTE* matchAddress, U32 matchIdx, U32 idxLowLimit)
+{
+    /* Array of ~random data, should have low probability of matching data.
+     * Load from here if the index is invalid.
+     * Used to avoid unpredictable branches. */
+    static const BYTE dummy[] = {0x12,0x34,0x56,0x78};
+
+    const BYTE* mvalAddr = ZSTD_selectAddr(matchIdx, idxLowLimit, matchAddress, dummy);
+    /* Note: this used to be written as : return test1 && test2;
+     * Unfortunately, once inlined, these tests become branches,
+     * in which case it becomes critical that they are executed in the right order (test1 then test2).
+     * So we have to write these tests in a specific manner to ensure their ordering.
+     */
+    if (MEM_read32(currentPtr) != MEM_read32(mvalAddr)) return 0;
+    /* force ordering of these tests, which matters once the function is inlined, as they become branches */
+#if defined(__GNUC__)
+    __asm__("");
+#endif
+    return matchIdx >= idxLowLimit;
+}
+
+MEM_STATIC int
+ZSTD_match4Found_branch(const BYTE* currentPtr, const BYTE* matchAddress, U32 matchIdx, U32 idxLowLimit)
+{
+    /* using a branch instead of a cmov,
+     * because it's faster in scenarios where matchIdx >= idxLowLimit is generally true,
+     * aka almost all candidates are within range */
+    U32 mval;
+    if (matchIdx >= idxLowLimit) {
+        mval = MEM_read32(matchAddress);
+    } else {
+        mval = MEM_read32(currentPtr) ^ 1; /* guaranteed to not match. */
+    }
+
+    return (MEM_read32(currentPtr) == mval);
+}
+
+MEM_STATIC int
+ZSTD_match8Found_cmov(const BYTE* currentPtr, const BYTE* matchAddress, U32 matchIdx, U32 idxLowLimit)
+{
+    static const BYTE dummy[] = {0x12,0x34,0x56,0x78,0x9a,0xbc,0xde,0xf0};
+    const BYTE* mvalAddr = ZSTD_selectAddr(matchIdx, idxLowLimit, matchAddress, dummy);
+    if (MEM_read64(currentPtr) != MEM_read64(mvalAddr)) return 0;
+#if defined(__GNUC__)
+    __asm__("");
+#endif
+    return matchIdx >= idxLowLimit;
+}
+
+MEM_STATIC int
+ZSTD_match8Found_branch(const BYTE* currentPtr, const BYTE* matchAddress, U32 matchIdx, U32 idxLowLimit)
+{
+    U64 mval;
+    if (matchIdx >= idxLowLimit) {
+        mval = MEM_read64(matchAddress);
+    } else {
+        mval = MEM_read64(currentPtr) ^ 1; /* guaranteed to not match. */
+    }
+    return (MEM_read64(currentPtr) == mval);
+}
+
 /* ZSTD_noCompressBlock() :
  * Writes uncompressed block to dst buffer from given src.
  * Returns the size of the block */

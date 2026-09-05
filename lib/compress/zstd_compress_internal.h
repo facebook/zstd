@@ -660,9 +660,93 @@ ZSTD_selectAddr(U32 index, U32 lowLimit, const BYTE* candidate, const BYTE* back
         : "r"(index), "r"(lowLimit), "r"(backup)
         );
     return candidate;
+#elif defined(__GNUC__) && defined(__aarch64__)
+    __asm__ (
+        "cmp %w1, %w2\n"
+        "csel %0, %3, %0, lo\n"
+        : "+r"(candidate)
+        : "r"(index), "r"(lowLimit), "r"(backup)
+        : "cc");
+    return candidate;
 #else
     return index >= lowLimit ? candidate : backup;
 #endif
+}
+
+/* ZSTD_match4Found_* / ZSTD_match8Found_* :
+ * @return 1 when the 4 (resp. 8) bytes at matchAddress equal those at currentPtr,
+ * for a hash-table candidate that may only be dereferenced when matchIdx >= idxLowLimit.
+ * The _cmov variants never branch on index validity: an out-of-range candidate is
+ * redirected to a dummy buffer, so the only branch left is on the byte comparison,
+ * which is rarely taken and predicts well. They are the right choice when validity
+ * is unpredictable, i.e. when the window is not much larger than the tables, so
+ * that many entries are stale, and in extDict mode where the valid range moves
+ * with every block.
+ * The _branch variants test validity first; they are faster when nearly every
+ * candidate is within range (large windows), where that branch is free and the
+ * select would only lengthen the dependency chain in front of the candidate load. */
+typedef int (*ZSTD_matchFound)(const BYTE* currentPtr, const BYTE* matchAddress, U32 matchIdx, U32 idxLowLimit);
+
+MEM_STATIC int
+ZSTD_match4Found_cmov(const BYTE* currentPtr, const BYTE* matchAddress, U32 matchIdx, U32 idxLowLimit)
+{
+    /* Array of ~random data, should have low probability of matching data.
+     * Load from here if the index is invalid.
+     * Used to avoid unpredictable branches. */
+    static const BYTE dummy[] = {0x12,0x34,0x56,0x78};
+
+    const BYTE* mvalAddr = ZSTD_selectAddr(matchIdx, idxLowLimit, matchAddress, dummy);
+    /* Note: this used to be written as : return test1 && test2;
+     * Unfortunately, once inlined, these tests become branches,
+     * in which case it becomes critical that they are executed in the right order (test1 then test2).
+     * So we have to write these tests in a specific manner to ensure their ordering.
+     */
+    if (MEM_read32(currentPtr) != MEM_read32(mvalAddr)) return 0;
+    /* force ordering of these tests, which matters once the function is inlined, as they become branches */
+#if defined(__GNUC__)
+    __asm__("");
+#endif
+    return matchIdx >= idxLowLimit;
+}
+
+MEM_STATIC int
+ZSTD_match4Found_branch(const BYTE* currentPtr, const BYTE* matchAddress, U32 matchIdx, U32 idxLowLimit)
+{
+    /* using a branch instead of a cmov,
+     * because it's faster in scenarios where matchIdx >= idxLowLimit is generally true,
+     * aka almost all candidates are within range */
+    U32 mval;
+    if (matchIdx >= idxLowLimit) {
+        mval = MEM_read32(matchAddress);
+    } else {
+        mval = MEM_read32(currentPtr) ^ 1; /* guaranteed to not match. */
+    }
+
+    return (MEM_read32(currentPtr) == mval);
+}
+
+MEM_STATIC int
+ZSTD_match8Found_cmov(const BYTE* currentPtr, const BYTE* matchAddress, U32 matchIdx, U32 idxLowLimit)
+{
+    static const BYTE dummy[] = {0x12,0x34,0x56,0x78,0x9a,0xbc,0xde,0xf0};
+    const BYTE* mvalAddr = ZSTD_selectAddr(matchIdx, idxLowLimit, matchAddress, dummy);
+    if (MEM_read64(currentPtr) != MEM_read64(mvalAddr)) return 0;
+#if defined(__GNUC__)
+    __asm__("");
+#endif
+    return matchIdx >= idxLowLimit;
+}
+
+MEM_STATIC int
+ZSTD_match8Found_branch(const BYTE* currentPtr, const BYTE* matchAddress, U32 matchIdx, U32 idxLowLimit)
+{
+    U64 mval;
+    if (matchIdx >= idxLowLimit) {
+        mval = MEM_read64(matchAddress);
+    } else {
+        mval = MEM_read64(currentPtr) ^ 1; /* guaranteed to not match. */
+    }
+    return (MEM_read64(currentPtr) == mval);
 }
 
 /* ZSTD_noCompressBlock() :
@@ -911,6 +995,45 @@ ZSTD_count_2segments(const BYTE* ip, const BYTE* match,
     DEBUGLOG(7, "next byte : ip==%02X, istart==%02X", ip[matchLength], *iStart);
     DEBUGLOG(7, "final match length = %zu", matchLength + ZSTD_count(ip+matchLength, iStart, iEnd));
     return matchLength + ZSTD_count(ip+matchLength, iStart, iEnd);
+}
+
+/* ZSTD_count_inline(), ZSTD_count_2segments_inline() :
+ * same results as ZSTD_count() / ZSTD_count_2segments(), with inlining forced.
+ * For block compressors whose translation unit carries enough template
+ * specializations that the compiler's unit-growth limits would otherwise turn
+ * these few hot instructions into calls (seen with GCC 13-15 at -O3 on
+ * zstd_double_fast.c). Kept separate so that code generation for every other
+ * caller of ZSTD_count() is unchanged. */
+FORCE_INLINE_TEMPLATE size_t
+ZSTD_count_inline(const BYTE* pIn, const BYTE* pMatch, const BYTE* const pInLimit)
+{
+    const BYTE* const pStart = pIn;
+    const BYTE* const pInLoopLimit = pInLimit - (sizeof(size_t)-1);
+
+    if (pIn < pInLoopLimit) {
+        { size_t const diff = MEM_readST(pMatch) ^ MEM_readST(pIn);
+          if (diff) return ZSTD_NbCommonBytes(diff); }
+        pIn+=sizeof(size_t); pMatch+=sizeof(size_t);
+        while (pIn < pInLoopLimit) {
+            size_t const diff = MEM_readST(pMatch) ^ MEM_readST(pIn);
+            if (!diff) { pIn+=sizeof(size_t); pMatch+=sizeof(size_t); continue; }
+            pIn += ZSTD_NbCommonBytes(diff);
+            return (size_t)(pIn - pStart);
+    }   }
+    if (MEM_64bits() && (pIn<(pInLimit-3)) && (MEM_read32(pMatch) == MEM_read32(pIn))) { pIn+=4; pMatch+=4; }
+    if ((pIn<(pInLimit-1)) && (MEM_read16(pMatch) == MEM_read16(pIn))) { pIn+=2; pMatch+=2; }
+    if ((pIn<pInLimit) && (*pMatch == *pIn)) pIn++;
+    return (size_t)(pIn - pStart);
+}
+
+FORCE_INLINE_TEMPLATE size_t
+ZSTD_count_2segments_inline(const BYTE* ip, const BYTE* match,
+                            const BYTE* iEnd, const BYTE* mEnd, const BYTE* iStart)
+{
+    const BYTE* const vEnd = MIN( ip + (mEnd - match), iEnd);
+    size_t const matchLength = ZSTD_count_inline(ip, match, vEnd);
+    if (match + matchLength != mEnd) return matchLength;
+    return matchLength + ZSTD_count_inline(ip+matchLength, iStart, iEnd);
 }
 
 

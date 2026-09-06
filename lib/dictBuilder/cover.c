@@ -21,20 +21,8 @@
 /*-*************************************
 *  Dependencies
 ***************************************/
-/* qsort_r is an extension.
- *
- * Android NDK does not ship qsort_r().
- */
-#if (defined(__linux__) && !defined(__ANDROID__)) || defined(__CYGWIN__) || defined(__MSYS__)
-# ifndef _GNU_SOURCE
-#   define _GNU_SOURCE
-# endif
-#endif
-
-#define __STDC_WANT_LIB_EXT1__ 1 /* request C11 Annex K, which includes qsort_s() */
-
 #include <stdio.h>  /* fprintf */
-#include <stdlib.h> /* malloc, free, qsort_r */
+#include <stdlib.h> /* malloc, free */
 
 #include <string.h> /* memset */
 #include <time.h>   /* clock */
@@ -64,31 +52,6 @@
 */
 #define COVER_MAX_SAMPLES_SIZE (sizeof(size_t) == 8 ? ((unsigned)-1) : ((unsigned)1 GB))
 #define COVER_DEFAULT_SPLITPOINT 1.0
-
-/**
- * Select the qsort() variant used by cover
- */
-#define ZDICT_QSORT_MIN 0
-#define ZDICT_QSORT_C90 ZDICT_QSORT_MIN
-#define ZDICT_QSORT_GNU 1
-#define ZDICT_QSORT_APPLE 2
-#define ZDICT_QSORT_MSVC 3
-#define ZDICT_QSORT_C11 ZDICT_QSORT_MAX
-#define ZDICT_QSORT_MAX 4
-
-#ifndef ZDICT_QSORT
-# if defined(__APPLE__)
-#   define ZDICT_QSORT ZDICT_QSORT_APPLE /* uses qsort_r() with a different order for parameters */
-# elif (defined(__linux__) && !defined(__ANDROID__)) || defined(__CYGWIN__) || defined(__MSYS__)
-#   define ZDICT_QSORT ZDICT_QSORT_GNU /* uses qsort_r() */
-# elif defined(_WIN32) && defined(_MSC_VER)
-#   define ZDICT_QSORT ZDICT_QSORT_MSVC /* uses qsort_s() with a different order for parameters */
-# elif defined(STDC_LIB_EXT1) && (STDC_LIB_EXT1 > 0) /* C11 Annex K */
-#   define ZDICT_QSORT ZDICT_QSORT_C11 /* uses qsort_s() */
-# else
-#   define ZDICT_QSORT ZDICT_QSORT_C90 /* uses standard qsort() which is not re-entrant (requires global variable) */
-# endif
-#endif
 
 
 /*-*************************************
@@ -265,11 +228,6 @@ typedef struct {
   int displayLevel;
 } COVER_ctx_t;
 
-#if ZDICT_QSORT == ZDICT_QSORT_C90
-/* Use global context for non-reentrant sort functions */
-static COVER_ctx_t *g_coverCtx = NULL;
-#endif
-
 /*-*************************************
 *  Helper functions
 ***************************************/
@@ -309,73 +267,145 @@ static int COVER_cmp8(COVER_ctx_t *ctx, const void *lp, const void *rp) {
   return (lhs > rhs);
 }
 
+/* Ranges this small, with dmer bytes left to compare, are finished by insertion sort. */
+#define COVER_ISORT_CUTOFF 24
+
 /**
- * Same as COVER_cmp() except ties are broken by the position each element holds
+ * Order by dmer, then by position. Only used for short ranges and for the
+ * final tie-break; the partitioning below compares raw bytes.
+ * `lvl` bytes are already known equal.
  */
-#if (ZDICT_QSORT == ZDICT_QSORT_MSVC) || (ZDICT_QSORT == ZDICT_QSORT_APPLE)
-static int WIN_CDECL COVER_strict_cmp(void* g_coverCtx, const void* lp, const void* rp) {
-#elif (ZDICT_QSORT == ZDICT_QSORT_GNU) || (ZDICT_QSORT == ZDICT_QSORT_C11)
-static int COVER_strict_cmp(const void *lp, const void *rp, void *g_coverCtx) {
-#else /* C90 fallback.*/
-static int COVER_strict_cmp(const void *lp, const void *rp) {
-#endif
-  int result = COVER_cmp((COVER_ctx_t*)g_coverCtx, lp, rp);
-  if (result == 0) {
-    U32 const lpos = *(const U32 *)lp;
-    U32 const rpos = *(const U32 *)rp;
-    result = (lpos < rpos) ? -1 : (lpos > rpos) ? 1 : 0;
+static int COVER_lessFrom(const COVER_ctx_t *ctx, U32 a, U32 b, unsigned lvl)
+{
+  if (ctx->d > 8) {
+    int const c = memcmp(ctx->samples + a + lvl, ctx->samples + b + lvl,
+                         ctx->d - lvl);
+    if (c != 0) return c < 0;
+  } else {
+    U64 const mask = (ctx->d == 8) ? (U64)-1 : (((U64)1 << (8 * ctx->d)) - 1);
+    U64 const lhs = MEM_readLE64(ctx->samples + a) & mask;
+    U64 const rhs = MEM_readLE64(ctx->samples + b) & mask;
+    if (lhs != rhs) return lhs < rhs;
   }
-  return result;
+  return a < b;
 }
-/**
- * Faster version for d <= 8.
- */
-#if (ZDICT_QSORT == ZDICT_QSORT_MSVC) || (ZDICT_QSORT == ZDICT_QSORT_APPLE)
-static int WIN_CDECL COVER_strict_cmp8(void* g_coverCtx, const void* lp, const void* rp) {
-#elif (ZDICT_QSORT == ZDICT_QSORT_GNU) || (ZDICT_QSORT == ZDICT_QSORT_C11)
-static int COVER_strict_cmp8(const void *lp, const void *rp, void *g_coverCtx) {
-#else /* C90 fallback.*/
-static int COVER_strict_cmp8(const void *lp, const void *rp) {
-#endif
-  int result = COVER_cmp8((COVER_ctx_t*)g_coverCtx, lp, rp);
-  if (result == 0) {
-    U32 const lpos = *(const U32 *)lp;
-    U32 const rpos = *(const U32 *)rp;
-    result = (lpos < rpos) ? -1 : (lpos > rpos) ? 1 : 0;
+
+static void COVER_insertionSort(const COVER_ctx_t *ctx, U32 *a, size_t n,
+                                unsigned lvl)
+{
+  size_t i;
+  for (i = 1; i < n; ++i) {
+    U32 const v = a[i];
+    size_t j = i;
+    while (j > 0 && COVER_lessFrom(ctx, v, a[j - 1], lvl)) {
+      a[j] = a[j - 1];
+      --j;
+    }
+    a[j] = v;
   }
-  return result;
 }
 
 /**
- * Abstract away divergence of qsort_r() parameters.
- * Hopefully when C11 become the norm, we will be able
- * to clean it up.
+ * Every dmer in this range is identical, so only ascending position matters.
+ * Heapsort keeps this O(n log n) with no allocation.
  */
+static void COVER_siftByPos(U32 *a, size_t root, size_t n)
+{
+  for (;;) {
+    size_t child = 2 * root + 1;
+    if (child >= n) break;
+    if (child + 1 < n && a[child] < a[child + 1]) ++child;
+    if (a[root] >= a[child]) break;
+    { U32 const t = a[root]; a[root] = a[child]; a[child] = t; }
+    root = child;
+  }
+}
+
+static void COVER_sortByPos(U32 *a, size_t n)
+{
+  size_t i;
+  if (n < 2) return;
+  for (i = n / 2; i > 0; --i) COVER_siftByPos(a, i - 1, n);
+  for (i = n; i > 1; --i) {
+    U32 const t = a[0]; a[0] = a[i - 1]; a[i - 1] = t;
+    COVER_siftByPos(a, 0, i - 1);
+  }
+}
+
+static BYTE COVER_med3(BYTE x, BYTE y, BYTE z)
+{
+  if (x < y) { if (y < z) return y; return (x < z) ? z : x; }
+  if (x < z) return x;
+  return (y < z) ? z : y;
+}
+
+/**
+ * Sorts the partial suffix array with a multi-key quicksort (Bentley &
+ * Sedgewick): partition on a single dmer byte and recurse into the equal
+ * bucket one byte deeper, so a byte proven equal is never examined again.
+ * That matters here because dmers are heavily duplicated, and because a
+ * comparison sort restarts every comparison at byte 0.
+ *
+ * Elements are ordered by dmer, then by position in the input.
+ * COVER_group() depends on the second part, and positions are unique, so no
+ * two elements compare equal.
+ *
+ * In-place and allocation-free, and the comparison is inlined rather than
+ * reached through a function pointer.
+ */
+static void COVER_mkqSort(const COVER_ctx_t *ctx, U32 *a, size_t n, unsigned lvl)
+{
+  const BYTE *const samples = ctx->samples;
+  unsigned const d = ctx->d;
+  for (;;) {
+    size_t lt, gt, i, nl, ne, ng, off;
+    BYTE pv;
+    if (n <= 1) return;
+    if (lvl >= d) { COVER_sortByPos(a, n); return; }
+    if (n <= COVER_ISORT_CUTOFF) { COVER_insertionSort(ctx, a, n, lvl); return; }
+    /* COVER_cmp8() compares a masked little-endian U64, which makes byte d-1
+     * the most significant; COVER_cmp() uses memcmp(), which makes byte 0 the
+     * most significant. Walking bytes in the same order reproduces each
+     * comparator's ordering exactly. MEM_readLE64() byte-swaps on big-endian
+     * hosts, so this holds on every architecture.
+     * Hoisted out of the loop below: it depends only on d and lvl. */
+    off = (d <= 8) ? (size_t)(d - 1 - lvl) : (size_t)lvl;
+    pv = COVER_med3(samples[a[0] + off], samples[a[n / 2] + off],
+                    samples[a[n - 1] + off]);
+    lt = 0; gt = n; i = 0;
+    while (i < gt) {
+      BYTE const c = samples[a[i] + off];
+      if (c < pv) {
+        U32 const t = a[i]; a[i] = a[lt]; a[lt] = t; ++lt; ++i;
+      } else if (c > pv) {
+        --gt; { U32 const t = a[i]; a[i] = a[gt]; a[gt] = t; }
+      } else {
+        ++i;
+      }
+    }
+    nl = lt; ne = gt - lt; ng = n - gt;
+    /* Recurse into the two smaller spans and loop on the largest. If L is the
+     * largest and A is either other span, A <= L and A + L <= n, so A <= n/2:
+     * recursion depth is bounded by log2(n) whatever d or the data look like. */
+    if (ne >= nl && ne >= ng) {
+      if (nl) COVER_mkqSort(ctx, a, nl, lvl);
+      if (ng) COVER_mkqSort(ctx, a + gt, ng, lvl);
+      a += lt; n = ne; ++lvl;
+    } else if (nl >= ng) {
+      if (ne) COVER_mkqSort(ctx, a + lt, ne, lvl + 1);
+      if (ng) COVER_mkqSort(ctx, a + gt, ng, lvl);
+      n = nl;
+    } else {
+      if (ne) COVER_mkqSort(ctx, a + lt, ne, lvl + 1);
+      if (nl) COVER_mkqSort(ctx, a, nl, lvl);
+      a += gt; n = ng;
+    }
+  }
+}
+
 static void stableSort(COVER_ctx_t *ctx)
 {
-    DEBUG_STATIC_ASSERT(ZDICT_QSORT_MIN <= ZDICT_QSORT && ZDICT_QSORT <= ZDICT_QSORT_MAX);
-#if (ZDICT_QSORT == ZDICT_QSORT_APPLE)
-    qsort_r(ctx->suffix, ctx->suffixSize, sizeof(U32),
-            ctx,
-            (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp));
-#elif (ZDICT_QSORT == ZDICT_QSORT_GNU)
-    qsort_r(ctx->suffix, ctx->suffixSize, sizeof(U32),
-            (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp),
-            ctx);
-#elif (ZDICT_QSORT == ZDICT_QSORT_MSVC)
-    qsort_s(ctx->suffix, ctx->suffixSize, sizeof(U32),
-            (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp),
-            ctx);
-#elif (ZDICT_QSORT == ZDICT_QSORT_C11)
-    qsort_s(ctx->suffix, ctx->suffixSize, sizeof(U32),
-            (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp),
-            ctx);
-#else /* C90 fallback.*/
-    g_coverCtx = ctx;
-    /* TODO(cavalcanti): implement a reentrant qsort() when _r is not available. */
-    qsort(ctx->suffix, ctx->suffixSize, sizeof(U32),
-          (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp));
-#endif
+  COVER_mkqSort(ctx, ctx->suffix, ctx->suffixSize, 0);
 }
 
 /**

@@ -102,6 +102,18 @@
 #  endif
 #endif
 
+/*
+ * The Linux kernel importer consumes the outer guard while preserving the
+ * distinction below. Normal x86 kernel objects can use the kernel CPU-feature
+ * policy, while preboot objects cannot use that infrastructure.
+ */
+#if defined(ZSTD_LINUX_KERNEL)
+#  if defined(__KERNEL__) && defined(CONFIG_X86) && \
+      !defined(__DISABLE_EXPORTS)
+#    define ZSTD_USE_KERNEL_CPU_FEATURES
+#  endif
+#endif
+
 /**
  * Only enable assembly for GNU C compatible compilers,
  * because other platforms may not support GAS assembly syntax.

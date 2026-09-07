@@ -79,6 +79,7 @@ cxx_library(
     header_namespace='',
     visibility=['PUBLIC'],
     exported_headers=subdir_glob([
+        ('common', 'bmi2.h'),
         ('common', 'compiler.h'),
     ]),
 )

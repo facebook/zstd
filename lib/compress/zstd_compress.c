@@ -13,6 +13,7 @@
 ***************************************/
 #include "../common/allocations.h"  /* ZSTD_customMalloc, ZSTD_customCalloc, ZSTD_customFree */
 #include "../common/zstd_deps.h"  /* INT_MAX, ZSTD_memset, ZSTD_memcpy */
+#include "../common/bmi2.h"
 #include "../common/mem.h"
 #include "../common/error_private.h"
 #include "hist.h"           /* HIST_countFast_wksp */
@@ -113,7 +114,7 @@ static void ZSTD_initCCtx(ZSTD_CCtx* cctx, ZSTD_customMem memManager)
     ZSTD_memset(cctx, 0, sizeof(*cctx));
     cctx->customMem = memManager;
 #if DYNAMIC_BMI2
-    cctx->bmi2 = ZSTD_cpuSupportsBmi2();
+    ZSTD_SET_BMI2(cctx->bmi2, ZSTD_cpuSupportsBmi2());
 #endif
     {   size_t const err = ZSTD_CCtx_reset(cctx, ZSTD_reset_parameters);
         assert(!ZSTD_isError(err));
@@ -155,7 +156,7 @@ ZSTD_CCtx* ZSTD_initStaticCCtx(void* workspace, size_t workspaceSize)
     cctx->tmpWorkspace = ZSTD_cwksp_reserve_object(&cctx->workspace, TMP_WORKSPACE_SIZE);
     cctx->tmpWkspSize = TMP_WORKSPACE_SIZE;
 #if DYNAMIC_BMI2
-    cctx->bmi2 = ZSTD_cpuSupportsBmi2();
+    ZSTD_SET_BMI2(cctx->bmi2, ZSTD_cpuSupportsBmi2());
 #endif
     return cctx;
 }

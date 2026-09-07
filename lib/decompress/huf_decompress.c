@@ -17,6 +17,7 @@
 ****************************************************************/
 #include <stddef.h>               /* size_t */
 #include "../common/zstd_deps.h"  /* ZSTD_memcpy, ZSTD_memset */
+#include "../common/bmi2.h"
 #include "../common/compiler.h"
 #include "../common/bitstream.h"  /* BIT_* */
 #include "../common/fse.h"        /* to compress headers */
@@ -117,9 +118,10 @@ typedef size_t (*HUF_DecompressUsingDTableFn)(void *dst, size_t dstSize,
     static size_t fn(void* dst, size_t dstSize, void const* cSrc,           \
                      size_t cSrcSize, HUF_DTable const* DTable, int flags)  \
     {                                                                       \
-        if (flags & HUF_flags_bmi2) {                                       \
+        if (ZSTD_USE_BMI2(flags & HUF_flags_bmi2)) {                        \
             return fn##_bmi2(dst, dstSize, cSrc, cSrcSize, DTable);         \
         }                                                                   \
+        (void)flags;                                                        \
         return fn##_default(dst, dstSize, cSrc, cSrcSize, DTable);          \
     }
 
@@ -903,18 +905,16 @@ static size_t HUF_decompress4X1_usingDTable_internal(void* dst, size_t dstSize, 
     HUF_DecompressUsingDTableFn fallbackFn = HUF_decompress4X1_usingDTable_internal_default;
     HUF_DecompressFastLoopFn loopFn = HUF_decompress4X1_usingDTable_internal_fast_c_loop;
 
-#if DYNAMIC_BMI2
-    if (flags & HUF_flags_bmi2) {
+    if (ZSTD_USE_BMI2(flags & HUF_flags_bmi2)) {
         fallbackFn = HUF_decompress4X1_usingDTable_internal_bmi2;
 # if ZSTD_ENABLE_ASM_X86_64_BMI2
         if (!(flags & HUF_flags_disableAsm)) {
             loopFn = HUF_decompress4X1_usingDTable_internal_fast_asm_loop;
         }
 # endif
-    } else {
+    } else if (DYNAMIC_BMI2) {
         return fallbackFn(dst, dstSize, cSrc, cSrcSize, DTable);
     }
-#endif
 
 #if ZSTD_ENABLE_ASM_X86_64_BMI2 && defined(__BMI2__)
     if (!(flags & HUF_flags_disableAsm)) {
@@ -1735,18 +1735,16 @@ static size_t HUF_decompress4X2_usingDTable_internal(void* dst, size_t dstSize, 
     HUF_DecompressUsingDTableFn fallbackFn = HUF_decompress4X2_usingDTable_internal_default;
     HUF_DecompressFastLoopFn loopFn = HUF_decompress4X2_usingDTable_internal_fast_c_loop;
 
-#if DYNAMIC_BMI2
-    if (flags & HUF_flags_bmi2) {
+    if (ZSTD_USE_BMI2(flags & HUF_flags_bmi2)) {
         fallbackFn = HUF_decompress4X2_usingDTable_internal_bmi2;
 # if ZSTD_ENABLE_ASM_X86_64_BMI2
         if (!(flags & HUF_flags_disableAsm)) {
             loopFn = HUF_decompress4X2_usingDTable_internal_fast_asm_loop;
         }
 # endif
-    } else {
+    } else if (DYNAMIC_BMI2) {
         return fallbackFn(dst, dstSize, cSrc, cSrcSize, DTable);
     }
-#endif
 
 #if ZSTD_ENABLE_ASM_X86_64_BMI2 && defined(__BMI2__)
     if (!(flags & HUF_flags_disableAsm)) {

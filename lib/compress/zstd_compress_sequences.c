@@ -414,6 +414,10 @@ ZSTD_encodeSequences_bmi2(
                                     sequences, nbSeq, longOffsets);
 }
 
+#else
+
+#define ZSTD_encodeSequences_bmi2 ZSTD_encodeSequences_default
+
 #endif
 
 size_t ZSTD_encodeSequences(

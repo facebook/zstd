@@ -201,6 +201,8 @@ BMI2_TARGET_ATTRIBUTE static size_t FSE_readNCount_body_bmi2(
 {
     return FSE_readNCount_body(normalizedCounter, maxSVPtr, tableLogPtr, headerBuffer, hbSize);
 }
+#else
+#define FSE_readNCount_body_bmi2 FSE_readNCount_body_default
 #endif
 
 size_t FSE_readNCount_bmi2(
@@ -322,6 +324,8 @@ static BMI2_TARGET_ATTRIBUTE size_t HUF_readStats_body_bmi2(BYTE* huffWeight, si
 {
     return HUF_readStats_body(huffWeight, hwSize, rankStats, nbSymbolsPtr, tableLogPtr, src, srcSize, workSpace, wkspSize, 1);
 }
+#else
+#define HUF_readStats_body_bmi2 HUF_readStats_body_default
 #endif
 
 size_t HUF_readStats_wksp(BYTE* huffWeight, size_t hwSize, U32* rankStats,

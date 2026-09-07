@@ -1360,13 +1360,6 @@ ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets, c
         BYTE const ofBits = ofDInfo->nbAdditionalBits;
         BYTE const totalBits = llBits+mlBits+ofBits;
 
-        U16 const llNext = llDInfo->nextState;
-        U16 const mlNext = mlDInfo->nextState;
-        U16 const ofNext = ofDInfo->nextState;
-        U32 const llnbBits = llDInfo->nbBits;
-        U32 const mlnbBits = mlDInfo->nbBits;
-        U32 const ofnbBits = ofDInfo->nbBits;
-
         assert(llBits <= MaxLLBits);
         assert(mlBits <= MaxMLBits);
         assert(ofBits <= MaxOff);
@@ -1434,10 +1427,13 @@ ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets, c
 
         if (!isLastSeq) {
             /* Don't update FSE state for last sequence. */
-            ZSTD_updateFseStateWithDInfo(&seqState->stateLL, &seqState->DStream, llNext, llnbBits);    /* <=  9 bits */
-            ZSTD_updateFseStateWithDInfo(&seqState->stateML, &seqState->DStream, mlNext, mlnbBits);    /* <=  9 bits */
+            ZSTD_updateFseStateWithDInfo(&seqState->stateLL, &seqState->DStream,
+                                         llDInfo->nextState, llDInfo->nbBits);    /* <=  9 bits */
+            ZSTD_updateFseStateWithDInfo(&seqState->stateML, &seqState->DStream,
+                                         mlDInfo->nextState, mlDInfo->nbBits);    /* <=  9 bits */
             if (MEM_32bits()) BIT_reloadDStream(&seqState->DStream);    /* <= 18 bits */
-            ZSTD_updateFseStateWithDInfo(&seqState->stateOffb, &seqState->DStream, ofNext, ofnbBits);  /* <=  8 bits */
+            ZSTD_updateFseStateWithDInfo(&seqState->stateOffb, &seqState->DStream,
+                                         ofDInfo->nextState, ofDInfo->nbBits);    /* <=  8 bits */
             BIT_reloadDStream(&seqState->DStream);
         }
     }

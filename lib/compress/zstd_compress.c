@@ -6534,8 +6534,19 @@ size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
             cctx->producedCSize += (U64)(output->pos - opos);
             if ( ZSTD_isError(flushMin)
               || (endOp == ZSTD_e_end && flushMin == 0) ) { /* compression completed */
-                if (flushMin == 0)
+                if (flushMin == 0) {
+                    /* end of frame : control src size, same as the single-thread path */
+                    if (cctx->pledgedSrcSizePlusOne != 0) {
+                        ZSTD_STATIC_ASSERT(ZSTD_CONTENTSIZE_UNKNOWN == (unsigned long long)-1);
+                        RETURN_ERROR_IF(
+                            cctx->pledgedSrcSizePlusOne != cctx->consumedSrcSize+1,
+                            srcSize_wrong,
+                            "error : pledgedSrcSize = %u, while realSrcSize = %u",
+                            (unsigned)cctx->pledgedSrcSizePlusOne-1,
+                            (unsigned)cctx->consumedSrcSize);
+                    }
                     ZSTD_CCtx_trace(cctx, 0);
+                }
                 ZSTD_CCtx_reset(cctx, ZSTD_reset_session_only);
             }
             FORWARD_IF_ERROR(flushMin, "ZSTDMT_compressStream_generic failed");

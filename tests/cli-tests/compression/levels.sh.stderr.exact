@@ -13,6 +13,9 @@ zstd -19 file -o file-19.zst -q
 if echo "$version_info" | grep -q '32-bit'; then
     # skip --max test: not enough address space
     cp file-19.zst file-max.zst
+elif [ -n "$mem_kib" ] && [ "$mem_kib" -lt 9437184 ]; then
+    # skip --max test: not enough memory (less than 9 GiB)
+    cp file-19.zst file-max.zst
 else
     zstd --max file -o file-max.zst -q
 fi

@@ -9,6 +9,19 @@ datagen > file
 # Note: command echoing differs between macos and linux, so it's disabled below
 set +v
 version_info=$(zstd -V)
+# --max needs about 8.5 GB of memory. On Linux, find how much this test can use:
+# the physical RAM, or the cgroup (e.g. container) memory limit if it is lower.
+mem_kib=
+if [ -r /proc/meminfo ]; then
+    mem_kib=$(awk '$1 == "MemTotal:" { print $2 }' /proc/meminfo)
+    for limit_file in /sys/fs/cgroup/memory.max /sys/fs/cgroup/memory/memory.limit_in_bytes; do
+        limit=$(cat "$limit_file" 2>/dev/null) || continue
+        case "$limit" in
+            ''|*[!0-9]*) ;; # "max": no limit
+            *) if [ $((limit / 1024)) -lt "$mem_kib" ]; then mem_kib=$((limit / 1024)); fi ;;
+        esac
+    done
+fi
 set -v
 
 # Compress with various levels and ensure that their sizes are ordered
@@ -18,6 +31,9 @@ zstd -1 file -o file-1.zst -q
 zstd -19 file -o file-19.zst -q
 if echo "$version_info" | grep -q '32-bit'; then
     # skip --max test: not enough address space
+    cp file-19.zst file-max.zst
+elif [ -n "$mem_kib" ] && [ "$mem_kib" -lt 9437184 ]; then
+    # skip --max test: not enough memory (less than 9 GiB)
     cp file-19.zst file-max.zst
 else
     zstd --max file -o file-max.zst -q

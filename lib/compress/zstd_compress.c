@@ -8125,7 +8125,7 @@ ZSTD_compressSequencesAndLiterals(ZSTD_CCtx* cctx,
     /* Transparent initialization stage, same as compressStream2() */
     DEBUGLOG(4, "ZSTD_compressSequencesAndLiterals (dstCapacity=%zu)", dstCapacity);
     assert(cctx != NULL);
-    if (litCapacity < litSize) {
+    if (litCapacity < litSize || litCapacity - litSize < 8) {
         RETURN_ERROR(workSpace_tooSmall, "literals buffer is not large enough: must be at least 8 bytes larger than litSize (risk of read out-of-bound)");
     }
     FORWARD_IF_ERROR(ZSTD_CCtx_init_compressStream2(cctx, ZSTD_e_end, decompressedSize), "CCtx initialization failed");

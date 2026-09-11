@@ -4476,6 +4476,13 @@ static int basicUnitTests(U32 const seed, double compressibility)
         {   size_t const litSize = FUZ_getLitSize(seqs, nbSeqs);
             FUZ_transferLiterals(litBuffer, decompressSize, CNBuffer, srcSize, seqs, nbSeqs);
 
+            /* literal buffer capacity without 8 bytes of margin: must fail */
+            compressedSize = ZSTD_compressSequencesAndLiterals(cctx, dst, dstCapacity, seqs, nbSeqs, litBuffer, litSize, litSize+7, srcSize);
+            if (ZSTD_getErrorCode(compressedSize) != ZSTD_error_workSpace_tooSmall) {
+                DISPLAY("ZSTD_compressSequencesAndLiterals() should have failed: literals buffer capacity is too small\n");
+                goto _output_error;
+            }
+
             /* not enough literals: must fail */
             compressedSize = ZSTD_compressSequencesAndLiterals(cctx, dst, dstCapacity, seqs, nbSeqs, src, litSize-1, decompressSize, srcSize);
             if (!ZSTD_isError(compressedSize)) {
@@ -4505,7 +4512,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
             }
 
             /* correct amount of literals: should compress successfully */
-            compressedSize = ZSTD_compressSequencesAndLiterals(cctx, dst, dstCapacity, seqs, nbSeqs, litBuffer, litSize, decompressSize, srcSize);
+            compressedSize = ZSTD_compressSequencesAndLiterals(cctx, dst, dstCapacity, seqs, nbSeqs, litBuffer, litSize, litSize+8, srcSize);
             if (ZSTD_isError(compressedSize)) {
                 DISPLAY("Error in ZSTD_compressSequencesAndLiterals()\n");
                 goto _output_error;

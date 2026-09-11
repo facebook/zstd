@@ -266,6 +266,16 @@ configure_file("${LIBRARY_DIR}/libzstd.pc.in" "${CMAKE_CURRENT_BINARY_DIR}/libzs
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libzstd.pc" DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
 
 # install target
+# Optional -fbounds-safety (inert macros unless enabled)
+if(ZSTD_ENABLE_FBOUNDS_SAFETY)
+    foreach(_zstd_tgt IN ITEMS libzstd_shared libzstd_static)
+        if(TARGET ${_zstd_tgt})
+            target_compile_definitions(${_zstd_tgt} PUBLIC ZSTD_SUPPORT_FBOUNDS_SAFETY)
+            target_compile_options(${_zstd_tgt} PUBLIC -fbounds-safety)
+        endif()
+    endforeach()
+endif()
+
 install(FILES ${PublicHeaders} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
 
 foreach(target_suffix IN ITEMS "_shared" "_static" "")

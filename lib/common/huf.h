@@ -107,7 +107,13 @@ typedef enum {
      * If set: Don't use the fast decoding loop, always use the fallback decoding loop.
      * If unset: Use the fast decoding loop when possible.
      */
-    HUF_flags_disableFast = (1 << 5)
+    HUF_flags_disableFast = (1 << 5),
+
+    /**
+     * If compiled with DYNAMIC_SVE: Set flag only if the CPU supports SVE at runtime.
+     * Otherwise: Ignored.
+     */
+    HUF_flags_sve         = (1 << 6)
 } HUF_flags_e;
 
 

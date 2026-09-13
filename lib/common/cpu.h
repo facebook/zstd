@@ -22,6 +22,13 @@
 #include <intrin.h>
 #endif
 
+#if defined(__aarch64__) && defined(__linux__)
+#include <sys/auxv.h>
+#ifndef HWCAP_SVE
+#include <asm/hwcap.h>
+#endif
+#endif
+
 typedef struct {
     U32 f1c;
     U32 f1d;

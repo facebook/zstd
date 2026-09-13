@@ -269,6 +269,9 @@ static void ZSTD_initDCtx_internal(ZSTD_DCtx* dctx)
 #if DYNAMIC_BMI2
     dctx->bmi2 = ZSTD_cpuSupportsBmi2();
 #endif
+#if DYNAMIC_SVE
+    dctx->sve = ZSTD_cpuSupportsSve();
+#endif
     dctx->ddictSet = NULL;
     ZSTD_DCtx_resetParameters(dctx);
 #ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION

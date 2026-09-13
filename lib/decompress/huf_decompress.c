@@ -73,6 +73,15 @@
 # define HUF_NEED_BMI2_FUNCTION 0
 #endif
 
+/* For aarch64, we can use the SVE target attribute to enable SVE instructions. */
+#if DYNAMIC_SVE
+# define HUF_NEED_SVE_FUNCTION 1
+# define HUF_FAST_SVE_ATTRS SVE_TARGET_ATTRIBUTE
+#else
+# define HUF_NEED_SVE_FUNCTION 0
+# define HUF_FAST_SVE_ATTRS
+#endif
+
 /* **************************************************************
 *  Error Management
 ****************************************************************/
@@ -718,8 +727,8 @@ HUF_ASM_DECL void HUF_decompress4X1_usingDTable_internal_fast_asm_loop(HUF_Decom
 
 #endif
 
-static HUF_FAST_BMI2_ATTRS
-void HUF_decompress4X1_usingDTable_internal_fast_c_loop(HUF_DecompressFastArgs* args)
+FORCE_INLINE_TEMPLATE
+void HUF_decompress4X1_usingDTable_internal_fast_c_loop_body(HUF_DecompressFastArgs* args)
 {
     U64 bits[4];
     BYTE const* ip[4];
@@ -831,6 +840,20 @@ _out:
     ZSTD_memcpy(&args->op, &op, sizeof(op));
 }
 
+#if HUF_NEED_SVE_FUNCTION
+static HUF_FAST_SVE_ATTRS
+void HUF_decompress4X1_usingDTable_internal_fast_c_loop_sve(HUF_DecompressFastArgs* args)
+{
+    HUF_decompress4X1_usingDTable_internal_fast_c_loop_body(args);
+}
+#endif /* HUF_NEED_SVE_FUNCTION */
+
+static
+void HUF_decompress4X1_usingDTable_internal_fast_c_loop_default(HUF_DecompressFastArgs* args)
+{
+    HUF_decompress4X1_usingDTable_internal_fast_c_loop_body(args);
+}
+
 /**
  * @returns @p dstSize on success (>= 6)
  *          0 if the fallback implementation should be used
@@ -899,7 +922,7 @@ static size_t HUF_decompress4X1_usingDTable_internal(void* dst, size_t dstSize, 
                     size_t cSrcSize, HUF_DTable const* DTable, int flags)
 {
     HUF_DecompressUsingDTableFn fallbackFn = HUF_decompress4X1_usingDTable_internal_default;
-    HUF_DecompressFastLoopFn loopFn = HUF_decompress4X1_usingDTable_internal_fast_c_loop;
+    HUF_DecompressFastLoopFn loopFn = HUF_decompress4X1_usingDTable_internal_fast_c_loop_default;
 
 #if DYNAMIC_BMI2
     if (flags & HUF_flags_bmi2) {
@@ -912,6 +935,12 @@ static size_t HUF_decompress4X1_usingDTable_internal(void* dst, size_t dstSize, 
     } else {
         return fallbackFn(dst, dstSize, cSrc, cSrcSize, DTable);
     }
+#endif
+
+#if DYNAMIC_SVE
+if (flags & HUF_flags_sve) {
+    loopFn = HUF_decompress4X1_usingDTable_internal_fast_c_loop_sve;
+}
 #endif
 
 #if ZSTD_ENABLE_ASM_X86_64_BMI2 && defined(__BMI2__)
@@ -1521,8 +1550,8 @@ HUF_ASM_DECL void HUF_decompress4X2_usingDTable_internal_fast_asm_loop(HUF_Decom
 
 #endif
 
-static HUF_FAST_BMI2_ATTRS
-void HUF_decompress4X2_usingDTable_internal_fast_c_loop(HUF_DecompressFastArgs* args)
+FORCE_INLINE_TEMPLATE
+void HUF_decompress4X2_usingDTable_internal_fast_c_loop_body(HUF_DecompressFastArgs* args)
 {
     U64 bits[4];
     BYTE const* ip[4];
@@ -1671,6 +1700,19 @@ _out:
     ZSTD_memcpy(&args->op, &op, sizeof(op));
 }
 
+#if HUF_NEED_SVE_FUNCTION
+static HUF_FAST_SVE_ATTRS
+void HUF_decompress4X2_usingDTable_internal_fast_c_loop_sve(HUF_DecompressFastArgs* args)
+{
+    HUF_decompress4X2_usingDTable_internal_fast_c_loop_body(args);
+}
+#endif /* HUF_NEED_SVE_FUNCTION */
+
+static
+void HUF_decompress4X2_usingDTable_internal_fast_c_loop_default(HUF_DecompressFastArgs* args)
+{
+    HUF_decompress4X2_usingDTable_internal_fast_c_loop_body(args);
+}
 
 static HUF_FAST_BMI2_ATTRS size_t
 HUF_decompress4X2_usingDTable_internal_fast(
@@ -1729,7 +1771,7 @@ static size_t HUF_decompress4X2_usingDTable_internal(void* dst, size_t dstSize, 
                     size_t cSrcSize, HUF_DTable const* DTable, int flags)
 {
     HUF_DecompressUsingDTableFn fallbackFn = HUF_decompress4X2_usingDTable_internal_default;
-    HUF_DecompressFastLoopFn loopFn = HUF_decompress4X2_usingDTable_internal_fast_c_loop;
+    HUF_DecompressFastLoopFn loopFn = HUF_decompress4X2_usingDTable_internal_fast_c_loop_default;
 
 #if DYNAMIC_BMI2
     if (flags & HUF_flags_bmi2) {
@@ -1741,6 +1783,12 @@ static size_t HUF_decompress4X2_usingDTable_internal(void* dst, size_t dstSize, 
 # endif
     } else {
         return fallbackFn(dst, dstSize, cSrc, cSrcSize, DTable);
+    }
+#endif
+
+#if DYNAMIC_SVE
+    if (flags & HUF_flags_sve) {
+        loopFn = HUF_decompress4X2_usingDTable_internal_fast_c_loop_sve;
     }
 #endif
 

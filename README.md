@@ -142,6 +142,9 @@ For advanced use cases, specialized flags which control binary generation and in
 in [`lib/README.md`](lib/README.md#modular-build) for the `libzstd` library
 and in [`programs/README.md`](programs/README.md#compilation-variables) for the `zstd` CLI.
 
+See [`doc/determinism.md`](doc/determinism.md) for notes about reproducibility
+and byte-for-byte determinism of compressed frames.
+
 ### cmake
 
 A `cmake` project generator is available for generating Makefiles or other build scripts

@@ -365,7 +365,54 @@ int main(int argc, const char** argv)
     }
     printf("Success!\n");
 
-    /* TODO: Add more tests */
+    printf("Test %u - OOB frame index returns error: ", testNb++);
+    {   size_t const inSize = 4000;
+        void* const inBuffer = malloc(inSize);
+        assert(inBuffer != NULL);
+
+        size_t const seekCapacity = 5000;
+        void* const seekBuffer = malloc(seekCapacity);
+        assert(seekBuffer != NULL);
+        size_t seekSize;
+
+        ZSTD_seekable_CStream* const zscs = ZSTD_seekable_createCStream();
+        assert(zscs != NULL);
+        { size_t const initStatus = ZSTD_seekable_initCStream(zscs, 9, 0, (unsigned)inSize);
+          assert(!ZSTD_isError(initStatus)); }
+
+        {   ZSTD_outBuffer outb = { .dst=seekBuffer, .pos=0, .size=seekCapacity };
+            ZSTD_inBuffer inb = { .src=inBuffer, .pos=0, .size=inSize };
+            size_t const cStatus = ZSTD_seekable_compressStream(zscs, &outb, &inb);
+            assert(!ZSTD_isError(cStatus));
+            assert(inb.pos == inb.size);
+            size_t const endStatus = ZSTD_seekable_endStream(zscs, &outb);
+            assert(!ZSTD_isError(endStatus));
+            seekSize = outb.pos;
+        }
+
+        ZSTD_seekable* const stream = ZSTD_seekable_create();
+        assert(stream != NULL);
+        { size_t const initStatus = ZSTD_seekable_initBuff(stream, seekBuffer, seekSize);
+          assert(!ZSTD_isError(initStatus)); }
+
+        ZSTD_seekTable* const zst = ZSTD_seekTable_create_fromSeekable(stream);
+        assert(zst != NULL);
+
+        unsigned const nbFrames = ZSTD_seekTable_getNumFrames(zst);
+        assert(nbFrames > 0);
+
+        /* frameIndex == nbFrames is out of bounds; must return error, not overread */
+        assert(ZSTD_isError(ZSTD_seekTable_getFrameCompressedSize(zst, nbFrames)));
+        assert(ZSTD_isError(ZSTD_seekTable_getFrameDecompressedSize(zst, nbFrames)));
+
+        free(inBuffer);
+        free(seekBuffer);
+        ZSTD_seekable_freeCStream(zscs);
+        ZSTD_seekTable_free(zst);
+        ZSTD_seekable_free(stream);
+    }
+    printf("Success!\n");
+
     printf("Finished tests\n");
     return 0;
 

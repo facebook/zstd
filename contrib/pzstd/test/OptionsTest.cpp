@@ -21,7 +21,8 @@ bool operator==(const Options &lhs, const Options &rhs) {
          lhs.decompress == rhs.decompress && lhs.inputFiles == rhs.inputFiles &&
          lhs.outputFile == rhs.outputFile && lhs.overwrite == rhs.overwrite &&
          lhs.keepSource == rhs.keepSource && lhs.writeMode == rhs.writeMode &&
-         lhs.checksum == rhs.checksum && lhs.verbosity == rhs.verbosity;
+         lhs.checksum == rhs.checksum && lhs.verbosity == rhs.verbosity &&
+         lhs.streamSrcSize == rhs.streamSrcSize;
 }
 
 std::ostream &operator<<(std::ostream &out, const Options &opt) {
@@ -60,6 +61,8 @@ std::ostream &operator<<(std::ostream &out, const Options &opt) {
         << "checksum: " << opt.checksum;
     out << ",\n\t"
         << "verbosity: " << opt.verbosity;
+    out << ",\n\t"
+        << "streamSrcSize: " << opt.streamSrcSize;
   }
   out << "\n}";
   return out;
@@ -504,6 +507,37 @@ TEST(Options, InvalidOptions) {
     Options options;
     auto args = makeArray("-0", "x");
     EXPECT_FAILURE(options.parse(args.size(), args.data()));
+  }
+}
+
+TEST(Options, StreamSize) {
+  {
+    Options options;
+    auto args = makeArray("x", "--stream-size=12345");
+    EXPECT_SUCCESS(options.parse(args.size(), args.data()));
+    EXPECT_EQ(12345ULL, options.streamSrcSize);
+  }
+  {
+    Options options;
+    auto args = makeArray("x", "--stream-size", "67890");
+    EXPECT_SUCCESS(options.parse(args.size(), args.data()));
+    EXPECT_EQ(67890ULL, options.streamSrcSize);
+  }
+  {
+    Options options;
+    auto args = makeArray("x", "--stream-size");
+    EXPECT_FAILURE(options.parse(args.size(), args.data()));
+  }
+  {
+    Options options;
+    auto args = makeArray("x", "--stream-size=abc");
+    EXPECT_FAILURE(options.parse(args.size(), args.data()));
+  }
+  {
+    Options options;
+    auto args = makeArray("x");
+    EXPECT_SUCCESS(options.parse(args.size(), args.data()));
+    EXPECT_EQ(0ULL, options.streamSrcSize);
   }
 }
 

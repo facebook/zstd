@@ -39,6 +39,10 @@
 #  define ZSTDCLI_CLEVEL_DEFAULT 3
 #endif
 
+#ifndef ZSTDCLI_AUTO_THREADING_LOGICAL
+#  define ZSTDCLI_AUTO_THREADING_LOGICAL 0
+#endif
+
 #ifndef ZSTDCLI_CLEVEL_MAX
 #  define ZSTDCLI_CLEVEL_MAX 19   /* without using --ultra */
 #endif
@@ -239,7 +243,11 @@ static void usageAdvanced(const char* programName)
     DISPLAYOUT("  -T#                           Spawn # compression threads. [Default: %u; pass 0 for core count.]\n", init_nbWorkers(ZSTDCLI_NBTHREADS_DEFAULT));
     DISPLAYOUT("  --single-thread               Share a single thread for I/O and compression (slightly different than `-T1`).\n");
     DISPLAYOUT("  --auto-threads={physical|logical}\n");
-    DISPLAYOUT("                                Use physical/logical cores when using `-T0`. [Default: Physical]\n\n");
+#ifdef ZSTDCLI_AUTO_THREADING_LOGICAL
+    DISPLAYOUT("                                Use physical/logical cores when using `-T0`. [Default: Logical ]\n\n");
+#else
+    DISPLAYOUT("                                Use physical/logical cores when using `-T0`. [Default: Physical ]\n\n");
+#endif
     DISPLAYOUT("  --jobsize=#                   Set job size to #. [Default: 0 (automatic)]\n");
     DISPLAYOUT("  --rsyncable                   Compress using a rsync-friendly method (`--jobsize=#` sets unit size). \n");
     DISPLAYOUT("\n");
@@ -1129,6 +1137,9 @@ int main(int argCount, const char* argv[])
                         defaultLogicalCores = 1;
                     continue;
                 }
+#ifdef ZSTDCLI_AUTO_THREADING_LOGICAL
+                defaultLogicalCores = 1;
+#endif
 #ifdef UTIL_HAS_MIRRORFILELIST
                 if (longCommandWArg(&argument, "--output-dir-mirror")) {
                     NEXT_FIELD(outMirroredDirName);

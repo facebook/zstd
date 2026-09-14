@@ -13,6 +13,16 @@
 
 #ifndef ZSTD_EXCLUDE_DFAST_BLOCK_COMPRESSOR
 
+/* The following optimizations have been included when the ZSTD_ENABLE_SEARCH_SKIP_HIGH flag is enabled:
+    - for every 256 byte blocks that go without a single match, the step rate is increased by 3 instead of 1
+    - More complementary insertions to improve ratio
+*/
+#ifdef ZSTD_ENABLE_SEARCH_SKIP_HIGH
+    #define STEP_FACTOR 3
+#else 
+    #define STEP_FACTOR 1
+#endif
+
 static
 ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
 void ZSTD_fillDoubleHashTableForCDict(ZSTD_MatchState_t* ms,
@@ -181,6 +191,12 @@ size_t ZSTD_compressBlock_doubleFast_noDict_generic(
         do {
             const size_t hs0 = ZSTD_hashPtr(ip, hBitsS, mls);
             const U32 idxs0 = hashSmall[hs0];
+#ifdef ZSTD_ENABLE_SEARCH_SKIP_HIGH
+            // Alternate between values 1 and 2 for step while searching for a match. In case
+            // the value of step exceeds 2 (this happens when the value of step is incremented
+            // when ip1 exceeds nextStep), we let step retain its value.
+            step = (step > 2) ? step : step ^ 3;
+#endif /* ZSTD_ENABLE_SEARCH_SKIP_HIGH */
             curr = (U32)(ip-base);
             matchs0 = base + idxs0;
 
@@ -224,7 +240,7 @@ size_t ZSTD_compressBlock_doubleFast_noDict_generic(
             if (ip1 >= nextStep) {
                 PREFETCH_L1(ip1 + 64);
                 PREFETCH_L1(ip1 + 128);
-                step++;
+                step += STEP_FACTOR;
                 nextStep += kStepIncr;
             }
             ip = ip1;
@@ -257,7 +273,7 @@ _search_next_long:
         offset = (U32)(ip - matchs0);
 
         /* check long match at +1 position */
-        if ((idxl1 > prefixLowestIndex) && (MEM_read64(matchl1) == MEM_read64(ip1))) {
+        if ((idxl1 > prefixLowestIndex) && UNLIKELY(MEM_read64(matchl1) == MEM_read64(ip1))) {
             size_t const l1len = ZSTD_count(ip1+8, matchl1+8, iend) + 8;
             if (l1len > mLength) {
                 /* use the long match instead */
@@ -298,10 +314,23 @@ _match_stored:
             /* Complementary insertion */
             /* done after iLimit test, as candidates could be > iend-8 */
             {   U32 const indexToInsert = curr+2;
+#ifdef ZSTD_ENABLE_SEARCH_SKIP_HIGH
+                /* More complementary insertions to improve ratio */
+                hashLong[ZSTD_hashPtr(base+indexToInsert, hBitsL, 8)] = indexToInsert;
+                hashLong[ZSTD_hashPtr(ip-3, hBitsL, 8)] = (U32)(ip-3-base);
+                hashLong[ZSTD_hashPtr(ip-2, hBitsL, 8)] = (U32)(ip-2-base);
+                hashLong[ZSTD_hashPtr(ip-1, hBitsL, 8)] = (U32)(ip-1-base);
+                hashSmall[ZSTD_hashPtr(base + indexToInsert, hBitsS, mls)] = indexToInsert;
+                hashSmall[ZSTD_hashPtr(ip-4, hBitsS, mls)] = (U32)(ip-4-base);
+                hashSmall[ZSTD_hashPtr(ip-3, hBitsS, mls)] = (U32)(ip-3-base);
+                hashSmall[ZSTD_hashPtr(ip-2, hBitsS, mls)] = (U32)(ip-2-base);
+                hashSmall[ZSTD_hashPtr(ip-1, hBitsS, mls)] = (U32)(ip-1-base);
+#else
                 hashLong[ZSTD_hashPtr(base+indexToInsert, hBitsL, 8)] = indexToInsert;
                 hashLong[ZSTD_hashPtr(ip-2, hBitsL, 8)] = (U32)(ip-2-base);
                 hashSmall[ZSTD_hashPtr(base+indexToInsert, hBitsS, mls)] = indexToInsert;
                 hashSmall[ZSTD_hashPtr(ip-1, hBitsS, mls)] = (U32)(ip-1-base);
+#endif /* ZSTD_ENABLE_SEARCH_SKIP_HIGH */
             }
 
             /* check immediate repcode */

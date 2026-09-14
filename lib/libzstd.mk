@@ -49,6 +49,9 @@ else
   ZSTD_STRIP_ERROR_STRINGS ?= 0
 endif
 
+# Speed up compression using aggressive skipping strategy.
+ZSTD_ENABLE_SEARCH_SKIP_HIGH ?= 0
+
 # Assembly support
 ZSTD_NO_ASM ?= 0
 
@@ -150,6 +153,9 @@ ZSTD_DEPRECATED_FILES := $(sort $(wildcard $(LIB_SRCDIR)/deprecated/*.c))
 ZSTD_LEGACY_FILES :=
 
 ZSTD_DECOMPRESS_AMD64_ASM_FILES := $(sort $(wildcard $(LIB_SRCDIR)/decompress/*_amd64.S))
+ifneq ($(ZSTD_ENABLE_SEARCH_SKIP_HIGH), 0)
+  CFLAGS += -DZSTD_ENABLE_SEARCH_SKIP_HIGH
+endif
 
 ifneq ($(ZSTD_NO_ASM), 0)
   CPPFLAGS += -DZSTD_DISABLE_ASM

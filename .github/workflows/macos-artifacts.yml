@@ -1,0 +1,71 @@
+name: macos-artifacts
+
+on:
+  push:
+    branches: [test_artifacts, macos_artifacts, release]
+  release:
+    types:
+      - published
+
+permissions: read-all
+
+jobs:
+  macos-artifacts:
+    permissions:
+      contents: write # to fetch code and upload artifacts
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - { os: macos-15, ziparch: macos-arm64 }
+          - { os: macos-15, ziparch: macos-x86_64 }
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # tag=v6.0.2
+
+      - name: display versions
+        run: |
+          make -v
+          cc -v
+
+      # Build dependencies
+      - name: Building zlib to static link
+        run: |
+          git clone --depth 1 --branch v1.3.1 https://github.com/madler/zlib
+          cd zlib && ./configure --static && make libz.a
+
+      - name: Building lz4 to static link
+        run: |
+          git clone --depth 1 --branch v1.10.0 https://github.com/lz4/lz4
+          # ensure both libraries use the same version of libxxhash
+          cp lib/common/xxhash.* lz4/lib
+          CPPFLAGS=-DXXH_NAMESPACE=LZ4_ make -C lz4/lib liblz4.a V=1
+
+      # Build zstd
+      - name: Building zstd programs
+        run: |
+          CPPFLAGS="-I../zlib -I../lz4/lib" make -j allzstd V=1 HAVE_ZLIB=1 HAVE_LZ4=1 HAVE_LZMA=0 LDLIBS="../zlib/libz.a ../lz4/lib/liblz4.a"
+
+      - name: Create artifacts
+        run: |
+          ./lib/dll/example/build_package.sh || exit 1
+          mv bin/ zstd-${{ github.ref_name }}-${{ matrix.ziparch }}/
+
+      - name: Publish zstd-$VERSION-${{ matrix.ziparch }}.tar.gz for manual inspection
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # tag=v6.0.0
+        with:
+          compression-level: 9 # maximum compression
+          if-no-files-found: error # defaults to `warn`
+          path: ${{ github.workspace }}/zstd-${{ github.ref_name }}-${{ matrix.ziparch }}/
+          name: zstd-${{ github.ref_name }}-${{ matrix.ziparch }}
+
+      - name: Package artifact for upload
+        run: |
+          tar -czf "zstd-${{ github.ref_name }}-${{ matrix.ziparch }}.tar.gz" "zstd-${{ github.ref_name }}-${{ matrix.ziparch }}"
+
+      - name: Upload release asset
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.ref_name }}" "zstd-${{ github.ref_name }}-${{ matrix.ziparch }}.tar.gz" --clobber

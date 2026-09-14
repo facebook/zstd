@@ -1669,7 +1669,16 @@ size_t ZSTD_compressBlock_lazy_generic(
         }
 
         /* let's try to find a better solution */
+#ifdef ZSTD_SELECTIVE_LAZY
+        /* Selective lazy: depth-adaptive threshold skips lazy evaluation
+         * for strong matches or nearby offsets. Repcode early exit avoids
+         * expensive searchMax when a repcode match is accepted. */
+        if (depth>=1
+          && matchLength < (ms->cParams.targetLength <= 8 ? 12 : 16)
+          && OFFBASE_IS_OFFSET(offBase) && OFFBASE_TO_OFFSET(offBase) > 256)
+#else
         if (depth>=1)
+#endif
         while (ip<ilimit) {
             DEBUGLOG(7, "search depth 1");
             ip ++;
@@ -1696,6 +1705,13 @@ size_t ZSTD_compressBlock_lazy_generic(
                         matchLength = mlRep, offBase = REPCODE1_TO_OFFBASE, start = ip;
                 }
             }
+#ifdef ZSTD_SELECTIVE_LAZY
+            /* Repcode early exit: if a repcode match was accepted above,
+             * skip the expensive searchMax. A regular match would need to be
+             * 4+ bytes longer to beat a repcode (zero offset encoding cost),
+             * making searchMax very unlikely to improve the result. */
+            if (!OFFBASE_IS_OFFSET(offBase)) break;
+#endif
             {   size_t ofbCandidate=999999999;
                 size_t const ml2 = ZSTD_searchMax(ms, ip, iend, &ofbCandidate, mls, rowLog, searchMethod, dictMode);
                 int const gain2 = (int)(ml2*4 - ZSTD_highbit32((U32)ofbCandidate));   /* raw approx */
@@ -1732,6 +1748,10 @@ size_t ZSTD_compressBlock_lazy_generic(
                             matchLength = mlRep, offBase = REPCODE1_TO_OFFBASE, start = ip;
                     }
                 }
+#ifdef ZSTD_SELECTIVE_LAZY
+                /* Repcode early exit at depth 2 */
+                if (!OFFBASE_IS_OFFSET(offBase)) break;
+#endif
                 {   size_t ofbCandidate=999999999;
                     size_t const ml2 = ZSTD_searchMax(ms, ip, iend, &ofbCandidate, mls, rowLog, searchMethod, dictMode);
                     int const gain2 = (int)(ml2*4 - ZSTD_highbit32((U32)ofbCandidate));   /* raw approx */

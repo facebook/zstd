@@ -1,0 +1,13 @@
+#!/bin/sh
+
+# Restore original test expectations if they were swapped for
+# a ZSTD_SELECTIVE_LAZY build during setup_once.
+
+_det_dir="$CLI_TESTS/determinism"
+
+for f in basic.sh.stdout.exact multithread.sh.stdout.exact; do
+    if [ -f "$_det_dir/$f.bak" ]; then
+        cp "$_det_dir/$f.bak" "$_det_dir/$f"
+        rm "$_det_dir/$f.bak"
+    fi
+done

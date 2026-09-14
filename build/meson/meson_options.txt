@@ -34,3 +34,5 @@ option('lzma', type: 'feature', value: 'auto',
   description: 'Enable lzma support')
 option('lz4', type: 'feature', value: 'auto',
   description: 'Enable lz4 support')
+option('selective_lazy', type: 'boolean', value: false,
+  description: 'Enable selective lazy evaluation optimization')

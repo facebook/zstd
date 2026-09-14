@@ -4090,6 +4090,19 @@ static int basicUnitTests(U32 const seed, double compressibility)
         }
     }
 
+    DISPLAYLEVEL(3, "test%3i : job size bounds match architecture : ", testNb++);
+    {   ZSTD_bounds const bounds = ZSTD_cParam_getBounds(ZSTD_c_jobSize);
+#ifdef ZSTD_MULTITHREAD
+        int const expectedJobSizeMax = MEM_32bits() ? (256 MB) : (1024 MB);
+#else
+        int const expectedJobSizeMax = 0;
+#endif
+        CHECK_Z(bounds.error);
+        if (bounds.lowerBound != 0) goto _output_error;
+        if (bounds.upperBound != expectedJobSizeMax) goto _output_error;
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     /* advanced parameters for decompression */
     {   ZSTD_DCtx* const dctx = ZSTD_createDCtx();
         assert(dctx != NULL);

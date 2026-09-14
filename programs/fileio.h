@@ -36,6 +36,7 @@
 #define XZ_EXTENSION    ".xz"
 #define TXZ_EXTENSION   ".txz"
 
+#define ZLIB_EXTENSION  ".zlib"
 #define GZ_EXTENSION    ".gz"
 #define TGZ_EXTENSION   ".tgz"
 

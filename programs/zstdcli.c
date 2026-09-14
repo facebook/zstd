@@ -260,6 +260,7 @@ static void usageAdvanced(const char* programName)
     DISPLAYOUT("  --[no-]mmap-dict              Memory-map dictionary file rather than mallocing and loading all at once\n");
 #ifdef ZSTD_GZCOMPRESS
     DISPLAYOUT("  --format=gzip                 Compress files to the `.gz` format.\n");
+    DISPLAYOUT("  --format=zlib                 Compress files to the `.zlib` format.\n");
 #endif
 #ifdef ZSTD_LZMACOMPRESS
     DISPLAYOUT("  --format=xz                   Compress files to the `.xz` format.\n");
@@ -689,7 +690,7 @@ static void printVersion(void)
         DISPLAYOUT(", zstd legacy v0.%d+", ZSTD_LEGACY_SUPPORT);
     #endif
     #ifdef ZSTD_GZCOMPRESS
-        DISPLAYOUT(", gzip");
+        DISPLAYOUT(", zlib, gzip");
     #endif
     #ifdef ZSTD_LZ4COMPRESS
         DISPLAYOUT(", lz4");
@@ -1031,6 +1032,7 @@ int main(int argCount, const char* argv[])
                 if (!strcmp(argument, "--mmap-dict")) { mmapDict = ZSTD_ps_enable; continue; }
                 if (!strcmp(argument, "--no-mmap-dict")) { mmapDict = ZSTD_ps_disable; continue; }
 #ifdef ZSTD_GZCOMPRESS
+                if (!strcmp(argument, "--format=zlib")) { suffix = ZLIB_EXTENSION; cType = FIO_zlibCompression; continue; }
                 if (!strcmp(argument, "--format=gzip")) { suffix = GZ_EXTENSION; cType = FIO_gzipCompression; continue; }
                 if (exeNameMatch(programName, ZSTD_GZ)) {     /* behave like gzip */
                     if (!strcmp(argument, "--best")) { dictCLevel = cLevel = 9; continue; }

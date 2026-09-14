@@ -1281,10 +1281,6 @@ ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets, c
         assert(llBits <= MaxLLBits);
         assert(mlBits <= MaxMLBits);
         assert(ofBits <= MaxOff);
-        /* As GCC has better branch and block analyzers, sometimes it is only
-         * valuable to mark likeliness for Clang.
-         */
-
         /* sequence */
         {   size_t offset;
             if (ofBits > 1) {
@@ -1371,10 +1367,6 @@ ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets, c
         assert(llBits <= MaxLLBits);
         assert(mlBits <= MaxMLBits);
         assert(ofBits <= MaxOff);
-        /* As GCC has better branch and block analyzers, sometimes it is only
-         * valuable to mark likeliness for Clang.
-         */
-
         /* sequence */
         {   size_t offset;
             if (ofBits > 1) {

@@ -59,6 +59,7 @@ typedef struct FIO_prefs_s {
     int removeSrcFile;
     int overwrite;
     int asyncIO;
+    size_t inputBufferSize;  /* size of the input buffer for decompression (0 = default) */
 
     /* Computation resources preferences */
     unsigned memLimit;

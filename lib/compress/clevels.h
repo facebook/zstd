@@ -129,6 +129,32 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
 },
 };
 
+#ifdef ZSTD_LAZY_SKIP_LONG_MATCHES
+static const ZSTD_compressionParameters ZSTD_CParametersFastCompress[4][2] = {
+{   /* "default" - for any srcSize > 256 KB */
+    /* W,  C,  H,  S,  L, TL, strat */
+    /* Larger windows and settings from next levels to improve ratio.
+     * Accounts for ratio drop from selective lazy evaluation */
+    { 23, 19, 20,  4,  5,  8, ZSTD_lazy    },  /* level  6 */
+    { 23, 19, 20,  4,  5, 16, ZSTD_lazy    },  /* level  7 */
+},
+{   /* for srcSize <= 256 KB */
+    /* W,  C,  H,  S,  L,  T, strat */
+    { 20, 18, 19,  4,  4,  4, ZSTD_lazy    },  /* level  6 */
+    { 20, 18, 19,  4,  5,  8, ZSTD_lazy    },  /* level  7 */
+},
+{   /* for srcSize <= 128 KB */
+    /* W,  C,  H,  S,  L,  T, strat */
+    { 19, 16, 17,  3,  4,  8, ZSTD_lazy   },  /* level  6 */
+    { 19, 16, 17,  4,  5,  16, ZSTD_lazy  },  /* level  7 */
+},
+{   /* for srcSize <= 16 KB */
+    /* W,  C,  H,  S,  L,  T, strat */
+    { 14, 14, 14,  4,  4,  8, ZSTD_lazy2   },  /* level  6 */
+    { 14, 14, 14,  6,  4,  8, ZSTD_lazy2   },  /* level  7 */
+},
+};
+#endif
 
 
 #endif  /* ZSTD_CLEVELS_H */

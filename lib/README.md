@@ -213,6 +213,11 @@ The file structure is designed to make this selection manually achievable for an
   For this scenario, it can be set as `ZDICT_QSORT=ZDICT_QSORT_C90`.
   Other selectable suffixes are `_GNU`, `_APPLE`, `_MSVC` and `_C11`.
 
+- The build macro `ZSTD_LAZY_SKIP_LONG_MATCHES` can be defined for fast lazy 
+  evaluation from compression level 6 to 7. This improves compression performance with
+  little to no tradeoff for compressibility and decompression performance.
+  This option is designed for applications with demanding compression speed requirements.
+
 #### Windows : using MinGW+MSYS to create DLL
 
 DLL can be created using MinGW+MSYS with the `make libzstd` command.

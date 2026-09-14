@@ -1590,6 +1590,9 @@ size_t ZSTD_compressBlock_lazy_generic(
                                      prefixLowestIndex - (U32)(dictEnd - dictBase) :
                                      0;
     const U32 dictAndPrefixLength = (U32)((ip - prefixLowest) + (dictEnd - dictLowest));
+#ifdef ZSTD_LAZY_SKIP_LONG_MATCHES
+    size_t lazyLimit = seqStore->lazyLimit;
+#endif
 
     DEBUGLOG(5, "ZSTD_compressBlock_lazy_generic (dictMode=%u) (searchFunc=%u)", (U32)dictMode, (U32)searchMethod);
     ip += (dictAndPrefixLength == 0);
@@ -1669,7 +1672,11 @@ size_t ZSTD_compressBlock_lazy_generic(
         }
 
         /* let's try to find a better solution */
+#ifdef ZSTD_LAZY_SKIP_LONG_MATCHES
+        if ((lazyLimit == 0 || matchLength <= lazyLimit) && depth >= 1) /* restrict lazy eval to short matches only */
+#else
         if (depth>=1)
+#endif
         while (ip<ilimit) {
             DEBUGLOG(7, "search depth 1");
             ip ++;

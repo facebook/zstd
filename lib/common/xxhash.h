@@ -2237,7 +2237,9 @@ XXH3_128bits_reset_withSecretandSeed(XXH_NOESCAPE XXH3_state_t* statePtr,
    /* prefer __packed__ structures (method 1) for GCC
     * < ARMv7 with unaligned access (e.g. Raspbian armhf) still uses byte shifting, so we use memcpy
     * which for some reason does unaligned loads. */
-#  if defined(__GNUC__) && !(defined(__ARM_ARCH) && __ARM_ARCH < 7 && defined(__ARM_FEATURE_UNALIGNED))
+#  if defined(__e2k__)
+#    define XXH_FORCE_MEMORY_ACCESS 2
+#  elif defined(__GNUC__) && !(defined(__ARM_ARCH) && __ARM_ARCH < 7 && defined(__ARM_FEATURE_UNALIGNED))
 #    define XXH_FORCE_MEMORY_ACCESS 1
 #  endif
 #endif
@@ -2252,9 +2254,10 @@ XXH3_128bits_reset_withSecretandSeed(XXH_NOESCAPE XXH3_state_t* statePtr,
 #endif
 
 #ifndef XXH_FORCE_ALIGN_CHECK  /* can be defined externally */
-   /* don't check on sizeopt, x86, aarch64, or arm when unaligned access is available */
+   /* don't check on sizeopt, x86, aarch64, arm or e2k when unaligned access is available */
 #  if XXH_SIZE_OPT >= 1 || \
       defined(__i386)  || defined(__x86_64__) || defined(__aarch64__) || defined(__ARM_FEATURE_UNALIGNED) \
+   || defined(__e2k__) \
    || defined(_M_IX86) || defined(_M_X64)     || defined(_M_ARM64)    || defined(_M_ARM) /* visual */
 #    define XXH_FORCE_ALIGN_CHECK 0
 #  else
@@ -2730,6 +2733,13 @@ static int XXH_isLittleEndian(void)
 #elif defined(_MSC_VER)
 #  define XXH_rotl32(x,r) _rotl(x,r)
 #  define XXH_rotl64(x,r) _rotl64(x,r)
+#elif defined(__e2k__)
+#  define XXH_rotl32(x,r) __builtin_e2k_scls(x,r)
+#  if __iset__ < 5
+#    define XXH_rotl64(x,r) __builtin_e2k_scld(x,r)
+#  else
+#    define XXH_rotl64(x,r) __builtin_e2k_psrcd(x,64-(r))
+#  endif
 #else
 #  define XXH_rotl32(x,r) (((x) << (r)) | ((x) >> (32 - (r))))
 #  define XXH_rotl64(x,r) (((x) << (r)) | ((x) >> (64 - (r))))
@@ -3375,7 +3385,11 @@ XXH_readLE64_align(const void* ptr, XXH_alignment align)
 /*! @copydoc XXH32_round */
 static xxh_u64 XXH64_round(xxh_u64 acc, xxh_u64 input)
 {
+#ifdef __e2k__
+    acc = __builtin_e2k_paddd(acc, input * XXH_PRIME64_2);
+#else
     acc += input * XXH_PRIME64_2;
+#endif
     acc  = XXH_rotl64(acc, 31);
     acc *= XXH_PRIME64_1;
 #if (defined(__AVX512F__)) && !defined(XXH_ENABLE_AUTOVECTORIZE)

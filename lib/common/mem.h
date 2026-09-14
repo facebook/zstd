@@ -129,7 +129,9 @@ MEM_STATIC size_t MEM_swapST(size_t in);
  * Default  : method 1 if supported, else method 0
  */
 #ifndef MEM_FORCE_MEMORY_ACCESS   /* can be defined externally, on command line for example */
-#  ifdef __GNUC__
+#  if defined(__e2k__)
+#    define MEM_FORCE_MEMORY_ACCESS 2
+#  elif defined(__GNUC__)
 #    define MEM_FORCE_MEMORY_ACCESS 1
 #  endif
 #endif

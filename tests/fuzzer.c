@@ -4548,6 +4548,49 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : ZSTD_compressSequencesAndLiterals : reject a too large block : ", testNb++);
+    {
+        /* A single sequence, followed by an explicit block delimiter, describing
+         * one block whose regenerated size exceeds ZSTD_BLOCKSIZE_MAX.
+         * ZSTD_compressSequences() already rejects this in determine_blockSize(),
+         * so the AndLiterals() variant must reject it too. Otherwise it reports
+         * success while emitting a block that violates the format. */
+        const size_t litLen = 16;
+        const size_t blockSize = ZSTD_BLOCKSIZE_MAX + 1;
+        BYTE* const dst = (BYTE*)compressedBuffer;
+        size_t const dstCapacity = ZSTD_compressBound(blockSize);
+        BYTE litBuffer[32];
+        ZSTD_Sequence seqs[2];
+        ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        size_t cSizeTooLarge;
+        size_t i;
+
+        assert(cctx != NULL);
+        for (i = 0; i < sizeof(litBuffer); i++) litBuffer[i] = (BYTE)('a' + (i % 3));
+
+        seqs[0].offset = 1;
+        seqs[0].litLength = (U32)litLen;
+        seqs[0].matchLength = (U32)(blockSize - litLen);
+        seqs[0].rep = 0;
+        seqs[1].offset = 0;   /* block delimiter */
+        seqs[1].litLength = 0;
+        seqs[1].matchLength = 0;
+        seqs[1].rep = 0;
+
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_blockDelimiters, ZSTD_sf_explicitBlockDelimiters));
+        cSizeTooLarge = ZSTD_compressSequencesAndLiterals(cctx, dst, dstCapacity,
+                                                  seqs, 2,
+                                                  litBuffer, litLen, sizeof(litBuffer),
+                                                  blockSize);
+        if (!ZSTD_isError(cSizeTooLarge)) {
+            DISPLAY("ZSTD_compressSequencesAndLiterals() should have failed: sequences define a block larger than ZSTD_BLOCKSIZE_MAX\n");
+            ZSTD_freeCCtx(cctx);
+            goto _output_error;
+        }
+        ZSTD_freeCCtx(cctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     /* Multiple blocks of zeros test */
     #define LONGZEROSLENGTH 1000000 /* 1MB of zeros */
     DISPLAYLEVEL(3, "test%3i : compress %u zeroes : ", testNb++, LONGZEROSLENGTH);

@@ -138,6 +138,13 @@ Other standard targets include:
 The `Makefile` follows the [GNU Standard Makefile conventions](https://www.gnu.org/prep/standards/html_node/Makefile-Conventions.html),
 allowing staged install, standard compilation flags, directory variables and command variables.
 
+Common install variables include:
+- `PREFIX` : sets the final installation prefix recorded in installed metadata, such as `libzstd.pc`.
+  For example, `make install PREFIX=/usr` installs under `/usr` instead of `/usr/local`.
+- `DESTDIR` : prepends a staging directory to the install path without changing installed metadata.
+  For example, `make install PREFIX=/usr DESTDIR="$PWD/staging"` installs files under
+  `staging/usr`, while `libzstd.pc` still records `prefix=/usr`.
+
 For advanced use cases, specialized flags which control binary generation and installation paths are documented
 in [`lib/README.md`](lib/README.md#modular-build) for the `libzstd` library
 and in [`programs/README.md`](programs/README.md#compilation-variables) for the `zstd` CLI.

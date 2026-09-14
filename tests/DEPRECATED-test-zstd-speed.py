@@ -1,5 +1,5 @@
 #! /usr/bin/env python3
-# THIS BENCHMARK IS BEING REPLACED BY automated-bencmarking.py
+# THIS BENCHMARK IS BEING REPLACED BY automated-benchmarking.py
 
 # ################################################################
 # Copyright (c) Meta Platforms, Inc. and affiliates.

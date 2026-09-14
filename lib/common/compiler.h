@@ -344,7 +344,7 @@ MEM_STATIC int ZSTD_isPower2(size_t u) {
 #ifndef ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
 #  if __has_attribute(no_sanitize)
 #    if !defined(__clang__) && defined(__GNUC__) && __GNUC__ < 8
-       /* gcc < 8 only has signed-integer-overlow which triggers on pointer overflow */
+       /* gcc < 8 only has signed-integer-overflow which triggers on pointer overflow */
 #      define ZSTD_ALLOW_POINTER_OVERFLOW_ATTR __attribute__((no_sanitize("signed-integer-overflow")))
 #    else
        /* older versions of clang [3.7, 5.0) will warn that pointer-overflow is ignored. */

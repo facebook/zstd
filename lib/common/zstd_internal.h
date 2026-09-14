@@ -32,6 +32,7 @@
 #ifndef XXH_STATIC_LINKING_ONLY
 #  define XXH_STATIC_LINKING_ONLY  /* XXH64_state_t */
 #endif
+#include "sha256.h"                /* ZSTD_SHA256_DIGEST_SIZE */
 #include "xxhash.h"                /* XXH_reset, update, digest */
 #ifndef ZSTD_NO_TRACE
 #  include "zstd_trace.h"
@@ -86,6 +87,9 @@ static UNUSED_ATTR const size_t ZSTD_blockHeaderSize = ZSTD_BLOCKHEADERSIZE;
 typedef enum { bt_raw, bt_rle, bt_compressed, bt_reserved } blockType_e;
 
 #define ZSTD_FRAMECHECKSUMSIZE 4
+
+#define ZSTD_HTTPDCZ_HEADER_SIZE (ZSTD_SKIPPABLEHEADERSIZE + ZSTD_SHA256_DIGEST_SIZE)
+#define ZSTD_HTTPDCZ_HEADER_SKIPPABLE_VARIANT (0x0e)
 
 #define MIN_SEQUENCES_SIZE 1 /* nbSeq==0 */
 #define MIN_CBLOCK_SIZE (1 /*litCSize*/ + 1 /* RLE or RAW */)   /* for a non-null block */

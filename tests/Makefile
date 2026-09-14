@@ -236,6 +236,9 @@ largeDictionary: $(ZSTDMT_OBJECTS) $(PRGDIR)/datagen.c largeDictionary.c
 CLEAN += invalidDictionaries
 invalidDictionaries : $(ZSTD_OBJECTS) invalidDictionaries.c
 
+CLEAN += sha_test
+sha_test : $(ZSTD_OBJECTS) sha_test.c sha_test_vectors.c sha_test.h
+
 CLEAN += legacy
 # legacy.c adapts to the level it is compiled with : it only tests the frames
 # this level can decode. Default to the oldest format, to cover all decoders.
@@ -330,7 +333,7 @@ check: test-zstd
 fuzztest: test-fuzzer test-zstream test-decodecorpus
 
 .PHONY: test
-test: test-zstd test-cli-tests test-fullbench test-fuzzer test-zstream test-invalidDictionaries test-legacy test-decodecorpus
+test: test-zstd test-cli-tests test-fullbench test-fuzzer test-zstream test-invalidDictionaries test-legacy test-decodecorpus test-sha
 ifeq ($(QEMU_SYS),)
 test: test-pool
 endif
@@ -411,6 +414,9 @@ test-largeDictionary: largeDictionary
 
 test-invalidDictionaries: invalidDictionaries
 	$(QEMU_SYS) ./invalidDictionaries
+
+test-sha: sha_test
+	$(QEMU_SYS) ./sha_test
 
 test-legacy: legacy
 	$(QEMU_SYS) ./legacy

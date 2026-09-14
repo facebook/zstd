@@ -489,7 +489,7 @@ __`Size_Format`__
 - For `Raw_Literals_Block` and `RLE_Literals_Block`,
   it's only necessary to decode `Regenerated_Size`.
   There is no `Compressed_Size` field.
-- For `Compressed_Block` and `Treeless_Literals_Block`,
+- For `Compressed_Literals_Block` and `Treeless_Literals_Block`,
   it's required to decode both `Compressed_Size`
   and `Regenerated_Size` (the decompressed size).
   It's also necessary to decode the number of streams (1 or 4).

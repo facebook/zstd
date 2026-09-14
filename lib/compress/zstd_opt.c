@@ -180,7 +180,12 @@ ZSTD_rescaleFreqs(optState_t* const optPtr,
                 for (ll=0; ll<=MaxLL; ll++) {
                     U32 const scaleLog = 10;   /* scale to 1K */
                     U32 const bitCost = FSE_getMaxNbBits(llstate.symbolTT, ll);
-                    assert(bitCost < scaleLog);
+                    /* FSE_getMaxNbBits() returns a "fake cost" of tableLog+1 for
+                     * zero-frequency symbols, and the FSE table log can be as
+                     * large as scaleLog-1, so bitCost==scaleLog is reachable.
+                     * The value computation below already handles it (1<<0==1),
+                     * matching the literal-stats loop above. */
+                    assert(bitCost <= scaleLog);
                     optPtr->litLengthFreq[ll] = bitCost ? 1 << (scaleLog-bitCost) : 1 /*minimum to calculate cost*/;
                     optPtr->litLengthSum += optPtr->litLengthFreq[ll];
             }   }
@@ -192,7 +197,7 @@ ZSTD_rescaleFreqs(optState_t* const optPtr,
                 for (ml=0; ml<=MaxML; ml++) {
                     U32 const scaleLog = 10;
                     U32 const bitCost = FSE_getMaxNbBits(mlstate.symbolTT, ml);
-                    assert(bitCost < scaleLog);
+                    assert(bitCost <= scaleLog);  /* see litLength loop above */
                     optPtr->matchLengthFreq[ml] = bitCost ? 1 << (scaleLog-bitCost) : 1 /*minimum to calculate cost*/;
                     optPtr->matchLengthSum += optPtr->matchLengthFreq[ml];
             }   }
@@ -204,7 +209,7 @@ ZSTD_rescaleFreqs(optState_t* const optPtr,
                 for (of=0; of<=MaxOff; of++) {
                     U32 const scaleLog = 10;
                     U32 const bitCost = FSE_getMaxNbBits(ofstate.symbolTT, of);
-                    assert(bitCost < scaleLog);
+                    assert(bitCost <= scaleLog);  /* see litLength loop above */
                     optPtr->offCodeFreq[of] = bitCost ? 1 << (scaleLog-bitCost) : 1 /*minimum to calculate cost*/;
                     optPtr->offCodeSum += optPtr->offCodeFreq[of];
             }   }

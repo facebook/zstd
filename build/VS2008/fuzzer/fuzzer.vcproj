@@ -483,6 +483,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\lib\zstd_annotations.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\lib\zstd_errors.h"
 				>
 			</File>

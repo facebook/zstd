@@ -1308,6 +1308,11 @@ zstd -f tmp1
 zstd -b -d -i0 tmp1.zst
 println "benchmark can fail - decompression on invalid data"
 zstd -b -d -i0 tmp1 && die "invalid .zst data => benchmark should have failed"
+println "benchmark decompression of several frames whose content is smaller than the frame"
+printf 'a' > tmpbd1 ; printf 'b' > tmpbd2 ; printf 'c' > tmpbd3
+zstd -qf tmpbd1 tmpbd2 tmpbd3
+zstd -b -d -i0 tmpbd1.zst tmpbd2.zst tmpbd3.zst
+rm -f tmpbd1 tmpbd2 tmpbd3 tmpbd1.zst tmpbd2.zst tmpbd3.zst
 
 GZIPMODE=1
 zstd --format=gzip -V || GZIPMODE=0

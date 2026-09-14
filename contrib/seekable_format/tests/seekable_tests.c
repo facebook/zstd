@@ -121,6 +121,10 @@ int main(int argc, const char** argv)
         size_t const origSize = ZSTD_seekTable_getFrameDecompressedSize(zst, 0);
         assert(origSize == inSize);
 
+        /* out-of-range frame index must be rejected, not read past the table */
+        assert(ZSTD_isError(ZSTD_seekTable_getFrameCompressedSize(zst, nbFrames)));
+        assert(ZSTD_isError(ZSTD_seekTable_getFrameDecompressedSize(zst, nbFrames)));
+
         unsigned const fo1idx = ZSTD_seekTable_offsetToFrameIndex(zst, 1);
         assert(fo1idx == 0);
 

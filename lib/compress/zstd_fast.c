@@ -97,7 +97,7 @@ void ZSTD_fillHashTable(ZSTD_MatchState_t* ms,
 }
 
 
-typedef int (*ZSTD_match4Found) (const BYTE* currentPtr, const BYTE* matchAddress, U32 matchIdx, U32 idxLowLimit);
+typedef int (*ZSTD_matchFound) (const BYTE* currentPtr, const BYTE* matchAddress, U32 matchIdx, U32 idxLowLimit);
 
 static int
 ZSTD_match4Found_cmov(const BYTE* currentPtr, const BYTE* matchAddress, U32 matchIdx, U32 idxLowLimit)
@@ -138,6 +138,22 @@ ZSTD_match4Found_branch(const BYTE* currentPtr, const BYTE* matchAddress, U32 ma
     }
 
     return (MEM_read32(currentPtr) == mval);
+}
+
+static int
+ZSTD_match6Found_branch(const BYTE* currentPtr, const BYTE* matchAddress, U32 matchIdx, U32 idxLowLimit)
+{
+    /* using a branch instead of a cmov,
+     * because it's faster in scenarios where matchIdx >= idxLowLimit is generally true,
+     * aka almost all candidates are within range */
+    U32 mval;
+    if (matchIdx >= idxLowLimit) {
+        mval = MEM_read32(matchAddress);
+    } else {
+        mval = MEM_read32(currentPtr) ^ 1; /* guaranteed to not match. */
+    }
+
+    return (MEM_read32(currentPtr) == mval && MEM_read16(currentPtr+4) == MEM_read16(matchAddress+4));
 }
 
 
@@ -224,6 +240,7 @@ size_t ZSTD_compressBlock_fast_noDict_generic(
     U32 offcode;
     const BYTE* match0;
     size_t mLength;
+	
 
     /* ip0 and ip1 are always adjacent. The targetLength skipping and
      * uncompressibility acceleration is applied to every other position,
@@ -232,7 +249,13 @@ size_t ZSTD_compressBlock_fast_noDict_generic(
     size_t step;
     const BYTE* nextStep;
     const size_t kStepIncr = (1 << (kSearchStrength - 1));
-    const ZSTD_match4Found matchFound = useCmov ? ZSTD_match4Found_cmov : ZSTD_match4Found_branch;
+	
+    /* If we use the cmov condition, then just always do 4 byte matching.
+     * If we are using the branch match found, and have a hash of 6 or greater,
+     * then we verify we have found at least a 6 byte match before continuing,
+     * as the extra 2 byte compare operation is a bit faster than relying on ZSTD_count later. */
+    const ZSTD_matchFound matchFound = useCmov ? ZSTD_match4Found_cmov : (mls >= 6 ? ZSTD_match6Found_branch : ZSTD_match4Found_branch);
+    const size_t mLengthGuaranteed = (!useCmov && mls >= 6) ? 6 : 4;
 
     DEBUGLOG(5, "ZSTD_compressBlock_fast_generic");
     ip0 += (ip0 == prefixStart);
@@ -318,7 +341,8 @@ _start: /* Requires: ip0 */
             /* Write next hash table entry, since it's already calculated */
             if (step <= 4) {
                 /* Avoid writing an index if it's >= position where search will resume.
-                * The minimum possible match has length 4, so search can resume at ip0 + 4.
+                * The minimum possible match has length 4, so search
+                * can resume at ip0 + 4.
                 */
                 hashTable[hash1] = (U32)(ip1 - base);
             }
@@ -381,7 +405,7 @@ _offset: /* Requires: ip0, idx */
     rep_offset2 = rep_offset1;
     rep_offset1 = (U32)(ip0-match0);
     offcode = OFFSET_TO_OFFBASE(rep_offset1);
-    mLength = 4;
+    mLength = mLengthGuaranteed;
 
     /* Count the backwards match length. */
     while (((ip0>anchor) & (match0>prefixStart)) && (ip0[-1] == match0[-1])) {

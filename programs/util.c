@@ -905,16 +905,22 @@ UTIL_mergeFileNamesTable(FileNamesTable* table1, FileNamesTable* table2)
     return newTable;
 }
 
+/* (device, inode) ancestor chain threaded through UTIL_prepareFileList() recursion,
+ * used to detect directory cycles when symlinks are followed (#4081). */
+typedef struct UTIL_dirCycleGuard_s UTIL_dirCycleGuard;
+
 #ifdef _WIN32
 static int UTIL_prepareFileList(const char* dirName,
                                 char** bufStart, size_t* pos,
-                                char** bufEnd, int followLinks)
+                                char** bufEnd, int followLinks,
+                                const UTIL_dirCycleGuard* visited)
 {
     char* path;
     size_t dirLength, pathLength;
     int nbFiles = 0;
     WIN32_FIND_DATAA cFile;
     HANDLE hFile;
+    (void)visited;  /* cycle detection is POSIX-only (st_ino is unreliable on Windows) */
 
     dirLength = strlen(dirName);
     path = (char*) malloc(dirLength + 3);
@@ -947,7 +953,7 @@ static int UTIL_prepareFileList(const char* dirName,
               || strcmp (cFile.cFileName, ".") == 0 )
                 continue;
             /* Recursively call "UTIL_prepareFileList" with the new path. */
-            nbFiles += UTIL_prepareFileList(path, bufStart, pos, bufEnd, followLinks);
+            nbFiles += UTIL_prepareFileList(path, bufStart, pos, bufEnd, followLinks, visited);
             if (*bufStart == NULL) { free(path); FindClose(hFile); return 0; }
         } else if ( (cFile.dwFileAttributes & FILE_ATTRIBUTE_NORMAL)
                  || (cFile.dwFileAttributes & FILE_ATTRIBUTE_ARCHIVE)
@@ -972,18 +978,35 @@ static int UTIL_prepareFileList(const char* dirName,
 
 #elif defined(__linux__) || (PLATFORM_POSIX_VERSION >= 200112L)  /* opendir, readdir require POSIX.1-2001 */
 
+struct UTIL_dirCycleGuard_s {
+    dev_t dev;
+    ino_t ino;
+    const UTIL_dirCycleGuard* parent;
+};
+
 static int UTIL_prepareFileList(const char *dirName,
                                 char** bufStart, size_t* pos,
-                                char** bufEnd, int followLinks)
+                                char** bufEnd, int followLinks,
+                                const UTIL_dirCycleGuard* visited)
 {
     DIR* dir;
     struct dirent * entry;
     size_t dirLength;
     int nbFiles = 0;
+    stat_t dirStat;
+    UTIL_dirCycleGuard node;
 
     if (!(dir = opendir(dirName))) {
         UTIL_DISPLAYLEVEL(1, "Cannot open directory '%s': %s\n", dirName, strerror(errno));
         return 0;
+    }
+
+    /* record this directory's identity to detect a symlink cycle in deeper calls */
+    if (UTIL_stat(dirName, &dirStat)) {
+        node.dev = dirStat.st_dev;
+        node.ino = dirStat.st_ino;
+        node.parent = visited;
+        visited = &node;
     }
 
     dirLength = strlen(dirName);
@@ -991,6 +1014,7 @@ static int UTIL_prepareFileList(const char *dirName,
     while ((entry = readdir(dir)) != NULL) {
         char* path;
         size_t fnameLength, pathLength;
+        stat_t entryStat;
         if (strcmp (entry->d_name, "..") == 0 ||
             strcmp (entry->d_name, ".") == 0) continue;
         fnameLength = strlen(entry->d_name);
@@ -1009,8 +1033,23 @@ static int UTIL_prepareFileList(const char *dirName,
             continue;
         }
 
-        if (UTIL_isDirectory(path)) {
-            nbFiles += UTIL_prepareFileList(path, bufStart, pos, bufEnd, followLinks);  /* Recursively call "UTIL_prepareFileList" with the new path. */
+        /* UTIL_stat (and UTIL_isDirectory) follow the link, so entryStat is the target's */
+        if (UTIL_stat(path, &entryStat) && UTIL_isDirectoryStat(&entryStat)) {
+            const UTIL_dirCycleGuard* ancestor;
+            int isCycle = 0;
+            for (ancestor = visited; ancestor != NULL; ancestor = ancestor->parent) {
+                if (ancestor->dev == entryStat.st_dev && ancestor->ino == entryStat.st_ino) {
+                    isCycle = 1;
+                    break;
+                }
+            }
+            if (isCycle) {
+                UTIL_DISPLAYLEVEL(2, "Warning : %s is a directory cycle, skipping\n", path);
+                free(path);
+                errno = 0;
+                continue;
+            }
+            nbFiles += UTIL_prepareFileList(path, bufStart, pos, bufEnd, followLinks, visited);  /* Recursively call "UTIL_prepareFileList" with the new path. */
             if (*bufStart == NULL) { free(path); closedir(dir); return 0; }
         } else {
             if (*bufStart + *pos + pathLength >= *bufEnd) {
@@ -1029,7 +1068,7 @@ static int UTIL_prepareFileList(const char *dirName,
                 nbFiles++;
         }   }
         free(path);
-        errno = 0; /* clear errno after UTIL_isDirectory, UTIL_prepareFileList */
+        errno = 0; /* clear errno after UTIL_stat, UTIL_prepareFileList */
     }
 
     if (errno != 0) {
@@ -1045,9 +1084,10 @@ static int UTIL_prepareFileList(const char *dirName,
 
 static int UTIL_prepareFileList(const char *dirName,
                                 char** bufStart, size_t* pos,
-                                char** bufEnd, int followLinks)
+                                char** bufEnd, int followLinks,
+                                const UTIL_dirCycleGuard* visited)
 {
-    (void)bufStart; (void)bufEnd; (void)pos; (void)followLinks;
+    (void)bufStart; (void)bufEnd; (void)pos; (void)followLinks; (void)visited;
     UTIL_DISPLAYLEVEL(1, "Directory %s ignored (compiled without _WIN32 or _POSIX_C_SOURCE) \n", dirName);
     return 0;
 }
@@ -1403,7 +1443,7 @@ UTIL_createExpandedFNT(const char* const* inputNames, size_t nbIfns, int followL
                     nbFiles++;
                 }
             } else {
-                nbFiles += (unsigned)UTIL_prepareFileList(inputNames[ifnNb], &buf, &pos, &bufend, followLinks);
+                nbFiles += (unsigned)UTIL_prepareFileList(inputNames[ifnNb], &buf, &pos, &bufend, followLinks, NULL);
                 if (buf == NULL) return NULL;
     }   }   }
 

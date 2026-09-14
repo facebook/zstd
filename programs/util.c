@@ -730,6 +730,13 @@ static const char** UTIL_createLinePointers(char* buffer, size_t numLines, size_
             len++;
         }
 
+#if defined(_WIN32)
+        /* note: read in binary mode, so the CRT no longer folds CRLF; CR is legal in a filename elsewhere */
+        if (len > 0 && buffer[pos + len - 1] == '\r') {
+            buffer[pos + len - 1] = '\0';
+        }
+#endif
+
         /* Move past this string and its null terminator */
         pos += len;
         if (pos < bufferSize) pos++;  /* Skip the null terminator if we're not at buffer end */

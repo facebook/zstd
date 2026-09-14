@@ -108,17 +108,16 @@ install_man(join_paths(zstd_rootdir, 'programs/zstd.1'),
   join_paths(zstd_rootdir, 'programs/zstdgrep.1'),
   join_paths(zstd_rootdir, 'programs/zstdless.1'))
 
-InstallSymlink_py = '../InstallSymlink.py'
 zstd_man1_dir = join_paths(zstd_mandir, 'man1')
 bin_EXT = host_machine_os == os_windows ? '.exe' : ''
 man1_EXT = meson.version().version_compare('>=0.49.0') ? '.1' : '.1.gz'
 
 foreach f : ['zstdcat', 'unzstd']
-  meson.add_install_script(InstallSymlink_py, 'zstd' + bin_EXT, f + bin_EXT, zstd_bindir)
-  meson.add_install_script(InstallSymlink_py, 'zstd' + man1_EXT, f + man1_EXT, zstd_man1_dir)
+  install_symlink(f + bin_EXT, pointing_to: 'zstd' + bin_EXT, install_dir: zstd_bindir)
+  install_symlink(f + man1_EXT, pointing_to: 'zstd' + man1_EXT, install_dir: zstd_man1_dir)
 endforeach
 
 if use_multi_thread
-  meson.add_install_script(InstallSymlink_py, 'zstd' + bin_EXT, 'zstdmt' + bin_EXT, zstd_bindir)
-  meson.add_install_script(InstallSymlink_py, 'zstd' + man1_EXT, 'zstdmt' + man1_EXT, zstd_man1_dir)
+  install_symlink('zstdmt' + bin_EXT, pointing_to: 'zstd' + bin_EXT, install_dir: zstd_bindir)
+  install_symlink('zstdmt' + man1_EXT, pointing_to: 'zstd' + man1_EXT, install_dir: zstd_man1_dir)
 endif

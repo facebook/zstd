@@ -11,6 +11,7 @@
 project('zstd',
   ['c', 'cpp'],
   license: 'BSD-3-Clause OR GPL-2.0-only',
+  version: '1.6.0',
   default_options : [
     # There shouldn't be any need to force a C standard convention for zstd
     # but in case one would want that anyway, this can be done here.
@@ -23,13 +24,11 @@ project('zstd',
     # so this isn't safe
     #'werror=true'
   ],
-  version: run_command(
-    find_program('GetZstdLibraryVersion.py'), '../../lib/zstd.h',
-    check: true).stdout().strip(),
-  meson_version: '>=0.50.0')
+  meson_version: '>=0.61.0')
 
 cc = meson.get_compiler('c')
 cxx = meson.get_compiler('cpp')
+fs = import('fs')
 pkgconfig = import('pkgconfig')
 windows_mod = import('windows')
 
@@ -46,6 +45,30 @@ compiler_clang = 'clang'
 compiler_msvc = 'msvc'
 
 zstd_version = meson.project_version()
+zstd_h = fs.read('../../lib/zstd.h')
+zstd_version_major = ''
+zstd_version_minor = ''
+zstd_version_release = ''
+
+foreach line : zstd_h.split('\n')
+  line_parts = line.strip().split()
+  if line_parts.length() == 3 and line_parts[0] == '#define'
+    if line_parts[1] == 'ZSTD_VERSION_MAJOR'
+      zstd_version_major = line_parts[2]
+    elif line_parts[1] == 'ZSTD_VERSION_MINOR'
+      zstd_version_minor = line_parts[2]
+    elif line_parts[1] == 'ZSTD_VERSION_RELEASE'
+      zstd_version_release = line_parts[2]
+    endif
+  endif
+endforeach
+
+assert(zstd_version_major != '' and zstd_version_minor != '' and zstd_version_release != '',
+  'Unable to read zstd version from lib/zstd.h')
+
+zstd_h_version = zstd_version_major + '.' + zstd_version_minor + '.' + zstd_version_release
+assert(zstd_version == zstd_h_version,
+  'Meson project version @0@ does not match lib/zstd.h version @1@'.format(zstd_version, zstd_h_version))
 
 zstd_libversion = zstd_version
 

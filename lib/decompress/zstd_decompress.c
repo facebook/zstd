@@ -2395,11 +2395,12 @@ size_t ZSTD_decompressStream_simpleArgs (
 {
     ZSTD_outBuffer output;
     ZSTD_inBuffer  input;
-    output.dst = dst;
+    /* Capacity before pointer so sized_by invariants hold under -fbounds-safety. */
     output.size = dstCapacity;
+    output.dst = dst;
     output.pos = *dstPos;
-    input.src = src;
     input.size = srcSize;
+    input.src = src;
     input.pos = *srcPos;
     {   size_t const cErr = ZSTD_decompressStream(dctx, &output, &input);
         *dstPos = output.pos;

@@ -52,6 +52,13 @@ endif
 # Assembly support
 ZSTD_NO_ASM ?= 0
 
+# Optional Clang -fbounds-safety (OFF by default; inert macros otherwise)
+ENABLE_FBOUNDS_SAFETY ?= 0
+ifeq ($(ENABLE_FBOUNDS_SAFETY),1)
+  CPPFLAGS += -DZSTD_SUPPORT_FBOUNDS_SAFETY
+  CFLAGS   += -fbounds-safety
+endif
+
 ZSTD_LIB_EXCLUDE_COMPRESSORS_DFAST_AND_UP ?= 0
 ZSTD_LIB_EXCLUDE_COMPRESSORS_GREEDY_AND_UP ?= 0
 

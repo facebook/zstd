@@ -46,7 +46,7 @@ extern "C" {
 #else
 #  if defined (__cplusplus) && (__cplusplus >= 201402) /* C++14 or greater */
 #    define ZBUFF_DEPRECATED(message) [[deprecated(message)]] ZSTDLIB_API
-#  elif (defined(GNUC) && (GNUC > 4 || (GNUC == 4 && GNUC_MINOR >= 5))) || defined(__clang__)
+#  elif (defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 5))) || defined(__clang__)
 #    define ZBUFF_DEPRECATED(message) ZSTDLIB_API __attribute__((deprecated(message)))
 #  elif defined(__GNUC__) && (__GNUC__ >= 3)
 #    define ZBUFF_DEPRECATED(message) ZSTDLIB_API __attribute__((deprecated))

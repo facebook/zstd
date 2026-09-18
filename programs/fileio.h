@@ -87,6 +87,7 @@ void FIO_setRsyncable(FIO_prefs_t* const prefs, int rsyncable);
 void FIO_setStreamSrcSize(FIO_prefs_t* const prefs, size_t streamSrcSize);
 void FIO_setTargetCBlockSize(FIO_prefs_t* const prefs, size_t targetCBlockSize);
 void FIO_setSrcSizeHint(FIO_prefs_t* const prefs, size_t srcSizeHint);
+void FIO_setInputBufferSize(FIO_prefs_t* const prefs, size_t inputBufferSize);
 void FIO_setTestMode(FIO_prefs_t* const prefs, int testMode);
 void FIO_setLiteralCompressionMode(
         FIO_prefs_t* const prefs,

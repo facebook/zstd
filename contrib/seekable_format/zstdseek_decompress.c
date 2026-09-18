@@ -264,6 +264,10 @@ ZSTD_seekTable* ZSTD_seekTable_create_fromSeekable(const ZSTD_seekable* zs)
     st->tableLen = zs->seekTable.tableLen;
 
     /* Allocate an extra entry at the end to match logic of initial allocation */
+    if (zs->seekTable.tableLen > (((size_t)-1) / sizeof(seekEntry_t)) - 1) {
+        free(st);
+        return NULL;
+    }
     size_t const entriesSize = sizeof(seekEntry_t) * (zs->seekTable.tableLen + 1);
     seekEntry_t* const entries = (seekEntry_t*)malloc(entriesSize);
     if (entries==NULL) {
@@ -392,9 +396,21 @@ static size_t ZSTD_seekable_loadSeekTable(ZSTD_seekable* zs)
     }   }
 
     {   U32 const numFrames = MEM_readLE32(zs->inBuff);
-        U32 const sizePerEntry = 8 + (checksumFlag?4:0);
-        U32 const tableSize = sizePerEntry * numFrames;
-        U32 const frameSize = tableSize + ZSTD_seekTableFooterSize + ZSTD_SKIPPABLEHEADERSIZE;
+        U32 const sizePerEntry = 8 + (checksumFlag ? 4 : 0);
+        U32 tableSize;
+        U32 frameSize;
+
+        if (numFrames > ZSTD_SEEKABLE_MAXFRAMES) {
+            return ERROR(frameIndex_tooLarge);
+        }
+        if (numFrames > UINT_MAX / sizePerEntry) {
+            return ERROR(corruption_detected);
+        }
+        tableSize = sizePerEntry * numFrames;
+        if (tableSize > UINT_MAX - ZSTD_seekTableFooterSize - ZSTD_SKIPPABLEHEADERSIZE) {
+            return ERROR(corruption_detected);
+        }
+        frameSize = tableSize + ZSTD_seekTableFooterSize + ZSTD_SKIPPABLEHEADERSIZE;
 
         U32 remaining = frameSize - ZSTD_seekTableFooterSize; /* don't need to re-read footer */
         {   U32 const toRead = MIN(remaining, SEEKABLE_BUFF_SIZE);
@@ -412,7 +428,10 @@ static size_t ZSTD_seekable_loadSeekTable(ZSTD_seekable* zs)
 
         {   /* Allocate an extra entry at the end so that we can do size
              * computations on the last element without special case */
-            seekEntry_t* const entries = (seekEntry_t*)malloc(sizeof(seekEntry_t) * (numFrames + 1));
+            if ((size_t)numFrames > (((size_t)-1) / sizeof(seekEntry_t)) - 1) {
+                return ERROR(memory_allocation);
+            }
+            seekEntry_t* const entries = (seekEntry_t*)malloc(sizeof(seekEntry_t) * ((size_t)numFrames + 1));
 
             U32 idx = 0;
             U32 pos = 8;

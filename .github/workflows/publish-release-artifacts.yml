@@ -11,6 +11,8 @@ jobs:
   publish-release-artifacts:
     permissions:
       contents: write # to fetch code and upload artifacts
+      id-token: write # to sign release attestations
+      attestations: write # to store release attestations
 
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
@@ -20,6 +22,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
 
       - name: Archive
+        id: archive
         env:
           RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
           RELEASE_SIGNING_KEY_PASSPHRASE: ${{ secrets.RELEASE_SIGNING_KEY_PASSPHRASE }}
@@ -34,6 +37,7 @@ jobs:
           # Otherwise, degrade to using full tag.
           export VERSION="$(echo "$TAG" | sed 's_^v\([0-9]\+\.[0-9]\+\.[0-9]\+\)$_\1_')"
           export ZSTD_VERSION="zstd-$VERSION"
+          echo "zstd_version=$ZSTD_VERSION" >> "$GITHUB_OUTPUT"
 
           # archive
           git archive $TAG \
@@ -64,6 +68,66 @@ jobs:
             gpg $GPG_BATCH_OPTS --armor --sign --sign-with signing@zstd.net --detach-sig --passphrase "$RELEASE_SIGNING_KEY_PASSPHRASE" --output $ZSTD_VERSION.tar.zst.sig $ZSTD_VERSION.tar.zst
             gpg $GPG_BATCH_OPTS --armor --sign --sign-with signing@zstd.net --detach-sig --passphrase "$RELEASE_SIGNING_KEY_PASSPHRASE" --output $ZSTD_VERSION.tar.gz.sig  $ZSTD_VERSION.tar.gz
           fi
+
+      - name: Generate gzip SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # tag=v0.24.0
+        with:
+          file: artifacts/${{ steps.archive.outputs.zstd_version }}.tar.gz
+          format: cyclonedx-json
+          output-file: artifacts/${{ steps.archive.outputs.zstd_version }}.tar.gz.cdx.json
+          syft-version: v1.52.0
+          dependency-snapshot: false
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Generate zstd SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # tag=v0.24.0
+        with:
+          file: artifacts/${{ steps.archive.outputs.zstd_version }}.tar.zst
+          format: cyclonedx-json
+          output-file: artifacts/${{ steps.archive.outputs.zstd_version }}.tar.zst.cdx.json
+          syft-version: v1.52.0
+          dependency-snapshot: false
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Validate SBOM identity
+        env:
+          ZSTD_VERSION: ${{ steps.archive.outputs.zstd_version }}
+        run: |
+          set -euo pipefail
+          for extension in tar.gz tar.zst; do
+            archive="$ZSTD_VERSION.$extension"
+            expected="sha256:$(cut -d' ' -f1 "artifacts/$archive.sha256")"
+            sbom="artifacts/$archive.cdx.json"
+            jq -e --arg archive "$archive" --arg expected "$expected" '
+              .bomFormat == "CycloneDX"
+              and .specVersion == "1.7"
+              and .metadata.component.type == "file"
+              and .metadata.component.name == $archive
+              and .metadata.component.version == $expected
+              and ((.components | length) > 0)
+            ' "$sbom" >/dev/null
+          done
+
+      - name: Attest source archive provenance
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # tag=v3
+        with:
+          subject-path: |
+            artifacts/${{ steps.archive.outputs.zstd_version }}.tar.gz
+            artifacts/${{ steps.archive.outputs.zstd_version }}.tar.zst
+
+      - name: Attest gzip SBOM
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # tag=v4
+        with:
+          subject-path: artifacts/${{ steps.archive.outputs.zstd_version }}.tar.gz
+          sbom-path: artifacts/${{ steps.archive.outputs.zstd_version }}.tar.gz.cdx.json
+
+      - name: Attest zstd SBOM
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # tag=v4
+        with:
+          subject-path: artifacts/${{ steps.archive.outputs.zstd_version }}.tar.zst
+          sbom-path: artifacts/${{ steps.archive.outputs.zstd_version }}.tar.zst.cdx.json
 
       - name: Publish
         uses: skx/github-action-publish-binaries@b9ca5643b2f1d7371a6cba7f35333f1461bbc703 # tag=release-2.0

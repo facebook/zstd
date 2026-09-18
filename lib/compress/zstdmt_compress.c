@@ -128,7 +128,7 @@ static ZSTDMT_bufferPool* ZSTDMT_createBufferPool(unsigned maxNbBuffers, ZSTD_cu
         ZSTD_customFree(bufPool, cMem);
         return NULL;
     }
-    bufPool->buffers = (Buffer*)ZSTD_customCalloc(maxNbBuffers * sizeof(Buffer), cMem);
+    bufPool->buffers = (Buffer*)ZSTD_customCalloc2(maxNbBuffers, sizeof(Buffer), cMem);
     if (bufPool->buffers==NULL) {
         ZSTDMT_freeBufferPool(bufPool);
         return NULL;
@@ -389,7 +389,7 @@ static ZSTDMT_CCtxPool* ZSTDMT_createCCtxPool(int nbWorkers,
         return NULL;
     }
     cctxPool->totalCCtx = nbWorkers;
-    cctxPool->cctxs = (ZSTD_CCtx**)ZSTD_customCalloc(nbWorkers * sizeof(ZSTD_CCtx*), cMem);
+    cctxPool->cctxs = (ZSTD_CCtx**)ZSTD_customCalloc2(nbWorkers, sizeof(ZSTD_CCtx*), cMem);
     if (!cctxPool->cctxs) {
         ZSTDMT_freeCCtxPool(cctxPool);
         return NULL;

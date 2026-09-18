@@ -186,6 +186,7 @@ static int ZSTD_seekable_seek_buff(void* opaque, long long offset, int origin)
         break;
     default:
         assert(0);  /* not possible */
+        return -1;  /* keeps newOffset from being read uninitialised when NDEBUG strips the assert */
     }
     if (newOffset > buff->size) {
         return -1;

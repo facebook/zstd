@@ -239,6 +239,16 @@ const char* UTIL_getFileExtension(const char* infilename);
 void  UTIL_mirrorSourceFilesDirectories(const char** fileNamesTable, unsigned int nbFiles, const char *outDirName);
 char* UTIL_createMirroredDestDirName(const char* srcFileName, const char* outDirRootName);
 
+/*! UTIL_landlockRestrict() :
+ *  On Linux, restrict this process and its future threads to creating,
+ *  modifying, and removing filesystem objects at or below @writablePaths.
+ *  Reading remains unrestricted, while TCP bind/connect is disabled when the
+ *  running kernel supports Landlock network rules.
+ * @return : 1 when the sandbox is enabled, 0 when Landlock is unavailable,
+ *           or -1 on an unexpected setup error (with errno preserved).
+ */
+int UTIL_landlockRestrict(const char* const* writablePaths, size_t writablePathCount);
+
 
 
 /*-****************************************

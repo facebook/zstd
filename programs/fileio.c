@@ -1751,6 +1751,19 @@ FIO_compressLz4Frame(cRess_t* ress,
 }
 #endif
 
+/* FIO_advanceToUtf8Boundary():
+ * Advance given pointer to the next valid UTF-8 starting byte. Abort if
+ * not found in 3 steps (max length of continuation sequence) and assume
+ * it is some other encoding. */
+static const char* FIO_advanceToUtf8Boundary(const char* ptr)
+{
+    const char* p;
+    for (p = ptr; p < ptr + 4; p++)
+        if (((unsigned char)*p & 0xC0) != 0x80)
+            return p;
+    return ptr;
+}
+
 static unsigned long long
 FIO_compressZstdFrame(FIO_ctx_t* const fCtx,
                       FIO_prefs_t* const prefs,
@@ -1958,7 +1971,8 @@ FIO_compressZstdFrame(FIO_ctx_t* const fCtx,
                         size_t srcFileNameSize = strlen(srcFileName);
                         /* Ensure that the string we print is roughly the same size each time */
                         if (srcFileNameSize > 18) {
-                            const char* truncatedSrcFileName = srcFileName + srcFileNameSize - 15;
+                            const char* truncatedSrcFileName =
+                                FIO_advanceToUtf8Boundary(srcFileName + srcFileNameSize - 15);
                             DISPLAY_PROGRESS("Compress: %u/%u files. Current: ...%s ",
                                         fCtx->currFileIdx+1, fCtx->nbFilesTotal, truncatedSrcFileName);
                         } else {
@@ -2702,7 +2716,7 @@ FIO_decompressZstdFrame(FIO_ctx_t* const fCtx, dRess_t* ress,
     /* display last 20 characters only when not --verbose */
     {   size_t const srcFileLength = strlen(srcFileName);
         if ((srcFileLength>20) && (g_display_prefs.displayLevel<3))
-            srcFName20 += srcFileLength-20;
+            srcFName20 = FIO_advanceToUtf8Boundary(srcFName20 + srcFileLength-20);
     }
 
     ZSTD_DCtx_reset(ress->dctx, ZSTD_reset_session_only);

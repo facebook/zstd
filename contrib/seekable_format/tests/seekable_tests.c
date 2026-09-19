@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "../zstd_seekable.h"
+#include "zstd_errors.h"
 
 
 /* ZSTD_seekable_customFile implementation that reads/seeks a buffer while keeping track of total bytes read */
@@ -361,6 +362,28 @@ int main(int argc, const char** argv)
         free(seekBuffer);
         free(outBuffer);
         ZSTD_seekable_freeCStream(zscs);
+        ZSTD_seekable_free(stream);
+    }
+    printf("Success!\n");
+
+    printf("Test %u - reject seek table with numFrames beyond format max: ", testNb++);
+    {   /* A corrupt footer claiming numFrames > ZSTD_SEEKABLE_MAXFRAMES must be
+         * rejected up front: such a value overflows the seek table size math. */
+        const uint8_t compressed_data[17] = {
+            0x5e, 0x2a, 0x4d, 0x18,       /* skippable frame magic (| 0xE) */
+            0x09, 0x00, 0x00, 0x00,       /* skippable frame size = 9 */
+            0x01, 0x00, 0x00, 0x08,       /* footer: numFrames = 0x08000001 */
+            0x00,                         /* footer: seek table descriptor */
+            0xb1, 0xea, 0x92, 0x8f,       /* seekable magic number */
+        };
+
+        ZSTD_seekable* const stream = ZSTD_seekable_create();
+        assert(stream != NULL);
+        {   size_t const status = ZSTD_seekable_initBuff(stream, compressed_data, sizeof(compressed_data));
+            if (ZSTD_getErrorCode(status) != ZSTD_error_corruption_detected) {
+                ZSTD_seekable_free(stream);
+                goto _test_error;
+        }   }
         ZSTD_seekable_free(stream);
     }
     printf("Success!\n");

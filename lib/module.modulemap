@@ -1,4 +1,7 @@
-module libzstd [extern_c] {
+// Private modulemap for the _ZstdCore implementation target.
+// The actual public Swift modules live in the Zstd and libzstd targets'
+// own modulemaps.  This module is not intended for client use.
+module _ZstdCore [extern_c] {
     header "zstd.h"
     export *
 

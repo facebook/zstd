@@ -244,6 +244,24 @@ typedef struct {
     ZSTD_OptPrice_e priceType;   /* prices can be determined dynamically, or follow a pre-defined cost structure */
     const ZSTD_entropyCTables_t* symbolCosts;  /* pre-calculated dictionary statistics */
     ZSTD_ParamSwitch_e literalCompressionMode;
+
+    /* Derived price tables: the per-code half of a price that depends on
+     * that code's frequency alone. The matching `*SumBasePrice` above is
+     * added at the point of use, which is what keeps these tables cheap to
+     * maintain: a frequency update touches exactly one entry per table, so
+     * ZSTD_updateStats() refreshes those entries in place and no full
+     * rebuild is needed when the running totals move. A full build is only
+     * required when ZSTD_rescaleFreqs() replaces all the statistics at
+     * once, i.e. once per block.
+     *
+     * Entries are U32 and deliberately allowed to wrap: each is a
+     * difference that is only meaningful once its `*SumBasePrice` is added
+     * back, and U32 addition recovers the original value exactly. These
+     * tables therefore reproduce the arithmetic they replace bit for bit,
+     * leaving the parse unchanged. */
+    U32  litLengthPriceNoSum[MaxLL+1];    /* + litLengthSumBasePrice     = litLength symbol price */
+    U32  matchLengthPriceNoSum[MaxML+1];  /* + matchLengthSumBasePrice   = matchLength half of a match price */
+    U32  offCodePriceNoSum[MaxOff+1];     /* + offCodeSumBasePrice       = offset half of a match price */
 } optState_t;
 
 typedef struct {

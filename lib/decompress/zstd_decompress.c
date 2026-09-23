@@ -130,10 +130,14 @@ static size_t ZSTD_DDictHashSet_emplaceDDict(ZSTD_DDictHashSet* hashSet, const Z
  */
 static size_t ZSTD_DDictHashSet_expand(ZSTD_DDictHashSet* hashSet, ZSTD_customMem customMem) {
     size_t newTableSize = hashSet->ddictPtrTableSize * DDICT_HASHSET_RESIZE_FACTOR;
-    const ZSTD_DDict** newTable = (const ZSTD_DDict**)ZSTD_customCalloc(sizeof(ZSTD_DDict*) * newTableSize, customMem);
+    const ZSTD_DDict** newTable;
     const ZSTD_DDict** oldTable = hashSet->ddictPtrTable;
     size_t oldTableSize = hashSet->ddictPtrTableSize;
     size_t i;
+
+    /* Guard against integer overflow: newTableSize must be strictly larger than the old size */
+    RETURN_ERROR_IF(newTableSize <= oldTableSize, memory_allocation, "DDict hash set size overflow on expand!");
+    newTable = (const ZSTD_DDict**)ZSTD_customCalloc(sizeof(ZSTD_DDict*) * newTableSize, customMem);
 
     DEBUGLOG(4, "Expanding DDict hash table! Old size: %zu new size: %zu", oldTableSize, newTableSize);
     RETURN_ERROR_IF(!newTable, memory_allocation, "Expanded hashset allocation failed!");
@@ -142,7 +146,14 @@ static size_t ZSTD_DDictHashSet_expand(ZSTD_DDictHashSet* hashSet, ZSTD_customMe
     hashSet->ddictPtrCount = 0;
     for (i = 0; i < oldTableSize; ++i) {
         if (oldTable[i] != NULL) {
-            FORWARD_IF_ERROR(ZSTD_DDictHashSet_emplaceDDict(hashSet, oldTable[i]), "");
+            size_t const err = ZSTD_DDictHashSet_emplaceDDict(hashSet, oldTable[i]);
+            if (ZSTD_isError(err)) {
+                /* Free the old table before propagating the error to avoid a memory leak.
+                 * The new table is already referenced by hashSet->ddictPtrTable and will
+                 * be freed when the hashSet itself is freed. */
+                ZSTD_customFree((void*)oldTable, customMem);
+                return err;
+            }
         }
     }
     ZSTD_customFree((void*)oldTable, customMem);

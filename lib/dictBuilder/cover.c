@@ -644,6 +644,13 @@ static size_t COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
                  (unsigned)(totalSamplesSize>>20), (COVER_MAX_SAMPLES_SIZE >> 20));
     return ERROR(srcSize_wrong);
   }
+  if (trainingSamplesSize < MAX(d, sizeof(U64))) {
+    DISPLAYLEVEL(1,
+                 "Total training samples size is too small (%u bytes), "
+                 "minimum is %u bytes\n",
+                 (unsigned)trainingSamplesSize, (unsigned)MAX(d, sizeof(U64)));
+    return ERROR(srcSize_wrong);
+  }
   /* Check if there are at least 5 training samples */
   if (nbTrainSamples < 5) {
     DISPLAYLEVEL(1, "Total number of training samples is %u and is invalid.", nbTrainSamples);
@@ -736,14 +743,15 @@ COVER_epoch_info_t COVER_computeEpochs(U32 maxDictSize,
 {
   const U32 minEpochSize = k * 10;
   COVER_epoch_info_t epochs;
-  epochs.num = MAX(1, maxDictSize / k / passes);
-  epochs.size = nbDmers / epochs.num;
+  epochs.num = (k == 0 || passes == 0) ? 1 : MAX(1, maxDictSize / k / passes);
+  epochs.size = epochs.num > 0 ? nbDmers / epochs.num : 0;
   if (epochs.size >= minEpochSize) {
       assert(epochs.size * epochs.num <= nbDmers);
       return epochs;
   }
   epochs.size = MIN(minEpochSize, nbDmers);
-  epochs.num = nbDmers / epochs.size;
+  epochs.num = epochs.size > 0 ? nbDmers / epochs.size : 1;
+  epochs.num = MAX(1, epochs.num);
   assert(epochs.size * epochs.num <= nbDmers);
   return epochs;
 }

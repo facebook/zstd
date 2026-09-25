@@ -4000,6 +4000,50 @@ static int basicUnitTests(U32 const seed, double compressibility)
         free(samplesSizes);
     }
 
+    /* COVER / FASTCOVER training size validation tests */
+    {   size_t const dictSize = 16 KB;
+        void* const dictBuffer = malloc(dictSize);
+        size_t const smallSamplesSizes[8] = { 1, 1, 1, 1, 1, 1, 100, 100 };
+        ZDICT_cover_params_t coverParams;
+        ZDICT_fastCover_params_t fastCoverParams;
+        size_t res;
+
+        if (dictBuffer == NULL) goto _output_error;
+
+        DISPLAYLEVEL(3, "test%3i : COVER training size underflow : ", testNb++);
+        memset(&coverParams, 0, sizeof(coverParams));
+        coverParams.splitPoint = 0.75;
+        coverParams.d = 8;
+        coverParams.k = 16;
+        res = ZDICT_optimizeTrainFromBuffer_cover(dictBuffer, dictSize,
+                                                 CNBuffer, smallSamplesSizes, 8,
+                                                 &coverParams);
+        if (!ZDICT_isError(res) ||
+            ZSTD_getErrorCode(res) != ZSTD_error_srcSize_wrong) {
+            free(dictBuffer);
+            goto _output_error;
+        }
+        DISPLAYLEVEL(3, "OK \n");
+
+        DISPLAYLEVEL(3, "test%3i : FASTCOVER training underflow : ", testNb++);
+        memset(&fastCoverParams, 0, sizeof(fastCoverParams));
+        fastCoverParams.d = 8;
+        fastCoverParams.k = 16;
+        fastCoverParams.f = 14;
+        res = ZDICT_optimizeTrainFromBuffer_fastCover(dictBuffer, dictSize,
+                                                     CNBuffer,
+                                                     smallSamplesSizes, 8,
+                                                     &fastCoverParams);
+        if (!ZDICT_isError(res) ||
+            ZSTD_getErrorCode(res) != ZSTD_error_srcSize_wrong) {
+            free(dictBuffer);
+            goto _output_error;
+        }
+        DISPLAYLEVEL(3, "OK \n");
+
+        free(dictBuffer);
+    }
+
     /* Decompression defense tests */
     DISPLAYLEVEL(3, "test%3i : Check input length for magic number : ", testNb++);
     { size_t const r = ZSTD_decompress(decodedBuffer, CNBuffSize, CNBuffer, 3);   /* too small input */

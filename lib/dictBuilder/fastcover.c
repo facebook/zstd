@@ -595,10 +595,21 @@ ZDICT_trainFromBuffer_fastCover(void* dictBuffer, size_t dictBufferCapacity,
     {
       /* Initialize array to keep track of frequency of dmer within activeSegment */
       U16* segmentFreqs = (U16 *)calloc(((U64)1 << parameters.f), sizeof(U16));
-      const size_t tail = FASTCOVER_buildDictionary(&ctx, ctx.freqs, dictBuffer,
-                                                dictBufferCapacity, coverParams, segmentFreqs);
-      const unsigned nbFinalizeSamples = (unsigned)(ctx.nbTrainSamples * ctx.accelParams.finalize / 100);
-      const size_t dictionarySize = ZDICT_finalizeDictionary(
+      size_t tail;
+      unsigned nbFinalizeSamples;
+      size_t dictionarySize;
+
+      if (!segmentFreqs) {
+          DISPLAYLEVEL(1,
+              "Failed to allocate segment frequency table: out of memory\n");
+          FASTCOVER_ctx_destroy(&ctx);
+          return ERROR(memory_allocation);
+      }
+      tail = FASTCOVER_buildDictionary(&ctx, ctx.freqs, dictBuffer,
+                 dictBufferCapacity, coverParams, segmentFreqs);
+      nbFinalizeSamples =
+          (unsigned)(ctx.nbTrainSamples * ctx.accelParams.finalize / 100);
+      dictionarySize = ZDICT_finalizeDictionary(
           dict, dictBufferCapacity, dict + tail, dictBufferCapacity - tail,
           samplesBuffer, samplesSizes, nbFinalizeSamples, coverParams.zParams);
       if (!ZSTD_isError(dictionarySize)) {

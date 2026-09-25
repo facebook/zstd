@@ -875,6 +875,7 @@ size_t ZDICT_finalizeDictionary(void* dictBuffer, size_t dictBufferCapacity,
 
     /* check conditions */
     DEBUGLOG(4, "ZDICT_finalizeDictionary");
+    if (dictBuffer == NULL) return ERROR(dstSize_tooSmall);
     if (dictBufferCapacity < dictContentSize) return ERROR(dstSize_tooSmall);
     if (dictBufferCapacity < ZDICT_DICTSIZE_MIN) return ERROR(dstSize_tooSmall);
 
@@ -949,6 +950,12 @@ static size_t ZDICT_addEntropyTablesFromBuffer_advanced(
     int const compressionLevel = (params.compressionLevel == 0) ? ZSTD_CLEVEL_DEFAULT : params.compressionLevel;
     U32 const notificationLevel = params.notificationLevel;
     size_t hSize = 8;
+
+    /* check conditions */
+    if (dictBuffer == NULL) return ERROR(dstSize_tooSmall);
+    if (dictBufferCapacity < dictContentSize) return ERROR(dstSize_tooSmall);
+    if (dictBufferCapacity < ZDICT_DICTSIZE_MIN)
+        return ERROR(dstSize_tooSmall);
 
     /* calculate entropy tables */
     DISPLAYLEVEL(2, "\r%70s\r", "");   /* clean display line */

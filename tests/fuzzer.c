@@ -4000,6 +4000,48 @@ static int basicUnitTests(U32 const seed, double compressibility)
         free(samplesSizes);
     }
 
+    /* ZDICT input validation and bounds safety tests */
+    DISPLAYLEVEL(3, "test%3i : ZDICT bounds & NULL checks : ", testNb++);
+    {   size_t const dictSize = 16 KB;
+        void* const dictBuffer = malloc(dictSize);
+        size_t const samplesSizes[4] = { 100, 100, 100, 100 };
+        ZDICT_params_t params;
+        size_t res;
+
+        if (dictBuffer == NULL) goto _output_error;
+        memset(&params, 0, sizeof(params));
+
+        /* dictBufferCapacity < dictContentSize */
+        res = ZDICT_addEntropyTablesFromBuffer(dictBuffer, 500, 200,
+                                               CNBuffer, samplesSizes, 4);
+        if (!ZDICT_isError(res) ||
+            ZSTD_getErrorCode(res) != ZSTD_error_dstSize_tooSmall) {
+            free(dictBuffer);
+            goto _output_error;
+        }
+
+        /* dictBuffer == NULL */
+        res = ZDICT_addEntropyTablesFromBuffer(NULL, 100, dictSize,
+                                               CNBuffer, samplesSizes, 4);
+        if (!ZDICT_isError(res) ||
+            ZSTD_getErrorCode(res) != ZSTD_error_dstSize_tooSmall) {
+            free(dictBuffer);
+            goto _output_error;
+        }
+
+        /* ZDICT_finalizeDictionary with NULL dictBuffer */
+        res = ZDICT_finalizeDictionary(NULL, dictSize, CNBuffer, 100,
+                                       CNBuffer, samplesSizes, 4, params);
+        if (!ZDICT_isError(res) ||
+            ZSTD_getErrorCode(res) != ZSTD_error_dstSize_tooSmall) {
+            free(dictBuffer);
+            goto _output_error;
+        }
+
+        free(dictBuffer);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     /* Decompression defense tests */
     DISPLAYLEVEL(3, "test%3i : Check input length for magic number : ", testNb++);
     { size_t const r = ZSTD_decompress(decodedBuffer, CNBuffSize, CNBuffer, 3);   /* too small input */

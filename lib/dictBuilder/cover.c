@@ -1096,8 +1096,14 @@ COVER_dictSelection_t COVER_selectDict(BYTE* customDictContent, size_t dictBuffe
   largestCompressed = totalCompressedSize;
   dictContentSize = ZDICT_DICTSIZE_MIN;
 
-  /* Largest dict is initially at least ZDICT_DICTSIZE_MIN */
-  while (dictContentSize < largestDict) {
+  /* The loop below tries candidate *content* sizes, anchored at
+   * customDictContentEnd, so it must be bounded by the content size
+   * (customDictContentEnd - customDictContent). dictContentSize was just
+   * overwritten above with the finalized dictionary size (content + header),
+   * which is larger; using it as the bound would let
+   * (customDictContentEnd - dictContentSize) underflow the content buffer
+   * (see https://github.com/facebook/zstd/issues/4750). */
+  while (dictContentSize < (size_t)(customDictContentEnd - customDictContent)) {
     memcpy(candidateDictBuffer, largestDictbuffer, largestDict);
     dictContentSize = ZDICT_finalizeDictionary(
       candidateDictBuffer, dictBufferCapacity, customDictContentEnd - dictContentSize, dictContentSize,

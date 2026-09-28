@@ -208,6 +208,12 @@ zstreamtest_ubsan : CFLAGS += -fsanitize=undefined
 zstreamtest_ubsan : $(ZSTREAMFILES)
 	$(LINK.c) $(MULTITHREAD) $^ -o $@$(EXT)
 
+CLEAN += mtDecompressTest
+mtDecompressTest : CPPFLAGS += $(MULTITHREAD_CPP)
+mtDecompressTest : LDFLAGS += $(MULTITHREAD_LD)
+mtDecompressTest : $(ZSTDMT_OBJECTS) mtDecompressTest.c
+	$(LINK.c) $^ -o $@$(EXT)
+
 # note : broken : requires symbols unavailable from dynamic library
 zstreamtest-dll : $(LIB_SRCDIR)/common/xxhash.c  # xxh symbols not exposed from dll
 zstreamtest-dll : $(ZSTREAM_LOCAL_FILES)

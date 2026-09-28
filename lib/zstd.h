@@ -173,6 +173,38 @@ ZSTDLIB_API size_t ZSTD_compress( void* dst, size_t dstCapacity,
 ZSTDLIB_API size_t ZSTD_decompress( void* dst, size_t dstCapacity,
                               const void* src, size_t compressedSize);
 
+/*! ZSTD_decompressMultiThreaded() :
+ *  Same as ZSTD_decompress(), but decompresses concatenated frames in parallel,
+ *  using `nbThreads` worker threads.
+ *
+ *  Frame boundaries are discovered up front, without decompressing, and every
+ *  frame is then decompressed by its own job with its own decompression
+ *  context. This is the recommended way to parallelize decompression:
+ *  blocks _within_ a single frame cannot be decompressed independently
+ *  (later blocks may reference earlier output), but independent _frames_ can.
+ *
+ * `src` must contain an integer number of complete frames.
+ *  Standard, skippable and legacy frames are all accepted and may be mixed.
+ *  The whole input is validated strictly before any output is produced:
+ *  an error in any frame aborts the entire operation.
+ * `nbThreads` : number of worker threads. Values <= 1 select the plain serial
+ *  ZSTD_decompress() path (no thread is created, no overhead).
+ *  When `nbThreads` exceeds the number of frames, it is clamped down to it.
+ *  Note: actual parallelism requires the library to be built with
+ *  ZSTD_MULTITHREAD; otherwise jobs run one after another (still correct).
+ * @return : total number of decompressed bytes written into `dst`
+ *           (<= `dstCapacity`), or an error code (test with ZSTD_isError()).
+ *  Error codes match ZSTD_decompress(), plus:
+ *   - "srcSize_wrong"  : `src` is empty, or a frame is truncated.
+ *   - "prefix_unknown" : a frame has an invalid magic number.
+ *   - "dstSize_tooSmall": the decompressed data does not fit into `dst`.
+ *  Note: frames compressed without a stored content size (e.g. via streaming)
+ *  are decompressed into temporary buffers first, then copied into `dst`
+ *  in frame order. */
+ZSTDLIB_API size_t ZSTD_decompressMultiThreaded(void* dst, size_t dstCapacity,
+                                                const void* src, size_t srcSize,
+                                                int nbThreads);
+
 
 /*======  Decompression helper functions  ======*/
 

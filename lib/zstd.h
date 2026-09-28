@@ -950,6 +950,31 @@ ZSTDLIB_API size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* outp
 ZSTDLIB_API size_t ZSTD_DStreamInSize(void);    /*!< recommended size for input buffer */
 ZSTDLIB_API size_t ZSTD_DStreamOutSize(void);   /*!< recommended size for output buffer. Guarantee to successfully flush at least one complete block in all circumstances. */
 
+/*! ZSTD_decompressScatter() :
+ *  One-shot scatter decompression: decompresses `srcSize` bytes from `src`,
+ *  scattering the decompressed output across the array of `nbDsts` output
+ *  buffers `dsts`, strictly in order: `dsts[0]` is filled first (up to its
+ *  capacity), then `dsts[1]`, and so on.
+ *  Each `ZSTD_outBuffer`'s `pos` field is honored as the starting write offset
+ *  and is advanced by the number of bytes written into that buffer.
+ *  Entries with zero capacity are legal and simply skipped.
+ *  Like ZSTD_decompress(), multiple concatenated frames in `src` are supported.
+ *  This is a one-shot function: it creates its own decompression context.
+ *  For finer control (dictionaries, partial consumption, context reuse),
+ *  use ZSTD_decompressStream() directly.
+ * @return : the total number of bytes decompressed across all output buffers,
+ *           or an error code, which can be tested using ZSTD_isError().
+ *           Possible errors include :
+ *           - ZSTD_error_dstSize_tooSmall : the combined capacity of `dsts`
+ *             is smaller than the decompressed data ;
+ *           - ZSTD_error_srcSize_wrong : `src` is empty, or ends in the middle
+ *             of a frame (note: unlike ZSTD_decompress(), an empty `src`
+ *             is an error here) ;
+ *           - ZSTD_error_parameter_outOfBound : `dsts` is NULL while `nbDsts>0`,
+ *             or a buffer has `pos > size`, or a non-empty buffer has a NULL `dst`. */
+ZSTDLIB_API size_t ZSTD_decompressScatter(ZSTD_outBuffer* dsts, size_t nbDsts,
+                                          const void* src, size_t srcSize);
+
 
 /**************************
 *  Simple dictionary API

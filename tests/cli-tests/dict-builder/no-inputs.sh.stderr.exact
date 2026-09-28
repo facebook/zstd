@@ -1,0 +1,5 @@
+zstd --train
+!  Warning : nb of samples too low for proper processing !
+!  Please provide _one file per sample_.
+!  Alternatively, split file(s) into fixed-size samples, with --split=#
+Error 14 : nb of samples too low

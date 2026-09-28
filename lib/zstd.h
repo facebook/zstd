@@ -226,6 +226,44 @@ ZSTDLIB_API unsigned long long ZSTD_getDecompressedSize(const void* src, size_t 
  *          which is always equal to its content size + 8 bytes for headers. */
 ZSTDLIB_API size_t ZSTD_findFrameCompressedSize(const void* src, size_t srcSize);
 
+/*! ZSTD_FrameBoundary : describes the location of a single frame
+ *  within a scanned buffer, as reported by ZSTD_findFrameBoundaries(). */
+typedef struct {
+    size_t offset;         /* offset of the frame's first byte (magic number) from the start of the scanned buffer */
+    size_t compressedSize; /* compressed size of the frame in bytes, including headers and checksum */
+    unsigned isSkippable;  /* 1 if the frame is a skippable frame, 0 for a standard (or legacy) zstd frame */
+} ZSTD_FrameBoundary;
+
+/*! ZSTD_findFrameBoundaries() :
+ *  Scans `src` (`srcSize` bytes) and locates every zstd frame it contains,
+ *  without decompressing any content.
+ *  Each frame's magic number is validated, and frame extents are determined
+ *  exactly as in ZSTD_findFrameCompressedSize(): standard frames are walked
+ *  block by block, skippable frames use their embedded size field.
+ *  This is the enabling primitive for frame-granularity parallel decompression:
+ *  each reported frame can be handed to ZSTD_decompress() independently.
+ *
+ *  On success, fills up to `frameBoundariesCapacity` entries of `frameBoundaries[]`,
+ *  in buffer order, so that `frameBoundaries[i].offset + frameBoundaries[i].compressedSize
+ *  == frameBoundaries[i+1].offset`, and the last frame ends exactly at `srcSize`.
+ *
+ *  If `frameBoundaries == NULL`, no entries are written: the input is still fully
+ *  validated and the function simply returns the number of frames it contains.
+ *  This provides the two-pass idiom: call once with NULL to obtain the count,
+ *  allocate, then call again to fill the array.
+ *
+ * @return : the number of frames found,
+ *           or an error code (test with ZSTD_isError()) if the input is invalid:
+ *           - ZSTD_ERROR(prefix_unknown) : a frame starts with an invalid magic number
+ *           - ZSTD_ERROR(srcSize_wrong)  : the input ends in the middle of a frame
+ *           - ZSTD_ERROR(dstSize_tooSmall): more frames than `frameBoundariesCapacity`
+ *  Note: an empty input (`srcSize == 0`) is valid and yields 0 frames.
+ *  Note: legacy frames are reported like standard frames when the library
+ *        was built with legacy support; otherwise their magic is rejected. */
+ZSTDLIB_API size_t ZSTD_findFrameBoundaries(const void* src, size_t srcSize,
+                                            ZSTD_FrameBoundary* frameBoundaries,
+                                            size_t frameBoundariesCapacity);
+
 
 /*======  Compression helper functions  ======*/
 

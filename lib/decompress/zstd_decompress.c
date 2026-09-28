@@ -810,6 +810,40 @@ size_t ZSTD_findFrameCompressedSize(const void *src, size_t srcSize)
     return ZSTD_findFrameCompressedSize_advanced(src, srcSize, ZSTD_f_zstd1);
 }
 
+/** ZSTD_findFrameBoundaries() :
+ * See docs in zstd.h
+ * Note: compatible with legacy mode */
+size_t ZSTD_findFrameBoundaries(const void* src, size_t srcSize,
+                                ZSTD_FrameBoundary* frameBoundaries,
+                                size_t frameBoundariesCapacity)
+{
+    const BYTE* const istart = (const BYTE*)src;
+    const BYTE* ip = istart;
+    size_t remainingSize = srcSize;
+    size_t nbFrames = 0;
+
+    while (remainingSize > 0) {
+        size_t const frameSize = ZSTD_findFrameCompressedSize(ip, remainingSize);
+        if (ZSTD_isError(frameSize)) return frameSize;
+        /* ZSTD_findFrameCompressedSize() only succeeds when the full frame is
+         * present, hence frameSize <= remainingSize and frameSize > 0. */
+        assert(frameSize <= remainingSize);
+        assert(frameSize > 0);
+        if (frameBoundaries != NULL) {
+            if (nbFrames >= frameBoundariesCapacity)
+                return ZSTD_ERROR(dstSize_tooSmall);
+            frameBoundaries[nbFrames].offset = (size_t)(ip - istart);
+            frameBoundaries[nbFrames].compressedSize = frameSize;
+            frameBoundaries[nbFrames].isSkippable =
+                ((MEM_readLE32(ip) & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START);
+        }
+        nbFrames++;
+        ip += frameSize;
+        remainingSize -= frameSize;
+    }
+    return nbFrames;
+}
+
 /** ZSTD_decompressBound() :
  *  compatible with legacy mode
  *  `src` must point to the start of a ZSTD frame or a skippable frame

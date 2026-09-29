@@ -101,7 +101,7 @@ const char* ZDICT_getErrorName(size_t errorCode) { return ERR_getErrorName(error
 
 unsigned ZDICT_getDictID(const void* dictBuffer, size_t dictSize)
 {
-    if (dictSize < 8) return 0;
+    if (dictBuffer == NULL || dictSize < 8) return 0;
     if (MEM_readLE32(dictBuffer) != ZSTD_MAGIC_DICTIONARY) return 0;
     return MEM_readLE32((const char*)dictBuffer + 4);
 }
@@ -109,7 +109,7 @@ unsigned ZDICT_getDictID(const void* dictBuffer, size_t dictSize)
 size_t ZDICT_getDictHeaderSize(const void* dictBuffer, size_t dictSize)
 {
     size_t headerSize;
-    if (dictSize <= 8 || MEM_readLE32(dictBuffer) != ZSTD_MAGIC_DICTIONARY) return ERROR(dictionary_corrupted);
+    if (dictBuffer == NULL || dictSize <= 8 || MEM_readLE32(dictBuffer) != ZSTD_MAGIC_DICTIONARY) return ERROR(dictionary_corrupted);
 
     {   ZSTD_compressedBlockState_t* bs = (ZSTD_compressedBlockState_t*)malloc(sizeof(ZSTD_compressedBlockState_t));
         U32* wksp = (U32*)malloc(HUF_WORKSPACE_SIZE);
@@ -624,9 +624,13 @@ static void ZDICT_countEStats(EStats_ress_t esr, const ZSTD_parameters* params,
 
 static size_t ZDICT_totalSampleSize(const size_t* fileSizes, unsigned nbFiles)
 {
-    size_t total=0;
+    size_t total = 0;
     unsigned u;
-    for (u=0; u<nbFiles; u++) total += fileSizes[u];
+    if (!fileSizes) return 0;
+    for (u = 0; u < nbFiles; u++) {
+        if (fileSizes[u] > ((size_t)-1) - total) return (size_t)-1;
+        total += fileSizes[u];
+    }
     return total;
 }
 
@@ -1092,7 +1096,9 @@ size_t ZDICT_trainFromBuffer_legacy(void* dictBuffer, size_t dictBufferCapacity,
     size_t result;
     void* newBuff;
     size_t const sBuffSize = ZDICT_totalSampleSize(samplesSizes, nbSamples);
+    if (!dictBuffer || !samplesBuffer || !samplesSizes) return 0;
     if (sBuffSize < ZDICT_MIN_SAMPLES_SIZE) return 0;   /* not enough content => no dictionary */
+    if (sBuffSize > ((size_t)-1) - NOISELENGTH) return ERROR(memory_allocation);
 
     newBuff = malloc(sBuffSize + NOISELENGTH);
     if (!newBuff) return ERROR(memory_allocation);

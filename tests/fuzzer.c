@@ -3136,6 +3136,11 @@ static int basicUnitTests(U32 const seed, double compressibility)
         }
         DISPLAYLEVEL(3, "OK : %u \n", (unsigned)dictHeaderSize);
 
+        DISPLAYLEVEL(3, "test%3i : check dictID and headerSize on NULL buffer : ", testNb++);
+        if (ZDICT_getDictID(NULL, 100) != 0) goto _output_error;
+        if (!ZDICT_isError(ZDICT_getDictHeaderSize(NULL, 100))) goto _output_error;
+        DISPLAYLEVEL(3, "OK \n");
+
         DISPLAYLEVEL(3, "test%3i : compress with dictionary : ", testNb++);
         cSize = ZSTD_compress_usingDict(cctx, compressedBuffer, compressedBufferSize,
                                         CNBuffer, CNBuffSize,

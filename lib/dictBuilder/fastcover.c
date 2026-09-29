@@ -311,15 +311,23 @@ FASTCOVER_ctx_init(FASTCOVER_ctx_t* ctx,
                    int displayLevel)
 {
     const BYTE* const samples = (const BYTE*)samplesBuffer;
-    const size_t totalSamplesSize = COVER_sum(samplesSizes, nbSamples);
-    /* Split samples into testing and training sets */
-    const unsigned nbTrainSamples = splitPoint < 1.0 ? (unsigned)((double)nbSamples * splitPoint) : nbSamples;
-    const unsigned nbTestSamples = splitPoint < 1.0 ? nbSamples - nbTrainSamples : nbSamples;
-    const size_t trainingSamplesSize = splitPoint < 1.0 ? COVER_sum(samplesSizes, nbTrainSamples) : totalSamplesSize;
-    const size_t testSamplesSize = splitPoint < 1.0 ? COVER_sum(samplesSizes + nbTrainSamples, nbTestSamples) : totalSamplesSize;
-    ctx->displayLevel = displayLevel;
+    size_t totalSamplesSize;
+    unsigned nbTrainSamples;
+    unsigned nbTestSamples;
+    size_t trainingSamplesSize;
+    size_t testSamplesSize;
 
     /* Checks */
+    if (!samplesBuffer || !samplesSizes) return ERROR(srcSize_wrong);
+
+    totalSamplesSize = COVER_sum(samplesSizes, nbSamples);
+    /* Split samples into testing and training sets */
+    nbTrainSamples = splitPoint < 1.0 ? (unsigned)((double)nbSamples * splitPoint) : nbSamples;
+    nbTestSamples = splitPoint < 1.0 ? nbSamples - nbTrainSamples : nbSamples;
+    trainingSamplesSize = splitPoint < 1.0 ? COVER_sum(samplesSizes, nbTrainSamples) : totalSamplesSize;
+    testSamplesSize = splitPoint < 1.0 ? COVER_sum(samplesSizes + nbTrainSamples, nbTestSamples) : totalSamplesSize;
+    ctx->displayLevel = displayLevel;
+
     if (totalSamplesSize < MAX(d, sizeof(U64)) ||
         totalSamplesSize >= (size_t)FASTCOVER_MAX_SAMPLES_SIZE) {
         DISPLAYLEVEL(1, "Total samples size is too large (%u MB), maximum size is %u MB\n",
@@ -572,7 +580,7 @@ ZDICT_trainFromBuffer_fastCover(void* dictBuffer, size_t dictBufferCapacity,
       DISPLAYLEVEL(1, "FASTCOVER must have at least one input file\n");
       return ERROR(srcSize_wrong);
     }
-    if (dictBufferCapacity < ZDICT_DICTSIZE_MIN) {
+    if (dictBuffer == NULL || dictBufferCapacity < ZDICT_DICTSIZE_MIN) {
       DISPLAYLEVEL(1, "dictBufferCapacity must be at least %u\n",
                    ZDICT_DICTSIZE_MIN);
       return ERROR(dstSize_tooSmall);
@@ -662,7 +670,7 @@ ZDICT_optimizeTrainFromBuffer_fastCover(
       DISPLAYLEVEL(1, "FASTCOVER must have at least one input file\n");
       return ERROR(srcSize_wrong);
     }
-    if (dictBufferCapacity < ZDICT_DICTSIZE_MIN) {
+    if (dictBuffer == NULL || dictBufferCapacity < ZDICT_DICTSIZE_MIN) {
       DISPLAYLEVEL(1, "dictBufferCapacity must be at least %u\n",
                    ZDICT_DICTSIZE_MIN);
       return ERROR(dstSize_tooSmall);

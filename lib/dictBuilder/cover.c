@@ -280,7 +280,9 @@ static COVER_ctx_t *g_coverCtx = NULL;
 size_t COVER_sum(const size_t *samplesSizes, unsigned nbSamples) {
   size_t sum = 0;
   unsigned i;
+  if (!samplesSizes) return 0;
   for (i = 0; i < nbSamples; ++i) {
+    if (samplesSizes[i] > ((size_t)-1) - sum) return (size_t)-1;
     sum += samplesSizes[i];
   }
   return sum;
@@ -630,14 +632,22 @@ static size_t COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
                           unsigned d, double splitPoint, int displayLevel)
 {
   const BYTE *const samples = (const BYTE *)samplesBuffer;
-  const size_t totalSamplesSize = COVER_sum(samplesSizes, nbSamples);
-  /* Split samples into testing and training sets */
-  const unsigned nbTrainSamples = splitPoint < 1.0 ? (unsigned)((double)nbSamples * splitPoint) : nbSamples;
-  const unsigned nbTestSamples = splitPoint < 1.0 ? nbSamples - nbTrainSamples : nbSamples;
-  const size_t trainingSamplesSize = splitPoint < 1.0 ? COVER_sum(samplesSizes, nbTrainSamples) : totalSamplesSize;
-  const size_t testSamplesSize = splitPoint < 1.0 ? COVER_sum(samplesSizes + nbTrainSamples, nbTestSamples) : totalSamplesSize;
-  ctx->displayLevel = displayLevel;
+  size_t totalSamplesSize;
+  unsigned nbTrainSamples;
+  unsigned nbTestSamples;
+  size_t trainingSamplesSize;
+  size_t testSamplesSize;
+
   /* Checks */
+  if (!samplesBuffer || !samplesSizes) return ERROR(srcSize_wrong);
+
+  totalSamplesSize = COVER_sum(samplesSizes, nbSamples);
+  /* Split samples into testing and training sets */
+  nbTrainSamples = splitPoint < 1.0 ? (unsigned)((double)nbSamples * splitPoint) : nbSamples;
+  nbTestSamples = splitPoint < 1.0 ? nbSamples - nbTrainSamples : nbSamples;
+  trainingSamplesSize = splitPoint < 1.0 ? COVER_sum(samplesSizes, nbTrainSamples) : totalSamplesSize;
+  testSamplesSize = splitPoint < 1.0 ? COVER_sum(samplesSizes + nbTrainSamples, nbTestSamples) : totalSamplesSize;
+  ctx->displayLevel = displayLevel;
   if (totalSamplesSize < MAX(d, sizeof(U64)) ||
       totalSamplesSize >= (size_t)COVER_MAX_SAMPLES_SIZE) {
     DISPLAYLEVEL(1, "Total samples size is too large (%u MB), maximum size is %u MB\n",
@@ -825,7 +835,7 @@ ZDICTLIB_STATIC_API size_t ZDICT_trainFromBuffer_cover(
     DISPLAYLEVEL(1, "Cover must have at least one input file\n");
     return ERROR(srcSize_wrong);
   }
-  if (dictBufferCapacity < ZDICT_DICTSIZE_MIN) {
+  if (dictBuffer == NULL || dictBufferCapacity < ZDICT_DICTSIZE_MIN) {
     DISPLAYLEVEL(1, "dictBufferCapacity must be at least %u\n",
                  ZDICT_DICTSIZE_MIN);
     return ERROR(dstSize_tooSmall);
@@ -1235,7 +1245,7 @@ ZDICTLIB_STATIC_API size_t ZDICT_optimizeTrainFromBuffer_cover(
     DISPLAYLEVEL(1, "Cover must have at least one input file\n");
     return ERROR(srcSize_wrong);
   }
-  if (dictBufferCapacity < ZDICT_DICTSIZE_MIN) {
+  if (dictBuffer == NULL || dictBufferCapacity < ZDICT_DICTSIZE_MIN) {
     DISPLAYLEVEL(1, "dictBufferCapacity must be at least %u\n",
                  ZDICT_DICTSIZE_MIN);
     return ERROR(dstSize_tooSmall);

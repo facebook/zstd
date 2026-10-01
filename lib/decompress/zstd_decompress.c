@@ -1220,7 +1220,7 @@ size_t ZSTD_decompress(void* dst, size_t dstCapacity, const void* src, size_t sr
 *   Advanced Streaming Decompression API
 *   Bufferless and synchronous
 ****************************************/
-size_t ZSTD_nextSrcSizeToDecompress(ZSTD_DCtx* dctx) { return dctx->expected; }
+size_t ZSTD_nextSrcSizeToDecompress(ZSTD_DCtx* dctx) { return dctx ? dctx->expected : 0; }
 
 /**
  * Similar to ZSTD_nextSrcSizeToDecompress(), but when a block input can be streamed, we
@@ -1233,6 +1233,7 @@ size_t ZSTD_nextSrcSizeToDecompress(ZSTD_DCtx* dctx) { return dctx->expected; }
  * @param inputSize - The total amount of input that the caller currently has.
  */
 static size_t ZSTD_nextSrcSizeToDecompressWithInputSize(ZSTD_DCtx* dctx, size_t inputSize) {
+    if (!dctx) return 0;
     if (!(dctx->stage == ZSTDds_decompressBlock || dctx->stage == ZSTDds_decompressLastBlock))
         return dctx->expected;
     if (dctx->bType != bt_raw)
@@ -1241,6 +1242,7 @@ static size_t ZSTD_nextSrcSizeToDecompressWithInputSize(ZSTD_DCtx* dctx, size_t 
 }
 
 ZSTD_nextInputType_e ZSTD_nextInputType(ZSTD_DCtx* dctx) {
+    if (dctx == NULL) return ZSTDnit_frameHeader;
     switch(dctx->stage)
     {
     default:   /* should not happen */
@@ -1558,6 +1560,7 @@ static size_t ZSTD_decompress_insertDictionary(ZSTD_DCtx* dctx, const void* dict
 
 size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx)
 {
+    RETURN_ERROR_IF(!dctx, GENERIC, "NULL pointer!");
     assert(dctx != NULL);
 #if ZSTD_TRACE
     dctx->traceCtx = (ZSTD_trace_decompress_begin != NULL) ? ZSTD_trace_decompress_begin(dctx) : 0;
@@ -1600,6 +1603,7 @@ size_t ZSTD_decompressBegin_usingDict(ZSTD_DCtx* dctx, const void* dict, size_t 
 size_t ZSTD_decompressBegin_usingDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict)
 {
     DEBUGLOG(4, "ZSTD_decompressBegin_usingDDict");
+    RETURN_ERROR_IF(!dctx, GENERIC, "NULL pointer!");
     assert(dctx != NULL);
     if (ddict) {
         const char* const dictStart = (const char*)ZSTD_DDict_dictContent(ddict);
@@ -1875,6 +1879,7 @@ static int ZSTD_dParam_withinBounds(ZSTD_dParameter dParam, int value)
 
 size_t ZSTD_DCtx_getParameter(ZSTD_DCtx* dctx, ZSTD_dParameter param, int* value)
 {
+    RETURN_ERROR_IF(!dctx || !value, GENERIC, "NULL pointer!");
     switch (param) {
         case ZSTD_d_windowLogMax:
             *value = (int)ZSTD_highbit32((U32)dctx->maxWindowSize);
@@ -1904,6 +1909,7 @@ size_t ZSTD_DCtx_getParameter(ZSTD_DCtx* dctx, ZSTD_dParameter param, int* value
 
 size_t ZSTD_DCtx_setParameter(ZSTD_DCtx* dctx, ZSTD_dParameter dParam, int value)
 {
+    RETURN_ERROR_IF(!dctx, GENERIC, "NULL pointer!");
     RETURN_ERROR_IF(dctx->streamStage != zdss_init, stage_wrong, "");
     switch(dParam) {
         case ZSTD_d_windowLogMax:
@@ -1945,6 +1951,7 @@ size_t ZSTD_DCtx_setParameter(ZSTD_DCtx* dctx, ZSTD_dParameter dParam, int value
 
 size_t ZSTD_DCtx_reset(ZSTD_DCtx* dctx, ZSTD_ResetDirective reset)
 {
+    RETURN_ERROR_IF(!dctx, GENERIC, "NULL pointer!");
     if ( (reset == ZSTD_reset_session_only)
       || (reset == ZSTD_reset_session_and_parameters) ) {
         dctx->streamStage = zdss_init;
@@ -2084,17 +2091,18 @@ static size_t ZSTD_decompressContinueStream(
 
 size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inBuffer* input)
 {
-    const char* const src = (const char*)input->src;
-    const char* const istart = input->pos != 0 ? src + input->pos : src;
-    const char* const iend = input->size != 0 ? src + input->size : src;
-    const char* ip = istart;
-    char* const dst = (char*)output->dst;
-    char* const ostart = output->pos != 0 ? dst + output->pos : dst;
-    char* const oend = output->size != 0 ? dst + output->size : dst;
-    char* op = ostart;
+    const char* src;
+    const char* istart;
+    const char* iend;
+    const char* ip;
+    char* dst;
+    char* ostart;
+    char* oend;
+    char* op;
     U32 someMoreWork = 1;
 
     DEBUGLOG(5, "ZSTD_decompressStream");
+    RETURN_ERROR_IF(!zds || !output || !input, GENERIC, "NULL pointer!");
     assert(zds != NULL);
     RETURN_ERROR_IF(
         input->pos > input->size,
@@ -2106,6 +2114,16 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
         dstSize_tooSmall,
         "forbidden. out: pos: %u   vs size: %u",
         (U32)output->pos, (U32)output->size);
+
+    src = (const char*)input->src;
+    istart = input->pos != 0 ? src + input->pos : src;
+    iend = input->size != 0 ? src + input->size : src;
+    ip = istart;
+    dst = (char*)output->dst;
+    ostart = output->pos != 0 ? dst + output->pos : dst;
+    oend = output->size != 0 ? dst + output->size : dst;
+    op = ostart;
+
     DEBUGLOG(5, "input size : %u", (U32)(input->size - input->pos));
     FORWARD_IF_ERROR(ZSTD_checkOutBuffer(zds, output), "");
 
@@ -2395,6 +2413,7 @@ size_t ZSTD_decompressStream_simpleArgs (
 {
     ZSTD_outBuffer output;
     ZSTD_inBuffer  input;
+    RETURN_ERROR_IF(!dstPos || !srcPos, GENERIC, "NULL pointer!");
     output.dst = dst;
     output.size = dstCapacity;
     output.pos = *dstPos;

@@ -301,6 +301,28 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
     }
     dictID = ZDICT_getDictID(dictionary.start, dictionary.filled);
 
+    /* Defensive NULL pointer checks */
+    DISPLAYLEVEL(3, "test%3i : defensive NULL pointer handling : ", testNb++);
+    {
+        int val = 0;
+        CHECK(!ZSTD_isError(ZSTD_CCtx_setParameter(NULL, ZSTD_c_compressionLevel, 1)), "Expected error on NULL CCtx setParameter");
+        CHECK(!ZSTD_isError(ZSTD_CCtx_getParameter(NULL, ZSTD_c_compressionLevel, &val)), "Expected error on NULL CCtx getParameter");
+        CHECK(!ZSTD_isError(ZSTD_CCtx_getParameter(zc, ZSTD_c_compressionLevel, NULL)), "Expected error on NULL value in CCtx getParameter");
+        CHECK(!ZSTD_isError(ZSTD_CCtx_reset(NULL, ZSTD_reset_session_only)), "Expected error on NULL CCtx reset");
+        CHECK(!ZSTD_isError(ZSTD_CCtx_setPledgedSrcSize(NULL, 100)), "Expected error on NULL CCtx setPledgedSrcSize");
+        CHECK(!ZSTD_isError(ZSTD_CCtxParams_setParameter(NULL, ZSTD_c_compressionLevel, 1)), "Expected error on NULL CCtxParams setParameter");
+        CHECK(!ZSTD_isError(ZSTD_CCtxParams_getParameter(NULL, ZSTD_c_compressionLevel, &val)), "Expected error on NULL CCtxParams getParameter");
+        CHECK(!ZSTD_isError(ZSTD_DCtx_setParameter(NULL, ZSTD_d_windowLogMax, 20)), "Expected error on NULL DCtx setParameter");
+        CHECK(!ZSTD_isError(ZSTD_DCtx_getParameter(NULL, ZSTD_d_windowLogMax, &val)), "Expected error on NULL DCtx getParameter");
+        CHECK(!ZSTD_isError(ZSTD_DCtx_getParameter(zd, ZSTD_d_windowLogMax, NULL)), "Expected error on NULL value in DCtx getParameter");
+        CHECK(!ZSTD_isError(ZSTD_DCtx_reset(NULL, ZSTD_reset_session_only)), "Expected error on NULL DCtx reset");
+        CHECK(!ZSTD_isError(ZSTD_decompressBegin(NULL)), "Expected error on NULL DCtx decompressBegin");
+        CHECK(!ZSTD_isError(ZSTD_decompressBegin_usingDDict(NULL, NULL)), "Expected error on NULL DCtx decompressBegin_usingDDict");
+        CHECK(ZSTD_nextSrcSizeToDecompress(NULL) != 0, "Expected 0 on NULL DCtx nextSrcSizeToDecompress");
+        CHECK(ZSTD_getBlockSize(NULL) != 0, "Expected 0 on NULL CCtx getBlockSize");
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     /* Basic compression test */
     DISPLAYLEVEL(3, "test%3i : compress %u bytes : ", testNb++, COMPRESSIBLE_NOISE_LENGTH);
     CHECK_Z( ZSTD_initCStream(zc, 1 /* cLevel */) );

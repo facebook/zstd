@@ -729,6 +729,7 @@ static int ZSTD_isUpdateAuthorized(ZSTD_cParameter param)
 size_t ZSTD_CCtx_setParameter(ZSTD_CCtx* cctx, ZSTD_cParameter param, int value)
 {
     DEBUGLOG(4, "ZSTD_CCtx_setParameter (%i, %i)", (int)param, value);
+    RETURN_ERROR_IF(!cctx, GENERIC, "NULL pointer!");
     if (cctx->streamStage != zcss_init) {
         if (ZSTD_isUpdateAuthorized(param)) {
             cctx->cParamsChanged = 1;
@@ -792,6 +793,7 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
                                     ZSTD_cParameter param, int value)
 {
     DEBUGLOG(4, "ZSTD_CCtxParams_setParameter (%i, %i)", (int)param, value);
+    RETURN_ERROR_IF(!CCtxParams, GENERIC, "NULL pointer!");
     switch(param)
     {
     case ZSTD_c_format :
@@ -1043,12 +1045,14 @@ size_t ZSTD_CCtxParams_setParameter(ZSTD_CCtx_params* CCtxParams,
 
 size_t ZSTD_CCtx_getParameter(ZSTD_CCtx const* cctx, ZSTD_cParameter param, int* value)
 {
+    RETURN_ERROR_IF(!cctx || !value, GENERIC, "NULL pointer!");
     return ZSTD_CCtxParams_getParameter(&cctx->requestedParams, param, value);
 }
 
 size_t ZSTD_CCtxParams_getParameter(
         ZSTD_CCtx_params const* CCtxParams, ZSTD_cParameter param, int* value)
 {
+    RETURN_ERROR_IF(!CCtxParams || !value, GENERIC, "NULL pointer!");
     switch(param)
     {
     case ZSTD_c_format :
@@ -1251,6 +1255,7 @@ size_t ZSTD_CCtx_setParams(ZSTD_CCtx* cctx, ZSTD_parameters params)
 size_t ZSTD_CCtx_setPledgedSrcSize(ZSTD_CCtx* cctx, unsigned long long pledgedSrcSize)
 {
     DEBUGLOG(4, "ZSTD_CCtx_setPledgedSrcSize to %llu bytes", pledgedSrcSize);
+    RETURN_ERROR_IF(!cctx, GENERIC, "NULL pointer!");
     RETURN_ERROR_IF(cctx->streamStage != zcss_init, stage_wrong,
                     "Can't set pledgedSrcSize when not in init stage.");
     cctx->pledgedSrcSizePlusOne = pledgedSrcSize+1;
@@ -1387,6 +1392,7 @@ size_t ZSTD_CCtx_refPrefix_advanced(
  *  Also dumps dictionary */
 size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx, ZSTD_ResetDirective reset)
 {
+    RETURN_ERROR_IF(!cctx, GENERIC, "NULL pointer!");
     if ( (reset == ZSTD_reset_session_only)
       || (reset == ZSTD_reset_session_and_parameters) ) {
         cctx->streamStage = zcss_init;
@@ -4897,7 +4903,9 @@ size_t ZSTD_compressContinue(ZSTD_CCtx* cctx,
 
 static size_t ZSTD_getBlockSize_deprecated(const ZSTD_CCtx* cctx)
 {
-    ZSTD_compressionParameters const cParams = cctx->appliedParams.cParams;
+    ZSTD_compressionParameters cParams;
+    if (cctx == NULL) return 0;
+    cParams = cctx->appliedParams.cParams;
     assert(!ZSTD_checkCParams(cParams));
     return MIN(cctx->appliedParams.maxBlockSize, (size_t)1 << cParams.windowLog);
 }
@@ -6480,6 +6488,7 @@ size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
 {
     DEBUGLOG(5, "ZSTD_compressStream2, endOp=%u ", (unsigned)endOp);
     /* check conditions */
+    RETURN_ERROR_IF(!cctx || !output || !input, GENERIC, "NULL pointer!");
     RETURN_ERROR_IF(output->pos > output->size, dstSize_tooSmall, "invalid output buffer");
     RETURN_ERROR_IF(input->pos  > input->size, srcSize_wrong, "invalid input buffer");
     RETURN_ERROR_IF((U32)endOp > (U32)ZSTD_e_end, parameter_outOfBound, "invalid endDirective");
@@ -6580,6 +6589,7 @@ size_t ZSTD_compressStream2_simpleArgs (
 {
     ZSTD_outBuffer output;
     ZSTD_inBuffer  input;
+    RETURN_ERROR_IF(!dstPos || !srcPos, GENERIC, "NULL pointer!");
     output.dst = dst;
     output.size = dstCapacity;
     output.pos = *dstPos;
@@ -6598,9 +6608,12 @@ size_t ZSTD_compress2(ZSTD_CCtx* cctx,
                       void* dst, size_t dstCapacity,
                       const void* src, size_t srcSize)
 {
-    ZSTD_bufferMode_e const originalInBufferMode = cctx->requestedParams.inBufferMode;
-    ZSTD_bufferMode_e const originalOutBufferMode = cctx->requestedParams.outBufferMode;
+    ZSTD_bufferMode_e originalInBufferMode;
+    ZSTD_bufferMode_e originalOutBufferMode;
     DEBUGLOG(4, "ZSTD_compress2 (srcSize=%u)", (unsigned)srcSize);
+    RETURN_ERROR_IF(!cctx, GENERIC, "NULL pointer!");
+    originalInBufferMode = cctx->requestedParams.inBufferMode;
+    originalOutBufferMode = cctx->requestedParams.outBufferMode;
     ZSTD_CCtx_reset(cctx, ZSTD_reset_session_only);
     /* Enable stable input/output buffers. */
     cctx->requestedParams.inBufferMode = ZSTD_bm_stable;
@@ -8178,15 +8191,20 @@ static ZSTD_inBuffer inBuffer_forEndFlush(const ZSTD_CStream* zcs)
  * @return : amount of data remaining to flush */
 size_t ZSTD_flushStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
 {
-    ZSTD_inBuffer input = inBuffer_forEndFlush(zcs);
+    ZSTD_inBuffer input;
+    RETURN_ERROR_IF(!zcs || !output, GENERIC, "NULL pointer!");
+    input = inBuffer_forEndFlush(zcs);
     input.size = input.pos; /* do not ingest more input during flush */
     return ZSTD_compressStream2(zcs, output, &input, ZSTD_e_flush);
 }
 
 size_t ZSTD_endStream(ZSTD_CStream* zcs, ZSTD_outBuffer* output)
 {
-    ZSTD_inBuffer input = inBuffer_forEndFlush(zcs);
-    size_t const remainingToFlush = ZSTD_compressStream2(zcs, output, &input, ZSTD_e_end);
+    ZSTD_inBuffer input;
+    size_t remainingToFlush;
+    RETURN_ERROR_IF(!zcs || !output, GENERIC, "NULL pointer!");
+    input = inBuffer_forEndFlush(zcs);
+    remainingToFlush = ZSTD_compressStream2(zcs, output, &input, ZSTD_e_end);
     FORWARD_IF_ERROR(remainingToFlush , "ZSTD_compressStream2(,,ZSTD_e_end) failed");
     if (zcs->appliedParams.nbWorkers > 0) return remainingToFlush;   /* minimal estimation */
     /* single thread mode : attempt to calculate remaining to flush more precisely */

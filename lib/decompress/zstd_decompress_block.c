@@ -1316,7 +1316,6 @@ ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets, c
             seq.offset = offset;
         }
 
-#  if defined(__clang__)
         /* Most symbols need no additional literal-length bits. Keep their
          * match-length read separate from the uncommon two-length case. */
         ZSTD_STATIC_ASSERT(16+LLFSELog+MLFSELog+OffFSELog < STREAM_ACCUMULATOR_MIN_64);
@@ -1334,29 +1333,25 @@ ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets, c
             BIT_reloadDStream(&seqState->DStream);
         }
 
-#  else
-        if (mlBits > 0)
-            seq.matchLength += BIT_readBitsFast(&seqState->DStream, mlBits/*>0*/);
-
-        if (UNLIKELY(totalBits >= STREAM_ACCUMULATOR_MIN_64-(LLFSELog+MLFSELog+OffFSELog)))
-            BIT_reloadDStream(&seqState->DStream);
-
-        /* Ensure there are enough bits to read the rest of data in 64-bit mode. */
-        ZSTD_STATIC_ASSERT(16+LLFSELog+MLFSELog+OffFSELog < STREAM_ACCUMULATOR_MIN_64);
-
-        if (llBits > 0)
-            seq.litLength += BIT_readBitsFast(&seqState->DStream, llBits/*>0*/);
-
-#  endif
-
         DEBUGLOG(6, "seq: litL=%u, matchL=%u, offset=%u",
                     (U32)seq.litLength, (U32)seq.matchLength, (U32)seq.offset);
 
         if (!isLastSeq) {
             /* Don't update FSE state for last sequence. */
-            ZSTD_updateFseStateWithDInfo(&seqState->stateLL, &seqState->DStream, llNext, llnbBits);    /* <=  9 bits */
-            ZSTD_updateFseStateWithDInfo(&seqState->stateML, &seqState->DStream, mlNext, mlnbBits);    /* <=  9 bits */
-            ZSTD_updateFseStateWithDInfo(&seqState->stateOffb, &seqState->DStream, ofNext, ofnbBits);  /* <=  8 bits */
+            /* Compute each bit position from the same starting position to
+             * avoid serial updates of bitsConsumed. */
+            {   U32 const consumed = seqState->DStream.bitsConsumed;
+                U32 const llmlBits = llnbBits + mlnbBits;
+                U32 const allFseBits = llmlBits + ofnbBits;
+                BitContainerType const container = seqState->DStream.bitContainer;
+                seqState->stateLL.state = llNext + BIT_getMiddleBits(
+                    container, 64 - (consumed + llnbBits), llnbBits);
+                seqState->stateML.state = mlNext + BIT_getMiddleBits(
+                    container, 64 - (consumed + llmlBits), mlnbBits);
+                seqState->stateOffb.state = ofNext + BIT_getMiddleBits(
+                    container, 64 - (consumed + allFseBits), ofnbBits);
+                seqState->DStream.bitsConsumed = consumed + allFseBits;
+            }
             BIT_reloadDStream(&seqState->DStream);
         }
     }

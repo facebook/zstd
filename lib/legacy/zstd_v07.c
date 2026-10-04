@@ -2885,6 +2885,7 @@ struct ZSTDv07_DCtx_s
     U32 rep[3];
     ZSTDv07_frameParams fParams;
     blockType_t bType;   /* used in ZSTDv07_decompressContinue(), to transfer blockType between header decoding and block decoding stages */
+    U32 rleSize;         /* for bt_rle blocks : regenerated size, also transferred between the two stages */
     ZSTDv07_dStage stage;
     U32 litEntropy;
     U32 fseEntropy;
@@ -3982,6 +3983,7 @@ size_t ZSTDv07_decompressContinue(ZSTDv07_DCtx* dctx, void* dst, size_t dstCapac
             } else {
                 dctx->expected = cBlockSize;
                 dctx->bType = bp.blockType;
+                dctx->rleSize = bp.origSize;   /* only meaningful for bt_rle */
                 dctx->stage = ZSTDds_decompressBlock;
             }
             return 0;
@@ -3997,7 +3999,7 @@ size_t ZSTDv07_decompressContinue(ZSTDv07_DCtx* dctx, void* dst, size_t dstCapac
                 rSize = ZSTDv07_copyRawBlock(dst, dstCapacity, src, srcSize);
                 break;
             case bt_rle :
-                return ERROR(GENERIC);   /* not yet handled */
+                rSize = ZSTDv07_generateNxBytes(dst, dstCapacity, *(const BYTE*)src, dctx->rleSize);
                 break;
             case bt_end :   /* should never happen (filtered at phase 1) */
                 rSize = 0;

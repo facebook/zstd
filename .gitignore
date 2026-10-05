@@ -58,6 +58,7 @@ googletest/
 *.d
 *.vscode
 *.code-workspace
+.claude/
 compile_commands.json
 .clangd
 perf.data

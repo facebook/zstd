@@ -3941,6 +3941,80 @@ static int basicUnitTests(U32 const seed, double compressibility)
         }
         DISPLAYLEVEL(3, "OK (ASAN would report OOB write if vulnerable)\n");
 
+        DISPLAYLEVEL(3, "test%3i : DDict hashset is dropped by reset and refDDict(NULL) : ", testNb++);
+        {
+            /* After ZSTD_reset_session_and_parameters, the DCtx must not keep
+             * pointers to DDicts the caller has since freed. */
+            const char msg[] = "reset the ddict hashset, reset the ddict hashset";
+            char frame[256];
+            char out[256];
+            size_t frameSize;
+            size_t r;
+            ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+            ZSTD_CCtx* const cctx2 = ZSTD_createCCtx();
+            char* const dictBufA = (char*)malloc(dictBufferFixedSize);
+            char* const dictBufB = (char*)malloc(dictBufferFixedSize);
+            ZSTD_CDict* cdictA = NULL;
+            ZSTD_DDict* ddictA = NULL;
+            ZSTD_DDict* ddictB = NULL;
+
+            if (!dctx || !cctx2 || !dictBufA || !dictBufB) {
+                DISPLAY("alloc failed\n");
+                goto _output_error;
+            }
+            ZSTD_memcpy(dictBufA, dictBufferFixed, dictBufferFixedSize);
+            ZSTD_memcpy(dictBufB, dictBufferFixed, dictBufferFixedSize);
+            MEM_writeLE32(dictBufA + ZSTD_FRAMEIDSIZE, 101);
+            MEM_writeLE32(dictBufB + ZSTD_FRAMEIDSIZE, 102);
+            cdictA = ZSTD_createCDict(dictBufA, dictBufferFixedSize, 1);
+            ddictA = ZSTD_createDDict(dictBufA, dictBufferFixedSize);
+            ddictB = ZSTD_createDDict(dictBufB, dictBufferFixedSize);
+            if (!cdictA || !ddictA || !ddictB) {
+                DISPLAY("dictionary creation failed\n");
+                goto _output_error;
+            }
+            frameSize = ZSTD_compress_usingCDict(cctx2, frame, sizeof(frame), msg, sizeof(msg), cdictA);
+            if (ZSTD_isError(frameSize)) goto _output_error;
+
+            CHECK_Z( ZSTD_DCtx_setParameter(dctx, ZSTD_d_refMultipleDDicts, ZSTD_rmd_refMultipleDDicts) );
+            CHECK_Z( ZSTD_DCtx_refDDict(dctx, ddictA) );
+            CHECK_Z( ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters) );
+            ZSTD_freeDDict(ddictA);
+            ddictA = NULL;
+
+            /* Only ddictB is referenced now: a frame that asks for dictID 101
+             * must be rejected, and must not look at the freed ddictA. */
+            CHECK_Z( ZSTD_DCtx_setParameter(dctx, ZSTD_d_refMultipleDDicts, ZSTD_rmd_refMultipleDDicts) );
+            CHECK_Z( ZSTD_DCtx_refDDict(dctx, ddictB) );
+            r = ZSTD_decompressDCtx(dctx, out, sizeof(out), frame, frameSize);
+            if (!ZSTD_isError(r)) {
+                DISPLAY("frame decoded with a dictionary that was reset away\n");
+                goto _output_error;
+            }
+
+            /* Same thing for ZSTD_DCtx_refDDict(dctx, NULL). */
+            {   ZSTD_DDict* const ddictA2 = ZSTD_createDDict(dictBufA, dictBufferFixedSize);
+                if (!ddictA2) goto _output_error;
+                CHECK_Z( ZSTD_DCtx_refDDict(dctx, ddictA2) );
+                CHECK_Z( ZSTD_DCtx_refDDict(dctx, NULL) );
+                ZSTD_freeDDict(ddictA2);
+                CHECK_Z( ZSTD_DCtx_refDDict(dctx, ddictB) );
+                r = ZSTD_decompressDCtx(dctx, out, sizeof(out), frame, frameSize);
+                if (!ZSTD_isError(r)) {
+                    DISPLAY("frame decoded with a dictionary that was unreferenced\n");
+                    goto _output_error;
+                }
+            }
+
+            ZSTD_freeDDict(ddictB);
+            ZSTD_freeCDict(cdictA);
+            ZSTD_freeCCtx(cctx2);
+            ZSTD_freeDCtx(dctx);
+            free(dictBufA);
+            free(dictBufB);
+        }
+        DISPLAYLEVEL(3, "OK \n");
+
         ZSTD_freeCCtx(cctx);
         free(dictBuffer);
         free(samplesSizes);

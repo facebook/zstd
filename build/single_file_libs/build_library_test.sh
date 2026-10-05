@@ -71,6 +71,7 @@ echo "Single file library creation script: PASSED"
 # Copy the header to here (for the tests)
 cp "$ZSTD_SRC_ROOT/zstd.h" examples/zstd.h
 cp "$ZSTD_SRC_ROOT/zstd_errors.h" examples/zstd_errors.h
+cp "$ZSTD_SRC_ROOT/zstd_annotations.h" examples/zstd_annotations.h
 
 # Compile the generated output
 cc -Wall -Wextra -Werror -Wshadow -pthread -I. -Os -g0 -o $OUT_FILE zstd.c examples/roundtrip.c

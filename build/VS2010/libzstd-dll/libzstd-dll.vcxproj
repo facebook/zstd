@@ -62,6 +62,7 @@
     <ClInclude Include="..\..\..\lib\common\threading.h" />
     <ClInclude Include="..\..\..\lib\common\bitstream.h" />
     <ClInclude Include="..\..\..\lib\common\error_private.h" />
+    <ClInclude Include="..\..\..\lib\zstd_annotations.h" />
     <ClInclude Include="..\..\..\lib\zstd_errors.h" />
     <ClInclude Include="..\..\..\lib\common\mem.h" />
     <ClInclude Include="..\..\..\lib\common\fse.h" />

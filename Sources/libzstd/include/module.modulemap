@@ -1,0 +1,10 @@
+// Modulemap for the legacy libzstd Swift module.
+// Same headers, but the umbrella deliberately omits ZSTD_FOR_SWIFT_MODERN_API,
+// so the enums and other annotations stay in their plain-C form.
+module libzstd [extern_c] {
+    header "libzstd_module.h"
+    textual header "../../../lib/zstd.h"
+    textual header "../../../lib/zdict.h"
+    textual header "../../../lib/zstd_errors.h"
+    export *
+}

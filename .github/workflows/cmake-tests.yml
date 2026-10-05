@@ -84,6 +84,13 @@ jobs:
         cmake -S "${{ env.SRC_DIR }}/build/cmake" -B build -DBUILD_TESTING=ON -G "${{ matrix.generator }}" -DCMAKE_BUILD_TYPE=Release --install-prefix "${{ runner.temp }}/install"
         cmake --build build --config Release
         cmake --install build --config Release
+    - name: Configure subdirectory consumers
+      run: |
+        cmake -S "${{ env.SRC_DIR }}/build/cmake/tests/consumer" -B consumer-build -G "${{ matrix.generator }}" -DCMAKE_BUILD_TYPE=Release -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
+    - name: Build subdirectory consumers
+      run: cmake --build consumer-build --config Release
+    - name: Test subdirectory consumers
+      run: ctest --test-dir consumer-build -C Release --output-on-failure
 
   # Windows-specific cmake testing with Visual Studio 2022
   # Tests multiple generators and toolchains to ensure broad Windows compatibility

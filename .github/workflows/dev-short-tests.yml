@@ -671,7 +671,10 @@ jobs:
       run: |
         # sde64, not sde: the latter is a 32-bit i386 launcher, and needs i386
         # runtime libs that a 64-bit runner has no reason to carry.
-        "$SDE_DIR/sde64" -cet -cet-raise 0 -cet-endbr-exe -cet-stderr -cet-abort -- ./zstd -b3
+        # -tgl: emulate a CET-capable chip (Tiger Lake). Without it, SDE checks
+        # instructions against the host's cpuid, and fails on hosts without CET
+        # (e.g. AMD runners) at the first endbr64, in the dynamic loader.
+        "$SDE_DIR/sde64" -tgl -cet -cet-raise 0 -cet-endbr-exe -cet-stderr -cet-abort -- ./zstd -b3
 
   icx:
     # install instructions: https://www.intel.com/content/www/us/en/docs/oneapi/installation-guide-linux/2025-0/apt-005.html

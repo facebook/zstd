@@ -3995,6 +3995,25 @@ static int basicUnitTests(U32 const seed, double compressibility)
         if (dictID==0) goto _output_error;
         DISPLAYLEVEL(3, "OK : %u \n", (unsigned)dictID);
 
+        DISPLAYLEVEL(3, "test%3i : ZDICT_optimizeTrainFromBuffer_cover with tiny training set : ", testNb++);
+        {   /* With splitPoint < 1.0 the training set is a subset of the corpus.
+             * If that subset is smaller than MAX(d, sizeof(U64)) the partial
+             * suffix array size used to underflow size_t (issue #4682). The
+             * builder must reject it cleanly instead. The first few samples are
+             * tiny so the 0.75 training split stays below the threshold, while
+             * the total corpus is comfortably large. */
+            size_t tinySizes[8] = { 1, 1, 1, 1, 1, 1, 100, 100 };
+            ZDICT_cover_params_t tinyParams;
+            size_t tinyResult;
+            memset(&tinyParams, 0, sizeof(tinyParams));
+            tinyParams.steps = 4;
+            tinyParams.splitPoint = 0.75;
+            tinyResult = ZDICT_optimizeTrainFromBuffer_cover(
+                dictBuffer, optDictSize, CNBuffer, tinySizes, 8, &tinyParams);
+            if (!ZDICT_isError(tinyResult)) goto _output_error;
+        }
+        DISPLAYLEVEL(3, "OK \n");
+
         ZSTD_freeCCtx(cctx);
         free(dictBuffer);
         free(samplesSizes);

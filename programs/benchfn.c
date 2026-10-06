@@ -113,7 +113,8 @@ BMK_runOutcome_t BMK_benchFunction(BMK_benchParams_t p,
     /* init */
     {   size_t i;
         for(i = 0; i < p.blockCount; i++) {
-            memset(p.dstBuffers[i], 0xE5, p.dstCapacities[i]);  /* warm up and erase result buffer */
+            if (p.dstCapacities[i] > 0)   /* dstBuffers[i] may be NULL when dstCapacities[i] == 0 */
+                memset(p.dstBuffers[i], 0xE5, p.dstCapacities[i]);  /* warm up and erase result buffer */
     }   }
 
     /* benchmark */

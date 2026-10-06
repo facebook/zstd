@@ -30,7 +30,7 @@ jobs:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: make test
       run: |
-        make test
+        make -j test
         make -j zstd
         ./tests/test_process_substitution.bash ./zstd
 
@@ -40,7 +40,7 @@ jobs:
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: make test on macos
-      run: make test
+      run: make -j test
 
   # lasts ~10mn
   make-test-32bit:
@@ -72,7 +72,7 @@ jobs:
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: no intrinsics fuzztest
-      run: MOREFLAGS="-DZSTD_NO_INTRINSICS" make -C tests fuzztest
+      run: MOREFLAGS="-DZSTD_NO_INTRINSICS" make -j -C tests fuzztest
 
   # lasts ~8mn
   tsan-zstreamtest:
@@ -95,7 +95,7 @@ jobs:
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: thread sanitizer fuzztest
-      run: CC=clang make tsan-fuzztest
+      run: CC=clang make -j tsan-fuzztest
 
   big-tests-zstreamtest32:
     runs-on: ubuntu-latest
@@ -151,14 +151,14 @@ jobs:
         echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu focal main universe" | sudo tee -a /etc/apt/sources.list
         sudo apt-get -qqq update
         make gcc8install
-        CC=gcc-8 FUZZER_FLAGS="--long-tests" make clean uasan-fuzztest
+        CC=gcc-8 FUZZER_FLAGS="--long-tests" make -j clean uasan-fuzztest
 
   clang-asan-ubsan-fuzz:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: clang + ASan + UBSan + Fuzz Test
-      run: CC=clang FUZZER_FLAGS="--long-tests" make clean uasan-fuzztest
+      run: CC=clang FUZZER_FLAGS="--long-tests" make -j clean uasan-fuzztest
 
   # the only job decoding real legacy frames under sanitizers.
   # fuzzers do build these decoders, but only reach them if an input
@@ -178,7 +178,7 @@ jobs:
       run: |
         sudo apt-get -qqq update
         make libc6install
-        CFLAGS="-O3 -m32" FUZZER_FLAGS="--long-tests" make uasan-fuzztest
+        CFLAGS="-O3 -m32" FUZZER_FLAGS="--long-tests" make -j uasan-fuzztest
 
   clang-asan-fuzz32:
     runs-on: ubuntu-latest
@@ -188,7 +188,7 @@ jobs:
       run: |
         sudo apt-get -qqq update
         make libc6install
-        CC=clang CFLAGS="-O3 -m32" FUZZER_FLAGS="--long-tests" make asan-fuzztest
+        CC=clang CFLAGS="-O3 -m32" FUZZER_FLAGS="--long-tests" make -j asan-fuzztest
 
 # The following test seems to have issues on github CI specifically,
 # it does not provide the `__mulodi4` instruction emulation
@@ -231,10 +231,12 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
       - name: clang + MSan + Fuzz Test
+        # -O0 targets the unit tests on unoptimized code: random fuzzing is kept short.
+        # clang-msan-fuzz runs the long random fuzzing.
         run: |
           sudo apt-get -qqq update
           sudo apt-get install clang
-          CC=clang MOREFLAGS="-O0" make clean msan-fuzztest
+          CC=clang MOREFLAGS="-O0" FUZZERTEST=-T60s ZSTREAM_TESTTIME=-T30s make clean msan-fuzztest
 
   clang-msan-fuzz:
     runs-on: ubuntu-latest
@@ -251,8 +253,10 @@ jobs:
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: clang + MSan + Test Zstd
+      # ZSTDRTTEST= : skip the large data tests of playTests.sh, too slow under MSan.
+      # They still run in the make-test* and ASan + UBSan testzstd jobs.
       run: |
-        CC=clang make -j msan-test-zstd HAVE_ZLIB=0 HAVE_LZ4=0 HAVE_LZMA=0 V=1
+        CC=clang make -j msan-test-zstd HAVE_ZLIB=0 HAVE_LZ4=0 HAVE_LZMA=0 ZSTDRTTEST= V=1
 
   armfuzz:
       runs-on: ubuntu-latest

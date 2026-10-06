@@ -1909,10 +1909,10 @@ println "- Create second (different) dictionary"
 zstd -T0 --train-cover=k=56,d=8 "$TESTDIR"/*.c "$PRGDIR"/*.c "$PRGDIR"/*.h -o tmpDictC
 zstd -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
 println "- Create dictionary using shrink-dict flag"
-zstd -T0 --train-cover=steps=256,shrink "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpShrinkDict
-zstd -T0 --train-cover=steps=256,shrink=1 "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpShrinkDict1
-zstd -T0 --train-cover=steps=256,shrink=5 "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpShrinkDict2
-zstd -T0 --train-cover=shrink=5,steps=256 "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpShrinkDict3
+zstd -T0 --train-cover=steps=7,shrink "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpShrinkDict
+zstd -T0 --train-cover=steps=7,shrink=1 "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpShrinkDict1
+zstd -T0 --train-cover=steps=7,shrink=5 "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpShrinkDict2
+zstd -T0 --train-cover=shrink=5,steps=7 "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpShrinkDict3
 println "- Create dictionary with short dictID"
 zstd -T0 --train-cover=k=46,d=8,split=80 "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"

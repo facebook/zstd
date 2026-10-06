@@ -89,7 +89,7 @@ jobs:
   # Tests multiple generators and toolchains to ensure broad Windows compatibility
   # including MSVC (x64, Win32, ARM64), MinGW, and Clang-CL with various architectures and optimizations
   cmake-windows-comprehensive:
-    name: "CMake Windows VS2022 (${{ matrix.name }})"
+    name: "CMake Windows (${{ matrix.name }})"
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -111,10 +111,10 @@ jobs:
             runner: "windows-2022"
             # Intentionally omit ZSTD_BUILD_TESTS to reproduce the CXX language configuration bug
             cmake_extra_flags: "-DCMAKE_COMPILE_WARNING_AS_ERROR=ON"
-          - generator: "Visual Studio 17 2022"
+          - generator: "Visual Studio 18 2026"  # windows-11-arm image ships VS 2026 only
             flags: "-A ARM64"
             name: "MSVC ARM64"
-            runner: "windows-11-arm"  # githuh runner for WOA instance
+            runner: "windows-11-arm"  # github runner for WOA instance
           - generator: "MinGW Makefiles"
             flags: ""
             name: "MinGW"

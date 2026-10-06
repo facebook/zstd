@@ -1215,6 +1215,81 @@ size_t ZSTD_decompress(void* dst, size_t dstCapacity, const void* src, size_t sr
 #endif
 }
 
+/*! ZSTD_decompressScatter() :
+ *  One-shot scatter decompression: decompress `src` into the ordered array
+ *  of output buffers `dsts`, built on top of ZSTD_decompressStream().
+ *  Additive: no existing decompression path is modified. */
+size_t ZSTD_decompressScatter(ZSTD_outBuffer* dsts, size_t nbDsts,
+                              const void* src, size_t srcSize)
+{
+    ZSTD_inBuffer input;
+    size_t d;
+    size_t totalOut = 0;
+    size_t lastRet = 1;  /* >0 : no frame completed yet */
+#if defined(ZSTD_HEAPMODE) && (ZSTD_HEAPMODE>=1)
+    ZSTD_DStream* dctx;
+#else   /* stack mode */
+    ZSTD_DStream dctx_body;
+    ZSTD_DStream* const dctx = &dctx_body;
+#endif
+
+    /* parameter checks, before allocating anything */
+    RETURN_ERROR_IF(nbDsts > 0 && dsts == NULL, parameter_outOfBound,
+                    "dsts is NULL");
+    RETURN_ERROR_IF(srcSize > 0 && src == NULL, parameter_outOfBound,
+                    "src is NULL");
+    RETURN_ERROR_IF(srcSize == 0, srcSize_wrong,
+                    "src is empty: nothing to decompress");
+    for (d = 0; d < nbDsts; d++) {
+        RETURN_ERROR_IF(dsts[d].pos > dsts[d].size, parameter_outOfBound,
+                        "dsts[%u].pos > dsts[%u].size", (unsigned)d, (unsigned)d);
+        RETURN_ERROR_IF(dsts[d].size > 0 && dsts[d].dst == NULL, parameter_outOfBound,
+                        "dsts[%u].dst is NULL", (unsigned)d);
+    }
+
+#if defined(ZSTD_HEAPMODE) && (ZSTD_HEAPMODE>=1)
+    dctx = ZSTD_createDStream();
+    RETURN_ERROR_IF(dctx==NULL, memory_allocation, "NULL pointer!");
+#else
+    ZSTD_initDCtx_internal(dctx);
+#endif
+
+    input.src = src;
+    input.size = srcSize;
+    input.pos = 0;
+
+    /* Fill dsts[0], then dsts[1], etc., in order.
+     * ZSTD_decompressStream() honors each buffer's entry `pos` as the write
+     * offset and advances it; zero-capacity entries are naturally skipped.
+     * A return value of 0 marks a completed frame; the next call then
+     * transparently starts decoding the following frame, if any. */
+    for (d = 0; d < nbDsts && input.pos < input.size; d++) {
+        size_t const posBefore = dsts[d].pos;
+        while (input.pos < input.size && dsts[d].pos < dsts[d].size) {
+            lastRet = ZSTD_decompressStream(dctx, &dsts[d], &input);
+            if (ZSTD_isError(lastRet)) break;
+            /* forward progress is guaranteed: each call either consumes input,
+             * produces output, or completes a frame (lastRet == 0), after which
+             * the next call consumes input for the following frame header */
+        }
+        totalOut += dsts[d].pos - posBefore;
+        if (ZSTD_isError(lastRet)) break;
+    }
+
+#if defined(ZSTD_HEAPMODE) && (ZSTD_HEAPMODE>=1)
+    ZSTD_freeDStream(dctx);
+#endif
+
+    if (ZSTD_isError(lastRet)) return lastRet;
+    RETURN_ERROR_IF(input.pos < input.size, dstSize_tooSmall,
+                    "output buffers exhausted with %u input bytes remaining",
+                    (unsigned)(input.size - input.pos));
+    /* input fully consumed but last frame never completed: truncated input */
+    RETURN_ERROR_IF(lastRet != 0, srcSize_wrong,
+                    "input ends in the middle of a frame");
+    return totalOut;
+}
+
 
 /*-**************************************
 *   Advanced Streaming Decompression API

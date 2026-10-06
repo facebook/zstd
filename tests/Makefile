@@ -226,6 +226,10 @@ CLEAN += roundTripCrash
 roundTripCrash: CFLAGS += $(MULTITHREAD)
 roundTripCrash : $(ZSTD_OBJECTS) roundTripCrash.c
 
+CLEAN += scatterGatherTest
+scatterGatherTest : $(ZSTD_OBJECTS) scatterGatherTest.c
+	$(LINK.c) $^ -o $@$(EXT)
+
 CLEAN += longmatch
 longmatch : $(ZSTD_OBJECTS) longmatch.c
 

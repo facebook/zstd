@@ -465,6 +465,9 @@ size_t ZSTD_getFrameHeader_advanced(ZSTD_FrameHeader* zfhPtr, const void* src, s
             assert(src != NULL);
             ZSTD_memcpy(hbuf, src, toCopy);
             if ( MEM_readLE32(hbuf) != ZSTD_MAGICNUMBER ) {
+#if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
+                if (ZSTD_isLegacy(hbuf, 4)) return minInputSize;   /* legacy frames are supported too */
+#endif
                 /* not a zstd frame : let's check if it's a skippable frame */
                 MEM_writeLE32(hbuf, ZSTD_MAGIC_SKIPPABLE_START);
                 ZSTD_memcpy(hbuf, src, toCopy);
@@ -2140,7 +2143,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                 }
                 if (ZSTD_isError(hSize)) {
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
-                    U32 const legacyVersion = ZSTD_isLegacy(istart, iend-istart);
+                    U32 const legacyVersion = ZSTD_isLegacy(zds->headerBuffer, zds->lhSize);
                     if (legacyVersion) {
                         ZSTD_DDict const* const ddict = ZSTD_getDDict(zds);
                         const void* const dict = ddict ? ZSTD_DDict_dictContent(ddict) : NULL;
@@ -2152,7 +2155,13 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                                     zds->previousLegacyVersion, legacyVersion,
                                     dict, dictSize), "");
                         zds->legacyVersion = zds->previousLegacyVersion = legacyVersion;
-                        {   size_t const hint = ZSTD_decompressLegacyStream(zds->legacyContext, legacyVersion, output, input);
+                        {   /* the frame header may have been buffered by previous calls : replay it first */
+                            ZSTD_inBuffer header;
+                            size_t hint;
+                            header.src = zds->headerBuffer; header.size = zds->lhSize; header.pos = 0;
+                            FORWARD_IF_ERROR(ZSTD_decompressLegacyStream(zds->legacyContext, legacyVersion, output, &header), "");
+                            input->pos = (size_t)(ip - (const char*)(input->src));
+                            hint = ZSTD_decompressLegacyStream(zds->legacyContext, legacyVersion, output, input);
                             if (hint==0) zds->streamStage = zdss_init;   /* or stay in stage zdss_loadHeader */
                             return hint;
                     }   }

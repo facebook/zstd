@@ -16,6 +16,7 @@
 #include <stddef.h>   /* size_t */
 
 #include "zstd_errors.h" /* list of errors */
+#include "zstd_bounds_safety.h" /* optional -fbounds-safety macros */
 #if defined(ZSTD_STATIC_LINKING_ONLY) && !defined(ZSTD_H_ZSTD_STATIC_LINKING_ONLY)
 #include <limits.h>   /* INT_MAX */
 #endif /* ZSTD_STATIC_LINKING_ONLY */
@@ -699,13 +700,21 @@ ZSTDLIB_API size_t ZSTD_DCtx_reset(ZSTD_DCtx* dctx, ZSTD_ResetDirective reset);
 ****************************/
 
 typedef struct ZSTD_inBuffer_s {
-  const void* src;    /**< start of input buffer */
+  /* size is the capacity companion for src (bytes).
+   * Field order is preserved (pointer before size) for public ABI;
+   * update sites assign capacity before the pointer so sized-by
+   * invariants hold under optional -fbounds-safety builds.
+   */
+  const void* ZSTD_SIZED_BY_OR_NULL(size) src; /**< start of input buffer */
   size_t size;        /**< size of input buffer */
   size_t pos;         /**< position where reading stopped. Will be updated. Necessarily 0 <= pos <= size */
 } ZSTD_inBuffer;
 
 typedef struct ZSTD_outBuffer_s {
-  void*  dst;         /**< start of output buffer */
+  /* size is the capacity companion for dst (bytes). Same ABI /
+   * capacity-first assignment notes as ZSTD_inBuffer.
+   */
+  void*  ZSTD_SIZED_BY_OR_NULL(size) dst; /**< start of output buffer */
   size_t size;        /**< size of output buffer */
   size_t pos;         /**< position where writing stopped. Will be updated. Necessarily 0 <= pos <= size */
 } ZSTD_outBuffer;

@@ -66,3 +66,13 @@ endif()
 
 # Set global definitions
 add_definitions(-DXXH_NAMESPACE=ZSTD_)
+
+# Optional experimental Clang -fbounds-safety (OFF by default; macros inert otherwise)
+option(ZSTD_ENABLE_FBOUNDS_SAFETY
+       "Enable experimental Clang -fbounds-safety annotations (OFF by default)"
+       OFF)
+if(ZSTD_ENABLE_FBOUNDS_SAFETY)
+    message(STATUS "ZSTD_ENABLE_FBOUNDS_SAFETY enabled")
+else()
+    message(STATUS "ZSTD_ENABLE_FBOUNDS_SAFETY disabled")
+endif()

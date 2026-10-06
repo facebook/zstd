@@ -371,6 +371,7 @@ install-includes:
 	[ -e $(DESTDIR)$(INCLUDEDIR) ] || $(INSTALL) -d -m 755 $(DESTDIR)$(INCLUDEDIR)/
 	@echo Installing includes
 	$(INSTALL_DATA) zstd.h $(DESTDIR)$(INCLUDEDIR)
+	$(INSTALL_DATA) zstd_bounds_safety.h $(DESTDIR)$(INCLUDEDIR)
 	$(INSTALL_DATA) zstd_errors.h $(DESTDIR)$(INCLUDEDIR)
 	$(INSTALL_DATA) zdict.h $(DESTDIR)$(INCLUDEDIR)
 
@@ -382,6 +383,7 @@ uninstall:
 	$(RM) $(DESTDIR)$(LIBDIR)/$(LIBZSTD)
 	$(RM) $(DESTDIR)$(PKGCONFIGDIR)/libzstd.pc
 	$(RM) $(DESTDIR)$(INCLUDEDIR)/zstd.h
+	$(RM) $(DESTDIR)$(INCLUDEDIR)/zstd_bounds_safety.h
 	$(RM) $(DESTDIR)$(INCLUDEDIR)/zstd_errors.h
 	$(RM) $(DESTDIR)$(INCLUDEDIR)/zdict.h
 	@echo zstd libraries successfully uninstalled

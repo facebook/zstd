@@ -231,10 +231,12 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
       - name: clang + MSan + Fuzz Test
+        # -O0 targets the unit tests on unoptimized code: random fuzzing is kept short.
+        # clang-msan-fuzz runs the long random fuzzing.
         run: |
           sudo apt-get -qqq update
           sudo apt-get install clang
-          CC=clang MOREFLAGS="-O0" make clean msan-fuzztest
+          CC=clang MOREFLAGS="-O0" FUZZERTEST=-T60s ZSTREAM_TESTTIME=-T30s make clean msan-fuzztest
 
   clang-msan-fuzz:
     runs-on: ubuntu-latest

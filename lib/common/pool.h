@@ -18,6 +18,8 @@
 
 typedef struct POOL_ctx_s POOL_ctx;
 
+#define POOL_MAX_THREADS 10000
+
 /*! POOL_create() :
  *  Create a thread pool with at most `numThreads` threads.
  * `numThreads` must be at least 1.

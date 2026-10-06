@@ -143,10 +143,14 @@ static ZSTDMT_bufferPool* ZSTDMT_createBufferPool(unsigned maxNbBuffers, ZSTD_cu
 /* only works at initialization, not during compression */
 static size_t ZSTDMT_sizeof_bufferPool(ZSTDMT_bufferPool* bufPool)
 {
-    size_t const poolSize = sizeof(*bufPool);
-    size_t const arraySize = bufPool->totalBuffers * sizeof(Buffer);
+    size_t poolSize;
+    size_t arraySize;
     unsigned u;
     size_t totalBufferSize = 0;
+
+    if (bufPool == NULL) return 0;
+    poolSize = sizeof(*bufPool);
+    arraySize = bufPool->totalBuffers * sizeof(Buffer);
     ZSTD_pthread_mutex_lock(&bufPool->poolMutex);
     for (u=0; u<bufPool->totalBuffers; u++)
         totalBufferSize += bufPool->buffers[u].capacity;
@@ -161,6 +165,7 @@ static size_t ZSTDMT_sizeof_bufferPool(ZSTDMT_bufferPool* bufPool)
  * as they become freely interchangeable, reducing malloc/free usages and memory fragmentation */
 static void ZSTDMT_setBufferSize(ZSTDMT_bufferPool* const bufPool, size_t const bSize)
 {
+    if (bufPool == NULL) return;
     ZSTD_pthread_mutex_lock(&bufPool->poolMutex);
     DEBUGLOG(4, "ZSTDMT_setBufferSize: bSize = %u", (U32)bSize);
     bufPool->bufferSize = bSize;
@@ -417,6 +422,7 @@ static ZSTDMT_CCtxPool* ZSTDMT_expandCCtxPool(ZSTDMT_CCtxPool* srcPool,
 /* only works during initialization phase, not during compression */
 static size_t ZSTDMT_sizeof_CCtxPool(ZSTDMT_CCtxPool* cctxPool)
 {
+    if (cctxPool == NULL) return 0;
     ZSTD_pthread_mutex_lock(&cctxPool->poolMutex);
     {   unsigned const nbWorkers = cctxPool->totalCCtx;
         size_t const poolSize = sizeof(*cctxPool);
@@ -434,6 +440,7 @@ static size_t ZSTDMT_sizeof_CCtxPool(ZSTDMT_CCtxPool* cctxPool)
 
 static ZSTD_CCtx* ZSTDMT_getCCtx(ZSTDMT_CCtxPool* cctxPool)
 {
+    if (cctxPool == NULL) return NULL;
     DEBUGLOG(5, "ZSTDMT_getCCtx");
     ZSTD_pthread_mutex_lock(&cctxPool->poolMutex);
     if (cctxPool->availCCtx) {
@@ -449,7 +456,7 @@ static ZSTD_CCtx* ZSTDMT_getCCtx(ZSTDMT_CCtxPool* cctxPool)
 
 static void ZSTDMT_releaseCCtx(ZSTDMT_CCtxPool* pool, ZSTD_CCtx* cctx)
 {
-    if (cctx==NULL) return;   /* compatibility with release on NULL */
+    if (cctx==NULL || pool==NULL) return;
     ZSTD_pthread_mutex_lock(&pool->poolMutex);
     if (pool->availCCtx < pool->totalCCtx)
         pool->cctxs[pool->availCCtx++] = cctx;

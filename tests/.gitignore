@@ -6,6 +6,7 @@ fuzzer
 fuzzer32
 fuzzer-dll
 largeDictionary
+mtDecompressTest
 zbufftest
 zbufftest32
 zbufftest-dll

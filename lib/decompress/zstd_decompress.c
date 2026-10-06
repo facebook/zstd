@@ -61,6 +61,7 @@
 #include "../common/error_private.h"
 #include "../common/zstd_internal.h"  /* blockProperties_t */
 #include "../common/mem.h"         /* low level memory routines */
+#include "../common/pool.h"        /* thread pool, for ZSTD_decompressMultiThreaded() */
 #include "../common/bits.h"  /* ZSTD_highbit32 */
 #define FSE_STATIC_LINKING_ONLY
 #include "../common/fse.h"
@@ -1213,6 +1214,216 @@ size_t ZSTD_decompress(void* dst, size_t dstCapacity, const void* src, size_t sr
     ZSTD_initDCtx_internal(&dctx);
     return ZSTD_decompressDCtx(&dctx, dst, dstCapacity, src, srcSize);
 #endif
+}
+
+
+/*-**************************************
+*  Multi-threaded decompression
+*  Decompresses concatenated frames in parallel, one frame per job.
+*  Threading is provided by the common thread pool (POOL_*).
+*  Without ZSTD_MULTITHREAD the pool executes jobs synchronously,
+*  so the result stays correct, just serial.
+****************************************/
+
+typedef struct {
+    size_t srcOffset;
+    size_t srcSize;
+    unsigned long long contentSize;  /* ZSTD_CONTENTSIZE_UNKNOWN or ZSTD_CONTENTSIZE_ERROR when not known */
+} ZSTD_mtFrameInfo;
+
+typedef struct {
+    const void* src;
+    size_t srcSize;
+    void* dst;            /* direct mode: output slice; temp mode: NULL */
+    size_t dstCapacity;   /* direct mode: capacity of the output slice */
+    size_t initCap;       /* temp mode: initial buffer size (0 = derive from srcSize) */
+    size_t maxCap;        /* temp mode: temp buffer never grows past this */
+    void* tmpBuf;         /* temp mode: decompressed data (owned by caller) */
+    size_t result;        /* bytes decompressed, or error code */
+} ZSTD_mtFrameJob;
+
+static void ZSTD_mtDecompressDirect(void* opaque)
+{
+    ZSTD_mtFrameJob* const job = (ZSTD_mtFrameJob*)opaque;
+    /* one-shot decompression creates its own context: no shared state */
+    job->result = ZSTD_decompress(job->dst, job->dstCapacity, job->src, job->srcSize);
+}
+
+/* temp mode: content size wasn't stored in the frame header,
+ * so grow a buffer until the frame fits (bounded by maxCap). */
+static void ZSTD_mtDecompressTemp(void* opaque)
+{
+    ZSTD_mtFrameJob* const job = (ZSTD_mtFrameJob*)opaque;
+    size_t cap = job->initCap;
+    if (cap == 0) {
+        cap = job->srcSize * 4;                  /* guess: 4x compressed size */
+        if (cap < job->srcSize) cap = job->maxCap;  /* multiplication overflowed */
+    }
+    if (cap > job->maxCap) cap = job->maxCap;
+    if (cap == 0) cap = 1;                       /* malloc(0) may return NULL */
+    for (;;) {
+        void* buf = ZSTD_malloc(cap);
+        size_t rr;
+        if (buf == NULL) { job->result = ERROR(memory_allocation); return; }
+        rr = ZSTD_decompress(buf, cap, job->src, job->srcSize);
+        if (!ZSTD_isError(rr)) { job->tmpBuf = buf; job->result = rr; return; }
+        ZSTD_free(buf);
+        if (ZSTD_getErrorCode(rr) != ZSTD_error_dstSize_tooSmall) { job->result = rr; return; }
+        /* a frame larger than maxCap can never fit into the caller's dst */
+        if (cap >= job->maxCap) { job->result = ERROR(dstSize_tooSmall); return; }
+        {   size_t const newCap = cap * 2;
+            cap = (newCap > job->maxCap || newCap < cap) ? job->maxCap : newCap;
+        }
+    }
+}
+
+size_t ZSTD_decompressMultiThreaded(void* dst, size_t dstCapacity,
+                                    const void* src, size_t srcSize,
+                                    int nbThreads)
+{
+    ZSTD_mtFrameInfo* frames = NULL;
+    ZSTD_mtFrameJob* jobs = NULL;
+    POOL_ctx* pool;
+    size_t nbFrames = 0, framesCap = 0;
+    size_t offset = 0;
+    size_t f, g;
+    size_t nbWorkers;
+    int allKnown;
+    unsigned long long totalKnown = 0;
+    size_t totalOut = 0;
+
+    if (srcSize == 0) return ERROR(srcSize_wrong);
+    if (nbThreads <= 1)
+        return ZSTD_decompress(dst, dstCapacity, src, srcSize);
+
+    /* 1. scan all frame boundaries up front; strict all-or-nothing:
+     *    bad magic -> prefix_unknown, truncation -> srcSize_wrong */
+    while (offset < srcSize) {
+        size_t const fcs = ZSTD_findFrameCompressedSize((const char*)src + offset, srcSize - offset);
+        if (ZSTD_isError(fcs)) { ZSTD_free(frames); return fcs; }
+        if (nbFrames == framesCap) {
+            size_t const newCap = framesCap ? framesCap * 2 : 16;
+            ZSTD_mtFrameInfo* const newFrames = (ZSTD_mtFrameInfo*)ZSTD_malloc(newCap * sizeof(*newFrames));
+            if (newFrames == NULL) { ZSTD_free(frames); return ERROR(memory_allocation); }
+            ZSTD_memcpy(newFrames, frames, nbFrames * sizeof(*frames));
+            ZSTD_free(frames);
+            frames = newFrames;
+            framesCap = newCap;
+        }
+        frames[nbFrames].srcOffset = offset;
+        frames[nbFrames].srcSize = fcs;
+        nbFrames++;
+        offset += fcs;
+    }
+
+    /* 2. a single frame takes the plain serial path: no thread overhead */
+    if (nbFrames == 1) {
+        size_t const r = ZSTD_decompress(dst, dstCapacity, src, srcSize);
+        ZSTD_free(frames);
+        return r;
+    }
+
+    /* 3. read each frame's content size; overflow-safe running total */
+    allKnown = 1;
+    for (f = 0; f < nbFrames; f++) {
+        unsigned long long const cs =
+                ZSTD_getFrameContentSize((const char*)src + frames[f].srcOffset,
+                                         frames[f].srcSize);
+        frames[f].contentSize = cs;
+        if (cs == ZSTD_CONTENTSIZE_UNKNOWN || cs == ZSTD_CONTENTSIZE_ERROR) {
+            allKnown = 0;
+        } else {
+            if (cs > dstCapacity || totalKnown > (unsigned long long)dstCapacity - cs) {
+                ZSTD_free(frames);
+                return ERROR(dstSize_tooSmall);
+            }
+            totalKnown += cs;
+        }
+    }
+
+    /* 4. one job per frame; never more workers than frames */
+    nbWorkers = (size_t)nbThreads < nbFrames ? (size_t)nbThreads : nbFrames;
+    pool = POOL_create(nbWorkers, 0);
+    if (pool == NULL) { ZSTD_free(frames); return ERROR(memory_allocation); }
+    jobs = (ZSTD_mtFrameJob*)ZSTD_malloc(nbFrames * sizeof(*jobs));
+    if (jobs == NULL) { POOL_free(pool); ZSTD_free(frames); return ERROR(memory_allocation); }
+
+    if (allKnown) {
+        /* every size known and total fits: decompress straight into dst slices.
+         * NOTE: each job's dstCapacity is exactly its frame's content size, not
+         * the remaining tail of dst. ZSTD_decompress() is allowed to use spare
+         * dstCapacity past the frame's end as scratch space (it parks the
+         * block's literals there, see ZSTD_allocateLiteralsBuffer()), so
+         * handing a job the whole tail would let it scribble into the next
+         * frame's slice while that frame decompresses concurrently. */
+        size_t dstOffset = 0;
+        for (f = 0; f < nbFrames; f++) {
+            jobs[f].src = (const char*)src + frames[f].srcOffset;
+            jobs[f].srcSize = frames[f].srcSize;
+            jobs[f].dst = (char*)dst + dstOffset;
+            jobs[f].dstCapacity = (size_t)frames[f].contentSize;
+            jobs[f].tmpBuf = NULL;
+            jobs[f].result = 0;
+            dstOffset += (size_t)frames[f].contentSize;
+            POOL_add(pool, ZSTD_mtDecompressDirect, &jobs[f]);
+        }
+    } else {
+        /* some sizes unknown: temp buffer per frame, gather into dst in order */
+        for (f = 0; f < nbFrames; f++) {
+            unsigned long long const cs = frames[f].contentSize;
+            int const known = (cs != ZSTD_CONTENTSIZE_UNKNOWN) && (cs != ZSTD_CONTENTSIZE_ERROR);
+            jobs[f].src = (const char*)src + frames[f].srcOffset;
+            jobs[f].srcSize = frames[f].srcSize;
+            jobs[f].dst = NULL;
+            jobs[f].initCap = (known && cs > 0)
+                ? (cs > (unsigned long long)dstCapacity ? dstCapacity : (size_t)cs)
+                : 0;
+            jobs[f].maxCap = dstCapacity;
+            jobs[f].tmpBuf = NULL;
+            jobs[f].result = 0;
+            if (known && cs == 0)
+                continue;  /* empty frame (incl. skippable): nothing to do */
+            POOL_add(pool, ZSTD_mtDecompressTemp, &jobs[f]);
+        }
+    }
+    ZSTD_free(frames); frames = NULL;
+
+    POOL_joinJobs(pool);
+    POOL_free(pool);
+
+    /* 5. collect: first error wins */
+    for (f = 0; f < nbFrames; f++) {
+        if (ZSTD_isError(jobs[f].result)) {
+            size_t const err = jobs[f].result;
+            for (g = 0; g < nbFrames; g++) ZSTD_free(jobs[g].tmpBuf);
+            ZSTD_free(jobs);
+            return err;
+        }
+    }
+    if (allKnown) {
+        totalOut = (size_t)totalKnown;
+    } else {
+        unsigned long long total = 0;
+        char* op = (char*)dst;
+        for (f = 0; f < nbFrames; f++) {
+            /* each frame fit in maxCap == dstCapacity, but the sum may not */
+            if (jobs[f].result > dstCapacity
+                || total > (unsigned long long)dstCapacity - jobs[f].result) {
+                for (g = 0; g < nbFrames; g++) ZSTD_free(jobs[g].tmpBuf);
+                ZSTD_free(jobs);
+                return ERROR(dstSize_tooSmall);
+            }
+            total += jobs[f].result;
+        }
+        for (f = 0; f < nbFrames; f++) {
+            if (jobs[f].result) ZSTD_memcpy(op, jobs[f].tmpBuf, jobs[f].result);
+            op += jobs[f].result;
+            ZSTD_free(jobs[f].tmpBuf);
+        }
+        totalOut = (size_t)total;
+    }
+    ZSTD_free(jobs);
+    return totalOut;
 }
 
 

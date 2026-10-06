@@ -251,8 +251,10 @@ jobs:
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: clang + MSan + Test Zstd
+      # ZSTDRTTEST= : skip the large data tests of playTests.sh, too slow under MSan.
+      # They still run in the make-test* and ASan + UBSan testzstd jobs.
       run: |
-        CC=clang make -j msan-test-zstd HAVE_ZLIB=0 HAVE_LZ4=0 HAVE_LZMA=0 V=1
+        CC=clang make -j msan-test-zstd HAVE_ZLIB=0 HAVE_LZ4=0 HAVE_LZMA=0 ZSTDRTTEST= V=1
 
   armfuzz:
       runs-on: ubuntu-latest

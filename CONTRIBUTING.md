@@ -19,6 +19,21 @@ We actively welcome your pull requests.
 4. Ensure the test suite passes.
 5. Make sure your code lints.
 6. If you haven't already, complete the Contributor License Agreement ("CLA").
+7. Search open pull requests and issues first: the same problem may already be addressed.
+8. Keep one fix, or one topic, per pull request.
+9. A bug fix must come with a reproducer, or a test that fails without the fix.
+10. If AI or other automated tools were used to find the problem or write the change, say so
+in the pull request description.
+11. Do not open a public pull request for a security bug: see [SECURITY.md](SECURITY.md).
+
+### Review bar
+Not every directory is held to the same bar.
+
+* `lib/` and `programs/`: the library and the CLI ship everywhere. Changes get a full review
+of correctness, tests, portability and performance.
+* `contrib/`: more freedom in scope and style. Contributions still have to be correct.
+* `lib/legacy/`: the legacy decoders are frozen. Only memory-safety fixes and regression fixes,
+each with a test, are accepted.
 
 ## Contributor License Agreement ("CLA")
 In order to accept your pull request, we need you to submit a CLA. You only need
@@ -80,7 +95,7 @@ Our contribution process works in three main stages:
         as the destination.
         * Examine the diff presented between the two branches to make sure there is nothing unexpected.
     * Write a good pull request description:
-        * While there is no strict template that our contributors follow, we would like them to
+        * Beyond the checklist in the pull request template, we would like contributors to
         sufficiently summarize and motivate the changes they are proposing. We recommend all pull requests,
         at least indirectly, address the following points.
             * Is this pull request important and why?
@@ -203,6 +218,12 @@ Performance section which might be helpful for you.
 legitimate thing to do as long as it does not harm the overall performance health of Zstd.
 This is a hard balance to strike but please keep in mind other aspects of Zstd when
 submitting changes that are clang-specific, windows-specific, etc.
+4. We benchmark x86-64 and AArch64 ourselves. For other architectures (RISC-V, POWER, etc.),
+we can't, so we accept performance changes only if they are small, isolated behind
+architecture-specific `#ifdef`, come with your own benchmark numbers, and pass the existing CI.
+5. State precisely what was measured: CPU, compiler and flags, data, number of runs.
+A gain measured in one configuration is a gain for that configuration only. A claim of general
+improvement needs numbers from several configurations: different CPUs, compilers, and data.
 
 ## Benchmarking Performance
 Performance microbenchmarking is a tricky subject but also essential for Zstd. We value empirical

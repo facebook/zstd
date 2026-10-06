@@ -30,7 +30,7 @@ jobs:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: make test
       run: |
-        make test
+        make -j test
         make -j zstd
         ./tests/test_process_substitution.bash ./zstd
 
@@ -40,7 +40,7 @@ jobs:
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: make test on macos
-      run: make test
+      run: make -j test
 
   # lasts ~10mn
   make-test-32bit:

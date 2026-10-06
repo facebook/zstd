@@ -39,5 +39,41 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
     ZSTD_isFrame(src, size);
     ZSTD_getFrameHeader(&zfh, src, size);
     ZSTD_getFrameHeader_advanced(&zfh, src, size, ZSTD_f_zstd1);
+    /* Frame-boundary scanner (issue #4734): validate structural invariants. */
+    {
+        /* 1024 entries is plenty: smallest possible frame is 6 bytes, and we
+         * accept dstSize_tooSmall as a valid outcome for denser inputs. */
+        ZSTD_FrameBoundary bounds[1024];
+        size_t const counted = ZSTD_findFrameBoundaries(src, size, NULL, 0);
+        size_t const filled = ZSTD_findFrameBoundaries(src, size, bounds, 1024);
+        if (!ZSTD_isError(counted) && !ZSTD_isError(filled)) {
+            size_t i;
+            FUZZ_ASSERT(counted == filled);
+            FUZZ_ASSERT(filled <= 1024);
+            for (i = 0; i < filled; i++) {
+                FUZZ_ASSERT(bounds[i].compressedSize > 0);
+                FUZZ_ASSERT(bounds[i].offset <= size);
+                FUZZ_ASSERT(bounds[i].compressedSize <= size - bounds[i].offset);
+                if (i == 0) {
+                    FUZZ_ASSERT(bounds[i].offset == 0);
+                } else {
+                    FUZZ_ASSERT(bounds[i].offset ==
+                                bounds[i-1].offset + bounds[i-1].compressedSize);
+                }
+            }
+            if (filled > 0) {
+                FUZZ_ASSERT(bounds[filled-1].offset + bounds[filled-1].compressedSize == size);
+            } else {
+                FUZZ_ASSERT(size == 0);
+            }
+        } else if (!ZSTD_isError(counted)) {
+            /* counting pass succeeded: the fill pass may only fail on capacity */
+            FUZZ_ASSERT(ZSTD_getErrorCode(filled) == ZSTD_error_dstSize_tooSmall);
+        } else {
+            /* counting pass failed: the fill pass must also fail (it walks the
+             * same frames; it may hit dstSize_tooSmall before the bad frame). */
+            FUZZ_ASSERT(ZSTD_isError(filled));
+        }
+    }
     return 0;
 }

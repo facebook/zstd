@@ -21,6 +21,11 @@
 #ifndef ZSTD_ALLOCATIONS_H
 #define ZSTD_ALLOCATIONS_H
 
+/* SIZE_MAX is from stdint.h, but may not be available in all environments. */
+#ifndef SIZE_MAX
+#  define SIZE_MAX ((size_t)-1)
+#endif
+
 /* custom memory allocation functions */
 
 MEM_STATIC void* ZSTD_customMalloc(size_t size, ZSTD_customMem customMem)
@@ -28,6 +33,12 @@ MEM_STATIC void* ZSTD_customMalloc(size_t size, ZSTD_customMem customMem)
     if (customMem.customAlloc)
         return customMem.customAlloc(customMem.opaque, size);
     return ZSTD_malloc(size);
+}
+
+MEM_STATIC void* ZSTD_customMalloc2(size_t nmemb, size_t size, ZSTD_customMem customMem)
+{
+    if (nmemb > 0 && size > SIZE_MAX / nmemb) return NULL;
+    return ZSTD_customMalloc(nmemb * size, customMem);
 }
 
 MEM_STATIC void* ZSTD_customCalloc(size_t size, ZSTD_customMem customMem)
@@ -44,6 +55,12 @@ MEM_STATIC void* ZSTD_customCalloc(size_t size, ZSTD_customMem customMem)
         return ptr;
     }
     return ZSTD_calloc(1, size);
+}
+
+MEM_STATIC void* ZSTD_customCalloc2(size_t nmemb, size_t size, ZSTD_customMem customMem)
+{
+    if (nmemb > 0 && size > SIZE_MAX / nmemb) return NULL;
+    return ZSTD_customCalloc(nmemb * size, customMem);
 }
 
 MEM_STATIC void ZSTD_customFree(void* ptr, ZSTD_customMem customMem)

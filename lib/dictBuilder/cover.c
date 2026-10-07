@@ -140,6 +140,12 @@ typedef struct COVER_map_s {
   U32 sizeMask;
 } COVER_map_t;
 
+static int COVER_size_t_mulOverflow(size_t a, size_t b, size_t* result) {
+  if (a != 0 && b > (size_t)(-1) / a) return 1;
+  *result = a * b;
+  return 0;
+}
+
 /**
  * Clear the map.
  */
@@ -154,10 +160,33 @@ static void COVER_map_clear(COVER_map_t *map) {
  * The map is only guaranteed to be large enough to hold size elements.
  */
 static int COVER_map_init(COVER_map_t *map, U32 size) {
-  map->sizeLog = ZSTD_highbit32(size) + 2;
-  map->size = (U32)1 << map->sizeLog;
+  if (size == 0) {
+    map->sizeLog = 0;
+    map->size = 0;
+    return 0;
+  }
+
+  U32 const sizeLog = ZSTD_highbit32(size) + 2;
+  U32 mapSize;
+  size_t allocSize;
+
+  if (sizeLog >= 32) {
+    map->sizeLog = 0;
+    map->size = 0;
+    return 0;
+  }
+
+  mapSize = (U32)1U << sizeLog;
+  if (COVER_size_t_mulOverflow((size_t)mapSize, sizeof(COVER_map_pair_t), &allocSize)) {
+    map->sizeLog = 0;
+    map->size = 0;
+    return 0;
+  }
+
+  map->sizeLog = sizeLog;
+  map->size = mapSize;
   map->sizeMask = map->size - 1;
-  map->data = (COVER_map_pair_t *)malloc(map->size * sizeof(COVER_map_pair_t));
+  map->data = (COVER_map_pair_t *)malloc(allocSize);
   if (!map->data) {
     map->sizeLog = 0;
     map->size = 0;

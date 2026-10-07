@@ -22,10 +22,10 @@ zstd_programs_sources = [join_paths(zstd_rootdir, 'programs/zstdcli.c'),
   join_paths(zstd_rootdir, 'programs/dibio.c'),
   join_paths(zstd_rootdir, 'programs/zstdcli_trace.c')]
 
-zstd_deps = [ libzstd_internal_dep ]
+zstd_deps = [ libzstd_internal_dep, rt_dep ]
 zstd_c_args = libzstd_debug_cflags
 
-zstd_frugal_deps = [ libzstd_internal_dep ]
+zstd_frugal_deps = [ libzstd_internal_dep, rt_dep ]
 zstd_frugal_c_args = [ '-DZSTD_NOBENCH', '-DZSTD_NODICT', '-DZSTD_NOTRACE' ]
 
 if use_multi_thread

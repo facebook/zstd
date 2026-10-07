@@ -41,7 +41,7 @@ testcommon = static_library('testcommon',
   link_with: libzstd_static)
 
 testcommon_dep = declare_dependency(link_with: testcommon,
-  dependencies: libzstd_deps,
+  dependencies: [ libzstd_deps, rt_dep ],
   include_directories: libzstd_includes)
 
 datagen_sources = [join_paths(zstd_rootdir, 'tests/datagencli.c'),

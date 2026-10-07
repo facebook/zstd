@@ -3893,7 +3893,10 @@ size_t ZBUFFv05_decompressContinue(ZBUFFv05_DCtx* zbc, void* dst, size_t* maxDst
         case ZBUFFv05ds_decodeHeader:
                 /* apply header to create / resize buffers */
                 {
-                    size_t neededOutSize = (size_t)1 << zbc->params.windowLog;
+                    /* note : also provide space for one full block, so that the
+                     * history preserved at wrap time never fills the whole buffer
+                     * and the next block always has room to decode into. */
+                    size_t neededOutSize = ((size_t)1 << zbc->params.windowLog) + BLOCKSIZE;
                     size_t neededInSize = BLOCKSIZE;   /* a block is never > BLOCKSIZE */
                     if (zbc->inBuffSize < neededInSize) {
                         free(zbc->inBuff);
@@ -3972,15 +3975,8 @@ size_t ZBUFFv05_decompressContinue(ZBUFFv05_DCtx* zbc, void* dst, size_t* maxDst
                 zbc->outStart += flushedSize;
                 if (flushedSize == toFlushSize) {
                     zbc->stage = ZBUFFv05ds_read;
-                    if (zbc->outStart + BLOCKSIZE > zbc->outBuffSize) {
-                        /* Not enough room for next block - need to wrap buffer.
-                         * Preserve history: copy the last windowSize bytes to the
-                         * beginning so that back-references can still find valid data. */
-                        size_t const windowSize = (size_t)1 << zbc->params.windowLog;
-                        size_t const preserveSize = MIN(zbc->outEnd, windowSize);
-                        memmove(zbc->outBuff, zbc->outBuff + zbc->outEnd - preserveSize, preserveSize);
-                        zbc->outStart = zbc->outEnd = preserveSize;
-                    }
+                    if (zbc->outStart + BLOCKSIZE > zbc->outBuffSize)
+                        zbc->outStart = zbc->outEnd = 0;
                     break;
                 }
                 /* cannot flush everything */

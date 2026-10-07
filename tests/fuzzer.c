@@ -3995,6 +3995,39 @@ static int basicUnitTests(U32 const seed, double compressibility)
         if (dictID==0) goto _output_error;
         DISPLAYLEVEL(3, "OK : %u \n", (unsigned)dictID);
 
+        /* Dictionary training with insufficient training samples size (issue #4827) */
+        DISPLAYLEVEL(3, "test%3i : dictBuilder training set size validation (issue #4827) : ", testNb++);
+        {   unsigned char s_samples[106];
+            size_t s_sizes[7] = { 1, 1, 1, 1, 1, 1, 100 };
+            unsigned char s_dict[256];
+            size_t r;
+            memset(s_samples, 'a', sizeof(s_samples));
+
+            /* Test default ZDICT_trainFromBuffer */
+            r = ZDICT_trainFromBuffer(s_dict, sizeof(s_dict), s_samples, s_sizes, 7);
+            if (!ZDICT_isError(r)) goto _output_error;
+            if (ZSTD_getErrorCode(r) != ZSTD_error_srcSize_wrong) goto _output_error;
+
+            /* Test ZDICT_optimizeTrainFromBuffer_cover */
+            memset(&params, 0, sizeof(params));
+            params.d = 8;
+            params.splitPoint = 0.75;
+            r = ZDICT_optimizeTrainFromBuffer_cover(s_dict, sizeof(s_dict), s_samples, s_sizes, 7, &params);
+            if (!ZDICT_isError(r)) goto _output_error;
+            if (ZSTD_getErrorCode(r) != ZSTD_error_srcSize_wrong) goto _output_error;
+
+            /* Test ZDICT_optimizeTrainFromBuffer_fastCover */
+            {   ZDICT_fastCover_params_t fastParams;
+                memset(&fastParams, 0, sizeof(fastParams));
+                fastParams.d = 8;
+                fastParams.splitPoint = 0.75;
+                r = ZDICT_optimizeTrainFromBuffer_fastCover(s_dict, sizeof(s_dict), s_samples, s_sizes, 7, &fastParams);
+                if (!ZDICT_isError(r)) goto _output_error;
+                if (ZSTD_getErrorCode(r) != ZSTD_error_srcSize_wrong) goto _output_error;
+            }
+        }
+        DISPLAYLEVEL(3, "OK \n");
+
         ZSTD_freeCCtx(cctx);
         free(dictBuffer);
         free(samplesSizes);

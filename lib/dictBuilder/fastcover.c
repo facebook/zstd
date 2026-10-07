@@ -327,6 +327,13 @@ FASTCOVER_ctx_init(FASTCOVER_ctx_t* ctx,
         return ERROR(srcSize_wrong);
     }
 
+    if (trainingSamplesSize < MAX(d, sizeof(U64))) {
+        DISPLAYLEVEL(1, "Total training samples size is too small (%u bytes), "
+                        "minimum size is %u bytes\n",
+                    (unsigned)trainingSamplesSize, (unsigned)MAX(d, sizeof(U64)));
+        return ERROR(srcSize_wrong);
+    }
+
     /* Check if there are at least 5 training samples */
     if (nbTrainSamples < 5) {
         DISPLAYLEVEL(1, "Total number of training samples is %u and is invalid\n", nbTrainSamples);

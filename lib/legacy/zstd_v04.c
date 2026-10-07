@@ -3424,7 +3424,10 @@ static size_t ZBUFF_decompressContinue(ZBUFF_DCtx* zbc, void* dst, size_t* maxDs
 
         case ZBUFFds_decodeHeader:
                 /* apply header to create / resize buffers */
-                {   size_t const neededOutSize = (size_t)1 << zbc->params.windowLog;
+                /* note : also provide space for one full block, so that the
+                 * output buffer never needs to wrap while a block decodes,
+                 * keeping match sources valid (see v0.6 decoder). */
+                {   size_t const neededOutSize = ((size_t)1 << zbc->params.windowLog) + BLOCKSIZE;
                     size_t const neededInSize = BLOCKSIZE;   /* a block is never > BLOCKSIZE */
                     if (zbc->inBuffSize < neededInSize) {
                         free(zbc->inBuff);

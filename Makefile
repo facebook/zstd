@@ -37,6 +37,13 @@ else
   EXT =
 endif
 
+# Detect if the architecture is RISC-V (native build)
+UNAME_M ?= $(shell uname -m)
+ifneq (,$(filter riscv%,$(UNAME_M)))
+    MOREFLAGS += -mno-strict-align
+    export MOREFLAGS
+endif
+
 ## default: Build lib-release and zstd-release
 .PHONY: default
 default: lib-release zstd-release

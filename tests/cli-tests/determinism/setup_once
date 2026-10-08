@@ -28,3 +28,23 @@ datagen -g10000 -P50 > files/g10000-P50
 datagen -g10000 -P75 > files/g10000-P75
 datagen -g10000 -P90 > files/g10000-P90
 datagen -g10000 -P100 > files/g10000-P100
+
+# Detect ZSTD_SELECTIVE_LAZY build and swap in matching test expectations.
+# g10000 at L6 reliably differs between dev and selective-lazy builds.
+_sl_file="$CLI_TESTS/determinism/basic.sh.stdout.selective_lazy.exact"
+if [ -f "$_sl_file" ]; then
+    _actual=$(zstd --single-thread -q -6 files/g10000 -c | md5hash)
+    _sl_hash=$(grep -A1 '^level 6, file files/g10000$' "$_sl_file" | tail -1)
+    if [ "$_actual" = "$_sl_hash" ]; then
+        # Back up originals so teardown_once can restore them.
+        cp "$CLI_TESTS/determinism/basic.sh.stdout.exact" \
+           "$CLI_TESTS/determinism/basic.sh.stdout.exact.bak"
+        cp "$CLI_TESTS/determinism/multithread.sh.stdout.exact" \
+           "$CLI_TESTS/determinism/multithread.sh.stdout.exact.bak"
+        # Swap in selective-lazy expectations.
+        cp "$_sl_file" "$CLI_TESTS/determinism/basic.sh.stdout.exact"
+        [ -f "$CLI_TESTS/determinism/multithread.sh.stdout.selective_lazy.exact" ] && \
+            cp "$CLI_TESTS/determinism/multithread.sh.stdout.selective_lazy.exact" \
+               "$CLI_TESTS/determinism/multithread.sh.stdout.exact"
+    fi
+fi

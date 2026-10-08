@@ -66,3 +66,10 @@ endif()
 
 # Set global definitions
 add_definitions(-DXXH_NAMESPACE=ZSTD_)
+
+# Selective lazy evaluation optimization
+option(ZSTD_SELECTIVE_LAZY "Enable selective lazy evaluation optimization" OFF)
+if(ZSTD_SELECTIVE_LAZY)
+    message(STATUS "ZSTD_SELECTIVE_LAZY enabled")
+    add_definitions(-DZSTD_SELECTIVE_LAZY)
+endif()

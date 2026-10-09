@@ -1503,7 +1503,7 @@ ZSTDLIB_STATIC_API unsigned long long ZSTD_decompressBound(const void* src, size
 
 /*! ZSTD_frameHeaderSize() :
  *  srcSize must be large enough, aka >= ZSTD_FRAMEHEADERSIZE_PREFIX.
- * @return : size of the Frame Header,
+ * @return : size of the Frame Header (ZSTD_SKIPPABLEHEADERSIZE for a skippable frame),
  *           or an error code (if srcSize is too small) */
 ZSTDLIB_STATIC_API size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize);
 

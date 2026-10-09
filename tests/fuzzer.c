@@ -4702,6 +4702,11 @@ static int basicUnitTests(U32 const seed, double compressibility)
             CHECK(zfh.frameContentSize == skippableFrameSize - ZSTD_SKIPPABLEHEADERSIZE);
         }
         DISPLAYLEVEL(3, "OK \n");
+
+        DISPLAYLEVEL(3, "test%3i : ZSTD_frameHeaderSize on skippable frame : ", testNb++);
+        CHECK_EQ(ZSTD_frameHeaderSize(skippableFrame, skippableFrameSize), ZSTD_SKIPPABLEHEADERSIZE);
+        CHECK_EQ(ZSTD_frameHeaderSize(skippableFrame, ZSTD_FRAMEHEADERSIZE_PREFIX(ZSTD_f_zstd1)), ZSTD_SKIPPABLEHEADERSIZE);
+        DISPLAYLEVEL(3, "OK \n");
     }
 
     /* error string tests */

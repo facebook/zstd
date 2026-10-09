@@ -1637,6 +1637,11 @@ rm -f $TEST_DATA_FILE
 rm -f $FULL_COMPRESSED_FILE
 rm -f $TRUNCATED_COMPRESSED_FILE
 
+println "test : detect skippable frame larger than file "
+printf '\120\052\115\030\370\377\377\377payload' > tmp_skippable.zst  # skippable magic, Frame_Size 0xFFFFFFF8
+zstd --list tmp_skippable.zst && die "-l must fail on truncated skippable frame"
+rm -f tmp_skippable.zst
+
 println "\n===>  zstd --list/-l errors when presented with stdin / no files"
 zstd -l && die "-l must fail on empty list of files"
 zstd -l - && die "-l does not work on stdin"

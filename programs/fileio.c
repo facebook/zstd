@@ -3515,7 +3515,7 @@ FIO_analyzeFrames(fileInfo_t* info, FILE* const srcFile)
             /* Skippable frame */
             else if ((magicNumber & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START) {
                 U32 const frameSize = MEM_readLE32(headerBuffer + 4);
-                long const seek = (long)(8 + frameSize - numBytesRead);
+                S64 const seek = (S64)ZSTD_SKIPPABLEHEADERSIZE + frameSize - (S64)numBytesRead;
                 ERROR_IF(LONG_SEEK(srcFile, seek, SEEK_CUR) != 0,
                         info_frame_error, "Error: could not find end of skippable frame");
                 info->numSkippableFrames++;

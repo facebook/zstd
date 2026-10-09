@@ -429,10 +429,13 @@ static size_t ZSTD_frameHeaderSize_internal(const void* src, size_t srcSize, ZST
 
 /** ZSTD_frameHeaderSize() :
  *  srcSize must be >= ZSTD_frameHeaderSize_prefix.
- * @return : size of the Frame Header,
+ * @return : size of the Frame Header (ZSTD_SKIPPABLEHEADERSIZE for a skippable frame),
  *           or an error code (if srcSize is too small) */
 size_t ZSTD_frameHeaderSize(const void* src, size_t srcSize)
 {
+    RETURN_ERROR_IF(srcSize < ZSTD_FRAMEHEADERSIZE_PREFIX(ZSTD_f_zstd1), srcSize_wrong, "");
+    if (ZSTD_isSkippableFrame(src, srcSize))
+        return ZSTD_SKIPPABLEHEADERSIZE;  /* magic number + frame size */
     return ZSTD_frameHeaderSize_internal(src, srcSize, ZSTD_f_zstd1);
 }
 

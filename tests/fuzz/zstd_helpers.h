@@ -45,6 +45,12 @@ typedef struct {
  */
 FUZZ_dict_t FUZZ_train(void const* src, size_t srcSize, FUZZ_dataProducer_t *producer);
 
+/* Returns 1 if src is a series of zstd and skippable frames, 0 if any frame
+ * is invalid or a legacy frame. Legacy decoders are frozen and their size
+ * queries do not bound what they decode.
+ */
+int FUZZ_isCurrentFormat(void const* src, size_t srcSize);
+
 #ifdef FUZZ_THIRD_PARTY_SEQ_PROD
 extern void* FUZZ_seqProdState;
 #endif

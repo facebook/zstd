@@ -20,6 +20,7 @@
 #define ZSTD_STATIC_LINKING_ONLY
 
 #include "fuzz_helpers.h"
+#include "zstd_helpers.h"
 #include "zstd.h"
 #include "fuzz_data_producer.h"
 
@@ -46,6 +47,9 @@ int LLVMFuzzerTestOneInput(const uint8_t *src, size_t size)
             unsigned long long const expectedSize = ZSTD_findDecompressedSize(src, size);
             FUZZ_ASSERT(expectedSize != ZSTD_CONTENTSIZE_ERROR);
             FUZZ_ASSERT(expectedSize == ZSTD_CONTENTSIZE_UNKNOWN || expectedSize == dSize);
+            /* ZSTD_decompressBound() must be an upper bound of what was actually decoded. */
+            if (FUZZ_isCurrentFormat(src, size))
+                FUZZ_ASSERT(dSize <= ZSTD_decompressBound(src, size));
         }
         free(rBuf);
     }

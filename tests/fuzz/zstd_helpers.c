@@ -206,3 +206,17 @@ FUZZ_dict_t FUZZ_train(void const* src, size_t srcSize, FUZZ_dataProducer_t *pro
 
     return dict;
 }
+
+int FUZZ_isCurrentFormat(void const* src, size_t srcSize)
+{
+    const uint8_t* ip = (const uint8_t*)src;
+    while (srcSize > 0) {
+        ZSTD_FrameHeader zfh;
+        size_t const frameSize = ZSTD_findFrameCompressedSize(ip, srcSize);
+        if (ZSTD_isError(frameSize) || ZSTD_getFrameHeader(&zfh, ip, srcSize) != 0)
+            return 0;
+        ip += frameSize;
+        srcSize -= frameSize;
+    }
+    return 1;
+}

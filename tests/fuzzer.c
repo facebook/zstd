@@ -572,6 +572,35 @@ static void test_decompressBound(unsigned tnb)
         free(outBuffer);
     }
 
+    /* Two frames declaring 2^63 bytes each : the sum must not wrap around to 0 */
+    {   static const BYTE frames[] = {
+            0x28, 0xB5, 0x2F, 0xFD, 0xE0, 0, 0, 0, 0, 0, 0, 0, 0x80, 0x01, 0, 0,
+            0x28, 0xB5, 0x2F, 0xFD, 0xE0, 0, 0, 0, 0, 0, 0, 0, 0x80, 0x01, 0, 0 };
+        CHECK_EQ( ZSTD_findDecompressedSize(frames, sizeof(frames)), ZSTD_CONTENTSIZE_ERROR );
+        CHECK_EQ( ZSTD_decompressBound(frames, sizeof(frames)), ZSTD_CONTENTSIZE_ERROR );
+    }
+
+    /* Raw and RLE blocks larger than the block size maximum (6 KB window) :
+     * single-pass decoding accepts them (#3482), so the bound must cover them */
+    {   static const BYTE rleFrame[] = { 0x28, 0xB5, 0x2F, 0xFD, 0x00, 0x14, 0xEB, 0x25, 0x02, 'a' };
+        size_t const rawSize = 10000;
+        size_t const rawFrameSize = 9 + rawSize;
+        size_t const outCapacity = 1 << 15;
+        BYTE* const rawFrame = (BYTE*)malloc(rawFrameSize);
+        void* const outBuffer = malloc(outCapacity);
+        assert(rawFrame != NULL && outBuffer != NULL);
+        memcpy(rawFrame, rleFrame, 6);
+        MEM_writeLE24(rawFrame + 6, (U32)(1 /* last */ + (bt_raw << 1) + (rawSize << 3)));
+        memset(rawFrame + 9, 'a', rawSize);
+
+        CHECK_EQ( ZSTD_decompress(outBuffer, outCapacity, rleFrame, sizeof(rleFrame)), 17597 );
+        CHECK( ZSTD_decompressBound(rleFrame, sizeof(rleFrame)) >= 17597 );
+        CHECK_EQ( ZSTD_decompress(outBuffer, outCapacity, rawFrame, rawFrameSize), rawSize );
+        CHECK( ZSTD_decompressBound(rawFrame, rawFrameSize) >= rawSize );
+        free(rawFrame);
+        free(outBuffer);
+    }
+
     DISPLAYLEVEL(3, "OK \n");
 }
 

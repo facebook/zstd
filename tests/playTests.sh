@@ -1388,10 +1388,10 @@ if [ $LZMAMODE -eq 1 ]; then
         zstd -d -f -v tmp.lzma
         rm -f tmp*
         println "Creating symlinks"
-        ln -s "$ZSTD_BIN" ./xz
-        ln -s "$ZSTD_BIN" ./unxz
-        ln -s "$ZSTD_BIN" ./lzma
-        ln -s "$ZSTD_BIN" ./unlzma
+        ln -sf "$ZSTD_BIN" ./xz
+        ln -sf "$ZSTD_BIN" ./unxz
+        ln -sf "$ZSTD_BIN" ./lzma
+        ln -sf "$ZSTD_BIN" ./unlzma
         println "Testing xz and lzma symlinks"
         datagen > tmp
         ./xz tmp

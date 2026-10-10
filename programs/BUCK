@@ -14,9 +14,9 @@ cxx_binary(
         '-DZSTD_GZCOMPRESS',
         '-DZSTD_GZDECOMPRESS',
         '-DZSTD_LZMACOMPRESS',
-        '-DZSTD_LZMADECOMPRES',
+        '-DZSTD_LZMADECOMPRESS',
         '-DZSTD_LZ4COMPRESS',
-        '-DZSTD_LZ4DECOMPRES',
+        '-DZSTD_LZ4DECOMPRESS',
     ],
     linker_flags=[
         '-lz',

@@ -2342,7 +2342,7 @@ static size_t HUF_decompress (void* dst, size_t dstSize, const void* cSrc, size_
 
 
 /*
-    zstd - decompression module fo v0.4 legacy format
+    zstd - decompression module for v0.4 legacy format
     Copyright (C) 2015-2016, Yann Collet.
 
     BSD 2-Clause License (https://opensource.org/licenses/bsd-license.php)

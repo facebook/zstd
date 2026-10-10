@@ -21,11 +21,8 @@
 /*-*************************************
 *  Dependencies
 ***************************************/
-/* qsort_r is an extension.
- *
- * Android NDK does not ship qsort_r().
- */
-#if (defined(__linux__) && !defined(__ANDROID__)) || defined(__CYGWIN__) || defined(__MSYS__)
+/* qsort_r is part of POSIX.1-2024, but is an extension with some OS's. */
+#if defined(__linux__) || defined(__GNU__) || defined(__CYGWIN__) || defined(__MSYS__)
 # ifndef _GNU_SOURCE
 #   define _GNU_SOURCE
 # endif
@@ -41,6 +38,10 @@
 
 #ifndef ZDICT_STATIC_LINKING_ONLY
 #  define ZDICT_STATIC_LINKING_ONLY
+#endif
+
+#if defined(__FreeBSD__) || defined(__NetBSD__)
+#  include <sys/param.h>
 #endif
 
 #include "../common/debug.h" /* DEBUG_STATIC_ASSERT */
@@ -70,7 +71,7 @@
  */
 #define ZDICT_QSORT_MIN 0
 #define ZDICT_QSORT_C90 ZDICT_QSORT_MIN
-#define ZDICT_QSORT_GNU 1
+#define ZDICT_QSORT_POSIX 1
 #define ZDICT_QSORT_APPLE 2
 #define ZDICT_QSORT_MSVC 3
 #define ZDICT_QSORT_C11 ZDICT_QSORT_MAX
@@ -79,8 +80,11 @@
 #ifndef ZDICT_QSORT
 # if defined(__APPLE__)
 #   define ZDICT_QSORT ZDICT_QSORT_APPLE /* uses qsort_r() with a different order for parameters */
-# elif (defined(__linux__) && !defined(__ANDROID__)) || defined(__CYGWIN__) || defined(__MSYS__)
-#   define ZDICT_QSORT ZDICT_QSORT_GNU /* uses qsort_r() */
+# elif (defined(__linux__) && (!defined(__ANDROID__) || __ANDROID_API__ >= 36)) || \
+    defined(__GNU__) || defined(__CYGWIN__) || defined(__MSYS__) || defined(__HAIKU__) || \
+    (defined(__FreeBSD__) && __FreeBSD_version >= 1400072) || \
+    (defined(__NetBSD__) && __NetBSD_Version__ >= 1099001300)
+#   define ZDICT_QSORT ZDICT_QSORT_POSIX /* uses POSIX.1-2024 / GNU qsort_r() */
 # elif defined(_WIN32) && defined(_MSC_VER)
 #   define ZDICT_QSORT ZDICT_QSORT_MSVC /* uses qsort_s() with a different order for parameters */
 # elif defined(STDC_LIB_EXT1) && (STDC_LIB_EXT1 > 0) /* C11 Annex K */
@@ -314,7 +318,7 @@ static int COVER_cmp8(COVER_ctx_t *ctx, const void *lp, const void *rp) {
  */
 #if (ZDICT_QSORT == ZDICT_QSORT_MSVC) || (ZDICT_QSORT == ZDICT_QSORT_APPLE)
 static int WIN_CDECL COVER_strict_cmp(void* g_coverCtx, const void* lp, const void* rp) {
-#elif (ZDICT_QSORT == ZDICT_QSORT_GNU) || (ZDICT_QSORT == ZDICT_QSORT_C11)
+#elif (ZDICT_QSORT == ZDICT_QSORT_POSIX) || (ZDICT_QSORT == ZDICT_QSORT_C11)
 static int COVER_strict_cmp(const void *lp, const void *rp, void *g_coverCtx) {
 #else /* C90 fallback.*/
 static int COVER_strict_cmp(const void *lp, const void *rp) {
@@ -330,7 +334,7 @@ static int COVER_strict_cmp(const void *lp, const void *rp) {
  */
 #if (ZDICT_QSORT == ZDICT_QSORT_MSVC) || (ZDICT_QSORT == ZDICT_QSORT_APPLE)
 static int WIN_CDECL COVER_strict_cmp8(void* g_coverCtx, const void* lp, const void* rp) {
-#elif (ZDICT_QSORT == ZDICT_QSORT_GNU) || (ZDICT_QSORT == ZDICT_QSORT_C11)
+#elif (ZDICT_QSORT == ZDICT_QSORT_POSIX) || (ZDICT_QSORT == ZDICT_QSORT_C11)
 static int COVER_strict_cmp8(const void *lp, const void *rp, void *g_coverCtx) {
 #else /* C90 fallback.*/
 static int COVER_strict_cmp8(const void *lp, const void *rp) {
@@ -354,7 +358,7 @@ static void stableSort(COVER_ctx_t *ctx)
     qsort_r(ctx->suffix, ctx->suffixSize, sizeof(U32),
             ctx,
             (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp));
-#elif (ZDICT_QSORT == ZDICT_QSORT_GNU)
+#elif (ZDICT_QSORT == ZDICT_QSORT_POSIX)
     qsort_r(ctx->suffix, ctx->suffixSize, sizeof(U32),
             (ctx->d <= 8 ? &COVER_strict_cmp8 : &COVER_strict_cmp),
             ctx);

@@ -42,6 +42,11 @@ else ()
     if(CMAKE_SYSTEM_PROCESSOR MATCHES "amd64.*|AMD64.*|x86_64.*|X86_64.*" AND ${ZSTD_HAS_NOEXECSTACK})
         enable_language(ASM)
         set(DecompressSources ${DecompressSources} ${LIBRARY_DIR}/decompress/huf_decompress_amd64.S)
+	# Compile huf_decompress_amd64.S with CMAKE_C_FLAGS to support
+	# Intel CET:
+	# 1. Define ZSTD_CET_ENDBRANCH to endbr64 for IBT.
+	# 2. Add IBT and SHSTK markers to huf_decompress_amd64.S.o.
+	set(CMAKE_ASM_FLAGS "${CMAKE_C_FLAGS}")
     else()
         add_compile_options(-DZSTD_DISABLE_ASM)
     endif()

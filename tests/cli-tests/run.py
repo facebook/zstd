@@ -709,6 +709,7 @@ if __name__ == "__main__":
     env["COMMON"] = os.path.abspath(os.path.join(args.test_dir, "common"))
     env["PATH"] = bin_dir + ":" + os.getenv("PATH", "")
     env["LC_ALL"] = "C"
+    env["ZSTD_LAZY_SKIP_LONG_MATCHES"] = os.environ.get('ZSTD_LAZY_SKIP_LONG_MATCHES', '0')
 
     opts = Options(
         env=env,

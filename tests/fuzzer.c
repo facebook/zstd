@@ -2916,6 +2916,18 @@ static int basicUnitTests(U32 const seed, double compressibility)
             const void* const dict = (const char*)CNBuffer;
             const void* const contentStart = (const char*)dict + flatdictSize;
             /* These upper bounds are generally within a few bytes of the compressed size */
+#ifdef ZSTD_LAZY_SKIP_LONG_MATCHES
+            size_t target_nodict_cSize[22+1] = { 3840, 3770, 3870, 3830, 3770,
+                                                 3770, 3772, 3772, 3750, 3750,
+                                                 3742, 3675, 3674, 3665, 3664,
+                                                 3663, 3662, 3661, 3660, 3660,
+                                                 3660, 3660, 3660 };
+            size_t const target_wdict_cSize[22+1] =  { 2830, 2896, 2893, 2840, 2950,
+                                                       2950, 2952, 2927, 2900, 2892,
+                                                       2910, 2910, 2910, 2780, 2775,
+                                                       2765, 2760, 2755, 2754, 2753,
+                                                       2753, 2753, 2753 };
+#else
             size_t target_nodict_cSize[22+1] = { 3840, 3770, 3870, 3830, 3770,
                                                  3770, 3770, 3770, 3750, 3750,
                                                  3742, 3675, 3674, 3665, 3664,
@@ -2926,6 +2938,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
                                                        2910, 2910, 2910, 2780, 2775,
                                                        2765, 2760, 2755, 2754, 2753,
                                                        2753, 2753, 2753 };
+#endif
             int l = 1;
             int const maxLevel = ZSTD_maxCLevel();
             /* clevels with strategies that support rowhash on small inputs */

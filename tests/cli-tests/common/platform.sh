@@ -40,7 +40,7 @@ else
     hasMT="true"
 fi
 
-if zstd -vv --version | grep -q 'non-deterministic'; then
+if zstd -vv --version | grep -q 'non-deterministic' || [ "$ZSTD_LAZY_SKIP_LONG_MATCHES" = "1" ]; then
   NON_DETERMINISTIC="true"
 else
   NON_DETERMINISTIC=""

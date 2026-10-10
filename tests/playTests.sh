@@ -800,6 +800,23 @@ zstd -f --filelist=tmp_symLink
 test -f tmp2.zst
 test -f tmp1.zst
 
+# CR is only stripped when _WIN32 is defined: MSVC and MinGW, but not Cygwin
+stripsCR=false
+if [ "$isWindows" = true ] ; then
+    case "$UNAME" in
+      MINGW*|MSYS*) stripsCR=true ;;
+    esac
+fi
+
+if [ "$stripsCR" = true ] ; then
+    println "test : file list with Windows CRLF line endings, --filelist=FILE" # (#4349)
+    rm -f *.zst
+    printf 'tmp1\r\ntmp2\r\n' > tmp_crlfList
+    zstd -f --filelist=tmp_crlfList
+    test -f tmp1.zst
+    test -f tmp2.zst
+fi
+
 println "test : compress multiple files reading them from multiple files, --filelist=FILE"
 rm -f *.zst
 println "Hello world!, file3" > tmp3

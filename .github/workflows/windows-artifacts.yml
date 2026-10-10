@@ -116,4 +116,22 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload "${{ github.ref_name }}" "$env:GITHUB_WORKSPACE/zstd-${{ github.ref_name }}-${{ matrix.ziparch }}.zip" --clobber
+          $file = "$env:GITHUB_WORKSPACE/zstd-${{ github.ref_name }}-${{ matrix.ziparch }}.zip"
+          $name = Split-Path -Leaf $file
+          $localDigest = "sha256:" + (Get-FileHash -Algorithm SHA256 $file).Hash.ToLower()
+
+          $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/${{ github.ref_name }}" | ConvertFrom-Json
+          $asset = $release.assets | Where-Object { $_.name -eq $name }
+
+          if ($null -ne $asset) {
+            if (-not $asset.digest) {
+              throw "Existing release asset $name has no recorded SHA-256 digest; refusing to overwrite it"
+            }
+            if ($asset.digest -ne $localDigest) {
+              throw "Existing release asset $name differs from the generated artifact; refusing to overwrite it"
+            }
+            Write-Host "$name already exists with the generated digest; leaving it unchanged"
+            exit 0
+          }
+
+          gh release upload "${{ github.ref_name }}" $file

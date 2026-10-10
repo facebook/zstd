@@ -74,10 +74,10 @@ else
 endif
 
 # zlib detection
-NO_ZLIB_MSG := ==> no zlib, building zstd without .gz support
+NO_ZLIB_MSG := ==> no zlib, building zstd without .gz/.zlib support
 HAVE_ZLIB ?= $(shell printf '$(NUM_SYMBOL)include <zlib.h>\nint main(void) { return 0; }' > have_zlib.c && $(CC) $(FLAGS) -o have_zlib$(EXT) have_zlib.c -lz 2> $(VOID) && rm have_zlib$(EXT) && echo 1 || echo 0; rm have_zlib.c)
 ifeq ($(HAVE_ZLIB), 1)
-  ZLIB_MSG := ==> building zstd with .gz compression support
+  ZLIB_MSG := ==> building zstd with .gz/.zlib compression support
   ZLIBCPP = -DZSTD_GZCOMPRESS -DZSTD_GZDECOMPRESS
   ZLIBLD = -lz
 else

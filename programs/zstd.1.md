@@ -164,8 +164,8 @@ the last one takes effect.
     This setting is designed to improve the compression ratio for files with
     long matches at a large distance.
 
-    Note: If `windowLog` is set to larger than 27, `--long=windowLog` or
-    `--memory=windowSize` needs to be passed to the decompressor.
+    Note: If `windowLog` is set to larger than 27, `--long=windowLog`,
+    `--max`, or `--memory=windowSize` needs to be passed to the decompressor.
 * `-D DICT`:
     use `DICT` as Dictionary to compress or decompress FILE(s)
 * `--patch-from FILE`:
@@ -385,8 +385,8 @@ The list of available _options_:
     The minimum _wlog_ is 10 (1 KiB) and the maximum is 30 (1 GiB) on 32-bit
     platforms and 31 (2 GiB) on 64-bit platforms.
 
-    Note: If `windowLog` is set to larger than 27, `--long=windowLog` or
-    `--memory=windowSize` needs to be passed to the decompressor.
+    Note: If `windowLog` is set to larger than 27, `--long=windowLog`,
+    `--max`, or `--memory=windowSize` needs to be passed to the decompressor.
 
 - `hashLog`=_hlog_, `hlog`=_hlog_:
     Specify the maximum number of bits for a hash table.

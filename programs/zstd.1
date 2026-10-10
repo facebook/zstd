@@ -132,7 +132,7 @@ Note 2: this mode is different from \fB\-T1\fR, which spawns 1 compression threa
 \fB\-\-long[=#]\fR: enables long distance matching with \fB#\fR \fBwindowLog\fR, if \fB#\fR is not present it defaults to \fB27\fR\. This increases the window size (\fBwindowLog\fR) and memory usage for both the compressor and decompressor\. This setting is designed to improve the compression ratio for files with long matches at a large distance\.
 .
 .IP
-Note: If \fBwindowLog\fR is set to larger than 27, \fB\-\-long=windowLog\fR or \fB\-\-memory=windowSize\fR needs to be passed to the decompressor\.
+Note: If \fBwindowLog\fR is set to larger than 27, \fB\-\-long=windowLog\fR, \fB\-\-max\fR, or \fB\-\-memory=windowSize\fR needs to be passed to the decompressor\.
 .
 .IP "\(bu" 4
 \fB\-\-max\fR: set advanced parameters to maximum compression\. warning: this setting is very slow and uses a lot of resources\. It\'s inappropriate for 32\-bit mode and therefore disabled in this mode\.
@@ -294,7 +294,7 @@ Specify the maximum number of bits for a match distance\.
 The higher number of increases the chance to find a match which usually improves compression ratio\. It also increases memory requirements for the compressor and decompressor\. The minimum \fIwlog\fR is 10 (1 KiB) and the maximum is 30 (1 GiB) on 32\-bit platforms and 31 (2 GiB) on 64\-bit platforms\.
 .
 .IP
-Note: If \fBwindowLog\fR is set to larger than 27, \fB\-\-long=windowLog\fR or \fB\-\-memory=windowSize\fR needs to be passed to the decompressor\.
+Note: If \fBwindowLog\fR is set to larger than 27, \fB\-\-long=windowLog\fR, \fB\-\-max\fR, or \fB\-\-memory=windowSize\fR needs to be passed to the decompressor\.
 .
 .TP
 \fBhashLog\fR=\fIhlog\fR, \fBhlog\fR=\fIhlog\fR

@@ -55,6 +55,38 @@ is compiled. To correctly generate a `.pc` for the multi-threaded static library
 Multithreading capabilities are exposed
 via the [advanced API defined in `lib/zstd.h`](https://github.com/facebook/zstd/blob/v1.4.3/lib/zstd.h#L351).
 
+#### Memory-constrained decompression
+
+For environments with limited or specialized allocation support, `libzstd`
+provides several mechanisms to control decompression memory usage:
+
+- `ZSTD_estimateDCtxSize()` estimates the fixed workspace needed for one-shot
+  decompression with a `ZSTD_DCtx`.
+- `ZSTD_estimateDStreamSize()` and `ZSTD_estimateDStreamSize_fromFrame()`
+  estimate streaming decompression memory from a maximum window size or from a
+  frame header.
+- `ZSTD_initStaticDCtx()` and `ZSTD_initStaticDStream()` initialize a
+  decompression context inside caller-provided memory. Static contexts never
+  call `malloc()` or `free()` and return an error if the provided workspace is
+  too small.
+- `ZSTD_createDCtx_advanced()` and `ZSTD_createDStream_advanced()` accept a
+  `ZSTD_customMem` allocator, allowing applications to route allocations through
+  a private arena.
+
+When dictionaries are used, prefer explicitly creating a `ZSTD_DDict` with the
+desired memory strategy and referencing it with `ZSTD_DCtx_refDDict()`. Loading a
+dictionary directly into a context can create additional internal state.
+
+The zstd decompression state is independent of the compression level used to
+create the frame. For one-shot decompression, the `ZSTD_DCtx` workspace is a
+fixed-size state plus the caller-provided source and destination buffers. For
+streaming decompression, the memory budget is primarily driven by the frame
+window size.
+
+For builds that need to minimize stack usage from generic entropy helpers, define
+`ZSTD_NO_UNUSED_FUNCTIONS`. To reduce the decoder context footprint further, tune
+`ZSTD_DECODER_INTERNAL_BUFFER`, noting that smaller values can have a small
+decompression speed cost.
 
 #### API
 

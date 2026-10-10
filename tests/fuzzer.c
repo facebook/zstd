@@ -46,6 +46,7 @@
 #include "threading.h"    /* ZSTD_pthread_create, ZSTD_pthread_join */
 #include "compress/hist.h" /* HIST_count_wksp */
 #include "compress/zstd_compress_internal.h" /* ZSTD_get1BlockSummary */
+#include "decompress/zstd_decompress_block.h" /* ZSTD_buildFSETable */
 
 
 /*-************************************
@@ -972,6 +973,104 @@ static unsigned test_get1BlockSummary(unsigned testNb)
     }
 
     return testNb;
+}
+
+/*-*******************************************************
+*  FSE table construction reference
+*********************************************************/
+/* FSE_buildCTable_wksp() and ZSTD_buildFSETable() build their tables in a
+ * single pass when no symbol has a low probability (-1 count), using the
+ * modular inverse of FSE_TABLESTEP() to visit positions in order.
+ * The functions below implement the plain construction, spreading symbols
+ * with FSE_TABLESTEP() and reading them back in position order, as a reference.
+ */
+
+/* Fills norm[0..maxSV1-1] with a random distribution summing to 1<<tableLog.
+ * When lowProb is set, some symbols (never symbol 0) receive a -1 count. */
+static void FUZ_genNormalizedCount(short* norm, unsigned maxSV1, unsigned tableLog, int lowProb, U32* seed)
+{
+    unsigned remaining = 1u << tableLog;
+    unsigned s;
+    for (s = 0; s < maxSV1; s++) norm[s] = 0;
+    if (lowProb) {
+        for (s = 1; s < maxSV1 && remaining > 1; s++) {
+            if ((FUZ_rand(seed) & 3) == 0) { norm[s] = -1; remaining--; }
+    }   }
+    while (remaining > 0) {
+        s = FUZ_rand(seed) % maxSV1;
+        if (norm[s] >= 0) { norm[s]++; remaining--; }
+    }
+}
+
+/* Reference spreading : low probability symbols at the end of the table,
+ * then each symbol repeated norm[s] times at FSE_TABLESTEP() intervals. */
+static void FUZ_refSpreadSymbols(BYTE* tableSymbol, const short* norm, unsigned maxSV1, unsigned tableLog)
+{
+    U32 const tableSize = 1u << tableLog;
+    U32 const tableMask = tableSize - 1;
+    U32 const step = FSE_TABLESTEP(tableSize);
+    U32 highThreshold = tableSize - 1;
+    U32 s, position = 0;
+    for (s = 0; s < maxSV1; s++) {
+        if (norm[s] == -1) tableSymbol[highThreshold--] = (BYTE)s;
+    }
+    for (s = 0; s < maxSV1; s++) {
+        int i;
+        for (i = 0; i < norm[s]; i++) {
+            tableSymbol[position] = (BYTE)s;
+            position = (position + step) & tableMask;
+            while (position > highThreshold) position = (position + step) & tableMask;
+    }   }
+    assert(position == 0);
+}
+
+/* Reference for the header and state table of an FSE_CTable : the first 2 + tableSize U16.
+ * The symbol transformation table that follows does not depend on the spreading. */
+static void FUZ_refBuildCStateTable(U16* tableU16, const BYTE* tableSymbol, const short* norm, unsigned maxSV1, unsigned tableLog)
+{
+    U32 const tableSize = 1u << tableLog;
+    U16 cumul[MaxSeq + 2];
+    U32 u;
+    tableU16[0] = (U16)tableLog;
+    tableU16[1] = (U16)(maxSV1 - 1);
+    cumul[0] = 0;
+    for (u = 1; u <= maxSV1; u++) {
+        cumul[u] = (U16)(cumul[u-1] + (norm[u-1] == -1 ? 1 : norm[u-1]));
+    }
+    for (u = 0; u < tableSize; u++) {
+        tableU16[2 + cumul[tableSymbol[u]]++] = (U16)(tableSize + u);
+    }
+}
+
+/* Reference for a complete sequence decoding table, header included. */
+static void FUZ_refBuildFSETable(ZSTD_seqSymbol* dt, const BYTE* tableSymbol, const short* norm, unsigned maxSV1,
+                                 const U32* baseValue, const U8* nbAdditionalBits, unsigned tableLog)
+{
+    ZSTD_seqSymbol* const tableDecode = dt + 1;
+    U32 const tableSize = 1u << tableLog;
+    S16 const largeLimit = (S16)(1 << (tableLog - 1));
+    U16 symbolNext[MaxSeq + 1];
+    ZSTD_seqSymbol_header DTableH;
+    U32 s, u;
+    DTableH.tableLog = tableLog;
+    DTableH.fastMode = 1;
+    for (s = 0; s < maxSV1; s++) {
+        if (norm[s] == -1) {
+            symbolNext[s] = 1;
+        } else {
+            if (norm[s] >= largeLimit) DTableH.fastMode = 0;
+            symbolNext[s] = (U16)norm[s];
+    }   }
+    memcpy(dt, &DTableH, sizeof(DTableH));
+    for (u = 0; u < tableSize; u++) {
+        U32 const symbol = tableSymbol[u];
+        U32 const nextState = symbolNext[symbol]++;
+        BYTE const nbBits = (BYTE)(tableLog - ZSTD_highbit32(nextState));
+        tableDecode[u].nbBits = nbBits;
+        tableDecode[u].nextState = (U16)((nextState << nbBits) - tableSize);
+        tableDecode[u].nbAdditionalBits = nbAdditionalBits[symbol];
+        tableDecode[u].baseValue = baseValue[symbol];
+    }
 }
 
 /* ============================================================= */
@@ -4768,6 +4867,50 @@ static int basicUnitTests(U32 const seed, double compressibility)
          */
         FSE_writeNCount(outBuf, outBufSize, count, maxSymbolValue, tableLog);
         free(outBuf);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : FSE table construction matches reference spreading : ", testNb++);
+    {   /* Both builders take a fused single-pass path when no symbol has a -1 count,
+         * and the plain spread-then-read-back path otherwise.
+         * Check that each produces the reference table for every tableLog. */
+        U32 rSeed = seed;
+        short norm[MaxSeq + 1];
+        U32 baseValue[MaxSeq + 1];
+        U8 nbAdditionalBits[MaxSeq + 1];
+        BYTE tableSymbol[FSE_MAX_TABLESIZE];
+        FSE_CTable ct[FSE_CTABLE_SIZE_U32(FSE_MAX_TABLELOG, MaxSeq)];
+        U16 refCt[2 + FSE_MAX_TABLESIZE];
+        U32 cwksp[FSE_BUILD_CTABLE_WORKSPACE_SIZE_U32(MaxSeq, FSE_MAX_TABLELOG)];
+        ZSTD_seqSymbol dt[SEQSYMBOL_TABLE_SIZE(MaxFSELog)];
+        ZSTD_seqSymbol refDt[SEQSYMBOL_TABLE_SIZE(MaxFSELog)];
+        U32 dwksp[ZSTD_BUILD_FSE_TABLE_WKSP_SIZE_U32];
+        unsigned tableLog, s;
+        for (s = 0; s <= MaxSeq; s++) {
+            baseValue[s] = 1 + s * s;
+            nbAdditionalBits[s] = (U8)(s % 32);
+        }
+        for (tableLog = FSE_MIN_TABLELOG; tableLog <= FSE_MAX_TABLELOG; tableLog++) {
+            U32 const tableSize = 1u << tableLog;
+            int lowProb;
+            for (lowProb = 0; lowProb < 2; lowProb++) {
+                int n;
+                for (n = 0; n < 16; n++) {
+                    unsigned const maxSV1 = 2 + FUZ_rand(&rSeed) % MaxSeq;
+                    FUZ_genNormalizedCount(norm, maxSV1, tableLog, lowProb, &rSeed);
+                    FUZ_refSpreadSymbols(tableSymbol, norm, maxSV1, tableLog);
+
+                    CHECK_Z( FSE_buildCTable_wksp(ct, norm, maxSV1 - 1, tableLog, cwksp, sizeof(cwksp)) );
+                    FUZ_refBuildCStateTable(refCt, tableSymbol, norm, maxSV1, tableLog);
+                    if (memcmp(ct, refCt, (2 + tableSize) * sizeof(U16)) != 0) goto _output_error;
+
+                    if (tableLog <= MaxFSELog) {
+                        memset(dt, 0, sizeof(dt));
+                        memset(refDt, 0, sizeof(refDt));
+                        ZSTD_buildFSETable(dt, norm, maxSV1 - 1, baseValue, nbAdditionalBits, tableLog, dwksp, sizeof(dwksp), 0);
+                        FUZ_refBuildFSETable(refDt, tableSymbol, norm, maxSV1, baseValue, nbAdditionalBits, tableLog);
+                        if (memcmp(dt, refDt, (1 + tableSize) * sizeof(ZSTD_seqSymbol)) != 0) goto _output_error;
+        }   }   }   }
     }
     DISPLAYLEVEL(3, "OK \n");
 

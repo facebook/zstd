@@ -528,7 +528,6 @@ void ZSTD_buildFSETable_body(ZSTD_seqSymbol* dt,
      */
     if (highThreshold == tableSize - 1) {
         size_t const tableMask = tableSize-1;
-        size_t const step = FSE_TABLESTEP(tableSize);
         /* First lay down the symbols in order.
          * We use a uint64_t to lay down 8 bytes at a time. This reduces branch
          * misses since small blocks generally have small table logs, so nearly
@@ -551,26 +550,28 @@ void ZSTD_buildFSETable_body(ZSTD_seqSymbol* dt,
                 pos += (size_t)n;
             }
         }
-        /* Now we spread those positions across the table.
-         * The benefit of doing it in two stages is that we avoid the
-         * variable size inner loop, which caused lots of branch misses.
-         * Now we can run through all the positions without any branch misses.
-         * We unroll the loop twice, since that is what empirically worked best.
+        /* Now build the decoding table directly, walking positions in order.
+         * Position u holds spread[(u * invStep) & tableMask], where invStep
+         * is the inverse of step modulo tableSize (see FSE_invTableStep()).
+         * This fuses symbol spreading with table building into a single pass,
+         * with no scattered writes into the table and no read-back of symbols.
          */
         {
-            size_t position = 0;
-            size_t s;
-            size_t const unroll = 2;
-            assert(tableSize % unroll == 0); /* FSE_MIN_TABLELOG is 5 */
-            for (s = 0; s < (size_t)tableSize; s += unroll) {
-                size_t u;
-                for (u = 0; u < unroll; ++u) {
-                    size_t const uPosition = (position + (u * step)) & tableMask;
-                    tableDecode[uPosition].baseValue = spread[s + u];
-                }
-                position = (position + (unroll * step)) & tableMask;
+            size_t const invStep = FSE_invTableStep(tableSize);
+            size_t s = 0;
+            U32 u;
+            for (u=0; u<tableSize; u++) {
+                U32 const symbol = spread[s];
+                U32 const nextState = symbolNext[symbol]++;
+                BYTE const nbBits = (BYTE) (tableLog - ZSTD_highbit32(nextState) );
+                tableDecode[u].nbBits = nbBits;
+                tableDecode[u].nextState = (U16) ( (nextState << nbBits) - tableSize);
+                assert(nbAdditionalBits[symbol] < 255);
+                tableDecode[u].nbAdditionalBits = nbAdditionalBits[symbol];
+                tableDecode[u].baseValue = baseValue[symbol];
+                s = (s + invStep) & tableMask;
             }
-            assert(position == 0);
+            assert(s == 0);   /* Must have visited all positions */
         }
     } else {
         U32 const tableMask = tableSize-1;
@@ -585,19 +586,19 @@ void ZSTD_buildFSETable_body(ZSTD_seqSymbol* dt,
                 while (UNLIKELY(position > highThreshold)) position = (position + step) & tableMask;   /* lowprob area */
         }   }
         assert(position == 0); /* position must reach all cells once, otherwise normalizedCounter is incorrect */
-    }
 
-    /* Build Decoding table */
-    {
-        U32 u;
-        for (u=0; u<tableSize; u++) {
-            U32 const symbol = tableDecode[u].baseValue;
-            U32 const nextState = symbolNext[symbol]++;
-            tableDecode[u].nbBits = (BYTE) (tableLog - ZSTD_highbit32(nextState) );
-            tableDecode[u].nextState = (U16) ( (nextState << tableDecode[u].nbBits) - tableSize);
-            assert(nbAdditionalBits[symbol] < 255);
-            tableDecode[u].nbAdditionalBits = nbAdditionalBits[symbol];
-            tableDecode[u].baseValue = baseValue[symbol];
+        /* Build Decoding table */
+        {
+            U32 u;
+            for (u=0; u<tableSize; u++) {
+                U32 const symbol = tableDecode[u].baseValue;
+                U32 const nextState = symbolNext[symbol]++;
+                tableDecode[u].nbBits = (BYTE) (tableLog - ZSTD_highbit32(nextState) );
+                tableDecode[u].nextState = (U16) ( (nextState << tableDecode[u].nbBits) - tableSize);
+                assert(nbAdditionalBits[symbol] < 255);
+                tableDecode[u].nbAdditionalBits = nbAdditionalBits[symbol];
+                tableDecode[u].baseValue = baseValue[symbol];
+            }
         }
     }
 }

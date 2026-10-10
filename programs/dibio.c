@@ -10,6 +10,8 @@
 
 
 
+
+
 /* **************************************
 *  Compiler Warnings
 ****************************************/
@@ -211,6 +213,20 @@ static void DiB_shuffle(const char** fileNamesTable, unsigned nbFiles) {
 /*-********************************************************
 *  Dictionary training functions
 **********************************************************/
+/* DiB_findMaxMem() :
+ * Tries successively smaller allocation sizes (in `step` decrements) starting
+ * from a rounded-up estimate of `requiredMem`, to discover how much memory is
+ * actually available, capped at g_maxMemory.
+ *
+ * FIX: the original loop had no floor check on `requiredMem`. If malloc() kept
+ * failing all the way down to `step`, the next `requiredMem -= step` would
+ * underflow (requiredMem is unsigned long long), wrapping around to a value
+ * near ULLONG_MAX instead of terminating. That turned a legitimate
+ * out-of-memory condition into an unbounded loop of futile allocation
+ * attempts instead of a clean, reportable failure. The loop condition now
+ * stops once requiredMem would drop to/under `step`, and if no allocation
+ * ever succeeds, it fails loudly via EXM_THROW instead of returning garbage.
+ */
 static size_t DiB_findMaxMem(unsigned long long requiredMem)
 {
     size_t const step = 8 MB;
@@ -220,10 +236,13 @@ static size_t DiB_findMaxMem(unsigned long long requiredMem)
     requiredMem += step;
     if (requiredMem > g_maxMemory) requiredMem = g_maxMemory;
 
-    while (!testmem) {
+    while (!testmem && requiredMem > step) {
         testmem = malloc((size_t)requiredMem);
-        requiredMem -= step;
+        if (!testmem) requiredMem -= step;
     }
+
+    if (!testmem)
+        EXM_THROW(31, "not enough memory for training data buffer");
 
     free(testmem);
     return (size_t)requiredMem;
@@ -357,7 +376,18 @@ int DiB_trainFromFiles(const char* dictFileName, size_t maxDictSize,
             loadedSize = (size_t)MIN(loadedSize, memLimit);
         }
         srcBuffer = malloc(loadedSize+NOISELENGTH);
-        sampleSizes = (size_t*)malloc(fs.nbSamples * sizeof(size_t));
+
+        /* FIX: fs.nbSamples is accumulated as a plain int in DiB_fileStats()
+         * (summing (fileSize + chunkSize - 1) / chunkSize per file). With a
+         * sufficiently large/chunked input set this sum can in principle
+         * overflow int and go negative. The subsequent malloc() would then be
+         * fed a negative value implicitly converted to a huge size_t, which
+         * (aside from being wasteful) is undefined/surprising behavior to
+         * rely on for safety. Fail explicitly and early instead of relying on
+         * the malloc-fails-so-the-later-check-catches-it side effect. */
+        if (fs.nbSamples <= 0)
+            EXM_THROW(13, "invalid sample count (possible overflow while counting samples)");
+        sampleSizes = (size_t*)malloc((size_t)fs.nbSamples * sizeof(size_t));
     }
 
     /* Checks */

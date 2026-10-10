@@ -148,7 +148,7 @@ static void usage(FILE* f, const char* programName)
     DISPLAY_F(f, "Compress or decompress the INPUT file(s); reads from STDIN if INPUT is `-` or not provided.\n\n");
     DISPLAY_F(f, "Usage: %s [OPTIONS...] [INPUT... | -] [-o OUTPUT]\n\n", programName);
     DISPLAY_F(f, "Options:\n");
-    DISPLAY_F(f, "  -o OUTPUT                     Write output to a single file, OUTPUT.\n");
+    DISPLAY_F(f, "  -o, --output OUTPUT           Write output to a single file, OUTPUT.\n");
     DISPLAY_F(f, "  -c, --stdout                  Write to STDOUT (even if it is a console) and keep the INPUT file(s).\n");
     DISPLAY_F(f, "  -k, --keep                    Preserve INPUT file(s). [Default] \n");
     DISPLAY_F(f, "  --rm                          Remove INPUT file(s) after successful (de)compression to file.\n");
@@ -1139,6 +1139,7 @@ int main(int argCount, const char* argv[])
                     continue;
                 }
 #endif
+                if (longCommandWArg(&argument, "--output")) { NEXT_FIELD(outFileName); continue; }
 #ifndef ZSTD_NOTRACE
                 if (longCommandWArg(&argument, "--trace")) { char const* traceFile; NEXT_FIELD(traceFile); TRACE_enable(traceFile); continue; }
 #endif

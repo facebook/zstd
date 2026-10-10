@@ -26,6 +26,7 @@ decodecorpus
 pool
 poolTests
 invalidDictionaries
+sha_test
 checkTag
 zcat
 zstdcat

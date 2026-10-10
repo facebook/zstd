@@ -55,6 +55,12 @@ size_t ZSTD_DDict_dictSize(const ZSTD_DDict* ddict)
     return ddict->dictSize;
 }
 
+ZSTD_dictContentType_e ZSTD_DDict_type(const ZSTD_DDict* ddict)
+{
+    assert(ddict != NULL);
+    return (ddict->entropyPresent) ? ZSTD_dct_fullDict : ZSTD_dct_rawContent;
+}
+
 void ZSTD_copyDDictParameters(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict)
 {
     DEBUGLOG(4, "ZSTD_copyDDictParameters");

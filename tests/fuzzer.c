@@ -4960,6 +4960,52 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }   }   }   }   }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : check reading / writing DCZ header : ", testNb++);
+    {
+        size_t i;
+        size_t readResult;
+        size_t writeResult;
+        size_t dictSize = 256 KB;
+
+        for (i = 0; i < 100; i++) {
+            writeResult = ZSTD_writeHeaderForHTTPDCZ(
+                    compressedBuffer, compressedBufferSize,
+                    CNBuffer, i);
+            if (i >= 8) {
+                CHECK_Z(writeResult);
+                CHECK_EQ(writeResult, 40);
+            } else {
+                CHECK_EQ(ZSTD_getErrorCode(writeResult), ZSTD_error_dictionary_corrupted);
+            }
+        }
+        for (i = 0; i < 100; i++) {
+            writeResult = ZSTD_writeHeaderForHTTPDCZ(
+                    compressedBuffer, i,
+                    CNBuffer, dictSize);
+            if (i >= 40) {
+                CHECK_Z(writeResult);
+                CHECK_EQ(writeResult, 40);
+            } else {
+                CHECK_EQ(ZSTD_getErrorCode(writeResult), ZSTD_error_dstSize_tooSmall);
+            }
+        }
+        for (i = 0; i < 100; i++) {
+            readResult = ZSTD_readHeaderForHTTPDCZ_validateDictMatches(
+                    compressedBuffer, i,
+                    CNBuffer, dictSize);
+            if (i >= writeResult) {
+                CHECK_Z(readResult);
+                CHECK_EQ(readResult, 1);
+            } else {
+                CHECK_EQ(ZSTD_getErrorCode(readResult), ZSTD_error_srcSize_wrong);
+            }
+        }
+        CHECK_EQ(ZSTD_getErrorCode(ZSTD_readHeaderForHTTPDCZ_validateDictMatches(
+                compressedBuffer, writeResult,
+                CNBuffer, dictSize - 1)), ZSTD_error_dictionary_wrong);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     DISPLAYLEVEL(3, "test%3i : thread pool API tests : \n", testNb++)
     {
         int const threadPoolTestResult = threadPoolTests();

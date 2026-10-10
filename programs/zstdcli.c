@@ -17,6 +17,7 @@
 #include <string.h>   /* strcmp, strlen */
 #include <stdio.h>    /* fprintf(), stdin, stdout, stderr */
 #include <assert.h>   /* assert */
+#include <errno.h>    /* errno */
 
 #include "fileio.h"   /* stdinmark, stdoutmark, ZSTD_EXTENSION */
 #ifndef ZSTD_NOBENCH
@@ -861,6 +862,156 @@ static unsigned init_nbWorkers(unsigned defaultNbWorkers) {
 
 typedef enum { zom_compress, zom_decompress, zom_test, zom_bench, zom_train, zom_list } zstd_operation_mode;
 
+typedef struct {
+    char** paths;
+    size_t size;
+    size_t capacity;
+} ZSTDCLI_WritablePaths;
+
+static char* ZSTDCLI_duplicateRulePath(const char* path, int usePathDirectly)
+{
+    size_t const pathLength = strlen(path);
+    char* const result = (char*)malloc(pathLength + 2);
+    char* lastSeparator;
+
+    if (result == NULL)
+        return NULL;
+    memcpy(result, path, pathLength + 1);
+    if (usePathDirectly)
+        return result;
+
+    lastSeparator = strrchr(result, '/');
+#if defined(_WIN32)
+    {   char* const lastBackslash = strrchr(result, '\\');
+        if (lastBackslash != NULL &&
+            (lastSeparator == NULL || lastBackslash > lastSeparator))
+            lastSeparator = lastBackslash;
+    }
+#endif
+    if (lastSeparator == NULL) {
+        result[0] = '.';
+        result[1] = '\0';
+    } else if (lastSeparator == result) {
+        result[1] = '\0';
+    } else {
+        *lastSeparator = '\0';
+    }
+    return result;
+}
+
+static int ZSTDCLI_addWritablePath(ZSTDCLI_WritablePaths* writablePaths,
+                                   const char* path, int usePathDirectly)
+{
+    char* rulePath;
+    size_t pathNb;
+
+    if (path == NULL || !strcmp(path, stdinmark) || !strcmp(path, stdoutmark))
+        return 0;
+
+    rulePath = ZSTDCLI_duplicateRulePath(path, usePathDirectly);
+    if (rulePath == NULL) {
+        errno = ENOMEM;
+        return -1;
+    }
+    for (pathNb = 0; pathNb < writablePaths->size; ++pathNb) {
+        if (!strcmp(writablePaths->paths[pathNb], rulePath)) {
+            free(rulePath);
+            return 0;
+        }
+    }
+    if (writablePaths->size == writablePaths->capacity) {
+        free(rulePath);
+        errno = ENOMEM;
+        return -1;
+    }
+    writablePaths->paths[writablePaths->size++] = rulePath;
+    return 0;
+}
+
+static int ZSTDCLI_addInputParents(ZSTDCLI_WritablePaths* writablePaths,
+                                   const FileNamesTable* filenames)
+{
+    size_t fileNb;
+    for (fileNb = 0; fileNb < filenames->tableSize; ++fileNb) {
+        if (ZSTDCLI_addWritablePath(writablePaths, filenames->fileNames[fileNb], 0) < 0)
+            return -1;
+    }
+    return 0;
+}
+
+static int ZSTDCLI_collectWritablePaths(ZSTDCLI_WritablePaths* writablePaths,
+                                        zstd_operation_mode operation,
+                                        const FileNamesTable* filenames,
+                                        const char* outFileName,
+                                        const char* outDirName,
+                                        const char* outMirroredDirName,
+                                        int removeSrcFile)
+{
+    int status = 0;
+    if (operation == zom_train) {
+        status = ZSTDCLI_addWritablePath(writablePaths, outFileName,
+                                         outFileName != NULL &&
+                                         !strcmp(outFileName, nulmark));
+    } else if (operation == zom_compress || operation == zom_decompress) {
+        if (outFileName != NULL)
+            status = ZSTDCLI_addWritablePath(writablePaths, outFileName,
+                                             !strcmp(outFileName, nulmark));
+        else if (outMirroredDirName != NULL)
+            status = ZSTDCLI_addWritablePath(writablePaths, outMirroredDirName, 1);
+        else if (outDirName != NULL)
+            status = ZSTDCLI_addWritablePath(writablePaths, outDirName, 1);
+        else
+            status = ZSTDCLI_addInputParents(writablePaths, filenames);
+        if (status == 0 && removeSrcFile)
+            status = ZSTDCLI_addInputParents(writablePaths, filenames);
+    }
+    return status;
+}
+
+static int ZSTDCLI_applyLandlock(zstd_operation_mode operation,
+                                 const FileNamesTable* filenames,
+                                 const char* outFileName,
+                                 const char* outDirName,
+                                 const char* outMirroredDirName,
+                                 int removeSrcFile)
+{
+    ZSTDCLI_WritablePaths writablePaths;
+    int status;
+    int savedErrno = 0;
+    size_t pathNb;
+
+    writablePaths.size = 0;
+    writablePaths.capacity = filenames->tableSize + 1;
+    writablePaths.paths = (char**)malloc(writablePaths.capacity * sizeof(*writablePaths.paths));
+    if (writablePaths.paths == NULL) {
+        DISPLAYLEVEL(1, "zstd: failed to prepare Landlock sandbox: %s\n", strerror(errno));
+        return 1;
+    }
+    status = ZSTDCLI_collectWritablePaths(&writablePaths, operation, filenames,
+                                          outFileName, outDirName,
+                                          outMirroredDirName, removeSrcFile);
+    if (status == 0)
+        status = UTIL_landlockRestrict((const char* const*)writablePaths.paths,
+                                       writablePaths.size);
+    if (status < 0)
+        savedErrno = errno;
+    for (pathNb = 0; pathNb < writablePaths.size; ++pathNb)
+        free(writablePaths.paths[pathNb]);
+    free(writablePaths.paths);
+
+    if (status < 0) {
+        DISPLAYLEVEL(1, "zstd: failed to enable Landlock sandbox: %s\n",
+                     strerror(savedErrno));
+        return 1;
+    }
+    if (status == 0) {
+        DISPLAYLEVEL(4, "Landlock sandbox is unavailable; continuing without it\n");
+    } else {
+        DISPLAYLEVEL(4, "Landlock sandbox enabled\n");
+    }
+    return 0;
+}
+
 #define CLEAN_RETURN(i) { operationResult = (i); goto _end; }
 
 #ifdef ZSTD_NOCOMPRESS
@@ -1417,7 +1568,12 @@ int main(int argCount, const char* argv[])
 
     if (operation == zom_list) {
 #ifndef ZSTD_NODECOMPRESS
-        int const ret = FIO_listMultipleFiles((unsigned)filenames->tableSize, filenames->fileNames, g_displayLevel);
+        int ret;
+        if (ZSTDCLI_applyLandlock(operation, filenames, outFileName,
+                                  outDirName, outMirroredDirName,
+                                  removeSrcFile))
+            CLEAN_RETURN(1);
+        ret = FIO_listMultipleFiles((unsigned)filenames->tableSize, filenames->fileNames, g_displayLevel);
         CLEAN_RETURN(ret);
 #else
         DISPLAYLEVEL(1, "file information is not supported \n");
@@ -1435,6 +1591,10 @@ int main(int argCount, const char* argv[])
             DISPLAYLEVEL(1, "benchmark mode is only compatible with zstd format \n");
             CLEAN_RETURN(1);
         }
+        if (ZSTDCLI_applyLandlock(operation, filenames, outFileName,
+                                  outDirName, outMirroredDirName,
+                                  removeSrcFile))
+            CLEAN_RETURN(1);
         benchParams.chunkSizeMax = chunkSize;
         benchParams.targetCBlockSize = targetCBlockSize;
         benchParams.nbWorkers = (int)nbWorkers;
@@ -1488,6 +1648,10 @@ int main(int argCount, const char* argv[])
     if (operation==zom_train) {
 #ifndef ZSTD_NODICT
         ZDICT_params_t zParams;
+        if (ZSTDCLI_applyLandlock(operation, filenames, outFileName,
+                                  outDirName, outMirroredDirName,
+                                  removeSrcFile))
+            CLEAN_RETURN(1);
         zParams.compressionLevel = dictCLevel;
         zParams.notificationLevel = (unsigned)g_displayLevel;
         zParams.dictID = dictID;
@@ -1615,6 +1779,17 @@ int main(int argCount, const char* argv[])
     if (patchFromDictFileName != NULL)
         dictFileName = patchFromDictFileName;
     FIO_setMemLimit(prefs, memLimit);
+
+    if (outMirroredDirName != NULL && outFileName == NULL &&
+        operation != zom_test)
+        UTIL_mirrorSourceFilesDirectories(filenames->fileNames,
+                                          (unsigned)filenames->tableSize,
+                                          outMirroredDirName);
+    if (ZSTDCLI_applyLandlock(operation, filenames, outFileName,
+                              outDirName, outMirroredDirName,
+                              removeSrcFile))
+        CLEAN_RETURN(1);
+
     if (operation==zom_compress) {
 #ifndef ZSTD_NOCOMPRESS
         FIO_setCompressionType(prefs, cType);

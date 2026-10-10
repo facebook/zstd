@@ -233,7 +233,7 @@ size_t ZSTD_compressBlock_doubleFast_noDict_generic(
             hl0 = hl1;
             idxl0 = idxl1;
             matchl0 = matchl1;
-    #if defined(__aarch64__)
+    #if defined(__aarch64__) || (defined(__riscv) && (__riscv_xlen == 64))
             PREFETCH_L1(ip+256);
     #endif
         } while (ip1 <= ilimit);
@@ -448,7 +448,7 @@ size_t ZSTD_compressBlock_doubleFast_dictMatchState_generic(
         }   }
 
         ip += ((ip-anchor) >> kSearchStrength) + 1;
-#if defined(__aarch64__)
+#if defined(__aarch64__) || (defined(__riscv) && (__riscv_xlen == 64))
         PREFETCH_L1(ip+256);
 #endif
         continue;

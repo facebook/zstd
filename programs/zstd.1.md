@@ -102,6 +102,9 @@ the last one takes effect.
     Display information related to a zstd compressed file, such as size, ratio, and checksum.
     Some of these fields may not be available.
     This command's output can be augmented with the `-v` modifier.
+    Gzip files are also supported:
+    as with `gzip -l`, their displayed decompressed size is read from the file's trailer,
+    hence is modulo 2^32, and accounts only for the last stream of a multi-stream file.
 
 ### Operation Modifiers
 

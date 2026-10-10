@@ -152,6 +152,7 @@ static void usage(FILE* f, const char* programName)
     DISPLAY_F(f, "  -c, --stdout                  Write to STDOUT (even if it is a console) and keep the INPUT file(s).\n");
     DISPLAY_F(f, "  -k, --keep                    Preserve INPUT file(s). [Default] \n");
     DISPLAY_F(f, "  --rm                          Remove INPUT file(s) after successful (de)compression to file.\n");
+    DISPLAY_F(f, "  -q, --quiet                   Suppress warnings; pass twice to suppress errors.\n");
 #ifdef ZSTD_GZCOMPRESS
     if (exeNameMatch(programName, ZSTD_GZ)) {     /* behave like gzip */
         DISPLAY_F(f, "  -n, --no-name                 Do not store original filename when compressing.\n\n");
@@ -186,7 +187,6 @@ static void usageAdvanced(const char* programName)
     DISPLAYOUT("Advanced options:\n");
 
     DISPLAYOUT("  -v, --verbose                 Enable verbose output; pass multiple times to increase verbosity.\n");
-    DISPLAYOUT("  -q, --quiet                   Suppress warnings; pass twice to suppress errors.\n");
 #ifndef ZSTD_NOTRACE
     DISPLAYOUT("  --trace LOG                   Log tracing information to LOG.\n");
 #endif

@@ -1350,8 +1350,8 @@ int main(int argCount, const char* argv[])
         UTIL_refFilename(filenames, argument);
     }
 
-    /* Welcome message (if verbose) */
-    DISPLAYLEVEL(3, WELCOME_MESSAGE);
+    /* Welcome message (if two verbose) */
+    DISPLAYLEVEL(4, WELCOME_MESSAGE);
 
 #ifdef ZSTD_MULTITHREAD
     if ((operation==zom_decompress) && (setThreads_non1)) {

@@ -1075,6 +1075,10 @@ COVER_dictSelection_t COVER_selectDict(BYTE* customDictContent, size_t dictBuffe
     free(candidateDictBuffer);
     return COVER_dictSelectionError(dictContentSize);
   }
+  /* Update customDictContentEnd to reflect the actual size after finalization.
+   * ZDICT_finalizeDictionary() may shrink dictContentSize by adding the header,
+   * so the pointer computed before the call would be stale. */
+  customDictContentEnd = customDictContent + dictContentSize;
 
   totalCompressedSize = COVER_checkTotalCompressedSize(params, samplesSizes,
                                                        samplesBuffer, offsets,

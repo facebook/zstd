@@ -356,10 +356,14 @@ static int isIncluded(const void* in, const void* container, size_t length)
 /*! ZDICT_tryMerge() :
     check if dictItem can be merged, do it if possible
     @return : id of destination elt, 0 if not merged
+    note : *eltNbToSkipPtr designates an entry by its slot. The rank sorts below
+           can move that entry to the next higher slot; the value is updated
+           when they do, so the caller's index keeps designating the same entry.
 */
-static U32 ZDICT_tryMerge(dictItem* table, dictItem elt, U32 eltNbToSkip, const void* buffer)
+static U32 ZDICT_tryMerge(dictItem* table, dictItem elt, U32* eltNbToSkipPtr, const void* buffer)
 {
     const U32 tableSize = table->pos;
+    const U32 eltNbToSkip = *eltNbToSkipPtr;
     const U32 eltEnd = elt.pos + elt.length;
     const char* const buf = (const char*) buffer;
 
@@ -375,9 +379,14 @@ static U32 ZDICT_tryMerge(dictItem* table, dictItem elt, U32 eltNbToSkip, const 
             table[u].savings += elt.length / 8;    /* rough approx bonus */
             elt = table[u];
             /* sort : improve rank */
-            while ((u>1) && (table[u-1].savings < elt.savings))
-                table[u] = table[u-1], u--;
-            table[u] = elt;
+            {   U32 const startU = u;
+                while ((u>1) && (table[u-1].savings < elt.savings))
+                    table[u] = table[u-1], u--;
+                table[u] = elt;
+                /* entries in [u, startU-1] each moved to the next higher slot */
+                if ((eltNbToSkip >= u) && (eltNbToSkip < startU))
+                    *eltNbToSkipPtr = eltNbToSkip + 1;
+            }
             return u;
     }   }
 
@@ -395,9 +404,14 @@ static U32 ZDICT_tryMerge(dictItem* table, dictItem elt, U32 eltNbToSkip, const 
             }
             /* sort : improve rank */
             elt = table[u];
-            while ((u>1) && (table[u-1].savings < elt.savings))
-                table[u] = table[u-1], u--;
-            table[u] = elt;
+            {   U32 const startU = u;
+                while ((u>1) && (table[u-1].savings < elt.savings))
+                    table[u] = table[u-1], u--;
+                table[u] = elt;
+                /* entries in [u, startU-1] each moved to the next higher slot */
+                if ((eltNbToSkip >= u) && (eltNbToSkip < startU))
+                    *eltNbToSkipPtr = eltNbToSkip + 1;
+            }
             return u;
         }
 
@@ -431,12 +445,23 @@ static void ZDICT_removeDictItem(dictItem* table, U32 id)
 static void ZDICT_insertDictItem(dictItem* table, U32 maxSize, dictItem elt, const void* buffer)
 {
     /* merge if possible */
-    U32 mergeId = ZDICT_tryMerge(table, elt, 0, buffer);
+    U32 skipId = 0;
+    U32 mergeId = ZDICT_tryMerge(table, elt, &skipId, buffer);
     if (mergeId) {
         U32 newMerge = 1;
         while (newMerge) {
-            newMerge = ZDICT_tryMerge(table, table[mergeId], mergeId, buffer);
-            if (newMerge) ZDICT_removeDictItem(table, mergeId);
+            /* table[absorbedId] is merged away, so it must be dropped.
+             * Both operations below can move it, and the slot is re-read
+             * after each one. */
+            U32 absorbedId = mergeId;
+            skipId = absorbedId;
+            newMerge = ZDICT_tryMerge(table, table[absorbedId], &skipId, buffer);
+            absorbedId = skipId;   /* the rank sort may have moved it one slot up */
+            if (newMerge) {
+                ZDICT_removeDictItem(table, absorbedId);
+                /* the removal moved every higher slot down by one */
+                if (newMerge > absorbedId) newMerge--;
+            }
             mergeId = newMerge;
         }
         return;

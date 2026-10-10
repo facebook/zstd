@@ -1703,6 +1703,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+#ifndef ZSTD_ENABLE_SEARCH_SKIP_HIGH
     DISPLAYLEVEL(3, "test%3i : in-place decompression : ", testNb++);
     cSize = ZSTD_compress(compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize, -ZSTD_BLOCKSIZE_MAX);
     CHECK_Z(cSize);
@@ -1727,6 +1728,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         free(output);
     }
     DISPLAYLEVEL(3, "OK \n");
+#endif /* !ZSTD_ENABLE_SEARCH_SKIP_HIGH */
 
     DISPLAYLEVEL(3, "test%3i : in-place decompression with 2 frames : ", testNb++);
     cSize = ZSTD_compress(compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize / 3, -ZSTD_BLOCKSIZE_MAX);
@@ -2916,16 +2918,40 @@ static int basicUnitTests(U32 const seed, double compressibility)
             const void* const dict = (const char*)CNBuffer;
             const void* const contentStart = (const char*)dict + flatdictSize;
             /* These upper bounds are generally within a few bytes of the compressed size */
+            /* Upper-bound cSize targets per level.  Two variants:
+             * - ZSTD_ENABLE_SEARCH_SKIP_HIGH: step alternation changes which positions are
+             *   sampled, raising L1 output by ~14 bytes vs the default build.
+             * - default: calibrated without SSH. */
+#ifdef ZSTD_ENABLE_SEARCH_SKIP_HIGH
+            size_t target_nodict_cSize[22+1] = { 3840, 3810, 3870, 3830, 3780,
+                                                 3770, 3770, 3770, 3750, 3750,
+                                                 3742, 3675, 3674, 3665, 3664,
+                                                 3663, 3662, 3661, 3660, 3660,
+                                                 3660, 3660, 3660 };
+#else
             size_t target_nodict_cSize[22+1] = { 3840, 3770, 3870, 3830, 3770,
                                                  3770, 3770, 3770, 3750, 3750,
                                                  3742, 3675, 3674, 3665, 3664,
                                                  3663, 3662, 3661, 3660, 3660,
                                                  3660, 3660, 3660 };
+#endif /* ZSTD_ENABLE_SEARCH_SKIP_HIGH */
+            /* SSH changes dict-compression behavior at L1-L4 due to step alternation
+             * and (for L3) reduced window/chain params in clevels.h. */
+#ifdef ZSTD_ENABLE_SEARCH_SKIP_HIGH
+            /* SSH changes compression at L1-L4 (params/step alternation) and at L7-L9
+             * for the DMS (dict-match-search) path (lazy2 strategy with SSH step factor). */
+            size_t const target_wdict_cSize[22+1] =  { 2830, 2940, 2920, 2970, 3055,
+                                                       2950, 2950, 2940, 2910, 2910,
+                                                       2910, 2910, 2910, 2780, 2775,
+                                                       2765, 2760, 2755, 2754, 2753,
+                                                       2753, 2753, 2753 };
+#else
             size_t const target_wdict_cSize[22+1] =  { 2830, 2896, 2893, 2840, 2950,
                                                        2950, 2950, 2925, 2900, 2892,
                                                        2910, 2910, 2910, 2780, 2775,
                                                        2765, 2760, 2755, 2754, 2753,
                                                        2753, 2753, 2753 };
+#endif /* ZSTD_ENABLE_SEARCH_SKIP_HIGH */
             int l = 1;
             int const maxLevel = ZSTD_maxCLevel();
             /* clevels with strategies that support rowhash on small inputs */

@@ -622,4 +622,23 @@ MEM_STATIC unsigned FSE_endOfDState(const FSE_DState_t* DStatePtr)
 
 #define FSE_TABLESTEP(tableSize) (((tableSize)>>1) + ((tableSize)>>3) + 3)
 
+/* FSE_invTableStep() :
+ * Multiplicative inverse of FSE_TABLESTEP(tableSize) modulo tableSize.
+ * FSE_TABLESTEP() is odd for any tableSize >= 16, hence for any valid tableLog
+ * (>= FSE_MIN_TABLELOG), so the inverse exists.
+ * Symbol spreading places the i-th symbol (in symbol order) at position (i*step) & (tableSize-1),
+ * hence position u holds the symbol at index (u*inv) & (tableSize-1).
+ * This allows walking the table in position order while reading symbols
+ * from their sorted layout, instead of scattering them and reading them back. */
+MEM_STATIC U32 FSE_invTableStep(U32 tableSize)
+{
+    U32 const step = FSE_TABLESTEP(tableSize);
+    U32 inv = step;          /* odd*odd == 1 (mod 8) : 3 correct low bits */
+    inv *= 2 - step * inv;   /* each Newton iteration doubles the nb of correct bits : 6 */
+    inv *= 2 - step * inv;   /* 12 */
+    inv *= 2 - step * inv;   /* 24 >= FSE_TABLELOG_ABSOLUTE_MAX */
+    assert(((step * inv) & (tableSize - 1)) == 1);
+    return inv & (tableSize - 1);
+}
+
 #endif /* FSE_STATIC_LINKING_ONLY */

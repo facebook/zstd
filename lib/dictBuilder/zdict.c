@@ -154,13 +154,25 @@ typedef struct {
     U32 pos;
     U32 length;
     U32 savings;
+    U32 prefixHash;   /* hash of the 8 bytes at pos; see ZDICT_hash32 */
 } dictItem;
+
+/* Hash of the 8 bytes at pos. Cached in dictItem so that the content test in
+ * ZDICT_tryMerge can reject non-matches by reading the table entry it is
+ * already walking, instead of a random address in the sample buffer. The exact
+ * MEM_read64 comparison still decides every merge, so this only removes work. */
+static U32 ZDICT_hash32(const void* buffer, U32 pos)
+{
+    U64 const v = MEM_read64((const char*)buffer + pos);
+    return (U32)((v * 0x9E3779B97F4A7C15ULL) >> 32);
+}
 
 static void ZDICT_initDictItem(dictItem* d)
 {
     d->pos = 1;
     d->length = 0;
     d->savings = (U32)(-1);
+    d->prefixHash = 0;
 }
 
 
@@ -319,6 +331,7 @@ static dictItem ZDICT_analyzePos(
         solution.pos = (U32)pos;
         solution.length = (U32)maxLength;
         solution.savings = savings[maxLength];
+        solution.prefixHash = ZDICT_hash32(buffer, (U32)pos);
 
         /* mark positions done */
         {   U32 id;
@@ -353,90 +366,277 @@ static int isIncluded(const void* in, const void* container, size_t length)
     return u==length;
 }
 
+
+/*-*************************************
+*  Locality filter for ZDICT_tryMerge
+***************************************/
+/* Both loops in ZDICT_tryMerge return at the first match, so a loop only runs
+ * to completion when nothing matches: the whole quadratic term is spent
+ * proving absence. These structures answer "can anything match ?" in O(1),
+ * so that proof no longer costs a full pass over the table.
+ *
+ * They only ever guard a decision to skip a loop, and they are conservative:
+ * they never report absence when a match exists. The loops themselves still
+ * select every merge, so the emitted dictionary is unchanged.
+ *
+ * Each dictItem is an interval in the sample buffer, and the merge fixpoint
+ * keeps those intervals pairwise disjoint. Overlap depth is therefore bounded,
+ * which is what lets a byte counter track coverage exactly.
+ *
+ *   span[p]   : low nibble  = nb of dictItems whose span holds p -> front
+ *               high nibble = nb of dictItems beginning at p     -> tail
+ *   prefix[h] : nb of dictItems whose 8-byte prefix hashes to h
+ *
+ * span costs one byte per sample byte, the same as doneMarks.
+ */
+
+#define ZDICT_COVERS(c) ((c) & 0x0F)
+#define ZDICT_STARTS(c) ((c) >> 4)
+
+typedef struct {
+    BYTE* span;
+    BYTE* prefix;
+    U32 prefixMask;
+    size_t bufferSize;
+} ZDICT_localityFilter;
+
+/* The prefix table must stay sparse relative to the number of dictItems: a
+ * collision costs a full pass over the table, so an undersized table converts
+ * straight back into the quadratic term it exists to remove. 64 slots per
+ * entry keeps the occupancy, and hence the false positive rate, near 1.5%. */
+static U32 ZDICT_prefixTableLog(U32 dictListSize)
+{
+    U32 l = 16;
+    while (((U32)1 << l) < dictListSize * 64 && l < 22) l++;
+    return l;
+}
+
+/* Masking the raw low bits instead of hashing would collapse on text, where the
+ * first two bytes carry very little entropy. */
+static U32 ZDICT_prefixHash(const void* buffer, U32 pos, U32 mask)
+{
+    return ZDICT_hash32(buffer, pos) & mask;
+}
+
+/* saturating, so a count can never wrap back to zero and lose coverage.
+ * A saturated counter stays set, which only ever costs a false positive. */
+static void ZDICT_filterBump(BYTE* p, int delta)
+{
+    if (delta > 0) { if (*p < 255) (*p)++; }
+    else           { if (*p && *p < 255) (*p)--; }
+}
+
+static void ZDICT_spanBump(BYTE* p, int delta, unsigned shift)
+{
+    unsigned const cur = ((unsigned)*p >> shift) & 0x0FU;
+    unsigned nxt = cur;
+    if (delta > 0) { if (cur < 15) nxt = cur + 1; }
+    else           { if (cur && cur < 15) nxt = cur - 1; }
+    *p = (BYTE)(((unsigned)*p & ~(0x0FU << shift)) | (nxt << shift));
+}
+
+static void ZDICT_filterUpdate(ZDICT_localityFilter* f, dictItem elt,
+                               const void* buffer, int delta)
+{
+    size_t u;
+    size_t end = (size_t)elt.pos + elt.length;
+    if (!f->span) return;
+    if (end > f->bufferSize) end = f->bufferSize;
+    if (elt.pos >= f->bufferSize) return;
+    ZDICT_spanBump(f->span + elt.pos, delta, 4);
+    for (u = elt.pos; u <= end; u++)
+        ZDICT_spanBump(f->span + u, delta, 0);
+    ZDICT_filterBump(f->prefix + ZDICT_prefixHash(buffer, elt.pos, f->prefixMask), delta);
+}
+
+/* is there any dictItem starting inside (pos, end] ? */
+static int ZDICT_filterTailPossible(const ZDICT_localityFilter* f, U32 pos, U32 end)
+{
+    size_t u;
+    size_t last = end;
+    if (!f->span) return 1;
+    if (last >= f->bufferSize) last = f->bufferSize - 1;
+    for (u = (size_t)pos + 1; u <= last; u++)
+        if (ZDICT_STARTS(f->span[u])) return 1;
+    return 0;
+}
+
+/* is there any dictItem whose span holds pos, or whose prefix matches key ? */
+static int ZDICT_filterFrontPossible(const ZDICT_localityFilter* f, U32 pos, U32 keyHash)
+{
+    if (!f->span) return 1;
+    if (pos < f->bufferSize && ZDICT_COVERS(f->span[pos])) return 1;
+    return f->prefix[keyHash] != 0;
+}
+
+
+/* Applies the front-overlap merge of elt into table[u], and returns the slot
+ * table[u] ends up in. Factored out so the two search orders below can share
+ * it without duplicating the update. */
+static U32 ZDICT_mergeFrontOverlap(dictItem* table, dictItem elt, U32 u, U32 eltEnd,
+                                   U32 eltNbToSkip, U32* eltNbToSkipPtr,
+                                   const void* buffer, ZDICT_localityFilter* filter)
+{
+    int const addedLength = (int)eltEnd - (int)(table[u].pos + table[u].length); /* note: can be negative */
+    ZDICT_filterUpdate(filter, table[u], buffer, -1);
+    table[u].savings += elt.length / 8;    /* rough approx bonus */
+    if (addedLength > 0) {   /* otherwise, elt fully included into existing */
+        table[u].length += (unsigned)addedLength;
+        table[u].savings += elt.savings * (unsigned)addedLength / elt.length;   /* rough approx */
+    }
+    ZDICT_filterUpdate(filter, table[u], buffer, 1);
+    /* sort : improve rank */
+    elt = table[u];
+    {   U32 const startU = u;
+        while ((u>1) && (table[u-1].savings < elt.savings))
+            table[u] = table[u-1], u--;
+        table[u] = elt;
+        /* entries in [u, startU-1] each moved to the next higher slot */
+        if ((eltNbToSkip >= u) && (eltNbToSkip < startU))
+            *eltNbToSkipPtr = eltNbToSkip + 1;
+    }
+    return u;
+}
+
+
 /*! ZDICT_tryMerge() :
     check if dictItem can be merged, do it if possible
     @return : id of destination elt, 0 if not merged
+    note : *eltNbToSkipPtr designates an entry by its slot. The rank sorts below
+           can move that entry to the next higher slot; the value is updated
+           when they do, so the caller's index keeps designating the same entry.
 */
-static U32 ZDICT_tryMerge(dictItem* table, dictItem elt, U32 eltNbToSkip, const void* buffer)
+static U32 ZDICT_tryMerge(dictItem* table, dictItem elt, U32* eltNbToSkipPtr, const void* buffer,
+                          ZDICT_localityFilter* filter)
 {
     const U32 tableSize = table->pos;
+    const U32 eltNbToSkip = *eltNbToSkipPtr;
     const U32 eltEnd = elt.pos + elt.length;
     const char* const buf = (const char*) buffer;
+    const U32 keyHash32 = ZDICT_hash32(buffer, elt.pos + 1);   /* hash of the tested 8 bytes */
+    const U32 keyHash = keyHash32 & filter->prefixMask;
 
-    /* tail overlap */
-    U32 u; for (u=1; u<tableSize; u++) {
+    /* tail overlap : only reachable if some dictItem starts inside (pos, eltEnd] */
+    U32 u;
+    if (ZDICT_filterTailPossible(filter, elt.pos, eltEnd))
+    for (u=1; u<tableSize; u++) {
         if (u==eltNbToSkip) continue;
         if ((table[u].pos > elt.pos) && (table[u].pos <= eltEnd)) {  /* overlap, existing > new */
             /* append */
             U32 const addedLength = table[u].pos - elt.pos;
+            ZDICT_filterUpdate(filter, table[u], buffer, -1);
             table[u].length += addedLength;
             table[u].pos = elt.pos;
+            table[u].prefixHash = elt.prefixHash;   /* same pos, same 8 bytes */
             table[u].savings += elt.savings * addedLength / elt.length;   /* rough approx */
             table[u].savings += elt.length / 8;    /* rough approx bonus */
+            ZDICT_filterUpdate(filter, table[u], buffer, 1);
             elt = table[u];
             /* sort : improve rank */
-            while ((u>1) && (table[u-1].savings < elt.savings))
-                table[u] = table[u-1], u--;
-            table[u] = elt;
+            {   U32 const startU = u;
+                while ((u>1) && (table[u-1].savings < elt.savings))
+                    table[u] = table[u-1], u--;
+                table[u] = elt;
+                /* entries in [u, startU-1] each moved to the next higher slot */
+                if ((eltNbToSkip >= u) && (eltNbToSkip < startU))
+                    *eltNbToSkipPtr = eltNbToSkip + 1;
+            }
             return u;
     }   }
 
-    /* front overlap */
+    /* front overlap : only reachable if some dictItem spans elt.pos, or if some
+     * dictItem's 8-byte prefix can equal the one tested below */
+    if (!ZDICT_filterFrontPossible(filter, elt.pos, keyHash)) return 0;
+
+    /* contentPossible == 0 proves no dictItem can pass the content test, so it
+     * is skipped rather than paying a random read into the sample buffer per
+     * entry. If in addition exactly one dictItem spans elt.pos, the positional
+     * test has a single solution, so the loop returns the same entry whichever
+     * direction it is walked. Walking down reaches it far sooner: a merge
+     * partner has just been inserted and therefore sits at the low-savings end
+     * of the table. */
+    {   U32 const contentPossible = filter->prefix ? (filter->prefix[keyHash] != 0) : 1;
+
+    /* When no content match is possible and exactly one dictItem spans elt.pos,
+     * the positional test has a single solution, so the loop selects the same
+     * entry whichever direction it is walked. Walking down reaches it far
+     * sooner: a merge partner has just been inserted, so it still sits at the
+     * low-savings end of the table. */
+    if (!contentPossible && filter->span
+     && (elt.pos < filter->bufferSize) && (ZDICT_COVERS(filter->span[elt.pos]) == 1)) {
+        for (u=tableSize-1; u>=1; u--) {
+            if (u==eltNbToSkip) continue;
+            if ((table[u].pos + table[u].length >= elt.pos) && (table[u].pos < elt.pos))
+                return ZDICT_mergeFrontOverlap(table, elt, u, eltEnd, eltNbToSkip,
+                                               eltNbToSkipPtr, buffer, filter);
+        }
+        return 0;
+    }
+
     for (u=1; u<tableSize; u++) {
         if (u==eltNbToSkip) continue;
 
-        if ((table[u].pos + table[u].length >= elt.pos) && (table[u].pos < elt.pos)) {  /* overlap, existing < new */
-            /* append */
-            int const addedLength = (int)eltEnd - (int)(table[u].pos + table[u].length); /* note: can be negative */
-            table[u].savings += elt.length / 8;    /* rough approx bonus */
-            if (addedLength > 0) {   /* otherwise, elt fully included into existing */
-                table[u].length += (unsigned)addedLength;
-                table[u].savings += elt.savings * (unsigned)addedLength / elt.length;   /* rough approx */
-            }
-            /* sort : improve rank */
-            elt = table[u];
-            while ((u>1) && (table[u-1].savings < elt.savings))
-                table[u] = table[u-1], u--;
-            table[u] = elt;
-            return u;
-        }
+        if ((table[u].pos + table[u].length >= elt.pos) && (table[u].pos < elt.pos))   /* overlap, existing < new */
+            return ZDICT_mergeFrontOverlap(table, elt, u, eltEnd, eltNbToSkip,
+                                           eltNbToSkipPtr, buffer, filter);
 
-        if (MEM_read64(buf + table[u].pos) == MEM_read64(buf + elt.pos + 1)) {
+        /* table[u].prefixHash is the hash of the 8 bytes at table[u].pos, so a
+         * mismatch rules the entry out without touching the sample buffer. The
+         * MEM_read64 comparison still decides. */
+        if (contentPossible && table[u].prefixHash == keyHash32
+         && MEM_read64(buf + table[u].pos) == MEM_read64(buf + elt.pos + 1)) {
             if (isIncluded(buf + table[u].pos, buf + elt.pos + 1, table[u].length)) {
                 size_t const addedLength = MAX( elt.length - table[u].length , 1 );
+                ZDICT_filterUpdate(filter, table[u], buffer, -1);
                 table[u].pos = elt.pos;
+                table[u].prefixHash = elt.prefixHash;   /* same pos, same 8 bytes */
                 table[u].savings += (U32)(elt.savings * addedLength / elt.length);
                 table[u].length = MIN(elt.length, table[u].length + 1);
+                ZDICT_filterUpdate(filter, table[u], buffer, 1);
                 return u;
             }
         }
-    }
+    }   }
 
     return 0;
 }
 
 
-static void ZDICT_removeDictItem(dictItem* table, U32 id)
+static void ZDICT_removeDictItem(dictItem* table, U32 id, const void* buffer,
+                                 ZDICT_localityFilter* filter)
 {
     /* convention : table[0].pos stores nb of elts */
     U32 const max = table[0].pos;
     U32 u;
     if (!id) return;   /* protection, should never happen */
+    ZDICT_filterUpdate(filter, table[id], buffer, -1);
     for (u=id; u<max-1; u++)
         table[u] = table[u+1];
     table->pos--;
 }
 
 
-static void ZDICT_insertDictItem(dictItem* table, U32 maxSize, dictItem elt, const void* buffer)
+static void ZDICT_insertDictItem(dictItem* table, U32 maxSize, dictItem elt, const void* buffer,
+                                 ZDICT_localityFilter* filter)
 {
     /* merge if possible */
-    U32 mergeId = ZDICT_tryMerge(table, elt, 0, buffer);
+    U32 skipId = 0;
+    U32 mergeId = ZDICT_tryMerge(table, elt, &skipId, buffer, filter);
     if (mergeId) {
         U32 newMerge = 1;
         while (newMerge) {
-            newMerge = ZDICT_tryMerge(table, table[mergeId], mergeId, buffer);
-            if (newMerge) ZDICT_removeDictItem(table, mergeId);
+            /* table[absorbedId] is merged away, so it must be dropped.
+             * Both operations below can move it, and the slot is re-read
+             * after each one. */
+            U32 absorbedId = mergeId;
+            skipId = absorbedId;
+            newMerge = ZDICT_tryMerge(table, table[absorbedId], &skipId, buffer, filter);
+            absorbedId = skipId;   /* the rank sort may have moved it one slot up */
+            if (newMerge) {
+                ZDICT_removeDictItem(table, absorbedId, buffer, filter);
+                /* the removal moved every higher slot down by one */
+                if (newMerge > absorbedId) newMerge--;
+            }
             mergeId = newMerge;
         }
         return;
@@ -445,13 +645,18 @@ static void ZDICT_insertDictItem(dictItem* table, U32 maxSize, dictItem elt, con
     /* insert */
     {   U32 current;
         U32 nextElt = table->pos;
-        if (nextElt >= maxSize) nextElt = maxSize-1;
+        if (nextElt >= maxSize) {
+            nextElt = maxSize-1;
+            /* the table is full : table[maxSize-1] is about to be overwritten */
+            ZDICT_filterUpdate(filter, table[nextElt], buffer, -1);
+        }
         current = nextElt-1;
         while (table[current].savings < elt.savings) {
             table[current+1] = table[current];
             current--;
         }
         table[current+1] = elt;
+        ZDICT_filterUpdate(filter, elt, buffer, 1);
         table->pos = nextElt+1;
     }
 }
@@ -476,9 +681,15 @@ static size_t ZDICT_trainBuffer_legacy(dictItem* dictList, U32 dictListSize,
     U32* reverseSuffix = (U32*)malloc((bufferSize)*sizeof(*reverseSuffix));
     BYTE* doneMarks = (BYTE*)malloc((bufferSize+16)*sizeof(*doneMarks));   /* +16 for overflow security */
     U32* filePos = (U32*)malloc(nbFiles * sizeof(*filePos));
+    ZDICT_localityFilter filter;
     size_t result = 0;
     clock_t displayClock = 0;
     clock_t const refreshRate = CLOCKS_PER_SEC * 3 / 10;
+
+    filter.span = (BYTE*)calloc(bufferSize+16, 1);
+    filter.prefixMask = ((U32)1 << ZDICT_prefixTableLog(dictListSize)) - 1;
+    filter.prefix = (BYTE*)calloc((size_t)filter.prefixMask + 1, 1);
+    filter.bufferSize = bufferSize;
 
 #   undef  DISPLAYUPDATE
 #   define DISPLAYUPDATE(l, ...)                                   \
@@ -494,7 +705,8 @@ static size_t ZDICT_trainBuffer_legacy(dictItem* dictList, U32 dictListSize,
 
     /* init */
     DISPLAYLEVEL(2, "\r%70s\r", "");   /* clean display line */
-    if (!suffix0 || !reverseSuffix || !doneMarks || !filePos) {
+    if (!suffix0 || !reverseSuffix || !doneMarks || !filePos
+      || !filter.span || !filter.prefix) {
         result = ERROR(memory_allocation);
         goto _cleanup;
     }
@@ -531,7 +743,7 @@ static size_t ZDICT_trainBuffer_legacy(dictItem* dictList, U32 dictListSize,
             if (doneMarks[cursor]) { cursor++; continue; }
             solution = ZDICT_analyzePos(doneMarks, suffix, reverseSuffix[cursor], buffer, minRatio, notificationLevel);
             if (solution.length==0) { cursor++; continue; }
-            ZDICT_insertDictItem(dictList, dictListSize, solution, buffer);
+            ZDICT_insertDictItem(dictList, dictListSize, solution, buffer, &filter);
             cursor += solution.length;
             DISPLAYUPDATE(2, "\r%4.2f %% \r", (double)cursor / (double)bufferSize * 100.0);
     }   }
@@ -541,6 +753,8 @@ _cleanup:
     free(reverseSuffix);
     free(doneMarks);
     free(filePos);
+    free(filter.span);
+    free(filter.prefix);
     return result;
 }
 

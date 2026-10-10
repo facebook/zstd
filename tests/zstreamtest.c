@@ -260,6 +260,29 @@ static U32 badParameters(ZSTD_CCtx* zc, ZSTD_parameters const savedParams)
     return 0;
 }
 
+/* Compress @src with @pledgedSrcSize declared up-front, streaming the input so
+ * that a first ZSTD_e_end call doesn't auto-determine pledgedSrcSize instead.
+ * @return : the first error encountered, or 0, with *cSizePtr set. */
+static size_t FUZ_compressWithPledgedSrcSize(ZSTD_CCtx* cctx,
+                                             void* dst, size_t dstCapacity,
+                                       const void* src, size_t srcSize,
+                                             unsigned long long pledgedSrcSize,
+                                             size_t* cSizePtr)
+{
+    ZSTD_outBuffer out = { dst, dstCapacity, 0 };
+    ZSTD_inBuffer in = { src, srcSize, 0 };
+    size_t r = ZSTD_CCtx_reset(cctx, ZSTD_reset_session_only);
+    if (!ZSTD_isError(r)) r = ZSTD_CCtx_setPledgedSrcSize(cctx, pledgedSrcSize);
+    while ((in.pos < in.size) && !ZSTD_isError(r))
+        r = ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_continue);
+    do {
+        if (ZSTD_isError(r)) break;
+        r = ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end);
+    } while (r != 0);
+    *cSizePtr = out.pos;
+    return r;
+}
+
 static int basicUnitTests(U32 seed, double compressibility, int bigTests)
 {
     size_t const CNBufferSize = COMPRESSIBLE_NOISE_LENGTH;
@@ -1492,6 +1515,35 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
         if (compressedSize != outBuff.pos) goto _output_error;  /* must be a full valid frame */
     }
     DISPLAYLEVEL(3, "OK \n");
+
+    /* wrong pledgedSrcSize, multithreaded : the frame must span several jobs */
+    {   size_t const jobSize = 1 MB;
+        size_t const srcSize = 4 * jobSize;
+        assert(srcSize <= CNBufferSize);
+        CHECK_Z( ZSTD_CCtx_setParameter(mtctx, ZSTD_c_jobSize, (int)jobSize) );
+
+        DISPLAYLEVEL(3, "test%3i : too large srcSize with multiple threads : %u bytes : ", testNb++, (unsigned)srcSize);
+        {   size_t const r = FUZ_compressWithPledgedSrcSize(mtctx, compressedBuffer, compressedBufferSize, CNBuffer, srcSize, srcSize+1, &cSize);
+            if (ZSTD_getErrorCode(r) != ZSTD_error_srcSize_wrong) goto _output_error;   /* must fail : wrong srcSize */
+            DISPLAYLEVEL(3, "OK (error detected : %s) \n", ZSTD_getErrorName(r));
+        }
+
+        DISPLAYLEVEL(3, "test%3i : too small srcSize with multiple threads : %u bytes : ", testNb++, (unsigned)srcSize);
+        {   size_t const r = FUZ_compressWithPledgedSrcSize(mtctx, compressedBuffer, compressedBufferSize, CNBuffer, srcSize, srcSize-1, &cSize);
+            if (ZSTD_getErrorCode(r) != ZSTD_error_srcSize_wrong) goto _output_error;   /* must fail : wrong srcSize */
+            DISPLAYLEVEL(3, "OK (error detected : %s) \n", ZSTD_getErrorName(r));
+        }
+
+        DISPLAYLEVEL(3, "test%3i : exact srcSize with multiple threads : %u bytes : ", testNb++, (unsigned)srcSize);
+        CHECK_Z( FUZ_compressWithPledgedSrcSize(mtctx, compressedBuffer, compressedBufferSize, CNBuffer, srcSize, srcSize, &cSize) );
+        if (ZSTD_findDecompressedSize(compressedBuffer, cSize) != srcSize) goto _output_error;
+        CHECK_Z( ZSTD_decompress(decodedBuffer, decodedBufferSize, compressedBuffer, cSize) );
+        if (memcmp(decodedBuffer, CNBuffer, srcSize) != 0) goto _output_error;
+        DISPLAYLEVEL(3, "OK \n");
+
+        CHECK_Z( ZSTD_CCtx_reset(mtctx, ZSTD_reset_session_only) );
+        CHECK_Z( ZSTD_CCtx_setParameter(mtctx, ZSTD_c_jobSize, 0) );
+    }
 
     /* Complex multithreading + dictionary test */
     {   U32 const nbWorkers = 2;

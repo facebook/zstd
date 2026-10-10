@@ -1,0 +1,4 @@
+over-declared --stream-size must fail
+under-declared --stream-size must fail
+exact --stream-size must succeed and round-trip
+no --stream-size must still succeed and round-trip

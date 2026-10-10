@@ -9,7 +9,7 @@
  */
 
 
-/* The objective of this example is to show of to compress multiple successive files
+/* The objective of this example is to show how to compress multiple successive files
 *  while preserving memory management.
 *  All structures and buffers will be created only once,
 *  and shared across all compression operations */

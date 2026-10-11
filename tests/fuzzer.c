@@ -153,6 +153,22 @@ static U32 FUZ_highbit32(U32 v32)
 /*=============================================
 *   Memory Tests
 =============================================*/
+/* allocator used by the ZSTD_copyDCtx() regression test:
+ * customFree flags when it is called on memory it must not own */
+static void* FUZ_countingAlloc(void* counter, size_t size)
+{
+    int* const flag = (int*)counter;
+    (void)flag;
+    return malloc(size);
+}
+
+static void FUZ_countingWrongFree(void* counter, void* address)
+{
+    int* const flag = (int*)counter;
+    *flag += 1;   /* this free() must never happen for the destination ctx */
+    free(address);
+}
+
 #if defined(__APPLE__) && defined(__MACH__)
 
 #include <malloc/malloc.h>    /* malloc_size */
@@ -1145,6 +1161,26 @@ static int basicUnitTests(U32 const seed, double compressibility)
         assert(dctx != NULL);
         assert(ZSTD_sizeof_DCtx(dctx) != 0);
         ZSTD_freeDCtx(dctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : ZSTD_copyDCtx keeps the destination's allocator : ", testNb++);
+    {   /* ZSTD_copyDCtx() used to memcpy the source's customMem over the
+         * destination's one. When both contexts were created with different
+         * allocators, ZSTD_freeDCtx() would then release the destination
+         * context (and its resources) with the wrong callbacks.
+         * Here the mismatch is detected without faulting: the destination
+         * uses one that must never be called for the copy. */
+        static int wrongFreeCalled;
+        wrongFreeCalled = 0;
+        ZSTD_customMem const wrongMem = { FUZ_countingAlloc, FUZ_countingWrongFree, &wrongFreeCalled };
+        ZSTD_DCtx* const src = ZSTD_createDCtx_advanced(wrongMem);
+        ZSTD_DCtx* const dst = ZSTD_createDCtx();  /* default allocator */
+        assert(src != NULL); assert(dst != NULL);
+        ZSTD_copyDCtx(dst, src);
+        ZSTD_freeDCtx(dst);   /* must use dst's own allocator */
+        if (wrongFreeCalled) goto _output_error;  /* free(dst) went through src's callbacks */
+        ZSTD_freeDCtx(src);   /* src's own free through src's callbacks is fine */
     }
     DISPLAYLEVEL(3, "OK \n");
 

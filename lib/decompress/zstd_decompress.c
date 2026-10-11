@@ -345,7 +345,13 @@ size_t ZSTD_freeDCtx(ZSTD_DCtx* dctx)
 void ZSTD_copyDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
 {
     size_t const toCopy = (size_t)((char*)(&dstDCtx->inBuff) - (char*)dstDCtx);
+    ZSTD_customMem const dstCustomMem = dstDCtx->customMem;
     ZSTD_memcpy(dstDCtx, srcDCtx, toCopy);  /* no need to copy workspace */
+    /* keep the destination's allocator: the destination context was
+     * allocated (and will be freed) with its own customMem.
+     * Copying the source's allocator instead would make ZSTD_freeDCtx()
+     * release a default-allocated context with mismatched callbacks. */
+    dstDCtx->customMem = dstCustomMem;
 }
 
 /* Given a dctx with a digested frame params, re-selects the correct ZSTD_DDict based on

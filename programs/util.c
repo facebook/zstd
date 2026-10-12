@@ -23,6 +23,8 @@
 #endif /* #ifdef __FreeBSD__ */
 
 #if defined(_WIN32)
+#  include <windows.h>
+#  include <wchar.h>
 #  include <sys/utime.h>  /* utime */
 #  include <io.h>         /* _chmod */
 #  define ZSTD_USE_UTIMENSAT 0
@@ -165,6 +167,66 @@ void UTIL_traceFileStat(void)
     g_traceFileStat = 1;
 }
 
+#if defined(_WIN32)
+static wchar_t* UTIL_utf8ToUtf16(const char* utf8Str)
+{
+    int wideLen;
+    wchar_t* wideBuf;
+    if (utf8Str == NULL) return NULL;
+    wideLen = MultiByteToWideChar(CP_UTF8, 0, utf8Str, -1, NULL, 0);
+    if (wideLen <= 0) return NULL;
+    wideBuf = (wchar_t*)malloc((size_t)wideLen * sizeof(wchar_t));
+    if (wideBuf == NULL) return NULL;
+    if (MultiByteToWideChar(CP_UTF8, 0, utf8Str, -1, wideBuf, wideLen) <= 0) {
+        free(wideBuf);
+        return NULL;
+    }
+    return wideBuf;
+}
+
+FILE* UTIL_fopen(const char* filename, const char* mode)
+{
+    wchar_t* const wFilename = UTIL_utf8ToUtf16(filename);
+    wchar_t* const wMode = UTIL_utf8ToUtf16(mode);
+    FILE* f = NULL;
+    if (wFilename != NULL && wMode != NULL) {
+        f = _wfopen(wFilename, wMode);
+    }
+    free(wFilename);
+    free(wMode);
+    if (f == NULL && filename != NULL && mode != NULL) {
+        f = fopen(filename, mode);
+    }
+    return f;
+}
+
+int UTIL_open(const char* filename, int flags, int mode)
+{
+    wchar_t* const wFilename = UTIL_utf8ToUtf16(filename);
+    int fd = -1;
+    if (wFilename != NULL) {
+        fd = _wopen(wFilename, flags, mode);
+        free(wFilename);
+    } else {
+        fd = _open(filename, flags, mode);
+    }
+    return fd;
+}
+
+int UTIL_remove(const char* filename)
+{
+    wchar_t* const wFilename = UTIL_utf8ToUtf16(filename);
+    int res = -1;
+    if (wFilename != NULL) {
+        res = _wremove(wFilename);
+        free(wFilename);
+    } else {
+        res = remove(filename);
+    }
+    return res;
+}
+#endif
+
 int UTIL_fstat(const int fd, const char* filename, stat_t* statbuf)
 {
     int ret;
@@ -173,13 +235,25 @@ int UTIL_fstat(const int fd, const char* filename, stat_t* statbuf)
     if (fd >= 0) {
         ret = !_fstat64(fd, statbuf);
     } else {
-        ret = !_stat64(filename, statbuf);
+        wchar_t* const wFilename = UTIL_utf8ToUtf16(filename);
+        if (wFilename != NULL) {
+            ret = !_wstat64(wFilename, statbuf);
+            free(wFilename);
+        } else {
+            ret = !_stat64(filename, statbuf);
+        }
     }
 #elif defined(__MINGW32__) && defined (__MSVCRT__)
     if (fd >= 0) {
         ret = !_fstati64(fd, statbuf);
     } else {
-        ret = !_stati64(filename, statbuf);
+        wchar_t* const wFilename = UTIL_utf8ToUtf16(filename);
+        if (wFilename != NULL) {
+            ret = !_wstati64(wFilename, statbuf);
+            free(wFilename);
+        } else {
+            ret = !_stati64(filename, statbuf);
+        }
     }
 #else
     if (fd >= 0) {
@@ -260,7 +334,19 @@ int UTIL_fchmod(const int fd, char const* filename, const stat_t* statbuf, mode_
     {
         int ret;
         UTIL_TRACE_CALL("chmod");
+#if defined(_WIN32)
+        {
+            wchar_t* const wFilename = UTIL_utf8ToUtf16(filename);
+            if (wFilename != NULL) {
+                ret = _wchmod(wFilename, permissions);
+                free(wFilename);
+            } else {
+                ret = chmod(filename, permissions);
+            }
+        }
+#else
         ret = chmod(filename, permissions);
+#endif
         UTIL_TRACE_RET(ret);
         UTIL_TRACE_RET(ret);
         return ret;
@@ -287,6 +373,19 @@ int UTIL_utime(const char* filename, const stat_t *statbuf)
         struct timespec timebuf[2] = { {0, UTIME_NOW} };
         timebuf[1] = statbuf->st_mtim;
         ret = utimensat(AT_FDCWD, filename, timebuf, 0);
+    }
+#elif defined(_WIN32)
+    {
+        struct _utimbuf timebuf;
+        wchar_t* const wFilename = UTIL_utf8ToUtf16(filename);
+        timebuf.actime = time(NULL);
+        timebuf.modtime = statbuf->st_mtime;
+        if (wFilename != NULL) {
+            ret = _wutime(wFilename, &timebuf);
+            free(wFilename);
+        } else {
+            ret = _utime(filename, &timebuf);
+        }
     }
 #else
     {
@@ -766,7 +865,7 @@ UTIL_createFileNamesTable_fromFileList(const char* fileList)
     }
 
     /* Open the input file */
-    {   FILE* const inFile = fopen(fileList, "rb");
+    {   FILE* const inFile = UTIL_fopen(fileList, "rb");
         if (inFile == NULL) return NULL;
 
         /* Read the file content */
@@ -910,42 +1009,66 @@ static int UTIL_prepareFileList(const char* dirName,
                                 char** bufStart, size_t* pos,
                                 char** bufEnd, int followLinks)
 {
-    char* path;
-    size_t dirLength, pathLength;
+    wchar_t* const wDirName = UTIL_utf8ToUtf16(dirName);
+    wchar_t* wPath;
+    size_t wDirLength;
+    size_t dirLength;
     int nbFiles = 0;
-    WIN32_FIND_DATAA cFile;
+    WIN32_FIND_DATAW cFile;
     HANDLE hFile;
 
-    dirLength = strlen(dirName);
-    path = (char*) malloc(dirLength + 3);
-    if (!path) return 0;
-
-    memcpy(path, dirName, dirLength);
-    path[dirLength] = '\\';
-    path[dirLength+1] = '*';
-    path[dirLength+2] = 0;
-
-    hFile=FindFirstFileA(path, &cFile);
-    if (hFile == INVALID_HANDLE_VALUE) {
+    if (wDirName == NULL) {
         UTIL_DISPLAYLEVEL(1, "Cannot open directory '%s'\n", dirName);
-        free(path);
         return 0;
     }
-    free(path);
+
+    dirLength = strlen(dirName);
+    wDirLength = wcslen(wDirName);
+    wPath = (wchar_t*) malloc((wDirLength + 3) * sizeof(wchar_t));
+    if (!wPath) {
+        free(wDirName);
+        return 0;
+    }
+
+    memcpy(wPath, wDirName, wDirLength * sizeof(wchar_t));
+    wPath[wDirLength] = L'\\';
+    wPath[wDirLength+1] = L'*';
+    wPath[wDirLength+2] = 0;
+    free(wDirName);
+
+    hFile = FindFirstFileW(wPath, &cFile);
+    free(wPath);
+    if (hFile == INVALID_HANDLE_VALUE) {
+        UTIL_DISPLAYLEVEL(1, "Cannot open directory '%s'\n", dirName);
+        return 0;
+    }
 
     do {
-        size_t const fnameLength = strlen(cFile.cFileName);
-        path = (char*) malloc(dirLength + fnameLength + 2);
-        if (!path) { FindClose(hFile); return 0; }
+        char* path;
+        char* utf8FileName;
+        int utf8NameLength;
+        size_t pathLength;
+
+        if ( wcscmp(cFile.cFileName, L"..") == 0
+          || wcscmp(cFile.cFileName, L".") == 0 )
+            continue;
+
+        utf8NameLength = WideCharToMultiByte(CP_UTF8, 0, cFile.cFileName, -1, NULL, 0, NULL, NULL);
+        if (utf8NameLength <= 0) continue;
+        utf8FileName = (char*) malloc((size_t)utf8NameLength);
+        if (!utf8FileName) { FindClose(hFile); return 0; }
+        WideCharToMultiByte(CP_UTF8, 0, cFile.cFileName, -1, utf8FileName, utf8NameLength, NULL, NULL);
+
+        path = (char*) malloc(dirLength + (size_t)utf8NameLength + 1);
+        if (!path) { free(utf8FileName); FindClose(hFile); return 0; }
         memcpy(path, dirName, dirLength);
         path[dirLength] = '\\';
-        memcpy(path+dirLength+1, cFile.cFileName, fnameLength);
-        pathLength = dirLength+1+fnameLength;
+        memcpy(path + dirLength + 1, utf8FileName, (size_t)utf8NameLength);
+        pathLength = dirLength + 1 + (size_t)(utf8NameLength - 1);
         path[pathLength] = 0;
+        free(utf8FileName);
+
         if (cFile.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-            if ( strcmp (cFile.cFileName, "..") == 0
-              || strcmp (cFile.cFileName, ".") == 0 )
-                continue;
             /* Recursively call "UTIL_prepareFileList" with the new path. */
             nbFiles += UTIL_prepareFileList(path, bufStart, pos, bufEnd, followLinks);
             if (*bufStart == NULL) { free(path); FindClose(hFile); return 0; }
@@ -954,17 +1077,18 @@ static int UTIL_prepareFileList(const char* dirName,
                  || (cFile.dwFileAttributes & FILE_ATTRIBUTE_COMPRESSED) ) {
             if (*bufStart + *pos + pathLength >= *bufEnd) {
                 ptrdiff_t const newListSize = (*bufEnd - *bufStart) + LIST_SIZE_INCREASE;
-                *bufStart = (char*)UTIL_realloc(*bufStart, newListSize);
+                *bufStart = (char*)UTIL_realloc(*bufStart, (size_t)newListSize);
                 if (*bufStart == NULL) { free(path); FindClose(hFile); return 0; }
                 *bufEnd = *bufStart + newListSize;
             }
             if (*bufStart + *pos + pathLength < *bufEnd) {
-                memcpy(*bufStart + *pos, path, pathLength+1 /* include final \0 */);
+                memcpy(*bufStart + *pos, path, pathLength + 1 /* include final \0 */);
                 *pos += pathLength + 1;
                 nbFiles++;
-        }   }
+            }
+        }
         free(path);
-    } while (FindNextFileA(hFile, &cFile));
+    } while (FindNextFileW(hFile, &cFile));
 
     FindClose(hFile);
     return nbFiles;
@@ -1124,7 +1248,14 @@ static mode_t getDirMode(const char *dirName)
 static int makeDir(const char *dir, mode_t mode)
 {
 #if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__)
-    int ret = _mkdir(dir);
+    int ret;
+    wchar_t* const wDir = UTIL_utf8ToUtf16(dir);
+    if (wDir != NULL) {
+        ret = _wmkdir(wDir);
+        free(wDir);
+    } else {
+        ret = _mkdir(dir);
+    }
     (void) mode;
 #else
     int ret = mkdir(dir, mode);

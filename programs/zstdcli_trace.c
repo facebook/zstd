@@ -37,7 +37,7 @@ void TRACE_enable(char const* filename)
     int const writeHeader = !UTIL_isRegularFile(filename);
     if (g_traceFile)
         fclose(g_traceFile);
-    g_traceFile = fopen(filename, "a");
+    g_traceFile = UTIL_fopen(filename, "a");
     if (g_traceFile && writeHeader) {
         /* Fields:
         * algorithm

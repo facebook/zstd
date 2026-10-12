@@ -1085,7 +1085,7 @@ static int BMK_loadFiles(
             nbFiles  = n; /* stop after this file */
         }
 
-        {   FILE* const f = fopen(filename, "rb");
+        {   FILE* const f = UTIL_fopen(filename, "rb");
             if (f == NULL) {
                 RETURN_ERROR_INT(
                         10, "cannot open file %s", filename);

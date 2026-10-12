@@ -137,6 +137,16 @@ int UTIL_requireUserConfirmation(const char* prompt, const char* abortMsg, const
 int UTIL_stat(const char* filename, stat_t* statbuf);
 int UTIL_fstat(const int fd, const char* filename, stat_t* statbuf);
 
+#if defined(_WIN32)
+FILE* UTIL_fopen(const char* filename, const char* mode);
+int UTIL_open(const char* filename, int flags, int mode);
+int UTIL_remove(const char* filename);
+#else
+#define UTIL_fopen fopen
+#define UTIL_open open
+#define UTIL_remove remove
+#endif
+
 /**
  * Instead of getting a file's stats, this updates them with the info in the
  * provided stat_t. Currently sets owner, group, atime, and mtime. Will only

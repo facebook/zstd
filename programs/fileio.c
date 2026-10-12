@@ -2684,6 +2684,27 @@ FIO_zstdErrorHelp(const FIO_prefs_t* const prefs,
                     srcFileName, ZSTD_WINDOWLOG_MAX);
 }
 
+/* FIO_isCorruptionError() :
+ * @return : 1 if the decoding error says that the archive is damaged,
+ *           0 for errors that do not (memory limit, dictionary mismatch, ...) */
+static int FIO_isCorruptionError(size_t const err)
+{
+    ZSTD_ErrorCode const code = ZSTD_getErrorCode(err);
+    return (code == ZSTD_error_corruption_detected)
+        || (code == ZSTD_error_checksum_wrong)
+        || (code == ZSTD_error_literals_headerWrong)
+        || (code == ZSTD_error_srcSize_wrong);
+}
+
+/* FIO_displayCorruptedArchive() :
+ * summary line for a damaged or cut short archive,
+ * so that the user knows how much of the data was decoded before the failure */
+static void FIO_displayCorruptedArchive(const char* srcFileName, U64 nbDecoded)
+{
+    DISPLAYLEVEL(1, "zstd: %s: corrupted or incomplete archive; decoded %llu bytes \n",
+                    srcFileName, (unsigned long long)nbDecoded);
+}
+
 /** FIO_decompressFrame() :
  *  @return : size of decoded zstd frame, or an error code
  */
@@ -2720,6 +2741,8 @@ FIO_decompressZstdFrame(FIO_ctx_t* const fCtx, dRess_t* ress,
             DISPLAYLEVEL(1, "%s : Decoding error (36) : %s \n",
                             srcFileName, ZSTD_getErrorName(readSizeHint));
             FIO_zstdErrorHelp(prefs, ress, readSizeHint, srcFileName);
+            if (FIO_isCorruptionError(readSizeHint))
+                FIO_displayCorruptedArchive(srcFileName, alreadyDecoded + frameSize);
             AIO_WritePool_releaseIoJob(writeJob);
             return FIO_ERROR_FRAME_DECODING;
         }
@@ -2748,6 +2771,7 @@ FIO_decompressZstdFrame(FIO_ctx_t* const fCtx, dRess_t* ress,
                 if (readSize==0) {
                     DISPLAYLEVEL(1, "%s : Read error (39) : premature end \n",
                                  srcFileName);
+                    FIO_displayCorruptedArchive(srcFileName, alreadyDecoded + frameSize);
                     AIO_WritePool_releaseIoJob(writeJob);
                     return FIO_ERROR_FRAME_DECODING;
                 }
@@ -2997,6 +3021,9 @@ static int FIO_decompressFrames(FIO_ctx_t* const fCtx,
     for ( ; ; ) {
         /* check magic number -> version */
         size_t const toRead = 4;
+        /* readSomething is only set by a previous iteration, which then decoded a frame successfully
+         * (any failure returns). Data that is not a frame after that is trailing data. */
+        unsigned const afterFrame = readSomething;
         const BYTE* buf;
         AIO_ReadPool_fillBuffer(ress.readCtx, toRead);
         buf = (const BYTE*)ress.readCtx->srcBuffer;
@@ -3011,6 +3038,10 @@ static int FIO_decompressFrames(FIO_ctx_t* const fCtx,
         if (ress.readCtx->srcBufferLoaded < toRead) { /* not enough input to check magic number */
             if (passThrough) {
                 return FIO_passThrough(&ress);
+            }
+            if (afterFrame) {
+                DISPLAYLEVEL(1, "zstd: WARNING: %s: trailing data after the last frame is ignored \n", srcFileName);
+                break;
             }
             DISPLAYLEVEL(1, "zstd: %s: unknown header \n", srcFileName);
             return 1;
@@ -3049,6 +3080,10 @@ static int FIO_decompressFrames(FIO_ctx_t* const fCtx,
 #endif
         } else if (passThrough) {
             return FIO_passThrough(&ress);
+        } else if (afterFrame) {
+            /* level 1, not 2: writing to stdout lowers the display level to 1, and the user must still be told */
+            DISPLAYLEVEL(1, "zstd: WARNING: %s: trailing data after the last frame is ignored \n", srcFileName);
+            break;
         } else {
             DISPLAYLEVEL(1, "zstd: %s: unsupported format \n", srcFileName);
             return 1;

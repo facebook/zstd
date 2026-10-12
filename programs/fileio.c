@@ -2997,6 +2997,9 @@ static int FIO_decompressFrames(FIO_ctx_t* const fCtx,
     for ( ; ; ) {
         /* check magic number -> version */
         size_t const toRead = 4;
+        /* readSomething is only set by a previous iteration, which then decoded a frame successfully
+         * (any failure returns). Data that is not a frame after that is trailing data. */
+        unsigned const afterFrame = readSomething;
         const BYTE* buf;
         AIO_ReadPool_fillBuffer(ress.readCtx, toRead);
         buf = (const BYTE*)ress.readCtx->srcBuffer;
@@ -3011,6 +3014,10 @@ static int FIO_decompressFrames(FIO_ctx_t* const fCtx,
         if (ress.readCtx->srcBufferLoaded < toRead) { /* not enough input to check magic number */
             if (passThrough) {
                 return FIO_passThrough(&ress);
+            }
+            if (afterFrame) {
+                DISPLAYLEVEL(1, "zstd: WARNING: %s: trailing data after the last frame is ignored \n", srcFileName);
+                break;
             }
             DISPLAYLEVEL(1, "zstd: %s: unknown header \n", srcFileName);
             return 1;
@@ -3049,6 +3056,10 @@ static int FIO_decompressFrames(FIO_ctx_t* const fCtx,
 #endif
         } else if (passThrough) {
             return FIO_passThrough(&ress);
+        } else if (afterFrame) {
+            /* level 1, not 2: writing to stdout lowers the display level to 1, and the user must still be told */
+            DISPLAYLEVEL(1, "zstd: WARNING: %s: trailing data after the last frame is ignored \n", srcFileName);
+            break;
         } else {
             DISPLAYLEVEL(1, "zstd: %s: unsupported format \n", srcFileName);
             return 1;

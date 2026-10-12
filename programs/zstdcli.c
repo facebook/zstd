@@ -872,7 +872,13 @@ typedef enum { zom_compress, zom_decompress, zom_test, zom_bench, zom_train, zom
 # define MAXCLEVEL  ZSTD_maxCLevel()
 #endif
 
-int main(int argCount, const char* argv[])
+#if defined(_WIN32)
+static int real_main(int argCount, const char* argv[]);
+#else
+#define real_main main
+#endif
+
+int real_main(int argCount, const char* argv[])
 {
     int argNb,
         followLinks = 0,
@@ -1694,3 +1700,66 @@ _end:
 
     return operationResult;
 }
+
+#if defined(_WIN32)
+#include <windows.h>
+
+typedef LPWSTR* (WINAPI *pfn_CommandLineToArgvW)(LPCWSTR, int*);
+
+int main(int argCount, const char* argv[])
+{
+    HMODULE hShell32 = GetModuleHandleA("shell32.dll");
+    pfn_CommandLineToArgvW pCommandLineToArgvW = NULL;
+    int wArgc = 0;
+    LPWSTR* wArgv = NULL;
+    char** utf8Argv = NULL;
+    int res = 0;
+    int i;
+    int freeShell32 = 0;
+
+    if (hShell32 == NULL) {
+        hShell32 = LoadLibraryA("shell32.dll");
+        freeShell32 = (hShell32 != NULL);
+    }
+    if (hShell32 != NULL) {
+        pCommandLineToArgvW = (pfn_CommandLineToArgvW)(void(*)(void))GetProcAddress(hShell32, "CommandLineToArgvW");
+    }
+
+    if (pCommandLineToArgvW != NULL) {
+        wArgv = pCommandLineToArgvW(GetCommandLineW(), &wArgc);
+    }
+
+    if (wArgv == NULL) {
+        if (freeShell32) FreeLibrary(hShell32);
+        return real_main(argCount, argv);
+    }
+
+    utf8Argv = (char**)calloc((size_t)wArgc + 1, sizeof(char*));
+    if (utf8Argv == NULL) {
+        LocalFree(wArgv);
+        if (freeShell32) FreeLibrary(hShell32);
+        return real_main(argCount, argv);
+    }
+
+    for (i = 0; i < wArgc; ++i) {
+        int const utf8Len = WideCharToMultiByte(CP_UTF8, 0, wArgv[i], -1, NULL, 0, NULL, NULL);
+        if (utf8Len > 0) {
+            utf8Argv[i] = (char*)malloc((size_t)utf8Len);
+            if (utf8Argv[i] != NULL) {
+                WideCharToMultiByte(CP_UTF8, 0, wArgv[i], -1, utf8Argv[i], utf8Len, NULL, NULL);
+            }
+        }
+    }
+
+    res = real_main(wArgc, (const char**)utf8Argv);
+
+    for (i = 0; i < wArgc; ++i) {
+        free(utf8Argv[i]);
+    }
+    free(utf8Argv);
+    LocalFree(wArgv);
+    if (freeShell32) FreeLibrary(hShell32);
+
+    return res;
+}
+#endif

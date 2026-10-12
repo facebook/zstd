@@ -134,7 +134,7 @@ static int DiB_loadFiles(
             continue;
         }
 
-        f = fopen( fileNamesTable[fileIndex], "rb");
+        f = UTIL_fopen( fileNamesTable[fileIndex], "rb");
         if (f == NULL)
             EXM_THROW(10, "zstd: dictBuilder: %s %s ", fileNamesTable[fileIndex], strerror(errno));
         DISPLAYUPDATE(2, "Loading %s...       \r", fileNamesTable[fileIndex]);
@@ -247,7 +247,7 @@ static void DiB_fillNoise(void* buffer, size_t length)
 static void DiB_saveDict(const char* dictFileName,
                          const void* buff, size_t buffSize)
 {
-    FILE* const f = fopen(dictFileName, "wb");
+    FILE* const f = UTIL_fopen(dictFileName, "wb");
     if (f==NULL) EXM_THROW(3, "cannot open %s ", dictFileName);
 
     { size_t const n = fwrite(buff, 1, buffSize, f);

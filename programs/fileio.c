@@ -2684,6 +2684,27 @@ FIO_zstdErrorHelp(const FIO_prefs_t* const prefs,
                     srcFileName, ZSTD_WINDOWLOG_MAX);
 }
 
+/* FIO_isCorruptionError() :
+ * @return : 1 if the decoding error says that the archive is damaged,
+ *           0 for errors that do not (memory limit, dictionary mismatch, ...) */
+static int FIO_isCorruptionError(size_t const err)
+{
+    ZSTD_ErrorCode const code = ZSTD_getErrorCode(err);
+    return (code == ZSTD_error_corruption_detected)
+        || (code == ZSTD_error_checksum_wrong)
+        || (code == ZSTD_error_literals_headerWrong)
+        || (code == ZSTD_error_srcSize_wrong);
+}
+
+/* FIO_displayCorruptedArchive() :
+ * summary line for a damaged or cut short archive,
+ * so that the user knows how much of the data was decoded before the failure */
+static void FIO_displayCorruptedArchive(const char* srcFileName, U64 nbDecoded)
+{
+    DISPLAYLEVEL(1, "zstd: %s: corrupted or incomplete archive; decoded %llu bytes \n",
+                    srcFileName, (unsigned long long)nbDecoded);
+}
+
 /** FIO_decompressFrame() :
  *  @return : size of decoded zstd frame, or an error code
  */
@@ -2720,6 +2741,8 @@ FIO_decompressZstdFrame(FIO_ctx_t* const fCtx, dRess_t* ress,
             DISPLAYLEVEL(1, "%s : Decoding error (36) : %s \n",
                             srcFileName, ZSTD_getErrorName(readSizeHint));
             FIO_zstdErrorHelp(prefs, ress, readSizeHint, srcFileName);
+            if (FIO_isCorruptionError(readSizeHint))
+                FIO_displayCorruptedArchive(srcFileName, alreadyDecoded + frameSize);
             AIO_WritePool_releaseIoJob(writeJob);
             return FIO_ERROR_FRAME_DECODING;
         }
@@ -2748,6 +2771,7 @@ FIO_decompressZstdFrame(FIO_ctx_t* const fCtx, dRess_t* ress,
                 if (readSize==0) {
                     DISPLAYLEVEL(1, "%s : Read error (39) : premature end \n",
                                  srcFileName);
+                    FIO_displayCorruptedArchive(srcFileName, alreadyDecoded + frameSize);
                     AIO_WritePool_releaseIoJob(writeJob);
                     return FIO_ERROR_FRAME_DECODING;
                 }

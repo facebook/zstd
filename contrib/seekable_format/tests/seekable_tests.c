@@ -45,6 +45,7 @@ static int seekBuffWithTotal(void* opaque, long long offset, int origin)
         break;
     default:
         assert(0);  /* not possible */
+        return -1;
     }
     if (newOffset > buff->size) {
         return -1;

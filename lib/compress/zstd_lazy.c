@@ -1454,8 +1454,21 @@ size_t ZSTD_RowFindBestMatch(
         return ZSTD_HcFindBestMatch(ms, ip, iLimit, offsetPtr, mls, ZSTD_##dictMode); \
     }                                                                                 \
 
+/* On x86-64, the per-call cost of the outlined search (callee-saved register spills, dispatch,
+ * re-deriving constants from ms) measured ~3% of level 6 compression time, so the hot noDict row
+ * search is inlined into the lazy parsers there. Measured neutral on aarch64, so it stays outlined
+ * on other targets, as do the other modes, to limit code size. */
+#if defined(__x86_64__) || defined(_M_X64)
+#define ZSTD_ROW_SEARCH_FN_ATTRS_noDict FORCE_INLINE_ATTR
+#else
+#define ZSTD_ROW_SEARCH_FN_ATTRS_noDict ZSTD_SEARCH_FN_ATTRS
+#endif
+#define ZSTD_ROW_SEARCH_FN_ATTRS_extDict ZSTD_SEARCH_FN_ATTRS
+#define ZSTD_ROW_SEARCH_FN_ATTRS_dictMatchState ZSTD_SEARCH_FN_ATTRS
+#define ZSTD_ROW_SEARCH_FN_ATTRS_dedicatedDictSearch ZSTD_SEARCH_FN_ATTRS
+
 #define GEN_ZSTD_ROW_SEARCH_FN(dictMode, mls, rowLog)                                          \
-    ZSTD_SEARCH_FN_ATTRS size_t ZSTD_ROW_SEARCH_FN(dictMode, mls, rowLog)(                     \
+    ZSTD_ROW_SEARCH_FN_ATTRS_##dictMode size_t ZSTD_ROW_SEARCH_FN(dictMode, mls, rowLog)(      \
             ZSTD_MatchState_t* ms,                                                             \
             const BYTE* ip, const BYTE* const iLimit,                                          \
             size_t* offsetPtr)                                                                 \

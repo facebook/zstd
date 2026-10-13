@@ -517,6 +517,7 @@ struct FIO_ctx_s {
     int nbFilesProcessed;
     size_t totalBytesInput;
     size_t totalBytesOutput;
+    int trailingDataIgnored;  /* set when the current input had trailing data after its last frame */
 };
 
 static int FIO_shouldDisplayFileSummary(FIO_ctx_t const* fCtx)
@@ -2997,6 +2998,9 @@ static int FIO_decompressFrames(FIO_ctx_t* const fCtx,
     for ( ; ; ) {
         /* check magic number -> version */
         size_t const toRead = 4;
+        /* readSomething is only set by a previous iteration, which then decoded a frame successfully
+         * (any failure returns). Data that is not a frame after that is trailing data. */
+        unsigned const afterFrame = readSomething;
         const BYTE* buf;
         AIO_ReadPool_fillBuffer(ress.readCtx, toRead);
         buf = (const BYTE*)ress.readCtx->srcBuffer;
@@ -3011,6 +3015,11 @@ static int FIO_decompressFrames(FIO_ctx_t* const fCtx,
         if (ress.readCtx->srcBufferLoaded < toRead) { /* not enough input to check magic number */
             if (passThrough) {
                 return FIO_passThrough(&ress);
+            }
+            if (afterFrame) {
+                DISPLAYLEVEL(1, "zstd: WARNING: %s: trailing data after the last frame is ignored \n", srcFileName);
+                fCtx->trailingDataIgnored = 1;
+                break;
             }
             DISPLAYLEVEL(1, "zstd: %s: unknown header \n", srcFileName);
             return 1;
@@ -3049,6 +3058,11 @@ static int FIO_decompressFrames(FIO_ctx_t* const fCtx,
 #endif
         } else if (passThrough) {
             return FIO_passThrough(&ress);
+        } else if (afterFrame) {
+            /* level 1, not 2: writing to stdout lowers the display level to 1, and the user must still be told */
+            DISPLAYLEVEL(1, "zstd: WARNING: %s: trailing data after the last frame is ignored \n", srcFileName);
+            fCtx->trailingDataIgnored = 1;
+            break;
         } else {
             DISPLAYLEVEL(1, "zstd: %s: unsupported format \n", srcFileName);
             return 1;
@@ -3167,6 +3181,7 @@ static int FIO_decompressSrcFile(FIO_ctx_t* const fCtx, FIO_prefs_t* const prefs
 
     AIO_ReadPool_setFile(ress.readCtx, srcFile);
 
+    fCtx->trailingDataIgnored = 0;
     result = FIO_decompressDstFile(fCtx, prefs, ress, dstFileName, srcFileName, &srcFileStat);
 
     AIO_ReadPool_setFile(ress.readCtx, NULL);
@@ -3178,6 +3193,7 @@ static int FIO_decompressSrcFile(FIO_ctx_t* const fCtx, FIO_prefs_t* const prefs
     }
     if ( prefs->removeSrcFile  /* --rm */
       && (result==0)      /* decompression successful */
+      && !fCtx->trailingDataIgnored  /* the input was not entirely decoded */
       && strcmp(srcFileName, stdinmark) ) /* not stdin */ {
         /* We must clear the handler, since after this point calling it would
          * delete both the source and destination files.

@@ -2719,6 +2719,52 @@ static void ZSTD_reduceIndex (ZSTD_MatchState_t* ms, ZSTD_CCtx_params const* par
 
 /* See doc/zstd_compression_format.md for detailed format description */
 
+#if defined(ZSTD_ARCH_ARM_NEON)
+/* ZSTD_seqToCodes_8():
+ * Vectorized equivalent of the scalar loop in ZSTD_seqToCodes() for 8 sequences.
+ * Small lengths are coded by counting the code thresholds they reach, which matches
+ * the LL_Code[] / ML_Code[] tables of ZSTD_LLcode() / ZSTD_MLcode():
+ *   LL : ll < 16 ? ll : ll < 64  ? 16 + #{18,20,22,24,28,32,40,48 <= ll}         : highbit(ll) + 19
+ *   ML : ml < 32 ? ml : ml < 128 ? 32 + #{34,36,38,40,44,48,56,64,80,96 <= ml}   : highbit(ml) + 36
+ * Requires a little-endian 64-bit target (longOffsets can't happen there).
+ * NEON only: an SSE2 version measured slower than the scalar loop on x86 (no vector lzcnt, 4 lanes). */
+
+/* adds 1 to acc for each lane where x >= t */
+#define ZSTD_COUNT_GE(acc, x, t) acc = vsubq_u16(acc, vcgeq_u16(x, vdupq_n_u16(t)))
+
+FORCE_INLINE_TEMPLATE void
+ZSTD_seqToCodes_8(const SeqDef* seqs, BYTE* llCode, BYTE* ofCode, BYTE* mlCode)
+{
+    /* de-interleave: offBase low half, offBase high half, litLength, mlBase */
+    uint16x8x4_t const s = vld4q_u16((const U16*)(const void*)seqs);
+    uint16x8_t const ll = s.val[2];
+    uint16x8_t const ml = s.val[3];
+
+    {   /* offBase != 0, so if the high half is zero the low half is not */
+        uint16x8_t const hbLo = vsubq_u16(vdupq_n_u16(15), vclzq_u16(s.val[0]));
+        uint16x8_t const hbHi = vsubq_u16(vdupq_n_u16(31), vclzq_u16(s.val[1]));
+        vst1_u8(ofCode, vmovn_u16(vbslq_u16(vtstq_u16(s.val[1], s.val[1]), hbHi, hbLo)));
+    }
+    {   uint16x8_t mid = vdupq_n_u16(16);
+        uint16x8_t const big = vsubq_u16(vdupq_n_u16(15 + 19), vclzq_u16(ll));
+        ZSTD_COUNT_GE(mid, ll, 18); ZSTD_COUNT_GE(mid, ll, 20); ZSTD_COUNT_GE(mid, ll, 22); ZSTD_COUNT_GE(mid, ll, 24);
+        ZSTD_COUNT_GE(mid, ll, 28); ZSTD_COUNT_GE(mid, ll, 32); ZSTD_COUNT_GE(mid, ll, 40); ZSTD_COUNT_GE(mid, ll, 48);
+        vst1_u8(llCode, vmovn_u16(vbslq_u16(vcltq_u16(ll, vdupq_n_u16(16)), ll,
+                                  vbslq_u16(vcltq_u16(ll, vdupq_n_u16(64)), mid, big))));
+    }
+    {   uint16x8_t mid = vdupq_n_u16(32);
+        uint16x8_t const big = vsubq_u16(vdupq_n_u16(15 + 36), vclzq_u16(ml));
+        ZSTD_COUNT_GE(mid, ml, 34); ZSTD_COUNT_GE(mid, ml, 36); ZSTD_COUNT_GE(mid, ml, 38); ZSTD_COUNT_GE(mid, ml, 40);
+        ZSTD_COUNT_GE(mid, ml, 44); ZSTD_COUNT_GE(mid, ml, 48); ZSTD_COUNT_GE(mid, ml, 56); ZSTD_COUNT_GE(mid, ml, 64);
+        ZSTD_COUNT_GE(mid, ml, 80); ZSTD_COUNT_GE(mid, ml, 96);
+        vst1_u8(mlCode, vmovn_u16(vbslq_u16(vcltq_u16(ml, vdupq_n_u16(32)), ml,
+                                  vbslq_u16(vcltq_u16(ml, vdupq_n_u16(128)), mid, big))));
+    }
+}
+#undef ZSTD_COUNT_GE
+
+#endif /* ZSTD_ARCH_ARM_NEON */
+
 int ZSTD_seqToCodes(const SeqStore_t* seqStorePtr)
 {
     const SeqDef* const sequences = seqStorePtr->sequencesStart;
@@ -2726,10 +2772,16 @@ int ZSTD_seqToCodes(const SeqStore_t* seqStorePtr)
     BYTE* const ofCodeTable = seqStorePtr->ofCode;
     BYTE* const mlCodeTable = seqStorePtr->mlCode;
     U32 const nbSeq = (U32)(seqStorePtr->sequences - seqStorePtr->sequencesStart);
-    U32 u;
+    U32 u = 0;
     int longOffsets = 0;
     assert(nbSeq <= seqStorePtr->maxNbSeq);
-    for (u=0; u<nbSeq; u++) {
+#if defined(ZSTD_ARCH_ARM_NEON)
+    if (MEM_64bits() && MEM_isLittleEndian()) {
+        for (; u + 8 <= nbSeq; u += 8)
+            ZSTD_seqToCodes_8(sequences + u, llCodeTable + u, ofCodeTable + u, mlCodeTable + u);
+    }
+#endif
+    for (; u<nbSeq; u++) {
         U32 const llv = sequences[u].litLength;
         U32 const ofCode = ZSTD_highbit32(sequences[u].offBase);
         U32 const mlv = sequences[u].mlBase;

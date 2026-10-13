@@ -791,15 +791,23 @@ MEM_STATIC U32 ZSTD_VecMask_next(ZSTD_VecMask val) {
     return ZSTD_countTrailingZeros64(val);
 }
 
-/* ZSTD_row_nextIndex():
- * Returns the next index to insert at within a tagTable row, and updates the "head"
- * value to reflect the update. Essentially cycles backwards from [1, {entries per row})
+/* ZSTD_row_nextIndexFromHead():
+ * Returns the next index to insert at within a tagTable row, given its current "head"
+ * value (*tagRow), and updates the head. Essentially cycles backwards from [1, {entries per row}).
+ * Indices are size_t so they can be used in addresses without zero-extension.
  */
-FORCE_INLINE_TEMPLATE U32 ZSTD_row_nextIndex(BYTE* const tagRow, U32 const rowMask) {
-    U32 next = (*tagRow-1) & rowMask;
+FORCE_INLINE_TEMPLATE size_t ZSTD_row_nextIndexFromHead(BYTE* const tagRow, size_t const head, U32 const rowMask) {
+    size_t next = (head - 1) & rowMask;
     next += (next == 0) ? rowMask : 0; /* skip first position */
     *tagRow = (BYTE)next;
     return next;
+}
+
+/* ZSTD_row_nextIndex():
+ * Same as ZSTD_row_nextIndexFromHead(), reading the head from the row.
+ */
+FORCE_INLINE_TEMPLATE size_t ZSTD_row_nextIndex(BYTE* const tagRow, U32 const rowMask) {
+    return ZSTD_row_nextIndexFromHead(tagRow, *tagRow, rowMask);
 }
 
 /* ZSTD_isAligned():
@@ -889,19 +897,22 @@ void ZSTD_row_update_internalImpl(ZSTD_MatchState_t* ms,
 {
     U32* const hashTable = ms->hashTable;
     BYTE* const tagTable = ms->tagTable;
+    U32* const hashCache = ms->hashCache;
     U32 const hashLog = ms->rowHashLog;
     const BYTE* const base = ms->window.base;
+    /* Read once: the BYTE stores into tagTable below may alias *ms, which would force a reload per position */
+    U64 const hashSalt = ms->hashSalt;
 
     DEBUGLOG(6, "ZSTD_row_update_internalImpl(): updateStartIdx=%u, updateEndIdx=%u", updateStartIdx, updateEndIdx);
     for (; updateStartIdx < updateEndIdx; ++updateStartIdx) {
-        U32 const hash = useCache ? ZSTD_row_nextCachedHash(ms->hashCache, hashTable, tagTable, base, updateStartIdx, hashLog, rowLog, mls, ms->hashSalt)
-                                  : (U32)ZSTD_hashPtrSalted(base + updateStartIdx, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls, ms->hashSalt);
-        U32 const relRow = (hash >> ZSTD_ROW_HASH_TAG_BITS) << rowLog;
+        U32 const hash = useCache ? ZSTD_row_nextCachedHash(hashCache, hashTable, tagTable, base, updateStartIdx, hashLog, rowLog, mls, hashSalt)
+                                  : (U32)ZSTD_hashPtrSalted(base + updateStartIdx, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls, hashSalt);
+        size_t const relRow = (size_t)(hash >> ZSTD_ROW_HASH_TAG_BITS) << rowLog;
         U32* const row = hashTable + relRow;
         BYTE* tagRow = tagTable + relRow;
-        U32 const pos = ZSTD_row_nextIndex(tagRow, rowMask);
+        size_t const pos = ZSTD_row_nextIndex(tagRow, rowMask);
 
-        assert(hash == ZSTD_hashPtrSalted(base + updateStartIdx, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls, ms->hashSalt));
+        assert(hash == ZSTD_hashPtrSalted(base + updateStartIdx, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls, hashSalt));
         tagRow[pos] = hash & ZSTD_ROW_HASH_TAG_MASK;
         row[pos] = updateStartIdx;
     }
@@ -1165,6 +1176,18 @@ ZSTD_row_getMatchMask(const BYTE* const tagRow, const BYTE tag, const U32 headGr
 #endif
 }
 
+/* ZSTD_row_maskOutHead():
+ * Slot 0 of a row holds the row's head index rather than an entry, so it is never a candidate.
+ * Clears its bit group from a mask returned by ZSTD_row_getMatchMask() (which is rotated by
+ * head * groupWidth), so the candidate loops don't need to test for it on every tag hit. */
+FORCE_INLINE_TEMPLATE ZSTD_VecMask
+ZSTD_row_maskOutHead(ZSTD_VecMask matches, U32 const head, U32 const rowEntries, U32 const groupWidth)
+{
+    U32 const headSlotBit = ((rowEntries - head) & (rowEntries - 1)) * groupWidth;
+    assert(headSlotBit + groupWidth <= sizeof(ZSTD_VecMask) * 8);
+    return matches & ~((((ZSTD_VecMask)1 << groupWidth) - 1) << headSlotBit);
+}
+
 /* The high-level approach of the SIMD row based match finder is as follows:
  * - Figure out where to insert the new entry:
  *      - Generate a hash for current input position and split it into a one byte of tag and `rowHashLog` bits of index.
@@ -1259,21 +1282,23 @@ size_t ZSTD_RowFindBestMatch(
     ms->hashSaltEntropy += hash; /* collect salt entropy */
 
     {   /* Get the hash for ip, compute the appropriate row */
-        U32 const relRow = (hash >> ZSTD_ROW_HASH_TAG_BITS) << rowLog;
+        size_t const relRow = (size_t)(hash >> ZSTD_ROW_HASH_TAG_BITS) << rowLog;
         U32 const tag = hash & ZSTD_ROW_HASH_TAG_MASK;
         U32* const row = hashTable + relRow;
         BYTE* tagRow = (BYTE*)(tagTable + relRow);
-        U32 const headGrouped = (*tagRow & rowMask) * groupWidth;
+        U32 const head = *tagRow & rowMask;
+        U32 const headGrouped = head * groupWidth;
         U32 matchBuffer[ZSTD_ROW_HASH_MAX_ENTRIES];
         size_t numMatches = 0;
         size_t currMatch = 0;
-        ZSTD_VecMask matches = ZSTD_row_getMatchMask(tagRow, (BYTE)tag, headGrouped, rowEntries);
+        ZSTD_VecMask matches = ZSTD_row_maskOutHead(
+                ZSTD_row_getMatchMask(tagRow, (BYTE)tag, headGrouped, rowEntries), head, rowEntries, groupWidth);
 
         /* Cycle through the matches and prefetch */
         for (; (matches > 0) && (nbAttempts > 0); matches &= (matches - 1)) {
             U32 const matchPos = ((headGrouped + ZSTD_VecMask_next(matches)) / groupWidth) & rowMask;
             U32 const matchIndex = row[matchPos];
-            if(matchPos == 0) continue;
+            assert(matchPos != 0);
             assert(numMatches < rowEntries);
             if (matchIndex < lowLimit)
                 break;
@@ -1289,7 +1314,8 @@ size_t ZSTD_RowFindBestMatch(
         /* Speed opt: insert current byte into hashtable too. This allows us to avoid one iteration of the loop
            in ZSTD_row_update_internal() at the next search. */
         {
-            U32 const pos = ZSTD_row_nextIndex(tagRow, rowMask);
+            /* nothing above wrote to tagRow, so the head is still the one the mask was built from */
+            size_t const pos = ZSTD_row_nextIndexFromHead(tagRow, head, rowMask);
             tagRow[pos] = (BYTE)tag;
             row[pos] = ms->nextToUpdate++;
         }
@@ -1306,7 +1332,7 @@ size_t ZSTD_RowFindBestMatch(
                 assert(matchIndex >= dictLimit);   /* ensures this is true if dictMode != ZSTD_extDict */
                 /* read 4B starting from (match + ml + 1 - sizeof(U32)) */
                 if (MEM_read32(match + ml - 3) == MEM_read32(ip + ml - 3))   /* potentially better */
-                    currentMl = ZSTD_count(ip, match, iLimit);
+                    currentMl = ZSTD_countShort(ip, match, iLimit);
             } else {
                 const BYTE* const match = dictBase + matchIndex;
                 assert(match+4 <= dictEnd);
@@ -1335,16 +1361,18 @@ size_t ZSTD_RowFindBestMatch(
         const U32 dmsSize              = (U32)(dmsEnd - dmsBase);
         const U32 dmsIndexDelta        = dictLimit - dmsSize;
 
-        {   U32 const headGrouped = (*dmsTagRow & rowMask) * groupWidth;
+        {   U32 const head = *dmsTagRow & rowMask;
+            U32 const headGrouped = head * groupWidth;
             U32 matchBuffer[ZSTD_ROW_HASH_MAX_ENTRIES];
             size_t numMatches = 0;
             size_t currMatch = 0;
-            ZSTD_VecMask matches = ZSTD_row_getMatchMask(dmsTagRow, (BYTE)dmsTag, headGrouped, rowEntries);
+            ZSTD_VecMask matches = ZSTD_row_maskOutHead(
+                    ZSTD_row_getMatchMask(dmsTagRow, (BYTE)dmsTag, headGrouped, rowEntries), head, rowEntries, groupWidth);
 
             for (; (matches > 0) && (nbAttempts > 0); matches &= (matches - 1)) {
                 U32 const matchPos = ((headGrouped + ZSTD_VecMask_next(matches)) / groupWidth) & rowMask;
                 U32 const matchIndex = dmsRow[matchPos];
-                if(matchPos == 0) continue;
+                assert(matchPos != 0);
                 if (matchIndex < dmsLowestIndex)
                     break;
                 PREFETCH_L1(dmsBase + matchIndex);
@@ -1426,8 +1454,21 @@ size_t ZSTD_RowFindBestMatch(
         return ZSTD_HcFindBestMatch(ms, ip, iLimit, offsetPtr, mls, ZSTD_##dictMode); \
     }                                                                                 \
 
+/* On x86-64, the per-call cost of the outlined search (callee-saved register spills, dispatch,
+ * re-deriving constants from ms) measured ~3% of level 6 compression time, so the hot noDict row
+ * search is inlined into the lazy parsers there. Measured neutral on aarch64, so it stays outlined
+ * on other targets, as do the other modes, to limit code size. */
+#if defined(__x86_64__) || defined(_M_X64)
+#define ZSTD_ROW_SEARCH_FN_ATTRS_noDict FORCE_INLINE_ATTR
+#else
+#define ZSTD_ROW_SEARCH_FN_ATTRS_noDict ZSTD_SEARCH_FN_ATTRS
+#endif
+#define ZSTD_ROW_SEARCH_FN_ATTRS_extDict ZSTD_SEARCH_FN_ATTRS
+#define ZSTD_ROW_SEARCH_FN_ATTRS_dictMatchState ZSTD_SEARCH_FN_ATTRS
+#define ZSTD_ROW_SEARCH_FN_ATTRS_dedicatedDictSearch ZSTD_SEARCH_FN_ATTRS
+
 #define GEN_ZSTD_ROW_SEARCH_FN(dictMode, mls, rowLog)                                          \
-    ZSTD_SEARCH_FN_ATTRS size_t ZSTD_ROW_SEARCH_FN(dictMode, mls, rowLog)(                     \
+    ZSTD_ROW_SEARCH_FN_ATTRS_##dictMode size_t ZSTD_ROW_SEARCH_FN(dictMode, mls, rowLog)(      \
             ZSTD_MatchState_t* ms,                                                             \
             const BYTE* ip, const BYTE* const iLimit,                                          \
             size_t* offsetPtr)                                                                 \

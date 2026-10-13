@@ -791,15 +791,23 @@ MEM_STATIC U32 ZSTD_VecMask_next(ZSTD_VecMask val) {
     return ZSTD_countTrailingZeros64(val);
 }
 
-/* ZSTD_row_nextIndex():
- * Returns the next index to insert at within a tagTable row, and updates the "head"
- * value to reflect the update. Essentially cycles backwards from [1, {entries per row})
+/* ZSTD_row_nextIndexFromHead():
+ * Returns the next index to insert at within a tagTable row, given its current "head"
+ * value (*tagRow), and updates the head. Essentially cycles backwards from [1, {entries per row}).
+ * Indices are size_t so they can be used in addresses without zero-extension.
  */
-FORCE_INLINE_TEMPLATE U32 ZSTD_row_nextIndex(BYTE* const tagRow, U32 const rowMask) {
-    U32 next = (*tagRow-1) & rowMask;
+FORCE_INLINE_TEMPLATE size_t ZSTD_row_nextIndexFromHead(BYTE* const tagRow, size_t const head, U32 const rowMask) {
+    size_t next = (head - 1) & rowMask;
     next += (next == 0) ? rowMask : 0; /* skip first position */
     *tagRow = (BYTE)next;
     return next;
+}
+
+/* ZSTD_row_nextIndex():
+ * Same as ZSTD_row_nextIndexFromHead(), reading the head from the row.
+ */
+FORCE_INLINE_TEMPLATE size_t ZSTD_row_nextIndex(BYTE* const tagRow, U32 const rowMask) {
+    return ZSTD_row_nextIndexFromHead(tagRow, *tagRow, rowMask);
 }
 
 /* ZSTD_isAligned():
@@ -889,19 +897,22 @@ void ZSTD_row_update_internalImpl(ZSTD_MatchState_t* ms,
 {
     U32* const hashTable = ms->hashTable;
     BYTE* const tagTable = ms->tagTable;
+    U32* const hashCache = ms->hashCache;
     U32 const hashLog = ms->rowHashLog;
     const BYTE* const base = ms->window.base;
+    /* Read once: the BYTE stores into tagTable below may alias *ms, which would force a reload per position */
+    U64 const hashSalt = ms->hashSalt;
 
     DEBUGLOG(6, "ZSTD_row_update_internalImpl(): updateStartIdx=%u, updateEndIdx=%u", updateStartIdx, updateEndIdx);
     for (; updateStartIdx < updateEndIdx; ++updateStartIdx) {
-        U32 const hash = useCache ? ZSTD_row_nextCachedHash(ms->hashCache, hashTable, tagTable, base, updateStartIdx, hashLog, rowLog, mls, ms->hashSalt)
-                                  : (U32)ZSTD_hashPtrSalted(base + updateStartIdx, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls, ms->hashSalt);
-        U32 const relRow = (hash >> ZSTD_ROW_HASH_TAG_BITS) << rowLog;
+        U32 const hash = useCache ? ZSTD_row_nextCachedHash(hashCache, hashTable, tagTable, base, updateStartIdx, hashLog, rowLog, mls, hashSalt)
+                                  : (U32)ZSTD_hashPtrSalted(base + updateStartIdx, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls, hashSalt);
+        size_t const relRow = (size_t)(hash >> ZSTD_ROW_HASH_TAG_BITS) << rowLog;
         U32* const row = hashTable + relRow;
         BYTE* tagRow = tagTable + relRow;
-        U32 const pos = ZSTD_row_nextIndex(tagRow, rowMask);
+        size_t const pos = ZSTD_row_nextIndex(tagRow, rowMask);
 
-        assert(hash == ZSTD_hashPtrSalted(base + updateStartIdx, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls, ms->hashSalt));
+        assert(hash == ZSTD_hashPtrSalted(base + updateStartIdx, hashLog + ZSTD_ROW_HASH_TAG_BITS, mls, hashSalt));
         tagRow[pos] = hash & ZSTD_ROW_HASH_TAG_MASK;
         row[pos] = updateStartIdx;
     }
@@ -1271,7 +1282,7 @@ size_t ZSTD_RowFindBestMatch(
     ms->hashSaltEntropy += hash; /* collect salt entropy */
 
     {   /* Get the hash for ip, compute the appropriate row */
-        U32 const relRow = (hash >> ZSTD_ROW_HASH_TAG_BITS) << rowLog;
+        size_t const relRow = (size_t)(hash >> ZSTD_ROW_HASH_TAG_BITS) << rowLog;
         U32 const tag = hash & ZSTD_ROW_HASH_TAG_MASK;
         U32* const row = hashTable + relRow;
         BYTE* tagRow = (BYTE*)(tagTable + relRow);
@@ -1303,7 +1314,8 @@ size_t ZSTD_RowFindBestMatch(
         /* Speed opt: insert current byte into hashtable too. This allows us to avoid one iteration of the loop
            in ZSTD_row_update_internal() at the next search. */
         {
-            U32 const pos = ZSTD_row_nextIndex(tagRow, rowMask);
+            /* nothing above wrote to tagRow, so the head is still the one the mask was built from */
+            size_t const pos = ZSTD_row_nextIndexFromHead(tagRow, head, rowMask);
             tagRow[pos] = (BYTE)tag;
             row[pos] = ms->nextToUpdate++;
         }

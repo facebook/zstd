@@ -1165,6 +1165,18 @@ ZSTD_row_getMatchMask(const BYTE* const tagRow, const BYTE tag, const U32 headGr
 #endif
 }
 
+/* ZSTD_row_maskOutHead():
+ * Slot 0 of a row holds the row's head index rather than an entry, so it is never a candidate.
+ * Clears its bit group from a mask returned by ZSTD_row_getMatchMask() (which is rotated by
+ * head * groupWidth), so the candidate loops don't need to test for it on every tag hit. */
+FORCE_INLINE_TEMPLATE ZSTD_VecMask
+ZSTD_row_maskOutHead(ZSTD_VecMask matches, U32 const head, U32 const rowEntries, U32 const groupWidth)
+{
+    U32 const headSlotBit = ((rowEntries - head) & (rowEntries - 1)) * groupWidth;
+    assert(headSlotBit + groupWidth <= sizeof(ZSTD_VecMask) * 8);
+    return matches & ~((((ZSTD_VecMask)1 << groupWidth) - 1) << headSlotBit);
+}
+
 /* The high-level approach of the SIMD row based match finder is as follows:
  * - Figure out where to insert the new entry:
  *      - Generate a hash for current input position and split it into a one byte of tag and `rowHashLog` bits of index.
@@ -1263,17 +1275,19 @@ size_t ZSTD_RowFindBestMatch(
         U32 const tag = hash & ZSTD_ROW_HASH_TAG_MASK;
         U32* const row = hashTable + relRow;
         BYTE* tagRow = (BYTE*)(tagTable + relRow);
-        U32 const headGrouped = (*tagRow & rowMask) * groupWidth;
+        U32 const head = *tagRow & rowMask;
+        U32 const headGrouped = head * groupWidth;
         U32 matchBuffer[ZSTD_ROW_HASH_MAX_ENTRIES];
         size_t numMatches = 0;
         size_t currMatch = 0;
-        ZSTD_VecMask matches = ZSTD_row_getMatchMask(tagRow, (BYTE)tag, headGrouped, rowEntries);
+        ZSTD_VecMask matches = ZSTD_row_maskOutHead(
+                ZSTD_row_getMatchMask(tagRow, (BYTE)tag, headGrouped, rowEntries), head, rowEntries, groupWidth);
 
         /* Cycle through the matches and prefetch */
         for (; (matches > 0) && (nbAttempts > 0); matches &= (matches - 1)) {
             U32 const matchPos = ((headGrouped + ZSTD_VecMask_next(matches)) / groupWidth) & rowMask;
             U32 const matchIndex = row[matchPos];
-            if(matchPos == 0) continue;
+            assert(matchPos != 0);
             assert(numMatches < rowEntries);
             if (matchIndex < lowLimit)
                 break;
@@ -1335,16 +1349,18 @@ size_t ZSTD_RowFindBestMatch(
         const U32 dmsSize              = (U32)(dmsEnd - dmsBase);
         const U32 dmsIndexDelta        = dictLimit - dmsSize;
 
-        {   U32 const headGrouped = (*dmsTagRow & rowMask) * groupWidth;
+        {   U32 const head = *dmsTagRow & rowMask;
+            U32 const headGrouped = head * groupWidth;
             U32 matchBuffer[ZSTD_ROW_HASH_MAX_ENTRIES];
             size_t numMatches = 0;
             size_t currMatch = 0;
-            ZSTD_VecMask matches = ZSTD_row_getMatchMask(dmsTagRow, (BYTE)dmsTag, headGrouped, rowEntries);
+            ZSTD_VecMask matches = ZSTD_row_maskOutHead(
+                    ZSTD_row_getMatchMask(dmsTagRow, (BYTE)dmsTag, headGrouped, rowEntries), head, rowEntries, groupWidth);
 
             for (; (matches > 0) && (nbAttempts > 0); matches &= (matches - 1)) {
                 U32 const matchPos = ((headGrouped + ZSTD_VecMask_next(matches)) / groupWidth) & rowMask;
                 U32 const matchIndex = dmsRow[matchPos];
-                if(matchPos == 0) continue;
+                assert(matchPos != 0);
                 if (matchIndex < dmsLowestIndex)
                     break;
                 PREFETCH_L1(dmsBase + matchIndex);

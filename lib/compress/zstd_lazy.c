@@ -1332,7 +1332,7 @@ size_t ZSTD_RowFindBestMatch(
                 assert(matchIndex >= dictLimit);   /* ensures this is true if dictMode != ZSTD_extDict */
                 /* read 4B starting from (match + ml + 1 - sizeof(U32)) */
                 if (MEM_read32(match + ml - 3) == MEM_read32(ip + ml - 3))   /* potentially better */
-                    currentMl = ZSTD_count(ip, match, iLimit);
+                    currentMl = ZSTD_countShort(ip, match, iLimit);
             } else {
                 const BYTE* const match = dictBase + matchIndex;
                 assert(match+4 <= dictEnd);

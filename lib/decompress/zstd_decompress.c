@@ -1947,6 +1947,10 @@ size_t ZSTD_DCtx_reset(ZSTD_DCtx* dctx, ZSTD_ResetDirective reset)
 {
     if ( (reset == ZSTD_reset_session_only)
       || (reset == ZSTD_reset_session_and_parameters) ) {
+        /* A prefix is only used once : if a frame was started, it is abandoned now,
+         * so the prefix must not leak into the next frame */
+        if (dctx->streamStage != zdss_init && dctx->dictUses == ZSTD_use_once)
+            ZSTD_clearDict(dctx);
         dctx->streamStage = zdss_init;
         dctx->noForwardProgress = 0;
         dctx->isFrameDecompression = 1;

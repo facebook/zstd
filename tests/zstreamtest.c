@@ -1406,6 +1406,39 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
         DISPLAYLEVEL(3, "OK (%s)\n", ZSTD_getErrorName(r));
     }
 
+    DISPLAYLEVEL(3, "test%3i : prefix is dropped by session reset after a rejected frame header : ", testNb++);
+    {   BYTE const badHeader[6] = { 0x28, 0xB5, 0x2F, 0xFD, 0x08, 0x00 };  /* reserved bit set */
+        CHECK_Z( ZSTD_DCtx_refPrefix(zd, dictionary.start, dictionary.filled) );
+        outBuff.dst = decodedBuffer;
+        outBuff.size = CNBufferSize;
+        outBuff.pos = 0;
+        inBuff.src = badHeader;
+        inBuff.size = sizeof(badHeader);
+        inBuff.pos = 0;
+        if (!ZSTD_isError(ZSTD_decompressStream(zd, &outBuff, &inBuff))) goto _output_error;
+        CHECK_Z( ZSTD_DCtx_reset(zd, ZSTD_reset_session_only) );
+        outBuff.pos = 0;
+        inBuff.src = compressedBuffer;
+        inBuff.size = cSize;
+        inBuff.pos = 0;
+        if (!ZSTD_isError(ZSTD_decompressStream(zd, &outBuff, &inBuff))) goto _output_error;  /* prefix must be gone */
+        CHECK_Z( ZSTD_DCtx_reset(zd, ZSTD_reset_session_only) );
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : prefix survives session reset before any input : ", testNb++);
+    CHECK_Z( ZSTD_DCtx_refPrefix(zd, dictionary.start, dictionary.filled) );
+    CHECK_Z( ZSTD_DCtx_reset(zd, ZSTD_reset_session_only) );
+    outBuff.dst = decodedBuffer;
+    outBuff.size = CNBufferSize;
+    outBuff.pos = 0;
+    inBuff.src = compressedBuffer;
+    inBuff.size = cSize;
+    inBuff.pos = 0;
+    CHECK_Z( ZSTD_decompressStream(zd, &outBuff, &inBuff) );
+    if (outBuff.pos != CNBufferSize) goto _output_error;  /* must regenerate whole input */
+    DISPLAYLEVEL(3, "OK \n");
+
     DISPLAYLEVEL(3, "test%3i : compress again with ZSTD_compressStream2 : ", testNb++);
     outBuff.dst = compressedBuffer;
     outBuff.size = compressedBufferSize;

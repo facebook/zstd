@@ -108,7 +108,7 @@ Display information related to a zstd compressed file, such as size, ratio, and 
 \fB\-\-fast[=#]\fR: switch to ultra\-fast compression levels\. If \fB=#\fR is not present, it defaults to \fB1\fR\. The higher the value, the faster the compression speed, at the cost of some compression ratio\. This setting overwrites compression level if one was set previously\. Similarly, if a compression level is set after \fB\-\-fast\fR, it overrides it\.
 .
 .IP "\(bu" 4
-\fB\-T#\fR, \fB\-\-threads=#\fR: Compress using \fB#\fR working threads (default: between 1 and 4 depending on physical CPU cores; see \fBZSTD_NBTHREADS\fR below)\. If \fB#\fR is 0, attempt to detect and use the number of physical CPU cores\. In all cases, the nb of threads is capped to \fBZSTDMT_NBWORKERS_MAX\fR, which is either 64 in 32\-bit mode, or 256 for 64\-bit environments\. This modifier does nothing if \fBzstd\fR is compiled without multithread support\.
+\fB\-T#\fR, \fB\-\-threads=#\fR: Compress using \fB#\fR working threads (default: between 1 and 4 depending on the number of logical CPU cores; see \fBZSTD_NBTHREADS\fR below)\. If \fB#\fR is 0, attempt to detect and use the number of physical CPU cores\. In all cases, the nb of threads is capped to \fBZSTDMT_NBWORKERS_MAX\fR, which is either 64 in 32\-bit mode, or 256 for 64\-bit environments\. This modifier does nothing if \fBzstd\fR is compiled without multithread support\.
 .
 .IP "\(bu" 4
 \fB\-\-single\-thread\fR: Use a single thread for both I/O and compression\. As compression is serialized with I/O, this can be slightly slower\. Single\-thread mode features significantly lower memory usage, which can be useful for systems with limited amount of memory, such as 32\-bit systems\.
@@ -268,7 +268,7 @@ Employing environment variables to set parameters has security implications\. Th
 \fBZSTD_CLEVEL\fR can be used to set the level between 1 and 19 (the "normal" range)\. If the value of \fBZSTD_CLEVEL\fR is not a valid integer, it will be ignored with a warning message\. \fBZSTD_CLEVEL\fR just replaces the default compression level (\fB3\fR)\.
 .
 .P
-\fBZSTD_NBTHREADS\fR can be used to set the number of threads \fBzstd\fR will attempt to use during compression\. If the value of \fBZSTD_NBTHREADS\fR is not a valid unsigned integer, it will be ignored with a warning message\. \fBZSTD_NBTHREADS\fR has a default value of \fBmax(1, min(4, nbCores/4))\fR, and is capped at ZSTDMT_NBWORKERS_MAX==200\. \fBzstd\fR must be compiled with multithread support for this variable to have any effect\.
+\fBZSTD_NBTHREADS\fR can be used to set the number of threads \fBzstd\fR will attempt to use during compression\. If the value of \fBZSTD_NBTHREADS\fR is not a valid unsigned integer, it will be ignored with a warning message\. \fBZSTD_NBTHREADS\fR has a default value of \fBmax(1, min(4, nbLogicalCores/4))\fR, and is capped at \fBZSTDMT_NBWORKERS_MAX\fR, which is either 64 in 32\-bit mode, or 256 for 64\-bit environments\. \fBzstd\fR must be compiled with multithread support for this variable to have any effect\.
 .
 .P
 They can both be overridden by corresponding command line arguments: \fB\-#\fR for compression level and \fB\-T#\fR for number of compression threads\.
@@ -530,7 +530,7 @@ The \fBzstd\fR CLI provides a benchmarking mode that can be used to easily find 
 It\'s possible to pass multiple files to the benchmark, and even a directory with \fB\-r DIRECTORY\fR\. When no \fBFILE\fR is provided, the benchmark will use a procedurally generated \fBlorem ipsum\fR text\.
 .
 .P
-Benchmarking will employ \fBmax(1, min(4, nbCores/4))\fR worker threads by default in order to match the behavior of the normal CLI I/O\.
+Benchmarking will employ 1 worker thread by default\. Use \fB\-T#\fR to benchmark with more worker threads\.
 .
 .IP "\(bu" 4
 \fB\-b#\fR: benchmark file(s) using compression level #

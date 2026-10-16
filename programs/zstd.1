@@ -140,6 +140,12 @@ Note: If \fBwindowLog\fR is set to larger than 27, \fB\-\-long=windowLog\fR or \
 .IP "\(bu" 4
 \fB\-D DICT\fR: use \fBDICT\fR as Dictionary to compress or decompress FILE(s)
 .
+.IP
+When compressing with a dictionary, keep the content checksum enabled
+(\fB\-\-check\fR, the default) to help decoders detect a mismatched dictionary.
+This only works when the decoder verifies the checksum and is not
+cryptographic.
+.
 .IP "\(bu" 4
 \fB\-\-patch\-from FILE\fR: Specify the file to be used as a reference point for zstd\'s diff engine\. This is effectively dictionary compression with some convenient parameter selection, namely that \fIwindowSize\fR > \fIsrcSize\fR\.
 .

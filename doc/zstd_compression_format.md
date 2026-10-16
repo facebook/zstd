@@ -296,6 +296,14 @@ in which case the frame may or may not need a dictionary to be decoded,
 and the ID of such a dictionary is not specified.
 The decoder must know this information by other means.
 
+`Dictionary_ID` identifies a dictionary but does not verify its contents.
+Different dictionaries can share the same ID, and decoding with the wrong
+dictionary can produce incorrect output. Producers SHOULD include the optional
+`Content_Checksum` in dictionary-compressed frames to help decoders that verify
+it detect incorrect output. Checksums are optional and decoders may ignore them,
+so this is only a partial integrity check; it does not authenticate a dictionary
+or replace an authenticated dictionary-distribution mechanism.
+
 #### `Frame_Content_Size`
 
 This is the original (uncompressed) size. This information is optional.

@@ -126,7 +126,7 @@ the last one takes effect.
     This setting overwrites compression level if one was set previously.
     Similarly, if a compression level is set after `--fast`, it overrides it.
 * `-T#`, `--threads=#`:
-    Compress using `#` working threads (default: between 1 and 4 depending on physical CPU cores; see `ZSTD_NBTHREADS` below).
+    Compress using `#` working threads (default: between 1 and 4 depending on the number of logical CPU cores; see `ZSTD_NBTHREADS` below).
     If `#` is 0, attempt to detect and use the number of physical CPU cores.
     In all cases, the nb of threads is capped to `ZSTDMT_NBWORKERS_MAX`,
     which is either 64 in 32-bit mode, or 256 for 64-bit environments.
@@ -348,7 +348,8 @@ If the value of `ZSTD_CLEVEL` is not a valid integer, it will be ignored with a 
 
 `ZSTD_NBTHREADS` can be used to set the number of threads `zstd` will attempt to use during compression.
 If the value of `ZSTD_NBTHREADS` is not a valid unsigned integer, it will be ignored with a warning message.
-`ZSTD_NBTHREADS` has a default value of `max(1, min(4, nbCores/4))`, and is capped at ZSTDMT_NBWORKERS_MAX==200.
+`ZSTD_NBTHREADS` has a default value of `max(1, min(4, nbLogicalCores/4))`, and is capped at `ZSTDMT_NBWORKERS_MAX`,
+which is either 64 in 32-bit mode, or 256 for 64-bit environments.
 `zstd` must be compiled with multithread support for this variable to have any effect.
 
 They can both be overridden by corresponding command line arguments:
@@ -674,7 +675,7 @@ Note that results are very dependent on the content being compressed.
 It's possible to pass multiple files to the benchmark, and even a directory with `-r DIRECTORY`.
 When no `FILE` is provided, the benchmark will use a procedurally generated `lorem ipsum` text.
 
-Benchmarking will employ `max(1, min(4, nbCores/4))` worker threads by default in order to match the behavior of the normal CLI I/O.
+Benchmarking will employ 1 worker thread by default. Use `-T#` to benchmark with more worker threads.
 
 * `-b#`:
     benchmark file(s) using compression level #

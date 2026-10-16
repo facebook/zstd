@@ -168,6 +168,11 @@ the last one takes effect.
     `--memory=windowSize` needs to be passed to the decompressor.
 * `-D DICT`:
     use `DICT` as Dictionary to compress or decompress FILE(s)
+
+    When compressing with a dictionary, keep the content checksum enabled
+    (`--check`, the default) to help decoders detect a mismatched dictionary.
+    This only works when the decoder verifies the checksum and is not
+    cryptographic.
 * `--patch-from FILE`:
     Specify the file to be used as a reference point for zstd's diff engine.
     This is effectively dictionary compression with some convenient parameter

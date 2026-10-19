@@ -154,7 +154,7 @@ jobs:
   # Uses native ARM64 hardware for optimal performance and compatibility testing
   cmake-macos-arm64:
     name: "CMake macOS ARM64 (Apple Silicon)"
-    runs-on: macos-14  # ARM64 runner
+    runs-on: macos-15  # ARM64 runner
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: "CMake build and test (ARM64)"

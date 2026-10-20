@@ -755,6 +755,11 @@ static void ZSTDMT_compressionJob(void* jobDescription)
         if (ZSTD_isError(hSize)) JOB_ERROR(hSize);
         DEBUGLOG(5, "ZSTDMT_compressionJob: flush and overwrite %u bytes of frame header (not first job)", (U32)hSize);
         ZSTD_invalidateRepCodes(cctx);
+        /* ZSTD_compressBegin() sets isFirstBlock=1 for every job, but only the
+         * frame's first block must skip RLE to stay compatible with decoders
+         * <= v1.4.3. Without this, the first block of each job is emitted as a
+         * regular compressed block instead of an RLE block. */
+        cctx->isFirstBlock = 0;
     }
 
     /* compress the entire job by smaller chunks, for better granularity */

@@ -4325,6 +4325,36 @@ static int basicUnitTests(U32 const seed, double compressibility)
         DISPLAYLEVEL(3, "OK \n");
     }
 
+    /* The RLE guard must only skip the frame's first block, not the first
+     * block of every multithreaded job (issue #4457). */
+    {   size_t const srcSize = 2 MB;
+        size_t const jobSize = 512 KB;
+        size_t singleSize;
+        size_t mtSize;
+        ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        DISPLAYLEVEL(3, "test%3i : RLE detection in multithreaded jobs : ", testNb++);
+        if (cctx == NULL) goto _output_error;
+        memset(CNBuffer, 0, srcSize);
+        CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, 1) );
+        CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 0) );
+        singleSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, srcSize);
+        if (ZSTD_isError(singleSize)) goto _output_error;
+        CHECK_Z( ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters) );
+        CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, 1) );
+        CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 2) );
+        CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_jobSize, (int)jobSize) );
+        mtSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, srcSize);
+        if (ZSTD_isError(mtSize)) goto _output_error;
+        if (mtSize != singleSize) {
+            DISPLAYLEVEL(4, "error: MT cSize %u != single-thread cSize %u ! \n", (unsigned)mtSize, (unsigned)singleSize);
+            goto _output_error;
+        }
+        { CHECK_NEWV(regenSize, ZSTD_decompress(decodedBuffer, srcSize, compressedBuffer, mtSize));
+          if (regenSize != srcSize) goto _output_error; }
+        ZSTD_freeCCtx(cctx);
+        DISPLAYLEVEL(3, "OK \n");
+    }
+
     DISPLAYLEVEL(3, "test%3i : ZSTD_generateSequences decode from sequences test : ", testNb++);
     {
         size_t srcSize = 150 KB;

@@ -1142,11 +1142,13 @@ static void FIO_initDict(FIO_Dict_t* dict, const char* fileName, FIO_prefs_t* co
 
 
 /* FIO_checkFilenameCollisions() :
- * Checks for and warns if there are any files that would have the same output path
+ * Checks for files that would have the same output path.
+ * Returns non-zero if a collision is fatal, i.e. when --rm is enabled.
  */
-int FIO_checkFilenameCollisions(const char** filenameTable, unsigned nbFiles) {
+int FIO_checkFilenameCollisions(const char** filenameTable, unsigned nbFiles, int removeSrcFile) {
     const char **filenameTableSorted, *prevElem, *filename;
     unsigned u;
+    int collision = 0;
 
     filenameTableSorted = (const char**) malloc(sizeof(char*) * nbFiles);
     if (!filenameTableSorted) {
@@ -1156,6 +1158,11 @@ int FIO_checkFilenameCollisions(const char** filenameTable, unsigned nbFiles) {
 
     for (u = 0; u < nbFiles; ++u) {
         filename = strrchr(filenameTable[u], PATH_SEP);
+#if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__)
+        {   const char* const slash = strrchr(filenameTable[u], '/');
+            if (slash > filename) filename = slash;
+        }
+#endif
         if (filename == NULL) {
             filenameTableSorted[u] = filenameTable[u];
         } else {
@@ -1166,14 +1173,25 @@ int FIO_checkFilenameCollisions(const char** filenameTable, unsigned nbFiles) {
     qsort((void*)filenameTableSorted, nbFiles, sizeof(char*), UTIL_compareStr);
     prevElem = filenameTableSorted[0];
     for (u = 1; u < nbFiles; ++u) {
-        if (strcmp(prevElem, filenameTableSorted[u]) == 0) {
-            DISPLAYLEVEL(2, "WARNING: Two files have same filename: %s\n", prevElem);
+        int const sameName =
+#if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__)
+            _stricmp(prevElem, filenameTableSorted[u]) == 0;
+#else
+            strcmp(prevElem, filenameTableSorted[u]) == 0;
+#endif
+        if (sameName) {
+            if (removeSrcFile) {
+                DISPLAYLEVEL(1, "ERROR: Two files have same filename: %s\n", prevElem);
+                collision = 1;
+            } else {
+                DISPLAYLEVEL(2, "WARNING: Two files have same filename: %s\n", prevElem);
+            }
         }
         prevElem = filenameTableSorted[u];
     }
 
     free((void*)filenameTableSorted);
-    return 0;
+    return collision;
 }
 
 static const char*
@@ -2512,6 +2530,12 @@ int FIO_compressMultipleFilenames(FIO_ctx_t* const fCtx,
         if (outMirroredRootDirName)
             UTIL_mirrorSourceFilesDirectories(inFileNamesTable, (unsigned)fCtx->nbFilesTotal, outMirroredRootDirName);
 
+        if (outDirName && FIO_checkFilenameCollisions(inFileNamesTable, (unsigned)fCtx->nbFilesTotal,
+                                                      prefs->removeSrcFile)) {
+            FIO_freeCResources(&ress);
+            return 1;
+        }
+
         for (; fCtx->currFileIdx < fCtx->nbFilesTotal; ++fCtx->currFileIdx) {
             const char* const srcFileName = inFileNamesTable[fCtx->currFileIdx];
             const char* dstFileName = NULL;
@@ -2533,8 +2557,6 @@ int FIO_compressMultipleFilenames(FIO_ctx_t* const fCtx,
             error |= status;
         }
 
-        if (outDirName)
-            FIO_checkFilenameCollisions(inFileNamesTable , (unsigned)fCtx->nbFilesTotal);
     }
 
     if (FIO_shouldDisplayMultipleFileSummary(fCtx)) {
@@ -3367,6 +3389,12 @@ FIO_decompressMultipleFilenames(FIO_ctx_t* const fCtx,
         if (outMirroredRootDirName)
             UTIL_mirrorSourceFilesDirectories(srcNamesTable, (unsigned)fCtx->nbFilesTotal, outMirroredRootDirName);
 
+        if (outDirName && FIO_checkFilenameCollisions(srcNamesTable, (unsigned)fCtx->nbFilesTotal,
+                                                      prefs->removeSrcFile)) {
+            FIO_freeDResources(ress);
+            return 1;
+        }
+
         for (; fCtx->currFileIdx < fCtx->nbFilesTotal; fCtx->currFileIdx++) {   /* create dstFileName */
             const char* const srcFileName = srcNamesTable[fCtx->currFileIdx];
             const char* dstFileName = NULL;
@@ -3386,8 +3414,6 @@ FIO_decompressMultipleFilenames(FIO_ctx_t* const fCtx,
             if (!status) fCtx->nbFilesProcessed++;
             error |= status;
         }
-        if (outDirName)
-            FIO_checkFilenameCollisions(srcNamesTable , (unsigned)fCtx->nbFilesTotal);
     }
 
     if (FIO_shouldDisplayMultipleFileSummary(fCtx)) {

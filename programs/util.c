@@ -503,6 +503,16 @@ int UTIL_isLink(const char* infilename)
             return 1;
         }
     }
+#elif defined(_WIN32)
+    {
+        DWORD attributes;
+        attributes = GetFileAttributesA(infilename);
+        if (attributes != INVALID_FILE_ATTRIBUTES &&
+            (attributes & FILE_ATTRIBUTE_REPARSE_POINT)) {
+            UTIL_TRACE_RET(1);
+            return 1;
+        }
+    }
 #endif
     (void)infilename;
     UTIL_TRACE_RET(0);
@@ -942,6 +952,11 @@ static int UTIL_prepareFileList(const char* dirName,
         memcpy(path+dirLength+1, cFile.cFileName, fnameLength);
         pathLength = dirLength+1+fnameLength;
         path[pathLength] = 0;
+        if (!followLinks && UTIL_isLink(path)) {
+            UTIL_DISPLAYLEVEL(2, "Warning : %s is a symbolic link, ignoring\n", path);
+            free(path);
+            continue;
+        }
         if (cFile.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
             if ( strcmp (cFile.cFileName, "..") == 0
               || strcmp (cFile.cFileName, ".") == 0 )

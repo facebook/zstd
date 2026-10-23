@@ -23,6 +23,7 @@
 #endif /* #ifdef __FreeBSD__ */
 
 #if defined(_WIN32)
+#  include <windows.h>    /* CreateFileA, GetFileInformationByHandle */
 #  include <sys/utime.h>  /* utime */
 #  include <io.h>         /* _chmod */
 #  define ZSTD_USE_UTIMENSAT 0
@@ -381,17 +382,34 @@ int UTIL_compareStr(const void *p1, const void *p2) {
     return strcmp(* (char * const *) p1, * (char * const *) p2);
 }
 
+#if defined(_MSC_VER) || defined(_WIN32)
+/* Windows has no inode: compare the volume serial and file index instead. */
+static int UTIL_getFileIdentity(const char* fName, BY_HANDLE_FILE_INFORMATION* info)
+{
+    HANDLE const h = CreateFileA(fName, FILE_READ_ATTRIBUTES,
+                                 FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                                 NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    BOOL ok;
+    if (h == INVALID_HANDLE_VALUE) return 0;
+    ok = GetFileInformationByHandle(h, info);
+    CloseHandle(h);
+    return ok != 0;
+}
+#endif
+
 int UTIL_isSameFile(const char* fName1, const char* fName2)
 {
     int ret;
     assert(fName1 != NULL); assert(fName2 != NULL);
     UTIL_TRACE_CALL("UTIL_isSameFile(%s, %s)", fName1, fName2);
 #if defined(_MSC_VER) || defined(_WIN32)
-    /* note : Visual does not support file identification by inode.
-     *        inode does not work on Windows, even with a posix layer, like msys2.
-     *        The following work-around is limited to detecting exact name repetition only,
-     *        aka `filename` is considered different from `subdir/../filename` */
-    ret = !strcmp(fName1, fName2);
+    {   BY_HANDLE_FILE_INFORMATION file1Info, file2Info;
+        ret = UTIL_getFileIdentity(fName1, &file1Info)
+            && UTIL_getFileIdentity(fName2, &file2Info)
+            && file1Info.dwVolumeSerialNumber == file2Info.dwVolumeSerialNumber
+            && file1Info.nFileIndexHigh == file2Info.nFileIndexHigh
+            && file1Info.nFileIndexLow == file2Info.nFileIndexLow;
+    }
 #else
     {   stat_t file1Stat;
         stat_t file2Stat;
@@ -412,13 +430,15 @@ int UTIL_isSameFileStat(
     assert(fName1 != NULL); assert(fName2 != NULL);
     UTIL_TRACE_CALL("UTIL_isSameFileStat(%s, %s)", fName1, fName2);
 #if defined(_MSC_VER) || defined(_WIN32)
-    /* note : Visual does not support file identification by inode.
-     *        inode does not work on Windows, even with a posix layer, like msys2.
-     *        The following work-around is limited to detecting exact name repetition only,
-     *        aka `filename` is considered different from `subdir/../filename` */
     (void)file1Stat;
     (void)file2Stat;
-    ret = !strcmp(fName1, fName2);
+    {   BY_HANDLE_FILE_INFORMATION file1Info, file2Info;
+        ret = UTIL_getFileIdentity(fName1, &file1Info)
+            && UTIL_getFileIdentity(fName2, &file2Info)
+            && file1Info.dwVolumeSerialNumber == file2Info.dwVolumeSerialNumber
+            && file1Info.nFileIndexHigh == file2Info.nFileIndexHigh
+            && file1Info.nFileIndexLow == file2Info.nFileIndexLow;
+    }
 #else
     {
         ret =  (file1Stat->st_dev == file2Stat->st_dev)

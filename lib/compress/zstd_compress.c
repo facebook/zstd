@@ -152,8 +152,11 @@ ZSTD_CCtx* ZSTD_initStaticCCtx(void* workspace, size_t workspaceSize)
     /* statically sized space. tmpWorkspace never moves (but prev/next block swap places) */
     if (!ZSTD_cwksp_check_available(&cctx->workspace, TMP_WORKSPACE_SIZE + 2 * sizeof(ZSTD_compressedBlockState_t))) return NULL;
     cctx->blockState.prevCBlock = (ZSTD_compressedBlockState_t*)ZSTD_cwksp_reserve_object(&cctx->workspace, sizeof(ZSTD_compressedBlockState_t));
+    if (cctx->blockState.prevCBlock == NULL) return NULL;
     cctx->blockState.nextCBlock = (ZSTD_compressedBlockState_t*)ZSTD_cwksp_reserve_object(&cctx->workspace, sizeof(ZSTD_compressedBlockState_t));
+    if (cctx->blockState.nextCBlock == NULL) return NULL;
     cctx->tmpWorkspace = ZSTD_cwksp_reserve_object(&cctx->workspace, TMP_WORKSPACE_SIZE);
+    if (cctx->tmpWorkspace == NULL) return NULL;
     cctx->tmpWkspSize = TMP_WORKSPACE_SIZE;
 #if DYNAMIC_BMI2
     ZSTD_SET_BMI2(cctx->bmi2, ZSTD_cpuSupportsBmi2());
@@ -2065,10 +2068,14 @@ ZSTD_reset_matchState(ZSTD_MatchState_t* ms,
          * 0 when we reset a Cdict */
         if(forWho == ZSTD_resetTarget_CCtx) {
             ms->tagTable = (BYTE*) ZSTD_cwksp_reserve_aligned_init_once(ws, tagTableSize);
+            RETURN_ERROR_IF(ZSTD_cwksp_reserve_failed(ws), memory_allocation,
+                            "couldn't allocate tagTable");
             ZSTD_advanceHashSalt(ms);
         } else {
             /* When we are not salting we want to always memset the memory */
             ms->tagTable = (BYTE*) ZSTD_cwksp_reserve_aligned64(ws, tagTableSize);
+            RETURN_ERROR_IF(ZSTD_cwksp_reserve_failed(ws), memory_allocation,
+                            "couldn't allocate tagTable");
             ZSTD_memset(ms->tagTable, 0, tagTableSize);
             ms->hashSalt = 0;
         }
@@ -2246,14 +2253,20 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                 ZSTD_resetTarget_CCtx), "");
 
         zc->seqStore.sequencesStart = (SeqDef*)ZSTD_cwksp_reserve_aligned64(ws, maxNbSeq * sizeof(SeqDef));
+        RETURN_ERROR_IF(ZSTD_cwksp_reserve_failed(ws), memory_allocation,
+                        "couldn't allocate sequencesStart");
 
         /* ldm hash table */
         if (params->ldmParams.enableLdm == ZSTD_ps_enable) {
             /* TODO: avoid memset? */
             size_t const ldmHSize = ((size_t)1) << params->ldmParams.hashLog;
             zc->ldmState.hashTable = (ldmEntry_t*)ZSTD_cwksp_reserve_aligned64(ws, ldmHSize * sizeof(ldmEntry_t));
+            RETURN_ERROR_IF(ZSTD_cwksp_reserve_failed(ws), memory_allocation,
+                            "couldn't allocate ldm hashTable");
             ZSTD_memset(zc->ldmState.hashTable, 0, ldmHSize * sizeof(ldmEntry_t));
             zc->ldmSequences = (rawSeq*)ZSTD_cwksp_reserve_aligned64(ws, maxNbLdmSeq * sizeof(rawSeq));
+            RETURN_ERROR_IF(ZSTD_cwksp_reserve_failed(ws), memory_allocation,
+                            "couldn't allocate ldmSequences");
             zc->maxNbLdmSequences = maxNbLdmSeq;
 
             ZSTD_window_init(&zc->ldmState.window);
@@ -2266,6 +2279,8 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
             zc->extSeqBufCapacity = maxNbExternalSeq;
             zc->extSeqBuf =
                 (ZSTD_Sequence*)ZSTD_cwksp_reserve_aligned64(ws, maxNbExternalSeq * sizeof(ZSTD_Sequence));
+            RETURN_ERROR_IF(ZSTD_cwksp_reserve_failed(ws), memory_allocation,
+                            "couldn't allocate extSeqBuf");
         }
 
         /* buffers */
@@ -2274,13 +2289,19 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
          * so we have to oversize the buffer by WILDCOPY_OVERLENGTH bytes.
          */
         zc->seqStore.litStart = ZSTD_cwksp_reserve_buffer(ws, blockSize + WILDCOPY_OVERLENGTH);
+        RETURN_ERROR_IF(ZSTD_cwksp_reserve_failed(ws), memory_allocation,
+                        "couldn't allocate litStart");
         zc->seqStore.maxNbLit = blockSize;
 
         zc->bufferedPolicy = zbuff;
         zc->inBuffSize = buffInSize;
         zc->inBuff = (char*)ZSTD_cwksp_reserve_buffer(ws, buffInSize);
+        RETURN_ERROR_IF(ZSTD_cwksp_reserve_failed(ws), memory_allocation,
+                        "couldn't allocate inBuff");
         zc->outBuffSize = buffOutSize;
         zc->outBuff = (char*)ZSTD_cwksp_reserve_buffer(ws, buffOutSize);
+        RETURN_ERROR_IF(ZSTD_cwksp_reserve_failed(ws), memory_allocation,
+                        "couldn't allocate outBuff");
 
         /* ldm bucketOffsets table */
         if (params->ldmParams.enableLdm == ZSTD_ps_enable) {
@@ -2289,6 +2310,8 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
                   ((size_t)1) << (params->ldmParams.hashLog -
                                   params->ldmParams.bucketSizeLog);
             zc->ldmState.bucketOffsets = ZSTD_cwksp_reserve_buffer(ws, numBuckets);
+            RETURN_ERROR_IF(ZSTD_cwksp_reserve_failed(ws), memory_allocation,
+                            "couldn't allocate ldm bucketOffsets");
             ZSTD_memset(zc->ldmState.bucketOffsets, 0, numBuckets);
         }
 
@@ -2296,8 +2319,23 @@ static size_t ZSTD_resetCCtx_internal(ZSTD_CCtx* zc,
         ZSTD_referenceExternalSequences(zc, NULL, 0);
         zc->seqStore.maxNbSeq = maxNbSeq;
         zc->seqStore.llCode = ZSTD_cwksp_reserve_buffer(ws, maxNbSeq * sizeof(BYTE));
+        RETURN_ERROR_IF(ZSTD_cwksp_reserve_failed(ws), memory_allocation,
+                        "couldn't allocate llCode");
         zc->seqStore.mlCode = ZSTD_cwksp_reserve_buffer(ws, maxNbSeq * sizeof(BYTE));
+        RETURN_ERROR_IF(ZSTD_cwksp_reserve_failed(ws), memory_allocation,
+                        "couldn't allocate mlCode");
         zc->seqStore.ofCode = ZSTD_cwksp_reserve_buffer(ws, maxNbSeq * sizeof(BYTE));
+        RETURN_ERROR_IF(ZSTD_cwksp_reserve_failed(ws), memory_allocation,
+                        "couldn't allocate ofCode");
+
+        /* Catch-all: any sticky reserve failure from ZSTD_reset_matchState or
+         * an unchecked site above. A failed reservation leaves NULL pointers
+         * (e.g. seqStore.llCode) that ZSTD_seqToCodes writes through.
+         * Note: ZSTD_cwksp_reserve_internal() returns NULL for zero-byte
+         * reserves without setting allocFailed, so this sticky flag (not a
+         * bare ptr==NULL test) is the correct failure signal. */
+        RETURN_ERROR_IF(ZSTD_cwksp_reserve_failed(ws), memory_allocation,
+                        "failed a workspace allocation in ZSTD_resetCCtx_internal");
 
         DEBUGLOG(3, "wksp: finished allocating, %zd bytes remain available", ZSTD_cwksp_available_space(ws));
         assert(ZSTD_cwksp_estimated_space_within_bounds(ws, neededSpace));
@@ -5600,6 +5638,8 @@ static size_t ZSTD_initCDict_internal(
     cdict->dictContentType = dictContentType;
 
     cdict->entropyWorkspace = (U32*)ZSTD_cwksp_reserve_object(&cdict->workspace, HUF_WORKSPACE_SIZE);
+    RETURN_ERROR_IF(ZSTD_cwksp_reserve_failed(&cdict->workspace), memory_allocation,
+                    "couldn't allocate entropyWorkspace");
 
 
     /* Reset the state to no dictionary */

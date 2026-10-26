@@ -359,6 +359,10 @@ size_t ZSTD_compressBlock_doubleFast_dictMatchState_generic(
     const U32 dictHBitsL           = dictCParams->hashLog + ZSTD_SHORT_CACHE_TAG_BITS;
     const U32 dictHBitsS           = dictCParams->chainLog + ZSTD_SHORT_CACHE_TAG_BITS;
     const U32 dictAndPrefixLength  = (U32)((ip - prefixLowest) + (dictEnd - dictStart));
+    /* Array of ~random data, should have low probability of matching data.
+     * We load from here instead of from the prefix, if a prefix match index
+     * is invalid. Used to avoid unpredictable branches. */
+    const BYTE dummy[] = {0x12,0x34,0x56,0x78,0x9a,0xbc,0xde,0xf0,0xe2,0xb4};
 
     DEBUGLOG(5, "ZSTD_compressBlock_doubleFast_dictMatchState_generic");
 
@@ -413,7 +417,13 @@ size_t ZSTD_compressBlock_doubleFast_dictMatchState_generic(
             goto _match_stored;
         }
 
-        if ((matchIndexL >= prefixLowestIndex) && (MEM_read64(matchLong) == MEM_read64(ip))) {
+        /* matchIndexL >= prefixLowestIndex is an unpredictable branch while the
+         * prefix is small, e.g. for small inputs with an attached dictionary.
+         * Read from a safe address instead, and test the index only when the
+         * bytes match. That is rare, so both branches are well predicted.
+         * The result is the same as testing the index first. */
+        if ( (MEM_read64(ZSTD_selectAddr(matchIndexL, prefixLowestIndex, matchLong, &dummy[0])) == MEM_read64(ip))
+          && (matchIndexL >= prefixLowestIndex) ) {
             /* check prefix long match */
             mLength = ZSTD_count(ip+8, matchLong+8, iend) + 8;
             offset = (U32)(ip-matchLong);
@@ -432,12 +442,12 @@ size_t ZSTD_compressBlock_doubleFast_dictMatchState_generic(
                 goto _match_found;
         }   }
 
-        if (matchIndexS > prefixLowestIndex) {
-            /* short match  candidate */
-            if (MEM_read32(match) == MEM_read32(ip)) {
-                goto _search_next_long;
-            }
-        } else if (dictTagsMatchS) {
+        /* short match candidate, same method as above */
+        if ( (MEM_read32(ZSTD_selectAddr(matchIndexS, prefixLowestIndex, match, &dummy[0])) == MEM_read32(ip))
+          && (matchIndexS > prefixLowestIndex) ) {
+            goto _search_next_long;
+        }
+        if (dictTagsMatchS && (matchIndexS <= prefixLowestIndex)) {
             /* check dictMatchState short match */
             U32 const dictMatchIndexS = dictMatchIndexAndTagS >> ZSTD_SHORT_CACHE_TAG_BITS;
             match = dictBase + dictMatchIndexS;
@@ -462,8 +472,9 @@ _search_next_long:
             const BYTE* matchL3 = base + matchIndexL3;
             hashLong[hl3] = curr + 1;
 
-            /* check prefix long +1 match */
-            if ((matchIndexL3 >= prefixLowestIndex) && (MEM_read64(matchL3) == MEM_read64(ip+1))) {
+            /* check prefix long +1 match, same method as above */
+            if ( (MEM_read64(ZSTD_selectAddr(matchIndexL3, prefixLowestIndex, matchL3, &dummy[0])) == MEM_read64(ip+1))
+              && (matchIndexL3 >= prefixLowestIndex) ) {
                 mLength = ZSTD_count(ip+9, matchL3+8, iend) + 8;
                 ip++;
                 offset = (U32)(ip-matchL3);

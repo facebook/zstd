@@ -17,6 +17,7 @@
 #include <string.h>   /* strcmp, strlen */
 #include <stdio.h>    /* fprintf(), stdin, stdout, stderr */
 #include <assert.h>   /* assert */
+#include <limits.h>   /* INT_MAX */
 
 #include "fileio.h"   /* stdinmark, stdoutmark, ZSTD_EXTENSION */
 #ifndef ZSTD_NOBENCH
@@ -413,7 +414,18 @@ static int readIntFromChar(const char** stringPtr) {
         sign = -1;
     }
     if (readU32FromCharChecked(stringPtr, &result)) { errorOut(errorMsg); }
+    if (result > (unsigned)INT_MAX) { errorOut(errorMsg); }
     return (int) result * sign;
+}
+
+/*! readCLevelFromChar() :
+ * @return : compression level read from input in `char` format, as readU32FromChar().
+ *  A value above INT_MAX is returned as INT_MAX, so that it is clamped to the maximum level
+ *  like any other level that is too high, instead of wrapping around to a negative level.
+ *  Note : function will exit() program if digit sequence overflows */
+static int readCLevelFromChar(const char** stringPtr) {
+    unsigned const level = readU32FromChar(stringPtr);
+    return level > (unsigned)INT_MAX ? INT_MAX : (int)level;
 }
 
 /*! readSizeTFromCharChecked() :
@@ -791,7 +803,8 @@ static int init_cLevel(void) {
                 DISPLAYLEVEL(2, "Ignore environment variable setting %s=%s: numeric value too large \n", ENV_CLEVEL, env);
                 return ZSTDCLI_CLEVEL_DEFAULT;
             } else if (*ptr == 0) {
-                return sign * (int)absLevel;
+                /* above INT_MAX, clamp like a level that is too high rather than wrap */
+                return sign * (absLevel > (unsigned)INT_MAX ? INT_MAX : (int)absLevel);
         }   }
 
         DISPLAYLEVEL(2, "Ignore environment variable setting %s=%s: not a valid integer value \n", ENV_CLEVEL, env);
@@ -1207,7 +1220,7 @@ int main(int argCount, const char* argv[])
 #ifndef ZSTD_NOCOMPRESS
                 /* compression Level */
                 if ((*argument>='0') && (*argument<='9')) {
-                    dictCLevel = cLevel = (int)readU32FromChar(&argument);
+                    dictCLevel = cLevel = readCLevelFromChar(&argument);
                     continue;
                 }
 #endif
@@ -1282,7 +1295,7 @@ int main(int argCount, const char* argv[])
                 case 'e':
                     /* compression Level */
                     argument++;
-                    cLevelLast = (int)readU32FromChar(&argument);
+                    cLevelLast = readCLevelFromChar(&argument);
                     break;
 
                     /* Modify Nb Iterations (benchmark only) */

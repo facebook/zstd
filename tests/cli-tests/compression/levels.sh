@@ -45,17 +45,21 @@ zstd --fast=200000 file -c | zstd -t
 
 zstd -5000000000 -f file       && die "Level too large, must fail" ||:
 zstd --fast=5000000000 -f file && die "Level too large, must fail" ||:
+zstd -3000000000 file -o file-3g.zst -q
+cmp file-19.zst file-3g.zst || die "Level 3000000000 is clamped to 19"
 
 # Test setting a level through the environment variable
 ZSTD_CLEVEL=-10 zstd file -o file-f10-env.zst -q
 ZSTD_CLEVEL=1 zstd file -o file-1-env.zst -q
 ZSTD_CLEVEL=+19 zstd file -o file-19-env.zst -q
 ZSTD_CLEVEL=+99 zstd file -o file-99-env.zst -q
+ZSTD_CLEVEL=+3000000000 zstd file -o file-3g-env.zst -q
 
 cmp file-f10.zst file-f10-env.zst || die "Environment variable failed to set level"
 cmp file-1.zst file-1-env.zst || die "Environment variable failed to set level"
 cmp file-19.zst file-19-env.zst || die "Environment variable failed to set level"
 cmp file-99.zst file-99-env.zst || die "Environment variable failed to set level"
+cmp file-19.zst file-3g-env.zst || die "Environment variable failed to set level"
 
 # Test invalid environment clevel is the default level
 zstd -f file -q

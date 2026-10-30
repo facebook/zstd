@@ -1772,6 +1772,7 @@ then
     datagen > tmp
     zstd --adapt= tmp && die "invalid compression parameter"
     zstd -f -vv --adapt=min=10,max=9 tmp && die "--adapt must fail on incoherent bounds"
+    zstd -f --adapt=max=4294967295 tmp && die "--adapt must reject a level that overflows int"
 
     println "\n===>   rsyncable mode "
     roundTripTest -g10M " --rsyncable"

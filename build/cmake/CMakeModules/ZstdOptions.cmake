@@ -41,7 +41,7 @@ else()
 endif()
 
 # Build component options
-option(ZSTD_BUILD_PROGRAMS "Build command-line programs" ON)
+option(ZSTD_BUILD_PROGRAMS "Build command-line programs" ${ZSTD_MASTER_PROJECT})
 option(ZSTD_BUILD_CONTRIB "Build contrib utilities" OFF)
 option(ZSTD_PROGRAMS_LINK_SHARED "Link programs against shared library" OFF)
 

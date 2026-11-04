@@ -471,11 +471,11 @@ static size_t ZDICT_trainBuffer_legacy(dictItem* dictList, U32 dictListSize,
                             const size_t* fileSizes, unsigned nbFiles,
                             unsigned minRatio, U32 notificationLevel)
 {
-    unsigned* const suffix0 = (unsigned*)malloc((bufferSize+2)*sizeof(*suffix0));
-    unsigned* const suffix = suffix0+1;
-    U32* reverseSuffix = (U32*)malloc((bufferSize)*sizeof(*reverseSuffix));
-    BYTE* doneMarks = (BYTE*)malloc((bufferSize+16)*sizeof(*doneMarks));   /* +16 for overflow security */
-    U32* filePos = (U32*)malloc(nbFiles * sizeof(*filePos));
+    unsigned* suffix0;
+    unsigned* suffix;
+    U32* reverseSuffix;
+    BYTE* doneMarks;
+    U32* filePos;
     size_t result = 0;
     clock_t displayClock = 0;
     clock_t const refreshRate = CLOCKS_PER_SEC * 3 / 10;
@@ -494,10 +494,37 @@ static size_t ZDICT_trainBuffer_legacy(dictItem* dictList, U32 dictListSize,
 
     /* init */
     DISPLAYLEVEL(2, "\r%70s\r", "");   /* clean display line */
+
+    /* Each working buffer is sized from bufferSize or nbFiles. Reject sizes
+     * whose byte counts cannot be represented instead of under-allocating:
+     * on 32-bit targets, (bufferSize+2)*sizeof(*suffix0) and
+     * bufferSize*sizeof(*reverseSuffix) wrap for bufferSize >= 0x3FFFFFFE
+     * (~1 GB of samples), so the suffix array under-allocates and
+     * divsufsort() writes out of bounds; nbFiles*sizeof(*filePos) wraps the
+     * same way once nbFiles > SIZE_MAX / sizeof(*filePos).
+     */
+    {   size_t suffix0Bytes, reverseSuffixBytes, doneMarksBytes, filePosBytes;
+        if (bufferSize > (size_t)(-1) - 2) return ERROR(memory_allocation);
+        suffix0Bytes = (bufferSize + 2) * sizeof(*suffix0);
+        if (suffix0Bytes / sizeof(*suffix0) != bufferSize + 2) return ERROR(memory_allocation);
+        reverseSuffixBytes = bufferSize * sizeof(*reverseSuffix);
+        if (reverseSuffixBytes / sizeof(*reverseSuffix) != bufferSize) return ERROR(memory_allocation);
+        if (bufferSize > (size_t)(-1) - 16) return ERROR(memory_allocation);
+        doneMarksBytes = (bufferSize + 16) * sizeof(*doneMarks);
+        if (doneMarksBytes / sizeof(*doneMarks) != bufferSize + 16) return ERROR(memory_allocation);
+        filePosBytes = (size_t)nbFiles * sizeof(*filePos);
+        if (filePosBytes / sizeof(*filePos) != (size_t)nbFiles) return ERROR(memory_allocation);
+
+        suffix0 = (unsigned*)malloc(suffix0Bytes);
+        reverseSuffix = (U32*)malloc(reverseSuffixBytes);
+        doneMarks = (BYTE*)malloc(doneMarksBytes);   /* +16 for overflow security */
+        filePos = (U32*)malloc(filePosBytes);
+    }
     if (!suffix0 || !reverseSuffix || !doneMarks || !filePos) {
         result = ERROR(memory_allocation);
         goto _cleanup;
     }
+    suffix = suffix0 + 1;
     if (minRatio < MINRATIO) minRatio = MINRATIO;
     memset(doneMarks, 0, bufferSize+16);
 

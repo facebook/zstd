@@ -1645,6 +1645,8 @@ unsigned ZSTD_getDictID_fromFrame(const void* src, size_t srcSize)
     ZSTD_FrameHeader zfp = { 0, 0, 0, ZSTD_frame, 0, 0, 0, 0, 0 };
     size_t const hError = ZSTD_getFrameHeader(&zfp, src, srcSize);
     if (ZSTD_isError(hError)) return 0;
+    /* for skippable frames, dictID holds the magic variant : no dictionary is required */
+    if (zfp.frameType == ZSTD_skippableFrame) return 0;
     return zfp.dictID;
 }
 

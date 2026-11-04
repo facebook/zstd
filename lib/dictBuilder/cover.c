@@ -154,15 +154,37 @@ static void COVER_map_clear(COVER_map_t *map) {
  * The map is only guaranteed to be large enough to hold size elements.
  */
 static int COVER_map_init(COVER_map_t *map, U32 size) {
-  map->sizeLog = ZSTD_highbit32(size) + 2;
-  map->size = (U32)1 << map->sizeLog;
-  map->sizeMask = map->size - 1;
-  map->data = (COVER_map_pair_t *)malloc(map->size * sizeof(COVER_map_pair_t));
-  if (!map->data) {
-    map->sizeLog = 0;
-    map->size = 0;
-    return 0;
-  }
+  U32 sizeLog;
+  U32 mapSize;
+  size_t allocSize;
+
+  map->sizeLog = 0;
+  map->size = 0;
+  map->sizeMask = 0;
+  map->data = NULL;
+
+  /* The capacity is size rounded up to the next power of two, stored in a
+   * U32. Reject sizes that cannot be represented instead of computing with
+   * undefined behaviour and under-allocating:
+   * - size == 0 would make ZSTD_highbit32() undefined;
+   * - size >= 2^30 gives sizeLog >= 32, i.e. a shift of 32 or more in
+   *   `(U32)1 << sizeLog`, which is undefined for a 32-bit type;
+   * - the byte size of the pair array must not wrap size_t (it does for
+   *   mapSize > SIZE_MAX / sizeof(COVER_map_pair_t) on 32-bit targets).
+   */
+  if (size == 0) return 0;
+  sizeLog = ZSTD_highbit32(size) + 2;
+  if (sizeLog >= 32) return 0;
+  mapSize = (U32)1U << sizeLog;
+  allocSize = (size_t)mapSize * sizeof(COVER_map_pair_t);
+  if (allocSize / sizeof(COVER_map_pair_t) != (size_t)mapSize) return 0;
+
+  map->data = (COVER_map_pair_t *)malloc(allocSize);
+  if (!map->data) return 0;
+
+  map->sizeLog = sizeLog;
+  map->size = mapSize;
+  map->sizeMask = mapSize - 1;
   COVER_map_clear(map);
   return 1;
 }
@@ -584,6 +606,11 @@ static int COVER_checkParameters(ZDICT_cover_params_t parameters,
   }
   /* d <= k */
   if (parameters.d > parameters.k) {
+    return 0;
+  }
+  /* k-d+1 is the number of dmers to track in COVER_map_init(); its capacity
+   * is rounded up to a power of two in a U32, so it must stay below 2^30 */
+  if (parameters.k - parameters.d + 1 >= ((U32)1 << 30)) {
     return 0;
   }
   /* 0 < splitPoint <= 1 */

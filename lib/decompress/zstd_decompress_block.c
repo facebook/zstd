@@ -892,7 +892,10 @@ static void ZSTD_safecopyDstBeforeSrc(BYTE* op, const BYTE* ip, size_t length)
         return;
     }
 
-    if (op <= oend - WILDCOPY_OVERLENGTH && diff < -WILDCOPY_VECLEN) {
+    /* ZSTD_wildcopy() may write up to WILDCOPY_OVERLENGTH-1 bytes past its length.
+     * Those bytes must not land on source bytes the leftover loop has yet to read,
+     * so src must be at least WILDCOPY_OVERLENGTH bytes ahead of dst. */
+    if (op <= oend - WILDCOPY_OVERLENGTH && diff <= -WILDCOPY_OVERLENGTH) {
         ZSTD_wildcopy(op, ip, (size_t)(oend - WILDCOPY_OVERLENGTH - op), ZSTD_no_overlap);
         ip += oend - WILDCOPY_OVERLENGTH - op;
         op += oend - WILDCOPY_OVERLENGTH - op;
@@ -977,8 +980,11 @@ size_t ZSTD_execSequenceEndSplitLitBuffer(BYTE* op,
     assert(op < op + sequenceLength);
     assert(oLitEnd < op + sequenceLength);
 
+    /* The literals still to be read live in dst at [*litPtr, litLimit).
+     * The output of this sequence must not run past the literals it consumes. */
+    RETURN_ERROR_IF(op + sequenceLength > iLitEnd, dstSize_tooSmall, "output should not catch up to and overwrite literal buffer");
+
     /* copy literals */
-    RETURN_ERROR_IF(op > *litPtr && op < *litPtr + sequence.litLength, dstSize_tooSmall, "output should not catch up to and overwrite literal buffer");
     ZSTD_safecopyDstBeforeSrc(op, *litPtr, sequence.litLength);
     op = oLitEnd;
     *litPtr = iLitEnd;

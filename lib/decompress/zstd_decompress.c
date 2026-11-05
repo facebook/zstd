@@ -1028,6 +1028,7 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
             RETURN_ERROR(corruption_detected, "invalid block type");
         }
         FORWARD_IF_ERROR(decodedSize, "Block decompression failure");
+        RETURN_ERROR_IF(decodedSize > dctx->fParams.blockSizeMax, corruption_detected, "Decompressed Block Size Exceeds Maximum");
         DEBUGLOG(5, "Decompressed block of dSize = %u", (unsigned)decodedSize);
         if (dctx->validateChecksum) {
             XXH64_update(&dctx->xxhState, op, decodedSize);

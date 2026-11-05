@@ -224,13 +224,14 @@
 #  if defined(__ARM_FEATURE_SVE2)
 #    define ZSTD_ARCH_ARM_SVE2
 #  endif
+/* RVV: zstd's intrinsics follow the stable RVV 1.0 intrinsic API,
+ * which GCC >= 14 and Clang >= 19 implement. */
 #  if defined(__riscv) && defined(__riscv_vector)
 #    if ((defined(__GNUC__) && !defined(__clang__) && __GNUC__ >= 14) || \
         (defined(__clang__) && __clang_major__ >= 19))
-        #define ZSTD_ARCH_RISCV_RVV
+#      define ZSTD_ARCH_RISCV_RVV
+#    endif
 #  endif
-#endif
-#
 #  if defined(ZSTD_ARCH_X86_AVX2)
 #    include <immintrin.h>
 #  endif

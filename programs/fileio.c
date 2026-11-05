@@ -1141,12 +1141,29 @@ static void FIO_initDict(FIO_Dict_t* dict, const char* fileName, FIO_prefs_t* co
 }
 
 
+static const char*
+extractFilename(const char* path, char separator)
+{
+    const char* search = strrchr(path, separator);
+    if (search == NULL) return path;
+    return search+1;
+}
+
+static int FIO_compareFilename(const void *p1, const void *p2) {
+#if defined(_MSC_VER) || defined(__MINGW32__) || defined(_WIN32)
+    return _stricmp(* (char * const *) p1, * (char * const *) p2);
+#else
+    return strcmp(* (char * const *) p1, * (char * const *) p2);
+#endif
+}
+
 /* FIO_checkFilenameCollisions() :
- * Checks for and warns if there are any files that would have the same output path
+ * Checks for and errors if there are any files that would have the same output path
  */
 int FIO_checkFilenameCollisions(const char** filenameTable, unsigned nbFiles) {
     const char **filenameTableSorted, *prevElem, *filename;
     unsigned u;
+    int hasCollision = 0;
 
     filenameTableSorted = (const char**) malloc(sizeof(char*) * nbFiles);
     if (!filenameTableSorted) {
@@ -1155,33 +1172,25 @@ int FIO_checkFilenameCollisions(const char** filenameTable, unsigned nbFiles) {
     }
 
     for (u = 0; u < nbFiles; ++u) {
-        filename = strrchr(filenameTable[u], PATH_SEP);
-        if (filename == NULL) {
-            filenameTableSorted[u] = filenameTable[u];
-        } else {
-            filenameTableSorted[u] = filename+1;
-        }
+        filename = extractFilename(filenameTable[u], PATH_SEP);
+#if defined(_MSC_VER) || defined(__MINGW32__) || defined(_WIN32)
+        filename = extractFilename(filename, '/');
+#endif
+        filenameTableSorted[u] = filename;
     }
 
-    qsort((void*)filenameTableSorted, nbFiles, sizeof(char*), UTIL_compareStr);
+    qsort((void*)filenameTableSorted, nbFiles, sizeof(char*), FIO_compareFilename);
     prevElem = filenameTableSorted[0];
     for (u = 1; u < nbFiles; ++u) {
-        if (strcmp(prevElem, filenameTableSorted[u]) == 0) {
-            DISPLAYLEVEL(2, "WARNING: Two files have same filename: %s\n", prevElem);
+        if (FIO_compareFilename(&prevElem, &filenameTableSorted[u]) == 0) {
+            DISPLAYLEVEL(1, "zstd: error: Two files have the same output filename: %s\n", prevElem);
+            hasCollision = 1;
         }
         prevElem = filenameTableSorted[u];
     }
 
     free((void*)filenameTableSorted);
-    return 0;
-}
-
-static const char*
-extractFilename(const char* path, char separator)
-{
-    const char* search = strrchr(path, separator);
-    if (search == NULL) return path;
-    return search+1;
+    return hasCollision;
 }
 
 /* FIO_createFilename_fromOutDir() :
@@ -2512,6 +2521,13 @@ int FIO_compressMultipleFilenames(FIO_ctx_t* const fCtx,
         if (outMirroredRootDirName)
             UTIL_mirrorSourceFilesDirectories(inFileNamesTable, (unsigned)fCtx->nbFilesTotal, outMirroredRootDirName);
 
+        if (outDirName) {
+            if (FIO_checkFilenameCollisions(inFileNamesTable, (unsigned)fCtx->nbFilesTotal)) {
+                FIO_freeCResources(&ress);
+                return 1;
+            }
+        }
+
         for (; fCtx->currFileIdx < fCtx->nbFilesTotal; ++fCtx->currFileIdx) {
             const char* const srcFileName = inFileNamesTable[fCtx->currFileIdx];
             const char* dstFileName = NULL;
@@ -2532,9 +2548,6 @@ int FIO_compressMultipleFilenames(FIO_ctx_t* const fCtx,
             if (!status) fCtx->nbFilesProcessed++;
             error |= status;
         }
-
-        if (outDirName)
-            FIO_checkFilenameCollisions(inFileNamesTable , (unsigned)fCtx->nbFilesTotal);
     }
 
     if (FIO_shouldDisplayMultipleFileSummary(fCtx)) {
@@ -3367,6 +3380,13 @@ FIO_decompressMultipleFilenames(FIO_ctx_t* const fCtx,
         if (outMirroredRootDirName)
             UTIL_mirrorSourceFilesDirectories(srcNamesTable, (unsigned)fCtx->nbFilesTotal, outMirroredRootDirName);
 
+        if (outDirName) {
+            if (FIO_checkFilenameCollisions(srcNamesTable, (unsigned)fCtx->nbFilesTotal)) {
+                FIO_freeDResources(ress);
+                return 1;
+            }
+        }
+
         for (; fCtx->currFileIdx < fCtx->nbFilesTotal; fCtx->currFileIdx++) {   /* create dstFileName */
             const char* const srcFileName = srcNamesTable[fCtx->currFileIdx];
             const char* dstFileName = NULL;
@@ -3386,8 +3406,6 @@ FIO_decompressMultipleFilenames(FIO_ctx_t* const fCtx,
             if (!status) fCtx->nbFilesProcessed++;
             error |= status;
         }
-        if (outDirName)
-            FIO_checkFilenameCollisions(srcNamesTable , (unsigned)fCtx->nbFilesTotal);
     }
 
     if (FIO_shouldDisplayMultipleFileSummary(fCtx)) {

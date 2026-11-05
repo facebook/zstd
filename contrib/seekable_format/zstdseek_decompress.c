@@ -366,7 +366,7 @@ size_t ZSTD_seekable_getFrameDecompressedSize(const ZSTD_seekable* zs, unsigned 
 
 size_t ZSTD_seekTable_getFrameDecompressedSize(const ZSTD_seekTable* st, unsigned frameIndex)
 {
-    if (frameIndex > st->tableLen) return ERROR(frameIndex_tooLarge);
+    if (frameIndex >= st->tableLen) return ERROR(frameIndex_tooLarge);
     return st->entries[frameIndex + 1].dOffset -
            st->entries[frameIndex].dOffset;
 }

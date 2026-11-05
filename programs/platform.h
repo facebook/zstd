@@ -36,6 +36,7 @@
   || defined __arm64__ || defined __aarch64__ || defined __ARM64_ARCH_8__                                           /* ARM 64-bit */    \
   || (defined __mips  && (__mips == 64 || __mips == 4 || __mips == 3))                                              /* MIPS 64-bit */   \
   || (defined(__riscv) && __riscv_xlen == 64)                                                                       /* RISC-V 64-bit */ \
+  || defined(__e2k__)                                                                                               /* MCST Elbrus-2000 */ \
   || defined _LP64 || defined __LP64__ /* NetBSD, OpenBSD */ || defined __64BIT__ /* AIX */ || defined _ADDR64 /* Cray */               \
   || (defined __SIZEOF_POINTER__ && __SIZEOF_POINTER__ == 8) /* gcc */
 #  if !defined(__64BIT__)

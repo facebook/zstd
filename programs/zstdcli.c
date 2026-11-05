@@ -1668,6 +1668,8 @@ int main(int argCount, const char* argv[])
         (void)ultra; (void)cLevel; (void)ldmFlag; (void)literalCompressionMode;
         (void)targetCBlockSize; (void)streamSrcSize; (void)srcSizeHint;
         (void)ZSTD_strategyMap; (void)useRowMatchFinder; (void)cType;
+        (void)g_overlapLog; (void)g_ldmHashLog; (void)g_ldmMinMatch;
+        (void)g_ldmHashRateLog; (void)g_ldmBucketSizeLog;
         DISPLAYLEVEL(1, "Compression not supported \n");
 #endif
     } else {  /* decompression or test */

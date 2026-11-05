@@ -79,6 +79,61 @@ static int ZSTD_compressedLiterals(optState_t const* const optPtr)
     return optPtr->literalCompressionMode != ZSTD_ps_disable;
 }
 
+/* The per-code price halves.
+ *
+ * Within a stretch group the statistics are frozen, so a symbol's price is
+ * a pure function of its *code*: 36 litLength codes, 53 matchLength codes,
+ * 32 offset codes. The parser nevertheless re-derived each one from the raw
+ * frequency arrays at every evaluation -- an array load plus a fixed-point
+ * log approximation, twice per candidate match length -- inside a loop that
+ * runs once per (match, length) pair. These three helpers compute the same
+ * value once per frequency change instead.
+ *
+ * What is stored deliberately EXCLUDES the `*SumBasePrice` term, which is
+ * added back at the point of use. That is what makes maintenance cheap: a
+ * statistics update changes one frequency (one entry) and the running total
+ * (one scalar), so nothing has to be rebuilt wholesale. The two terms the
+ * match price used to add after the per-code terms -- BITCOST_MULTIPLIER/5,
+ * and the long-offset handicap -- are folded in here; U32 addition is
+ * associative, so neither folding them in nor deferring the sum term can
+ * change a price by one unit. */
+
+static U32 ZSTD_litLengthPriceNoSum(const optState_t* optPtr, U32 llCode, int optLevel)
+{
+    return (LL_bits[llCode] * BITCOST_MULTIPLIER)
+         - WEIGHT(optPtr->litLengthFreq[llCode], optLevel);
+}
+
+static U32 ZSTD_matchLengthPriceNoSum(const optState_t* optPtr, U32 mlCode, int optLevel)
+{
+    return (ML_bits[mlCode] * BITCOST_MULTIPLIER)
+         - WEIGHT(optPtr->matchLengthFreq[mlCode], optLevel)
+         + BITCOST_MULTIPLIER / 5;   /* heuristic : make matches a bit more costly to favor less sequences -> faster decompression speed */
+}
+
+static U32 ZSTD_offCodePriceNoSum(const optState_t* optPtr, U32 offCode, int optLevel)
+{
+    U32 price = (offCode * BITCOST_MULTIPLIER)
+              - WEIGHT(optPtr->offCodeFreq[offCode], optLevel);
+    if ((optLevel < 2) /*static*/ && (offCode >= 20))
+        price += (offCode-19)*2 * BITCOST_MULTIPLIER; /* handicap for long distance offsets, favor decompression speed */
+    return price;
+}
+
+/* ZSTD_buildPriceTables() :
+ * Full rebuild. Only needed where every statistic changes at once, which
+ * is ZSTD_rescaleFreqs(), i.e. once per block. */
+static void ZSTD_buildPriceTables(optState_t* optPtr, int optLevel)
+{
+    U32 c;
+    for (c = 0; c <= MaxLL; c++)
+        optPtr->litLengthPriceNoSum[c] = ZSTD_litLengthPriceNoSum(optPtr, c, optLevel);
+    for (c = 0; c <= MaxML; c++)
+        optPtr->matchLengthPriceNoSum[c] = ZSTD_matchLengthPriceNoSum(optPtr, c, optLevel);
+    for (c = 0; c <= MaxOff; c++)
+        optPtr->offCodePriceNoSum[c] = ZSTD_offCodePriceNoSum(optPtr, c, optLevel);
+}
+
 static void ZSTD_setBasePrices(optState_t* optPtr, int optLevel)
 {
     if (ZSTD_compressedLiterals(optPtr))
@@ -258,6 +313,10 @@ ZSTD_rescaleFreqs(optState_t* const optPtr,
     }
 
     ZSTD_setBasePrices(optPtr, optLevel);
+    /* every statistic was just replaced -> the per-code tables must be
+     * rebuilt wholesale. This is the only place that needs a full build;
+     * incremental updates in ZSTD_updateStats() keep them current after. */
+    ZSTD_buildPriceTables(optPtr, optLevel);
 }
 
 /* ZSTD_rawLiteralsCost() :
@@ -308,54 +367,83 @@ static U32 ZSTD_litLengthPrice(U32 const litLength, const optState_t* const optP
 
     /* dynamic statistics */
     {   U32 const llCode = ZSTD_LLcode(litLength);
-        return (LL_bits[llCode] * BITCOST_MULTIPLIER)
-             + optPtr->litLengthSumBasePrice
-             - WEIGHT(optPtr->litLengthFreq[llCode], optLevel);
+        (void)optLevel;
+        return optPtr->litLengthSumBasePrice + optPtr->litLengthPriceNoSum[llCode];
     }
 }
 
-/* ZSTD_getMatchPrice() :
- * Provides the cost of the match part (offset + matchLength) of a sequence.
- * Must be combined with ZSTD_fullLiteralsCost() to get the full cost of a sequence.
- * @offBase : sumtype, representing an offset or a repcode, and using numeric representation of ZSTD_storeSeq()
- * @optLevel: when <2, favors small offset for decompression speed (improved cache efficiency)
+/* Cost of the match part (offset + matchLength) of a sequence.
+ * Must be combined with ZSTD_fullLiteralsCost() to get the full cost of a
+ * sequence.
+ * @offBase : sumtype, representing an offset or a repcode, and using numeric
+ *            representation of ZSTD_storeSeq()
+ * @optLevel: when <2, favors small offset for decompression speed (improved
+ *            cache efficiency)
+ *
+ * The price is provided in two halves rather than as one function, because
+ * it splits exactly: one half depends only on the offset, the other only on
+ * the match length. That matters because the parser scans many candidate
+ * lengths against one fixed offset, so the offset half is loop-invariant
+ * there -- and the compiler cannot hoist it on our behalf, since
+ * `optPtr->offCodeFreq[]` and the `opt[].price` the loop stores to are both
+ * U32 lvalues and type-based alias analysis cannot prove the store does not
+ * clobber the load.
+ *
+ * Splitting is value-preserving: U32 addition is associative, so summing the
+ * halves reproduces the original sum bit for bit, and the parse is
+ * unaffected. A caller that wants the whole price simply adds all three:
+ *   ZSTD_matchPriceOffPart() + ZSTD_matchPriceMLSum() + ZSTD_matchPriceMLPartNoSum()
  */
+
+/* offset-dependent half of a match price; invariant across match lengths */
 FORCE_INLINE_TEMPLATE U32
-ZSTD_getMatchPrice(U32 const offBase,
-                   U32 const matchLength,
-             const optState_t* const optPtr,
-                   int const optLevel)
+ZSTD_matchPriceOffPart(U32 const offBase,
+                 const optState_t* const optPtr,
+                       int const optLevel)
 {
-    U32 price;
     U32 const offCode = ZSTD_highbit32(offBase);
+    (void)optLevel;
+    if (optPtr->priceType == zop_predef)  /* fixed scheme, does not use statistics */
+        return (16 + offCode) * BITCOST_MULTIPLIER; /* emulated offset cost */
+    return optPtr->offCodeSumBasePrice + optPtr->offCodePriceNoSum[offCode];
+}
+
+/* matchLength-dependent half of a match price, EXCLUDING the
+ * matchLengthSumBasePrice term, which the caller adds via
+ * ZSTD_matchPriceMLSum(). Keeping the sum term out lets the caller hoist
+ * it: it does not vary across candidate lengths, but a load of it placed
+ * inside the loop would be reloaded on every iteration for the same
+ * aliasing reason as above.
+ * @predef must equal (optPtr->priceType == zop_predef); it too is passed
+ * in rather than re-read so the test can be hoisted out of the loop. */
+FORCE_INLINE_TEMPLATE U32
+ZSTD_matchPriceMLPartNoSum(U32 const matchLength,
+                     const optState_t* const optPtr,
+                           int const predef,
+                           int const optLevel)
+{
     U32 const mlBase = matchLength - MINMATCH;
     assert(matchLength >= MINMATCH);
+    if (predef)  /* fixed scheme, does not use statistics */
+        return WEIGHT(mlBase, optLevel);
+    (void)optLevel;
+    return optPtr->matchLengthPriceNoSum[ZSTD_MLcode(mlBase)];
+}
 
-    if (optPtr->priceType == zop_predef)  /* fixed scheme, does not use statistics */
-        return WEIGHT(mlBase, optLevel)
-             + ((16 + offCode) * BITCOST_MULTIPLIER); /* emulated offset cost */
-
-    /* dynamic statistics */
-    price = (offCode * BITCOST_MULTIPLIER) + (optPtr->offCodeSumBasePrice - WEIGHT(optPtr->offCodeFreq[offCode], optLevel));
-    if ((optLevel<2) /*static*/ && offCode >= 20)
-        price += (offCode-19)*2 * BITCOST_MULTIPLIER; /* handicap for long distance offsets, favor decompression speed */
-
-    /* match Length */
-    {   U32 const mlCode = ZSTD_MLcode(mlBase);
-        price += (ML_bits[mlCode] * BITCOST_MULTIPLIER) + (optPtr->matchLengthSumBasePrice - WEIGHT(optPtr->matchLengthFreq[mlCode], optLevel));
-    }
-
-    price += BITCOST_MULTIPLIER / 5;   /* heuristic : make matches a bit more costly to favor less sequences -> faster decompression speed */
-
-    DEBUGLOG(8, "ZSTD_getMatchPrice(ml:%u) = %u", matchLength, price);
-    return price;
+/* the term that completes ZSTD_matchPriceMLPartNoSum(); zero under the
+ * predefined scheme, which uses no statistics */
+FORCE_INLINE_TEMPLATE U32
+ZSTD_matchPriceMLSum(const optState_t* const optPtr, int const predef)
+{
+    return predef ? 0 : optPtr->matchLengthSumBasePrice;
 }
 
 /* ZSTD_updateStats() :
  * assumption : literals + litLength <= iend */
 static void ZSTD_updateStats(optState_t* const optPtr,
                              U32 litLength, const BYTE* literals,
-                             U32 offBase, U32 matchLength)
+                             U32 offBase, U32 matchLength,
+                             int const optLevel)
 {
     /* literals */
     if (ZSTD_compressedLiterals(optPtr)) {
@@ -365,10 +453,18 @@ static void ZSTD_updateStats(optState_t* const optPtr,
         optPtr->litSum += litLength*ZSTD_LITFREQ_ADD;
     }
 
+    /* Each of the three sequence symbols below changes exactly one
+     * frequency, so exactly one entry of the matching per-code price table
+     * goes stale. Refreshing it here -- three evaluations per sequence --
+     * is what removes the need to rebuild all 121 entries after every
+     * stretch group. The sum terms are excluded from the tables precisely
+     * so that a change to a running total costs nothing here. */
+
     /* literal Length */
     {   U32 const llCode = ZSTD_LLcode(litLength);
         optPtr->litLengthFreq[llCode]++;
         optPtr->litLengthSum++;
+        optPtr->litLengthPriceNoSum[llCode] = ZSTD_litLengthPriceNoSum(optPtr, llCode, optLevel);
     }
 
     /* offset code : follows storeSeq() numeric representation */
@@ -376,6 +472,7 @@ static void ZSTD_updateStats(optState_t* const optPtr,
         assert(offCode <= MaxOff);
         optPtr->offCodeFreq[offCode]++;
         optPtr->offCodeSum++;
+        optPtr->offCodePriceNoSum[offCode] = ZSTD_offCodePriceNoSum(optPtr, offCode, optLevel);
     }
 
     /* match Length */
@@ -383,6 +480,7 @@ static void ZSTD_updateStats(optState_t* const optPtr,
         U32 const mlCode = ZSTD_MLcode(mlBase);
         optPtr->matchLengthFreq[mlCode]++;
         optPtr->matchLengthSum++;
+        optPtr->matchLengthPriceNoSum[mlCode] = ZSTD_matchLengthPriceNoSum(optPtr, mlCode, optLevel);
     }
 }
 
@@ -1101,6 +1199,12 @@ ZSTD_compressBlock_opt_generic(ZSTD_MatchState_t* ms,
     ZSTD_match_t* const matches = optStatePtr->matchTable;
     ZSTD_optimal_t lastStretch;
     ZSTD_optLdm_t optLdm;
+    /* ZSTD_rescaleFreqs() fixes priceType for the whole block and nothing
+     * changes it afterwards, so the predefined-vs-dynamic test is hoisted
+     * here once instead of being re-read inside the price loops -- where
+     * it would alias the int the loop stores into opt[].price and so be
+     * reloaded on every iteration. */
+    int predefPrices;
 
     ZSTD_memset(&lastStretch, 0, sizeof(ZSTD_optimal_t));
 
@@ -1113,6 +1217,7 @@ ZSTD_compressBlock_opt_generic(ZSTD_MatchState_t* ms,
                 (U32)(ip - base), ms->window.dictLimit, ms->nextToUpdate);
     assert(optLevel <= 2);
     ZSTD_rescaleFreqs(optStatePtr, (const BYTE*)src, srcSize, optLevel);
+    predefPrices = (optStatePtr->priceType == zop_predef);
     ip += (ip==prefixStart);
 
     /* Match Loop */
@@ -1180,8 +1285,13 @@ ZSTD_compressBlock_opt_generic(ZSTD_MatchState_t* ms,
                 for (matchNb = 0; matchNb < nbMatches; matchNb++) {
                     U32 const offBase = matches[matchNb].off;
                     U32 const end = matches[matchNb].len;
+                    /* everything except the match length is the same for
+                     * every length of this match: evaluate it once */
+                    U32 const offPrice = ZSTD_matchPriceOffPart(offBase, optStatePtr, optLevel)
+                                       + ZSTD_matchPriceMLSum(optStatePtr, predefPrices);
                     for ( ; pos <= end ; pos++ ) {
-                        int const matchPrice = (int)ZSTD_getMatchPrice(offBase, pos, optStatePtr, optLevel);
+                        int const matchPrice = (int)(offPrice
+                            + ZSTD_matchPriceMLPartNoSum(pos, optStatePtr, predefPrices, optLevel));
                         int const sequencePrice = opt[0].price + matchPrice;
                         DEBUGLOG(7, "rPos:%u => set initial price : %.2f",
                                     pos, ZSTD_fCost(sequencePrice));
@@ -1306,6 +1416,13 @@ ZSTD_compressBlock_opt_generic(ZSTD_MatchState_t* ms,
                     U32 const offset = matches[matchNb].off;
                     U32 const lastML = matches[matchNb].len;
                     U32 const startML = (matchNb>0) ? matches[matchNb-1].len+1 : minMatch;
+                    /* One offset, many candidate lengths. Everything in the
+                     * price except the match-length term is loop-invariant
+                     * here, so it is folded into one value now rather than
+                     * re-derived on every iteration. */
+                    U32 const offBasePrice = (U32)basePrice
+                        + ZSTD_matchPriceOffPart(offset, optStatePtr, optLevel)
+                        + ZSTD_matchPriceMLSum(optStatePtr, predefPrices);
                     U32 mlen;
 
                     DEBUGLOG(7, "testing match %u => offBase=%4u, mlen=%2u, llen=%2u",
@@ -1313,7 +1430,8 @@ ZSTD_compressBlock_opt_generic(ZSTD_MatchState_t* ms,
 
                     for (mlen = lastML; mlen >= startML; mlen--) {  /* scan downward */
                         U32 const pos = cur + mlen;
-                        int const price = basePrice + (int)ZSTD_getMatchPrice(offset, mlen, optStatePtr, optLevel);
+                        int const price = (int)(offBasePrice
+                            + ZSTD_matchPriceMLPartNoSum(mlen, optStatePtr, predefPrices, optLevel));
 
                         if ((pos > last_pos) || (price < opt[pos].price)) {
                             DEBUGLOG(7, "rPos:%u (ml=%2u) => new better price (%.2f<%.2f)",
@@ -1417,7 +1535,7 @@ _shortestPath:   /* cur, last_pos, best_mlen, best_off have to be set */
                     }
 
                     assert(anchor + llen <= iend);
-                    ZSTD_updateStats(optStatePtr, llen, anchor, offBase, mlen);
+                    ZSTD_updateStats(optStatePtr, llen, anchor, offBase, mlen, optLevel);
                     ZSTD_storeSeq(seqStore, llen, anchor, iend, offBase, mlen);
                     anchor += advance;
                     ip = anchor;

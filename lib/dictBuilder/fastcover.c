@@ -317,10 +317,11 @@ FASTCOVER_ctx_init(FASTCOVER_ctx_t* ctx,
     const unsigned nbTestSamples = splitPoint < 1.0 ? nbSamples - nbTrainSamples : nbSamples;
     const size_t trainingSamplesSize = splitPoint < 1.0 ? COVER_sum(samplesSizes, nbTrainSamples) : totalSamplesSize;
     const size_t testSamplesSize = splitPoint < 1.0 ? COVER_sum(samplesSizes + nbTrainSamples, nbTestSamples) : totalSamplesSize;
+    const size_t readLength = MAX(d, sizeof(U64));
     ctx->displayLevel = displayLevel;
 
     /* Checks */
-    if (totalSamplesSize < MAX(d, sizeof(U64)) ||
+    if (totalSamplesSize < readLength ||
         totalSamplesSize >= (size_t)FASTCOVER_MAX_SAMPLES_SIZE) {
         DISPLAYLEVEL(1, "Total samples size is too large (%u MB), maximum size is %u MB\n",
                     (unsigned)(totalSamplesSize >> 20), (FASTCOVER_MAX_SAMPLES_SIZE >> 20));
@@ -340,7 +341,7 @@ FASTCOVER_ctx_init(FASTCOVER_ctx_t* ctx,
     }
 
     /* Check the training set can hold at least one dmer, otherwise nbDmers underflows below */
-    if (trainingSamplesSize < MAX(d, sizeof(U64))) {
+    if (trainingSamplesSize < readLength) {
         DISPLAYLEVEL(1, "Total training samples size is %u and is invalid.\n", (unsigned)trainingSamplesSize);
         return ERROR(srcSize_wrong);
     }
@@ -357,7 +358,7 @@ FASTCOVER_ctx_init(FASTCOVER_ctx_t* ctx,
     ctx->nbSamples = nbSamples;
     ctx->nbTrainSamples = nbTrainSamples;
     ctx->nbTestSamples = nbTestSamples;
-    ctx->nbDmers = trainingSamplesSize - MAX(d, sizeof(U64)) + 1;
+    ctx->nbDmers = trainingSamplesSize - readLength + 1;
     ctx->d = d;
     ctx->f = f;
     ctx->accelParams = accelParams;

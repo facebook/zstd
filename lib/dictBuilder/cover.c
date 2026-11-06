@@ -321,7 +321,9 @@ static int COVER_strict_cmp(const void *lp, const void *rp) {
 #endif
   int result = COVER_cmp((COVER_ctx_t*)g_coverCtx, lp, rp);
   if (result == 0) {
-    result = *(const U32 *)lp < *(const U32 *)rp ? -1 : 1;
+    U32 const lpos = *(const U32 *)lp;
+    U32 const rpos = *(const U32 *)rp;
+    result = (lpos < rpos) ? -1 : (lpos > rpos) ? 1 : 0;
   }
   return result;
 }
@@ -337,7 +339,9 @@ static int COVER_strict_cmp8(const void *lp, const void *rp) {
 #endif
   int result = COVER_cmp8((COVER_ctx_t*)g_coverCtx, lp, rp);
   if (result == 0) {
-    result = *(const U32 *)lp < *(const U32 *)rp ? -1 : 1;
+    U32 const lpos = *(const U32 *)lp;
+    U32 const rpos = *(const U32 *)rp;
+    result = (lpos < rpos) ? -1 : (lpos > rpos) ? 1 : 0;
   }
   return result;
 }

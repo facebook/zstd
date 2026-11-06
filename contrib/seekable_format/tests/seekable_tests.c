@@ -388,6 +388,62 @@ int main(int argc, const char** argv)
     }
     printf("Success!\n");
 
+    printf("Test %u - decompress at and past the end of the data: ", testNb++);
+    {   char const inBuffer[] = "Lorem ipsum dolor sit amet";
+        size_t const inSize = sizeof(inBuffer);
+
+        size_t const seekCapacity = 5000;
+        void* const seekBuffer = malloc(seekCapacity);
+        assert(seekBuffer != NULL);
+        size_t seekSize;
+
+        char outBuffer[16];
+
+        ZSTD_seekable_CStream* const zscs = ZSTD_seekable_createCStream();
+        assert(zscs != NULL);
+        { size_t const initStatus = ZSTD_seekable_initCStream(zscs, 9, 0 /* checksumFlag */, 0 /* maxFrameSize */);
+          assert(!ZSTD_isError(initStatus));
+        }
+
+        {   ZSTD_outBuffer outb = { .dst=seekBuffer, .pos=0, .size=seekCapacity };
+            ZSTD_inBuffer inb = { .src=inBuffer, .pos=0, .size=inSize };
+
+            size_t const cStatus = ZSTD_seekable_compressStream(zscs, &outb, &inb);
+            assert(!ZSTD_isError(cStatus));
+            assert(inb.pos == inb.size);
+
+            size_t const endStatus = ZSTD_seekable_endStream(zscs, &outb);
+            assert(!ZSTD_isError(endStatus));
+            seekSize = outb.pos;
+        }
+
+        ZSTD_seekable* const stream = ZSTD_seekable_create();
+        assert(stream != NULL);
+        { size_t const initStatus = ZSTD_seekable_initBuff(stream, seekBuffer, seekSize);
+          assert(!ZSTD_isError(initStatus)); }
+
+        {   size_t const atEnd = ZSTD_seekable_decompress(stream, outBuffer, sizeof(outBuffer), inSize);
+            size_t const pastEnd = ZSTD_seekable_decompress(stream, outBuffer, sizeof(outBuffer), inSize + 5000);
+            int failed = atEnd != 0 || !ZSTD_isError(pastEnd);
+            if (!failed) {
+                /* offset + len wraps around to 0 */
+                size_t const wrapped = ZSTD_seekable_decompress(stream, outBuffer, sizeof(outBuffer), 0ULL - sizeof(outBuffer));
+                failed = !ZSTD_isError(wrapped);
+            }
+            if (failed) {
+                free(seekBuffer);
+                ZSTD_seekable_freeCStream(zscs);
+                ZSTD_seekable_free(stream);
+                goto _test_error;
+            }
+        }
+
+        free(seekBuffer);
+        ZSTD_seekable_freeCStream(zscs);
+        ZSTD_seekable_free(stream);
+    }
+    printf("Success!\n");
+
     /* TODO: Add more tests */
     printf("Finished tests\n");
     return 0;

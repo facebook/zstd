@@ -2829,7 +2829,7 @@ FIO_decompressGzFrame(dRess_t* ress, const char* srcFileName)
 
 #ifdef ZSTD_LZMADECOMPRESS
 static unsigned long long
-FIO_decompressLzmaFrame(dRess_t* ress,
+FIO_decompressLzmaFrame(dRess_t* ress, const FIO_prefs_t* const prefs,
                         const char* srcFileName, int plain_lzma)
 {
     unsigned long long outFileSize = 0;
@@ -2841,10 +2841,12 @@ FIO_decompressLzmaFrame(dRess_t* ress,
 
     strm.next_in = 0;
     strm.avail_in = 0;
+    /* --memory also limits xz/lzma decoding : liblzma refuses to allocate more */
+    assert(prefs->memLimit > 0);
     if (plain_lzma) {
-        initRet = lzma_alone_decoder(&strm, UINT64_MAX); /* LZMA */
+        initRet = lzma_alone_decoder(&strm, prefs->memLimit); /* LZMA */
     } else {
-        initRet = lzma_stream_decoder(&strm, UINT64_MAX, 0); /* XZ */
+        initRet = lzma_stream_decoder(&strm, prefs->memLimit, 0); /* XZ */
     }
 
     if (initRet != LZMA_OK) {
@@ -2872,6 +2874,15 @@ FIO_decompressLzmaFrame(dRess_t* ress,
 
         if (ret == LZMA_BUF_ERROR) {
             DISPLAYLEVEL(1, "zstd: %s: premature lzma end \n", srcFileName);
+            decodingError = 1; break;
+        }
+        if (ret == LZMA_MEMLIMIT_ERROR) {
+            U64 const memNeeded = lzma_memusage(&strm);
+            U64 const memMB = (memNeeded >> 20) + ((memNeeded & ((1 MB) - 1)) != 0);
+            DISPLAYLEVEL(1, "%s : Memory needed by xz/lzma decoder larger than maximum : %llu > %u \n",
+                            srcFileName, (unsigned long long)memNeeded, prefs->memLimit);
+            if (memMB <= (UINT_MAX >> 20))
+                DISPLAYLEVEL(1, "%s : Use --memory=%uMB \n", srcFileName, (unsigned)memMB);
             decodingError = 1; break;
         }
         if (ret != LZMA_OK && ret != LZMA_STREAM_END) {
@@ -3031,7 +3042,7 @@ static int FIO_decompressFrames(FIO_ctx_t* const fCtx,
         } else if ((buf[0] == 0xFD && buf[1] == 0x37)  /* xz magic number */
                 || (buf[0] == 0x5D && buf[1] == 0x00)) { /* lzma header (no magic number) */
 #ifdef ZSTD_LZMADECOMPRESS
-            unsigned long long const frameSize = FIO_decompressLzmaFrame(&ress, srcFileName, buf[0] != 0xFD);
+            unsigned long long const frameSize = FIO_decompressLzmaFrame(&ress, prefs, srcFileName, buf[0] != 0xFD);
             if (frameSize == FIO_ERROR_FRAME_DECODING) return 1;
             filesize += frameSize;
 #else

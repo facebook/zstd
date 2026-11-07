@@ -1423,6 +1423,14 @@ if [ $LZMAMODE -eq 1 ]; then
     cat tmp.xz tmp.lzma tmp.zst tmp.lzma tmp.xz tmp.zst | zstd -d -f -o tmp
     truncateLastByte tmp.xz | zstd -t > $INTOVOID && die "incomplete frame not detected !"
     truncateLastByte tmp.lzma | zstd -t > $INTOVOID && die "incomplete frame not detected !"
+    # --memory also limits xz/lzma decoding (level 3 : 4 MiB dictionary, needs 5 MB)
+    zstd -f -3 --format=xz tmp -o tmp3.xz
+    zstd -f -3 --format=lzma tmp -o tmp3.lzma
+    zstd -t --memory=1MB tmp3.xz 2>tmplog && die "--memory not enforced for xz"
+    $GREP "Use --memory=5MB" tmplog
+    zstd -t --memory=1MB tmp3.lzma 2>tmplog && die "--memory not enforced for lzma"
+    $GREP "Use --memory=5MB" tmplog
+    zstd -t --memory=5MB tmp3.xz tmp3.lzma
     rm -f tmp*
 else
     println "xz mode not supported"

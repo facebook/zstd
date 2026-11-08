@@ -443,6 +443,34 @@ mkdir -p tmpEmptyDir
 zstd -r tmpEmptyDir
 rm -rf tmpEmptyDir
 
+println "test : directory links are not followed by -r"
+# remove leftovers of a previous failed run
+if [ "$isWindows" = true ]; then cmd //c "rmdir tmpLinkDir\tmpLink" 2> /dev/null || :; fi
+rm -rf tmpLinkDir tmpOutside tmpStdErr
+mkdir -p tmpLinkDir tmpOutside
+echo "inner" > tmpLinkDir/tmpInner
+echo "victim" > tmpOutside/tmpVictim
+if [ "$isWindows" = true ]; then
+  # junctions don't require the privileges that symlinks do
+  (cd tmpLinkDir && cmd //c "mklink /J tmpLink ..\tmpOutside")
+else
+  ln -s ../tmpOutside tmpLinkDir/tmpLink
+fi
+zstd -r --rm tmpLinkDir 2> tmpStdErr
+# remove the link before asserting, so a failing test never leaves a live
+# link behind for the later "rm -rf tmp*" cleanups to encounter
+if [ "$isWindows" = true ]; then
+  cmd //c "rmdir tmpLinkDir\tmpLink"
+else
+  rm -f tmpLinkDir/tmpLink
+fi
+$GREP "symbolic link" tmpStdErr
+test -f tmpLinkDir/tmpInner.zst # file inside the tree was compressed
+test ! -f tmpLinkDir/tmpInner # ... and removed (--rm)
+test -f tmpOutside/tmpVictim # file outside the tree was left untouched
+test ! -f tmpOutside/tmpVictim.zst # ... not compressed through the link
+rm -rf tmpLinkDir tmpOutside tmpStdErr
+
 
 println "\n===>  file removal"
 zstd -f --rm tmp

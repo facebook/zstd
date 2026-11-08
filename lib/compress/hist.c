@@ -74,6 +74,17 @@ typedef enum { trustInput, checkMaxSymbolValue } HIST_checkInput_e;
 #if defined(ZSTD_ARCH_ARM_SVE2)
 FORCE_INLINE_TEMPLATE size_t min_size(size_t a, size_t b) { return a < b ? a : b; }
 
+/* Saturating widen-add of 8-bit histogram partials into 16-bit accumulators.
+ * A 16-bit accumulator can only represent 65535, but HIST_count runs on blocks
+ * up to ZSTD_BLOCKSIZE_MAX (128 KB), so a symbol occurring >65535 times in a
+ * block would wrap a plain svaddwb/svaddwt to a small value, making a frequent
+ * symbol look rare and producing a bad (but still valid) Huffman table.
+ * Saturating at 65535 preserves the frequency ordering, so the table is
+ * essentially unchanged. The extra widen only runs in the per-240-byte
+ * reduction, not the inner svhistseg loop. */
+#define HIST_ADDWB_SAT(acc, h) svqadd_u16((acc), svshllb_n_u16((h), 0))
+#define HIST_ADDWT_SAT(acc, h) svqadd_u16((acc), svshllt_n_u16((h), 0))
+
 static
 svuint16_t HIST_count_6_sve2(const BYTE* const src, size_t size, U32* const dst,
                              const svuint8_t c0, const svuint8_t c1,
@@ -121,18 +132,18 @@ svuint16_t HIST_count_6_sve2(const BYTE* const src, size_t size, U32* const dst,
             h5 = svadd_u8_x(vl128, h5, svhistseg_u8(c5, c));
         }
 
-        hh0 = svaddwb_u16(hh0, h0);
-        hh1 = svaddwt_u16(hh1, h0);
-        hh2 = svaddwb_u16(hh2, h1);
-        hh3 = svaddwt_u16(hh3, h1);
-        hh4 = svaddwb_u16(hh4, h2);
-        hh5 = svaddwt_u16(hh5, h2);
-        hh6 = svaddwb_u16(hh6, h3);
-        hh7 = svaddwt_u16(hh7, h3);
-        hh8 = svaddwb_u16(hh8, h4);
-        hh9 = svaddwt_u16(hh9, h4);
-        hha = svaddwb_u16(hha, h5);
-        hhb = svaddwt_u16(hhb, h5);
+        hh0 = HIST_ADDWB_SAT(hh0, h0);
+        hh1 = HIST_ADDWT_SAT(hh1, h0);
+        hh2 = HIST_ADDWB_SAT(hh2, h1);
+        hh3 = HIST_ADDWT_SAT(hh3, h1);
+        hh4 = HIST_ADDWB_SAT(hh4, h2);
+        hh5 = HIST_ADDWT_SAT(hh5, h2);
+        hh6 = HIST_ADDWB_SAT(hh6, h3);
+        hh7 = HIST_ADDWT_SAT(hh7, h3);
+        hh8 = HIST_ADDWB_SAT(hh8, h4);
+        hh9 = HIST_ADDWT_SAT(hh9, h4);
+        hha = HIST_ADDWB_SAT(hha, h5);
+        hhb = HIST_ADDWT_SAT(hhb, h5);
     }
 
     svst1_u32(svwhilelt_b32_u64( 0, maxCount), dst +  0, svshllb_n_u32(hh0, 0));
@@ -230,14 +241,14 @@ static size_t HIST_count_sve2(unsigned* count, unsigned* maxSymbolValuePtr,
                 symbolMax = svmax_u8_x(vl128, symbolMax, c);
             }
 
-            hh0 = svaddwb_u16(hh0, h0);
-            hh1 = svaddwt_u16(hh1, h0);
-            hh2 = svaddwb_u16(hh2, h1);
-            hh3 = svaddwt_u16(hh3, h1);
-            hh4 = svaddwb_u16(hh4, h2);
-            hh5 = svaddwt_u16(hh5, h2);
-            hh6 = svaddwb_u16(hh6, h3);
-            hh7 = svaddwt_u16(hh7, h3);
+            hh0 = HIST_ADDWB_SAT(hh0, h0);
+            hh1 = HIST_ADDWT_SAT(hh1, h0);
+            hh2 = HIST_ADDWB_SAT(hh2, h1);
+            hh3 = HIST_ADDWT_SAT(hh3, h1);
+            hh4 = HIST_ADDWB_SAT(hh4, h2);
+            hh5 = HIST_ADDWT_SAT(hh5, h2);
+            hh6 = HIST_ADDWB_SAT(hh6, h3);
+            hh7 = HIST_ADDWT_SAT(hh7, h3);
         }
         maxSymbolValue = svmaxv_u8(vl128, symbolMax);
 

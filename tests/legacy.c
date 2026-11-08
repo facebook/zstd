@@ -64,6 +64,10 @@ const char* const FRAME_V07;   /* content is at end of file, produced by v0.7.0 
 const char* const FRAME_V08;   /* content is at end of file, produced by v0.8.0 */
 const char* const BLOCK;      /* content is at end of file */
 
+/* crafted frame, see definition at end of file */
+#define FRAME_V07_RLE_SIZE 16
+const char* const FRAME_V07_RLE;
+
 
 /* legacy formats older than v0.4 only offer a single-shot decoder :
  * ZSTD_decompressStream() answers version_unsupported on such frames
@@ -228,6 +232,66 @@ static int testStreamingAPI(const char* compressed, size_t compressedSize,
     return error_code;
 }
 
+/* testStreamingMatchesOneShot() :
+ * the one-shot decoder is the reference : the streaming decoder must
+ * produce the exact same bytes on the same frame. */
+static int testStreamingMatchesOneShot(const char* frame, size_t frameSize,
+                                       size_t decodedSize, const char* name)
+{
+    /* the one-shot decoder needs some slack past the last byte for its
+     * in-place literal copies, hence the extra 64 bytes */
+    char* const reference = (char*)malloc(decodedSize + 64);
+    char* const outBuff = (char*)malloc(decodedSize + 64);
+    ZSTD_DStream* const stream = ZSTD_createDStream();
+    ZSTD_inBuffer input = { frame, frameSize, 0 };
+    size_t outPos = 0;
+    int error_code = 0;
+
+    if (reference == NULL || outBuff == NULL || stream == NULL) {
+        DISPLAY("ERROR: Not enough memory\n");
+        error_code = 1;
+    }
+
+    if (!error_code) {
+        size_t const ret = ZSTD_decompress(reference, decodedSize + 64, frame, frameSize);
+        if (ZSTD_isError(ret) || ret != decodedSize) {
+            DISPLAY("ERROR: %s: one-shot decoder failed: %s\n",
+                    name, ZSTD_isError(ret) ? ZSTD_getErrorName(ret) : "wrong size");
+            error_code = 1;
+        }
+    }
+
+    while (!error_code) {
+        ZSTD_outBuffer output = { outBuff + outPos, 333, 0 };
+        if ((size_t)(outPos + output.size) > decodedSize) output.size = decodedSize - outPos;
+        {   size_t const ret = ZSTD_decompressStream(stream, &output, &input);
+            if (ZSTD_isError(ret)) {
+                DISPLAY("ERROR: %s: ZSTD_decompressStream: %s\n", name, ZSTD_getErrorName(ret));
+                error_code = 1;
+                break;
+            }
+            outPos += output.pos;
+            if (ret == 0) break;
+        }
+    }
+
+    if (!error_code && outPos != decodedSize) {
+        DISPLAY("ERROR: %s: streaming decoder produced %zu bytes instead of %zu\n",
+                name, outPos, decodedSize);
+        error_code = 1;
+    }
+    if (!error_code && memcmp(reference, outBuff, decodedSize) != 0) {
+        DISPLAY("ERROR: %s: streaming decoder output differs from one-shot decoder\n", name);
+        error_code = 1;
+    }
+
+    free(reference);
+    free(outBuff);
+    ZSTD_freeDStream(stream);
+    if (error_code == 0) DISPLAY("%s : streaming matches one-shot\n", name);
+    return error_code;
+}
+
 static int testFrameDecoding(const char* compressed, size_t compressedSize,
                              size_t expectedSize)
 {
@@ -298,6 +362,12 @@ int main(void)
          * are what the streaming subset must decode to */
         if (testStreamingAPI(streamable, streamableSize,
                              expected, blockSize * nbStreamFrames)) break;
+#if (ZSTD_LEGACY_SUPPORT <= 7)
+        /* crafted frame with a single RLE block : the one-shot v0.7 decoder
+         * expands it, and the streaming one must agree */
+        if (testStreamingMatchesOneShot(FRAME_V07_RLE, FRAME_V07_RLE_SIZE,
+                                        100000, "v0.7 RLE block frame")) break;
+#endif
         result = 0;
     } while (0);
 
@@ -426,3 +496,10 @@ const char* const BLOCK =
     "snowden is snowed in / he's now then in his snow den / when does the snow end?\n"
     "goodbye little dog / you dug some holes in your day / they'll be hard to fill.\n"
     "when life shuts a door, / just open it. it’s a door. / that is how doors work.\n";
+
+
+/* A crafted v0.7 frame (magic, direct mode header with a 4 byte frame content
+ * size of 100000, one RLE block of byte 0x41, end block). The one-shot decoder
+ * expands RLE blocks; the streaming decoder must agree. */
+const char* const FRAME_V07_RLE =
+    "\x27\xB5\x2F\xFD\xA0\xA0\x86\x01\x00\x81\x86\xA0\x41\xC0\x00\x00";

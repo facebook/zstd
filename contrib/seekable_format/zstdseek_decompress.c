@@ -397,6 +397,13 @@ static size_t ZSTD_seekable_loadSeekTable(ZSTD_seekable* zs)
         U32 const frameSize = tableSize + ZSTD_seekTableFooterSize + ZSTD_SKIPPABLEHEADERSIZE;
 
         U32 remaining = frameSize - ZSTD_seekTableFooterSize; /* don't need to re-read footer */
+
+        /* numFrames is bounded by the format (the compressor never writes more
+         * than ZSTD_SEEKABLE_MAXFRAMES). A larger value can only come from a
+         * corrupt footer and overflows the tableSize/frameSize math above, so
+         * reject it before those values are used to seek or size the table. */
+        if (numFrames > ZSTD_SEEKABLE_MAXFRAMES) return ERROR(corruption_detected);
+
         {   U32 const toRead = MIN(remaining, SEEKABLE_BUFF_SIZE);
             CHECK_IO(src.seek(src.opaque, -(S64)frameSize, SEEK_END));
             CHECK_IO(src.read(src.opaque, zs->inBuff, toRead));

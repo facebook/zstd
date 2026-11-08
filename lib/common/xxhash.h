@@ -5760,7 +5760,7 @@ XXH3_initCustomSecret_scalar(void* XXH_RESTRICT customSecret, xxh_u64 seed64)
      *  SUB     STR
      *          STR
      *
-     * See XXH3_NEON_LANES for details on the pipsline.
+     * See XXH3_NEON_LANES for details on the pipeline.
      *
      * XXH3_64bits_withSeed, len == 256, Snapdragon 835
      *   without hack: 2654.4 MB/s

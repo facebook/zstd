@@ -3043,6 +3043,49 @@ static int basicUnitTests(U32 const seed, double compressibility)
             goto _output_error;
         }
 
+        DISPLAYLEVEL(3, "test%3i : full range of dictionary IDs : ", testNb++);
+        {   U32 const dictIDs[] = { 1U, 0x7FFFFFFFU, 0x80000000U, 0xFFFFFFFFU };
+            BYTE dict[sizeof(dictBufferFixed)];
+            size_t const srcSize = 1 KB;
+            ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+            size_t i;
+            CHECK(dctx != NULL);
+            memcpy(dict, dictBufferFixed, sizeof(dict));
+            for (i = 0; i < sizeof(dictIDs) / sizeof(dictIDs[0]); ++i) {
+                unsigned mode;
+                MEM_writeLE32(dict + 4, dictIDs[i]);
+                for (mode = 0; mode < 3; ++mode) {
+                    if (mode == 0) {
+                        cSize = ZSTD_compress_usingDict(cctx,
+                            compressedBuffer, compressedBufferSize, CNBuffer, srcSize,
+                            dict, sizeof(dict), 1);
+                    } else if (mode == 1) {
+                        ZSTD_CDict* const cdict = ZSTD_createCDict(dict, sizeof(dict), 1);
+                        CHECK(cdict != NULL);
+                        CHECK_EQ(ZSTD_getDictID_fromCDict(cdict), dictIDs[i]);
+                        cSize = ZSTD_compress_usingCDict(cctx,
+                            compressedBuffer, compressedBufferSize, CNBuffer, srcSize, cdict);
+                        ZSTD_freeCDict(cdict);
+                    } else {
+                        CHECK_Z(ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters));
+                        CHECK_Z(ZSTD_CCtx_loadDictionary(cctx, dict, sizeof(dict)));
+                        cSize = ZSTD_compress2(cctx,
+                            compressedBuffer, compressedBufferSize, CNBuffer, srcSize);
+                    }
+                    CHECK_Z(cSize);
+                    CHECK_EQ(ZSTD_getDictID_fromFrame(compressedBuffer, cSize), dictIDs[i]);
+                    {   size_t const r = ZSTD_decompress_usingDict(dctx, decodedBuffer, CNBuffSize,
+                            compressedBuffer, cSize, dict, sizeof(dict));
+                        CHECK_Z(r);
+                        CHECK_EQ(r, srcSize);
+                    }
+                    CHECK(memcmp(decodedBuffer, CNBuffer, srcSize) == 0);
+                }
+            }
+            ZSTD_freeDCtx(dctx);
+        }
+        DISPLAYLEVEL(3, "OK \n");
+
         DISPLAYLEVEL(3, "test%3i : dictBuilder on cyclic data : ", testNb++);
         assert(compressedBufferSize >= totalSampleSize);
         { U32 u; for (u=0; u<totalSampleSize; u++) ((BYTE*)decodedBuffer)[u] = (BYTE)u; }

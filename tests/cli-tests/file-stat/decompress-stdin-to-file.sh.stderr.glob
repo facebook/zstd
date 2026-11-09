@@ -10,9 +10,9 @@ Trace:FileStat: > UTIL_isSameFile(/*stdin*\, file)
 Trace:FileStat:  > UTIL_stat(-1, /*stdin*\)
 Trace:FileStat:  < 0
 Trace:FileStat: < 0
-Trace:FileStat: > UTIL_isRegularFile(file)
-Trace:FileStat:  > UTIL_stat(-1, file)
-Trace:FileStat:  < 0
+Trace:FileStat: > UTIL_stat(-1, file)
+Trace:FileStat: < 0
+Trace:FileStat: > UTIL_isLink(file)
 Trace:FileStat: < 0
 Trace:FileStat: > UTIL_isFdRegularFile(*)
 Trace:FileStat:  > UTIL_stat(*, )

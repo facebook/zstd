@@ -496,8 +496,9 @@ size_t ZSTD_seekable_initAdvanced(ZSTD_seekable* zs, ZSTD_seekable_customFile sr
 size_t ZSTD_seekable_decompress(ZSTD_seekable* zs, void* dst, size_t len, unsigned long long offset)
 {
     unsigned long long const eos = zs->seekTable.entries[zs->seekTable.tableLen].dOffset;
-    if (offset + len > eos) {
-        len = eos - offset;
+    if (offset > eos) return ERROR(parameter_outOfBound);
+    if (len > eos - offset) {
+        len = (size_t)(eos - offset);
     }
 
     U32 targetFrame = ZSTD_seekable_offsetToFrameIndex(zs, offset);

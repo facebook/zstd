@@ -1012,6 +1012,20 @@ zstd world.tmp hello.tmp -f
 test -f world.tmp.zst  # symbolic link should have been compressed with --force
 rm -f hello.tmp world.tmp world2.tmp hello.tmp.zst world.tmp.zst
 
+println "test : output is not written through a dangling symbolic link"
+rm -f hello.tmp hello.tmp.zst tmpLinkTarget
+println "hello world" > hello.tmp
+zstd -q --rm hello.tmp
+ln -s tmpLinkTarget hello.tmp
+zstd -q -d hello.tmp.zst && die "output should not be written through a dangling link"
+test ! -e tmpLinkTarget  # link target should not have been created
+zstd -q -d -f hello.tmp.zst  # --force replaces the link
+test ! -L hello.tmp
+test -f hello.tmp
+test ! -e tmpLinkTarget
+zstd -q -d hello.tmp.zst -o /dev/null  # existing non-regular files are still opened
+rm -f hello.tmp hello.tmp.zst tmpLinkTarget
+
 fi
 
 

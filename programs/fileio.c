@@ -850,6 +850,8 @@ FIO_openDstFile(FIO_ctx_t* fCtx, FIO_prefs_t* const prefs,
                 const char* srcFileName, const char* dstFileName,
                 const int mode)
 {
+    stat_t dstStat;
+    int dstExists;
     if (prefs->testMode) return NULL;  /* do not open file in test mode */
 
     assert(dstFileName != NULL);
@@ -869,7 +871,11 @@ FIO_openDstFile(FIO_ctx_t* fCtx, FIO_prefs_t* const prefs,
         return NULL;
     }
 
-    if (UTIL_isRegularFile(dstFileName)) {
+    dstExists = UTIL_stat(dstFileName, &dstStat);
+    /* A dangling symbolic link counts as an existing file :
+     * writing through it would create its target. */
+    if ( (dstExists && UTIL_isRegularFileStat(&dstStat))
+      || (!dstExists && UTIL_isLink(dstFileName)) ) {
         /* Check if destination file already exists */
 #if !defined(_WIN32)
         /* this test does not work on Windows :
@@ -891,7 +897,12 @@ FIO_openDstFile(FIO_ctx_t* fCtx, FIO_prefs_t* const prefs,
                 return NULL;
         }
         /* need to unlink */
-        FIO_removeFile(dstFileName);
+        if (dstExists) {
+            /* still exists only if remove() failed */
+            dstExists = FIO_removeFile(dstFileName) != 0;
+        } else {
+            (void)remove(dstFileName);  /* dangling link */
+        }
     }
 
     {
@@ -906,9 +917,22 @@ FIO_openDstFile(FIO_ctx_t* fCtx, FIO_prefs_t* const prefs,
             f = _fdopen(fd, "wb");
         }
 #else
-        const int openflags = O_WRONLY|O_CREAT|O_TRUNC;
-        const int fd = open(dstFileName, openflags, mode);
+        /* A new file is created with O_EXCL, which fails on any symbolic link,
+         * even a dangling one : output never goes to the target of a link.
+         * An existing file is either a regular file which could not be removed,
+         * or not a regular file (/dev/null, pipe) : it is opened as it is. */
+        int const dstIsSpecial = dstExists && !UTIL_isRegularFileStat(&dstStat);
+        const int openflags = !dstExists ? O_WRONLY|O_CREAT|O_EXCL
+                            : dstIsSpecial ? O_WRONLY
+                            : O_WRONLY|O_TRUNC;
+        int fd = open(dstFileName, openflags, mode);
         FILE* f = NULL;
+        if (fd != -1 && dstIsSpecial && UTIL_isFdRegularFile(fd)) {
+            /* replaced by a regular file since UTIL_stat() : don't write into it */
+            close(fd);
+            fd = -1;
+            errno = EEXIST;
+        }
         if (fd != -1) {
             f = fdopen(fd, "wb");
         }

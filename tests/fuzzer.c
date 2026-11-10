@@ -34,6 +34,7 @@
 #define ZSTD_DISABLE_DEPRECATE_WARNINGS /* No deprecation warnings, we still test some deprecated functions */
 #include "zstd.h"         /* ZSTD_VERSION_STRING */
 #include "zstd_errors.h"  /* ZSTD_getErrorCode */
+#define ZDICT_DISABLE_DEPRECATE_WARNINGS /* No deprecation warnings, we still test deprecated functions */
 #define ZDICT_STATIC_LINKING_ONLY
 #include "zdict.h"        /* ZDICT_trainFromBuffer */
 #include "mem.h"
@@ -3288,6 +3289,72 @@ static int basicUnitTests(U32 const seed, double compressibility)
             if (dictHeaderSize != 115) goto _output_error;
         }
         DISPLAYLEVEL(3, "OK : %u \n", (unsigned)dictHeaderSize);
+
+        DISPLAYLEVEL(3, "test%3i : ZDICT_addEntropyTablesFromBuffer capacity bounds : ", testNb++);
+        {   size_t const validCapacity = 1024;
+            size_t const validContentSize = 128;
+            BYTE* const smallBuf = (BYTE*)malloc(7);
+            BYTE* const contentOverflowBuf = (BYTE*)malloc(16);
+            BYTE* const validBuf = (BYTE*)malloc(validCapacity);
+            size_t res;
+            if (smallBuf == NULL || contentOverflowBuf == NULL || validBuf == NULL) {
+                free(smallBuf);
+                free(contentOverflowBuf);
+                free(validBuf);
+                goto _output_error;
+            }
+            memset(smallBuf, 0, 7);
+            memset(contentOverflowBuf, 0, 16);
+            { U32 u; for (u=0; u<nbSamples; u++) samplesSizes[u] = sampleUnitSize; }
+
+            /* negative checks: reject out-of-bounds capacities and null destination */
+            res = ZDICT_addEntropyTablesFromBuffer(smallBuf, 0, 7, CNBuffer, samplesSizes, nbSamples);
+            if (!ZDICT_isError(res) || ZSTD_getErrorCode(res) != ZSTD_error_dstSize_tooSmall) {
+                free(smallBuf);
+                free(contentOverflowBuf);
+                free(validBuf);
+                goto _output_error;
+            }
+            res = ZDICT_addEntropyTablesFromBuffer(smallBuf, 0, 0, CNBuffer, samplesSizes, nbSamples);
+            if (!ZDICT_isError(res) || ZSTD_getErrorCode(res) != ZSTD_error_dstSize_tooSmall) {
+                free(smallBuf);
+                free(contentOverflowBuf);
+                free(validBuf);
+                goto _output_error;
+            }
+            res = ZDICT_addEntropyTablesFromBuffer(contentOverflowBuf, 17, 16, CNBuffer, samplesSizes, nbSamples);
+            if (!ZDICT_isError(res) || ZSTD_getErrorCode(res) != ZSTD_error_dstSize_tooSmall) {
+                free(smallBuf);
+                free(contentOverflowBuf);
+                free(validBuf);
+                goto _output_error;
+            }
+            res = ZDICT_addEntropyTablesFromBuffer(NULL, 0, 0, CNBuffer, samplesSizes, nbSamples);
+            if (!ZDICT_isError(res) || ZSTD_getErrorCode(res) != ZSTD_error_dstSize_tooSmall) {
+                free(smallBuf);
+                free(contentOverflowBuf);
+                free(validBuf);
+                goto _output_error;
+            }
+
+            /* positive control: valid capacity and trailing dictionary content */
+            memset(validBuf, 0, validCapacity);
+            memcpy(validBuf + validCapacity - validContentSize, CNBuffer, validContentSize);
+            res = ZDICT_addEntropyTablesFromBuffer(validBuf, validContentSize, validCapacity,
+                                                   CNBuffer, samplesSizes, nbSamples);
+            if (ZDICT_isError(res) || res > validCapacity || ZDICT_getDictID(validBuf, res) == 0) {
+                free(smallBuf);
+                free(contentOverflowBuf);
+                free(validBuf);
+                goto _output_error;
+            }
+            assert(ZDICT_getDictID(validBuf, res) != 0);
+
+            free(smallBuf);
+            free(contentOverflowBuf);
+            free(validBuf);
+        }
+        DISPLAYLEVEL(3, "OK \n");
 
         DISPLAYLEVEL(3, "test%3i : compress with dictionary : ", testNb++);
         cSize = ZSTD_compress_usingDict(cctx, compressedBuffer, compressedBufferSize,

@@ -950,6 +950,10 @@ static size_t ZDICT_addEntropyTablesFromBuffer_advanced(
     U32 const notificationLevel = params.notificationLevel;
     size_t hSize = 8;
 
+    /* check conditions */
+    if ((dictBuffer == NULL) || (dictBufferCapacity < dictContentSize) || (dictBufferCapacity < hSize))
+        return ERROR(dstSize_tooSmall);
+
     /* calculate entropy tables */
     DISPLAYLEVEL(2, "\r%70s\r", "");   /* clean display line */
     DISPLAYLEVEL(2, "statistics ... \n");

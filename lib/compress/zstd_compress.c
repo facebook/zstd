@@ -5545,6 +5545,29 @@ size_t ZSTD_compress(void* dst, size_t dstCapacity,
 
 /* =====  Dictionary API  ===== */
 
+/* Returns the CDict workspace size, or an error if the dictionary copy would
+ * overflow while rounding, adding sanitizer redzones, or adding the workspace
+ * overhead. All by-copy CDict creation paths must use this calculation before
+ * reserving or copying the dictionary. */
+static size_t ZSTD_estimateCDictSize_internal(size_t dictSize,
+                                             size_t matchStateSize,
+                                             ZSTD_dictLoadMethod_e dictLoadMethod)
+{
+    size_t const baseSize = ZSTD_cwksp_alloc_size(sizeof(ZSTD_CDict))
+                          + ZSTD_cwksp_alloc_size(HUF_WORKSPACE_SIZE)
+                          + matchStateSize;
+    if (dictLoadMethod == ZSTD_dlm_byRef) return baseSize;
+    {
+        size_t const alignedDictSize = ZSTD_cwksp_align(dictSize, sizeof(void*));
+        size_t const dictAllocSize = ZSTD_cwksp_alloc_size(alignedDictSize);
+        RETURN_ERROR_IF(alignedDictSize < dictSize || dictAllocSize < alignedDictSize,
+                        memory_allocation, "CDict size overflow");
+        RETURN_ERROR_IF(dictAllocSize > (size_t)-1 - baseSize,
+                        memory_allocation, "CDict workspace size overflow");
+        return baseSize + dictAllocSize;
+    }
+}
+
 /*! ZSTD_estimateCDictSize_advanced() :
  *  Estimate amount of memory that will be needed to create a dictionary with following arguments */
 size_t ZSTD_estimateCDictSize_advanced(
@@ -5552,14 +5575,12 @@ size_t ZSTD_estimateCDictSize_advanced(
         ZSTD_dictLoadMethod_e dictLoadMethod)
 {
     DEBUGLOG(5, "sizeof(ZSTD_CDict) : %u", (unsigned)sizeof(ZSTD_CDict));
-    return ZSTD_cwksp_alloc_size(sizeof(ZSTD_CDict))
-         + ZSTD_cwksp_alloc_size(HUF_WORKSPACE_SIZE)
-         /* enableDedicatedDictSearch == 1 ensures that CDict estimation will not be too small
-          * in case we are using DDS with row-hash. */
-         + ZSTD_sizeof_matchState(&cParams, ZSTD_resolveRowMatchFinderMode(ZSTD_ps_auto, &cParams),
-                                  /* enableDedicatedDictSearch */ 1, /* forCCtx */ 0)
-         + (dictLoadMethod == ZSTD_dlm_byRef ? 0
-            : ZSTD_cwksp_alloc_size(ZSTD_cwksp_align(dictSize, sizeof(void *))));
+    /* enableDedicatedDictSearch == 1 ensures that CDict estimation will not be too small
+     * in case we are using DDS with row-hash. */
+    return ZSTD_estimateCDictSize_internal(dictSize,
+            ZSTD_sizeof_matchState(&cParams, ZSTD_resolveRowMatchFinderMode(ZSTD_ps_auto, &cParams),
+                                  /* enableDedicatedDictSearch */ 1, /* forCCtx */ 0),
+            dictLoadMethod);
 }
 
 size_t ZSTD_estimateCDictSize(size_t dictSize, int compressionLevel)
@@ -5641,16 +5662,15 @@ ZSTD_createCDict_advanced_internal(size_t dictSize,
     if ((!customMem.customAlloc) ^ (!customMem.customFree)) return NULL;
     DEBUGLOG(3, "ZSTD_createCDict_advanced_internal (dictSize=%u)", (unsigned)dictSize);
 
-    {   size_t const workspaceSize =
-            ZSTD_cwksp_alloc_size(sizeof(ZSTD_CDict)) +
-            ZSTD_cwksp_alloc_size(HUF_WORKSPACE_SIZE) +
-            ZSTD_sizeof_matchState(&cParams, useRowMatchFinder, enableDedicatedDictSearch, /* forCCtx */ 0) +
-            (dictLoadMethod == ZSTD_dlm_byRef ? 0
-             : ZSTD_cwksp_alloc_size(ZSTD_cwksp_align(dictSize, sizeof(void*))));
-        void* const workspace = ZSTD_customMalloc(workspaceSize, customMem);
+    {   size_t const workspaceSize = ZSTD_estimateCDictSize_internal(dictSize,
+            ZSTD_sizeof_matchState(&cParams, useRowMatchFinder, enableDedicatedDictSearch, /* forCCtx */ 0),
+            dictLoadMethod);
+        void* workspace;
         ZSTD_cwksp ws;
         ZSTD_CDict* cdict;
 
+        if (ZSTD_isError(workspaceSize)) return NULL;
+        workspace = ZSTD_customMalloc(workspaceSize, customMem);
         if (!workspace) {
             ZSTD_customFree(workspace, customMem);
             return NULL;
@@ -5794,16 +5814,13 @@ const ZSTD_CDict* ZSTD_initStaticCDict(
     ZSTD_ParamSwitch_e const useRowMatchFinder = ZSTD_resolveRowMatchFinderMode(ZSTD_ps_auto, &cParams);
     /* enableDedicatedDictSearch == 1 ensures matchstate is not too small in case this CDict will be used for DDS + row hash */
     size_t const matchStateSize = ZSTD_sizeof_matchState(&cParams, useRowMatchFinder, /* enableDedicatedDictSearch */ 1, /* forCCtx */ 0);
-    size_t const neededSize = ZSTD_cwksp_alloc_size(sizeof(ZSTD_CDict))
-                            + (dictLoadMethod == ZSTD_dlm_byRef ? 0
-                               : ZSTD_cwksp_alloc_size(ZSTD_cwksp_align(dictSize, sizeof(void*))))
-                            + ZSTD_cwksp_alloc_size(HUF_WORKSPACE_SIZE)
-                            + matchStateSize;
+    size_t const neededSize = ZSTD_estimateCDictSize_internal(dictSize, matchStateSize, dictLoadMethod);
     ZSTD_CDict* cdict;
     ZSTD_CCtx_params params;
 
     DEBUGLOG(4, "ZSTD_initStaticCDict (dictSize==%u)", (unsigned)dictSize);
     if ((size_t)workspace & 7) return NULL;  /* 8-aligned */
+    if (ZSTD_isError(neededSize) || workspaceSize < neededSize) return NULL;
 
     {
         ZSTD_cwksp ws;
@@ -5812,8 +5829,6 @@ const ZSTD_CDict* ZSTD_initStaticCDict(
         if (cdict == NULL) return NULL;
         ZSTD_cwksp_move(&cdict->workspace, &ws);
     }
-
-    if (workspaceSize < neededSize) return NULL;
 
     ZSTD_CCtxParams_init(&params, 0);
     params.cParams = cParams;

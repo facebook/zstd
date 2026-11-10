@@ -9,6 +9,9 @@
  */
 
 #include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#define ZSTD_STATIC_LINKING_ONLY
 #include "zstd.h"
 
 static const char invalidRepCode[] = {
@@ -38,8 +41,117 @@ static const dictionary dictionaries[] = {
   {NULL, 0},
 };
 
+static void* countAllocations(void* opaque, size_t size) {
+  size_t* const count = (size_t*)opaque;
+  ++*count;
+  (void)size;
+  return NULL;
+}
+
+static void ignoreFree(void* opaque, void* address) {
+  (void)opaque;
+  (void)address;
+}
+
+#define CHECK(condition)                                                   \
+  do {                                                                     \
+    if (!(condition)) {                                                    \
+      fprintf(stderr, "CDict size test failed at line %d: %s\n",          \
+              __LINE__, #condition);                                       \
+      goto cleanup;                                                        \
+    }                                                                      \
+  } while (0)
+
+static int testCDictSizeOverflow(void) {
+  static const char dict[] = "a small raw content dictionary";
+  ZSTD_compressionParameters cParams = ZSTD_getCParams(1, 0, 0);
+  ZSTD_CCtx_params* const params = ZSTD_createCCtxParams();
+  ZSTD_CDict* cdict = NULL;
+  void* workspace = NULL;
+  size_t allocCount = 0;
+  ZSTD_customMem const customMem = {countAllocations, ignoreFree, &allocCount};
+  size_t baseSize;
+  size_t workspaceSize;
+  int result = 1;
+
+  CHECK(params != NULL);
+  CHECK(!ZSTD_isError(ZSTD_CCtxParams_init(params, 1)));
+  cParams.windowLog = ZSTD_WINDOWLOG_MIN;
+  cParams.hashLog = ZSTD_HASHLOG_MIN;
+  cParams.chainLog = ZSTD_CHAINLOG_MIN;
+  baseSize = ZSTD_estimateCDictSize_advanced(0, cParams, ZSTD_dlm_byCopy);
+  CHECK(!ZSTD_isError(baseSize));
+  workspaceSize = ZSTD_estimateCDictSize_advanced(sizeof(dict), cParams, ZSTD_dlm_byCopy);
+  CHECK(!ZSTD_isError(workspaceSize));
+  workspace = malloc(workspaceSize);
+  CHECK(workspace != NULL);
+
+  {
+    size_t const maxSize = (size_t)-1;
+    size_t const badSizes[] = {
+      maxSize,
+      maxSize - 1,
+      maxSize - (sizeof(void*) - 1),
+      /* The estimator includes a conservative match-state allowance, so stay
+       * well inside the overflow range for both static and heap workspaces. */
+      maxSize - baseSize / 2,
+    };
+    size_t i;
+    for (i = 0; i < sizeof(badSizes) / sizeof(badSizes[0]); ++i) {
+      size_t const dictSize = badSizes[i];
+      /* Exercise the public reproducer as well as each workspace-sizing path.
+       * The dictionary is deliberately much smaller than the claimed size:
+       * overflow must be rejected before the input is read or copied. */
+      cdict = ZSTD_createCDict(dict, dictSize, 1);
+      CHECK(cdict == NULL);
+      CHECK(ZSTD_isError(ZSTD_estimateCDictSize(dictSize, 1)));
+      CHECK(ZSTD_isError(ZSTD_estimateCDictSize_advanced(dictSize, cParams, ZSTD_dlm_byCopy)));
+      cdict = ZSTD_createCDict_advanced(dict, dictSize, ZSTD_dlm_byCopy,
+                                      ZSTD_dct_auto, cParams, customMem);
+      CHECK(cdict == NULL);
+      cdict = ZSTD_createCDict_advanced2(dict, dictSize, ZSTD_dlm_byCopy,
+                                       ZSTD_dct_auto, params, customMem);
+      CHECK(cdict == NULL);
+      CHECK(allocCount == 0);
+      CHECK(ZSTD_initStaticCDict(workspace, workspaceSize, dict, dictSize,
+                                ZSTD_dlm_byCopy, ZSTD_dct_auto, cParams) == NULL);
+      /* By-reference estimates don't include a dictionary allocation. */
+      CHECK(ZSTD_estimateCDictSize_advanced(dictSize, cParams, ZSTD_dlm_byRef) == baseSize);
+    }
+  }
+
+  {
+    size_t const goodSizes[] = {0, 1, sizeof(void*) - 1, sizeof(void*), sizeof(dict)};
+    size_t i;
+    for (i = 0; i < sizeof(goodSizes) / sizeof(goodSizes[0]); ++i) {
+      size_t const dictSize = goodSizes[i];
+      size_t const neededSize = ZSTD_estimateCDictSize_advanced(dictSize, cParams, ZSTD_dlm_byCopy);
+      CHECK(!ZSTD_isError(neededSize));
+      CHECK(neededSize <= workspaceSize);
+      cdict = ZSTD_createCDict(dict, dictSize, 1);
+      CHECK(cdict != NULL);
+      ZSTD_freeCDict(cdict);
+      cdict = NULL;
+      CHECK(ZSTD_initStaticCDict(workspace, neededSize, dict, dictSize,
+                                ZSTD_dlm_byCopy, ZSTD_dct_auto, cParams) != NULL);
+      CHECK(ZSTD_initStaticCDict(workspace, baseSize, dict, dictSize,
+                                ZSTD_dlm_byRef, ZSTD_dct_auto, cParams) != NULL);
+    }
+  }
+  result = 0;
+
+cleanup:
+  ZSTD_freeCDict(cdict);
+  ZSTD_freeCCtxParams(params);
+  free(workspace);
+  return result;
+}
+
+#undef CHECK
+
 int main(int argc, const char** argv) {
   const dictionary *dict;
+  if (testCDictSizeOverflow()) return 3;
   for (dict = dictionaries; dict->data != NULL; ++dict) {
     ZSTD_CDict *cdict;
     ZSTD_DDict *ddict;

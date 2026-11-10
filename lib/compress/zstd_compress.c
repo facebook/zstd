@@ -184,10 +184,10 @@ static void ZSTD_freeCCtxContent(ZSTD_CCtx* cctx)
 {
     assert(cctx != NULL);
     assert(cctx->staticSize == 0);
-    ZSTD_clearAllDicts(cctx);
 #ifdef ZSTD_MULTITHREAD
-    ZSTDMT_freeCCtx(cctx->mtctx); cctx->mtctx = NULL;
+    ZSTDMT_freeCCtx(cctx->mtctx); cctx->mtctx = NULL;  /* pending jobs may use the dictionary */
 #endif
+    ZSTD_clearAllDicts(cctx);
     ZSTD_cwksp_free(&cctx->workspace, cctx->customMem);
 }
 
@@ -1389,6 +1389,10 @@ size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx, ZSTD_ResetDirective reset)
 {
     if ( (reset == ZSTD_reset_session_only)
       || (reset == ZSTD_reset_session_and_parameters) ) {
+#ifdef ZSTD_MULTITHREAD
+        /* jobs of an abandoned frame may still reference the dictionary */
+        if (cctx->mtctx != NULL) ZSTDMT_waitForPendingJobs(cctx->mtctx);
+#endif
         cctx->streamStage = zcss_init;
         cctx->pledgedSrcSizePlusOne = 0;
     }

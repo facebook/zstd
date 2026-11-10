@@ -597,6 +597,7 @@ typedef enum {
  *  - The session : will stop compressing current frame, and make CCtx ready to start a new one.
  *                  Useful after an error, or to interrupt any ongoing compression.
  *                  Any internal data not yet flushed is cancelled.
+ *                  With nbWorkers >= 1, it waits for the jobs already started to complete.
  *                  Compression parameters and dictionary remain unchanged.
  *                  They will be used to compress next frame.
  *                  Resetting session never fails.

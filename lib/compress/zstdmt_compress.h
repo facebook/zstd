@@ -49,6 +49,12 @@ ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced(unsigned nbWorkers,
 					ZSTD_threadPool *pool);
 size_t ZSTDMT_freeCCtx(ZSTDMT_CCtx* mtctx);
 
+/*! ZSTDMT_waitForPendingJobs() :
+ *  Waits for the jobs of an unfinished frame to complete, then releases their resources.
+ *  Must be called before freeing anything these jobs reference, such as the dictionary.
+ *  Does nothing if the last frame was completed. */
+void ZSTDMT_waitForPendingJobs(ZSTDMT_CCtx* mtctx);
+
 size_t ZSTDMT_sizeof_CCtx(ZSTDMT_CCtx* mtctx);
 
 /* ===   Streaming functions   === */

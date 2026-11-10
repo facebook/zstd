@@ -662,6 +662,7 @@ static const Range kNullRange = { NULL, 0 };
 typedef struct {
     size_t   consumed;                 /* SHARED - set0 by mtctx, then modified by worker AND read by mtctx */
     size_t   cSize;                    /* SHARED - set0 by mtctx, then modified by worker AND read by mtctx, then set0 by mtctx */
+    unsigned completed;                /* SHARED - set0 by mtctx, then set1 by worker when it no longer uses the job */
     ZSTD_pthread_mutex_t job_mutex;    /* Thread-safe - used by mtctx and worker */
     ZSTD_pthread_cond_t job_cond;      /* Thread-safe - used by mtctx and worker */
     ZSTDMT_CCtxPool* cctxPool;         /* Thread-safe - used by mtctx and (all) workers */
@@ -814,7 +815,8 @@ _endJob:
     ZSTD_PTHREAD_MUTEX_LOCK(&job->job_mutex);
     if (ZSTD_isError(job->cSize)) assert(lastCBlockSize == 0);
     job->cSize += lastCBlockSize;
-    job->consumed = job->src.size;  /* when job->consumed == job->src.size , compression job is presumed completed */
+    job->consumed = job->src.size;
+    job->completed = 1;   /* also true for an empty job, unlike consumed == src.size */
     ZSTD_pthread_cond_signal(&job->job_cond);
     ZSTD_pthread_mutex_unlock(&job->job_mutex);
 }
@@ -1025,6 +1027,7 @@ static void ZSTDMT_releaseAllJobResources(ZSTDMT_CCtx* mtctx)
     }
     mtctx->inBuff.buffer = g_nullBuffer;
     mtctx->inBuff.filled = 0;
+    mtctx->jobReady = 0;   /* the prepared job was cleared above */
     mtctx->allJobsCompleted = 1;
 }
 
@@ -1034,7 +1037,7 @@ static void ZSTDMT_waitForAllJobsCompleted(ZSTDMT_CCtx* mtctx)
     while (mtctx->doneJobID < mtctx->nextJobID) {
         unsigned const jobID = mtctx->doneJobID & mtctx->jobIDMask;
         ZSTD_PTHREAD_MUTEX_LOCK(&mtctx->jobs[jobID].job_mutex);
-        while (mtctx->jobs[jobID].consumed < mtctx->jobs[jobID].src.size) {
+        while (!mtctx->jobs[jobID].completed) {
             DEBUGLOG(4, "waiting for jobCompleted signal from job %u", mtctx->doneJobID);   /* we want to block when waiting for data to flush */
             ZSTD_pthread_cond_wait(&mtctx->jobs[jobID].job_cond, &mtctx->jobs[jobID].job_mutex);
         }
@@ -1043,9 +1046,18 @@ static void ZSTDMT_waitForAllJobsCompleted(ZSTDMT_CCtx* mtctx)
     }
 }
 
+void ZSTDMT_waitForPendingJobs(ZSTDMT_CCtx* mtctx)
+{
+    if (mtctx->allJobsCompleted == 0) {   /* previous compression not correctly finished */
+        ZSTDMT_waitForAllJobsCompleted(mtctx);
+        ZSTDMT_releaseAllJobResources(mtctx); /* Will set allJobsCompleted to 1 */
+    }
+}
+
 size_t ZSTDMT_freeCCtx(ZSTDMT_CCtx* mtctx)
 {
     if (mtctx==NULL) return 0;   /* compatible with free on NULL */
+    ZSTDMT_waitForPendingJobs(mtctx);  /* a shared pool is not stopped below */
     if (!mtctx->providedFactory)
         POOL_free(mtctx->factory);   /* stop and free worker threads */
     ZSTDMT_releaseAllJobResources(mtctx);  /* release job resources into pools first */
@@ -1262,16 +1274,12 @@ size_t ZSTDMT_initCStream_internal(
     assert(!((dict) && (cdict)));  /* either dict or cdict, not both */
 
     /* init */
+    ZSTDMT_waitForPendingJobs(mtctx);   /* before resizing the pools they use */
     if (params.nbWorkers != mtctx->params.nbWorkers)
         FORWARD_IF_ERROR( ZSTDMT_resize(mtctx, (unsigned)params.nbWorkers) , "");
 
     if (params.jobSize != 0 && params.jobSize < ZSTDMT_JOBSIZE_MIN) params.jobSize = ZSTDMT_JOBSIZE_MIN;
     if (params.jobSize > (size_t)ZSTDMT_JOBSIZE_MAX) params.jobSize = (size_t)ZSTDMT_JOBSIZE_MAX;
-
-    if (mtctx->allJobsCompleted == 0) {   /* previous compression not correctly finished */
-        ZSTDMT_waitForAllJobsCompleted(mtctx);
-        ZSTDMT_releaseAllJobResources(mtctx); /* Will set allJobsCompleted to 1 */
-    }
 
     mtctx->params = params;
     mtctx->frameContentSize = pledgedSrcSize;
@@ -1389,6 +1397,7 @@ static void ZSTDMT_writeLastEmptyBlock(ZSTDMT_jobDescription* job)
     assert(job->src.size == 0);   /* last job is empty -> will be simplified into a last empty block */
     assert(job->firstJob == 0);   /* cannot be first job, as it also needs to create frame header */
     assert(job->dstBuff.start == NULL);   /* invoked from streaming variant only (otherwise, dstBuff might be user's output) */
+    job->completed = 1;   /* written here, never posted to a worker */
     job->dstBuff = ZSTDMT_getBuffer(job->bufPool);
     if (job->dstBuff.start == NULL) {
       job->cSize = ERROR(memory_allocation);
@@ -1422,6 +1431,7 @@ static size_t ZSTDMT_createCompressionJob(ZSTDMT_CCtx* mtctx, size_t srcSize, ZS
         mtctx->jobs[jobID].prefix = mtctx->inBuff.prefix;
         mtctx->jobs[jobID].consumed = 0;
         mtctx->jobs[jobID].cSize = 0;
+        mtctx->jobs[jobID].completed = 0;
         mtctx->jobs[jobID].params = mtctx->params;
         mtctx->jobs[jobID].cdict = mtctx->nextJobID==0 ? mtctx->cdict : NULL;
         mtctx->jobs[jobID].fullFrameSize = mtctx->frameContentSize;

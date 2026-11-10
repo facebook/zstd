@@ -1040,6 +1040,84 @@ static unsigned test_convertSequences_noRepcodes(unsigned seed, unsigned testNb)
     return testNb;
 }
 
+static U32 FUZ_blockSplitHash(U32 x)
+{
+    x ^= x >> 16;
+    x *= 0x7feb352dU;
+    x ^= x >> 15;
+    x *= 0x846ca68bU;
+    return x ^ (x >> 16);
+}
+
+/* The input is all zeroes, so all these offsets are valid matches.
+ * Groups of 150 sequences have distinct offset-code distributions, making
+ * enough dyadic splits beneficial to exhaust the block splitter's budget. */
+static size_t FUZ_blockSplitSequenceProducer(void* state,
+        ZSTD_Sequence* out, size_t capacity,
+        const void* src, size_t srcSize, const void* dict, size_t dictSize,
+        int compressionLevel, size_t windowSize)
+{
+    size_t i;
+    (void)state; (void)src; (void)dict; (void)dictSize;
+    (void)compressionLevel; (void)windowSize;
+    CHECK_EQ(srcSize, 128000);
+    CHECK(capacity >= 38401);
+    for (i = 0; i < 38400; ++i) {
+        U32 const code = 3 + FUZ_blockSplitHash((U32)(i / 150)) % 10;
+        out[i].offset = (1U << code) + (U32)(i % 4);
+        out[i].litLength = i == 0 ? 12800 : 0;
+        out[i].matchLength = 3;
+        out[i].rep = 0;
+    }
+    memset(out + i, 0, sizeof(*out));
+    return i + 1;
+}
+
+static unsigned test_blockSplitLimit(unsigned testNb)
+{
+    size_t const srcSize = 128000;
+    size_t const dstCapacity = ZSTD_compressBound(srcSize);
+    BYTE* const src = (BYTE*)calloc(1, srcSize);
+    BYTE* const dst = (BYTE*)malloc(dstCapacity);
+    BYTE* const decoded = (BYTE*)malloc(srcSize);
+    ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+    ZSTD_FrameHeader header;
+    size_t cSize, pos, nbBlocks = 0;
+
+    DISPLAYLEVEL(3, "test%3u : external sequences exhaust the block split budget : ", testNb++);
+    CHECK(src != NULL && dst != NULL && decoded != NULL && cctx != NULL);
+    CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, 19));
+    CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_minMatch, 3));
+    CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_splitAfterSequences, ZSTD_ps_enable));
+    CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_validateSequences, 1));
+    ZSTD_registerSequenceProducer(cctx, NULL, FUZ_blockSplitSequenceProducer);
+    cSize = ZSTD_compress2(cctx, dst, dstCapacity, src, srcSize);
+    CHECK_Z(cSize);
+    CHECK_EQ(ZSTD_getFrameHeader(&header, dst, cSize), 0);
+    pos = header.headerSize;
+    for (;;) {
+        U32 blockHeader;
+        CHECK(pos + ZSTD_blockHeaderSize <= cSize);
+        blockHeader = MEM_readLE24(dst + pos);
+        pos += ZSTD_blockHeaderSize;
+        pos += ((blockHeader >> 1) & 3) == bt_rle ? 1 : blockHeader >> 3;
+        CHECK(pos <= cSize);
+        ++nbBlocks;
+        if (blockHeader & 1) break;
+    }
+    CHECK_EQ(pos, cSize);
+    CHECK_EQ(nbBlocks, ZSTD_MAX_NB_BLOCK_SPLITS + 1);
+    CHECK_EQ(cctx->blockSplitCtx.partitions[ZSTD_MAX_NB_BLOCK_SPLITS], 38400);
+    CHECK_EQ(ZSTD_decompress(decoded, srcSize, dst, cSize), srcSize);
+    CHECK_EQ(memcmp(src, decoded, srcSize), 0);
+    ZSTD_freeCCtx(cctx);
+    free(decoded);
+    free(dst);
+    free(src);
+    DISPLAYLEVEL(3, "OK \n");
+    return testNb;
+}
+
 static unsigned test_get1BlockSummary(unsigned testNb)
 {
     static const ZSTD_Sequence nseqs[] = {
@@ -4729,6 +4807,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
     testNb = test_convertSequences_noRepcodes(seed, testNb);
 
     testNb = test_get1BlockSummary(testNb);
+    testNb = test_blockSplitLimit(testNb);
 
     DISPLAYLEVEL(3, "test%3i : ZSTD_compressSequencesAndLiterals : ", testNb++);
     {

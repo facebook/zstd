@@ -465,7 +465,7 @@ typedef struct {
     SeqStore_t currSeqStore;
     SeqStore_t nextSeqStore;
 
-    U32 partitions[ZSTD_MAX_NB_BLOCK_SPLITS];
+    U32 partitions[ZSTD_MAX_NB_BLOCK_SPLITS + 1]; /* splits, followed by the end of the block */
     ZSTD_entropyCTablesMetadata_t entropyMetadata;
 } ZSTD_blockSplitCtx;
 

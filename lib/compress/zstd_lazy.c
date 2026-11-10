@@ -1601,8 +1601,8 @@ size_t ZSTD_compressBlock_lazy_generic(
         if (offset_1 > maxRep) offsetSaved1 = offset_1, offset_1 = 0;
     }
     if (isDxS) {
-        /* dictMatchState repCode checks don't currently handle repCode == 0
-         * disabling. */
+        /* Dictionary repcodes are validated when the CDict is attached.
+         * dictMatchState repCode checks don't handle repCode == 0 disabling. */
         assert(offset_1 <= dictAndPrefixLength);
         assert(offset_2 <= dictAndPrefixLength);
     }

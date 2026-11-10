@@ -11,6 +11,12 @@
 #ifndef ZSTD_ERRORS_H_398273423
 #define ZSTD_ERRORS_H_398273423
 
+#include "zstd_annotations.h"
+
+#if ZSTD_NULLABILITY
+#pragma clang assume_nonnull begin
+#endif
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
@@ -57,7 +63,7 @@ extern "C" {
  *           This is the only supported way to use the error list < v1.3.1
  *  note 3 : ZSTD_isError() is always correct, whatever the library version.
  **********************************************/
-typedef enum {
+typedef enum ZSTD_ENUM_OPEN {
   ZSTD_error_no_error = 0,
   ZSTD_error_GENERIC  = 1,
   ZSTD_error_prefix_unknown                = 10,
@@ -102,6 +108,10 @@ ZSTDERRORLIB_API const char* ZSTD_getErrorString(ZSTD_ErrorCode code);   /**< Sa
 
 #if defined (__cplusplus)
 }
+#endif
+
+#if ZSTD_NULLABILITY
+#pragma clang assume_nonnull end
 #endif
 
 #endif /* ZSTD_ERRORS_H_398273423 */

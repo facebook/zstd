@@ -372,6 +372,7 @@ install-includes:
 	@echo Installing includes
 	$(INSTALL_DATA) zstd.h $(DESTDIR)$(INCLUDEDIR)
 	$(INSTALL_DATA) zstd_errors.h $(DESTDIR)$(INCLUDEDIR)
+	$(INSTALL_DATA) zstd_annotations.h $(DESTDIR)$(INCLUDEDIR)
 	$(INSTALL_DATA) zdict.h $(DESTDIR)$(INCLUDEDIR)
 
 .PHONY: uninstall
@@ -383,6 +384,7 @@ uninstall:
 	$(RM) $(DESTDIR)$(PKGCONFIGDIR)/libzstd.pc
 	$(RM) $(DESTDIR)$(INCLUDEDIR)/zstd.h
 	$(RM) $(DESTDIR)$(INCLUDEDIR)/zstd_errors.h
+	$(RM) $(DESTDIR)$(INCLUDEDIR)/zstd_annotations.h
 	$(RM) $(DESTDIR)$(INCLUDEDIR)/zdict.h
 	@echo zstd libraries successfully uninstalled
 

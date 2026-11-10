@@ -4094,6 +4094,43 @@ static int basicUnitTests(U32 const seed, double compressibility)
         }
         DISPLAYLEVEL(3, "OK (ASAN would report OOB write if vulnerable)\n");
 
+        DISPLAYLEVEL(3, "test%3i : DDict hashset is dropped by reset and refDDict(NULL) : ", testNb++);
+        {   /* After a parameter reset or refDDict(NULL), a frame must not select
+             * a DDict referenced before, which the caller may have freed since */
+            char* const dictBufA = (char*)malloc(dictBufferFixedSize);
+            ZSTD_DDict* const ddictB = ZSTD_createDDict(dictBufferFixed, dictBufferFixedSize);
+            ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+            size_t frameSize;
+            int n;
+            if (!dictBufA || !ddictB || !dctx) goto _output_error;
+            ZSTD_memcpy(dictBufA, dictBufferFixed, dictBufferFixedSize);
+            MEM_writeLE32(dictBufA + ZSTD_FRAMEIDSIZE, ZSTD_getDictID_fromDDict(ddictB) + 1);
+            frameSize = ZSTD_compress_usingDict(cctx, compressedBuffer, compressedBufferSize,
+                                                CNBuffer, 100, dictBufA, dictBufferFixedSize, 1);
+            CHECK_Z(frameSize);
+            for (n = 0; n < 2; n++) {
+                ZSTD_DDict* const ddictA = ZSTD_createDDict(dictBufA, dictBufferFixedSize);
+                if (!ddictA) goto _output_error;
+                CHECK_Z( ZSTD_DCtx_setParameter(dctx, ZSTD_d_refMultipleDDicts, ZSTD_rmd_refMultipleDDicts) );
+                CHECK_Z( ZSTD_DCtx_refDDict(dctx, ddictA) );
+                if (n == 0) {
+                    CHECK_Z( ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters) );
+                } else {
+                    CHECK_Z( ZSTD_DCtx_refDDict(dctx, NULL) );
+                }
+                ZSTD_freeDDict(ddictA);
+                /* only ddictB is referenced now : the frame needs ddictA, so it must fail */
+                CHECK_Z( ZSTD_DCtx_setParameter(dctx, ZSTD_d_refMultipleDDicts, ZSTD_rmd_refMultipleDDicts) );
+                CHECK_Z( ZSTD_DCtx_refDDict(dctx, ddictB) );
+                if (!ZSTD_isError(ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, frameSize)))
+                    goto _output_error;
+            }
+            ZSTD_freeDCtx(dctx);
+            ZSTD_freeDDict(ddictB);
+            free(dictBufA);
+        }
+        DISPLAYLEVEL(3, "OK \n");
+
         ZSTD_freeCCtx(cctx);
         free(dictBuffer);
         free(samplesSizes);

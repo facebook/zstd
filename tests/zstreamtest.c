@@ -2521,7 +2521,7 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
         size_t const largeDictSize = 1 MB;
         const void* const largeDict = (const char*)CNBuffer + srcSize;
         int scenario;
-        for (scenario = 0; scenario < 5; scenario++) {
+        for (scenario = 0; scenario < 6; scenario++) {
             ZSTD_CCtx* const cctx = ZSTD_createCCtx();
             ZSTD_threadPool* const pool = (scenario == 1) ? ZSTD_createThreadPool(1) : NULL;
             ZSTD_inBuffer in = { CNBuffer, (scenario == 2) ? 0 : srcSize, 0 };
@@ -2545,13 +2545,18 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
             } else {
                 CHECK(in.pos < jobSize, "the first job should be in progress");
             }
+            if (scenario == 5) {
+                /* the next job is prepared, and waits until the worker is free */
+                in.size = 2 * jobSize;
+                CHECK_Z( ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_continue) );
+            }
             if (scenario >= 3) {
-                /* abandon the frame, then change the dictionary or the number of workers */
+                /* abandon the frame, then change the dictionary or the number of workers, or nothing */
                 CHECK_Z( ZSTD_CCtx_reset(cctx, ZSTD_reset_session_only) );
                 if (scenario == 3) {
                     nextDictSize = largeDictSize / 2;
                     CHECK_Z( ZSTD_CCtx_loadDictionary(cctx, largeDict, nextDictSize) );
-                } else {
+                } else if (scenario == 4) {
                     CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 4) );
                 }
                 cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, srcSize);

@@ -1027,6 +1027,7 @@ static void ZSTDMT_releaseAllJobResources(ZSTDMT_CCtx* mtctx)
     }
     mtctx->inBuff.buffer = g_nullBuffer;
     mtctx->inBuff.filled = 0;
+    mtctx->jobReady = 0;   /* the prepared job was cleared above */
     mtctx->allJobsCompleted = 1;
 }
 

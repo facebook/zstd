@@ -614,7 +614,8 @@ size_t AIO_ReadPool_fillBuffer(ReadPoolCtx_t* ctx, size_t n) {
      * and coalesce the remaining bytes with the next job's buffer */
     if (ctx->srcBufferLoaded > 0) {
         useCoalesce = 1;
-        memcpy(ctx->coalesceBuffer, ctx->srcBuffer, ctx->srcBufferLoaded);
+        /* Remaining bytes may already be in coalesceBuffer. */
+        memmove(ctx->coalesceBuffer, ctx->srcBuffer, ctx->srcBufferLoaded);
         ctx->srcBuffer = ctx->coalesceBuffer;
     }
 

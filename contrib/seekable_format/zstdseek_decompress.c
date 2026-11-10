@@ -435,7 +435,10 @@ static size_t ZSTD_seekable_loadSeekTable(ZSTD_seekable* zs)
                     U32 const offset = SEEKABLE_BUFF_SIZE - pos;
                     U32 const toRead = MIN(remaining, SEEKABLE_BUFF_SIZE - offset);
                     memmove(zs->inBuff, zs->inBuff + pos, offset); /* move any data we haven't read yet */
-                    CHECK_IO(src.read(src.opaque, zs->inBuff+offset, toRead));
+                    if (src.read(src.opaque, zs->inBuff+offset, toRead) < 0) {
+                        free(entries);
+                        return ERROR(seekableIO);
+                    }
                     remaining -= toRead;
                     pos = 0;
                 }
@@ -454,6 +457,7 @@ static size_t ZSTD_seekable_loadSeekTable(ZSTD_seekable* zs)
             entries[numFrames].cOffset = cOffset;
             entries[numFrames].dOffset = dOffset;
 
+            free(zs->seekTable.entries);
             zs->seekTable.entries = entries;
             zs->seekTable.tableLen = numFrames;
             zs->seekTable.checksumFlag = checksumFlag;

@@ -1444,6 +1444,45 @@ static void FUZ_mdict_testStreaming(void)
     CHECK_Z(ZSTD_freeDDict(raw));
 }
 
+/* The DDicts use the default allocator. Counting the DCtx's first 128-slot
+ * table lets the test observe growth without inspecting private structs. */
+static void* FUZ_mdict_alloc(void* opaque, size_t size)
+{
+    if (size == 128 * sizeof(ZSTD_DDict*)) ++*(unsigned*)opaque;
+    return malloc(size);
+}
+
+static void FUZ_mdict_free(void* opaque, void* ptr)
+{
+    (void)opaque;
+    free(ptr);
+}
+
+static void FUZ_mdict_testGrowth(void)
+{
+    unsigned expansions = 0;
+    ZSTD_customMem const mem = {FUZ_mdict_alloc, FUZ_mdict_free, &expansions};
+    ZSTD_DCtx* const dctx = ZSTD_createDCtx_advanced(mem);
+    ZSTD_DDict* ddicts[49];
+    BYTE frame[32], out[32];
+    size_t i, n, r;
+    CHECK(dctx != NULL);
+    expansions = 0; /* Do not count allocation of the DCtx itself. */
+    CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_refMultipleDDicts, 1));
+    for (i = 0; i < COUNTOF(ddicts); ++i) {
+        ddicts[i] = FUZ_mdict_createDict(10000 + (U32)i, 'A' + (int)(i % 26));
+        CHECK_Z(ZSTD_DCtx_refDDict(dctx, ddicts[i]));
+        /* A 64-slot table grows when inserting entry 49, after reaching 75%.
+         * The old expression incorrectly grew it when inserting entry 17. */
+        CHECK_EQ(expansions, (unsigned)(i == 48));
+    }
+    n = FUZ_mdict_makeFrame(frame, 10000, 0);
+    r = ZSTD_decompressDCtx(dctx, out, sizeof(out), frame, n);
+    FUZ_mdict_checkOutput(r, out, "AAAAAAAA"); /* Rehashing retained entry 1. */
+    CHECK_Z(ZSTD_freeDCtx(dctx));
+    for (i = 0; i < COUNTOF(ddicts); ++i) CHECK_Z(ZSTD_freeDDict(ddicts[i]));
+}
+
 static unsigned test_multipleDDicts(unsigned testNb)
 {
     static const struct { const char* name; void (*run)(void); } tests[] = {
@@ -1452,6 +1491,7 @@ static unsigned test_multipleDDicts(unsigned testNb)
         {"raw dictionary ID zero", FUZ_mdict_testZeroID},
         {"clearing dictionary references", FUZ_mdict_testClearReferences},
         {"streaming frame selection", FUZ_mdict_testStreaming},
+        {"hash-table growth", FUZ_mdict_testGrowth}
     };
     size_t i;
     for (i = 0; i < COUNTOF(tests); ++i) {

@@ -1360,6 +1360,15 @@ size_t ZSTD_CCtx_refThreadPool(ZSTD_CCtx* cctx, ZSTD_threadPool* pool)
 {
     RETURN_ERROR_IF(cctx->streamStage != zcss_init, stage_wrong,
                     "Can't ref a pool when ctx not in init stage.");
+#ifdef ZSTD_MULTITHREAD
+    if (pool != cctx->pool) {
+        /* The MT context, created by the first multi-threaded frame and then reused,
+         * runs its jobs on the pool it was created with : without this, the next frames
+         * would still use the previous pool, which the caller may free. No job is running :
+         * the stage is zcss_init, and ZSTDMT_freeCCtx() waits for pending jobs. */
+        ZSTDMT_freeCCtx(cctx->mtctx); cctx->mtctx = NULL;
+    }
+#endif
     cctx->pool = pool;
     return 0;
 }

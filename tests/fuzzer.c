@@ -483,6 +483,25 @@ static int threadPoolTests(void) {
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "thread pool test : free the previous pool after a rebind: ");
+    {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        ZSTD_threadPool* const pool1 = ZSTD_createThreadPool(1);
+        ZSTD_threadPool* const pool2 = ZSTD_createThreadPool(1);
+        CHECK(cctx != NULL && pool1 != NULL && pool2 != NULL);
+        CHECK(!ZSTD_isError( ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 2) ));
+        CHECK(!ZSTD_isError( ZSTD_CCtx_refThreadPool(cctx, pool1) ));
+        CHECK(!ZSTD_isError( ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize) ));
+        /* the next frames must use pool2, then an internal pool */
+        CHECK(!ZSTD_isError( ZSTD_CCtx_refThreadPool(cctx, pool2) ));
+        ZSTD_freeThreadPool(pool1);
+        CHECK(!ZSTD_isError( ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize) ));
+        CHECK(!ZSTD_isError( ZSTD_CCtx_refThreadPool(cctx, NULL) ));
+        ZSTD_freeThreadPool(pool2);
+        CHECK(!ZSTD_isError( ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize) ));
+        ZSTD_freeCCtx(cctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
 _end:
     free(CNBuffer);
     free(compressedBuffer);

@@ -1901,7 +1901,7 @@ ZSTDLIB_STATIC_API ZSTD_CDict* ZSTD_createCDict_advanced(const void* dict, size_
  *  ZSTD_createThreadPool creates a new thread pool with a given number of threads.
  *  Note that the lifetime of such pool must exist while being used.
  *  ZSTD_CCtx_refThreadPool assigns a thread pool to a context (use NULL argument value
- *  to use an internal thread pool).
+ *  to use an internal thread pool). The context then no longer uses its previous pool.
  *  ZSTD_freeThreadPool frees a thread pool, accepts NULL pointer.
  */
 typedef struct POOL_ctx_s ZSTD_threadPool;

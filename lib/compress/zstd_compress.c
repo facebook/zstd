@@ -4232,8 +4232,8 @@ typedef struct {
  * In practice, recursion depth usually doesn't go beyond 4.
  *
  * Furthermore, the number of splits is capped by ZSTD_MAX_NB_BLOCK_SPLITS.
- * At ZSTD_MAX_NB_BLOCK_SPLITS == 196 with the current existing blockSize
- * maximum of 128 KB, this value is actually impossible to reach.
+ * A 128 KiB block containing many 3-byte matches can have enough sequences
+ * for more splits than this limit allows.
  */
 static void
 ZSTD_deriveBlockSplitsHelper(seqStoreSplits* splits, size_t startIdx, size_t endIdx,
@@ -4267,6 +4267,8 @@ ZSTD_deriveBlockSplitsHelper(seqStoreSplits* splits, size_t startIdx, size_t end
     if (estimatedFirstHalfSize + estimatedSecondHalfSize < estimatedOriginalSize) {
         DEBUGLOG(5, "split decided at seqNb:%zu", midIdx);
         ZSTD_deriveBlockSplitsHelper(splits, startIdx, midIdx, zc, origSeqStore);
+        if (splits->idx >= ZSTD_MAX_NB_BLOCK_SPLITS)
+            return;
         splits->splitLocations[splits->idx] = (U32)midIdx;
         splits->idx++;
         ZSTD_deriveBlockSplitsHelper(splits, midIdx, endIdx, zc, origSeqStore);
@@ -4289,6 +4291,7 @@ static size_t ZSTD_deriveBlockSplits(ZSTD_CCtx* zc, U32 partitions[], U32 nbSeq)
         return 0;
     }
     ZSTD_deriveBlockSplitsHelper(&splits, 0, nbSeq, zc, &zc->seqStore);
+    assert(splits.idx <= ZSTD_MAX_NB_BLOCK_SPLITS);
     splits.splitLocations[splits.idx] = nbSeq;
     DEBUGLOG(5, "ZSTD_deriveBlockSplits: final nb partitions: %zu", splits.idx+1);
     return splits.idx;
@@ -4310,7 +4313,7 @@ ZSTD_compressBlock_splitBlock_internal(ZSTD_CCtx* zc,
     BYTE* op = (BYTE*)dst;
     size_t i = 0;
     size_t srcBytesTotal = 0;
-    U32* const partitions = zc->blockSplitCtx.partitions; /* size == ZSTD_MAX_NB_BLOCK_SPLITS */
+    U32* const partitions = zc->blockSplitCtx.partitions; /* includes the final block boundary */
     SeqStore_t* const nextSeqStore = &zc->blockSplitCtx.nextSeqStore;
     SeqStore_t* const currSeqStore = &zc->blockSplitCtx.currSeqStore;
     size_t const numSplits = ZSTD_deriveBlockSplits(zc, partitions, nbSeq);

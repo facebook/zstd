@@ -352,26 +352,27 @@ void ZSTD_copyDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
     ZSTD_memcpy(dstDCtx, srcDCtx, toCopy);  /* no need to copy workspace */
 }
 
-/* Given a dctx with a digested frame params, re-selects the correct ZSTD_DDict based on
- * the requested dict ID from the frame. If there exists a reference to the correct ZSTD_DDict, then
+/* Given the dict ID from a complete, valid Zstandard frame header, re-selects
+ * the correct ZSTD_DDict. If there exists a reference to that ZSTD_DDict, then
  * accordingly sets the ddict to be used to decompress the frame.
  *
  * If no DDict is found, then no action is taken, and the ZSTD_DCtx::ddict remains as-is.
  *
+ * Must be called before installing the dictionary's decoding state, since
+ * changing dictionaries may free the context-owned DDict.
  * ZSTD_d_refMultipleDDicts must be enabled for this function to be called.
  */
-static void ZSTD_DCtx_selectFrameDDict(ZSTD_DCtx* dctx) {
+static void ZSTD_DCtx_selectFrameDDict(ZSTD_DCtx* dctx, U32 dictID) {
+    const ZSTD_DDict* frameDDict;
     assert(dctx->refMultipleDDicts && dctx->ddictSet);
     DEBUGLOG(4, "Adjusting DDict based on requested dict ID from frame");
-    if (dctx->ddict) {
-        const ZSTD_DDict* frameDDict = ZSTD_DDictHashSet_getDDict(dctx->ddictSet, dctx->fParams.dictID);
-        if (frameDDict) {
-            DEBUGLOG(4, "DDict found!");
-            ZSTD_clearDict(dctx);
-            dctx->dictID = dctx->fParams.dictID;
-            dctx->ddict = frameDDict;
-            dctx->dictUses = ZSTD_use_indefinitely;
-        }
+    frameDDict = ZSTD_DDictHashSet_getDDict(dctx->ddictSet, dictID);
+    if (frameDDict) {
+        DEBUGLOG(4, "DDict found!");
+        assert(ZSTD_getDictID_fromDDict(frameDDict) == dictID);
+        ZSTD_clearDict(dctx);
+        dctx->ddict = frameDDict;
+        dctx->dictUses = ZSTD_use_indefinitely;
     }
 }
 
@@ -700,18 +701,13 @@ unsigned long long ZSTD_getDecompressedSize(const void* src, size_t srcSize)
 
 /** ZSTD_decodeFrameHeader() :
  * `headerSize` must be the size provided by ZSTD_frameHeaderSize().
- * If multiple DDict references are enabled, also will choose the correct DDict to use.
+ * The dictionary's decoding state must already be installed.
  * @return : 0 if success, or an error code, which can be tested using ZSTD_isError() */
 static size_t ZSTD_decodeFrameHeader(ZSTD_DCtx* dctx, const void* src, size_t headerSize)
 {
     size_t const result = ZSTD_getFrameHeader_advanced(&(dctx->fParams), src, headerSize, dctx->format);
     if (ZSTD_isError(result)) return result;    /* invalid header */
     RETURN_ERROR_IF(result>0, srcSize_wrong, "headerSize too small");
-
-    /* Reference DDict requested by frame if dctx references multiple ddicts */
-    if (dctx->refMultipleDDicts == ZSTD_rmd_refMultipleDDicts && dctx->ddictSet) {
-        ZSTD_DCtx_selectFrameDDict(dctx);
-    }
 
 #ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
     /* Skip the dictID check in fuzzing mode, because it makes the search
@@ -1069,13 +1065,31 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
     return (size_t)(op-ostart);
 }
 
+static ZSTD_DDict const* ZSTD_getDDict(ZSTD_DCtx* dctx)
+{
+    switch (dctx->dictUses) {
+    default:
+        assert(0 /* Impossible */);
+        ZSTD_FALLTHROUGH;
+    case ZSTD_dont_use:
+        ZSTD_clearDict(dctx);
+        return NULL;
+    case ZSTD_use_indefinitely:
+        return dctx->ddict;
+    case ZSTD_use_once:
+        dctx->dictUses = ZSTD_dont_use;
+        return dctx->ddict;
+    }
+}
+
 static
 ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
 size_t ZSTD_decompressMultiFrame(ZSTD_DCtx* dctx,
                                         void* dst, size_t dstCapacity,
                                   const void* src, size_t srcSize,
                                   const void* dict, size_t dictSize,
-                                  const ZSTD_DDict* ddict)
+                                  const ZSTD_DDict* ddict,
+                                  int useContextDDict)
 {
     void* const dststart = dst;
     int moreThan1Frame = 0;
@@ -1083,22 +1097,22 @@ size_t ZSTD_decompressMultiFrame(ZSTD_DCtx* dctx,
     DEBUGLOG(5, "ZSTD_decompressMultiFrame");
     assert(dict==NULL || ddict==NULL);  /* either dict or ddict set, not both */
 
-    if (ddict) {
-        dict = ZSTD_DDict_dictContent(ddict);
-        dictSize = ZSTD_DDict_dictSize(ddict);
-    }
+    assert(!useContextDDict || (dict == NULL && ddict == NULL));
 
     while (srcSize >= ZSTD_startingInputLength(dctx->format)) {
 
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT >= 1)
         if (dctx->format == ZSTD_f_zstd1 && ZSTD_isLegacy(src, srcSize)) {
             size_t decodedSize;
+            const ZSTD_DDict* const legacyDDict = useContextDDict ? ZSTD_getDDict(dctx) : ddict;
+            const void* const legacyDict = legacyDDict ? ZSTD_DDict_dictContent(legacyDDict) : dict;
+            size_t const legacyDictSize = legacyDDict ? ZSTD_DDict_dictSize(legacyDDict) : dictSize;
             size_t const frameSize = ZSTD_findFrameCompressedSizeLegacy(src, srcSize);
             if (ZSTD_isError(frameSize)) return frameSize;
             RETURN_ERROR_IF(dctx->staticSize, memory_allocation,
                 "legacy support is not compatible with static dctx");
 
-            decodedSize = ZSTD_decompressLegacy(dst, dstCapacity, src, frameSize, dict, dictSize);
+            decodedSize = ZSTD_decompressLegacy(dst, dstCapacity, src, frameSize, legacyDict, legacyDictSize);
             if (ZSTD_isError(decodedSize)) return decodedSize;
 
             {
@@ -1135,6 +1149,17 @@ size_t ZSTD_decompressMultiFrame(ZSTD_DCtx* dctx,
                 continue; /* check next frame */
         }   }
 
+        if (useContextDDict) {
+            if (dctx->refMultipleDDicts && dctx->ddictSet) {
+                ZSTD_FrameHeader zfh;
+                size_t const hSize = ZSTD_getFrameHeader_advanced(&zfh, src, srcSize, dctx->format);
+                /* Invalid/incomplete headers must not change dictionary state.
+                 * ZSTD_decompressFrame() will report the header error. */
+                if (hSize == 0 && zfh.frameType == ZSTD_frame)
+                    ZSTD_DCtx_selectFrameDDict(dctx, zfh.dictID);
+            }
+            ddict = ZSTD_getDDict(dctx);
+        }
         if (ddict) {
             /* we were called from ZSTD_decompress_usingDDict */
             FORWARD_IF_ERROR(ZSTD_decompressBegin_usingDDict(dctx, ddict), "");
@@ -1177,30 +1202,13 @@ size_t ZSTD_decompress_usingDict(ZSTD_DCtx* dctx,
                            const void* src, size_t srcSize,
                            const void* dict, size_t dictSize)
 {
-    return ZSTD_decompressMultiFrame(dctx, dst, dstCapacity, src, srcSize, dict, dictSize, NULL);
+    return ZSTD_decompressMultiFrame(dctx, dst, dstCapacity, src, srcSize, dict, dictSize, NULL, 0);
 }
 
-
-static ZSTD_DDict const* ZSTD_getDDict(ZSTD_DCtx* dctx)
-{
-    switch (dctx->dictUses) {
-    default:
-        assert(0 /* Impossible */);
-        ZSTD_FALLTHROUGH;
-    case ZSTD_dont_use:
-        ZSTD_clearDict(dctx);
-        return NULL;
-    case ZSTD_use_indefinitely:
-        return dctx->ddict;
-    case ZSTD_use_once:
-        dctx->dictUses = ZSTD_dont_use;
-        return dctx->ddict;
-    }
-}
 
 size_t ZSTD_decompressDCtx(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize)
 {
-    return ZSTD_decompress_usingDDict(dctx, dst, dstCapacity, src, srcSize, ZSTD_getDDict(dctx));
+    return ZSTD_decompressMultiFrame(dctx, dst, dstCapacity, src, srcSize, NULL, 0, NULL, 1);
 }
 
 
@@ -1662,10 +1670,9 @@ size_t ZSTD_decompress_usingDDict(ZSTD_DCtx* dctx,
                             const void* src, size_t srcSize,
                             const ZSTD_DDict* ddict)
 {
-    /* pass content and size in case legacy frames are encountered */
     return ZSTD_decompressMultiFrame(dctx, dst, dstCapacity, src, srcSize,
                                      NULL, 0,
-                                     ddict);
+                                     ddict, 0);
 }
 
 
@@ -2194,7 +2201,7 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
              * before any dictionary-backed decoding state is installed. */
             if (zds->refMultipleDDicts && zds->ddictSet
                 && zds->fParams.frameType == ZSTD_frame) {
-                ZSTD_DCtx_selectFrameDDict(zds);
+                ZSTD_DCtx_selectFrameDDict(zds, zds->fParams.dictID);
             }
 
             /* check for single-pass mode opportunity */

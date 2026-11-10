@@ -1029,7 +1029,8 @@ ZSTDLIB_API size_t      ZSTD_freeDDict(ZSTD_DDict* ddict);
 
 /*! ZSTD_decompress_usingDDict() :
  *  Decompression using a digested Dictionary.
- *  Recommended when same dictionary is used multiple times. */
+ *  Recommended when same dictionary is used multiple times.
+ *  Uses the supplied DDict, regardless of dictionaries referenced in dctx. */
 ZSTDLIB_API size_t ZSTD_decompress_usingDDict(ZSTD_DCtx* dctx,
                                               void* dst, size_t dstCapacity,
                                         const void* src, size_t srcSize,
@@ -2552,7 +2553,15 @@ ZSTDLIB_STATIC_API size_t ZSTD_DCtx_getParameter(ZSTD_DCtx* dctx, ZSTD_dParamete
  * to store references to multiple ZSTD_DDict. That is, multiple calls of ZSTD_refDDict()
  * using a given ZSTD_DCtx, rather than overwriting the previous DDict reference, will instead
  * store all references. At decompression time, the appropriate dictID is selected
- * from the set of DDicts based on the dictID in the frame.
+ * from the set of DDicts based on the dictID in the frame. This applies to
+ * ZSTD_decompressDCtx() and ZSTD_decompressStream(); entry points taking an
+ * explicit dictionary use that dictionary instead.
+ * If the ID is absent from the set, the current dictionary is used, subject
+ * to the usual dictionary-ID check. A non-empty loadDictionary() or refPrefix()
+ * changes this fallback without discarding the referenced set. Selecting a
+ * registered dictionary replaces the fallback. Loading a NULL or zero-size
+ * dictionary, referencing a NULL DDict, resetting parameters, or disabling
+ * this mode discards the set.
  *
  * Usage is simply calling ZSTD_refDDict() on multiple dict buffers.
  *

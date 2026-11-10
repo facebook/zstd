@@ -1197,11 +1197,108 @@ static size_t FUZ_mdict_decompressStream(ZSTD_DCtx* dctx, void* dst, size_t capa
     return out.pos;
 }
 
+/* The bufferless API requires exactly the input size requested by the decoder. */
+static size_t FUZ_mdict_decompressContinue(ZSTD_DCtx* dctx, BYTE* dst, size_t capacity,
+                                          const BYTE* src, size_t size)
+{
+    size_t inPos = 0, outPos = 0;
+    while (ZSTD_nextSrcSizeToDecompress(dctx) != 0) {
+        size_t const n = ZSTD_nextSrcSizeToDecompress(dctx);
+        size_t r;
+        CHECK(inPos <= size && n <= size - inPos);
+        r = ZSTD_decompressContinue(dctx, dst + outPos, capacity - outPos,
+                                    src + inPos, n);
+        if (ZSTD_isError(r)) return r;
+        inPos += n;
+        outPos += r;
+    }
+    CHECK_EQ(inPos, size);
+    return outPos;
+}
+
 static void FUZ_mdict_checkOutput(size_t r, const void* out, const char* expected)
 {
     CHECK_Z(r);
     CHECK_EQ(r, strlen(expected));
     CHECK_EQ(memcmp(out, expected, r), 0);
+}
+
+static void FUZ_mdict_testOneShot(void)
+{
+    ZSTD_DDict* const a = FUZ_mdict_createDict(1111, 'A');
+    ZSTD_DDict* const b = FUZ_mdict_createDict(2222, 'B');
+    BYTE frame[64], out[32], dict[44];
+    size_t n, r;
+    int magicless, raw;
+
+    /* B is initially active. A frame naming A must install A before decoding,
+     * and session-only reset must still allow the next frame to select B. */
+    for (magicless = 0; magicless <= 1; ++magicless) {
+        ZSTD_DCtx* const dctx = FUZ_mdict_createContext(a, b);
+        size_t const skip = magicless ? 4 : 0;
+        if (magicless) CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_format, ZSTD_f_zstd1_magicless));
+        n = FUZ_mdict_makeFrame(frame, 1111, 0);
+        r = ZSTD_decompressDCtx(dctx, out, sizeof(out), frame + skip, n - skip);
+        FUZ_mdict_checkOutput(r, out, "AAAAAAAA");
+        CHECK_Z(ZSTD_DCtx_reset(dctx, ZSTD_reset_session_only));
+        n = FUZ_mdict_makeFrame(frame, 2222, 0);
+        r = ZSTD_decompressDCtx(dctx, out, sizeof(out), frame + skip, n - skip);
+        FUZ_mdict_checkOutput(r, out, "BBBBBBBB");
+        CHECK_Z(ZSTD_freeDCtx(dctx));
+    }
+
+    /* Loading C makes the context own the active dictionary. Selecting A must
+     * not leave pointers into freed C. The following B and ID-less frames also
+     * check that concatenated decoding refreshes its per-frame dictionary. */
+    FUZ_mdict_makeDict(dict, 3333, 'C');
+    n = FUZ_mdict_makeFrame(frame, 1111, 0);
+    n += FUZ_mdict_makeFrame(frame + n, 2222, FUZ_mdict_knownSize);
+    n += FUZ_mdict_makeFrame(frame + n, 0, 0);
+    for (raw = 0; raw <= 1; ++raw) {
+        ZSTD_DCtx* const dctx = FUZ_mdict_createContext(a, b);
+        CHECK_Z(ZSTD_DCtx_loadDictionary(dctx, raw ? dict + 28 : dict,
+                                         raw ? 16 : sizeof(dict)));
+        r = ZSTD_decompressDCtx(dctx, out, sizeof(out), frame, n);
+        FUZ_mdict_checkOutput(r, out, "AAAAAAAABBBBBBBBBBBBBBBB");
+        CHECK_Z(ZSTD_freeDCtx(dctx));
+    }
+    CHECK_Z(ZSTD_freeDDict(a)); CHECK_Z(ZSTD_freeDDict(b));
+}
+
+static void FUZ_mdict_testExplicitDictionary(void)
+{
+    ZSTD_DDict* const a = FUZ_mdict_createDict(1111, 'A');
+    ZSTD_DDict* const b = FUZ_mdict_createDict(2222, 'B');
+    ZSTD_DCtx* const dctx = FUZ_mdict_createContext(a, b);
+    BYTE frame[32], out[32], dict[44];
+    size_t n = FUZ_mdict_makeFrame(frame, 1111, 0), r;
+    FUZ_mdict_makeDict(dict, 2222, 'B');
+    CHECK_Z(ZSTD_DCtx_loadDictionary(dctx, dict, sizeof(dict)));
+
+    /* Registered A must not override an explicit B. Supplying A explicitly,
+     * either prepared or as dictionary bytes, must decode correctly. */
+    r = ZSTD_decompress_usingDDict(dctx, out, sizeof(out), frame, n, b);
+    CHECK_EQ(ZSTD_getErrorCode(r), ZSTD_error_dictionary_wrong);
+    r = ZSTD_decompress_usingDDict(dctx, out, sizeof(out), frame, n, a);
+    FUZ_mdict_checkOutput(r, out, "AAAAAAAA");
+    FUZ_mdict_makeDict(dict, 1111, 'A');
+    r = ZSTD_decompress_usingDict(dctx, out, sizeof(out), frame, n, dict, sizeof(dict));
+    FUZ_mdict_checkOutput(r, out, "AAAAAAAA");
+
+    /* Header validation must likewise honor the bufferless API's dictionary. */
+    CHECK_Z(ZSTD_decompressBegin_usingDDict(dctx, b));
+    r = FUZ_mdict_decompressContinue(dctx, out, sizeof(out), frame, n);
+    CHECK_EQ(ZSTD_getErrorCode(r), ZSTD_error_dictionary_wrong);
+    CHECK_Z(ZSTD_decompressBegin_usingDDict(dctx, a));
+    r = FUZ_mdict_decompressContinue(dctx, out, sizeof(out), frame, n);
+    FUZ_mdict_checkOutput(r, out, "AAAAAAAA");
+
+    /* None of those explicit calls may replace/free the context's loaded B. */
+    n = FUZ_mdict_makeFrame(frame, 0, 0);
+    r = ZSTD_decompressDCtx(dctx, out, sizeof(out), frame, n);
+    FUZ_mdict_checkOutput(r, out, "BBBBBBBB");
+    CHECK_Z(ZSTD_freeDCtx(dctx));
+    CHECK_Z(ZSTD_freeDDict(a)); CHECK_Z(ZSTD_freeDDict(b));
 }
 
 static void FUZ_mdict_testZeroID(void)
@@ -1220,7 +1317,7 @@ static void FUZ_mdict_testZeroID(void)
     n = FUZ_mdict_makeFrame(frame, id, 0);
 
     /* An occupied ID-0 slot is not a match for the missing nonzero ID. */
-    r = FUZ_mdict_decompressStream(dctx, out, sizeof(out), frame, n, 1);
+    r = ZSTD_decompressDCtx(dctx, out, sizeof(out), frame, n);
     CHECK_EQ(ZSTD_getErrorCode(r), ZSTD_error_dictionary_wrong);
     CHECK_Z(ZSTD_DCtx_reset(dctx, ZSTD_reset_session_only));
     r = FUZ_mdict_decompressStream(dctx, out, sizeof(out), frame, n, 1);
@@ -1231,10 +1328,10 @@ static void FUZ_mdict_testZeroID(void)
      * An actual ID-less frame must still find the raw dictionary itself. */
     CHECK_Z(ZSTD_DCtx_refDDict(dctx, full));
     CHECK_Z(ZSTD_DCtx_refDDict(dctx, raw));
-    r = FUZ_mdict_decompressStream(dctx, out, sizeof(out), frame, n, 1);
+    r = ZSTD_decompressDCtx(dctx, out, sizeof(out), frame, n);
     FUZ_mdict_checkOutput(r, out, "AAAAAAAA");
     n = FUZ_mdict_makeFrame(frame, 0, 0);
-    r = FUZ_mdict_decompressStream(dctx, out, sizeof(out), frame, n, 1);
+    r = ZSTD_decompressDCtx(dctx, out, sizeof(out), frame, n);
     FUZ_mdict_checkOutput(r, out, "RRRRRRRR");
     CHECK_Z(ZSTD_freeDCtx(dctx));
     CHECK_Z(ZSTD_freeDDict(raw)); CHECK_Z(ZSTD_freeDDict(full));
@@ -1332,6 +1429,17 @@ static void FUZ_mdict_testStreaming(void)
         FUZ_mdict_checkOutput(r, out, "AAAAAAAA");
         CHECK_Z(ZSTD_freeDCtx(dctx));
     }
+    /* After consuming prefix A, both APIs must still be able to select B. */
+    n = FUZ_mdict_makeFrame(data, 1111, 0);
+    n += FUZ_mdict_makeFrame(data + n, 7, FUZ_mdict_knownSize);
+    for (i = 0; i < 2; ++i) {
+        ZSTD_DCtx* const dctx = FUZ_mdict_createContext(b, NULL);
+        CHECK_Z(ZSTD_DCtx_refPrefix_advanced(dctx, dict, sizeof(dict), ZSTD_dct_fullDict));
+        r = i ? FUZ_mdict_decompressStream(dctx, out, sizeof(out), data, n, 1)
+              : ZSTD_decompressDCtx(dctx, out, sizeof(out), data, n);
+        FUZ_mdict_checkOutput(r, out, "AAAAAAAABBBBBBBB");
+        CHECK_Z(ZSTD_freeDCtx(dctx));
+    }
     CHECK_Z(ZSTD_freeDDict(a)); CHECK_Z(ZSTD_freeDDict(b));
     CHECK_Z(ZSTD_freeDDict(raw));
 }
@@ -1339,6 +1447,8 @@ static void FUZ_mdict_testStreaming(void)
 static unsigned test_multipleDDicts(unsigned testNb)
 {
     static const struct { const char* name; void (*run)(void); } tests[] = {
+        {"one-shot selection and lifetime", FUZ_mdict_testOneShot},
+        {"explicit dictionary APIs", FUZ_mdict_testExplicitDictionary},
         {"raw dictionary ID zero", FUZ_mdict_testZeroID},
         {"clearing dictionary references", FUZ_mdict_testClearReferences},
         {"streaming frame selection", FUZ_mdict_testStreaming},

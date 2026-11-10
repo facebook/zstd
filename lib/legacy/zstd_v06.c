@@ -3802,8 +3802,7 @@ static size_t ZSTDv06_loadEntropy(ZSTDv06_DCtx* dctx, const void* dict, size_t d
 static size_t ZSTDv06_decompress_insertDictionary(ZSTDv06_DCtx* dctx, const void* dict, size_t dictSize)
 {
     size_t eSize;
-    U32 const magic = MEM_readLE32(dict);
-    if (magic != ZSTDv06_DICT_MAGIC) {
+    if (dictSize < 4 || MEM_readLE32(dict) != ZSTDv06_DICT_MAGIC) {
         /* pure content mode */
         ZSTDv06_refDictContent(dctx, dict, dictSize);
         return 0;

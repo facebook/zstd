@@ -133,23 +133,21 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct,
                 pos += (size_t)n;
             }
         }
-        /* Spread symbols across the table. Lack of lowprob symbols means that
-         * we don't need variable sized inner loop, so we can unroll the loop and
-         * reduce branch misses.
+        /* Build the table directly, walking positions in order.
+         * Position u holds spread[(u * invStep) & tableMask], where invStep
+         * is the inverse of step modulo tableSize (see FSE_invTableStep()).
+         * This fuses symbol spreading with table building into a single pass,
+         * so symbols are never scattered into tableSymbol[] and read back.
          */
-        {   size_t position = 0;
-            size_t s;
-            size_t const unroll = 2; /* Experimentally determined optimal unroll */
-            assert(tableSize % unroll == 0); /* FSE_MIN_TABLELOG is 5 */
-            for (s = 0; s < (size_t)tableSize; s += unroll) {
-                size_t u;
-                for (u = 0; u < unroll; ++u) {
-                    size_t const uPosition = (position + (u * step)) & tableMask;
-                    tableSymbol[uPosition] = spread[s + u];
-                }
-                position = (position + (unroll * step)) & tableMask;
+        {   size_t const invStep = FSE_invTableStep(tableSize);
+            size_t s = 0;
+            U32 u;
+            for (u=0; u<tableSize; u++) {
+                FSE_FUNCTION_TYPE const symbol = spread[s];
+                tableU16[cumul[symbol]++] = (U16) (tableSize+u);   /* TableU16 : sorted by symbol order; gives next state value */
+                s = (s + invStep) & tableMask;
             }
-            assert(position == 0);   /* Must have initialized all positions */
+            assert(s == 0);   /* Must have visited all positions */
         }
     } else {
         U32 position = 0;
@@ -164,13 +162,13 @@ size_t FSE_buildCTable_wksp(FSE_CTable* ct,
                     position = (position + step) & tableMask;   /* Low proba area */
         }   }
         assert(position==0);  /* Must have initialized all positions */
-    }
 
-    /* Build table */
-    {   U32 u; for (u=0; u<tableSize; u++) {
-        FSE_FUNCTION_TYPE s = tableSymbol[u];   /* note : static analyzer may not understand tableSymbol is properly initialized */
-        tableU16[cumul[s]++] = (U16) (tableSize+u);   /* TableU16 : sorted by symbol order; gives next state value */
-    }   }
+        /* Build table */
+        {   U32 u; for (u=0; u<tableSize; u++) {
+            FSE_FUNCTION_TYPE s = tableSymbol[u];   /* note : static analyzer may not understand tableSymbol is properly initialized */
+            tableU16[cumul[s]++] = (U16) (tableSize+u);   /* TableU16 : sorted by symbol order; gives next state value */
+        }   }
+    }
 
     /* Build Symbol Transformation Table */
     {   unsigned total = 0;

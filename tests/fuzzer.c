@@ -1155,6 +1155,13 @@ static size_t FUZ_mdict_makeFrame(BYTE* dst, U32 id, unsigned flags)
     return n;
 }
 
+static size_t FUZ_mdict_makeSkip(BYTE* dst, unsigned variant)
+{
+    MEM_writeLE32(dst, ZSTD_MAGIC_SKIPPABLE_START + variant);
+    MEM_writeLE32(dst + 4, 0); /* empty skippable frame */
+    return 8;
+}
+
 /* The second DDict, when supplied, is initially active. Both remain registered. */
 static ZSTD_DCtx* FUZ_mdict_createContext(const ZSTD_DDict* first,
                                         const ZSTD_DDict* second)
@@ -1266,11 +1273,75 @@ static void FUZ_mdict_testClearReferences(void)
     }
 }
 
+static void FUZ_mdict_testStreaming(void)
+{
+    ZSTD_DDict* const a = FUZ_mdict_createDict(1111, 'A');
+    ZSTD_DDict* const b = FUZ_mdict_createDict(7, 'B');
+    ZSTD_DDict* const raw = FUZ_mdict_createDict(0, 'R');
+    BYTE data[64], out[32], dict[44];
+    static const struct { unsigned flags; size_t chunk; } cases[] = {
+        {0, 1},                                      /* fragmented/buffered */
+        {FUZ_mdict_knownSize, sizeof(data)},          /* single-pass shortcut */
+        {FUZ_mdict_knownSize | FUZ_mdict_checksum, sizeof(data)}
+    };
+    size_t i, n, r;
+
+    /* Variant 7 shares B's ID, but a skippable frame must leave A active.
+     * The following ID-less frame must therefore produce A's bytes. */
+    for (i = 0; i < COUNTOF(cases); ++i) {
+        ZSTD_DCtx* const dctx = FUZ_mdict_createContext(b, a);
+        n = FUZ_mdict_makeSkip(data, 7);
+        n += FUZ_mdict_makeFrame(data + n, 0, cases[i].flags);
+        r = FUZ_mdict_decompressStream(dctx, out, sizeof(out), data, n, cases[i].chunk);
+        FUZ_mdict_checkOutput(r, out, "AAAAAAAA");
+        CHECK_Z(ZSTD_freeDCtx(dctx));
+    }
+
+    /* An incomplete/skippable header's temporary ID 0 must not select raw R
+     * and free the loaded A. A is deliberately absent from the reference set. */
+    FUZ_mdict_makeDict(dict, 1111, 'A');
+    {   ZSTD_DCtx* const dctx = FUZ_mdict_createContext(raw, NULL);
+        CHECK_Z(ZSTD_DCtx_loadDictionary(dctx, dict, sizeof(dict)));
+        n = FUZ_mdict_makeSkip(data, 0);
+        n += FUZ_mdict_makeFrame(data + n, 1111, 0);
+        r = FUZ_mdict_decompressStream(dctx, out, sizeof(out), data, n, 1);
+        FUZ_mdict_checkOutput(r, out, "AAAAAAAA");
+        CHECK_Z(ZSTD_freeDCtx(dctx));
+    }
+    /* Rejecting a malformed header must leave the same loaded A available. */
+    {   ZSTD_DCtx* const dctx = FUZ_mdict_createContext(raw, NULL);
+        ZSTD_inBuffer in = {data, 5, 0};
+        ZSTD_outBuffer ob = {out, sizeof(out), 0};
+        CHECK_Z(ZSTD_DCtx_loadDictionary(dctx, dict, sizeof(dict)));
+        memset(data, 0xff, 5);
+        CHECK(ZSTD_isError(ZSTD_decompressStream(dctx, &ob, &in)));
+        CHECK_Z(ZSTD_DCtx_reset(dctx, ZSTD_reset_session_only));
+        n = FUZ_mdict_makeFrame(data, 1111, FUZ_mdict_knownSize);
+        r = FUZ_mdict_decompressStream(dctx, out, sizeof(out), data, n, sizeof(data));
+        FUZ_mdict_checkOutput(r, out, "AAAAAAAA");
+        CHECK_Z(ZSTD_freeDCtx(dctx));
+    }
+
+    /* Skipping a frame must not consume the next data frame's one-use prefix. */
+    {   ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+        CHECK(dctx != NULL);
+        CHECK_Z(ZSTD_DCtx_refPrefix_advanced(dctx, dict, sizeof(dict), ZSTD_dct_fullDict));
+        n = FUZ_mdict_makeSkip(data, 7);
+        n += FUZ_mdict_makeFrame(data + n, 0, 0);
+        r = FUZ_mdict_decompressStream(dctx, out, sizeof(out), data, n, 1);
+        FUZ_mdict_checkOutput(r, out, "AAAAAAAA");
+        CHECK_Z(ZSTD_freeDCtx(dctx));
+    }
+    CHECK_Z(ZSTD_freeDDict(a)); CHECK_Z(ZSTD_freeDDict(b));
+    CHECK_Z(ZSTD_freeDDict(raw));
+}
+
 static unsigned test_multipleDDicts(unsigned testNb)
 {
     static const struct { const char* name; void (*run)(void); } tests[] = {
         {"raw dictionary ID zero", FUZ_mdict_testZeroID},
         {"clearing dictionary references", FUZ_mdict_testClearReferences},
+        {"streaming frame selection", FUZ_mdict_testStreaming},
     };
     size_t i;
     for (i = 0; i < COUNTOF(tests); ++i) {

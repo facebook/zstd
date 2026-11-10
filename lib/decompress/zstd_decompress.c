@@ -2147,9 +2147,6 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             }   }
 #endif
             {   size_t const hSize = ZSTD_getFrameHeader_advanced(&zds->fParams, zds->headerBuffer, zds->lhSize, zds->format);
-                if (zds->refMultipleDDicts && zds->ddictSet) {
-                    ZSTD_DCtx_selectFrameDDict(zds);
-                }
                 if (ZSTD_isError(hSize)) {
 #if defined(ZSTD_LEGACY_SUPPORT) && (ZSTD_LEGACY_SUPPORT>=1)
                     U32 const legacyVersion = ZSTD_isLegacy(istart, iend-istart);
@@ -2193,6 +2190,13 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
                     break;
             }   }
 
+            /* Select only after a complete ordinary frame header is available,
+             * before any dictionary-backed decoding state is installed. */
+            if (zds->refMultipleDDicts && zds->ddictSet
+                && zds->fParams.frameType == ZSTD_frame) {
+                ZSTD_DCtx_selectFrameDDict(zds);
+            }
+
             /* check for single-pass mode opportunity */
             if (zds->fParams.frameContentSize != ZSTD_CONTENTSIZE_UNKNOWN
                 && zds->fParams.frameType != ZSTD_skippableFrame
@@ -2222,7 +2226,12 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
 
             /* Consume header (see ZSTDds_decodeFrameHeader) */
             DEBUGLOG(4, "Consume header");
-            FORWARD_IF_ERROR(ZSTD_decompressBegin_usingDDict(zds, ZSTD_getDDict(zds)), "");
+            if (zds->fParams.frameType == ZSTD_skippableFrame) {
+                /* Skippable frames must not consume a single-use prefix. */
+                FORWARD_IF_ERROR(ZSTD_decompressBegin(zds), "");
+            } else {
+                FORWARD_IF_ERROR(ZSTD_decompressBegin_usingDDict(zds, ZSTD_getDDict(zds)), "");
+            }
 
             if (zds->format == ZSTD_f_zstd1
                 && (MEM_readLE32(zds->headerBuffer) & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START) {  /* skippable frame */

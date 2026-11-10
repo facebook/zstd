@@ -317,6 +317,16 @@ static void ZSTD_clearDict(ZSTD_DCtx* dctx)
     dctx->dictUses = ZSTD_dont_use;
 }
 
+/* Discard borrowed dictionary references without freeing the DDicts. */
+static void ZSTD_clearDDictSet(ZSTD_DCtx* dctx)
+{
+    if (dctx->ddictSet != NULL) {
+        assert(!dctx->staticSize);
+        ZSTD_freeDDictHashSet(dctx->ddictSet, dctx->customMem);
+        dctx->ddictSet = NULL;
+    }
+}
+
 size_t ZSTD_freeDCtx(ZSTD_DCtx* dctx)
 {
     if (dctx==NULL) return 0;   /* support free on NULL */
@@ -329,10 +339,7 @@ size_t ZSTD_freeDCtx(ZSTD_DCtx* dctx)
         if (dctx->legacyContext)
             ZSTD_freeLegacyStreamContext(dctx->legacyContext, dctx->previousLegacyVersion);
 #endif
-        if (dctx->ddictSet) {
-            ZSTD_freeDDictHashSet(dctx->ddictSet, cMem);
-            dctx->ddictSet = NULL;
-        }
+        ZSTD_clearDDictSet(dctx);
         ZSTD_customFree(dctx, cMem);
         return 0;
     }
@@ -1700,6 +1707,8 @@ size_t ZSTD_DCtx_loadDictionary_advanced(ZSTD_DCtx* dctx,
 {
     RETURN_ERROR_IF(dctx->streamStage != zdss_init, stage_wrong, "");
     ZSTD_clearDict(dctx);
+    if (dict == NULL || dictSize == 0)
+        ZSTD_clearDDictSet(dctx);
     if (dict && dictSize != 0) {
         dctx->ddictLocal = ZSTD_createDDict_advanced(dict, dictSize, dictLoadMethod, dictContentType, dctx->customMem);
         RETURN_ERROR_IF(dctx->ddictLocal == NULL, memory_allocation, "NULL pointer!");
@@ -1791,9 +1800,8 @@ size_t ZSTD_DCtx_refDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict)
             assert(!dctx->staticSize);  /* Impossible: ddictSet cannot have been allocated if static dctx */
             FORWARD_IF_ERROR(ZSTD_DDictHashSet_addDDict(dctx->ddictSet, ddict, dctx->customMem), "");
         }
-    } else if (dctx->ddictSet) {
-        ZSTD_freeDDictHashSet(dctx->ddictSet, dctx->customMem);
-        dctx->ddictSet = NULL;
+    } else {
+        ZSTD_clearDDictSet(dctx);
     }
     return 0;
 }
@@ -1929,6 +1937,8 @@ size_t ZSTD_DCtx_setParameter(ZSTD_DCtx* dctx, ZSTD_dParameter dParam, int value
             if (dctx->staticSize != 0) {
                 RETURN_ERROR(parameter_unsupported, "Static dctx does not support multiple DDicts!");
             }
+            if (value == ZSTD_rmd_refSingleDDict)
+                ZSTD_clearDDictSet(dctx);
             dctx->refMultipleDDicts = (ZSTD_refMultipleDDicts_e)value;
             return 0;
         case ZSTD_d_disableHuffmanAssembly:
@@ -1956,10 +1966,7 @@ size_t ZSTD_DCtx_reset(ZSTD_DCtx* dctx, ZSTD_ResetDirective reset)
       || (reset == ZSTD_reset_session_and_parameters) ) {
         RETURN_ERROR_IF(dctx->streamStage != zdss_init, stage_wrong, "");
         ZSTD_clearDict(dctx);
-        if (dctx->ddictSet) {
-            ZSTD_freeDDictHashSet(dctx->ddictSet, dctx->customMem);
-            dctx->ddictSet = NULL;
-        }
+        ZSTD_clearDDictSet(dctx);
         ZSTD_DCtx_resetParameters(dctx);
     }
     return 0;

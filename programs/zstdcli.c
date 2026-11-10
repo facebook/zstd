@@ -1102,9 +1102,9 @@ int main(int argCount, const char* argv[])
                 }
 #endif
                 if (longCommandWArg(&argument, "--threads")) { NEXT_UINT32(nbWorkers); setThreads_non1 = (nbWorkers != 1); continue; }
+                if (longCommandWArg(&argument, "--memlimit-decompress")) { NEXT_UINT32(memLimit); continue; }
                 if (longCommandWArg(&argument, "--memlimit")) { NEXT_UINT32(memLimit); continue; }
                 if (longCommandWArg(&argument, "--memory")) { NEXT_UINT32(memLimit); continue; }
-                if (longCommandWArg(&argument, "--memlimit-decompress")) { NEXT_UINT32(memLimit); continue; }
                 if (longCommandWArg(&argument, "--block-size")) { NEXT_TSIZE(chunkSize); continue; } /* hidden command, prefer --split below */
                 if (longCommandWArg(&argument, "--split")) { NEXT_TSIZE(chunkSize); continue; }
                 if (longCommandWArg(&argument, "--jobsize")) { NEXT_TSIZE(chunkSize); continue; } /* note: overloaded variable */

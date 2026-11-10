@@ -28,10 +28,17 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
     { 19, 12, 13,  1,  6,  1, ZSTD_fast    },  /* base for negative levels */
     { 19, 13, 14,  1,  7,  0, ZSTD_fast    },  /* level  1 */
     { 20, 15, 16,  1,  6,  0, ZSTD_fast    },  /* level  2 */
+#ifdef ZSTD_ENABLE_SEARCH_SKIP_HIGH
+    { 20, 15, 17,  1,  5,  0, ZSTD_dfast   },  /* level  3 - reduced windowLog/chainLog for speed */
+    { 21, 18, 18,  1,  5,  0, ZSTD_dfast   },  /* level  4 */
+    { 21, 19, 19,  1,  5,  0, ZSTD_dfast   },  /* level  5 - dfast for better speed */
+    { 21, 18, 19,  3,  5,  4, ZSTD_greedy  },  /* level  6 - greedy for better speed */
+#else
     { 21, 16, 17,  1,  5,  0, ZSTD_dfast   },  /* level  3 */
     { 21, 18, 18,  1,  5,  0, ZSTD_dfast   },  /* level  4 */
     { 21, 18, 19,  3,  5,  2, ZSTD_greedy  },  /* level  5 */
     { 21, 18, 19,  3,  5,  4, ZSTD_lazy    },  /* level  6 */
+#endif /* ZSTD_ENABLE_SEARCH_SKIP_HIGH */
     { 21, 19, 20,  4,  5,  8, ZSTD_lazy    },  /* level  7 */
     { 21, 19, 20,  4,  5, 16, ZSTD_lazy2   },  /* level  8 */
     { 22, 20, 21,  4,  5, 16, ZSTD_lazy2   },  /* level  9 */
@@ -54,6 +61,16 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
     { 18, 12, 13,  1,  5,  1, ZSTD_fast    },  /* base for negative levels */
     { 18, 13, 14,  1,  6,  0, ZSTD_fast    },  /* level  1 */
     { 18, 14, 14,  1,  5,  0, ZSTD_dfast   },  /* level  2 */
+#ifdef ZSTD_ENABLE_SEARCH_SKIP_HIGH
+    { 18, 16, 16,  1,  5,  0, ZSTD_dfast   },  /* level  3 - minMatch=5 for ratio */
+    { 18, 17, 17,  1,  5,  2, ZSTD_greedy  },  /* level  4 - reduced searchDepth for speed */
+    { 18, 17, 18,  4,  5,  2, ZSTD_greedy  },  /* level  5 - reduced searchDepth for speed */
+    { 18, 18, 19,  3,  5,  4, ZSTD_lazy    },  /* level  6 */
+    { 18, 18, 19,  4,  5,  4, ZSTD_lazy    },  /* level  7 - minMatch=5 for ratio */
+    { 18, 18, 19,  4,  5,  8, ZSTD_lazy2   },  /* level  8 - minMatch=5 for ratio */
+    { 18, 18, 19,  5,  5,  8, ZSTD_lazy2   },  /* level  9 - minMatch=5 for ratio */
+    { 18, 18, 19,  6,  5,  8, ZSTD_lazy2   },  /* level 10 - minMatch=5 for ratio */
+#else
     { 18, 16, 16,  1,  4,  0, ZSTD_dfast   },  /* level  3 */
     { 18, 16, 17,  3,  5,  2, ZSTD_greedy  },  /* level  4.*/
     { 18, 17, 18,  5,  5,  2, ZSTD_greedy  },  /* level  5.*/
@@ -62,6 +79,7 @@ static const ZSTD_compressionParameters ZSTD_defaultCParameters[4][ZSTD_MAX_CLEV
     { 18, 18, 19,  4,  4,  8, ZSTD_lazy2   },  /* level  8 */
     { 18, 18, 19,  5,  4,  8, ZSTD_lazy2   },  /* level  9 */
     { 18, 18, 19,  6,  4,  8, ZSTD_lazy2   },  /* level 10 */
+#endif /* ZSTD_ENABLE_SEARCH_SKIP_HIGH */
     { 18, 18, 19,  5,  4, 12, ZSTD_btlazy2 },  /* level 11.*/
     { 18, 19, 19,  7,  4, 12, ZSTD_btlazy2 },  /* level 12.*/
     { 18, 18, 19,  4,  4, 16, ZSTD_btopt   },  /* level 13 */

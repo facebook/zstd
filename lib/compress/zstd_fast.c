@@ -11,6 +11,24 @@
 #include "zstd_compress_internal.h"  /* ZSTD_hashPtr, ZSTD_count, ZSTD_storeSeq */
 #include "zstd_fast.h"
 
+/**
+ * When the ZSTD_ENABLE_SEARCH_SKIP_HIGH flag is enabled,
+ *   - for every 256 byte blocks that goes without a single match, the step rate is increased by 3 instead of 1
+ *   - Keep the STEP_SIZE_INIT targetLength-based for negative fast levels (strategy=ZSTD_fast with targetLength>0),
+ *     but allow a fixed stepSize for other levels
+ */
+#define STEP_SIZE_INIT_TARGET_BASED (cParams->targetLength + !(cParams->targetLength) + 1)
+#define STEP_SIZE_INIT_FIXED 2
+
+#ifdef ZSTD_ENABLE_SEARCH_SKIP_HIGH
+    #define STEP_SIZE_INIT ((cParams->strategy == ZSTD_fast) && (cParams->targetLength > 0) ? \
+                            STEP_SIZE_INIT_TARGET_BASED : STEP_SIZE_INIT_FIXED)
+    #define STEP_FACTOR 3
+#else 
+    #define STEP_SIZE_INIT STEP_SIZE_INIT_TARGET_BASED
+    #define STEP_FACTOR 1
+#endif /* ZSTD_ENABLE_SEARCH_SKIP_HIGH */
+
 static
 ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
 void ZSTD_fillHashTableForCDict(ZSTD_MatchState_t* ms,
@@ -197,7 +215,7 @@ size_t ZSTD_compressBlock_fast_noDict_generic(
     const ZSTD_compressionParameters* const cParams = &ms->cParams;
     U32* const hashTable = ms->hashTable;
     U32 const hlog = cParams->hashLog;
-    size_t const stepSize = cParams->targetLength + !(cParams->targetLength) + 1; /* min 2 */
+    size_t const stepSize = STEP_SIZE_INIT;
     const BYTE* const base = ms->window.base;
     const BYTE* const istart = (const BYTE*)src;
     const U32   endIndex = (U32)((size_t)(istart - base) + srcSize);
@@ -266,6 +284,12 @@ _start: /* Requires: ip0 */
     do {
         /* load repcode match for ip[2]*/
         const U32 rval = MEM_read32(ip2 - rep_offset1);
+#ifdef ZSTD_ENABLE_SEARCH_SKIP_HIGH
+        // Alternate between values 2 and 3 for step while searching for a match. In case
+        // the value of step exceeds 3 (this happens when the value of step is incremented
+        // when ip2 exceeds nextStep), we let step retain its value.
+        step = (step > 3) ? step : step ^ 1;
+#endif /* ZSTD_ENABLE_SEARCH_SKIP_HIGH */
 
         /* write back hash table entry */
         current0 = (U32)(ip0 - base);
@@ -340,7 +364,7 @@ _start: /* Requires: ip0 */
 
         /* calculate step */
         if (ip2 >= nextStep) {
-            step++;
+            step += STEP_FACTOR;
             PREFETCH_L1(ip1 + 64);
             PREFETCH_L1(ip1 + 128);
             nextStep += kStepIncr;
@@ -714,7 +738,7 @@ size_t ZSTD_compressBlock_fast_extDict_generic(
     U32* const hashTable = ms->hashTable;
     U32 const hlog = cParams->hashLog;
     /* support stepSize of 0 */
-    size_t const stepSize = cParams->targetLength + !(cParams->targetLength) + 1;
+    size_t const stepSize = STEP_SIZE_INIT;
     const BYTE* const base = ms->window.base;
     const BYTE* const dictBase = ms->window.dictBase;
     const BYTE* const istart = (const BYTE*)src;
@@ -789,6 +813,12 @@ _start: /* Requires: ip0 */
     idxBase = idx < prefixStartIndex ? dictBase : base;
 
     do {
+#ifdef ZSTD_ENABLE_SEARCH_SKIP_HIGH
+        // Alternate between values 2 and 3 for step while searching for a match. In case
+        // the value of step exceeds 3 (this happens when the value of step is incremented
+        // when ip2 exceeds nextStep), we let step retain its value.
+        step = (step > 3) ? step : step ^ 1;
+#endif /* ZSTD_ENABLE_SEARCH_SKIP_HIGH */
         {   /* load repcode match for ip[2] */
             U32 const current2 = (U32)(ip2 - base);
             U32 const repIndex = current2 - offset_1;
@@ -874,7 +904,7 @@ _start: /* Requires: ip0 */
 
         /* calculate step */
         if (ip2 >= nextStep) {
-            step++;
+            step += STEP_FACTOR;
             PREFETCH_L1(ip1 + 64);
             PREFETCH_L1(ip1 + 128);
             nextStep += kStepIncr;

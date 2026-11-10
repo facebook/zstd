@@ -46,6 +46,7 @@
 #include "threading.h"    /* ZSTD_pthread_create, ZSTD_pthread_join */
 #include "compress/hist.h" /* HIST_count_wksp */
 #include "compress/zstd_compress_internal.h" /* ZSTD_get1BlockSummary */
+#include "decompress/zstd_decompress_internal.h" /* ZSTD_DCtx */
 
 
 /*-************************************
@@ -2471,6 +2472,82 @@ static int basicUnitTests(U32 const seed, double compressibility)
             }
         }
         ZSTD_freeCCtx(largeCCtx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : static DCtx dictionary allocation : ", testNb++);
+    {
+        static const char dict[] = "static DCtx dictionary regression test";
+        size_t const dictSize = sizeof(dict);
+        size_t const dctxSize = ZSTD_estimateDCtxSize();
+        size_t const dstreamSize = ZSTD_estimateDStreamSize(1 KB);
+        size_t const ddictSize = ZSTD_estimateDDictSize(dictSize, ZSTD_dlm_byRef);
+        void* const workspace = malloc(dstreamSize);
+        void* const ddictWorkspace = malloc(ddictSize);
+        ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        const ZSTD_DDict* ddict;
+        char compressed[ZSTD_COMPRESSBOUND(sizeof(dict))];
+        char decoded[sizeof(dict)];
+        size_t compressedSize;
+        int fill;
+        int stream;
+        CHECK(workspace != NULL && ddictWorkspace != NULL && cctx != NULL);
+        ddict = ZSTD_initStaticDDict(ddictWorkspace, ddictSize, dict, dictSize,
+                                     ZSTD_dlm_byRef, ZSTD_dct_rawContent);
+        CHECK(ddict != NULL);
+        CHECK_VAR(compressedSize, ZSTD_compress_usingDict(cctx, compressed, sizeof(compressed),
+                                                         dict, dictSize, dict, dictSize, 1));
+        CHECK_Z(ZSTD_freeCCtx(cctx));
+
+        /* Both zeroed and reused workspaces must reject internal DDict
+         * creation without invoking an allocator. */
+        for (fill = 0; fill < 2; ++fill) {
+            for (stream = 0; stream < 2; ++stream) {
+                ZSTD_DCtx* dctx;
+                memset(workspace, fill ? 0xA5 : 0, dstreamSize);
+                dctx = stream ? ZSTD_initStaticDStream(workspace, dstreamSize)
+                              : ZSTD_initStaticDCtx(workspace, dctxSize);
+                CHECK(dctx != NULL);
+                CHECK_EQ(ZSTD_DCtx_loadDictionary(dctx, dict, dictSize), ERROR(memory_allocation));
+                CHECK_EQ(ZSTD_DCtx_loadDictionary_byReference(dctx, dict, dictSize), ERROR(memory_allocation));
+                CHECK_EQ(ZSTD_DCtx_loadDictionary_advanced(dctx, dict, dictSize, ZSTD_dlm_byCopy, ZSTD_dct_rawContent), ERROR(memory_allocation));
+                CHECK_EQ(ZSTD_DCtx_loadDictionary_advanced(dctx, dict, dictSize, ZSTD_dlm_byRef, ZSTD_dct_rawContent), ERROR(memory_allocation));
+                CHECK_EQ(ZSTD_DCtx_refPrefix(dctx, dict, dictSize), ERROR(memory_allocation));
+                CHECK_EQ(ZSTD_DCtx_refPrefix_advanced(dctx, dict, dictSize, ZSTD_dct_auto), ERROR(memory_allocation));
+                CHECK_EQ(ZSTD_initDStream_usingDict(dctx, dict, dictSize), ERROR(memory_allocation));
+                CHECK_EQ(dctx->customMem.customAlloc, NULL);
+                CHECK_EQ(dctx->customMem.customFree, NULL);
+                CHECK_EQ(dctx->customMem.opaque, NULL);
+
+                /* Clearing a dictionary does not allocate. */
+                CHECK_Z(ZSTD_DCtx_loadDictionary(dctx, NULL, dictSize));
+                CHECK_Z(ZSTD_DCtx_loadDictionary(dctx, dict, 0));
+                CHECK_Z(ZSTD_DCtx_loadDictionary_byReference(dctx, NULL, dictSize));
+                CHECK_Z(ZSTD_DCtx_loadDictionary_byReference(dctx, dict, 0));
+                CHECK_Z(ZSTD_DCtx_refPrefix(dctx, NULL, dictSize));
+                CHECK_Z(ZSTD_DCtx_refPrefix(dctx, dict, 0));
+                CHECK_Z(ZSTD_initDStream_usingDict(dctx, NULL, dictSize));
+                CHECK_Z(ZSTD_initDStream_usingDict(dctx, dict, 0));
+
+                /* A caller-owned DDict remains usable without allocation. */
+                CHECK_Z(ZSTD_DCtx_refDDict(dctx, ddict));
+                CHECK_EQ(ZSTD_decompressDCtx(dctx, decoded, sizeof(decoded), compressed, compressedSize), dictSize);
+                CHECK_EQ(memcmp(decoded, dict, dictSize), 0);
+                CHECK_Z(ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters));
+                if (stream) {
+                    ZSTD_inBuffer input = { compressed, compressedSize, 0 };
+                    ZSTD_outBuffer output = { decoded, sizeof(decoded), 0 };
+                    CHECK_Z(ZSTD_initDStream_usingDDict(dctx, ddict));
+                    CHECK_EQ(ZSTD_decompressStream(dctx, &output, &input), 0);
+                    CHECK_EQ(input.pos, compressedSize);
+                    CHECK_EQ(output.pos, dictSize);
+                    CHECK_EQ(memcmp(decoded, dict, dictSize), 0);
+                }
+                CHECK_Z(ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters));
+            }
+        }
+        free(ddictWorkspace);
+        free(workspace);
     }
     DISPLAYLEVEL(3, "OK \n");
 

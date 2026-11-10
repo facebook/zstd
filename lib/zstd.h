@@ -1837,7 +1837,10 @@ ZSTDLIB_STATIC_API size_t ZSTD_estimateDDictSize(size_t dictSize, ZSTD_dictLoadM
  *  Note 3 : cParams : use ZSTD_getCParams() to convert a compression level
  *           into its associated cParams.
  *  Limitation 1 : currently not compatible with internal dictionary creation, triggered by
- *                 ZSTD_CCtx_loadDictionary(), ZSTD_initCStream_usingDict() or ZSTD_initDStream_usingDict().
+ *                 ZSTD_CCtx_loadDictionary(), ZSTD_DCtx_loadDictionary(), ZSTD_DCtx_refPrefix(),
+ *                 ZSTD_initCStream_usingDict() or ZSTD_initDStream_usingDict().
+ *                 For one-shot decompression, ZSTD_decompress_usingDict() needs no allocation.
+ *                 Otherwise, use ZSTD_initStaticDDict() + ZSTD_DCtx_refDDict().
  *  Limitation 2 : static cctx currently not compatible with multi-threading.
  *  Limitation 3 : static dctx is incompatible with legacy support.
  */

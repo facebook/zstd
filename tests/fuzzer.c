@@ -1200,6 +1200,284 @@ static unsigned test_get1BlockSummary(unsigned testNb)
 
 /* ============================================================= */
 
+typedef struct {
+    int fail;
+    size_t outstanding;
+} FUZ_dictAllocState;
+
+static void* FUZ_dictMalloc(void* opaque, size_t size)
+{
+    FUZ_dictAllocState* const state = (FUZ_dictAllocState*)opaque;
+    void* allocation;
+    if (state->fail) return NULL;
+    allocation = malloc(size);
+    if (allocation != NULL) ++state->outstanding;
+    return allocation;
+}
+
+static void FUZ_dictFree(void* opaque, void* allocation)
+{
+    FUZ_dictAllocState* const state = (FUZ_dictAllocState*)opaque;
+    if (allocation != NULL) {
+        CHECK(state->outstanding != 0);
+        --state->outstanding;
+    }
+    free(allocation);
+}
+
+static void test_dictionaryLoadErrors(const void* dict, size_t dictSize)
+{
+    FUZ_dictAllocState state = { 0, 0 };
+    ZSTD_customMem const customMem = { FUZ_dictMalloc, FUZ_dictFree, &state };
+    ZSTD_CCtx* const cctx = ZSTD_createCCtx_advanced(customMem);
+    ZSTD_CCtx_params cdictParams;
+    BYTE const src[32] = { 0 };
+    BYTE compressed[ZSTD_COMPRESSBOUND(sizeof(src))];
+    size_t const baseline = state.outstanding;
+    size_t cSize;
+
+    CHECK(cctx != NULL);
+    CHECK_Z(ZSTD_CCtxParams_init(&cdictParams, 1));
+    CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, 1));
+    CHECK_Z(ZSTD_CCtx_loadDictionary_byReference(cctx, dict, dictSize));
+
+    /* Actual allocation failures must keep their distinct error code. */
+    state.fail = 1;
+    CHECK(ZSTD_createCDict_advanced2(dict, dictSize, ZSTD_dlm_byRef,
+            ZSTD_dct_fullDict, &cdictParams, customMem) == NULL);
+    CHECK_EQ(ZSTD_getErrorCode(ZSTD_compress2(cctx, compressed, sizeof(compressed),
+            src, sizeof(src))), ZSTD_error_memory_allocation);
+    CHECK_EQ(state.outstanding, baseline);
+    state.fail = 0;
+
+    /* A failed CDict initialization must free its partial allocation and
+     * leave the CCtx able to retry. The first eight bytes retain the magic
+     * number and dictionary ID, but omit the required entropy tables. */
+    CHECK(dictSize > 8);
+    CHECK_Z(ZSTD_CCtx_loadDictionary_byReference(cctx, dict, 8));
+    CHECK(ZSTD_createCDict_advanced2(dict, 8, ZSTD_dlm_byRef,
+            ZSTD_dct_fullDict, &cdictParams, customMem) == NULL);
+    CHECK_EQ(state.outstanding, baseline);
+    CHECK_EQ(ZSTD_getErrorCode(ZSTD_compress2(cctx, compressed, sizeof(compressed),
+            src, sizeof(src))), ZSTD_error_dictionary_corrupted);
+    CHECK_EQ(state.outstanding, baseline);
+    CHECK_EQ(ZSTD_getErrorCode(ZSTD_compress2(cctx, compressed, sizeof(compressed),
+            src, sizeof(src))), ZSTD_error_dictionary_corrupted);
+    CHECK_EQ(state.outstanding, baseline);
+
+    CHECK_Z(ZSTD_CCtx_loadDictionary_byReference(cctx, dict, dictSize));
+    CHECK_VAR(cSize, ZSTD_compress2(cctx, compressed, sizeof(compressed), src, sizeof(src)));
+    {   ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+        BYTE decoded[sizeof(src)];
+        CHECK(dctx != NULL);
+        {   CHECK_NEWV(dSize, ZSTD_decompress_usingDict(dctx, decoded, sizeof(decoded),
+                    compressed, cSize, dict, dictSize));
+            CHECK(dSize == sizeof(src) && memcmp(src, decoded, sizeof(src)) == 0);
+        }
+        ZSTD_freeDCtx(dctx);
+    }
+    ZSTD_freeCCtx(cctx);
+    CHECK_EQ(state.outstanding, 0);
+}
+
+#if ZSTD_WINDOW_OVERFLOW_CORRECT_FREQUENTLY
+/* dict has a valid full-dictionary header followed by at least 3 MB + 64 bytes of content. */
+static void test_dictionaryRepcodesAfterOverflow(BYTE* dict, size_t headerSize)
+{
+    /* Reaching the normal overflow threshold requires compressing a few GB.
+     * Only run this regression in frequent-correction mode, where a smaller
+     * dictionary and forceMaxWindow reproduce the same state cheaply. Loading
+     * the dictionary into the reused CCtx retains only 3 MB of its content. */
+    size_t const contentSize = 3 MB + 64;
+    size_t const preloadSize = 256 KB - 64;
+    size_t const fullDictSize = headerSize + contentSize;
+    U32 const rep = (U32)contentSize - 16;
+    size_t const compressedCapacity = ZSTD_compressBound(128 KB);
+    void* const compressed = malloc(compressedCapacity);
+    ZSTD_CCtx* const fresh = ZSTD_createCCtx();
+    ZSTD_CCtx* const reused = ZSTD_createCCtx();
+    ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+    ZSTD_parameters params = ZSTD_getParams(1, ZSTD_CONTENTSIZE_UNKNOWN, 0);
+    ZSTD_CCtx_params cctxParams;
+    BYTE src[4 KB];
+    BYTE decoded[sizeof(src)];
+    size_t remaining = preloadSize;
+    U32 u;
+
+    CHECK(compressed != NULL && fresh != NULL && reused != NULL && dctx != NULL);
+    for (u = 0; u < ZSTD_REP_NUM; ++u)
+        MEM_writeLE32(dict + headerSize - 12 + 4 * u, repStartValue[u]);
+    MEM_writeLE32(dict + headerSize - 12, rep);
+    memcpy(src, dict + fullDictSize - rep, sizeof(src));
+
+    params.cParams.windowLog = 20;
+    params.cParams.hashLog = 18;
+    params.cParams.chainLog = 17;
+    CHECK_Z(ZSTD_CCtxParams_init_advanced(&cctxParams, params));
+    CHECK_Z(ZSTD_CCtxParams_setParameter(&cctxParams, ZSTD_c_forceMaxWindow, 1));
+
+    /* First prove that exactly this dictionary and these parameters work. */
+    CHECK_Z(ZSTD_compressBegin_advanced_internal(fresh, dict, fullDictSize,
+            ZSTD_dct_fullDict, ZSTD_dtlm_fast, NULL, &cctxParams, ZSTD_CONTENTSIZE_UNKNOWN));
+    CHECK_EQ(fresh->blockState.matchState.window.nbOverflowCorrections, 0);
+    {   CHECK_NEWV(cSize, ZSTD_compressEnd(fresh, compressed, compressedCapacity, src, sizeof(src)));
+        {   CHECK_NEWV(dSize, ZSTD_decompress_usingDict(dctx, decoded, sizeof(decoded),
+                    compressed, cSize, dict, fullDictSize));
+            CHECK(dSize == sizeof(src) && memcmp(src, decoded, sizeof(src)) == 0);
+        }
+    }
+
+    /* Advance the indices using actual compression, without replacing the
+     * workspace or manufacturing internal match-state indices. */
+    CHECK_Z(ZSTD_compressBegin_advanced_internal(reused, NULL, 0,
+            ZSTD_dct_auto, ZSTD_dtlm_fast, NULL, &cctxParams, ZSTD_CONTENTSIZE_UNKNOWN));
+    while (remaining != 0) {
+        size_t const chunkSize = MIN(remaining, 128 KB);
+        CHECK_Z(ZSTD_compressContinue(reused, compressed, compressedCapacity,
+                                     dict + headerSize, chunkSize));
+        remaining -= chunkSize;
+    }
+    CHECK_Z(ZSTD_compressEnd(reused, compressed, compressedCapacity, NULL, 0));
+    CHECK_EQ(reused->blockState.matchState.window.nbOverflowCorrections, 0);
+    CHECK_EQ((size_t)(reused->blockState.matchState.window.nextSrc
+                   - reused->blockState.matchState.window.base),
+             preloadSize + ZSTD_WINDOW_START_INDEX);
+
+    {   size_t const result = ZSTD_compressBegin_advanced_internal(reused, dict, fullDictSize,
+                ZSTD_dct_fullDict, ZSTD_dtlm_fast, NULL, &cctxParams, ZSTD_CONTENTSIZE_UNKNOWN);
+        ZSTD_window_t const* const window = &reused->blockState.matchState.window;
+        U32 const loadedDictSize = (U32)(window->nextSrc - window->base) - window->lowLimit;
+        CHECK_EQ(window->nbOverflowCorrections, 1);
+        CHECK_EQ(loadedDictSize, 3 MB);
+        CHECK_LT(loadedDictSize, rep);
+        CHECK_Z(result);
+    }
+    {   CHECK_NEWV(cSize, ZSTD_compressEnd(reused, compressed, compressedCapacity, src, sizeof(src)));
+        {   CHECK_NEWV(dSize, ZSTD_decompress_usingDict(dctx, decoded, sizeof(decoded),
+                    compressed, cSize, dict, fullDictSize));
+            CHECK(dSize == sizeof(src) && memcmp(src, decoded, sizeof(src)) == 0);
+        }
+    }
+
+    ZSTD_freeDCtx(dctx);
+    ZSTD_freeCCtx(reused);
+    ZSTD_freeCCtx(fresh);
+    free(compressed);
+}
+#endif
+
+static void test_largeDictionaryRepcodes(const void* dict, size_t dictSize)
+{
+    U32 const shortCacheMaxDictSize = (1U << (32 - ZSTD_SHORT_CACHE_TAG_BITS)) - ZSTD_WINDOW_START_INDEX;
+    struct DictCase { size_t contentSize; U32 rep; };
+    struct DictCase const cases[] = {
+        { 20 MB, shortCacheMaxDictSize + 1 },
+        { 20 MB, 20 MB - 16 },
+        { 20 MB, shortCacheMaxDictSize },
+        { 10 MB, 10 MB - 16 },
+    };
+    int const levels[] = { -5, 1, 2, 3, 4, 5 };
+    size_t const headerSize = ZDICT_getDictHeaderSize(dict, dictSize);
+    BYTE* largeDict;
+    ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+    ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+    BYTE src[4 KB];
+    BYTE compressed[8 KB];
+    BYTE decoded[sizeof(src)];
+    size_t ci, li;
+    U32 r;
+
+    CHECK_Z(headerSize);
+    CHECK(headerSize >= 12);
+    largeDict = (BYTE*)malloc(headerSize + 20 MB);
+    CHECK(largeDict != NULL && cctx != NULL && dctx != NULL);
+    memcpy(largeDict, dict, headerSize);
+    RDG_genBuffer(largeDict + headerSize, 20 MB, 0.5, 0., 0);
+
+#if ZSTD_WINDOW_OVERFLOW_CORRECT_FREQUENTLY
+    test_dictionaryRepcodesAfterOverflow(largeDict, headerSize);
+#endif
+
+    for (ci = 0; ci < COUNTOF(cases); ++ci) {
+        size_t const largeDictSize = headerSize + cases[ci].contentSize;
+        /* Make the large repcode a possible match in the full dictionary. */
+        memcpy(src, largeDict + largeDictSize - cases[ci].rep, sizeof(src));
+        for (li = 0; li < COUNTOF(levels); ++li) {
+            int const level = levels[li];
+            ZSTD_CCtx_params cdictParams;
+            ZSTD_compressionParameters cParams;
+            int reject;
+            CHECK_Z(ZSTD_CCtxParams_init(&cdictParams, level));
+            cParams = ZSTD_getCParamsFromCCtxParams(&cdictParams,
+                    ZSTD_CONTENTSIZE_UNKNOWN, largeDictSize, ZSTD_cpm_createCDict);
+            reject = (cParams.strategy == ZSTD_fast || cParams.strategy == ZSTD_dfast)
+                  && cases[ci].rep > shortCacheMaxDictSize;
+            for (r = 0; r < ZSTD_REP_NUM; ++r) {
+                ZSTD_CDict* cdict;
+                U32 u;
+                size_t cSize;
+                ZSTD_inBuffer in = { src, sizeof(src), 0 };
+                ZSTD_outBuffer out = { compressed, sizeof(compressed), 0 };
+                for (u = 0; u < ZSTD_REP_NUM; ++u)
+                    MEM_writeLE32(largeDict + headerSize - 12 + 4 * u, repStartValue[u]);
+                MEM_writeLE32(largeDict + headerSize - 12 + 4 * r, cases[ci].rep);
+
+                cdict = ZSTD_createCDict_byReference(largeDict, largeDictSize, level);
+                if (reject) {
+                    CHECK(cdict == NULL);
+                    /* The copy constructor and advanced constructor share the check. */
+                    CHECK(ZSTD_createCDict(largeDict, largeDictSize, level) == NULL);
+                    CHECK(ZSTD_createCDict_advanced(largeDict, largeDictSize,
+                            ZSTD_dlm_byRef, ZSTD_dct_fullDict,
+                            cParams, ZSTD_defaultCMem) == NULL);
+
+                    /* Local CDict creation is deferred until compression starts. */
+                    CHECK_Z(ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters));
+                    CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, level));
+                    CHECK_Z(ZSTD_CCtx_loadDictionary(cctx, largeDict, largeDictSize));
+                    CHECK_EQ(ZSTD_getErrorCode(ZSTD_compress2(cctx, compressed,
+                            sizeof(compressed), src, sizeof(src))), ZSTD_error_dictionary_corrupted);
+                    CHECK_Z(ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters));
+                    CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, level));
+                    CHECK_Z(ZSTD_CCtx_loadDictionary_byReference(cctx, largeDict, largeDictSize));
+                    CHECK_EQ(ZSTD_getErrorCode(ZSTD_compressStream2(cctx, &out, &in,
+                            ZSTD_e_continue)), ZSTD_error_dictionary_corrupted);
+
+                    /* The dictionary is format-valid. The non-CDict path retains
+                     * all of its content, so it must still round-trip. */
+                    CHECK_VAR(cSize, ZSTD_compress_usingDict(cctx, compressed, sizeof(compressed),
+                            src, sizeof(src), largeDict, largeDictSize, level));
+                } else {
+                    CHECK(cdict != NULL);
+                    CHECK_VAR(cSize, ZSTD_compress_usingCDict(cctx, compressed, sizeof(compressed),
+                            src, sizeof(src), cdict));
+                    {   CHECK_NEWV(dSize, ZSTD_decompress_usingDict(dctx, decoded, sizeof(decoded),
+                                compressed, cSize, largeDict, largeDictSize));
+                        CHECK(dSize == sizeof(src) && memcmp(src, decoded, sizeof(src)) == 0);
+                    }
+
+                    /* Start with unknown input size to exercise attached streaming. */
+                    CHECK_Z(ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters));
+                    CHECK_Z(ZSTD_CCtx_refCDict(cctx, cdict));
+                    CHECK_Z(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_continue));
+                    CHECK(in.pos == in.size);
+                    CHECK(ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end) == 0);
+                    cSize = out.pos;
+                    ZSTD_freeCDict(cdict);
+                }
+                {   CHECK_NEWV(dSize, ZSTD_decompress_usingDict(dctx, decoded, sizeof(decoded),
+                            compressed, cSize, largeDict, largeDictSize));
+                    CHECK(dSize == sizeof(src) && memcmp(src, decoded, sizeof(src)) == 0);
+                }
+            }
+        }
+    }
+
+    ZSTD_freeDCtx(dctx);
+    ZSTD_freeCCtx(cctx);
+    free(largeDict);
+}
+
 static int basicUnitTests(U32 const seed, double compressibility)
 {
     size_t const CNBuffSize = 5 MB;
@@ -3441,6 +3719,14 @@ static int basicUnitTests(U32 const seed, double compressibility)
             if (dictHeaderSize != 115) goto _output_error;
         }
         DISPLAYLEVEL(3, "OK : %u \n", (unsigned)dictHeaderSize);
+
+        DISPLAYLEVEL(3, "test%3i : Dictionary creation errors : ", testNb++);
+        test_dictionaryLoadErrors(dictBuffer, dictSize);
+        DISPLAYLEVEL(3, "OK \n");
+
+        DISPLAYLEVEL(3, "test%3i : Large dictionary repcodes : ", testNb++);
+        test_largeDictionaryRepcodes(dictBuffer, dictSize);
+        DISPLAYLEVEL(3, "OK \n");
 
         DISPLAYLEVEL(3, "test%3i : compress with dictionary : ", testNb++);
         cSize = ZSTD_compress_usingDict(cctx, compressedBuffer, compressedBufferSize,

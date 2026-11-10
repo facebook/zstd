@@ -1264,6 +1264,13 @@ static int ZSTD_dedicatedDictSearch_isSupported(
         const ZSTD_compressionParameters* cParams);
 static void ZSTD_dedicatedDictSearch_revertCParams(
         ZSTD_compressionParameters* cParams);
+static size_t ZSTD_createCDict_advanced2_internal(
+        ZSTD_CDict** cdictPtr,
+        const void* dict, size_t dictSize,
+        ZSTD_dictLoadMethod_e dictLoadMethod,
+        ZSTD_dictContentType_e dictContentType,
+        const ZSTD_CCtx_params* originalCctxParams,
+        ZSTD_customMem customMem);
 
 /**
  * Initializes the local dictionary using requested parameters.
@@ -1289,14 +1296,14 @@ static size_t ZSTD_initLocalDict(ZSTD_CCtx* cctx)
     assert(cctx->cdict == NULL);
     assert(cctx->prefixDict.dict == NULL);
 
-    dl->cdict = ZSTD_createCDict_advanced2(
+    FORWARD_IF_ERROR(ZSTD_createCDict_advanced2_internal(
+            &dl->cdict,
             dl->dict,
             dl->dictSize,
             ZSTD_dlm_byRef,
             dl->dictContentType,
             &cctx->requestedParams,
-            cctx->customMem);
-    RETURN_ERROR_IF(!dl->cdict, memory_allocation, "ZSTD_createCDict_advanced failed");
+            cctx->customMem), "");
     cctx->cdict = dl->cdict;
     return 0;
 }
@@ -2363,6 +2370,20 @@ static int ZSTD_shouldAttachDict(const ZSTD_CDict* cdict,
                                       * handled in _enforceMaxDist */
 }
 
+/* Check against the addressable content, which may be smaller than the full
+ * dictionary when only a suffix is loaded. */
+static size_t ZSTD_checkDictionaryRepCodes(const U32 rep[ZSTD_REP_NUM], size_t dictContentSize)
+{
+    U32 u;
+    for (u = 0; u < ZSTD_REP_NUM; ++u) {
+        RETURN_ERROR_IF(rep[u] == 0 || rep[u] > dictContentSize,
+                        dictionary_corrupted,
+                        "repcode %u exceeds dictionary content (%zu bytes)",
+                        rep[u], dictContentSize);
+    }
+    return 0;
+}
+
 static size_t
 ZSTD_resetCCtx_byAttachingCDict(ZSTD_CCtx* cctx,
                         const ZSTD_CDict* cdict,
@@ -2402,6 +2423,9 @@ ZSTD_resetCCtx_byAttachingCDict(ZSTD_CCtx* cctx,
             /* don't even attach dictionaries with no contents */
             DEBUGLOG(4, "skipping attaching empty dictionary");
         } else {
+            /* Enforce the dictMatchState block compressors' repcode bounds
+             * before allowing them to search this dictionary. */
+            FORWARD_IF_ERROR(ZSTD_checkDictionaryRepCodes(cdict->cBlockState.rep, cdictLen), "");
             DEBUGLOG(4, "attaching dictionary into context");
             cctx->blockState.matchState.dictMatchState = &cdict->matchState;
 
@@ -5184,12 +5208,9 @@ size_t ZSTD_loadCEntropy(ZSTD_compressedBlockState_t* bs, void* workspace,
         /* All offset values <= dictContentSize + 128 KB must be representable for a valid table */
         bs->entropy.fse.offcode_repeatMode = ZSTD_dictNCountRepeat(offcodeNCount, offcodeMaxValue, MIN(offcodeMax, MaxOff));
 
-        /* All repCodes must be <= dictContentSize and != 0 */
-        {   U32 u;
-            for (u=0; u<3; u++) {
-                RETURN_ERROR_IF(bs->rep[u] == 0, dictionary_corrupted, "");
-                RETURN_ERROR_IF(bs->rep[u] > dictContentSize, dictionary_corrupted, "");
-    }   }   }
+        /* The format permits nonzero repcodes up to the full content size. */
+        FORWARD_IF_ERROR(ZSTD_checkDictionaryRepCodes(bs->rep, dictContentSize), "");
+    }
 
     return (size_t)(dictPtr - (const BYTE*)dict);
 }
@@ -5229,6 +5250,15 @@ static size_t ZSTD_loadZstdDictionary(ZSTD_compressedBlockState_t* bs,
         size_t const dictContentSize = (size_t)(dictEnd - dictPtr);
         FORWARD_IF_ERROR(ZSTD_loadDictionaryContent(
             ms, NULL, ws, params, dictPtr, dictContentSize, dtlm, tfp), "");
+    }
+    if (tfp == ZSTD_tfp_forCDict) {
+        /* The matchfinder may retain only a suffix of a large dictionary.
+         * In particular, short-cache CDicts retain at most (1 << 24) - 2
+         * bytes. Recheck the repcodes against the actual window so that
+         * dictMatchState searches cannot underflow their match indices. */
+        U32 const loadedDictSize = (U32)(ms->window.nextSrc - ms->window.base) - ms->window.lowLimit;
+        assert((U32)(ms->window.nextSrc - ms->window.base) >= ms->window.lowLimit);
+        FORWARD_IF_ERROR(ZSTD_checkDictionaryRepCodes(bs->rep, loadedDictSize), "");
     }
     return dictID;
 }
@@ -5702,7 +5732,10 @@ ZSTD_CDict* ZSTD_createCDict_advanced(const void* dictBuffer, size_t dictSize,
         &cctxParams, customMem);
 }
 
-ZSTD_CDict* ZSTD_createCDict_advanced2(
+/* Preserve initialization errors for internal callers. The public constructors
+ * retain their pointer-or-NULL API. On failure, *cdictPtr remains NULL. */
+static size_t ZSTD_createCDict_advanced2_internal(
+        ZSTD_CDict** cdictPtr,
         const void* dict, size_t dictSize,
         ZSTD_dictLoadMethod_e dictLoadMethod,
         ZSTD_dictContentType_e dictContentType,
@@ -5713,8 +5746,10 @@ ZSTD_CDict* ZSTD_createCDict_advanced2(
     ZSTD_compressionParameters cParams;
     ZSTD_CDict* cdict;
 
+    *cdictPtr = NULL;
     DEBUGLOG(3, "ZSTD_createCDict_advanced2, dictSize=%u, mode=%u", (unsigned)dictSize, (unsigned)dictContentType);
-    if (!customMem.customAlloc ^ !customMem.customFree) return NULL;
+    RETURN_ERROR_IF((!customMem.customAlloc) ^ (!customMem.customFree),
+                    parameter_combination_unsupported, "Invalid custom allocator");
 
     if (cctxParams.enableDedicatedDictSearch) {
         cParams = ZSTD_dedicatedDictSearch_getCParams(
@@ -5741,14 +5776,33 @@ ZSTD_CDict* ZSTD_createCDict_advanced2(
                         cctxParams.useRowMatchFinder, cctxParams.enableDedicatedDictSearch,
                         customMem);
 
-    if (!cdict || ZSTD_isError( ZSTD_initCDict_internal(cdict,
-                                    dict, dictSize,
-                                    dictLoadMethod, dictContentType,
-                                    cctxParams) )) {
-        ZSTD_freeCDict(cdict);
-        return NULL;
+    RETURN_ERROR_IF(!cdict, memory_allocation, "Could not allocate CDict");
+    {   size_t const err = ZSTD_initCDict_internal(cdict,
+                                dict, dictSize,
+                                dictLoadMethod, dictContentType,
+                                cctxParams);
+        if (ZSTD_isError(err)) {
+            ZSTD_freeCDict(cdict);
+            return err;
+        }
     }
 
+    *cdictPtr = cdict;
+    return 0;
+}
+
+ZSTD_CDict* ZSTD_createCDict_advanced2(
+        const void* dict, size_t dictSize,
+        ZSTD_dictLoadMethod_e dictLoadMethod,
+        ZSTD_dictContentType_e dictContentType,
+        const ZSTD_CCtx_params* originalCctxParams,
+        ZSTD_customMem customMem)
+{
+    ZSTD_CDict* cdict;
+    size_t const err = ZSTD_createCDict_advanced2_internal(
+            &cdict, dict, dictSize, dictLoadMethod, dictContentType,
+            originalCctxParams, customMem);
+    if (ZSTD_isError(err)) return NULL;
     return cdict;
 }
 

@@ -156,8 +156,10 @@ static int testSimpleAPI(const char* compressed, size_t compressedSize,
 }
 
 
+/* @maxChunk : nb of bytes given to each ZSTD_decompressStream() call */
 static int testStreamingAPI(const char* compressed, size_t compressedSize,
-                            const char* expected, size_t expectedSize)
+                            const char* expected, size_t expectedSize,
+                            size_t maxChunk)
 {
     int error_code = 0;
     size_t const outBuffSize = ZSTD_DStreamOutSize();
@@ -168,7 +170,6 @@ static int testStreamingAPI(const char* compressed, size_t compressedSize,
     int needsInit = 1;
 
     input.src = compressed;
-    input.size = compressedSize;
 
     if (outBuff == NULL) {
         DISPLAY("ERROR: Could not allocate memory\n");
@@ -182,13 +183,16 @@ static int testStreamingAPI(const char* compressed, size_t compressedSize,
 
     while (1) {
         ZSTD_outBuffer output = {outBuff, outBuffSize, 0};
+        input.size = (compressedSize - input.pos > maxChunk) ? input.pos + maxChunk : compressedSize;
         if (needsInit) {
             size_t const ret = ZSTD_initDStream(stream);
             if (ZSTD_isError(ret)) {
                 DISPLAY("ERROR: ZSTD_initDStream: %s\n", ZSTD_getErrorName(ret));
                 error_code = 1;
                 break;
-        }   }
+            }
+            needsInit = 0;
+        }
 
         {   size_t const ret = ZSTD_decompressStream(stream, &output, &input);
             if (ZSTD_isError(ret)) {
@@ -212,7 +216,7 @@ static int testStreamingAPI(const char* compressed, size_t compressedSize,
             break;
         }
         outputPos += output.pos;
-        if (input.pos == input.size && output.pos < output.size) {
+        if (input.pos == compressedSize && output.pos < output.size) {
             break;
         }
     }
@@ -297,7 +301,10 @@ int main(void)
         /* all blocks being identical, the first @nbStreamFrames ones
          * are what the streaming subset must decode to */
         if (testStreamingAPI(streamable, streamableSize,
-                             expected, blockSize * nbStreamFrames)) break;
+                             expected, blockSize * nbStreamFrames, streamableSize)) break;
+        /* one byte at a time : frame headers arrive split across calls */
+        if (testStreamingAPI(streamable, streamableSize,
+                             expected, blockSize * nbStreamFrames, 1)) break;
         result = 0;
     } while (0);
 

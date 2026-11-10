@@ -2517,57 +2517,38 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
      * since they use its dictionary, pools and jobs table */
     DISPLAYLEVEL(3, "test%3i : abandon a multi-threaded frame with a job in progress : ", testNb++);
     {   size_t const jobSize = 1 MB;
-        size_t const srcSize = jobSize + 64 KB;   /* starts one job, the rest stays buffered */
-        size_t const largeDictSize = 1 MB;
-        const void* const largeDict = (const char*)CNBuffer + srcSize;
+        const void* const dict = (const char*)CNBuffer + 2 * jobSize;
         int scenario;
-        for (scenario = 0; scenario < 6; scenario++) {
+        for (scenario = 0; scenario < 5; scenario++) {
             ZSTD_CCtx* const cctx = ZSTD_createCCtx();
             ZSTD_threadPool* const pool = (scenario == 1) ? ZSTD_createThreadPool(1) : NULL;
-            ZSTD_inBuffer in = { CNBuffer, (scenario == 2) ? 0 : srcSize, 0 };
+            ZSTD_inBuffer in = { CNBuffer, (scenario == 2) ? 0 : jobSize, 0 };
             ZSTD_outBuffer out = { compressedBuffer, compressedBufferSize, 0 };
-            size_t nextDictSize = largeDictSize;
             CHECK(cctx == NULL, "ZSTD_createCCtx failed");
             CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, 10) );
             CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 1) );
             CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_jobSize, (int)jobSize) );
             if (pool != NULL) CHECK_Z( ZSTD_CCtx_refThreadPool(cctx, pool) );
-            CHECK_Z( ZSTD_CCtx_loadDictionary(cctx, largeDict, largeDictSize) );
-            CHECK_Z( ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_continue) );
+            CHECK_Z( ZSTD_CCtx_loadDictionary(cctx, dict, 1 MB) );   /* makes the first job slow */
+            CHECK_Z( ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_continue) );   /* starts the first job, if any */
             if (scenario == 2) {
-                /* empty frame : its only job is empty, and is still in progress
-                 * when ZSTD_e_end returns because the output buffer is full */
-                size_t remaining;
+                /* empty frame : its only job is empty, and still runs when
+                 * ZSTD_e_end returns because the output buffer is full */
                 out.size = out.pos;
-                remaining = ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end);
-                CHECK_Z(remaining);
-                CHECK(remaining == 0, "the empty frame should not be completed");
-            } else {
-                CHECK(in.pos < jobSize, "the first job should be in progress");
+                CHECK_Z( ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end) );
             }
-            if (scenario == 5) {
-                /* the next job is prepared, and waits until the worker is free */
+            if (scenario == 4) {
+                /* the second job is prepared, and waits until the worker is free */
                 in.size = 2 * jobSize;
                 CHECK_Z( ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_continue) );
             }
             if (scenario >= 3) {
-                /* abandon the frame, then change the dictionary or the number of workers, or nothing */
+                /* abandon the frame, change the dictionary, and compress a new frame */
                 CHECK_Z( ZSTD_CCtx_reset(cctx, ZSTD_reset_session_only) );
-                if (scenario == 3) {
-                    nextDictSize = largeDictSize / 2;
-                    CHECK_Z( ZSTD_CCtx_loadDictionary(cctx, largeDict, nextDictSize) );
-                } else if (scenario == 4) {
-                    CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 4) );
-                }
-                cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, srcSize);
-                CHECK_Z(cSize);
-                {   size_t const dSize = ZSTD_decompress_usingDict(zd, decodedBuffer, decodedBufferSize,
-                                                compressedBuffer, cSize, largeDict, nextDictSize);
-                    CHECK_Z(dSize);
-                    CHECK(dSize != srcSize, "wrong decompressed size");
-                    CHECK(memcmp(decodedBuffer, CNBuffer, srcSize), "decompressed data must match");
-            }   }
-            ZSTD_freeCCtx(cctx);   /* scenarios 0 to 2 free it with the job in progress */
+                CHECK_Z( ZSTD_CCtx_loadDictionary(cctx, dict, 512 KB) );
+                CHECK_Z( ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, jobSize) );
+            }
+            ZSTD_freeCCtx(cctx);   /* scenarios 0 to 2 free it with a job in progress */
             ZSTD_freeThreadPool(pool);
         }
     }

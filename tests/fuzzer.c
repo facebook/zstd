@@ -26,6 +26,10 @@
 #include <stdio.h>        /* fgets, sscanf */
 #include <string.h>       /* strcmp */
 #include <time.h>         /* time(), time_t */
+#ifndef _WIN32
+#  include <unistd.h>     /* fork, _exit */
+#  include <sys/wait.h>   /* waitpid */
+#endif
 #undef NDEBUG             /* always enable assert() */
 #include <assert.h>
 #define ZSTD_STATIC_LINKING_ONLY  /* ZSTD_compressContinue, ZSTD_compressBlock */
@@ -3272,6 +3276,55 @@ static int basicUnitTests(U32 const seed, double compressibility)
             if (ZDICT_isError(dictSize)) goto _output_error;
         }
         DISPLAYLEVEL(3, "OK, created dictionary of size %u \n", (unsigned)dictSize);
+
+        DISPLAYLEVEL(3, "test%3i : COVER accepts ordinary k/d : ", testNb++);
+        {   ZDICT_cover_params_t coverParams;
+            memset(&coverParams, 0, sizeof(coverParams));
+            coverParams.k = 64;
+            coverParams.d = 8;
+            coverParams.steps = 1;
+            coverParams.splitPoint = 0.75;
+            dictSize = ZDICT_trainFromBuffer_cover(dictBuffer, dictBufferCapacity,
+                                                   CNBuffer, samplesSizes, nbSamples,
+                                                   coverParams);
+            if (ZDICT_isError(dictSize)) goto _output_error;
+        }
+        DISPLAYLEVEL(3, "OK, created dictionary of size %u \n", (unsigned)dictSize);
+
+        DISPLAYLEVEL(3, "test%3i : COVER rejects unrepresentable k-d+1 : ", testNb++);
+        {   /* k-d+1 == 2^30 rounds the dmer map capacity up to 2^32 : the
+             * old COVER_map_init() shifted a U32 by 32 (undefined behaviour,
+             * SIGSEGV on common builds) and on 32-bit wrapped the pair-array
+             * allocation to zero. The call must fail cleanly instead. */
+            ZDICT_cover_params_t coverParams;
+            memset(&coverParams, 0, sizeof(coverParams));
+            coverParams.k = (U32)1 << 30;
+            coverParams.d = 1;
+            coverParams.steps = 1;
+            coverParams.splitPoint = 0.75;
+#ifdef _WIN32
+            {   size_t const badSize = ZDICT_trainFromBuffer_cover(
+                    dictBuffer, (size_t)1 << 30,
+                    CNBuffer, samplesSizes, nbSamples, coverParams);
+                if (!ZDICT_isError(badSize)) goto _output_error;
+            }
+#else
+            {   /* crash-isolated : an unfixed tree dies inside this call */
+                pid_t const child = fork();
+                assert(child >= 0);
+                if (child == 0) {
+                    size_t const badSize = ZDICT_trainFromBuffer_cover(
+                        dictBuffer, (size_t)1 << 30,
+                        CNBuffer, samplesSizes, nbSamples, coverParams);
+                    _exit(ZDICT_isError(badSize) ? 0 : 1);
+                }
+                {   int status = 0;
+                    if (waitpid(child, &status, 0) != child) goto _output_error;
+                    if (!WIFEXITED(status) || (WEXITSTATUS(status) != 0)) goto _output_error;
+            }   }
+#endif
+        }
+        DISPLAYLEVEL(3, "OK \n");
 
         DISPLAYLEVEL(3, "test%3i : check dictID : ", testNb++);
         dictID = ZDICT_getDictID(dictBuffer, dictSize);

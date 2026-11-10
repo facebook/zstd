@@ -785,7 +785,7 @@ typedef struct {
 } seq_t;
 
 typedef struct {
-    size_t state;
+    const ZSTD_seqSymbol* statePtr;
     const ZSTD_seqSymbol* table;
 } ZSTD_fseState;
 
@@ -1202,23 +1202,24 @@ size_t ZSTD_execSequenceSplitLitBuffer(BYTE* op,
 }
 
 
-static void
+FORCE_INLINE_TEMPLATE void
 ZSTD_initFseState(ZSTD_fseState* DStatePtr, BIT_DStream_t* bitD, const ZSTD_seqSymbol* dt)
 {
     const void* ptr = dt;
     const ZSTD_seqSymbol_header* const DTableH = (const ZSTD_seqSymbol_header*)ptr;
-    DStatePtr->state = BIT_readBits(bitD, DTableH->tableLog);
+    size_t const state = BIT_readBits(bitD, DTableH->tableLog);
     DEBUGLOG(6, "ZSTD_initFseState : val=%u using %u bits",
-                (U32)DStatePtr->state, DTableH->tableLog);
+                (U32)state, DTableH->tableLog);
     BIT_reloadDStream(bitD);
     DStatePtr->table = dt + 1;
+    DStatePtr->statePtr = DStatePtr->table + state;
 }
 
 FORCE_INLINE_TEMPLATE void
 ZSTD_updateFseStateWithDInfo(ZSTD_fseState* DStatePtr, BIT_DStream_t* bitD, U16 nextState, U32 nbBits)
 {
     size_t const lowBits = BIT_readBits(bitD, nbBits);
-    DStatePtr->state = nextState + lowBits;
+    DStatePtr->statePtr = DStatePtr->table + nextState + lowBits;
 }
 
 /* We need to add at most (ZSTD_WINDOWLOG_MAX_32 - 1) bits to read the maximum
@@ -1260,13 +1261,13 @@ ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets, c
     ZSTD_seqSymbol* const llDInfo = &llDInfoS;
     ZSTD_seqSymbol* const mlDInfo = &mlDInfoS;
     ZSTD_seqSymbol* const ofDInfo = &ofDInfoS;
-    ZSTD_memcpy(llDInfo, seqState->stateLL.table + seqState->stateLL.state, sizeof(ZSTD_seqSymbol));
-    ZSTD_memcpy(mlDInfo, seqState->stateML.table + seqState->stateML.state, sizeof(ZSTD_seqSymbol));
-    ZSTD_memcpy(ofDInfo, seqState->stateOffb.table + seqState->stateOffb.state, sizeof(ZSTD_seqSymbol));
+    ZSTD_memcpy(llDInfo, seqState->stateLL.statePtr, sizeof(ZSTD_seqSymbol));
+    ZSTD_memcpy(mlDInfo, seqState->stateML.statePtr, sizeof(ZSTD_seqSymbol));
+    ZSTD_memcpy(ofDInfo, seqState->stateOffb.statePtr, sizeof(ZSTD_seqSymbol));
 #  else
-    const ZSTD_seqSymbol* const llDInfo = seqState->stateLL.table + seqState->stateLL.state;
-    const ZSTD_seqSymbol* const mlDInfo = seqState->stateML.table + seqState->stateML.state;
-    const ZSTD_seqSymbol* const ofDInfo = seqState->stateOffb.table + seqState->stateOffb.state;
+    const ZSTD_seqSymbol* const llDInfo = seqState->stateLL.statePtr;
+    const ZSTD_seqSymbol* const mlDInfo = seqState->stateML.statePtr;
+    const ZSTD_seqSymbol* const ofDInfo = seqState->stateOffb.statePtr;
 #  endif
     (void)longOffsets;
     seq.matchLength = mlDInfo->baseValue;
@@ -1352,9 +1353,9 @@ ZSTD_decodeSequence(seqState_t* seqState, const ZSTD_longOffset_e longOffsets, c
     seqState->prevOffset[1] = prevOffset1;
     seqState->prevOffset[2] = prevOffset2;
 #else   /* !defined(__aarch64__) */
-    const ZSTD_seqSymbol* const llDInfo = seqState->stateLL.table + seqState->stateLL.state;
-    const ZSTD_seqSymbol* const mlDInfo = seqState->stateML.table + seqState->stateML.state;
-    const ZSTD_seqSymbol* const ofDInfo = seqState->stateOffb.table + seqState->stateOffb.state;
+    const ZSTD_seqSymbol* const llDInfo = seqState->stateLL.statePtr;
+    const ZSTD_seqSymbol* const mlDInfo = seqState->stateML.statePtr;
+    const ZSTD_seqSymbol* const ofDInfo = seqState->stateOffb.statePtr;
     seq.matchLength = mlDInfo->baseValue;
     seq.litLength = llDInfo->baseValue;
     {   U32 const ofBase = ofDInfo->baseValue;

@@ -103,9 +103,11 @@ static void* POOL_thread(void* opaque) {
     assert(0);  /* Unreachable */
 }
 
-/* ZSTD_createThreadPool() : public access point */
+/* ZSTD_createThreadPool() : public access point
+ * The queue lets a compression context post a job without waiting for a worker
+ * to wake up and take the previous one (see ZSTDMT_POOL_QUEUE_SIZE). */
 POOL_ctx* ZSTD_createThreadPool(size_t numThreads) {
-    return POOL_create (numThreads, 0);
+    return POOL_create (numThreads, numThreads);
 }
 
 POOL_ctx* POOL_create(size_t numThreads, size_t queueSize) {

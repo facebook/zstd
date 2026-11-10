@@ -2538,8 +2538,11 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
                 CHECK_Z( ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end) );
             }
             if (scenario == 4) {
-                /* the second job is prepared, and waits until the worker is free */
-                in.size = 2 * jobSize;
+                /* once the worker has started the first job, the second job waits in the pool queue,
+                 * and the third one is prepared, and waits until the queue has room */
+                while (ZSTD_getFrameProgression(cctx).consumed == 0) {}
+                in.size = 3 * jobSize;
+                CHECK_Z( ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_continue) );
                 CHECK_Z( ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_continue) );
             }
             if (scenario >= 3) {
@@ -2549,6 +2552,45 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
                 CHECK_Z( ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, jobSize) );
             }
             ZSTD_freeCCtx(cctx);   /* scenarios 0 to 2 free it with a job in progress */
+            ZSTD_freeThreadPool(pool);
+        }
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    /* The pool must accept a new job while all its workers are busy,
+     * otherwise the next job waits for the oldest one to finish,
+     * and small jobs run one after another (#4890) */
+    DISPLAYLEVEL(3, "test%3i : a new job is queued while all workers are busy : ", testNb++);
+    {   size_t const jobSize = 2 MB;
+        int scenario;
+        for (scenario = 0; scenario < 2; scenario++) {
+            ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+            ZSTD_threadPool* const pool = (scenario == 1) ? ZSTD_createThreadPool(1) : NULL;
+            ZSTD_inBuffer in = { CNBuffer, jobSize, 0 };
+            ZSTD_outBuffer out = { compressedBuffer, compressedBufferSize, 0 };
+            size_t remaining;
+            CHECK(cctx == NULL, "ZSTD_createCCtx failed");
+            CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, 10) );
+            CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 1) );
+            CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_jobSize, (int)jobSize) );
+            if (pool != NULL) CHECK_Z( ZSTD_CCtx_refThreadPool(cctx, pool) );
+            CHECK_Z( ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_continue) );   /* posts the first job */
+            /* the worker reports progress once it has compressed the first part of the job,
+             * and it is still busy with the rest of it */
+            while (ZSTD_getFrameProgression(cctx).consumed == 0) {}
+            in.size = 2 * jobSize;
+            CHECK_Z( ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_continue) );   /* posts the second job */
+            CHECK(ZSTD_getFrameProgression(cctx).currentJobID != 2, "the second job was not accepted by the pool");
+            do {
+                remaining = ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end);
+                CHECK_Z(remaining);
+            } while (remaining != 0);
+            {   size_t const dSize = ZSTD_decompress(decodedBuffer, decodedBufferSize, out.dst, out.pos);
+                CHECK_Z(dSize);
+                CHECK(dSize != 2 * jobSize, "wrong regenerated size");
+                CHECK(memcmp(decodedBuffer, CNBuffer, dSize) != 0, "corruption");
+            }
+            ZSTD_freeCCtx(cctx);
             ZSTD_freeThreadPool(pool);
         }
     }

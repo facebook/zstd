@@ -1167,8 +1167,9 @@ ZSTDLIB_API size_t ZSTD_DCtx_loadDictionary(ZSTD_DCtx* dctx, const void* dict, s
  *  If called with ZSTD_d_refMultipleDDicts enabled, repeated calls of this function
  *  will store the DDict references in a table, and the DDict used for decompression
  *  will be determined at decompression time, as per the dict ID in the frame.
- *  The memory for the table is allocated on the first call to refDDict, and can be
- *  freed with ZSTD_freeDCtx().
+ *  The memory for the table is allocated on the first call to refDDict.
+ *  The table is freed by ZSTD_DCtx_refDDict(dctx, NULL), by ZSTD_DCtx_reset()
+ *  with ZSTD_reset_parameters or ZSTD_reset_session_and_parameters, and by ZSTD_freeDCtx().
  *
  *  If called with ZSTD_d_refMultipleDDicts disabled (the default), only one dictionary
  *  will be managed, and referencing a dictionary effectively "discards" any previous one.

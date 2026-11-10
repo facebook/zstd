@@ -26,6 +26,7 @@ CORPORA_URL_PREFIX:=https://github.com/facebook/zstd/releases/download/fuzz-corp
 
 LIBZSTD_MK_DIR = ../../lib
 DEBUGLEVEL ?= 2
+# fuzzers keep legacy decoders enabled, they are still built on demand
 ZSTD_LEGACY_SUPPORT ?= 1
 
 .PHONY: default
@@ -40,10 +41,14 @@ DEFAULT_SEQ_PROD_DIR = $(CONTRIBDIR)/externalSequenceProducer
 DEFAULT_SEQ_PROD_SRC = $(DEFAULT_SEQ_PROD_DIR)/sequence_producer.c
 THIRD_PARTY_SEQ_PROD_OBJ ?=
 
+# Note : ZSTD_LEGACY_SUPPORT below looks redundant with libzstd.mk, which adds
+# the same define to CPPFLAGS. It is not : fuzz.py passes CPPFLAGS on the make
+# command line, and that overrides the `CPPFLAGS +=` there. Dropping it silently
+# disables the legacy decoders in every OSS-Fuzz and regressiontest build.
 FUZZ_CPPFLAGS := -I$(LIB_SRCDIR) -I$(LIB_SRCDIR)/common -I$(LIB_SRCDIR)/compress \
 	-I$(LIB_SRCDIR)/dictBuilder -I$(LIB_SRCDIR)/deprecated -I$(LIB_SRCDIR)/legacy \
 	-I$(CONTRIBDIR)/seekable_format -I$(PRGDIR) -I$(DEFAULT_SEQ_PROD_DIR) \
-	-DZSTD_MULTITHREAD -DZSTD_LEGACY_SUPPORT=1 $(CPPFLAGS)
+	-DZSTD_MULTITHREAD -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT) $(CPPFLAGS)
 FUZZ_EXTRA_FLAGS := -Wall -Wextra -Wcast-qual -Wcast-align -Wshadow \
 	-Wstrict-aliasing=1 -Wswitch-enum -Wdeclaration-after-statement \
 	-Wstrict-prototypes -Wundef \

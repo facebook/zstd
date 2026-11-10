@@ -16,11 +16,6 @@ set(LIBRARY_DIR ${ZSTD_SOURCE_DIR}/lib)
 set(PROGRAMS_DIR ${ZSTD_SOURCE_DIR}/programs)
 include_directories(${PROGRAMS_DIR} ${LIBRARY_DIR} ${LIBRARY_DIR}/common ${LIBRARY_DIR}/compress ${LIBRARY_DIR}/dictBuilder)
 
-if (ZSTD_LEGACY_SUPPORT)
-    set(PROGRAMS_LEGACY_DIR ${PROGRAMS_DIR}/legacy)
-    include_directories(${PROGRAMS_LEGACY_DIR} ${LIBRARY_DIR}/legacy)
-endif ()
-
 if (ZSTD_PROGRAMS_LINK_SHARED)
     set(PROGRAMS_ZSTD_LINK_TARGET libzstd_shared)
 else ()

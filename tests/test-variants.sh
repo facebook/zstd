@@ -97,10 +97,8 @@ cliextra_not_present "$ZSTD_DICTBUILDER"
 legacy_not_present "$ZSTD_DICTBUILDER"
 legacy_not_present "$ZSTD_NOLEGACY"
 
-symbol_not_present "$ZSTD" ZSTDv01
-symbol_not_present "$ZSTD" ZSTDv02
-symbol_not_present "$ZSTD" ZSTDv03
-symbol_not_present "$ZSTD" ZSTDv04
+# since v1.6.0, the default CLI is built without any legacy decoder
+legacy_not_present "$ZSTD"
 
 test_compress "$ZSTD_COMPRESS"
 test_decompress "$ZSTD_DECOMPRESS"

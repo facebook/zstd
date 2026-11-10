@@ -11,6 +11,7 @@
 # ##########################################################################
 
 import argparse
+import concurrent.futures
 import contextlib
 import os
 import re
@@ -648,6 +649,13 @@ def afl(args):
     return 0
 
 
+def corpus_size(target):
+    size = 0
+    for root, _, files in os.walk(abs_join(CORPORA_DIR, target)):
+        size += sum(os.path.getsize(os.path.join(root, f)) for f in files)
+    return size
+
+
 def regression(args):
     try:
         description = """
@@ -655,18 +663,34 @@ def regression(args):
         The fuzzer should have been built with
         LIB_FUZZING_ENGINE='libregression.a'.
         Takes input from CORPORA.
+        Targets run in parallel, one per CPU.
         """
         args = targets_parser(args, description)
     except Exception as e:
         print(e)
         return 1
-    for target in args.TARGET:
+
+    def run(target):
         corpora = create(abs_join(CORPORA_DIR, target))
-        target = abs_join(FUZZ_DIR, target)
-        cmd = [target, corpora]
-        print(' '.join(cmd))
-        subprocess.check_call(cmd)
-    return 0
+        cmd = [abs_join(FUZZ_DIR, target), corpora]
+        result = subprocess.run(cmd, stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT)
+        return cmd, result
+
+    # Largest corpora take longest: start them first
+    targets = sorted(args.TARGET, key=corpus_size, reverse=True)
+    failed = []
+    with concurrent.futures.ThreadPoolExecutor(os.cpu_count()) as pool:
+        runs = [pool.submit(run, target) for target in targets]
+        for done in concurrent.futures.as_completed(runs):
+            cmd, result = done.result()
+            print(' '.join(cmd))
+            print(result.stdout.decode(errors='replace'), end='', flush=True)
+            if result.returncode != 0:
+                failed.append(cmd[0])
+    for target in failed:
+        print('FAILED: {}'.format(target))
+    return 1 if failed else 0
 
 
 def gen_parser(args):

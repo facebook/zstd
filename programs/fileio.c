@@ -850,6 +850,8 @@ FIO_openDstFile(FIO_ctx_t* fCtx, FIO_prefs_t* const prefs,
                 const char* srcFileName, const char* dstFileName,
                 const int mode)
 {
+    stat_t dstStat;
+    int dstExists;
     if (prefs->testMode) return NULL;  /* do not open file in test mode */
 
     assert(dstFileName != NULL);
@@ -869,7 +871,11 @@ FIO_openDstFile(FIO_ctx_t* fCtx, FIO_prefs_t* const prefs,
         return NULL;
     }
 
-    if (UTIL_isRegularFile(dstFileName)) {
+    dstExists = UTIL_stat(dstFileName, &dstStat);
+    /* A dangling symbolic link counts as an existing file :
+     * writing through it would create its target. */
+    if ( (dstExists && UTIL_isRegularFileStat(&dstStat))
+      || (!dstExists && UTIL_isLink(dstFileName)) ) {
         /* Check if destination file already exists */
 #if !defined(_WIN32)
         /* this test does not work on Windows :
@@ -891,7 +897,12 @@ FIO_openDstFile(FIO_ctx_t* fCtx, FIO_prefs_t* const prefs,
                 return NULL;
         }
         /* need to unlink */
-        FIO_removeFile(dstFileName);
+        if (dstExists) {
+            /* still exists only if remove() failed */
+            dstExists = FIO_removeFile(dstFileName) != 0;
+        } else {
+            (void)remove(dstFileName);  /* dangling link */
+        }
     }
 
     {
@@ -906,9 +917,22 @@ FIO_openDstFile(FIO_ctx_t* fCtx, FIO_prefs_t* const prefs,
             f = _fdopen(fd, "wb");
         }
 #else
-        const int openflags = O_WRONLY|O_CREAT|O_TRUNC;
-        const int fd = open(dstFileName, openflags, mode);
+        /* A new file is created with O_EXCL, which fails on any symbolic link,
+         * even a dangling one : output never goes to the target of a link.
+         * An existing file is either a regular file which could not be removed,
+         * or not a regular file (/dev/null, pipe) : it is opened as it is. */
+        int const dstIsSpecial = dstExists && !UTIL_isRegularFileStat(&dstStat);
+        const int openflags = !dstExists ? O_WRONLY|O_CREAT|O_EXCL
+                            : dstIsSpecial ? O_WRONLY
+                            : O_WRONLY|O_TRUNC;
+        int fd = open(dstFileName, openflags, mode);
         FILE* f = NULL;
+        if (fd != -1 && dstIsSpecial && UTIL_isFdRegularFile(fd)) {
+            /* replaced by a regular file since UTIL_stat() : don't write into it */
+            close(fd);
+            fd = -1;
+            errno = EEXIST;
+        }
         if (fd != -1) {
             f = fdopen(fd, "wb");
         }
@@ -2829,7 +2853,7 @@ FIO_decompressGzFrame(dRess_t* ress, const char* srcFileName)
 
 #ifdef ZSTD_LZMADECOMPRESS
 static unsigned long long
-FIO_decompressLzmaFrame(dRess_t* ress,
+FIO_decompressLzmaFrame(dRess_t* ress, const FIO_prefs_t* const prefs,
                         const char* srcFileName, int plain_lzma)
 {
     unsigned long long outFileSize = 0;
@@ -2841,10 +2865,12 @@ FIO_decompressLzmaFrame(dRess_t* ress,
 
     strm.next_in = 0;
     strm.avail_in = 0;
+    /* --memory also limits xz/lzma decoding : liblzma refuses to allocate more */
+    assert(prefs->memLimit > 0);
     if (plain_lzma) {
-        initRet = lzma_alone_decoder(&strm, UINT64_MAX); /* LZMA */
+        initRet = lzma_alone_decoder(&strm, prefs->memLimit); /* LZMA */
     } else {
-        initRet = lzma_stream_decoder(&strm, UINT64_MAX, 0); /* XZ */
+        initRet = lzma_stream_decoder(&strm, prefs->memLimit, 0); /* XZ */
     }
 
     if (initRet != LZMA_OK) {
@@ -2872,6 +2898,15 @@ FIO_decompressLzmaFrame(dRess_t* ress,
 
         if (ret == LZMA_BUF_ERROR) {
             DISPLAYLEVEL(1, "zstd: %s: premature lzma end \n", srcFileName);
+            decodingError = 1; break;
+        }
+        if (ret == LZMA_MEMLIMIT_ERROR) {
+            U64 const memNeeded = lzma_memusage(&strm);
+            U64 const memMB = (memNeeded >> 20) + ((memNeeded & ((1 MB) - 1)) != 0);
+            DISPLAYLEVEL(1, "%s : Memory needed by xz/lzma decoder larger than maximum : %llu > %u \n",
+                            srcFileName, (unsigned long long)memNeeded, prefs->memLimit);
+            if (memMB <= (UINT_MAX >> 20))
+                DISPLAYLEVEL(1, "%s : Use --memory=%uMB \n", srcFileName, (unsigned)memMB);
             decodingError = 1; break;
         }
         if (ret != LZMA_OK && ret != LZMA_STREAM_END) {
@@ -3031,7 +3066,7 @@ static int FIO_decompressFrames(FIO_ctx_t* const fCtx,
         } else if ((buf[0] == 0xFD && buf[1] == 0x37)  /* xz magic number */
                 || (buf[0] == 0x5D && buf[1] == 0x00)) { /* lzma header (no magic number) */
 #ifdef ZSTD_LZMADECOMPRESS
-            unsigned long long const frameSize = FIO_decompressLzmaFrame(&ress, srcFileName, buf[0] != 0xFD);
+            unsigned long long const frameSize = FIO_decompressLzmaFrame(&ress, prefs, srcFileName, buf[0] != 0xFD);
             if (frameSize == FIO_ERROR_FRAME_DECODING) return 1;
             filesize += frameSize;
 #else
@@ -3515,7 +3550,7 @@ FIO_analyzeFrames(fileInfo_t* info, FILE* const srcFile)
             /* Skippable frame */
             else if ((magicNumber & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START) {
                 U32 const frameSize = MEM_readLE32(headerBuffer + 4);
-                long const seek = (long)(8 + frameSize - numBytesRead);
+                S64 const seek = (S64)ZSTD_SKIPPABLEHEADERSIZE + frameSize - (S64)numBytesRead;
                 ERROR_IF(LONG_SEEK(srcFile, seek, SEEK_CUR) != 0,
                         info_frame_error, "Error: could not find end of skippable frame");
                 info->numSkippableFrames++;

@@ -443,6 +443,34 @@ mkdir -p tmpEmptyDir
 zstd -r tmpEmptyDir
 rm -rf tmpEmptyDir
 
+println "test : directory links are not followed by -r"
+# remove leftovers of a previous failed run
+if [ "$isWindows" = true ]; then cmd //c "rmdir tmpLinkDir\tmpLink" 2> /dev/null || :; fi
+rm -rf tmpLinkDir tmpOutside tmpStdErr
+mkdir -p tmpLinkDir tmpOutside
+echo "inner" > tmpLinkDir/tmpInner
+echo "victim" > tmpOutside/tmpVictim
+if [ "$isWindows" = true ]; then
+  # junctions don't require the privileges that symlinks do
+  (cd tmpLinkDir && cmd //c "mklink /J tmpLink ..\tmpOutside")
+else
+  ln -s ../tmpOutside tmpLinkDir/tmpLink
+fi
+zstd -r --rm tmpLinkDir 2> tmpStdErr
+# remove the link before asserting, so a failing test never leaves a live
+# link behind for the later "rm -rf tmp*" cleanups to encounter
+if [ "$isWindows" = true ]; then
+  cmd //c "rmdir tmpLinkDir\tmpLink"
+else
+  rm -f tmpLinkDir/tmpLink
+fi
+$GREP "symbolic link" tmpStdErr
+test -f tmpLinkDir/tmpInner.zst # file inside the tree was compressed
+test ! -f tmpLinkDir/tmpInner # ... and removed (--rm)
+test -f tmpOutside/tmpVictim # file outside the tree was left untouched
+test ! -f tmpOutside/tmpVictim.zst # ... not compressed through the link
+rm -rf tmpLinkDir tmpOutside tmpStdErr
+
 
 println "\n===>  file removal"
 zstd -f --rm tmp
@@ -984,6 +1012,20 @@ zstd world.tmp hello.tmp -f
 test -f world.tmp.zst  # symbolic link should have been compressed with --force
 rm -f hello.tmp world.tmp world2.tmp hello.tmp.zst world.tmp.zst
 
+println "test : output is not written through a dangling symbolic link"
+rm -f hello.tmp hello.tmp.zst tmpLinkTarget
+println "hello world" > hello.tmp
+zstd -q --rm hello.tmp
+ln -s tmpLinkTarget hello.tmp
+zstd -q -d hello.tmp.zst && die "output should not be written through a dangling link"
+test ! -e tmpLinkTarget  # link target should not have been created
+zstd -q -d -f hello.tmp.zst  # --force replaces the link
+test ! -L hello.tmp
+test -f hello.tmp
+test ! -e tmpLinkTarget
+zstd -q -d hello.tmp.zst -o /dev/null  # existing non-regular files are still opened
+rm -f hello.tmp hello.tmp.zst tmpLinkTarget
+
 fi
 
 
@@ -1423,6 +1465,14 @@ if [ $LZMAMODE -eq 1 ]; then
     cat tmp.xz tmp.lzma tmp.zst tmp.lzma tmp.xz tmp.zst | zstd -d -f -o tmp
     truncateLastByte tmp.xz | zstd -t > $INTOVOID && die "incomplete frame not detected !"
     truncateLastByte tmp.lzma | zstd -t > $INTOVOID && die "incomplete frame not detected !"
+    # --memory also limits xz/lzma decoding (level 3 : 4 MiB dictionary, needs 5 MB)
+    zstd -f -3 --format=xz tmp -o tmp3.xz
+    zstd -f -3 --format=lzma tmp -o tmp3.lzma
+    zstd -t --memory=1MB tmp3.xz 2>tmplog && die "--memory not enforced for xz"
+    $GREP "Use --memory=5MB" tmplog
+    zstd -t --memory=1MB tmp3.lzma 2>tmplog && die "--memory not enforced for lzma"
+    $GREP "Use --memory=5MB" tmplog
+    zstd -t --memory=5MB tmp3.xz tmp3.lzma
     rm -f tmp*
 else
     println "xz mode not supported"
@@ -1636,6 +1686,11 @@ zstd --list $TRUNCATED_COMPRESSED_FILE && die "-l must fail on truncated file"
 rm -f $TEST_DATA_FILE
 rm -f $FULL_COMPRESSED_FILE
 rm -f $TRUNCATED_COMPRESSED_FILE
+
+println "test : detect skippable frame larger than file "
+printf '\120\052\115\030\370\377\377\377payload' > tmp_skippable.zst  # skippable magic, Frame_Size 0xFFFFFFF8
+zstd --list tmp_skippable.zst && die "-l must fail on truncated skippable frame"
+rm -f tmp_skippable.zst
 
 println "\n===>  zstd --list/-l errors when presented with stdin / no files"
 zstd -l && die "-l must fail on empty list of files"
@@ -1909,10 +1964,10 @@ println "- Create second (different) dictionary"
 zstd -T0 --train-cover=k=56,d=8 "$TESTDIR"/*.c "$PRGDIR"/*.c "$PRGDIR"/*.h -o tmpDictC
 zstd -d tmp.zst -D tmpDictC -fo result && die "wrong dictionary not detected!"
 println "- Create dictionary using shrink-dict flag"
-zstd -T0 --train-cover=steps=256,shrink "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpShrinkDict
-zstd -T0 --train-cover=steps=256,shrink=1 "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpShrinkDict1
-zstd -T0 --train-cover=steps=256,shrink=5 "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpShrinkDict2
-zstd -T0 --train-cover=shrink=5,steps=256 "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpShrinkDict3
+zstd -T0 --train-cover=steps=7,shrink "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpShrinkDict
+zstd -T0 --train-cover=steps=7,shrink=1 "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpShrinkDict1
+zstd -T0 --train-cover=steps=7,shrink=5 "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpShrinkDict2
+zstd -T0 --train-cover=shrink=5,steps=7 "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpShrinkDict3
 println "- Create dictionary with short dictID"
 zstd -T0 --train-cover=k=46,d=8,split=80 "$TESTDIR"/*.c "$PRGDIR"/*.c --dictID=1 -o tmpDict1
 cmp tmpDict tmpDict1 && die "dictionaries should have different ID !"

@@ -683,6 +683,6 @@ size_t ZSTD_compressSuperBlock(ZSTD_CCtx* zc,
             &zc->appliedParams,
             dst, dstCapacity,
             src, srcSize,
-            zc->bmi2, lastBlock,
+            ZSTD_CCtx_get_bmi2(zc), lastBlock,
             zc->tmpWorkspace, zc->tmpWkspSize /* statically allocated in resetCCtx */);
 }

@@ -3,8 +3,8 @@ Command Line Interface for Zstandard library
 
 Command Line Interface (CLI) can be created using the `make` command without any additional parameters.
 There are however other Makefile targets that create different variations of CLI:
-- `zstd` : default CLI supporting gzip-like arguments; includes dictionary builder, benchmark, and supports decompression of legacy zstd formats
-- `zstd_nolegacy` : Same as `zstd` but without support for legacy zstd formats
+- `zstd` : default CLI supporting gzip-like arguments; includes dictionary builder and benchmark
+- `zstd_nolegacy` : Same as `zstd` but with support for legacy zstd formats explicitly disabled
 - `zstd-small` : CLI optimized for minimal size; no dictionary builder, no benchmark, and no support for legacy zstd formats
 - `zstd-compress` : version of CLI which can only compress into zstd format
 - `zstd-decompress` : version of CLI which can only decompress zstd format
@@ -23,11 +23,12 @@ There are however other Makefile targets that create different variations of CLI
 - __ZSTD_LEGACY_SUPPORT__ : `zstd` can decompress files compressed by older versions of `zstd`.
   Starting v0.8.0, all versions of `zstd` produce frames compliant with the [specification](../doc/zstd_compression_format.md), and are therefore compatible.
   But older versions (< v0.8.0) produced different, incompatible, frames.
-  By default, `zstd` supports decoding legacy formats >= v0.4.0 (`ZSTD_LEGACY_SUPPORT=4`).
+  Since v1.6.0, legacy format support is disabled by default (`ZSTD_LEGACY_SUPPORT=0`).
   This can be altered by modifying this compilation variable.
   `ZSTD_LEGACY_SUPPORT=1` means "support all formats >= v0.1.0".
   `ZSTD_LEGACY_SUPPORT=2` means "support all formats >= v0.2.0", and so on.
   `ZSTD_LEGACY_SUPPORT=0` means _DO NOT_ support any legacy format.
+  Example : `make zstd ZSTD_LEGACY_SUPPORT=4`
   if `ZSTD_LEGACY_SUPPORT >= 8`, it's the same as `0`, since there is no legacy format after `7`.
   Note : `zstd` only supports decoding older formats, and cannot generate any legacy format.
 

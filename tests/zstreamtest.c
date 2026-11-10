@@ -2512,6 +2512,49 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+#ifdef ZSTD_MULTITHREAD
+    /* Freeing or resetting the context must wait for the jobs still running,
+     * since they use its dictionary, pools and jobs table */
+    DISPLAYLEVEL(3, "test%3i : abandon a multi-threaded frame with a job in progress : ", testNb++);
+    {   size_t const jobSize = 1 MB;
+        const void* const dict = (const char*)CNBuffer + 2 * jobSize;
+        int scenario;
+        for (scenario = 0; scenario < 5; scenario++) {
+            ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+            ZSTD_threadPool* const pool = (scenario == 1) ? ZSTD_createThreadPool(1) : NULL;
+            ZSTD_inBuffer in = { CNBuffer, (scenario == 2) ? 0 : jobSize, 0 };
+            ZSTD_outBuffer out = { compressedBuffer, compressedBufferSize, 0 };
+            CHECK(cctx == NULL, "ZSTD_createCCtx failed");
+            CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, 10) );
+            CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 1) );
+            CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_jobSize, (int)jobSize) );
+            if (pool != NULL) CHECK_Z( ZSTD_CCtx_refThreadPool(cctx, pool) );
+            CHECK_Z( ZSTD_CCtx_loadDictionary(cctx, dict, 1 MB) );   /* makes the first job slow */
+            CHECK_Z( ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_continue) );   /* starts the first job, if any */
+            if (scenario == 2) {
+                /* empty frame : its only job is empty, and still runs when
+                 * ZSTD_e_end returns because the output buffer is full */
+                out.size = out.pos;
+                CHECK_Z( ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end) );
+            }
+            if (scenario == 4) {
+                /* the second job is prepared, and waits until the worker is free */
+                in.size = 2 * jobSize;
+                CHECK_Z( ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_continue) );
+            }
+            if (scenario >= 3) {
+                /* abandon the frame, change the dictionary, and compress a new frame */
+                CHECK_Z( ZSTD_CCtx_reset(cctx, ZSTD_reset_session_only) );
+                CHECK_Z( ZSTD_CCtx_loadDictionary(cctx, dict, 512 KB) );
+                CHECK_Z( ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, jobSize) );
+            }
+            ZSTD_freeCCtx(cctx);   /* scenarios 0 to 2 free it with a job in progress */
+            ZSTD_freeThreadPool(pool);
+        }
+    }
+    DISPLAYLEVEL(3, "OK \n");
+#endif
+
 _end:
     FUZ_freeDictionary(dictionary);
     ZSTD_freeCStream(zc);

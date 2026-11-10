@@ -44,8 +44,12 @@ CPPFLAGS   += -I$(LIB_SRCDIR) -I$(LIB_SRCDIR)/common -I$(LIB_SRCDIR)/compress -I
 ZSTDCOMMON_FILES := $(sort $(ZSTD_COMMON_FILES))
 ZSTDCOMP_FILES   := $(sort $(ZSTD_COMPRESS_FILES))
 ZSTDDECOMP_FILES := $(sort $(ZSTD_DECOMPRESS_FILES))
-ZSTDLEGACY_FILES := $(sort $(wildcard $(LIB_SRCDIR)/legacy/*.c))
-ZSTD_FILES  := $(ZSTDDECOMP_FILES) $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) $(ZSTDLEGACY_FILES)
+# every decoder, whatever ZSTD_LEGACY_SUPPORT : only the `legacy` target wants these
+ALL_LEGACY_FILES := $(sort $(wildcard $(LIB_SRCDIR)/legacy/*.c))
+# ZSTD_LEGACY_FILES (from libzstd.mk) is the subset selected for the requested
+# level. It's empty when legacy support is disabled, hence unreachable decoders
+# are not compiled into the test binaries.
+ZSTD_FILES  := $(ZSTDDECOMP_FILES) $(ZSTDCOMMON_FILES) $(ZSTDCOMP_FILES) $(sort $(ZSTD_LEGACY_FILES))
 ZDICT_FILES := $(sort $(ZSTD_DICTBUILDER_FILES))
 
 ZSTD_F1 := $(sort $(wildcard $(ZSTD_FILES)))
@@ -233,8 +237,11 @@ CLEAN += invalidDictionaries
 invalidDictionaries : $(ZSTD_OBJECTS) invalidDictionaries.c
 
 CLEAN += legacy
-legacy : CPPFLAGS += -UZSTD_LEGACY_SUPPORT -DZSTD_LEGACY_SUPPORT=4
-legacy : $(ZSTD_FILES) legacy.c
+# legacy.c adapts to the level it is compiled with : it only tests the frames
+# this level can decode. Default to the oldest format, to cover all decoders.
+LEGACY_TEST_LEVEL ?= 1
+legacy : CPPFLAGS += -UZSTD_LEGACY_SUPPORT -DZSTD_LEGACY_SUPPORT=$(LEGACY_TEST_LEVEL)
+legacy : $(ZSTD_FILES) $(ALL_LEGACY_FILES) legacy.c
 
 CLEAN += decodecorpus
 decodecorpus : LDLIBS += -lm

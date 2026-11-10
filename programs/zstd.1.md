@@ -210,7 +210,7 @@ the last one takes effect.
     Set a memory usage limit. By default, `zstd` uses 128 MiB for decompression
     as the maximum amount of memory the decompressor is allowed to use, but you can
     override this manually if need be in either direction (i.e. you can increase or
-    decrease it).
+    decrease it). This limit also applies when decompressing `.xz` and `.lzma` files.
 
     This is also used during compression when using with `--patch-from=`. In this case,
     this parameter overrides that maximum size allowed for a dictionary. (128 MiB).

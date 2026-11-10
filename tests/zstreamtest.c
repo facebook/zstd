@@ -2512,6 +2512,32 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : reject empty last block that underflows frame content size : ", testNb++);
+    {   /* Frame declares 1,000,000 bytes, but only decodes 5 bytes before an
+         * empty last block ends it. Streaming must report corruption. */
+        static const BYTE frame[] = {
+            0x28, 0xb5, 0x2f, 0xfd,                    /* magic number */
+            0xa0,                                      /* single segment, 4-byte FCS */
+            0x40, 0x42, 0x0f, 0x00,                    /* frame content size: 1,000,000 */
+            0x28, 0x00, 0x00, 'h', 'e', 'l', 'l', 'o', /* non-last raw block, 5 bytes */
+            0x01, 0x00, 0x00,                          /* empty last raw block */
+        };
+        ZSTD_DStream* const dstream = ZSTD_createDStream();
+        BYTE out[16];
+        ZSTD_inBuffer input;
+        ZSTD_outBuffer output;
+        size_t r;
+        CHECK(dstream == NULL, "memory allocation failure");
+        input.src = frame; input.size = sizeof(frame); input.pos = 0;
+        output.dst = out; output.size = sizeof(out); output.pos = 0;
+        r = ZSTD_decompressStream(dstream, &output, &input);
+        ZSTD_freeDStream(dstream);
+        CHECK(!ZSTD_isError(r), "empty last block bypassed the content size check");
+        CHECK(ZSTD_getErrorCode(r) != ZSTD_error_corruption_detected,
+              "unexpected error : %s", ZSTD_getErrorName(r));
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
 _end:
     FUZ_freeDictionary(dictionary);
     ZSTD_freeCStream(zc);

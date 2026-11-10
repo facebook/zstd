@@ -1322,6 +1322,13 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
             }
             /* empty block */
             if (bp.lastBlock) {
+                /* An empty last block ends the frame here, so the content size
+                 * check that normally runs in ZSTDds_decompressLastBlock must
+                 * be performed at this point as well. */
+                RETURN_ERROR_IF(
+                    dctx->fParams.frameContentSize != ZSTD_CONTENTSIZE_UNKNOWN
+                 && dctx->decodedSize != dctx->fParams.frameContentSize,
+                    corruption_detected, "");
                 if (dctx->fParams.checksumFlag) {
                     dctx->expected = 4;
                     dctx->stage = ZSTDds_checkChecksum;

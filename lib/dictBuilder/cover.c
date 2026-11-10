@@ -310,7 +310,7 @@ static int COVER_cmp8(COVER_ctx_t *ctx, const void *lp, const void *rp) {
 }
 
 /**
- * Same as COVER_cmp() except ties are broken by pointer value
+ * Same as COVER_cmp() except ties are broken by the position each element holds
  */
 #if (ZDICT_QSORT == ZDICT_QSORT_MSVC) || (ZDICT_QSORT == ZDICT_QSORT_APPLE)
 static int WIN_CDECL COVER_strict_cmp(void* g_coverCtx, const void* lp, const void* rp) {
@@ -321,7 +321,9 @@ static int COVER_strict_cmp(const void *lp, const void *rp) {
 #endif
   int result = COVER_cmp((COVER_ctx_t*)g_coverCtx, lp, rp);
   if (result == 0) {
-    result = lp < rp ? -1 : 1;
+    U32 const lpos = *(const U32 *)lp;
+    U32 const rpos = *(const U32 *)rp;
+    result = (lpos < rpos) ? -1 : (lpos > rpos) ? 1 : 0;
   }
   return result;
 }
@@ -337,7 +339,9 @@ static int COVER_strict_cmp8(const void *lp, const void *rp) {
 #endif
   int result = COVER_cmp8((COVER_ctx_t*)g_coverCtx, lp, rp);
   if (result == 0) {
-    result = lp < rp ? -1 : 1;
+    U32 const lpos = *(const U32 *)lp;
+    U32 const rpos = *(const U32 *)rp;
+    result = (lpos < rpos) ? -1 : (lpos > rpos) ? 1 : 0;
   }
   return result;
 }
@@ -703,7 +707,7 @@ static size_t COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
   {
     /* suffix is a partial suffix array.
      * It only sorts suffixes by their first parameters.d bytes.
-     * The sort is stable, so each dmer group is sorted by position in input.
+     * Ties are broken by position, so each group is sorted by input position.
      */
     U32 i;
     for (i = 0; i < ctx->suffixSize; ++i) {

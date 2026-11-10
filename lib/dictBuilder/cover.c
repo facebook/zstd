@@ -640,9 +640,10 @@ static size_t COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
   const unsigned nbTestSamples = splitPoint < 1.0 ? nbSamples - nbTrainSamples : nbSamples;
   const size_t trainingSamplesSize = splitPoint < 1.0 ? COVER_sum(samplesSizes, nbTrainSamples) : totalSamplesSize;
   const size_t testSamplesSize = splitPoint < 1.0 ? COVER_sum(samplesSizes + nbTrainSamples, nbTestSamples) : totalSamplesSize;
+  const size_t readLength = MAX(d, sizeof(U64));
   ctx->displayLevel = displayLevel;
   /* Checks */
-  if (totalSamplesSize < MAX(d, sizeof(U64)) ||
+  if (totalSamplesSize < readLength ||
       totalSamplesSize >= (size_t)COVER_MAX_SAMPLES_SIZE) {
     DISPLAYLEVEL(1, "Total samples size is too large (%u MB), maximum size is %u MB\n",
                  (unsigned)(totalSamplesSize>>20), (COVER_MAX_SAMPLES_SIZE >> 20));
@@ -680,7 +681,7 @@ static size_t COVER_ctx_init(COVER_ctx_t *ctx, const void *samplesBuffer,
   ctx->nbTrainSamples = nbTrainSamples;
   ctx->nbTestSamples = nbTestSamples;
   /* Partial suffix array */
-  ctx->suffixSize = trainingSamplesSize - MAX(d, sizeof(U64)) + 1;
+  ctx->suffixSize = trainingSamplesSize - readLength + 1;
   ctx->suffix = (U32 *)malloc(ctx->suffixSize * sizeof(U32));
   /* Maps index to the dmerID */
   ctx->dmerAt = (U32 *)malloc(ctx->suffixSize * sizeof(U32));

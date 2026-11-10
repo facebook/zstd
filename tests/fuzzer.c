@@ -44,6 +44,7 @@
 /* must be included after util.h, due to ERROR macro redefinition issue on Visual Studio */
 #include "zstd_internal.h" /* ZSTD_WORKSPACETOOLARGE_MAXDURATION, ZSTD_WORKSPACETOOLARGE_FACTOR, KB, MB */
 #include "threading.h"    /* ZSTD_pthread_create, ZSTD_pthread_join */
+#include "pool.h"         /* POOL_sizeof */
 #include "compress/hist.h" /* HIST_count_wksp */
 #include "compress/zstd_compress_internal.h" /* ZSTD_get1BlockSummary */
 
@@ -480,6 +481,31 @@ static int threadPoolTests(void) {
         ZSTD_freeCCtx(cctx2);
 
         if (p1.err || p2.err) goto _output_error;
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "thread pool test : change the pool and nbWorkers of a context: ");
+    {   ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        ZSTD_threadPool* const pool1 = ZSTD_createThreadPool(1);
+        ZSTD_threadPool* const pool2 = ZSTD_createThreadPool(1);
+        CHECK(cctx != NULL && pool1 != NULL && pool2 != NULL);
+        CHECK(!ZSTD_isError( ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 2) ));
+        CHECK(!ZSTD_isError( ZSTD_CCtx_refThreadPool(cctx, pool1) ));
+        CHECK(!ZSTD_isError( ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize) ));
+        /* the next frames must use pool2, then an internal pool */
+        CHECK(!ZSTD_isError( ZSTD_CCtx_refThreadPool(cctx, pool2) ));
+        ZSTD_freeThreadPool(pool1);
+        CHECK(!ZSTD_isError( ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize) ));
+        {   size_t const pool2Size = POOL_sizeof(pool2);
+            /* the context must not resize a pool it shares */
+            CHECK(!ZSTD_isError( ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, 4) ));
+            CHECK(!ZSTD_isError( ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize) ));
+            CHECK(POOL_sizeof(pool2) == pool2Size);
+        }
+        CHECK(!ZSTD_isError( ZSTD_CCtx_refThreadPool(cctx, NULL) ));
+        ZSTD_freeThreadPool(pool2);
+        CHECK(!ZSTD_isError( ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, CNBuffer, CNBuffSize) ));
+        ZSTD_freeCCtx(cctx);
     }
     DISPLAYLEVEL(3, "OK \n");
 

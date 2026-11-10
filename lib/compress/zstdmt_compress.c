@@ -1091,7 +1091,9 @@ size_t ZSTDMT_sizeof_CCtx(ZSTDMT_CCtx* mtctx)
  * @return : error code if fails, 0 on success */
 static size_t ZSTDMT_resize(ZSTDMT_CCtx* mtctx, unsigned nbWorkers)
 {
-    if (POOL_resize(mtctx->factory, nbWorkers)) return ERROR(memory_allocation);
+    if (!mtctx->providedFactory) {   /* a pool provided by the application keeps its size */
+        if (POOL_resize(mtctx->factory, nbWorkers)) return ERROR(memory_allocation);
+    }
     FORWARD_IF_ERROR( ZSTDMT_expandJobsTable(mtctx, nbWorkers) , "");
     mtctx->bufPool = ZSTDMT_expandBufferPool(mtctx->bufPool, BUF_POOL_MAX_NB_BUFFERS(nbWorkers));
     if (mtctx->bufPool == NULL) return ERROR(memory_allocation);

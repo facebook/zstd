@@ -256,6 +256,143 @@ static int testFrameDecoding(const char* compressed, size_t compressedSize,
     return 0;
 }
 
+static int testDictionaryAPI(unsigned version,
+                             const char* compressed, size_t compressedSize,
+                             const void* dict, size_t dictSize)
+{
+    size_t const expectedSize = strlen(BLOCK);
+    char* const decoded = malloc(expectedSize);
+    ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+    ZSTD_inBuffer input = { compressed, compressedSize, 0 };
+    ZSTD_outBuffer output = { decoded, expectedSize, 0 };
+    size_t ret;
+    int result = 1;
+
+    if (decoded == NULL || dctx == NULL) {
+        DISPLAY("ERROR: Not enough memory!\n");
+        goto cleanup;
+    }
+
+    ret = ZSTD_decompress_usingDict(dctx, decoded, expectedSize,
+                                    compressed, compressedSize, dict, dictSize);
+    if (ZSTD_isError(ret)) {
+        DISPLAY("ERROR: ZSTD_decompress_usingDict: %s\n", ZSTD_getErrorName(ret));
+        goto cleanup;
+    }
+    if (ret != expectedSize || memcmp(decoded, BLOCK, expectedSize) != 0) {
+        DISPLAY("ERROR: Wrong decoded output with dictionary\n");
+        goto cleanup;
+    }
+
+    /* Formats older than v0.4 have no streaming decoder. */
+    if (version < OLDEST_STREAMABLE_VERSION) {
+        result = 0;
+        goto cleanup;
+    }
+
+    ret = ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters);
+    if (ZSTD_isError(ret)) goto error;
+    /* Keep the exact-sized allocation visible to ASan. */
+    ret = ZSTD_DCtx_loadDictionary_byReference(dctx, dict, dictSize);
+    if (ZSTD_isError(ret)) goto error;
+    do {
+        size_t const oldInputPos = input.pos;
+        size_t const oldOutputPos = output.pos;
+        ret = ZSTD_decompressStream(dctx, &output, &input);
+        if (ZSTD_isError(ret)) goto error;
+        if (ret != 0 && input.pos == oldInputPos && output.pos == oldOutputPos) {
+            DISPLAY("ERROR: Dictionary stream made no progress\n");
+            goto cleanup;
+        }
+    } while (ret != 0);
+    if (input.pos != input.size || output.pos != expectedSize
+        || memcmp(decoded, BLOCK, expectedSize) != 0) {
+        DISPLAY("ERROR: Wrong streaming output with dictionary\n");
+        goto cleanup;
+    }
+    result = 0;
+    goto cleanup;
+
+error:
+    DISPLAY("ERROR: Dictionary streaming API: %s\n", ZSTD_getErrorName(ret));
+cleanup:
+    ZSTD_freeDCtx(dctx);
+    free(decoded);
+    return result;
+}
+
+static int testLegacyDictionaries(void)
+{
+    struct {
+        unsigned version;
+        const char* data;
+        size_t size;
+    } const frames[] = {
+#if (ZSTD_LEGACY_SUPPORT <= 1)
+        { 1, FRAME_V01, FRAME_V01_SIZE },
+#endif
+#if (ZSTD_LEGACY_SUPPORT <= 2)
+        { 2, FRAME_V02, FRAME_V02_SIZE },
+#endif
+#if (ZSTD_LEGACY_SUPPORT <= 3)
+        { 3, FRAME_V03, FRAME_V03_SIZE },
+#endif
+#if (ZSTD_LEGACY_SUPPORT <= 4)
+        { 4, FRAME_V04, FRAME_V04_SIZE },
+#endif
+#if (ZSTD_LEGACY_SUPPORT <= 5)
+        { 5, FRAME_V05, FRAME_V05_SIZE },
+#endif
+#if (ZSTD_LEGACY_SUPPORT <= 6)
+        { 6, FRAME_V06, FRAME_V06_SIZE },
+#endif
+#if (ZSTD_LEGACY_SUPPORT <= 7)
+        { 7, FRAME_V07, FRAME_V07_SIZE },
+#endif
+        { 8, FRAME_V08, FRAME_V08_SIZE }
+    };
+    size_t f;
+
+    for (f = 0; f < sizeof(frames) / sizeof(frames[0]); ++f) {
+        unsigned pattern;
+        for (pattern = 0; pattern < 2; ++pattern) {
+            unsigned char dictContent[8] = { 0x37, 0xA4, 0x30, 0xEC, 0, 0, 0, 0 };
+            size_t maxSize = sizeof(dictContent);
+            size_t dictSize;
+            if (pattern == 0) {
+                memset(dictContent, 'A', sizeof(dictContent));
+            } else {
+                /* v0.5 and v0.6 have a four-byte magic, while v0.7
+                 * also has a four-byte dictionary ID. Every truncated
+                 * header must be treated as raw dictionary content. */
+                if (frames[f].version < 5 || frames[f].version > 7) continue;
+                dictContent[0] = (unsigned char)(0x30 + frames[f].version);
+                maxSize = frames[f].version == 7 ? 7 : 3;
+            }
+            for (dictSize = 0; dictSize <= maxSize; ++dictSize) {
+                void* const dict = malloc(dictSize == 0 ? 1 : dictSize);
+                int failed;
+                if (dict == NULL) {
+                    DISPLAY("ERROR: Not enough memory!\n");
+                    return 1;
+                }
+                memcpy(dict, dictContent, dictSize);
+                failed = testDictionaryAPI(frames[f].version,
+                                           frames[f].data, frames[f].size,
+                                           dict, dictSize);
+                free(dict);
+                if (failed) {
+                    DISPLAY("ERROR: v0.%u dictionary of size %u, pattern %u\n",
+                            frames[f].version, (unsigned)dictSize, pattern);
+                    return 1;
+                }
+            }
+        }
+    }
+    DISPLAY("Legacy dictionary API OK\n");
+    return 0;
+}
+
 int main(void)
 {
     size_t const blockSize = strlen(BLOCK);
@@ -298,6 +435,7 @@ int main(void)
          * are what the streaming subset must decode to */
         if (testStreamingAPI(streamable, streamableSize,
                              expected, blockSize * nbStreamFrames)) break;
+        if (testLegacyDictionaries()) break;
         result = 0;
     } while (0);
 

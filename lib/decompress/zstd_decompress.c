@@ -1035,6 +1035,7 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
             RETURN_ERROR(corruption_detected, "invalid block type");
         }
         FORWARD_IF_ERROR(decodedSize, "Block decompression failure");
+        RETURN_ERROR_IF(decodedSize > dctx->fParams.blockSizeMax, corruption_detected, "Decompressed Block Size Exceeds Maximum");
         DEBUGLOG(5, "Decompressed block of dSize = %u", (unsigned)decodedSize);
         if (dctx->validateChecksum) {
             XXH64_update(&dctx->xxhState, op, decodedSize);
@@ -1800,6 +1801,9 @@ size_t ZSTD_DCtx_refDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict)
             assert(!dctx->staticSize);  /* Impossible: ddictSet cannot have been allocated if static dctx */
             FORWARD_IF_ERROR(ZSTD_DDictHashSet_addDDict(dctx->ddictSet, ddict, dctx->customMem), "");
         }
+    } else if (dctx->ddictSet) {
+        ZSTD_freeDDictHashSet(dctx->ddictSet, dctx->customMem);
+        dctx->ddictSet = NULL;
     }
     return 0;
 }
@@ -1962,6 +1966,10 @@ size_t ZSTD_DCtx_reset(ZSTD_DCtx* dctx, ZSTD_ResetDirective reset)
       || (reset == ZSTD_reset_session_and_parameters) ) {
         RETURN_ERROR_IF(dctx->streamStage != zdss_init, stage_wrong, "");
         ZSTD_clearDict(dctx);
+        if (dctx->ddictSet) {
+            ZSTD_freeDDictHashSet(dctx->ddictSet, dctx->customMem);
+            dctx->ddictSet = NULL;
+        }
         ZSTD_DCtx_resetParameters(dctx);
     }
     return 0;

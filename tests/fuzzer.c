@@ -604,6 +604,126 @@ static void test_decompressBound(unsigned tnb)
     DISPLAYLEVEL(3, "OK \n");
 }
 
+/* Size of the literals of the block built by FUZ_writeSplitLitBlock().
+ * It is larger than the decoder's 64 KB extra literal buffer, so the first
+ * kSplitLitInDst literals are stored at the end of the block's area in dst. */
+#define kSplitLitSize (64 KB + 112)
+#define kSplitLitInDst (kSplitLitSize - 64 KB)
+#define kSplitLitBlockMaxSize (kSplitLitSize + 3 + 9)
+
+/* Writes a compressed block (without block header) with raw literals and 2 sequences,
+ * which decodes to 48 literals, a match of 65539+seq1MLExtra bytes at offset 1,
+ * 49 literals, a match of 3 bytes at offset 1, and the remaining literals.
+ * The block decodes to more than ZSTD_BLOCKSIZE_MAX bytes, so the first match runs
+ * up to (or past) the literals that are stored in dst.
+ * Writes the expected output to expected, which must hold
+ * FUZ_splitLitBlockDecodedSize(seq1MLExtra) bytes.
+ * @return : size of the block */
+static size_t FUZ_writeSplitLitBlock(BYTE* block, BYTE* expected, U32 seq1MLExtra)
+{
+    U32 const seq1ML = 65539 + seq1MLExtra;
+    BYTE* op = block;
+    size_t i;
+
+    /* Literals section header: raw literals, 3 byte header */
+    MEM_writeLE24(op, (U32)(kSplitLitSize << 4) | (3 << 2));
+    op += 3;
+    for (i = 0; i < kSplitLitSize; i++) {
+        *op++ = i < kSplitLitInDst ? (BYTE)(i + 1) : 0xCC;
+    }
+
+    /* Sequences section header: 2 sequences, LL & OF RLE, ML predefined.
+     * LL code 24 (base 48, 4 extra bits), OF code 0 (repcode 1 = offset 1). */
+    *op++ = 2;
+    *op++ = 0x50;
+    *op++ = 24;
+    *op++ = 0;
+
+    /* Bitstream, read from the top down: ML initial state 57 (ML code 52: base 65539,
+     * 16 extra bits), sequence 1 ML extra bits, LL extra bits 0 (LL 48),
+     * ML state update to state 0 (ML 3), sequence 2 LL extra bits 1 (LL 49). */
+    {   U64 const bitStream = (1ULL << 36) | (57ULL << 30) | ((U64)seq1MLExtra << 14) | 1;
+        MEM_writeLE32(op, (U32)bitStream);
+        op[4] = (BYTE)(bitStream >> 32);
+        op += 5;
+    }
+
+    {   BYTE* eop = expected;
+        memcpy(eop, block + 3, 48);
+        eop += 48;
+        memset(eop, 48, seq1ML);
+        eop += seq1ML;
+        memcpy(eop, block + 3 + 48, 49);
+        eop += 49;
+        memset(eop, 97, 3);
+        eop += 3;
+        memcpy(eop, block + 3 + 97, kSplitLitSize - 97);
+    }
+
+    assert((size_t)(op - block) <= kSplitLitBlockMaxSize);
+    return (size_t)(op - block);
+}
+
+static size_t FUZ_splitLitBlockDecodedSize(U32 seq1MLExtra)
+{
+    return kSplitLitSize + 65539 + seq1MLExtra + 3;
+}
+
+static void test_decompressSplitLitBuffer(unsigned tnb)
+{
+    /* The literals are split, rather than stored after the block's output, because
+     * dstCapacity <= ZSTD_BLOCKSIZE_MAX + litSize + 2 * WILDCOPY_OVERLENGTH. */
+    size_t const dstCapacity = ZSTD_BLOCKSIZE_MAX + kSplitLitSize + 64;
+    size_t const srcCapacity = ZSTD_FRAMEHEADERSIZE_MAX + ZSTD_blockHeaderSize + kSplitLitBlockMaxSize;
+    /* seq1MLExtra = 65371 : The first match ends 18 bytes before the next literals,
+     *                       so the literals are copied to an overlapping position.
+     * seq1MLExtra = 65460 : The first match overwrites the next literals. */
+    U32 const seq1MLExtras[] = { 65371, 65460 };
+    BYTE* const src = (BYTE*)malloc(srcCapacity);
+    BYTE* const dst = (BYTE*)malloc(dstCapacity);
+    BYTE* const expected = (BYTE*)malloc(dstCapacity);
+    ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+    size_t i;
+    int anySucceeded = 0;
+    CHECK(src != NULL && dst != NULL && expected != NULL && dctx != NULL);
+
+    DISPLAYLEVEL(3, "test%3u : decompress block with split literals overrun by output : ", tnb);
+    for (i = 0; i < COUNTOF(seq1MLExtras); i++) {
+        size_t const decodedSize = FUZ_splitLitBlockDecodedSize(seq1MLExtras[i]);
+        size_t blockSize;
+        size_t r;
+        CHECK(decodedSize <= dstCapacity);
+
+        /* The block API has no ZSTD_BLOCKSIZE_MAX limit on the decoded size,
+         * so the decoder must either reject the block or decode it correctly. */
+        blockSize = FUZ_writeSplitLitBlock(src, expected, seq1MLExtras[i]);
+        CHECK_Z( ZSTD_decompressBegin(dctx) );
+        r = ZSTD_decompressBlock(dctx, dst, dstCapacity, src, blockSize);
+        if (!ZSTD_isError(r)) {
+            CHECK_EQ(r, decodedSize);
+            CHECK(!memcmp(dst, expected, decodedSize));
+            anySucceeded = 1;
+        }
+
+        /* Wrap the block in a frame with windowLog 17, so blockSizeMax = ZSTD_BLOCKSIZE_MAX.
+         * The frame must be rejected, because the block decodes to more than blockSizeMax. */
+        MEM_writeLE32(src, ZSTD_MAGICNUMBER);
+        src[4] = 0x00; /* Frame header descriptor: no content size, no checksum, no dictID */
+        src[5] = 0x38; /* Window descriptor: windowLog 17 */
+        blockSize = FUZ_writeSplitLitBlock(src + 9, expected, seq1MLExtras[i]);
+        MEM_writeLE24(src + 6, 1 /* last block */ | ((U32)bt_compressed << 1) | (U32)(blockSize << 3));
+        r = ZSTD_decompress(dst, dstCapacity, src, 9 + blockSize);
+        CHECK(ZSTD_isError(r));
+    }
+    CHECK(anySucceeded); /* Must not reject all blocks */
+    DISPLAYLEVEL(3, "OK \n");
+
+    ZSTD_freeDCtx(dctx);
+    free(expected);
+    free(dst);
+    free(src);
+}
+
 static unsigned test_histCountWksp(unsigned seed, unsigned testNb)
 {
     static const unsigned symLowLimits[] =  {   0,  27,   0,   0,  27,  42,   0,   0, 27, 42, 27, 42 };
@@ -1055,6 +1175,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
     test_decompressBound(testNb++);
 
+    test_decompressSplitLitBuffer(testNb++);
+
     test_setCParams(testNb++);
 
     DISPLAYLEVEL(3, "test%3u : ZSTD_adjustCParams : ", testNb++);
@@ -1401,7 +1523,7 @@ static int basicUnitTests(U32 const seed, double compressibility)
         ZSTD_freeCCtx(cctx);
     }
 
-    DISPLAYLEVEL(3, "test%3i : maxBlockSize = 2K", testNb++);
+    DISPLAYLEVEL(3, "test%3i : maxBlockSize = 2K : ", testNb++);
     {
         ZSTD_CCtx* cctx = ZSTD_createCCtx();
         ZSTD_DCtx* dctx = ZSTD_createDCtx();
@@ -1419,6 +1541,37 @@ static int basicUnitTests(U32 const seed, double compressibility)
         ZSTD_freeDCtx(dctx);
         ZSTD_freeCCtx(cctx);
     }
+    DISPLAYLEVEL(3, "OK \n");
+
+    DISPLAYLEVEL(3, "test%3i : maxBlockSize rejects raw & RLE blocks : ", testNb++);
+    {
+        ZSTD_CCtx* cctx = ZSTD_createCCtx();
+        ZSTD_DCtx* dctx = ZSTD_createDCtx();
+        size_t const srcSize = 8 KB;
+        BYTE* const src = (BYTE*)malloc(srcSize);
+        int i;
+        CHECK(src != NULL);
+        CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_maxBlockSize, 2048));
+        CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_maxBlockSize, 1024));
+
+        /* i = 0 : incompressible data, which is stored in raw blocks
+         * i = 1 : a single repeated byte, which is stored in RLE blocks */
+        for (i = 0; i < 2; i++) {
+            if (i == 0) {
+                RDG_genBuffer(src, srcSize, 0.0, 0.0, seed);
+            } else {
+                memset(src, 'a', srcSize);
+            }
+            cSize = ZSTD_compress2(cctx, compressedBuffer, compressedBufferSize, src, srcSize);
+            CHECK_Z(cSize);
+            CHECK(ZSTD_isError(ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize)));
+        }
+
+        free(src);
+        ZSTD_freeDCtx(dctx);
+        ZSTD_freeCCtx(cctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
 
     DISPLAYLEVEL(3, "test%3i : ldm fill dict out-of-bounds check", testNb++);
     {
@@ -3969,6 +4122,43 @@ static int basicUnitTests(U32 const seed, double compressibility)
         _oob_write_skip2: ;
         }
         DISPLAYLEVEL(3, "OK (ASAN would report OOB write if vulnerable)\n");
+
+        DISPLAYLEVEL(3, "test%3i : DDict hashset is dropped by reset and refDDict(NULL) : ", testNb++);
+        {   /* After a parameter reset or refDDict(NULL), a frame must not select
+             * a DDict referenced before, which the caller may have freed since */
+            char* const dictBufA = (char*)malloc(dictBufferFixedSize);
+            ZSTD_DDict* const ddictB = ZSTD_createDDict(dictBufferFixed, dictBufferFixedSize);
+            ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+            size_t frameSize;
+            int n;
+            if (!dictBufA || !ddictB || !dctx) goto _output_error;
+            ZSTD_memcpy(dictBufA, dictBufferFixed, dictBufferFixedSize);
+            MEM_writeLE32(dictBufA + ZSTD_FRAMEIDSIZE, ZSTD_getDictID_fromDDict(ddictB) + 1);
+            frameSize = ZSTD_compress_usingDict(cctx, compressedBuffer, compressedBufferSize,
+                                                CNBuffer, 100, dictBufA, dictBufferFixedSize, 1);
+            CHECK_Z(frameSize);
+            for (n = 0; n < 2; n++) {
+                ZSTD_DDict* const ddictA = ZSTD_createDDict(dictBufA, dictBufferFixedSize);
+                if (!ddictA) goto _output_error;
+                CHECK_Z( ZSTD_DCtx_setParameter(dctx, ZSTD_d_refMultipleDDicts, ZSTD_rmd_refMultipleDDicts) );
+                CHECK_Z( ZSTD_DCtx_refDDict(dctx, ddictA) );
+                if (n == 0) {
+                    CHECK_Z( ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters) );
+                } else {
+                    CHECK_Z( ZSTD_DCtx_refDDict(dctx, NULL) );
+                }
+                ZSTD_freeDDict(ddictA);
+                /* only ddictB is referenced now : the frame needs ddictA, so it must fail */
+                CHECK_Z( ZSTD_DCtx_setParameter(dctx, ZSTD_d_refMultipleDDicts, ZSTD_rmd_refMultipleDDicts) );
+                CHECK_Z( ZSTD_DCtx_refDDict(dctx, ddictB) );
+                if (!ZSTD_isError(ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, frameSize)))
+                    goto _output_error;
+            }
+            ZSTD_freeDCtx(dctx);
+            ZSTD_freeDDict(ddictB);
+            free(dictBufA);
+        }
+        DISPLAYLEVEL(3, "OK \n");
 
         ZSTD_freeCCtx(cctx);
         free(dictBuffer);

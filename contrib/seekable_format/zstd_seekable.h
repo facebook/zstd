@@ -152,6 +152,9 @@ ZSTDLIB_API size_t ZSTD_seekable_writeSeekTable(ZSTD_frameLog* fl, ZSTD_outBuffe
 *  consecutive range of data, it will efficiently retain the decompressor object
 *  and avoid redecompressing frame prefixes.  The return value is the number of
 *  bytes decompressed, or an error code checkable with ZSTD_isError().
+*  It is smaller than `dstSize` only when the data ends before
+*  `offset + dstSize`, and it is 0 when `offset` is the end of the data.
+*  An `offset` past the end of the data is an error.
 *
 *  The seek table access functions can be used to obtain the data contained
 *  in the seek table.  If frameIndex is larger than the value returned by

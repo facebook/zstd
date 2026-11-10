@@ -490,6 +490,17 @@ int UTIL_isBlockDevStat(const stat_t* statbuf)
     return 0;
 }
 
+#if defined(_WIN32)
+/* Symbolic links and junctions are "name surrogate" reparse points.
+ * Other reparse points (OneDrive placeholders, deduplicated files, ...)
+ * are regular files and directories : they must not be treated as links. */
+static int UTIL_isNameSurrogate(DWORD attributes, DWORD reparseTag)
+{
+    return (attributes & FILE_ATTRIBUTE_REPARSE_POINT)
+        && IsReparseTagNameSurrogate(reparseTag);
+}
+#endif
+
 int UTIL_isLink(const char* infilename)
 {
     UTIL_TRACE_CALL("UTIL_isLink(%s)", infilename);
@@ -501,6 +512,24 @@ int UTIL_isLink(const char* infilename)
         if (!r && S_ISLNK(statbuf.st_mode)) {
             UTIL_TRACE_RET(1);
             return 1;
+        }
+    }
+#elif defined(_WIN32)
+    {
+        DWORD const attributes = GetFileAttributesA(infilename);
+        if ( attributes != INVALID_FILE_ATTRIBUTES
+          && (attributes & FILE_ATTRIBUTE_REPARSE_POINT) ) {
+            /* GetFileAttributes() does not report the reparse tag, FindFirstFile() does */
+            WIN32_FIND_DATAA findData;
+            HANDLE const hFind = FindFirstFileA(infilename, &findData);
+            if (hFind != INVALID_HANDLE_VALUE) {
+                int const isLink = UTIL_isNameSurrogate(findData.dwFileAttributes, findData.dwReserved0);
+                FindClose(hFind);
+                if (isLink) {
+                    UTIL_TRACE_RET(1);
+                    return 1;
+                }
+            }
         }
     }
 #endif
@@ -942,6 +971,11 @@ static int UTIL_prepareFileList(const char* dirName,
         memcpy(path+dirLength+1, cFile.cFileName, fnameLength);
         pathLength = dirLength+1+fnameLength;
         path[pathLength] = 0;
+        if (!followLinks && UTIL_isNameSurrogate(cFile.dwFileAttributes, cFile.dwReserved0)) {
+            UTIL_DISPLAYLEVEL(2, "Warning : %s is a symbolic link, ignoring\n", path);
+            free(path);
+            continue;
+        }
         if (cFile.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
             if ( strcmp (cFile.cFileName, "..") == 0
               || strcmp (cFile.cFileName, ".") == 0 )

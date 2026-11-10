@@ -26,6 +26,10 @@
 #include <stdio.h>        /* fgets, sscanf */
 #include <string.h>       /* strcmp */
 #include <time.h>         /* time(), time_t */
+#ifndef _WIN32
+#  include <unistd.h>     /* fork, _exit */
+#  include <sys/wait.h>   /* waitpid */
+#endif
 #undef NDEBUG             /* always enable assert() */
 #include <assert.h>
 #define ZSTD_STATIC_LINKING_ONLY  /* ZSTD_compressContinue, ZSTD_compressBlock */
@@ -4184,6 +4188,60 @@ static int basicUnitTests(U32 const seed, double compressibility)
         dictID = ZDICT_getDictID(dictBuffer, optDictSize);
         if (dictID==0) goto _output_error;
         DISPLAYLEVEL(3, "OK : %u \n", (unsigned)dictID);
+
+        DISPLAYLEVEL(3, "test%3i : ZDICT_trainFromBuffer_legacy : ", testNb++);
+        {   ZDICT_legacy_params_t legacyParams;
+            size_t const legacyCapacity = 16 KB;
+            memset(&legacyParams, 0, sizeof(legacyParams));
+            dictSize = ZDICT_trainFromBuffer_legacy(dictBuffer, legacyCapacity,
+                                                   CNBuffer, samplesSizes, nbSamples,
+                                                   legacyParams);
+            if (ZDICT_isError(dictSize)) goto _output_error;
+        }
+        DISPLAYLEVEL(3, "OK, created dictionary of size %u \n", (unsigned)dictSize);
+
+        DISPLAYLEVEL(3, "test%3i : ZDICT_trainFromBuffer_legacy rejects wrapping allocation sizes : ", testNb++);
+        {   /* (bufferSize+2)*sizeof(unsigned) wraps on 32-bit targets for
+             * bufferSize >= 0x3FFFFFFE : the suffix array under-allocates and
+             * divsufsort() writes out of bounds. The call must fail cleanly
+             * instead. Only reachable on 32-bit : on 64-bit the products are
+             * representable and a huge allocation just fails gracefully. */
+            if (!MEM_32bits()) {
+                DISPLAYLEVEL(3, "skipped (allocation sizes do not wrap on 64-bit) \n");
+            } else {
+                size_t const wrapSize = (size_t)0x40000000;   /* 1 GB */
+                void* const wrapBuffer = malloc(wrapSize);   /* untouched : reads as zeros */
+                size_t wrapSampleSize = wrapSize;
+                if (wrapBuffer == NULL) {
+                    DISPLAYLEVEL(3, "skipped (cannot allocate witness buffer) \n");
+                } else {
+#ifdef _WIN32
+                    (void)wrapSampleSize;
+                    DISPLAYLEVEL(3, "skipped (no fork on Windows) \n");
+#else
+                    {   /* crash-isolated : an unfixed tree dies inside this call */
+                        pid_t const child = fork();
+                        assert(child >= 0);
+                        if (child == 0) {
+                            ZDICT_legacy_params_t legacyParams;
+                            size_t wrapRC;
+                            memset(&legacyParams, 0, sizeof(legacyParams));
+                            wrapRC = ZDICT_trainFromBuffer_legacy(
+                                dictBuffer, 16 KB, wrapBuffer, &wrapSampleSize, 1,
+                                legacyParams);
+                            fflush(stdout);
+                            _exit(ZDICT_isError(wrapRC) ? 0 : 1);
+                        }
+                        {   int status = 0;
+                            if (waitpid(child, &status, 0) != child) goto _output_error;
+                            if (!WIFEXITED(status) || (WEXITSTATUS(status) != 0)) goto _output_error;
+                    }   }
+#endif
+                    free(wrapBuffer);
+                }
+            }
+        }
+        DISPLAYLEVEL(3, "OK \n");
 
         ZSTD_freeCCtx(cctx);
         free(dictBuffer);

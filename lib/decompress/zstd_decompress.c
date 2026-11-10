@@ -751,7 +751,6 @@ static ZSTD_frameSizeInfo ZSTD_findFrameSizeInfo(const void* src, size_t srcSize
         const BYTE* const ipstart = ip;
         size_t remainingSize = srcSize;
         size_t nbBlocks = 0;
-        unsigned long long blocksBound = 0;
         ZSTD_FrameHeader zfh;
 
         /* Extract Frame Header */
@@ -778,10 +777,6 @@ static ZSTD_frameSizeInfo ZSTD_findFrameSizeInfo(const void* src, size_t srcSize
             ip += ZSTD_blockHeaderSize + cBlockSize;
             remainingSize -= ZSTD_blockHeaderSize + cBlockSize;
             nbBlocks++;
-            /* single-pass decoding accepts Raw and RLE blocks larger than blockSizeMax (#3482) */
-            blocksBound += (blockProperties.blockType == bt_compressed)
-                         ? zfh.blockSizeMax
-                         : MAX(blockProperties.origSize, zfh.blockSizeMax);
 
             if (blockProperties.lastBlock) break;
         }
@@ -797,7 +792,7 @@ static ZSTD_frameSizeInfo ZSTD_findFrameSizeInfo(const void* src, size_t srcSize
         frameSizeInfo.compressedSize = (size_t)(ip - ipstart);
         frameSizeInfo.decompressedBound = (zfh.frameContentSize != ZSTD_CONTENTSIZE_UNKNOWN)
                                         ? zfh.frameContentSize
-                                        : blocksBound;
+                                        : (unsigned long long)nbBlocks * zfh.blockSizeMax;
         return frameSizeInfo;
     }
 }

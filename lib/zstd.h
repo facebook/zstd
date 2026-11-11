@@ -3099,8 +3099,12 @@ size_t ZSTD_compressBegin_usingCDict_advanced(ZSTD_CCtx* const cctx, const ZSTD_
   as long as the encoder and decoder progress in "lock-step",
   aka use exactly the same buffer sizes, break contiguity at the same place, etc.
 
-  Once buffers are setup, start decompression, with ZSTD_decompressBegin().
+  Once buffers are set up and decompression parameters are configured, initialize the decoder with ZSTD_decompressBegin().
   If decompression requires a dictionary, use ZSTD_decompressBegin_usingDict() or ZSTD_decompressBegin_usingDDict().
+  One of these initialization functions must be called before the first ZSTD_decompressContinue() call for every frame,
+  including when reusing a context or after calling ZSTD_DCtx_reset().
+  ZSTD_DCtx_reset() does not replace this initialization, and ZSTD_decompressContinue() does not initialize the decoder itself.
+  After a session reset, an interrupted frame cannot be resumed : initialize the decoder again and restart from the frame's beginning.
 
   Then use ZSTD_nextSrcSizeToDecompress() and ZSTD_decompressContinue() alternatively.
   ZSTD_nextSrcSizeToDecompress() tells how many bytes to provide as 'srcSize' to ZSTD_decompressContinue().
@@ -3111,7 +3115,7 @@ size_t ZSTD_compressBegin_usingCDict_advanced(ZSTD_CCtx* const cctx, const ZSTD_
   It can also be an error code, which can be tested with ZSTD_isError().
 
   A frame is fully decoded when ZSTD_nextSrcSizeToDecompress() returns zero.
-  Context can then be reset to start a new decompression.
+  Before decoding another frame, call the appropriate ZSTD_decompressBegin*() function again.
 
   Note : it's possible to know if next input to present is a header or a block, using ZSTD_nextInputType().
   This information is not required to properly decode a frame.
@@ -3132,11 +3136,25 @@ size_t ZSTD_compressBegin_usingCDict_advanced(ZSTD_CCtx* const cctx, const ZSTD_
 
 ZSTDLIB_STATIC_API size_t ZSTD_decodingBufferSize_min(unsigned long long windowSize, unsigned long long frameContentSize);  /**< when frame content size is not known, pass in frameContentSize == ZSTD_CONTENTSIZE_UNKNOWN */
 
+/*! ZSTD_decompressBegin() :
+ *  Initialize the bufferless decoder to start a new frame without a dictionary.
+ *  Decompression parameters must be configured before calling this function.
+ *  Call this function, ZSTD_decompressBegin_usingDict(), or ZSTD_decompressBegin_usingDDict()
+ *  before the first ZSTD_decompressContinue() call for each frame, including after ZSTD_DCtx_reset().
+ *  Use the dictionary-taking variants when the frame requires a dictionary.
+ */
 ZSTDLIB_STATIC_API size_t ZSTD_decompressBegin(ZSTD_DCtx* dctx);
 ZSTDLIB_STATIC_API size_t ZSTD_decompressBegin_usingDict(ZSTD_DCtx* dctx, const void* dict, size_t dictSize);
 ZSTDLIB_STATIC_API size_t ZSTD_decompressBegin_usingDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict);
 
 ZSTDLIB_STATIC_API size_t ZSTD_nextSrcSizeToDecompress(ZSTD_DCtx* dctx);
+
+/*! ZSTD_decompressContinue() :
+ *  Decode the next part of a frame initialized with ZSTD_decompressBegin()
+ *  or one of its dictionary-taking variants. This function does not initialize the decoder.
+ *  After finishing a frame or resetting the session, initialize the decoder again
+ *  before calling this function for a new frame.
+ */
 ZSTDLIB_STATIC_API size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, const void* src, size_t srcSize);
 
 /* misc */

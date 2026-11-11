@@ -1817,7 +1817,7 @@ ZSTDLIB_STATIC_API size_t ZSTD_estimateDStreamSize_fromFrame(const void* src, si
 /*! ZSTD_estimate?DictSize() :
  *  ZSTD_estimateCDictSize() will bet that src size is relatively "small", and content is copied, like ZSTD_createCDict().
  *  ZSTD_estimateCDictSize_advanced() makes it possible to control compression parameters precisely, like ZSTD_createCDict_advanced().
- *  The CDict estimates return an error code if dictSize is too large.
+ *  These estimates return an error code if dictSize is too large.
  *  Check the result with ZSTD_isError().
  *  Note : dictionaries created by reference (`ZSTD_dlm_byRef`) are logically smaller.
  */

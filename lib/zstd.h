@@ -2568,6 +2568,11 @@ ZSTDLIB_STATIC_API size_t ZSTD_DCtx_getParameter(ZSTD_DCtx* dctx, ZSTD_dParamete
  * using a given ZSTD_DCtx, rather than overwriting the previous DDict reference, will instead
  * store all references. At decompression time, the appropriate dictID is selected
  * from the set of DDicts based on the dictID in the frame.
+ * When a set exists, an ordinary Zstandard frame with a nonzero dictionary ID must
+ * have an exact match in the set; otherwise decompression returns
+ * ZSTD_error_dictionary_wrong. A frame with dictionary ID 0 (including an omitted
+ * ID) uses the registered ID-0 DDict if present, or no dictionary otherwise.
+ * Skippable frames do not select a dictionary.
  * Loading a dictionary or referencing a prefix discards the referenced set,
  * without disabling this mode. Referencing a DDict discards any previously
  * loaded dictionary or prefix. The two kinds of dictionary storage cannot coexist.

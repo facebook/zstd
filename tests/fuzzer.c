@@ -1572,6 +1572,13 @@ static size_t FUZ_mdict_makeFrame(BYTE* dst, U32 id, unsigned flags)
     return n;
 }
 
+static size_t FUZ_mdict_makeSkip(BYTE* dst, unsigned variant)
+{
+    MEM_writeLE32(dst, ZSTD_MAGIC_SKIPPABLE_START + variant);
+    MEM_writeLE32(dst + 4, 0); /* empty skippable frame */
+    return 8;
+}
+
 /* The second DDict, when supplied, is initially active. Both remain registered. */
 static ZSTD_DCtx* FUZ_mdict_createContext(const ZSTD_DDict* first,
                                         const ZSTD_DDict* second)
@@ -1719,12 +1726,156 @@ static void FUZ_mdict_testDictionaryReplacement(void)
             n = FUZ_mdict_makeFrame(frame, 1111, 0);
             r = ZSTD_decompressDCtx(dctx, out, sizeof(out), frame, n);
             CHECK_EQ(ZSTD_getErrorCode(r), ZSTD_error_dictionary_wrong);
-            n = FUZ_mdict_makeFrame(frame, 0, 0);
+            n = FUZ_mdict_makeFrame(frame, 4444, 0);
             r = ZSTD_decompressDCtx(dctx, out, sizeof(out), frame, n);
             FUZ_mdict_checkOutput(r, out, "DDDDDDDD");
             CHECK_Z(ZSTD_freeDCtx(dctx)); CHECK_Z(ZSTD_freeDDict(d));
         }
     }
+}
+
+static void FUZ_mdict_testStreaming(void)
+{
+    ZSTD_DDict* const a = FUZ_mdict_createDict(1111, 'A');
+    ZSTD_DDict* const b = FUZ_mdict_createDict(7, 'B');
+    BYTE data[64], out[32];
+    static const struct { unsigned flags; size_t chunk; } cases[] = {
+        {0, 1},                                      /* fragmented/buffered */
+        {FUZ_mdict_knownSize, sizeof(data)},          /* single-pass shortcut */
+        {FUZ_mdict_knownSize | FUZ_mdict_checksum, sizeof(data)}
+    };
+    size_t i, n, r;
+
+    /* Skippable frames do not require a dictionary, including an ID-0 entry.
+     * The following ordinary frame must still select its exact match. */
+    for (i = 0; i < COUNTOF(cases); ++i) {
+        ZSTD_DCtx* const dctx = FUZ_mdict_createContext(b, a);
+        n = FUZ_mdict_makeSkip(data, 7);
+        r = FUZ_mdict_decompressStream(dctx, out, sizeof(out), data, n, cases[i].chunk);
+        CHECK_EQ(r, 0);
+        n = FUZ_mdict_makeFrame(data, 1111, cases[i].flags);
+        r = FUZ_mdict_decompressStream(dctx, out, sizeof(out), data, n, cases[i].chunk);
+        FUZ_mdict_checkOutput(r, out, "AAAAAAAA");
+        CHECK_Z(ZSTD_freeDCtx(dctx));
+    }
+
+    /* Ordinary frames select an exact match on both buffered and shortcut paths. */
+    for (i = 0; i < COUNTOF(cases); ++i) {
+        ZSTD_DCtx* const dctx = FUZ_mdict_createContext(a, b);
+        n = FUZ_mdict_makeFrame(data, 1111, cases[i].flags);
+        r = FUZ_mdict_decompressStream(dctx, out, sizeof(out), data, n, cases[i].chunk);
+        FUZ_mdict_checkOutput(r, out, "AAAAAAAA");
+        CHECK_Z(ZSTD_freeDCtx(dctx));
+    }
+
+    /* Incomplete and rejected headers must not trigger an ID-0 lookup.
+     * This set deliberately has no ID-0 entry. */
+    for (i = 0; i < 2; ++i) {
+        ZSTD_DCtx* const dctx = FUZ_mdict_createContext(a, b);
+        ZSTD_inBuffer in = {data, 5, 0};
+        ZSTD_outBuffer ob = {out, sizeof(out), 0};
+        FUZ_mdict_makeFrame(data, 1111, 0);
+        if (i) memset(data, 0xff, 5);
+        r = ZSTD_decompressStream(dctx, &ob, &in);
+        if (i) { CHECK_EQ(ZSTD_getErrorCode(r), ZSTD_error_prefix_unknown); }
+        else { CHECK_Z(r); CHECK(r != 0); CHECK_EQ(in.pos, in.size); }
+        CHECK_Z(ZSTD_DCtx_reset(dctx, ZSTD_reset_session_only));
+        n = FUZ_mdict_makeFrame(data, 1111, 0);
+        r = FUZ_mdict_decompressStream(dctx, out, sizeof(out), data, n, 1);
+        FUZ_mdict_checkOutput(r, out, "AAAAAAAA");
+        CHECK_Z(ZSTD_freeDCtx(dctx));
+    }
+    CHECK_Z(ZSTD_freeDDict(a)); CHECK_Z(ZSTD_freeDDict(b));
+}
+
+static void FUZ_mdict_testStrictMatching(void)
+{
+    ZSTD_DDict* const a = FUZ_mdict_createDict(1111, 'A');
+    ZSTD_DDict* const b = FUZ_mdict_createDict(2222, 'B');
+    ZSTD_DDict* const raw = FUZ_mdict_createDict(0, 'R');
+    static const U32 missingIDs[] = {0, 3333};
+    BYTE frame[32], out[32];
+    size_t i, n, r;
+    int shortcut;
+
+    for (shortcut = 0; shortcut < 2; ++shortcut) {
+        ZSTD_DCtx* const dctx = FUZ_mdict_createContext(a, b);
+        unsigned const flags = shortcut ? FUZ_mdict_knownSize : 0;
+        size_t const chunk = shortcut ? sizeof(frame) : 1;
+        /* Neither a missing nonzero ID nor an omitted ID may fall back to B. */
+        for (i = 0; i < COUNTOF(missingIDs); ++i) {
+            ZSTD_ErrorCode const expected = missingIDs[i] == 0
+                    ? ZSTD_error_corruption_detected : ZSTD_error_dictionary_wrong;
+            n = FUZ_mdict_makeFrame(frame, 2222, flags);
+            r = ZSTD_decompressDCtx(dctx, out, sizeof(out), frame, n);
+            FUZ_mdict_checkOutput(r, out, "BBBBBBBB");
+            n = FUZ_mdict_makeFrame(frame, missingIDs[i], flags);
+            r = ZSTD_decompressDCtx(dctx, out, sizeof(out), frame, n);
+            CHECK_EQ(ZSTD_getErrorCode(r), expected);
+            CHECK_Z(ZSTD_DCtx_reset(dctx, ZSTD_reset_session_only));
+            n = FUZ_mdict_makeFrame(frame, 2222, flags);
+            r = FUZ_mdict_decompressStream(dctx, out, sizeof(out), frame, n, chunk);
+            FUZ_mdict_checkOutput(r, out, "BBBBBBBB");
+            n = FUZ_mdict_makeFrame(frame, missingIDs[i], flags);
+            r = FUZ_mdict_decompressStream(dctx, out, sizeof(out), frame, n, chunk);
+            CHECK_EQ(ZSTD_getErrorCode(r), expected);
+            CHECK_Z(ZSTD_DCtx_reset(dctx, ZSTD_reset_session_only));
+        }
+        /* ID 0 is a real key: registering raw R makes an ID-less frame use R,
+         * even when a different DDict was most recently referenced or used. */
+        CHECK_Z(ZSTD_DCtx_refDDict(dctx, raw));
+        CHECK_Z(ZSTD_DCtx_refDDict(dctx, a));
+        n = FUZ_mdict_makeFrame(frame, 0, flags);
+        r = FUZ_mdict_decompressStream(dctx, out, sizeof(out), frame, n, chunk);
+        FUZ_mdict_checkOutput(r, out, "RRRRRRRR");
+        n = FUZ_mdict_makeFrame(frame, 1111, flags);
+        r = FUZ_mdict_decompressStream(dctx, out, sizeof(out), frame, n, chunk);
+        FUZ_mdict_checkOutput(r, out, "AAAAAAAA");
+        n = FUZ_mdict_makeFrame(frame, 0, flags);
+        r = FUZ_mdict_decompressStream(dctx, out, sizeof(out), frame, n, chunk);
+        FUZ_mdict_checkOutput(r, out, "RRRRRRRR");
+        CHECK_Z(ZSTD_freeDCtx(dctx));
+    }
+    CHECK_Z(ZSTD_freeDDict(a)); CHECK_Z(ZSTD_freeDDict(b));
+    CHECK_Z(ZSTD_freeDDict(raw));
+}
+
+static void FUZ_mdict_testNoDictionary(void)
+{
+    ZSTD_DDict* const a = FUZ_mdict_createDict(1111, 'A');
+    ZSTD_DDict* const b = FUZ_mdict_createDict(2222, 'B');
+    BYTE plain[128], frame[32], data[256], out[128];
+    size_t const plainSize = ZSTD_compress(plain, sizeof(plain), "no dictionary", 13, 1);
+    int mode;
+    CHECK_Z(plainSize);
+    CHECK_EQ(ZSTD_getDictID_fromFrame(plain, plainSize), 0);
+    CHECK_EQ(ZSTD_getFrameContentSize(plain, plainSize), 13);
+
+    for (mode = 0; mode < 4; ++mode) {
+        int const magicless = mode >> 1;
+        int const shortcut = mode & 1;
+        ZSTD_DCtx* const dctx = FUZ_mdict_createContext(a, b);
+        unsigned const flags = shortcut ? FUZ_mdict_knownSize : 0;
+        size_t const chunk = shortcut ? sizeof(data) : 1;
+        size_t const skip = magicless ? 4 : 0;
+        static const U32 ids[] = {2222, 1111};
+        size_t i, n = 0, r;
+        if (magicless) { CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_format, ZSTD_f_zstd1_magicless)); }
+
+        /* Dictionary-free frames neither inherit the preceding dictionary nor
+         * prevent the following frame from selecting its own exact match. */
+        for (i = 0; i < COUNTOF(ids); ++i) {
+            size_t const frameSize = FUZ_mdict_makeFrame(frame, ids[i], flags);
+            memcpy(data + n, frame + skip, frameSize - skip); n += frameSize - skip;
+            memcpy(data + n, plain + skip, plainSize - skip); n += plainSize - skip;
+        }
+        r = ZSTD_decompressDCtx(dctx, out, sizeof(out), data, n);
+        FUZ_mdict_checkOutput(r, out, "BBBBBBBBno dictionaryAAAAAAAAno dictionary");
+        r = FUZ_mdict_decompressStream(dctx, out, sizeof(out), data, n, chunk);
+        FUZ_mdict_checkOutput(r, out, "BBBBBBBBno dictionaryAAAAAAAAno dictionary");
+        CHECK_Z(ZSTD_freeDCtx(dctx));
+    }
+    CHECK_Z(ZSTD_freeDDict(a)); CHECK_Z(ZSTD_freeDDict(b));
 }
 
 /* The DDicts use the default allocator. Counting the DCtx's first 128-slot
@@ -1772,6 +1923,9 @@ static unsigned test_multipleDDicts(unsigned testNb)
         {"raw dictionary ID zero", FUZ_mdict_testZeroID},
         {"clearing dictionary references", FUZ_mdict_testClearReferences},
         {"local dictionary replacement", FUZ_mdict_testDictionaryReplacement},
+        {"streaming frame selection", FUZ_mdict_testStreaming},
+        {"strict dictionary-ID matching", FUZ_mdict_testStrictMatching},
+        {"dictionary-free frames", FUZ_mdict_testNoDictionary},
         {"hash-table growth", FUZ_mdict_testGrowth},
     };
     size_t i;

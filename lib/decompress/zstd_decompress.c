@@ -364,6 +364,7 @@ void ZSTD_copyDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
  */
 static void ZSTD_DCtx_selectFrameDDict(ZSTD_DCtx* dctx) {
     assert(dctx->refMultipleDDicts && dctx->ddictSet);
+    assert(dctx->ddictLocal == NULL);
     DEBUGLOG(4, "Adjusting DDict based on requested dict ID from frame");
     if (dctx->ddict) {
         const ZSTD_DDict* frameDDict = ZSTD_DDictHashSet_getDDict(dctx->ddictSet, dctx->fParams.dictID);
@@ -1714,8 +1715,7 @@ size_t ZSTD_DCtx_loadDictionary_advanced(ZSTD_DCtx* dctx,
 {
     RETURN_ERROR_IF(dctx->streamStage != zdss_init, stage_wrong, "");
     ZSTD_clearDict(dctx);
-    if (dict == NULL || dictSize == 0)
-        ZSTD_clearDDictSet(dctx);
+    ZSTD_clearDDictSet(dctx);
     if (dict && dictSize != 0) {
         RETURN_ERROR_IF(dctx->staticSize, memory_allocation,
                         "static DCtx can't allocate an internal DDict");

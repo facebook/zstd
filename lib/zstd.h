@@ -1151,6 +1151,8 @@ ZSTDLIB_API size_t ZSTD_CCtx_refPrefix(ZSTD_CCtx* cctx,
  * @result : 0, or an error code (which can be tested with ZSTD_isError()).
  *  Special : Adding a NULL (or 0-size) dictionary invalidates any previous dictionary,
  *            meaning "return to no-dictionary mode".
+ *  Loading any dictionary also discards the multiple-DDict reference table,
+ *  without disabling ZSTD_d_refMultipleDDicts.
  *  Note 1 : Loading a dictionary involves building tables,
  *           which has a non-negligible impact on CPU usage and latency.
  *           It's recommended to "load once, use many times", to amortize the cost
@@ -1170,11 +1172,12 @@ ZSTDLIB_API size_t ZSTD_DCtx_loadDictionary(ZSTD_DCtx* dctx, const void* dict, s
  *  will be determined at decompression time, as per the dict ID in the frame.
  *  The memory for the table is allocated on the first call to refDDict.
  *  The table is freed by ZSTD_DCtx_refDDict(dctx, NULL), by ZSTD_DCtx_reset()
- *  with ZSTD_reset_parameters or ZSTD_reset_session_and_parameters, by loading
- *  a NULL or zero-size dictionary, by disabling multiple-DDict mode, and by
- *  ZSTD_freeDCtx().
+ *  with ZSTD_reset_parameters or ZSTD_reset_session_and_parameters, by any
+ *  ZSTD_DCtx_loadDictionary() or ZSTD_DCtx_refPrefix() call, by disabling
+ *  multiple-DDict mode, and by ZSTD_freeDCtx().
  *  Disabling multiple-DDict mode releases all dictionary references from the set;
  *  no dictionary from the set is retained for subsequent decompression.
+ *  Referencing a DDict invalidates any previously loaded dictionary or prefix.
  *
  *  If called with ZSTD_d_refMultipleDDicts disabled (the default), only one dictionary
  *  will be managed, and referencing a dictionary effectively "discards" any previous one.
@@ -1192,7 +1195,8 @@ ZSTDLIB_API size_t ZSTD_DCtx_refDDict(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict);
  *  Prefix is **only used once**. Reference is discarded at end of frame.
  *  End of frame is reached when ZSTD_decompressStream() returns 0.
  * @result : 0, or an error code (which can be tested with ZSTD_isError()).
- *  Note 1 : Adding any prefix (including NULL) invalidates any previously set prefix or dictionary
+ *  Note 1 : Adding any prefix (including NULL) invalidates any previously set prefix or dictionary,
+ *           including the multiple-DDict reference table.
  *  Note 2 : Prefix buffer is referenced. It **must** outlive decompression.
  *           Prefix buffer must remain unmodified up to the end of frame,
  *           reached when ZSTD_decompressStream() returns 0.
@@ -2564,6 +2568,9 @@ ZSTDLIB_STATIC_API size_t ZSTD_DCtx_getParameter(ZSTD_DCtx* dctx, ZSTD_dParamete
  * using a given ZSTD_DCtx, rather than overwriting the previous DDict reference, will instead
  * store all references. At decompression time, the appropriate dictID is selected
  * from the set of DDicts based on the dictID in the frame.
+ * Loading a dictionary or referencing a prefix discards the referenced set,
+ * without disabling this mode. Referencing a DDict discards any previously
+ * loaded dictionary or prefix. The two kinds of dictionary storage cannot coexist.
  *
  * Usage is simply calling ZSTD_refDDict() on multiple dict buffers.
  *

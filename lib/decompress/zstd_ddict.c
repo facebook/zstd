@@ -142,25 +142,41 @@ static size_t ZSTD_initDDict_internal(ZSTD_DDict* ddict,
     return 0;
 }
 
+size_t ZSTD_createDDict_advanced_internal(ZSTD_DDict** ddictPtr,
+                                          const void* dict, size_t dictSize,
+                                          ZSTD_dictLoadMethod_e dictLoadMethod,
+                                          ZSTD_dictContentType_e dictContentType,
+                                          ZSTD_customMem customMem)
+{
+    ZSTD_DDict* ddict;
+    *ddictPtr = NULL;
+    RETURN_ERROR_IF((!customMem.customAlloc) ^ (!customMem.customFree),
+                    parameter_combination_unsupported, "Invalid custom allocator");
+
+    ddict = (ZSTD_DDict*) ZSTD_customMalloc(sizeof(ZSTD_DDict), customMem);
+    RETURN_ERROR_IF(ddict == NULL, memory_allocation, "");
+    ddict->cMem = customMem;
+    {   size_t const initResult = ZSTD_initDDict_internal(ddict,
+                                        dict, dictSize,
+                                        dictLoadMethod, dictContentType);
+        if (ZSTD_isError(initResult)) {
+            ZSTD_freeDDict(ddict);
+            return initResult;
+    }   }
+    *ddictPtr = ddict;
+    return 0;
+}
+
 ZSTD_DDict* ZSTD_createDDict_advanced(const void* dict, size_t dictSize,
                                       ZSTD_dictLoadMethod_e dictLoadMethod,
                                       ZSTD_dictContentType_e dictContentType,
                                       ZSTD_customMem customMem)
 {
-    if ((!customMem.customAlloc) ^ (!customMem.customFree)) return NULL;
-
-    {   ZSTD_DDict* const ddict = (ZSTD_DDict*) ZSTD_customMalloc(sizeof(ZSTD_DDict), customMem);
-        if (ddict == NULL) return NULL;
-        ddict->cMem = customMem;
-        {   size_t const initResult = ZSTD_initDDict_internal(ddict,
-                                            dict, dictSize,
-                                            dictLoadMethod, dictContentType);
-            if (ZSTD_isError(initResult)) {
-                ZSTD_freeDDict(ddict);
-                return NULL;
-        }   }
-        return ddict;
-    }
+    ZSTD_DDict* ddict;
+    size_t const err = ZSTD_createDDict_advanced_internal(&ddict,
+                            dict, dictSize, dictLoadMethod, dictContentType, customMem);
+    if (ZSTD_isError(err)) return NULL;
+    return ddict;
 }
 
 /*! ZSTD_createDDict() :

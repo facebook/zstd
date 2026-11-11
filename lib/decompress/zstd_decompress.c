@@ -1706,8 +1706,8 @@ size_t ZSTD_DCtx_loadDictionary_advanced(ZSTD_DCtx* dctx,
     if (dict && dictSize != 0) {
         RETURN_ERROR_IF(dctx->staticSize, memory_allocation,
                         "static DCtx can't allocate an internal DDict");
-        dctx->ddictLocal = ZSTD_createDDict_advanced(dict, dictSize, dictLoadMethod, dictContentType, dctx->customMem);
-        RETURN_ERROR_IF(dctx->ddictLocal == NULL, memory_allocation, "NULL pointer!");
+        FORWARD_IF_ERROR(ZSTD_createDDict_advanced_internal(&dctx->ddictLocal,
+                            dict, dictSize, dictLoadMethod, dictContentType, dctx->customMem), "");
         dctx->ddict = dctx->ddictLocal;
         dctx->dictUses = ZSTD_use_indefinitely;
     }

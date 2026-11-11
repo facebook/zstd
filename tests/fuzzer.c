@@ -3967,6 +3967,19 @@ static int basicUnitTests(U32 const seed, double compressibility)
         }
         DISPLAYLEVEL(3, "OK \n");
 
+        DISPLAYLEVEL(3, "test%3i : loading a dictionary containing only header should return dictionary_corrupted : ", testNb++);
+        {   ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+            const char* const headerOnly = "\x37\xa4\x30\xec\x11\x22\x33\x44";
+            assert(dctx != NULL);
+            CHECK_EQ(ZSTD_getErrorCode(ZSTD_DCtx_loadDictionary(dctx, headerOnly, 8)), ZSTD_error_dictionary_corrupted);
+            CHECK_EQ(ZSTD_getErrorCode(ZSTD_DCtx_loadDictionary_byReference(dctx, headerOnly, 8)), ZSTD_error_dictionary_corrupted);
+            /* the context remains usable */
+            CHECK_Z(ZSTD_DCtx_loadDictionary(dctx, dictBuffer, dictSize));
+            CHECK_EQ(ZSTD_decompressDCtx(dctx, decodedBuffer, CNBuffSize, compressedBuffer, cSize), CNBuffSize);
+            ZSTD_freeDCtx(dctx);
+        }
+        DISPLAYLEVEL(3, "OK \n");
+
         DISPLAYLEVEL(3, "test%3d : bufferless api with cdict : ", testNb++);
         {   ZSTD_CDict* const cdict = ZSTD_createCDict(dictBuffer, dictSize, 1);
             ZSTD_DCtx* const dctx = ZSTD_createDCtx();

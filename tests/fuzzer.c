@@ -1647,6 +1647,41 @@ static void FUZ_mdict_testZeroID(void)
     CHECK_Z(ZSTD_freeDDict(raw)); CHECK_Z(ZSTD_freeDDict(full));
 }
 
+static void FUZ_mdict_testClearReferences(void)
+{
+    int mode;
+    /* Register A, clear its references, free A, then register B and request A.
+     * The result must be dictionary_wrong, without consulting freed A. */
+    for (mode = 0; mode < 5; ++mode) {
+        ZSTD_DDict* const a = FUZ_mdict_createDict(1111, 'A');
+        ZSTD_DDict* const b = FUZ_mdict_createDict(2222, 'B');
+        ZSTD_DCtx* const dctx = FUZ_mdict_createContext(a, NULL);
+        BYTE frame[32], out[32], dummy = 0;
+        size_t const n = FUZ_mdict_makeFrame(frame, 1111, 0);
+        size_t r;
+        switch (mode) {
+        case 0: CHECK_Z(ZSTD_DCtx_reset(dctx, ZSTD_reset_parameters)); break;
+        case 1: CHECK_Z(ZSTD_DCtx_loadDictionary(dctx, NULL, 0)); break;
+        case 2: CHECK_Z(ZSTD_DCtx_loadDictionary(dctx, &dummy, 0)); break;
+        case 3: CHECK_Z(ZSTD_DCtx_refDDict(dctx, NULL)); break;
+        default:
+            /* Even a dictionary already selected for decoding is released. */
+            r = ZSTD_decompressDCtx(dctx, out, sizeof(out), frame, n);
+            FUZ_mdict_checkOutput(r, out, "AAAAAAAA");
+            CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_refMultipleDDicts, 0));
+            break;
+        }
+        CHECK_Z(ZSTD_freeDDict(a));
+        r = ZSTD_decompressDCtx(dctx, out, sizeof(out), frame, n);
+        CHECK_EQ(ZSTD_getErrorCode(r), ZSTD_error_dictionary_wrong);
+        CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_refMultipleDDicts, 1));
+        CHECK_Z(ZSTD_DCtx_refDDict(dctx, b));
+        r = ZSTD_decompressDCtx(dctx, out, sizeof(out), frame, n);
+        CHECK_EQ(ZSTD_getErrorCode(r), ZSTD_error_dictionary_wrong);
+        CHECK_Z(ZSTD_freeDCtx(dctx)); CHECK_Z(ZSTD_freeDDict(b));
+    }
+}
+
 /* The DDicts use the default allocator. Counting the DCtx's first 128-slot
  * table lets the test observe growth without inspecting private structs. */
 static void* FUZ_mdict_alloc(void* opaque, size_t size)
@@ -1690,6 +1725,7 @@ static unsigned test_multipleDDicts(unsigned testNb)
 {
     static const struct { const char* name; void (*run)(void); } tests[] = {
         {"raw dictionary ID zero", FUZ_mdict_testZeroID},
+        {"clearing dictionary references", FUZ_mdict_testClearReferences},
         {"hash-table growth", FUZ_mdict_testGrowth},
     };
     size_t i;

@@ -1170,7 +1170,11 @@ ZSTDLIB_API size_t ZSTD_DCtx_loadDictionary(ZSTD_DCtx* dctx, const void* dict, s
  *  will be determined at decompression time, as per the dict ID in the frame.
  *  The memory for the table is allocated on the first call to refDDict.
  *  The table is freed by ZSTD_DCtx_refDDict(dctx, NULL), by ZSTD_DCtx_reset()
- *  with ZSTD_reset_parameters or ZSTD_reset_session_and_parameters, and by ZSTD_freeDCtx().
+ *  with ZSTD_reset_parameters or ZSTD_reset_session_and_parameters, by loading
+ *  a NULL or zero-size dictionary, by disabling multiple-DDict mode, and by
+ *  ZSTD_freeDCtx().
+ *  Disabling multiple-DDict mode releases all dictionary references from the set;
+ *  no dictionary from the set is retained for subsequent decompression.
  *
  *  If called with ZSTD_d_refMultipleDDicts disabled (the default), only one dictionary
  *  will be managed, and referencing a dictionary effectively "discards" any previous one.

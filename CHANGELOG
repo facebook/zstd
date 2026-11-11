@@ -1,6 +1,7 @@
 v1.6.0 (Dec 2025)
 fix: on a static DCtx, `ZSTD_DCtx_loadDictionary()` and `ZSTD_DCtx_refPrefix()` now return `ZSTD_error_memory_allocation` for nonempty dictionaries and prefixes instead of allocating and leaking an internal DDict
 api: legacy format support is now disabled by default
+api: disabling experimental `ZSTD_d_refMultipleDDicts` releases every dictionary reference in its set; no selected dictionary is retained for subsequent decompression
 build: `ZSTD_LEGACY_SUPPORT` defaults to `0` in Makefile and CMake
 
 V1.5.7 (Feb 2025)

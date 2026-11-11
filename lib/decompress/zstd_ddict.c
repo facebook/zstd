@@ -190,13 +190,12 @@ const ZSTD_DDict* ZSTD_initStaticDDict(
                                 ZSTD_dictLoadMethod_e dictLoadMethod,
                                 ZSTD_dictContentType_e dictContentType)
 {
-    size_t const neededSpace = sizeof(ZSTD_DDict)
-                             + (dictLoadMethod == ZSTD_dlm_byRef ? 0 : dictSize);
+    size_t const neededSpace = ZSTD_estimateDDictSize(dictSize, dictLoadMethod);
     ZSTD_DDict* const ddict = (ZSTD_DDict*)sBuffer;
     assert(sBuffer != NULL);
     assert(dict != NULL);
     if ((size_t)sBuffer & 7) return NULL;   /* 8-aligned */
-    if (sBufferSize < neededSpace) return NULL;
+    if (ZSTD_isError(neededSpace) || sBufferSize < neededSpace) return NULL;
     if (dictLoadMethod == ZSTD_dlm_byCopy) {
         ZSTD_memcpy(ddict+1, dict, dictSize);  /* local copy */
         dict = ddict+1;
@@ -224,7 +223,10 @@ size_t ZSTD_freeDDict(ZSTD_DDict* ddict)
  *  Note : dictionary created by reference using ZSTD_dlm_byRef are smaller */
 size_t ZSTD_estimateDDictSize(size_t dictSize, ZSTD_dictLoadMethod_e dictLoadMethod)
 {
-    return sizeof(ZSTD_DDict) + (dictLoadMethod == ZSTD_dlm_byRef ? 0 : dictSize);
+    if (dictLoadMethod == ZSTD_dlm_byRef) return sizeof(ZSTD_DDict);
+    RETURN_ERROR_IF(dictSize > (size_t)-1 - sizeof(ZSTD_DDict),
+                    memory_allocation, "DDict size overflow");
+    return sizeof(ZSTD_DDict) + dictSize;
 }
 
 size_t ZSTD_sizeof_DDict(const ZSTD_DDict* ddict)

@@ -1,0 +1,8 @@
+cut.zst : Read error (39) : premature end 
+zstd: cut.zst: corrupted or incomplete archive; decoded 20 bytes 
+cut.zst : Read error (39) : premature end 
+zstd: cut.zst: corrupted or incomplete archive; decoded 20 bytes 
+corrupt.zst : Decoding error (36) : Restored data doesn't match checksum 
+zstd: corrupt.zst: corrupted or incomplete archive; decoded 10 bytes 
+corrupt.zst : Decoding error (36) : Restored data doesn't match checksum 
+zstd: corrupt.zst: corrupted or incomplete archive; decoded 10 bytes 

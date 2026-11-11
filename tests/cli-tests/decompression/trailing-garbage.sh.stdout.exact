@@ -1,0 +1,5 @@
++ input that never contained a frame keeps its errors
++ trailing data after the last frame is ignored with a warning
++ -qq suppresses the warning
++ pass-through still copies the trailing data
++ --rm keeps the source when trailing data was ignored

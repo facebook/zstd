@@ -1513,6 +1513,154 @@ static void test_largeDictionaryRepcodes(const void* dict, size_t dictSize)
     free(largeDict);
 }
 
+/* Multi-DDict fixtures deliberately share entropy tables but have different
+ * content. The handcrafted frame always copies eight dictionary bytes: unlike
+ * compressor-generated data, it cannot turn into a literals-only block and
+ * accidentally pass when the decoder selects the wrong dictionary. */
+enum {
+    FUZ_mdict_knownSize = 1,
+    FUZ_mdict_checksum = 2
+};
+
+static void FUZ_mdict_makeDict(BYTE dst[44], U32 id, int fill)
+{
+    static const BYTE header[28] = {
+        0x37,0xa4,0x30,0xec, 0,0,0,0,  /* magic and dictionary ID */
+        128,0x10,                     /* Huffman table */
+        0xf0,0x03, 0xf0,0x03, 0xf0,0x03, /* FSE tables */
+        4,0,0,0, 4,0,0,0, 4,0,0,0    /* repeat offsets */
+    };
+    memcpy(dst, header, sizeof(header));
+    MEM_writeLE32(dst + 4, id);
+    memset(dst + sizeof(header), fill, 16);
+}
+
+/* ID 0 creates a raw-content DDict; other IDs create formatted DDicts. */
+static ZSTD_DDict* FUZ_mdict_createDict(U32 id, int fill)
+{
+    BYTE bytes[44];
+    ZSTD_DDict* ddict;
+    FUZ_mdict_makeDict(bytes, id, fill);
+    ddict = id ? ZSTD_createDDict(bytes, sizeof(bytes))
+               : ZSTD_createDDict(bytes + 28, 16);
+    CHECK(ddict != NULL && ZSTD_getDictID_fromDDict(ddict) == id);
+    return ddict;
+}
+
+/* One compressed block, no literals, one match of length 8 at offset 4.
+ * ID 0 omits the frame's dictID. A known content size permits the streaming
+ * shortcut; the optional checksum is for the expected output "AAAAAAAA". */
+static size_t FUZ_mdict_makeFrame(BYTE* dst, U32 id, unsigned flags)
+{
+    static const BYTE block[] = {
+        0x3d,0,0,       /* last compressed block, seven-byte payload */
+        0,1,0x54,       /* no literals; one sequence; RLE sequence tables */
+        0,0,5,1         /* LL=0, repeat offset, ML=8, bitstream */
+    };
+    int const knownSize = (flags & FUZ_mdict_knownSize) != 0;
+    size_t n = 4;
+    MEM_writeLE32(dst, ZSTD_MAGICNUMBER);
+    dst[n++] = (BYTE)((id ? 3 : 0) | (knownSize ? 32 : 0)
+                      | ((flags & FUZ_mdict_checksum) ? 4 : 0));
+    if (!knownSize) dst[n++] = 0; /* 1 KiB window */
+    if (id) { MEM_writeLE32(dst + n, id); n += 4; }
+    if (knownSize) dst[n++] = 8;
+    memcpy(dst + n, block, sizeof(block)); n += sizeof(block);
+    if (flags & FUZ_mdict_checksum) {
+        MEM_writeLE32(dst + n, (U32)XXH64("AAAAAAAA", 8, 0)); n += 4;
+    }
+    return n;
+}
+
+/* The second DDict, when supplied, is initially active. Both remain registered. */
+static ZSTD_DCtx* FUZ_mdict_createContext(const ZSTD_DDict* first,
+                                        const ZSTD_DDict* second)
+{
+    ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+    CHECK(dctx != NULL);
+    CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_refMultipleDDicts, 1));
+    if (first) CHECK_Z(ZSTD_DCtx_refDDict(dctx, first));
+    if (second) CHECK_Z(ZSTD_DCtx_refDDict(dctx, second));
+    return dctx;
+}
+
+/* Feed complete frames in chunks, returning the first error or total output.
+ * These tests provide enough output space, so every call must make progress. */
+static size_t FUZ_mdict_decompressStream(ZSTD_DCtx* dctx, void* dst, size_t capacity,
+                                        const BYTE* src, size_t size, size_t chunk)
+{
+    ZSTD_outBuffer out = {dst, capacity, 0};
+    size_t pos = 0, ret = 1;
+    CHECK(chunk != 0);
+    while (pos < size) {
+        size_t const n = MIN(size - pos, chunk);
+        ZSTD_inBuffer in = {src + pos, n, 0};
+        while (in.pos < in.size) {
+            size_t const oldIn = in.pos, oldOut = out.pos;
+            ret = ZSTD_decompressStream(dctx, &out, &in);
+            if (ZSTD_isError(ret)) return ret;
+            CHECK(in.pos > oldIn || out.pos > oldOut);
+        }
+        pos += n;
+    }
+    CHECK_EQ(ret, 0);
+    return out.pos;
+}
+
+static void FUZ_mdict_checkOutput(size_t r, const void* out, const char* expected)
+{
+    CHECK_Z(r);
+    CHECK_EQ(r, strlen(expected));
+    CHECK_EQ(memcmp(out, expected, r), 0);
+}
+
+static void FUZ_mdict_testZeroID(void)
+{
+    U32 const zero = 0;
+    U32 id = 1;
+    ZSTD_DDict* const raw = FUZ_mdict_createDict(0, 'R');
+    ZSTD_DDict* full;
+    ZSTD_DCtx* const dctx = FUZ_mdict_createContext(raw, NULL);
+    BYTE frame[32], out[32];
+    size_t n, r;
+    /* Find a nonzero ID in raw dictionary 0's initial 64-slot hash bucket. */
+    while ((XXH64(&id, sizeof(id), 0) & 63) != (XXH64(&zero, sizeof(zero), 0) & 63))
+        ++id;
+    full = FUZ_mdict_createDict(id, 'A');
+    n = FUZ_mdict_makeFrame(frame, id, 0);
+
+    /* An occupied ID-0 slot is not a match for the missing nonzero ID. */
+    r = FUZ_mdict_decompressStream(dctx, out, sizeof(out), frame, n, 1);
+    CHECK_EQ(ZSTD_getErrorCode(r), ZSTD_error_dictionary_wrong);
+    CHECK_Z(ZSTD_DCtx_reset(dctx, ZSTD_reset_session_only));
+
+    /* After insertion, lookup must probe past raw dictionary 0 to find A.
+     * An actual ID-less frame must still find the raw dictionary itself. */
+    CHECK_Z(ZSTD_DCtx_refDDict(dctx, full));
+    CHECK_Z(ZSTD_DCtx_refDDict(dctx, raw));
+    r = FUZ_mdict_decompressStream(dctx, out, sizeof(out), frame, n, 1);
+    FUZ_mdict_checkOutput(r, out, "AAAAAAAA");
+    n = FUZ_mdict_makeFrame(frame, 0, 0);
+    r = FUZ_mdict_decompressStream(dctx, out, sizeof(out), frame, n, 1);
+    FUZ_mdict_checkOutput(r, out, "RRRRRRRR");
+    CHECK_Z(ZSTD_freeDCtx(dctx));
+    CHECK_Z(ZSTD_freeDDict(raw)); CHECK_Z(ZSTD_freeDDict(full));
+}
+
+static unsigned test_multipleDDicts(unsigned testNb)
+{
+    static const struct { const char* name; void (*run)(void); } tests[] = {
+        {"raw dictionary ID zero", FUZ_mdict_testZeroID},
+    };
+    size_t i;
+    for (i = 0; i < COUNTOF(tests); ++i) {
+        DISPLAYLEVEL(3, "test%3u : multi-DDict %s : ", testNb++, tests[i].name);
+        tests[i].run();
+        DISPLAYLEVEL(3, "OK \n");
+    }
+    return testNb;
+}
+
 static int basicUnitTests(U32 const seed, double compressibility)
 {
     size_t const CNBuffSize = 5 MB;
@@ -4452,6 +4600,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
             ZSTD_freeDCtx(dctx);
         }
         DISPLAYLEVEL(3, "OK \n");
+
+        testNb = test_multipleDDicts(testNb);
 
         DISPLAYLEVEL(3, "test%3i : ZSTD_decompressDCtx() with multiple ddicts : ", testNb++);
         {

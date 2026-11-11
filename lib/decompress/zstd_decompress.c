@@ -157,14 +157,11 @@ static const ZSTD_DDict* ZSTD_DDictHashSet_getDDict(ZSTD_DDictHashSet* hashSet, 
     size_t idx = ZSTD_DDictHashSet_getIndex(hashSet, dictID);
     const size_t idxRangeMask = hashSet->ddictPtrTableSize - 1;
     DEBUGLOG(4, "Hashed index: for dictID: %u is %zu", dictID, idx);
-    for (;;) {
-        size_t currDictID = ZSTD_getDictID_fromDDict(hashSet->ddictPtrTable[idx]);
-        if (currDictID == dictID || currDictID == 0) {
-            /* currDictID == 0 implies a NULL ddict entry */
+    while (hashSet->ddictPtrTable[idx] != NULL) {
+        if (ZSTD_getDictID_fromDDict(hashSet->ddictPtrTable[idx]) == dictID)
             break;
-        } else {
-            idx = (idx + 1) & idxRangeMask;    /* Goes to start of table when we reach the end */
-        }
+        /* ID 0 is valid for raw-content dictionaries, not an empty slot. */
+        idx = (idx + 1) & idxRangeMask;
     }
     DEBUGLOG(4, "Final idx after probing for dictID %u is: %zu", dictID, idx);
     return hashSet->ddictPtrTable[idx];
@@ -2156,7 +2153,9 @@ size_t ZSTD_decompressStream(ZSTD_DStream* zds, ZSTD_outBuffer* output, ZSTD_inB
             }   }
 #endif
             {   size_t const hSize = ZSTD_getFrameHeader_advanced(&zds->fParams, zds->headerBuffer, zds->lhSize, zds->format);
-                if (zds->refMultipleDDicts && zds->ddictSet) {
+                /* Only a complete ordinary frame header can select a DDict. */
+                if (hSize == 0 && zds->fParams.frameType == ZSTD_frame
+                    && zds->refMultipleDDicts && zds->ddictSet) {
                     ZSTD_DCtx_selectFrameDDict(zds);
                 }
                 if (ZSTD_isError(hSize)) {

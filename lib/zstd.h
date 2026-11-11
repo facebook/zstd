@@ -1701,6 +1701,8 @@ ZSTD_compressSequences(ZSTD_CCtx* cctx,
  * - @litBufCapacity is the size of the underlying buffer into which literals are written, starting at address @literals.
  *   @litBufCapacity must be at least 8 bytes larger than @litSize.
  * - @decompressedSize must be correct, and correspond to the sum of all Sequences. Any discrepancy will generate an error.
+ * - Each block must regenerate at most ZSTD_BLOCKSIZE_MAX bytes, or less with a smaller window or ZSTD_c_maxBlockSize.
+ *   A larger block will generate an error.
  * @return : final compressed size, or a ZSTD error code.
  */
 ZSTDLIB_STATIC_API size_t

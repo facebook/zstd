@@ -4911,6 +4911,18 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : ZSTD_compressSequencesAndLiterals : reject a too large block : ", testNb++);
+    {   /* one block of ZSTD_BLOCKSIZE_MAX + 1 bytes : 16 literals and a match, then the block delimiter */
+        ZSTD_Sequence const seqs[2] = { { 1, 16, ZSTD_BLOCKSIZE_MAX + 1 - 16, 0 }, { 0, 0, 0, 0 } };
+        ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+        CHECK(cctx != NULL);
+        CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_blockDelimiters, ZSTD_sf_explicitBlockDelimiters) );
+        CHECK( ZSTD_isError(ZSTD_compressSequencesAndLiterals(cctx, compressedBuffer, compressedBufferSize,
+                                seqs, 2, CNBuffer, 16, CNBuffSize, ZSTD_BLOCKSIZE_MAX + 1)) );
+        ZSTD_freeCCtx(cctx);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     /* Multiple blocks of zeros test */
     #define LONGZEROSLENGTH 1000000 /* 1MB of zeros */
     DISPLAYLEVEL(3, "test%3i : compress %u zeroes : ", testNb++, LONGZEROSLENGTH);

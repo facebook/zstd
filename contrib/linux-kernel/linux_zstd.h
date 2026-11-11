@@ -677,7 +677,8 @@ typedef ZSTD_Sequence zstd_sequence;
  * @in_seqs_size: The number of sequences in in_seqs.
  * @literals: The literals associated to the sequences to be compressed.
  * @lit_size: The size of the literals in the literals buffer.
- * @lit_capacity: The size of the literals buffer.
+ * @lit_capacity: The size of the literals buffer, which must be at least
+ *                8 bytes larger than lit_size.
  * @decompressed_size: The size of the input data
  *
  * Return: The compressed size or an error, which can be checked using

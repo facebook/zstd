@@ -364,10 +364,14 @@ static int testLegacyDictionaries(void)
             } else {
                 /* v0.5 and v0.6 have a four-byte magic, while v0.7
                  * also has a four-byte dictionary ID. Every truncated
-                 * header must be treated as raw dictionary content. */
+                 * header must be treated as raw dictionary content.
+                 * For v0.5 and v0.6, sizes 4 to 8 keep the magic but
+                 * truncate the entropy tables, which must not be read
+                 * past their end. v0.7 stops at 7: from 8 bytes, its
+                 * magic is parsed as a zstd dictionary. */
                 if (frames[f].version < 5 || frames[f].version > 7) continue;
                 dictContent[0] = (unsigned char)(0x30 + frames[f].version);
-                maxSize = frames[f].version == 7 ? 7 : 3;
+                maxSize = frames[f].version == 7 ? 7 : 8;
             }
             for (dictSize = 0; dictSize <= maxSize; ++dictSize) {
                 void* const dict = malloc(dictSize == 0 ? 1 : dictSize);

@@ -1682,6 +1682,51 @@ static void FUZ_mdict_testClearReferences(void)
     }
 }
 
+static void FUZ_mdict_testDictionaryReplacement(void)
+{
+    int mode, used;
+    for (mode = 0; mode < 5; ++mode) {
+        for (used = 0; used < 2; ++used) {
+            ZSTD_DDict* const a = FUZ_mdict_createDict(1111, 'A');
+            ZSTD_DDict* const b = FUZ_mdict_createDict(2222, 'B');
+            ZSTD_DDict* const d = FUZ_mdict_createDict(4444, 'D');
+            ZSTD_DCtx* const dctx = FUZ_mdict_createContext(a, b);
+            BYTE* const dict = (BYTE*)malloc(44);
+            BYTE frame[32], out[32];
+            size_t n, r;
+            CHECK(dict != NULL);
+            FUZ_mdict_makeDict(dict, 3333, 'C');
+            switch (mode) {
+            case 0: CHECK_Z(ZSTD_DCtx_loadDictionary(dctx, dict, 44)); break;
+            case 1: CHECK_Z(ZSTD_DCtx_loadDictionary_byReference(dctx, dict, 44)); break;
+            case 2: CHECK_Z(ZSTD_DCtx_loadDictionary_advanced(dctx, dict + 28, 16,
+                                                   ZSTD_dlm_byCopy, ZSTD_dct_rawContent)); break;
+            case 3: CHECK_Z(ZSTD_DCtx_refPrefix(dctx, dict + 28, 16)); break;
+            default: CHECK_Z(ZSTD_DCtx_refPrefix_advanced(dctx, dict, 44, ZSTD_dct_fullDict)); break;
+            }
+            /* Every local dictionary/prefix replacement releases all borrowed
+             * DDicts, even though multiple-DDict mode remains enabled. */
+            CHECK_Z(ZSTD_freeDDict(a)); CHECK_Z(ZSTD_freeDDict(b));
+            if (used) {
+                n = FUZ_mdict_makeFrame(frame, 0, 0);
+                r = ZSTD_decompressDCtx(dctx, out, sizeof(out), frame, n);
+                FUZ_mdict_checkOutput(r, out, "CCCCCCCC");
+            }
+            /* Going back to the set must discard both an unused and an already
+             * consumed prefix, as well as a sticky local dictionary. */
+            CHECK_Z(ZSTD_DCtx_refDDict(dctx, d));
+            free(dict);
+            n = FUZ_mdict_makeFrame(frame, 1111, 0);
+            r = ZSTD_decompressDCtx(dctx, out, sizeof(out), frame, n);
+            CHECK_EQ(ZSTD_getErrorCode(r), ZSTD_error_dictionary_wrong);
+            n = FUZ_mdict_makeFrame(frame, 0, 0);
+            r = ZSTD_decompressDCtx(dctx, out, sizeof(out), frame, n);
+            FUZ_mdict_checkOutput(r, out, "DDDDDDDD");
+            CHECK_Z(ZSTD_freeDCtx(dctx)); CHECK_Z(ZSTD_freeDDict(d));
+        }
+    }
+}
+
 /* The DDicts use the default allocator. Counting the DCtx's first 128-slot
  * table lets the test observe growth without inspecting private structs. */
 static void* FUZ_mdict_alloc(void* opaque, size_t size)
@@ -1726,6 +1771,7 @@ static unsigned test_multipleDDicts(unsigned testNb)
     static const struct { const char* name; void (*run)(void); } tests[] = {
         {"raw dictionary ID zero", FUZ_mdict_testZeroID},
         {"clearing dictionary references", FUZ_mdict_testClearReferences},
+        {"local dictionary replacement", FUZ_mdict_testDictionaryReplacement},
         {"hash-table growth", FUZ_mdict_testGrowth},
     };
     size_t i;

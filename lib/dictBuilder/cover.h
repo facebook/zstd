@@ -142,10 +142,8 @@ COVER_dictSelection_t COVER_dictSelectionError(size_t error);
 void COVER_dictSelectionFree(COVER_dictSelection_t selection);
 
 /**
- * Called to finalize the dictionary and select one based on whether or not
- * the shrink-dict flag was enabled. If enabled the dictionary used is the
- * smallest dictionary within a specified regression of the compressed size
- * from the largest dictionary.
+ * Called to finalize the dictionary and compute its total compressed size
+ * over the check samples.
  */
  COVER_dictSelection_t COVER_selectDict(BYTE* customDictContent, size_t dictBufferCapacity,
                        size_t dictContentSize, const BYTE* samplesBuffer, const size_t* samplesSizes, unsigned nbFinalizeSamples,

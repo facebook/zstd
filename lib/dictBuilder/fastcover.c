@@ -530,7 +530,6 @@ FASTCOVER_convertToCoverParams(ZDICT_fastCover_params_t fastCoverParams,
     coverParams->nbThreads = fastCoverParams.nbThreads;
     coverParams->splitPoint = fastCoverParams.splitPoint;
     coverParams->zParams = fastCoverParams.zParams;
-    coverParams->shrinkDict = fastCoverParams.shrinkDict;
 }
 
 
@@ -547,7 +546,6 @@ FASTCOVER_convertToFastCoverParams(ZDICT_cover_params_t coverParams,
     fastCoverParams->f = f;
     fastCoverParams->accel = accel;
     fastCoverParams->zParams = coverParams.zParams;
-    fastCoverParams->shrinkDict = coverParams.shrinkDict;
 }
 
 
@@ -642,7 +640,6 @@ ZDICT_optimizeTrainFromBuffer_fastCover(
         (1 + (kMaxD - kMinD) / 2) * (1 + (kMaxK - kMinK) / kStepSize);
     const unsigned f = parameters->f == 0 ? DEFAULT_F : parameters->f;
     const unsigned accel = parameters->accel == 0 ? DEFAULT_ACCEL : parameters->accel;
-    const unsigned shrinkDict = 0;
     /* Local variables */
     const int displayLevel = (int)parameters->zParams.notificationLevel;
     unsigned iteration = 1;
@@ -727,7 +724,6 @@ ZDICT_optimizeTrainFromBuffer_fastCover(
         data->parameters.d = d;
         data->parameters.splitPoint = splitPoint;
         data->parameters.steps = kSteps;
-        data->parameters.shrinkDict = shrinkDict;
         data->parameters.zParams.notificationLevel = (unsigned)ctx.displayLevel;
         /* Check the parameters */
         if (!FASTCOVER_checkParameters(data->parameters, dictBufferCapacity,

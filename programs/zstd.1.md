@@ -598,8 +598,7 @@ Compression of small files similar to the sample set will be greatly improved.
     If _steps_ is not specified, then the default value of 40 is used.
     If _split_ is not specified or split <= 0, then the default value of 100 is used.
     Requires that _d_ <= _k_.
-    If _shrink_ flag is not used, then the default value for _shrinkDict_ of 0 is used.
-    If _shrink_ is not specified, then the default value for _shrinkDictMaxRegression_ of 1 is used.
+    The _shrink_ flag is accepted for backward compatibility, but has no effect.
 
     Selects segments of size _k_ with highest score to put in the dictionary.
     The score of a segment is computed by the sum of the frequencies of all the
@@ -611,9 +610,6 @@ Compression of small files similar to the sample set will be greatly improved.
     If _split_ is 100, all input samples are used for both training and testing
     to find optimal _d_ and _k_ to build dictionary.
     Supports multithreading if `zstd` is compiled with threading support.
-    Having _shrink_ enabled takes a truncated dictionary of minimum size and doubles
-    in size until compression ratio of the truncated dictionary is at most
-    _shrinkDictMaxRegression%_ worse than the compression ratio of the largest dictionary.
 
     Examples:
 

@@ -48,7 +48,6 @@
 #include "compress/hist.h" /* HIST_count_wksp */
 #include "compress/zstd_compress_internal.h" /* ZSTD_get1BlockSummary */
 #include "decompress/zstd_decompress_internal.h" /* ZSTD_DCtx */
-#include "dictBuilder/cover.h" /* COVER_selectDict */
 
 
 /*-************************************
@@ -3697,44 +3696,12 @@ static int basicUnitTests(U32 const seed, double compressibility)
         }
         DISPLAYLEVEL(3, "OK, created dictionary of size %u \n", (unsigned)dictSize);
 
-        DISPLAYLEVEL(3, "test%3i : COVER dictBuilder with shrinkDict: ", testNb++);
-        { U32 u; for (u=0; u<nbSamples; u++) samplesSizes[u] = sampleUnitSize; }
-        {   ZDICT_cover_params_t coverParams;
-            memset(&coverParams, 0, sizeof(coverParams));
-            coverParams.steps = 8;
-            coverParams.nbThreads = 4;
-            coverParams.shrinkDict = 1;
-            coverParams.shrinkDictMaxRegression = 1;
-            dictSize = ZDICT_optimizeTrainFromBuffer_cover(
-                dictBuffer, dictBufferCapacity,
-                CNBuffer, samplesSizes, nbSamples/8,  /* less samples for faster tests */
-                &coverParams);
-            if (ZDICT_isError(dictSize)) goto _output_error;
-        }
-        DISPLAYLEVEL(3, "OK, created dictionary of size %u \n", (unsigned)dictSize);
-
         DISPLAYLEVEL(3, "test%3i : Multithreaded FASTCOVER dictBuilder : ", testNb++);
         { U32 u; for (u=0; u<nbSamples; u++) samplesSizes[u] = sampleUnitSize; }
         {   ZDICT_fastCover_params_t fastCoverParams;
             memset(&fastCoverParams, 0, sizeof(fastCoverParams));
             fastCoverParams.steps = 8;
             fastCoverParams.nbThreads = 4;
-            dictSize = ZDICT_optimizeTrainFromBuffer_fastCover(
-                dictBuffer, dictBufferCapacity,
-                CNBuffer, samplesSizes, nbSamples,
-                &fastCoverParams);
-            if (ZDICT_isError(dictSize)) goto _output_error;
-        }
-        DISPLAYLEVEL(3, "OK, created dictionary of size %u \n", (unsigned)dictSize);
-
-        DISPLAYLEVEL(3, "test%3i : FASTCOVER dictBuilder with shrinkDict: ", testNb++);
-        { U32 u; for (u=0; u<nbSamples; u++) samplesSizes[u] = sampleUnitSize; }
-        {   ZDICT_fastCover_params_t fastCoverParams;
-            memset(&fastCoverParams, 0, sizeof(fastCoverParams));
-            fastCoverParams.steps = 8;
-            fastCoverParams.nbThreads = 4;
-            fastCoverParams.shrinkDict = 1;
-            fastCoverParams.shrinkDictMaxRegression = 1;
             dictSize = ZDICT_optimizeTrainFromBuffer_fastCover(
                 dictBuffer, dictBufferCapacity,
                 CNBuffer, samplesSizes, nbSamples,
@@ -3779,51 +3746,6 @@ static int basicUnitTests(U32 const seed, double compressibility)
                 }
             }
             free(coverDict);
-        }
-        DISPLAYLEVEL(3, "OK \n");
-
-        DISPLAYLEVEL(3, "test%3i : COVER_selectDict shrinkDict with content < ZDICT_DICTSIZE_MIN : ", testNb++);
-        /* The shrink loop tries suffixes of the content, starting at ZDICT_DICTSIZE_MIN.
-         * With smaller content no suffix fits, so the full dictionary must be returned.
-         * The content is allocated at its exact size, so under ASan any read before it
-         * is reported as a heap-buffer-overflow. */
-        {   size_t offsets[8];
-            unsigned const nbSelectSamples = (unsigned)(sizeof(offsets) / sizeof(offsets[0]));
-            size_t const contentSize = ZDICT_DICTSIZE_MIN - 16;
-            size_t const selectCapacity = 4 KB;
-            BYTE* const content = (BYTE*)malloc(contentSize);
-            BYTE* const expected = (BYTE*)malloc(selectCapacity);
-            ZDICT_cover_params_t coverParams;
-            COVER_dictSelection_t selection;
-            size_t expectedSize;
-            unsigned u;
-            if (content == NULL || expected == NULL) {
-                free(content);
-                free(expected);
-                goto _output_error;
-            }
-            memcpy(content, CNBuffer, contentSize);
-            for (u = 0; u < nbSelectSamples; u++) offsets[u] = u * sampleUnitSize;
-            memset(&coverParams, 0, sizeof(coverParams));
-            coverParams.splitPoint = 1.0;
-            coverParams.shrinkDict = 1;
-            coverParams.shrinkDictMaxRegression = 100000;  /* accept any candidate */
-            expectedSize = ZDICT_finalizeDictionary(expected, selectCapacity,
-                                                    content, contentSize,
-                                                    CNBuffer, samplesSizes, nbSelectSamples,
-                                                    coverParams.zParams);
-            selection = COVER_selectDict(content, selectCapacity, contentSize,
-                                         (const BYTE*)CNBuffer, samplesSizes, nbSelectSamples,
-                                         nbSelectSamples, nbSelectSamples, coverParams, offsets, 0);
-            {   int const ok = !ZDICT_isError(expectedSize)
-                            && !COVER_dictSelectionIsError(selection)
-                            && selection.dictSize == expectedSize
-                            && !memcmp(selection.dictContent, expected, expectedSize);
-                COVER_dictSelectionFree(selection);
-                free(content);
-                free(expected);
-                if (!ok) goto _output_error;
-            }
         }
         DISPLAYLEVEL(3, "OK \n");
 

@@ -1867,6 +1867,11 @@ size_t ZSTDMT_nextInputSizeHint(const ZSTDMT_CCtx* mtctx)
     return hintInSize;
 }
 
+unsigned ZSTDMT_isFrameEnded(const ZSTDMT_CCtx* mtctx)
+{
+    return mtctx->frameEnded;
+}
+
 /** ZSTDMT_compressStream_generic() :
  *  internal use only - exposed to be invoked from zstd_compress.c
  *  assumption : output and input are valid (pos <= size)
@@ -1887,8 +1892,12 @@ size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
         return ERROR(stage_wrong);
     }
 
-    /* fill input buffer */
+    /* fill input buffer.
+     * Once the last job of the frame is created, remaining input belongs to the next frame :
+     * it is left untouched, like the single-thread path does. No job can follow the last one :
+     * it could wait forever at the serial gate, behind an empty last job written inline. */
     if ( (!mtctx->jobReady)
+      && (!mtctx->frameEnded)
       && (input->size > input->pos) ) {   /* support NULL input */
         if (mtctx->inBuff.buffer.start == NULL) {
             assert(mtctx->inBuff.filled == 0); /* Can't fill an empty buffer */
@@ -1937,7 +1946,7 @@ size_t ZSTDMT_compressStream_generic(ZSTDMT_CCtx* mtctx,
 
     /* check for potential compressed data ready to be flushed */
     {   size_t const remainingToFlush = ZSTDMT_flushProduced(mtctx, output, !forwardInputProgress, endOp); /* block if there was no forward input progress */
-        if (input->pos < input->size) return MAX(remainingToFlush, 1);  /* input not consumed : do not end flush yet */
+        if ((input->pos < input->size) && (!mtctx->frameEnded)) return MAX(remainingToFlush, 1);  /* input not consumed : do not end flush yet */
         DEBUGLOG(5, "end of ZSTDMT_compressStream_generic: remainingToFlush = %u", (U32)remainingToFlush);
         return remainingToFlush;
     }

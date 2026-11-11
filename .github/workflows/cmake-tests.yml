@@ -126,6 +126,12 @@ jobs:
             runner: "windows-2022"
             cmake_extra_flags: "-DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DZSTD_BUILD_TESTS=ON"
           - generator: "Visual Studio 17 2022"
+            flags: "-T ClangCL"
+            name: "Clang-CL (No ZSTD_BUILD_TESTS)"
+            runner: "windows-2022"
+            # Intentionally omit ZSTD_BUILD_TESTS: C++ is not enabled, so only the C compiler id is set
+            cmake_extra_flags: "-DCMAKE_COMPILE_WARNING_AS_ERROR=ON"
+          - generator: "Visual Studio 17 2022"
             flags: "-T ClangCL -A x64 -DCMAKE_C_FLAGS=/arch:AVX2"
             name: "Clang-CL AVX2"
             runner: "windows-2022"

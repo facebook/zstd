@@ -1387,7 +1387,8 @@ static void FIO_adjustParamsForPatchFromMode(FIO_prefs_t* const prefs,
                                     unsigned long long const maxSrcFileSize,
                                     int cLevel)
 {
-    unsigned const fileWindowLog = FIO_highbit64(maxSrcFileSize) + 1;
+    /* FIO_highbit64() requires v > 0 : an empty source only needs the smallest window */
+    unsigned const fileWindowLog = maxSrcFileSize ? FIO_highbit64(maxSrcFileSize) + 1 : ZSTD_WINDOWLOG_MIN;
     ZSTD_compressionParameters const cParams = ZSTD_getCParams(cLevel, (size_t)maxSrcFileSize, (size_t)dictSize);
     FIO_adjustMemLimitForPatchFromMode(prefs, dictSize, maxSrcFileSize);
     if (fileWindowLog > ZSTD_WINDOWLOG_MAX)

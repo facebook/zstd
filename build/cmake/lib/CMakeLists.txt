@@ -98,7 +98,7 @@ if (ZSTD_LEGACY_SUPPORT)
             ${LIBRARY_LEGACY_DIR}/zstd_v07.h)
 endif ()
 
-if (MSVC AND NOT (CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
+if (MSVC AND NOT (CMAKE_C_COMPILER_ID STREQUAL "Clang"))
     set(MSVC_RESOURCE_DIR ${ZSTD_SOURCE_DIR}/build/VS2010/libzstd-dll)
     set(PlatformDependResources ${MSVC_RESOURCE_DIR}/libzstd-dll.rc)
 else()
@@ -189,7 +189,7 @@ if (MSVC)
 endif ()
 
 # With MSVC static library needs to be renamed to avoid conflict with import library
-if (MSVC OR (WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND NOT MINGW))
+if (MSVC OR (WIN32 AND CMAKE_C_COMPILER_ID STREQUAL "Clang" AND NOT MINGW))
     set(STATIC_LIBRARY_BASE_NAME zstd_static)
 else ()
     set(STATIC_LIBRARY_BASE_NAME zstd)

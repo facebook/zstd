@@ -48,3 +48,16 @@ jobs:
           -DANDROID_PLATFORM=android-21 \
           -DCMAKE_BUILD_TYPE=Release
         cmake --build . --parallel
+
+  # Required by the ruleset on dev, instead of the jobs above: list all of them in needs.
+  # always(): if a job fails, a skipped all-green would count as passed.
+  all-green:
+    name: "android-ndk-build all green"
+    if: always()
+    needs:
+    - build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check that no job failed or was cancelled
+      if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+      run: exit 1

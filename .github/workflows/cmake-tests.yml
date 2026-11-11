@@ -187,3 +187,21 @@ jobs:
         cmake -DCMAKE_BUILD_TYPE=Release ${{ env.COMMON_CMAKE_FLAGS }} -DZSTD_ZSTREAM_FLAGS=-T${{ env.QUICK_TEST_TIME }} -DZSTD_FUZZER_FLAGS=-T${{ env.QUICK_TEST_TIME }} -DZSTD_FULLBENCH_FLAGS=-i1 ..
         make -j$(sysctl -n hw.ncpu)
         ctest -V
+
+  # Required by the ruleset on dev, instead of the jobs above: list all of them in needs.
+  # always(): if a job fails, a skipped all-green would count as passed.
+  all-green:
+    name: "cmake-tests all green"
+    if: always()
+    needs:
+    - cmake-root-basic
+    - cmake-c-only
+    - cmake-ubuntu-basic
+    - cmake-cross-platform-spaces
+    - cmake-windows-comprehensive
+    - cmake-macos-arm64
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check that no job failed or was cancelled
+      if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+      run: exit 1

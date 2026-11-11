@@ -336,3 +336,43 @@ jobs:
       with:
         name: ${{ matrix.sanitizer }}-artifacts
         path: ./out/artifacts
+
+  # Required by the ruleset on dev, instead of the jobs above: list all of them in needs.
+  # always(): if a job fails, a skipped all-green would count as passed.
+  all-green:
+    name: "dev-long-tests all green"
+    if: always()
+    needs:
+    - make-all
+    - make-test
+    - make-test-macos
+    - make-test-32bit
+    - test-largeDictionary
+    - no-intrinsics-fuzztest
+    - tsan-zstreamtest
+    - uasan-zstreamtest
+    - tsan-fuzztest
+    - big-tests-zstreamtest32
+    - gcc-8-asan-ubsan-testzstd
+    - clang-asan-ubsan-testzstd
+    - gcc-asan-ubsan-testzstd-32bit
+    - gcc-8-asan-ubsan-fuzz
+    - clang-asan-ubsan-fuzz
+    - clang-asan-ubsan-legacy
+    - gcc-asan-ubsan-fuzz32
+    - clang-asan-fuzz32
+    - asan-ubsan-regression
+    - clang-asan-ubsan-regression
+    - msan-regression
+    - clang-msan-fuzz-unoptimized
+    - clang-msan-fuzz
+    - clang-msan-testzstd
+    - armfuzz
+    - valgrind-fuzz-test
+    - mingw-long-test
+    - oss-fuzz
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check that no job failed or was cancelled
+      if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+      run: exit 1

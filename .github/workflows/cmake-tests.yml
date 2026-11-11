@@ -36,6 +36,21 @@ jobs:
       run: |
         cmake --build cmake-build --config Release
 
+  # Build without the tests, so C++ is not enabled, with CMAKE_CXX_COMPILER set as cross toolchain files do.
+  # The x86-64 assembly is only built when the compilation flags are applied.
+  cmake-c-only:
+    name: "CMake C only (No ZSTD_BUILD_TESTS)"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
+    - name: Configure and build
+      run: |
+        cmake -S build/cmake -B cmake-build -DCMAKE_BUILD_TYPE=Release -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DCMAKE_CXX_COMPILER=g++
+        cmake --build cmake-build --parallel
+    - name: Check that the x86-64 assembly is built
+      run: |
+        nm cmake-build/lib/libzstd.a | grep -q HUF_decompress4X1_usingDTable_internal_fast_asm_loop
+
   # Ubuntu-based cmake build using make wrapper
   # This test uses the make-driven cmake build to ensure compatibility
   # with the existing build system integration

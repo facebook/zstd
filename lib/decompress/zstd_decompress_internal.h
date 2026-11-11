@@ -163,7 +163,7 @@ struct ZSTD_DCtx_s
 
     /* dictionary */
     ZSTD_DDict* ddictLocal;
-    const ZSTD_DDict* ddict;     /* set by ZSTD_initDStream_usingDDict(), or ZSTD_DCtx_refDDict() */
+    const ZSTD_DDict* ddict;     /* single-DDict state; NULL while ddictSet exists */
     U32 dictID;
     int ddictIsCold;             /* if == 1 : dictionary is "new" for working context, and presumed "cold" (not in cpu cache) */
     ZSTD_dictUses_e dictUses;
@@ -210,6 +210,7 @@ struct ZSTD_DCtx_s
     /* Tracing */
 #if ZSTD_TRACE
     ZSTD_TraceCtx traceCtx;
+    size_t traceDictSize;       /* size of the dictionary installed for this frame */
 #endif
 };  /* typedef'd to ZSTD_DCtx within "zstd.h" */
 

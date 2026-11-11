@@ -1030,7 +1030,8 @@ ZSTDLIB_API size_t      ZSTD_freeDDict(ZSTD_DDict* ddict);
 
 /*! ZSTD_decompress_usingDDict() :
  *  Decompression using a digested Dictionary.
- *  Recommended when same dictionary is used multiple times. */
+ *  Recommended when same dictionary is used multiple times.
+ *  Uses the supplied DDict, regardless of dictionaries referenced in dctx. */
 ZSTDLIB_API size_t ZSTD_decompress_usingDDict(ZSTD_DCtx* dctx,
                                               void* dst, size_t dstCapacity,
                                         const void* src, size_t srcSize,
@@ -1165,7 +1166,8 @@ ZSTDLIB_API size_t ZSTD_DCtx_loadDictionary(ZSTD_DCtx* dctx, const void* dict, s
 
 /*! ZSTD_DCtx_refDDict() : Requires v1.4.0+
  *  Reference a prepared dictionary, to be used to decompress next frames.
- *  The dictionary remains active for decompression of future frames using same DCtx.
+ *  In single-DDict mode, the dictionary remains active for decompression of
+ *  future frames using the same DCtx.
  *
  *  If called with ZSTD_d_refMultipleDDicts enabled, repeated calls of this function
  *  will store the DDict references in a table, and the DDict used for decompression
@@ -2567,15 +2569,22 @@ ZSTDLIB_STATIC_API size_t ZSTD_DCtx_getParameter(ZSTD_DCtx* dctx, ZSTD_dParamete
  * to store references to multiple ZSTD_DDict. That is, multiple calls of ZSTD_refDDict()
  * using a given ZSTD_DCtx, rather than overwriting the previous DDict reference, will instead
  * store all references. At decompression time, the appropriate dictID is selected
- * from the set of DDicts based on the dictID in the frame.
+ * from the set of DDicts based on the dictID in each frame. This applies to
+ * ZSTD_decompressDCtx() and ZSTD_decompressStream(); entry points taking an
+ * explicit dictionary use that dictionary instead.
  * When a set exists, an ordinary Zstandard frame with a nonzero dictionary ID must
  * have an exact match in the set; otherwise decompression returns
  * ZSTD_error_dictionary_wrong. A frame with dictionary ID 0 (including an omitted
  * ID) uses the registered ID-0 DDict if present, or no dictionary otherwise.
- * Skippable frames do not select a dictionary.
+ * There is no default dictionary in the set, and a lookup does not change the
+ * dictionary used by another frame.
+ * Skippable frames do not select a dictionary. Legacy formats are not supported
+ * by set-based decoding; use a single or explicitly supplied dictionary instead.
  * Loading a dictionary or referencing a prefix discards the referenced set,
  * without disabling this mode. Referencing a DDict discards any previously
  * loaded dictionary or prefix. The two kinds of dictionary storage cannot coexist.
+ * Disabling this mode discards the entire set. No dictionary from the set is
+ * retained for subsequent decompression.
  *
  * Usage is simply calling ZSTD_refDDict() on multiple dict buffers.
  *

@@ -397,6 +397,55 @@ static int testLegacyDictionaries(void)
     return 0;
 }
 
+#if (ZSTD_LEGACY_SUPPORT <= 7)
+static int testMultipleDDicts(void)
+{
+    size_t const blockSize = strlen(BLOCK);
+    char* const output = malloc(2 * blockSize);
+    ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+    ZSTD_DDict* const empty = ZSTD_createDDict(NULL, 0);
+    char frames[FRAME_V08_SIZE + FRAME_V07_SIZE];
+    int result = 1;
+    size_t ret;
+
+    do {
+        ZSTD_inBuffer input = {FRAME_V07, FRAME_V07_SIZE, 0};
+        ZSTD_outBuffer out = {output, 2 * blockSize, 0};
+        if (output == NULL || dctx == NULL || empty == NULL) break;
+        if (ZSTD_isError(ZSTD_DCtx_setParameter(dctx, ZSTD_d_refMultipleDDicts, 1))) break;
+        if (ZSTD_isError(ZSTD_DCtx_refDDict(dctx, empty))) break;
+
+        ret = ZSTD_decompressDCtx(dctx, output, 2 * blockSize, FRAME_V07, FRAME_V07_SIZE);
+        if (ZSTD_getErrorCode(ret) != ZSTD_error_parameter_unsupported) break;
+        if (ZSTD_isError(ZSTD_DCtx_reset(dctx, ZSTD_reset_session_only))) break;
+        ret = ZSTD_decompressStream(dctx, &out, &input);
+        if (ZSTD_getErrorCode(ret) != ZSTD_error_parameter_unsupported) break;
+        if (ZSTD_isError(ZSTD_DCtx_reset(dctx, ZSTD_reset_session_only))) break;
+
+        /* A preceding modern frame must not supply an implicit dictionary to
+         * the legacy frame. Explicit dictionaries remain supported. */
+        memcpy(frames, FRAME_V08, FRAME_V08_SIZE);
+        memcpy(frames + FRAME_V08_SIZE, FRAME_V07, FRAME_V07_SIZE);
+        ret = ZSTD_decompressDCtx(dctx, output, 2 * blockSize, frames, sizeof(frames));
+        if (ZSTD_getErrorCode(ret) != ZSTD_error_parameter_unsupported) break;
+        ret = ZSTD_decompress_usingDDict(dctx, output, 2 * blockSize,
+                                         frames, sizeof(frames), empty);
+        if (ret != 2 * blockSize || memcmp(output, BLOCK, blockSize) != 0
+            || memcmp(output + blockSize, BLOCK, blockSize) != 0) break;
+        ret = ZSTD_decompress_usingDict(dctx, output, 2 * blockSize,
+                                        FRAME_V07, FRAME_V07_SIZE, NULL, 0);
+        if (ret != blockSize || memcmp(output, BLOCK, blockSize) != 0) break;
+        result = 0;
+    } while (0);
+
+    free(output);
+    ZSTD_freeDCtx(dctx);
+    ZSTD_freeDDict(empty);
+    DISPLAY("Multi-DDict legacy boundary %s\n", result ? "FAILED" : "OK");
+    return result;
+}
+#endif
+
 int main(void)
 {
     size_t const blockSize = strlen(BLOCK);
@@ -440,6 +489,9 @@ int main(void)
         if (testStreamingAPI(streamable, streamableSize,
                              expected, blockSize * nbStreamFrames)) break;
         if (testLegacyDictionaries()) break;
+#if (ZSTD_LEGACY_SUPPORT <= 7)
+        if (testMultipleDDicts()) break;
+#endif
         result = 0;
     } while (0);
 

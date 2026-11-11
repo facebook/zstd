@@ -63,7 +63,10 @@ void ZSTD_copyDDictParameters(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict)
     dctx->dictID = ddict->dictID;
     dctx->prefixStart = ddict->dictContent;
     dctx->virtualStart = ddict->dictContent;
-    dctx->dictEnd = (const BYTE*)ddict->dictContent + ddict->dictSize;
+    /* An empty DDict may have NULL content. */
+    dctx->dictEnd = ddict->dictSize != 0
+            ? (const BYTE*)ddict->dictContent + ddict->dictSize
+            : ddict->dictContent;
     dctx->previousDstEnd = dctx->dictEnd;
 #ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
     dctx->dictContentBeginForFuzzing = dctx->prefixStart;

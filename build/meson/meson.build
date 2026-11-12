@@ -87,6 +87,8 @@ feature_lz4 = get_option('lz4')
 # =============================================================================
 
 libm_dep = cc.find_library('m', required: false)
+# Needed for `clock_gettime` before glibc 2.17.
+rt_dep = cc.find_library('rt', required: false)
 if host_machine_os == os_windows
   thread_dep = dependency('', required: false)
   use_multi_thread = not feature_multi_thread.disabled()

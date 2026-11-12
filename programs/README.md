@@ -4,7 +4,7 @@ Command Line Interface for Zstandard library
 Command Line Interface (CLI) can be created using the `make` command without any additional parameters.
 There are however other Makefile targets that create different variations of CLI:
 - `zstd` : default CLI supporting gzip-like arguments; includes dictionary builder and benchmark
-- `zstd_nolegacy` : Same as `zstd` but with support for legacy zstd formats explicitly disabled
+- `zstd-nolegacy` : Same as `zstd` but with support for legacy zstd formats explicitly disabled
 - `zstd-small` : CLI optimized for minimal size; no dictionary builder, no benchmark, and no support for legacy zstd formats
 - `zstd-compress` : version of CLI which can only compress into zstd format
 - `zstd-decompress` : version of CLI which can only decompress zstd format

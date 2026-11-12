@@ -98,6 +98,15 @@ local int gz_comp(gz_statep state, int flush) {
         return 0;
     }
 
+    /* check for a pending reset */
+    if (state.state->reset) {
+        /* don't start a new gzip member unless there is data to write */
+        if (strm->avail_in == 0)
+            return 0;
+        deflateReset(strm);
+        state.state->reset = 0;
+    }
+
     /* run deflate() on provided input until it produces no more output */
     ret = Z_OK;
     do {
@@ -135,7 +144,7 @@ local int gz_comp(gz_statep state, int flush) {
 
     /* if that completed a deflate stream, allow another to start */
     if (flush == Z_FINISH)
-        deflateReset(strm);
+        state.state->reset = 1;
 
     /* all done, no errors */
     return 0;

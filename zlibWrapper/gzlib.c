@@ -81,6 +81,7 @@ local void gz_reset(gz_statep state) {
         state.state->how = LOOK;          /* look for gzip header */
     }
     state.state->seek = 0;                /* no seek request pending */
+    state.state->reset = 0;               /* no deflateReset pending */
     gz_error(state, Z_OK, NULL);    /* clear error */
     state.state->x.pos = 0;               /* no uncompressed data yet */
     state.state->strm.avail_in = 0;       /* no input data yet */

@@ -5671,6 +5671,46 @@ static int basicUnitTests(U32 const seed, double compressibility)
         }
     }
 
+    DISPLAYLEVEL(3, "test%3i : oversized round buffer must fail cleanly on 32-bit : ", testNb++);
+    /* On 32-bit builds the round buffer size can exceed 4 GiB, which
+     * wraps in 32-bit size_t. Without the overflow check in
+     * ZSTDMT_initCStream_internal(), init succeeds with a buffer that
+     * is too small for the requested configuration (and if it wraps
+     * to 0, the first streaming copy overruns it). With the check,
+     * the first ZSTD_compressStream2() call fails cleanly with
+     * memory_allocation and nothing is copied. Both cases are
+     * unreachable on 64-bit builds, where they get a real buffer.
+     * - case 0: windowLog 30 with btultra2 (level 22) and LDM disabled
+     *   makes the overlap prefix 1 GiB, which bumps the job size to
+     *   1 GiB; 1 worker needs 4 GiB, which wraps to 0.
+     * - case 1: 16 workers with 256 MB jobs need 4.75 GiB, which
+     *   wraps to 768 MB. */
+    if (MEM_32bits()) {
+#ifdef ZSTD_MULTITHREAD
+        struct { int nbWorkers; int windowLog; int jobSize; } const cases[2] = {
+            { 1, 30, 0 },
+            { 16, 27, 256 MB },
+        };
+        size_t caseNb;
+        for (caseNb = 0; caseNb < 2; caseNb++) {
+            ZSTD_CCtx* const cctx = ZSTD_createCCtx();
+            ZSTD_outBuffer out = { compressedBuffer, compressedBufferSize, 0 };
+            ZSTD_inBuffer in = { CNBuffer, CNBuffSize, 0 };
+            size_t r;
+            CHECK(cctx != NULL);
+            CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_nbWorkers, cases[caseNb].nbWorkers) );
+            CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_compressionLevel, ZSTD_maxCLevel()) );
+            CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_windowLog, cases[caseNb].windowLog) );
+            CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_jobSize, cases[caseNb].jobSize) );
+            CHECK_Z( ZSTD_CCtx_setParameter(cctx, ZSTD_c_enableLongDistanceMatching, ZSTD_ps_disable) );
+            r = ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_continue);
+            ZSTD_freeCCtx(cctx);
+            if (ZSTD_getErrorCode(r) != ZSTD_error_memory_allocation) goto _output_error;
+        }
+#endif
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     /* advanced parameters for decompression */
     {   ZSTD_DCtx* const dctx = ZSTD_createDCtx();
         assert(dctx != NULL);

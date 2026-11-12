@@ -1088,6 +1088,38 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
         }
         DISPLAYLEVEL(3, "OK \n");
 
+        DISPLAYLEVEL(3, "test%3i : ZSTD_c_stableInBuffer : pending input is checked when compression starts : ", testNb++);
+        {   ZSTD_CCtx* const cctx2 = ZSTD_createCCtx();
+            int violation;
+            assert(cctx2 != NULL);
+            /* 0: different src pointer, 1: ZSTD_c_stableInBuffer disabled */
+            for (violation = 0; violation < 2; violation++) {
+                ZSTD_inBuffer inBuf;
+                ZSTD_outBuffer outBuf;
+                inBuf.src = CNBuffer;
+                inBuf.size = 1 KB;
+                inBuf.pos = 0;
+                outBuf.dst = compressedBuffer;
+                outBuf.size = compressedBufferSize;
+                outBuf.pos = 0;
+                CHECK_Z( ZSTD_CCtx_reset(cctx2, ZSTD_reset_session_and_parameters) );
+                CHECK_Z( ZSTD_CCtx_setParameter(cctx2, ZSTD_c_stableInBuffer, 1) );
+                CHECK_Z( ZSTD_compressStream2(cctx2, &outBuf, &inBuf, ZSTD_e_continue) );
+                if (violation == 0) {
+                    inBuf.src = (const char*)CNBuffer + 1 MB;
+                    inBuf.pos = 0;
+                } else {
+                    CHECK_Z( ZSTD_CCtx_setParameter(cctx2, ZSTD_c_stableInBuffer, 0) );
+                    inBuf.size = 2 KB;
+                }
+                {   size_t const ret = ZSTD_compressStream2(cctx2, &outBuf, &inBuf, ZSTD_e_end);
+                    CHECK(!ZSTD_isError(ret), "case %i : must error", violation);
+                    CHECK(!(ZSTD_getErrorCode(ret) == ZSTD_error_stabilityCondition_notRespected), "case %i : must be this error", violation);
+            }   }
+            ZSTD_freeCCtx(cctx2);
+        }
+        DISPLAYLEVEL(3, "OK \n");
+
         DISPLAYLEVEL(3, "test%3i : ZSTD_compressStream2() with ZSTD_c_stableOutBuffer only : ", testNb++);
         CHECK_Z(ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters));
         CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1));

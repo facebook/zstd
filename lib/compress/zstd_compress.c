@@ -6575,14 +6575,15 @@ size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
     if (cctx->streamStage == zcss_init) {
         size_t const inputSize = input->size - input->pos;  /* no obligation to start from pos==0 */
         size_t const totalInputSize = inputSize + cctx->stableIn_notConsumed;
+        if (cctx->stableIn_notConsumed) {  /* not the first time */
+            /* check stable source guarantees, including when this call starts compression */
+            RETURN_ERROR_IF(cctx->requestedParams.inBufferMode != ZSTD_bm_stable, stabilityCondition_notRespected, "stableInBuffer condition not respected: disabled while input is pending");
+            RETURN_ERROR_IF(input->src != cctx->expectedInBuffer.src, stabilityCondition_notRespected, "stableInBuffer condition not respected: wrong src pointer");
+            RETURN_ERROR_IF(input->pos != cctx->expectedInBuffer.size, stabilityCondition_notRespected, "stableInBuffer condition not respected: externally modified pos");
+        }
         if ( (cctx->requestedParams.inBufferMode == ZSTD_bm_stable) /* input is presumed stable, across invocations */
           && (endOp == ZSTD_e_continue)                             /* no flush requested, more input to come */
           && (totalInputSize < ZSTD_BLOCKSIZE_MAX) ) {              /* not even reached one block yet */
-            if (cctx->stableIn_notConsumed) {  /* not the first time */
-                /* check stable source guarantees */
-                RETURN_ERROR_IF(input->src != cctx->expectedInBuffer.src, stabilityCondition_notRespected, "stableInBuffer condition not respected: wrong src pointer");
-                RETURN_ERROR_IF(input->pos != cctx->expectedInBuffer.size, stabilityCondition_notRespected, "stableInBuffer condition not respected: externally modified pos");
-            }
             /* pretend input was consumed, to give a sense forward progress */
             input->pos = input->size;
             /* save stable inBuffer, for later control, and flush/end */

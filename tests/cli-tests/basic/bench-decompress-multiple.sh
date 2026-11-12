@@ -29,7 +29,8 @@ cat skippable.zst skippable.zst > skippables.zst
 zstd -qq -t padded.zst raw.zst expanding.zst skippable.zst empty.zst skippables.zst single.zst
 
 # Advancing the second result pointer by compressed size caused a heap
-# overwrite here. ASan detects it even when the allocator does not crash.
+# overwrite here. The old code is reliably rejected only in an ASan build;
+# a plain allocator may not crash on the invalid write.
 zstd -qq -d -b -i0 padded.zst raw.zst
 zstd -qq -d -b -i0 expanding.zst raw.zst
 zstd -qq -d -b -i0 raw.zst expanding.zst
@@ -38,10 +39,15 @@ zstd -qq -d -b -B64 -i0 single.zst
 # The benchmark's streaming wrapper currently rejects zero output capacity.
 # Accept that clean error (or success), but never a sanitizer failure.
 check_zero_output() {
-    if zstd -q -d -b -i0 "$@" > /dev/null 2> error.stderr; then
-        return
+    zero_output_status=0
+    zstd -q -d -b -i0 "$@" > /dev/null 2> error.stderr || zero_output_status=$?
+    if grep -Eq 'Sanitizer|runtime error:' error.stderr; then
+        cat error.stderr >&2
+        die 'sanitizer failure in zero-output benchmark'
     fi
-    grep -Fq 'Error 30 : decompression error' error.stderr
+    if test "$zero_output_status" -ne 0; then
+        grep -Fq 'Error 30 : decompression error' error.stderr
+    fi
 }
 check_zero_output skippables.zst expanding.zst empty.zst
 check_zero_output empty.zst skippable.zst

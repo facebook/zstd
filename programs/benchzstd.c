@@ -476,7 +476,7 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
         }
         {
             size_t const decodedSize = (size_t)totalDSize64;
-            assert((U64)decodedSize == totalDSize64); /* check overflow */
+            assert((U64)decodedSize == totalDSize64); /* checked before summing */
             free(*resultBufferPtr);
             *resultBufferPtr = malloc(decodedSize ? decodedSize : 1);
             if (!(*resultBufferPtr)) {
@@ -513,10 +513,13 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
                              ? chunkSize
                              : ZSTD_compressBound(chunkSize);
                 resPtrs[chunkID]       = resPtr;
+                /* Decode-only mode uses one chunk per file, whose known,
+                 * size_t-representable decoded size was validated above. */
                 resSizes[chunkID]      = (adv->mode == BMK_decodeOnly)
                                 ? (size_t)ZSTD_findDecompressedSize(
                                 srcPtr, chunkSize)
                                 : chunkSize;
+                /* Defensive: every result slice must fit its allocation. */
                 if (resSizes[chunkID] > remainingResultSize) {
                     RETURN_ERROR(
                             32,

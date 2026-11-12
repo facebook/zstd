@@ -40,30 +40,46 @@ case $prog in
     *)       prog=zstdgrep;;
 esac
 
-# skip all options and pass them on to grep taking care of options
-# with arguments, and if -e was supplied
+# Pass options through to grep. Pattern-bearing options (-e/--regexp, -f/--file)
+# may repeat; once any are seen, do not steal a positional pattern.
+# Keep this as an original evolution of this script (BSD), not a gzip zgrep port.
 
 while [ "$#" -gt 0 ] && [ "${endofopts}" -eq 0 ]; do
     case "$1" in
-    # from GNU grep-2.5.1 -- keep in sync!
-        -[ABCDXdefm])
+        -e|--regexp)
             if [ "$#" -lt 2 ]; then
                 printf '%s: missing argument for %s flag\n' "${prog}" "$1" >&2
                 exit 1
             fi
-            case "$1" in
-                -e)
-                    pattern="$2"
-                    pattern_found=1
-                    shift 2
-                    break
-                    ;;
-                -f)
-                    pattern_found=2
-                    ;;
-                *)
-                    ;;
-            esac
+            pattern_found=1
+            grep_args="${grep_args} -e $2"
+            shift 2
+            ;;
+        --regexp=*)
+            pattern_found=1
+            grep_args="${grep_args} -e ${1#--regexp=}"
+            shift
+            ;;
+        -f|--file)
+            if [ "$#" -lt 2 ]; then
+                printf '%s: missing argument for %s flag\n' "${prog}" "$1" >&2
+                exit 1
+            fi
+            pattern_found=1
+            grep_args="${grep_args} -f $2"
+            shift 2
+            ;;
+        --file=*)
+            pattern_found=1
+            grep_args="${grep_args} -f ${1#--file=}"
+            shift
+            ;;
+        # from GNU grep-2.5.1 — arity-1 flags other than -e/-f (handled above)
+        -[ABCDXdm])
+            if [ "$#" -lt 2 ]; then
+                printf '%s: missing argument for %s flag\n' "${prog}" "$1" >&2
+                exit 1
+            fi
             grep_args="${grep_args} $1 $2"
             shift 2
             ;;
@@ -84,13 +100,13 @@ while [ "$#" -gt 0 ] && [ "${endofopts}" -eq 0 ]; do
             shift
             ;;
         *)
-            # pattern to grep for
+            # pattern to grep for (or start of file list if -e/-f already seen)
             endofopts=1
             ;;
     esac
 done
 
-# if no -e option was found, take next argument as grep-pattern
+# if no -e/-f/--regexp/--file option was found, take next argument as grep-pattern
 if [ "${pattern_found}" -lt 1 ]; then
     if [ "$#" -ge 1 ]; then
         pattern="$1"
@@ -109,7 +125,11 @@ if [ "$#" -lt 1 ]; then
     # ... on stdin
     set -f # Disable file name generation (globbing).
     # shellcheck disable=SC2086
-    "${zcat}" - | "${grep}" ${grep_args} -- "${pattern}" -
+    if [ "${pattern_found}" -ge 1 ]; then
+        "${zcat}" - | "${grep}" ${grep_args} -- -
+    else
+        "${zcat}" - | "${grep}" ${grep_args} -- "${pattern}" -
+    fi
     EXIT_CODE=$?
     set +f
 else
@@ -120,7 +140,7 @@ else
     set -f
     while [ "$#" -gt 0 ]; do
         # shellcheck disable=SC2086
-        if [ $pattern_found -eq 2 ]; then
+        if [ "${pattern_found}" -ge 1 ]; then
             "${zcat}" -- "$1" | "${grep}" --label="${1}" ${grep_args} -- -
         else
             "${zcat}" -- "$1" | "${grep}" --label="${1}" ${grep_args} -- "${pattern}" -

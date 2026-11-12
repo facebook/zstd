@@ -1,0 +1,15 @@
++ multi -e on .zst
+start
+stop
++ --regexp= repeated
+start
+stop
++ --regexp separate args
+start
+stop
++ mixed --regexp / -e
+start
+stop
++ uncompressed path still works
+start
+stop

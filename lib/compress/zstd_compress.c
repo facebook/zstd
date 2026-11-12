@@ -1411,6 +1411,7 @@ size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx, ZSTD_ResetDirective reset)
 #endif
         cctx->streamStage = zcss_init;
         cctx->pledgedSrcSizePlusOne = 0;
+        cctx->stableIn_notConsumed = 0;  /* input pending in the abandoned frame */
     }
     if ( (reset == ZSTD_reset_parameters)
       || (reset == ZSTD_reset_session_and_parameters) ) {

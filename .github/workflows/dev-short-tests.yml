@@ -98,7 +98,7 @@ jobs:
         CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ CFLAGS="-Werror -O1" make zstd
 
   armbuild:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # fails on ubuntu-26.04: no qemu-user-static package
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: ARM Build Test
@@ -343,7 +343,7 @@ jobs:
   # If the size grows intentionally, you can raise these numbers.
   # But we do need to think about binary size, since it is a concern.
   libzstd-size:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # fails on ubuntu-26.04: libzstd.so is larger than the size limit
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: libzstd size test
@@ -589,7 +589,7 @@ jobs:
           ./simple LICENSE
 
   versions-compatibility:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # fails on ubuntu-26.04: old versions do not compile in C23
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: Versions Compatibility Test

@@ -34,7 +34,7 @@ jobs:
         make cxxtest; make clean
 
   short-tests-1:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # fails on ubuntu-26.04: powerpc cross toolchain cannot find -lgcc
     services:
       docker:
         image: fbopensource/zstd-circleci-primary:0.0.1

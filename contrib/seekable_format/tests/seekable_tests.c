@@ -1,5 +1,6 @@
 #include <stddef.h>
 #include <stdint.h>
+#include <limits.h>
 #include <stdlib.h>  // malloc
 #include <stdio.h>
 #include <assert.h>
@@ -51,6 +52,29 @@ static int seekBuffWithTotal(void* opaque, long long offset, int origin)
         return -1;
     }
     buff->pos = newOffset;
+    return 0;
+}
+
+static int testFrameSizeBounds(const ZSTD_seekable* stream, const ZSTD_seekTable* table)
+{
+    unsigned const nbFrames = ZSTD_seekTable_getNumFrames(table);
+    unsigned const indices[] = {nbFrames, nbFrames + 1, UINT_MAX};
+    size_t i;
+    for (i = 0; i < sizeof(indices) / sizeof(indices[0]); ++i) {
+        unsigned const index = indices[i];
+        size_t const results[] = {
+            ZSTD_seekable_getFrameCompressedSize(stream, index),
+            ZSTD_seekable_getFrameDecompressedSize(stream, index),
+            ZSTD_seekTable_getFrameCompressedSize(table, index),
+            ZSTD_seekTable_getFrameDecompressedSize(table, index),
+        };
+        size_t j;
+        for (j = 0; j < sizeof(results) / sizeof(results[0]); ++j) {
+            if (ZSTD_getErrorCode(results[j]) != ZSTD_error_frameIndex_tooLarge) {
+                return 1;
+            }
+        }
+    }
     return 0;
 }
 
@@ -129,12 +153,14 @@ int main(int argc, const char** argv)
         unsigned const fo1idx = ZSTD_seekTable_offsetToFrameIndex(zst, 1);
         assert(fo1idx == 0);
 
+        int const boundsStatus = testFrameSizeBounds(stream, zst);
         free(inBuffer);
         free(seekBuffer);
         free(outBuffer);
         ZSTD_seekable_freeCStream(zscs);
         ZSTD_seekTable_free(zst);
         ZSTD_seekable_free(stream);
+        if (boundsStatus != 0) goto _test_error;
     }
     printf("Success!\n");
 
@@ -168,6 +194,17 @@ int main(int argc, const char** argv)
         assert(stream != NULL);
         {   size_t const status = ZSTD_seekable_initBuff(stream, compressed_data, compressed_size);
             if (ZSTD_isError(status)) {
+                ZSTD_seekable_free(stream);
+                goto _test_error;
+        }   }
+
+        /* This valid seek table has no frames, so even index 0 is invalid. */
+        {   ZSTD_seekTable* const table = ZSTD_seekTable_create_fromSeekable(stream);
+            assert(table != NULL);
+            assert(ZSTD_seekTable_getNumFrames(table) == 0);
+            int const boundsStatus = testFrameSizeBounds(stream, table);
+            ZSTD_seekTable_free(table);
+            if (boundsStatus != 0) {
                 ZSTD_seekable_free(stream);
                 goto _test_error;
         }   }

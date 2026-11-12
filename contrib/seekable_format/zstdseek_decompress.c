@@ -303,7 +303,7 @@ unsigned ZSTD_seekTable_offsetToFrameIndex(const ZSTD_seekTable* st, unsigned lo
     U32 hi = (U32)st->tableLen;
     assert(st->tableLen <= UINT_MAX);
 
-    if (pos >= st->entries[st->tableLen].dOffset) {
+    if (hi == 0 || pos >= st->entries[st->tableLen].dOffset) {
         return (unsigned)st->tableLen;
     }
 
@@ -439,7 +439,10 @@ static size_t ZSTD_seekable_loadSeekTable(ZSTD_seekable* zs)
                     U32 const offset = SEEKABLE_BUFF_SIZE - pos;
                     U32 const toRead = MIN(remaining, SEEKABLE_BUFF_SIZE - offset);
                     memmove(zs->inBuff, zs->inBuff + pos, offset); /* move any data we haven't read yet */
-                    CHECK_IO(src.read(src.opaque, zs->inBuff+offset, toRead));
+                    if (src.read(src.opaque, zs->inBuff+offset, toRead) < 0) {
+                        free(entries);
+                        return ERROR(seekableIO);
+                    }
                     remaining -= toRead;
                     pos = 0;
                 }
@@ -484,21 +487,30 @@ size_t ZSTD_seekable_initFile(ZSTD_seekable* zs, FILE* src)
 
 size_t ZSTD_seekable_initAdvanced(ZSTD_seekable* zs, ZSTD_seekable_customFile src)
 {
-    zs->src = src;
-
-    {   const size_t seekTableInit = ZSTD_seekable_loadSeekTable(zs);
-        if (ZSTD_isError(seekTableInit)) return seekTableInit; }
-
+    /* Reinitialization discards the previous archive, even on failure.
+     * A NULL entries pointer marks a context that is not initialized. */
+    free(zs->seekTable.entries);
+    zs->seekTable = (ZSTD_seekTable){NULL, 0, 0};
     zs->decompressedOffset = (U64)-1;
     zs->curFrame = (U32)-1;
+    /* Discard buffered input from the previous source, even on failure. */
+    zs->in = (ZSTD_inBuffer){zs->inBuff, 0, 0};
+    zs->src = src;
+    /* When not reading from a buffer via initBuff() clear the buffWrapper
+     * to avoid inheriting its state. */
+    if (src.opaque != &zs->buffWrapper) {
+        zs->buffWrapper = (buffWrapper_t){NULL, 0, 0};
+    }
 
     {   const size_t dstreamInit = ZSTD_initDStream(zs->dstream);
         if (ZSTD_isError(dstreamInit)) return dstreamInit; }
-    return 0;
+    /* Publish the new seek table only after all initialization has succeeded. */
+    return ZSTD_seekable_loadSeekTable(zs);
 }
 
 size_t ZSTD_seekable_decompress(ZSTD_seekable* zs, void* dst, size_t len, unsigned long long offset)
 {
+    if (zs->seekTable.entries == NULL) return ERROR(init_missing);
     unsigned long long const eos = zs->seekTable.entries[zs->seekTable.tableLen].dOffset;
     if (offset > eos) return ERROR(parameter_outOfBound);
     if (len > eos - offset) {
@@ -607,6 +619,7 @@ size_t ZSTD_seekable_decompress(ZSTD_seekable* zs, void* dst, size_t len, unsign
 
 size_t ZSTD_seekable_decompressFrame(ZSTD_seekable* zs, void* dst, size_t dstSize, unsigned frameIndex)
 {
+    if (zs->seekTable.entries == NULL) return ERROR(init_missing);
     if (frameIndex >= zs->seekTable.tableLen) {
         return ERROR(frameIndex_tooLarge);
     }

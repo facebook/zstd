@@ -1331,11 +1331,19 @@ size_t ZSTDMT_initCStream_internal(
          * with the LDM window.
          */
         size_t const nbSlackBuffers = 2 + (mtctx->targetPrefixSize > 0);
-        size_t const slackSize = mtctx->targetSectionSize * nbSlackBuffers;
+        U64 const slackSize = (U64)mtctx->targetSectionSize * nbSlackBuffers;
         /* Compute the total size, and always have enough slack */
-        size_t const nbWorkers = MAX(mtctx->params.nbWorkers, 1);
-        size_t const sectionsSize = mtctx->targetSectionSize * nbWorkers;
-        size_t const capacity = MAX(windowSize, sectionsSize) + slackSize;
+        U64 const nbWorkers = MAX(mtctx->params.nbWorkers, 1);
+        U64 const sectionsSize = (U64)mtctx->targetSectionSize * nbWorkers;
+        U64 const capacity64 = MAX((U64)windowSize, sectionsSize) + slackSize;
+        size_t capacity;
+        /* The totals are computed in 64 bits because on 32-bit builds they
+         * can exceed the range of size_t. They would wrap, and the round
+         * buffer would be too small (or not allocated at all), letting
+         * input be copied past its end. Reject such sizes instead. */
+        capacity = (size_t)capacity64;
+        RETURN_ERROR_IF((U64)capacity != capacity64,
+                        memory_allocation, "round buffer size overflow");
         if (mtctx->roundBuff.capacity < capacity) {
             if (mtctx->roundBuff.buffer)
                 ZSTD_customFree(mtctx->roundBuff.buffer, mtctx->cMem);

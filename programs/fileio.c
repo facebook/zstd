@@ -3549,10 +3549,14 @@ FIO_analyzeFrames(fileInfo_t* info, FILE* const srcFile)
             }
             /* Skippable frame */
             else if ((magicNumber & ZSTD_MAGIC_SKIPPABLE_MASK) == ZSTD_MAGIC_SKIPPABLE_START) {
-                U32 const frameSize = MEM_readLE32(headerBuffer + 4);
-                S64 const seek = (S64)ZSTD_SKIPPABLEHEADERSIZE + frameSize - (S64)numBytesRead;
-                ERROR_IF(LONG_SEEK(srcFile, seek, SEEK_CUR) != 0,
-                        info_frame_error, "Error: could not find end of skippable frame");
+                /* The generic minimum-header check permits six or seven bytes. */
+                ERROR_IF(numBytesRead < ZSTD_SKIPPABLEHEADERSIZE, info_truncated_input,
+                        "Error: reached end of file with incomplete skippable frame");
+                {   U32 const frameSize = MEM_readLE32(headerBuffer + 4);
+                    S64 const seek = (S64)ZSTD_SKIPPABLEHEADERSIZE + frameSize - (S64)numBytesRead;
+                    ERROR_IF(LONG_SEEK(srcFile, seek, SEEK_CUR) != 0,
+                            info_frame_error, "Error: could not find end of skippable frame");
+                }
                 info->numSkippableFrames++;
             }
             /* unknown content */

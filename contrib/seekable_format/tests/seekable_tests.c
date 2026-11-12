@@ -557,6 +557,64 @@ int main(int argc, const char** argv)
     }
     printf("Success!\n");
 
+    printf("Test %u - retry and recover after a failed frame seek: ", testNb++);
+    {   /* A valid raw zstd frame containing "abcdefg", followed by a corrupt
+         * seek table. Frame 1 is claimed to start at compressed offset 4096,
+         * beyond this 65-byte input. Its decompressed range is [7, 10). */
+        const uint8_t compressed_data[] = {
+            0x28, 0xb5, 0x2f, 0xfd, 0x20, 0x07, 0x39, 0x00, 0x00,
+            'a', 'b', 'c', 'd', 'e', 'f', 'g',
+            0x5e, 0x2a, 0x4d, 0x18, 0x29, 0x00, 0x00, 0x00,
+            0x00, 0x10, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00,
+            0x0a, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00,
+            0x0a, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+            0x0a, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+            0x04, 0x00, 0x00, 0x00, 0x00, 0xb1, 0xea, 0x92, 0x8f,
+        };
+        struct {
+            unsigned long long offset;
+            size_t size;
+            const char* expected;
+        } const tests[] = {
+            {8, 1, NULL}, /* first seek fails before input is initialized */
+            {8, 1, NULL}, /* retry the same request */
+            {9, 1, NULL}, /* seek forward within the same frame */
+            {7, 1, NULL}, /* seek to the start of the same frame */
+            {0, 1, "a"}, /* recover by reading the valid first frame */
+            {8, 1, NULL}, /* failed seek with an initialized decoder */
+            {8, 1, NULL},
+            {1, 6, "bcdefg"}, /* resume the previously valid frame */
+        };
+        unsigned useCustomSource;
+        for (useCustomSource = 0; useCustomSource < 2; ++useCustomSource) {
+            char outBuffer[7];
+            buffWrapperWithTotal_t buff = {compressed_data, sizeof(compressed_data), 0, 0};
+            ZSTD_seekable* const stream = ZSTD_seekable_create();
+            size_t initStatus;
+            size_t idx;
+            int failed;
+            assert(stream != NULL);
+            if (useCustomSource) {
+                ZSTD_seekable_customFile const src = {&buff, &readBuffWithTotal, &seekBuffWithTotal};
+                initStatus = ZSTD_seekable_initAdvanced(stream, src);
+            } else {
+                initStatus = ZSTD_seekable_initBuff(stream, compressed_data, sizeof(compressed_data));
+            }
+            failed = ZSTD_isError(initStatus) || ZSTD_seekable_getNumFrames(stream) != 4;
+            for (idx = 0; !failed && idx < sizeof(tests) / sizeof(tests[0]); ++idx) {
+                size_t const status = ZSTD_seekable_decompress(stream, outBuffer, tests[idx].size, tests[idx].offset);
+                if (tests[idx].expected == NULL) {
+                    failed = ZSTD_getErrorCode(status) != ZSTD_error_seekableIO;
+                } else {
+                    failed = status != tests[idx].size || memcmp(outBuffer, tests[idx].expected, tests[idx].size) != 0;
+                }
+            }
+            ZSTD_seekable_free(stream);
+            if (failed) goto _test_error;
+        }
+    }
+    printf("Success!\n");
+
     /* TODO: Add more tests */
     printf("Finished tests\n");
     return 0;

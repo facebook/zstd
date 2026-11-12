@@ -1067,6 +1067,8 @@ COVER_dictSelection_t COVER_selectDict(BYTE* customDictContent, size_t dictBuffe
 
   size_t largestDict = 0;
   size_t largestCompressed = 0;
+  size_t candidateContentSize = 0;
+  size_t candidateDict = 0;
   BYTE* customDictContentEnd = customDictContent + dictContentSize;
 
   BYTE* largestDictbuffer = (BYTE*)malloc(dictBufferCapacity);
@@ -1081,20 +1083,20 @@ COVER_dictSelection_t COVER_selectDict(BYTE* customDictContent, size_t dictBuffe
 
   /* Initial dictionary size and compressed size */
   memcpy(largestDictbuffer, customDictContent, dictContentSize);
-  dictContentSize = ZDICT_finalizeDictionary(
+  largestDict = ZDICT_finalizeDictionary(
     largestDictbuffer, dictBufferCapacity, customDictContent, dictContentSize,
     samplesBuffer, samplesSizes, nbFinalizeSamples, params.zParams);
 
-  if (ZDICT_isError(dictContentSize)) {
+  if (ZDICT_isError(largestDict)) {
     free(largestDictbuffer);
     free(candidateDictBuffer);
-    return COVER_dictSelectionError(dictContentSize);
+    return COVER_dictSelectionError(largestDict);
   }
 
   totalCompressedSize = COVER_checkTotalCompressedSize(params, samplesSizes,
                                                        samplesBuffer, offsets,
                                                        nbCheckSamples, nbSamples,
-                                                       largestDictbuffer, dictContentSize);
+                                                       largestDictbuffer, largestDict);
 
   if (ZSTD_isError(totalCompressedSize)) {
     free(largestDictbuffer);
@@ -1104,31 +1106,29 @@ COVER_dictSelection_t COVER_selectDict(BYTE* customDictContent, size_t dictBuffe
 
   if (params.shrinkDict == 0) {
     free(candidateDictBuffer);
-    return setDictSelection(largestDictbuffer, dictContentSize, totalCompressedSize);
+    return setDictSelection(largestDictbuffer, largestDict, totalCompressedSize);
   }
 
-  largestDict = dictContentSize;
   largestCompressed = totalCompressedSize;
-  dictContentSize = ZDICT_DICTSIZE_MIN;
+  candidateContentSize = ZDICT_DICTSIZE_MIN;
 
-  /* Largest dict is initially at least ZDICT_DICTSIZE_MIN */
-  while (dictContentSize < largestDict) {
+  while (candidateContentSize < dictContentSize) {
     memcpy(candidateDictBuffer, largestDictbuffer, largestDict);
-    dictContentSize = ZDICT_finalizeDictionary(
-      candidateDictBuffer, dictBufferCapacity, customDictContentEnd - dictContentSize, dictContentSize,
+    candidateDict = ZDICT_finalizeDictionary(
+      candidateDictBuffer, dictBufferCapacity, customDictContentEnd - candidateContentSize, candidateContentSize,
       samplesBuffer, samplesSizes, nbFinalizeSamples, params.zParams);
 
-    if (ZDICT_isError(dictContentSize)) {
+    if (ZDICT_isError(candidateDict)) {
       free(largestDictbuffer);
       free(candidateDictBuffer);
-      return COVER_dictSelectionError(dictContentSize);
+      return COVER_dictSelectionError(candidateDict);
 
     }
 
     totalCompressedSize = COVER_checkTotalCompressedSize(params, samplesSizes,
                                                          samplesBuffer, offsets,
                                                          nbCheckSamples, nbSamples,
-                                                         candidateDictBuffer, dictContentSize);
+                                                         candidateDictBuffer, candidateDict);
 
     if (ZSTD_isError(totalCompressedSize)) {
       free(largestDictbuffer);
@@ -1138,14 +1138,13 @@ COVER_dictSelection_t COVER_selectDict(BYTE* customDictContent, size_t dictBuffe
 
     if ((double)totalCompressedSize <= (double)largestCompressed * regressionTolerance) {
       free(largestDictbuffer);
-      return setDictSelection( candidateDictBuffer, dictContentSize, totalCompressedSize );
+      return setDictSelection( candidateDictBuffer, candidateDict, totalCompressedSize );
     }
-    dictContentSize *= 2;
+    candidateContentSize *= 2;
   }
-  dictContentSize = largestDict;
   totalCompressedSize = largestCompressed;
   free(candidateDictBuffer);
-  return setDictSelection( largestDictbuffer, dictContentSize, totalCompressedSize );
+  return setDictSelection( largestDictbuffer, largestDict, totalCompressedSize );
 }
 
 /**

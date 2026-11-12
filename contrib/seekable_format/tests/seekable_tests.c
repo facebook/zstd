@@ -7,6 +7,7 @@
 
 #include "../zstd_seekable.h"
 #include "zstd_errors.h"
+#include "xxhash.h"
 
 
 /* ZSTD_seekable_customFile implementation that reads/seeks a buffer while keeping track of total bytes read */
@@ -445,6 +446,77 @@ int main(int argc, const char** argv)
         free(seekBuffer);
         ZSTD_seekable_freeCStream(zscs);
         ZSTD_seekable_free(stream);
+    }
+    printf("Success!\n");
+
+    printf("Test %u - reject seek-table decompressed-size mismatches: ", testNb++);
+    {   unsigned const actualSizes[] = {1, 0};
+        unsigned checksumFlag;
+        for (checksumFlag = 0; checksumFlag < 2; ++checksumFlag) {
+            size_t frameCase;
+            for (frameCase = 0; frameCase < sizeof(actualSizes) / sizeof(actualSizes[0]); ++frameCase) {
+                unsigned const actualSize = actualSizes[frameCase];
+                unsigned extraSize;
+                for (extraSize = 0; extraSize < 2; ++extraSize) {
+                    char const data[] = "A";
+                    unsigned char archive[128];
+                    unsigned const declaredSize = actualSize + extraSize;
+                    size_t const cSize = ZSTD_compress(archive, sizeof(archive), data, actualSize, 1);
+                    ZSTD_frameLog* const log = ZSTD_seekable_createFrameLog((int)checksumFlag);
+                    ZSTD_outBuffer seekTable = {archive, sizeof(archive), cSize};
+                    unsigned sourceMode;
+                    assert(!ZSTD_isError(cSize));
+                    assert(log != NULL);
+                    {   size_t const status = ZSTD_seekable_logFrame(log, (unsigned)cSize, declaredSize,
+                                (unsigned)XXH64(data, actualSize, 0));
+                        assert(!ZSTD_isError(status));
+                    }
+                    {   size_t const status = ZSTD_seekable_writeSeekTable(log, &seekTable);
+                        assert(status == 0);
+                    }
+                    ZSTD_seekable_freeFrameLog(log);
+
+                    /* The frame and checksum are valid; only its advertised
+                     * decompressed size is wrong when extraSize is 1. */
+                    for (sourceMode = 0; sourceMode < 3; ++sourceMode) {
+                        ZSTD_seekable* const stream = ZSTD_seekable_create();
+                        buffWrapperWithTotal_t buff = {archive, seekTable.pos, 0, 0};
+                        FILE* file = NULL;
+                        char out[2];
+                        size_t initStatus;
+                        unsigned attempt;
+                        int failed;
+                        assert(stream != NULL);
+                        if (sourceMode == 0) {
+                            file = tmpfile();
+                            if (file == NULL || fwrite(archive, 1, seekTable.pos, file) != seekTable.pos || fflush(file) != 0) {
+                                if (file != NULL) fclose(file);
+                                ZSTD_seekable_free(stream);
+                                goto _test_error;
+                            }
+                            initStatus = ZSTD_seekable_initFile(stream, file);
+                        } else if (sourceMode == 1) {
+                            initStatus = ZSTD_seekable_initBuff(stream, archive, seekTable.pos);
+                        } else {
+                            ZSTD_seekable_customFile const src = {&buff, &readBuffWithTotal, &seekBuffWithTotal};
+                            initStatus = ZSTD_seekable_initAdvanced(stream, src);
+                        }
+                        failed = ZSTD_isError(initStatus) != 0;
+                        for (attempt = 0; !failed && attempt < 2; ++attempt) {
+                            size_t const status = ZSTD_seekable_decompress(stream, out, declaredSize, 0);
+                            if (extraSize) {
+                                failed = ZSTD_getErrorCode(status) != ZSTD_error_corruption_detected;
+                            } else {
+                                failed = status != actualSize || memcmp(out, data, actualSize) != 0;
+                            }
+                        }
+                        ZSTD_seekable_free(stream);
+                        if (file != NULL) fclose(file);
+                        if (failed) goto _test_error;
+                    }
+                }
+            }
+        }
     }
     printf("Success!\n");
 

@@ -135,6 +135,20 @@ Other standard targets include:
 - `make install` : install zstd cli, library and man pages
 - `make check` : run `zstd`, test its essential behavior on local platform
 
+`make install` uses `/usr/local` as the default installation prefix. Set `PREFIX` to install under a different prefix:
+
+```console
+make install PREFIX=/opt/zstd
+```
+
+Set `DESTDIR` to stage the installation under a temporary root while preserving the final directory layout:
+
+```console
+make install DESTDIR=/tmp/zstd-package
+```
+
+This stages the default `/usr/local` layout under `/tmp/zstd-package/usr/local`.
+
 The `Makefile` follows the [GNU Standard Makefile conventions](https://www.gnu.org/prep/standards/html_node/Makefile-Conventions.html),
 allowing staged install, standard compilation flags, directory variables and command variables.
 

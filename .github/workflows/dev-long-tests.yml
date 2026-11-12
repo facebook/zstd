@@ -128,7 +128,7 @@ jobs:
       run: CC=clang make -j uasan-test-zstd </dev/null V=1
 
   clang-asan-ubsan-cli-tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # fails on ubuntu-26.04: no gold linker
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: clang + ASan + UBSan + CLI tests

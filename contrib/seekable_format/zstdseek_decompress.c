@@ -215,6 +215,10 @@ struct ZSTD_seekable_s {
     ZSTD_seekable_customFile src;
 
     U64 decompressedOffset;
+    /* (U32)-1 means no frame is ready for decompression. Otherwise this is
+     * the current frame index. Set to -1 before seeking, so a failed seek
+     * forces the next call to retry setup. Set to targetFrame only after
+     * the seek succeeds and the decompression state is initialized. */
     U32 curFrame;
 
     BYTE inBuff[SEEKABLE_BUFF_SIZE]; /* need to do our own input buffering */
@@ -507,8 +511,9 @@ size_t ZSTD_seekable_decompress(ZSTD_seekable* zs, void* dst, size_t len, unsign
     do {
         /* check if we can continue from a previous decompress job */
         if (targetFrame != zs->curFrame || offset < zs->decompressedOffset) {
-            zs->decompressedOffset = zs->seekTable.entries[targetFrame].dOffset;
-            zs->curFrame = targetFrame;
+            /* A failed seek must force the next call to reset the stream,
+             * rather than reuse uninitialized or stale input state. */
+            zs->curFrame = (U32)-1;
 
             assert(zs->seekTable.entries[targetFrame].cOffset < LLONG_MAX);
             CHECK_IO(zs->src.seek(zs->src.opaque,
@@ -520,6 +525,8 @@ size_t ZSTD_seekable_decompress(ZSTD_seekable* zs, void* dst, size_t len, unsign
             if (zs->buffWrapper.size && srcBytesRead > zs->buffWrapper.size) {
                 return ERROR(seekableIO);
             }
+            zs->decompressedOffset = zs->seekTable.entries[targetFrame].dOffset;
+            zs->curFrame = targetFrame;
         }
 
         while (zs->decompressedOffset < offset + len) {

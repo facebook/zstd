@@ -1411,6 +1411,7 @@ size_t ZSTD_CCtx_reset(ZSTD_CCtx* cctx, ZSTD_ResetDirective reset)
 #endif
         cctx->streamStage = zcss_init;
         cctx->pledgedSrcSizePlusOne = 0;
+        cctx->stableIn_notConsumed = 0;  /* input pending in the abandoned frame */
     }
     if ( (reset == ZSTD_reset_parameters)
       || (reset == ZSTD_reset_session_and_parameters) ) {
@@ -6574,14 +6575,15 @@ size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
     if (cctx->streamStage == zcss_init) {
         size_t const inputSize = input->size - input->pos;  /* no obligation to start from pos==0 */
         size_t const totalInputSize = inputSize + cctx->stableIn_notConsumed;
+        if (cctx->stableIn_notConsumed) {  /* not the first time */
+            /* check stable source guarantees, including when this call starts compression */
+            RETURN_ERROR_IF(cctx->requestedParams.inBufferMode != ZSTD_bm_stable, stabilityCondition_notRespected, "stableInBuffer condition not respected: disabled while input is pending");
+            RETURN_ERROR_IF(input->src != cctx->expectedInBuffer.src, stabilityCondition_notRespected, "stableInBuffer condition not respected: wrong src pointer");
+            RETURN_ERROR_IF(input->pos != cctx->expectedInBuffer.size, stabilityCondition_notRespected, "stableInBuffer condition not respected: externally modified pos");
+        }
         if ( (cctx->requestedParams.inBufferMode == ZSTD_bm_stable) /* input is presumed stable, across invocations */
           && (endOp == ZSTD_e_continue)                             /* no flush requested, more input to come */
           && (totalInputSize < ZSTD_BLOCKSIZE_MAX) ) {              /* not even reached one block yet */
-            if (cctx->stableIn_notConsumed) {  /* not the first time */
-                /* check stable source guarantees */
-                RETURN_ERROR_IF(input->src != cctx->expectedInBuffer.src, stabilityCondition_notRespected, "stableInBuffer condition not respected: wrong src pointer");
-                RETURN_ERROR_IF(input->pos != cctx->expectedInBuffer.size, stabilityCondition_notRespected, "stableInBuffer condition not respected: externally modified pos");
-            }
             /* pretend input was consumed, to give a sense forward progress */
             input->pos = input->size;
             /* save stable inBuffer, for later control, and flush/end */
@@ -8256,7 +8258,8 @@ ZSTD_compressSequencesAndLiterals(ZSTD_CCtx* cctx,
 static ZSTD_inBuffer inBuffer_forEndFlush(const ZSTD_CStream* zcs)
 {
     const ZSTD_inBuffer nullInput = { NULL, 0, 0 };
-    const int stableInput = (zcs->appliedParams.inBufferMode == ZSTD_bm_stable);
+    const int stableInput = (zcs->appliedParams.inBufferMode == ZSTD_bm_stable)
+                         || (zcs->stableIn_notConsumed > 0);  /* pending input, parameters not applied yet */
     return stableInput ? zcs->expectedInBuffer : nullInput;
 }
 

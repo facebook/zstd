@@ -117,7 +117,12 @@ POOL_ctx* POOL_create_advanced(size_t numThreads, size_t queueSize,
 {
     POOL_ctx* ctx;
     /* Check parameters */
-    if (!numThreads) { return NULL; }
+    if (!numThreads || numThreads > POOL_MAX_THREADS) {
+        return NULL;
+    }
+    if (queueSize >= (size_t)-1 / sizeof(POOL_job)) {
+        return NULL;
+    }
     /* Allocate the context and zero initialize */
     ctx = (POOL_ctx*)ZSTD_customCalloc(sizeof(POOL_ctx), customMem);
     if (!ctx) { return NULL; }
@@ -190,6 +195,7 @@ void POOL_free(POOL_ctx *ctx) {
  *  Waits for all queued jobs to finish executing.
  */
 void POOL_joinJobs(POOL_ctx* ctx) {
+    if (!ctx) { return; }
     ZSTD_pthread_mutex_lock(&ctx->queueMutex);
     while(!ctx->queueEmpty || ctx->numThreadsBusy > 0) {
         ZSTD_pthread_cond_wait(&ctx->queuePushCond, &ctx->queueMutex);
@@ -218,6 +224,7 @@ static int POOL_resize_internal(POOL_ctx* ctx, size_t numThreads)
         return 0;
     }
     /* numThreads > threadCapacity */
+    if (numThreads > POOL_MAX_THREADS) return 1;
     ctx->threadLimit = numThreads;
     {   ZSTD_pthread_t* const threadPool = (ZSTD_pthread_t*)ZSTD_customCalloc(numThreads * sizeof(ZSTD_pthread_t), ctx->customMem);
         if (!threadPool) return 1;
@@ -283,6 +290,7 @@ POOL_add_internal(POOL_ctx* ctx, POOL_function function, void *opaque)
 void POOL_add(POOL_ctx* ctx, POOL_function function, void* opaque)
 {
     assert(ctx != NULL);
+    assert(function != NULL);
     ZSTD_pthread_mutex_lock(&ctx->queueMutex);
     /* Wait until there is space in the queue for the new job */
     while (isQueueFull(ctx) && (!ctx->shutdown)) {
@@ -296,6 +304,7 @@ void POOL_add(POOL_ctx* ctx, POOL_function function, void* opaque)
 int POOL_tryAdd(POOL_ctx* ctx, POOL_function function, void* opaque)
 {
     assert(ctx != NULL);
+    assert(function != NULL);
     ZSTD_pthread_mutex_lock(&ctx->queueMutex);
     if (isQueueFull(ctx)) {
         ZSTD_pthread_mutex_unlock(&ctx->queueMutex);
@@ -350,11 +359,13 @@ int POOL_resize(POOL_ctx* ctx, size_t numThreads) {
 
 void POOL_add(POOL_ctx* ctx, POOL_function function, void* opaque) {
     (void)ctx;
+    assert(function != NULL);
     function(opaque);
 }
 
 int POOL_tryAdd(POOL_ctx* ctx, POOL_function function, void* opaque) {
     (void)ctx;
+    assert(function != NULL);
     function(opaque);
     return 1;
 }

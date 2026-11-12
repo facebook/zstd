@@ -233,6 +233,42 @@ int main(int argc, const char **argv) {
     return 1;
   }
 
+  if (POOL_create(1, (size_t)-1)) {
+    printf("FAIL: should not create POOL with overflowing queueSize\n");
+    return 1;
+  }
+
+  if (POOL_create((size_t)-1, 1)) {
+    printf("FAIL: should not create POOL with overflowing numThreads\n");
+    return 1;
+  }
+
+  if (POOL_create(POOL_MAX_THREADS + 1, 1)) {
+    printf("FAIL: should not create POOL exceeding POOL_MAX_THREADS\n");
+    return 1;
+  }
+
+  POOL_joinJobs(NULL);
+
+  {
+    POOL_ctx* const testCtx = POOL_create(1, 1);
+    if (!testCtx) {
+      printf("FAIL: could not create POOL for resize test\n");
+      return 1;
+    }
+    if (POOL_resize(testCtx, (size_t)-1) == 0) {
+      printf("FAIL: POOL_resize with overflowing numThreads should fail\n");
+      POOL_free(testCtx);
+      return 1;
+    }
+    if (POOL_resize(testCtx, POOL_MAX_THREADS + 1) == 0) {
+      printf("FAIL: POOL_resize exceeding POOL_MAX_THREADS should fail\n");
+      POOL_free(testCtx);
+      return 1;
+    }
+    POOL_free(testCtx);
+  }
+
   for (numThreads = 1; numThreads <= 4; ++numThreads) {
     size_t queueSize;
     for (queueSize = 0; queueSize <= 2; ++queueSize) {

@@ -471,6 +471,8 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
                         BMK_benchOutcome_t,
                         "decompressed size is too large for local system");
             }
+            /* Decode-only mode uses exactly one result chunk per file. */
+            resSizes[fileNb] = (size_t)fSize64;
             totalDSize64 += fSize64;
             srcPtr += fileSizes[fileNb];
         }
@@ -478,6 +480,7 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
             size_t const decodedSize = (size_t)totalDSize64;
             assert((U64)decodedSize == totalDSize64); /* checked before summing */
             free(*resultBufferPtr);
+            /* Keep a valid allocation even when all files decode to zero. */
             *resultBufferPtr = malloc(decodedSize ? decodedSize : 1);
             if (!(*resultBufferPtr)) {
                 RETURN_ERROR(
@@ -496,7 +499,6 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
         const char* srcPtr = (const char*)srcBuffer;
         char* cPtr         = (char*)compressedBuffer;
         char* resPtr       = (char*)(*resultBufferPtr);
-        size_t remainingResultSize = srcSize;
         U32 fileNb, chunkID;
         for (chunkID = 0, fileNb = 0; fileNb < nbFiles; fileNb++) {
             size_t remaining              = fileSizes[fileNb];
@@ -513,23 +515,15 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
                              ? chunkSize
                              : ZSTD_compressBound(chunkSize);
                 resPtrs[chunkID]       = resPtr;
-                /* Decode-only mode uses one chunk per file, whose known,
-                 * size_t-representable decoded size was validated above. */
-                resSizes[chunkID]      = (adv->mode == BMK_decodeOnly)
-                                ? (size_t)ZSTD_findDecompressedSize(
-                                srcPtr, chunkSize)
-                                : chunkSize;
-                /* Defensive: every result slice must fit its allocation. */
-                if (resSizes[chunkID] > remainingResultSize) {
-                    RETURN_ERROR(
-                            32,
-                            BMK_benchOutcome_t,
-                            "decompressed size exceeds result buffer");
+                if (adv->mode == BMK_decodeOnly) {
+                    /* Reuse the validated per-file size from the first pass. */
+                    assert(chunkID == fileNb);
+                } else {
+                    resSizes[chunkID] = chunkSize;
                 }
                 srcPtr += chunkSize;
                 cPtr += cCapacities[chunkID];
                 resPtr += resSizes[chunkID];
-                remainingResultSize -= resSizes[chunkID];
                 remaining -= chunkSize;
                 if (adv->mode == BMK_decodeOnly) {
                     cSizes[chunkID]  = chunkSize;

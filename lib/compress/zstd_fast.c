@@ -208,9 +208,7 @@ size_t ZSTD_compressBlock_fast_noDict_generic(
 
     const BYTE* anchor = istart;
     const BYTE* ip0 = istart;
-    const BYTE* ip1;
     const BYTE* ip2;
-    const BYTE* ip3;
     U32 current0;
 
     U32 rep_offset1 = rep[0];
@@ -218,17 +216,19 @@ size_t ZSTD_compressBlock_fast_noDict_generic(
     U32 offsetSaved1 = 0, offsetSaved2 = 0;
 
     size_t hash0; /* hash for ip0 */
-    size_t hash1; /* hash for ip1 */
+    size_t hash1; /* hash for ip[1] */
     U32 matchIdx; /* match idx for ip0 */
 
     U32 offcode;
     const BYTE* match0;
     size_t mLength;
 
-    /* ip0 and ip1 are always adjacent. The targetLength skipping and
+    /* ip[0] and ip[1] are always adjacent, and so are ip[2] and ip[3]:
+     * ip[1] == ip0 + 1 and ip[3] == ip2 + 1, so only ip0 and ip2 are stored.
+     * The targetLength skipping and
      * uncompressibility acceleration is applied to every other position,
      * matching the behavior of #1562. step therefore represents the gap
-     * between pairs of positions, from ip0 to ip2 or ip1 to ip3. */
+     * between pairs of positions, from ip[0] to ip[2] or ip[1] to ip[3]. */
     size_t step;
     const BYTE* nextStep;
     const size_t kStepIncr = (1 << (kSearchStrength - 1));
@@ -250,16 +250,14 @@ _start: /* Requires: ip0 */
     nextStep = ip0 + kStepIncr;
 
     /* calculate positions, ip0 - anchor == 0, so we skip step calc */
-    ip1 = ip0 + 1;
     ip2 = ip0 + step;
-    ip3 = ip2 + 1;
 
-    if (ip3 >= ilimit) {
+    if (ip2 + 1 >= ilimit) {
         goto _cleanup;
     }
 
     hash0 = ZSTD_hashPtr(ip0, hlog, mls);
-    hash1 = ZSTD_hashPtr(ip1, hlog, mls);
+    hash1 = ZSTD_hashPtr(ip0 + 1, hlog, mls);
 
     matchIdx = hashTable[hash0];
 
@@ -282,18 +280,18 @@ _start: /* Requires: ip0 */
             mLength += 4;
 
             /* Write next hash table entry: it's already calculated.
-             * This write is known to be safe because ip1 is before the
-             * repcode (ip2). */
-            hashTable[hash1] = (U32)(ip1 - base);
+             * This write is known to be safe because ip[1] is before the
+             * repcode (ip[2]). */
+            hashTable[hash1] = current0 + 1;
 
             goto _match;
         }
 
          if (matchFound(ip0, base + matchIdx, matchIdx, prefixStartIndex)) {
             /* Write next hash table entry (it's already calculated).
-            * This write is known to be safe because the ip1 == ip0 + 1,
-            * so searching will resume after ip1 */
-            hashTable[hash1] = (U32)(ip1 - base);
+            * This write is known to be safe because ip[1] == ip0 + 1,
+            * so searching will resume after ip[1] */
+            hashTable[hash1] = current0 + 1;
 
             goto _offset;
         }
@@ -305,10 +303,8 @@ _start: /* Requires: ip0 */
         hash0 = hash1;
         hash1 = ZSTD_hashPtr(ip2, hlog, mls);
 
-        /* advance to next positions */
-        ip0 = ip1;
-        ip1 = ip2;
-        ip2 = ip3;
+        /* advance to next positions: ip[0] = ip[1], ip[1] = ip[2], ip[2] = ip[3] */
+        ip0++;
 
         /* write back hash table entry */
         current0 = (U32)(ip0 - base);
@@ -320,7 +316,7 @@ _start: /* Requires: ip0 */
                 /* Avoid writing an index if it's >= position where search will resume.
                 * The minimum possible match has length 4, so search can resume at ip0 + 4.
                 */
-                hashTable[hash1] = (U32)(ip1 - base);
+                hashTable[hash1] = (U32)(ip2 - base);
             }
             goto _offset;
         }
@@ -330,22 +326,20 @@ _start: /* Requires: ip0 */
 
         /* hash ip[2] */
         hash0 = hash1;
-        hash1 = ZSTD_hashPtr(ip2, hlog, mls);
+        hash1 = ZSTD_hashPtr(ip2 + 1, hlog, mls);
 
         /* advance to next positions */
-        ip0 = ip1;
-        ip1 = ip2;
+        ip0 = ip2;
         ip2 = ip0 + step;
-        ip3 = ip1 + step;
 
         /* calculate step */
         if (ip2 >= nextStep) {
             step++;
-            PREFETCH_L1(ip1 + 64);
-            PREFETCH_L1(ip1 + 128);
+            PREFETCH_L1(ip0 + 1 + 64);
+            PREFETCH_L1(ip0 + 1 + 128);
             nextStep += kStepIncr;
         }
-    } while (ip3 < ilimit);
+    } while (ip2 + 1 < ilimit);
 
 _cleanup:
     /* Note that there are probably still a couple positions one could search.

@@ -1,0 +1,48 @@
+name: all-workflows
+# Waits for the other workflows run on the head commit of the pull request,
+# and fails if any of them did not succeed. It finds them by itself: there is
+# no list to maintain. It cannot see a workflow that does not run at all.
+
+concurrency:
+  group: all-workflows-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    branches: [ dev ]
+
+permissions:
+  actions: read
+
+jobs:
+  check:
+    name: "all workflows passed"
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+    - name: Wait for the other workflows
+      env:
+        GH_TOKEN: ${{ github.token }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      run: |
+        # Latest run of each workflow on the head commit, except this workflow
+        query="[.workflow_runs[] | select(.name != \"$GITHUB_WORKFLOW\")]
+          | group_by(.workflow_id) | map(max_by(.run_number))[]
+          | [.name, .status, .conclusion // \"-\"] | @tsv"
+        # Stop when they are all completed, and unchanged since the previous poll.
+        # A failed API call is retried at the next poll.
+        prev=""
+        while true; do
+          sleep 30
+          runs=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$HEAD_SHA&per_page=100" --jq "$query") || continue
+          if [ -n "$runs" ] && [ "$runs" = "$prev" ] && printf '%s\n' "$runs" | awk -F'\t' '$2 != "completed" {n++} END {exit n > 0}'; then
+            break
+          fi
+          prev=$runs
+        done
+        printf '%s\n' "$runs"
+        failed=$(printf '%s\n' "$runs" | awk -F'\t' '$3 != "success" && $3 != "skipped" && $3 != "neutral"')
+        if [ -n "$failed" ]; then
+          printf 'Did not succeed:\n%s\n' "$failed"
+          exit 1
+        fi

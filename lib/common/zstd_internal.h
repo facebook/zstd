@@ -316,11 +316,30 @@ size_t ZSTD_decodeSeqHeaders(ZSTD_DCtx* dctx, int* nbSeqPtr,
 
 /**
  * @returns true iff the CPU supports dynamic BMI2 dispatch.
+ *
+ * Every CCtx and DCtx initialization calls this, including the one inside
+ * each one-shot ZSTD_compress() and ZSTD_decompress(). In a VM, CPUID traps
+ * to the hypervisor and can cost more than compressing a small input. The
+ * answer cannot change while the process runs, so this function caches it
+ * where atomics are available, with one cache per translation unit.
  */
 MEM_STATIC int ZSTD_cpuSupportsBmi2(void)
 {
+#if defined(__clang__) || (defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 7)))
+    /* -1 means not probed yet. Concurrent first calls may each probe, but
+     * they all store the same value, so relaxed atomics are enough. */
+    static int cachedBmi2 = -1;
+    int bmi2 = __atomic_load_n(&cachedBmi2, __ATOMIC_RELAXED);
+    if (bmi2 < 0) {
+        ZSTD_cpuid_t const cpuid = ZSTD_cpuid();
+        bmi2 = ZSTD_cpuid_bmi1(cpuid) && ZSTD_cpuid_bmi2(cpuid);
+        __atomic_store_n(&cachedBmi2, bmi2, __ATOMIC_RELAXED);
+    }
+    return bmi2;
+#else
     ZSTD_cpuid_t cpuid = ZSTD_cpuid();
     return ZSTD_cpuid_bmi1(cpuid) && ZSTD_cpuid_bmi2(cpuid);
+#endif
 }
 
 #endif   /* ZSTD_CCOMMON_H_MODULE */

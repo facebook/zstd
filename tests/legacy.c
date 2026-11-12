@@ -543,6 +543,73 @@ cleanup:
 #endif
 }
 
+#if (ZSTD_LEGACY_SUPPORT <= 4)
+static size_t buildLegacyRawLiteralsFrame(unsigned char* dst, unsigned version,
+                                          size_t litSize, unsigned extraDump)
+{
+    size_t const headerSize = version < 4 ? 4 : 5;
+    size_t const blockSize = litSize + 10 + extraDump;
+    size_t const frameSize = buildLegacyBlockFrame(dst, version, 0, blockSize);
+    unsigned char* const block = dst + headerSize + 3;
+    unsigned char* seq = block + 3 + litSize;
+    size_t i;
+    block[0] = (unsigned char)((litSize << 2) | 1);
+    block[1] = (unsigned char)(litSize >> 6);
+    block[2] = (unsigned char)(litSize >> 14);
+    for (i = 0; i < litSize; ++i) block[3 + i] = (unsigned char)('A' + i);
+    seq[0] = 0; seq[1] = 0; /* no sequences */
+    seq[2] = 0x54;         /* raw LL/OF/ML tables */
+    seq[3] = (unsigned char)extraDump;
+    if (extraDump) { seq[4] = 0; ++seq; }
+    seq[4] = 0; seq[5] = 0; seq[6] = 4; /* 18 initial-state bits */
+    return frameSize;
+}
+#endif
+
+static int testLegacyRawLiteralOffsets(void)
+{
+#if (ZSTD_LEGACY_SUPPORT <= 4)
+    unsigned version;
+    size_t const sizes[] = { 1, 4, 8, 16 };
+    unsigned char frame[64];
+    unsigned char decoded[32];
+    unsigned char expected[32];
+    for (version = ZSTD_LEGACY_SUPPORT < 2 ? 2 : ZSTD_LEGACY_SUPPORT; version <= 4; ++version) {
+        unsigned extraDump;
+        size_t s;
+        for (extraDump = 0; extraDump <= 1; ++extraDump) {
+            for (s = 0; s < sizeof(sizes) / sizeof(sizes[0]); ++s) {
+                size_t const litSize = sizes[s];
+                size_t const frameSize = buildLegacyRawLiteralsFrame(frame, version, litSize, extraDump);
+                size_t i;
+                size_t result;
+                for (i = 0; i < litSize; ++i) expected[i] = (unsigned char)('A' + i);
+                result = ZSTD_decompress(decoded, sizeof(decoded), frame, frameSize);
+                if (result != litSize || memcmp(decoded, expected, litSize) != 0) {
+                    DISPLAY("ERROR: v0.%u raw literals size %u, extra dump %u\n",
+                            version, (unsigned)litSize, extraDump);
+                    return 1;
+                }
+                /* A declared literal payload extending past the block must
+                 * still fail before the temporary-buffer copy. */
+                {   size_t const headerSize = version < 4 ? 4 : 5;
+                    size_t const badLitSize = litSize + 8 + extraDump;
+                    frame[headerSize + 3] = (unsigned char)((badLitSize << 2) | 1);
+                    frame[headerSize + 4] = (unsigned char)(badLitSize >> 6);
+                    frame[headerSize + 5] = (unsigned char)(badLitSize >> 14);
+                    result = ZSTD_decompress(decoded, sizeof(decoded), frame, frameSize);
+                    if (ZSTD_getErrorCode(result) != ZSTD_error_corruption_detected) {
+                        DISPLAY("ERROR: v0.%u accepted truncated raw literals\n", version);
+                        return 1;
+                    }
+                }
+            }
+        }
+    }
+#endif
+    return 0;
+}
+
 int main(void)
 {
     size_t const blockSize = strlen(BLOCK);
@@ -590,6 +657,7 @@ int main(void)
         if (testMultipleDDicts()) break;
 #endif
         if (testLegacyBlockBounds()) break;
+        if (testLegacyRawLiteralOffsets()) break;
         result = 0;
     } while (0);
 

@@ -2474,7 +2474,7 @@ static size_t ZSTD_decodeLiteralsBlock(void* ctx,
             {
                 if (litSize > BLOCKSIZE) return ERROR(corruption_detected);
                 if (litSize > srcSize-3) return ERROR(corruption_detected);
-                memcpy(dctx->litBuffer, istart, litSize);
+                memcpy(dctx->litBuffer, istart+3, litSize);
                 dctx->litPtr = dctx->litBuffer;
                 dctx->litSize = litSize;
                 memset(dctx->litBuffer + dctx->litSize, 0, 8);

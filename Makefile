@@ -238,7 +238,10 @@ ppcbuild: clean
 ppc64build: clean
 	CC=powerpc-linux-gnu-gcc CFLAGS="-m64 -Werror" $(MAKE) -j allzstd
 
-.PHONY: armfuzz aarch64fuzz ppcfuzz ppc64fuzz
+riscvbuild: clean
+	CC=riscv64-linux-gnu-gcc CFLAGS="-Werror" $(MAKE) -j allzstd
+
+.PHONY: armfuzz aarch64fuzz ppcfuzz ppc64fuzz riscvfuzz
 armfuzz: clean
 	CC=arm-linux-gnueabi-gcc QEMU_SYS=qemu-arm-static MOREFLAGS="-static $(MOREFLAGS)" FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)" $(MAKE) -C $(TESTDIR) fuzztest
 
@@ -252,7 +255,10 @@ ppcfuzz: clean
 ppc64fuzz: clean
 	CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc64-static MOREFLAGS="-m64 -static $(MOREFLAGS)" FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)" $(MAKE) -C $(TESTDIR) fuzztest
 
-.PHONY: cxxtest gcc5test gcc6test armtest aarch64test ppctest ppc64test
+riscvfuzz: clean
+	CC=riscv64-linux-gnu-gcc QEMU_SYS=qemu-riscv64-static MOREFLAGS="-static $(MOREFLAGS)" FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)" $(MAKE) -C $(TESTDIR) fuzztest
+
+.PHONY: cxxtest gcc5test gcc6test armtest aarch64test ppctest ppc64test riscvtest
 cxxtest: CXXFLAGS += -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror
 cxxtest: clean
 	$(MAKE) -C $(PRGDIR) all CC="$(CXX) -Wno-deprecated" CFLAGS="$(CXXFLAGS)"   # adding -Wno-deprecated to avoid clang++ warning on dealing with C files directly
@@ -272,6 +278,10 @@ armtest: clean
 aarch64test:
 	$(MAKE) -C $(TESTDIR) datagen   # use native, faster
 	$(MAKE) -C $(TESTDIR) test CC=aarch64-linux-gnu-gcc QEMU_SYS=qemu-aarch64-static ZSTDRTTEST= MOREFLAGS="-Werror -static $(MOREFLAGS)" FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)"
+
+riscvtest:
+	$(MAKE) -C $(TESTDIR) datagen   # use native, faster
+	$(MAKE) -C $(TESTDIR) test CC=riscv64-linux-gnu-gcc QEMU_SYS=qemu-riscv64-static ZSTDRTTEST= MOREFLAGS="-Werror -static $(MOREFLAGS)" FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)"
 
 ppctest: clean
 	$(MAKE) -C $(TESTDIR) datagen   # use native, faster

@@ -8258,7 +8258,8 @@ ZSTD_compressSequencesAndLiterals(ZSTD_CCtx* cctx,
 static ZSTD_inBuffer inBuffer_forEndFlush(const ZSTD_CStream* zcs)
 {
     const ZSTD_inBuffer nullInput = { NULL, 0, 0 };
-    const int stableInput = (zcs->appliedParams.inBufferMode == ZSTD_bm_stable);
+    const int stableInput = (zcs->appliedParams.inBufferMode == ZSTD_bm_stable)
+                         || (zcs->stableIn_notConsumed > 0);  /* pending input, parameters not applied yet */
     return stableInput ? zcs->expectedInBuffer : nullInput;
 }
 

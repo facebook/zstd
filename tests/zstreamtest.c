@@ -1120,6 +1120,30 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
         }
         DISPLAYLEVEL(3, "OK \n");
 
+        DISPLAYLEVEL(3, "test%3i : ZSTD_c_stableInBuffer : ZSTD_endStream() on pending input, new context : ", testNb++);
+        {   ZSTD_CCtx* const cctx2 = ZSTD_createCCtx();
+            ZSTD_inBuffer inBuf;
+            ZSTD_outBuffer outBuf;
+            size_t const srcSize2 = 1 KB;
+            assert(cctx2 != NULL);
+            inBuf.src = CNBuffer;
+            inBuf.size = srcSize2;
+            inBuf.pos = 0;
+            outBuf.dst = compressedBuffer;
+            outBuf.size = compressedBufferSize;
+            outBuf.pos = 0;
+            CHECK_Z( ZSTD_CCtx_setParameter(cctx2, ZSTD_c_stableInBuffer, 1) );
+            CHECK_Z( ZSTD_compressStream2(cctx2, &outBuf, &inBuf, ZSTD_e_continue) );
+            CHECK(ZSTD_endStream(cctx2, &outBuf) != 0, "compression should be successful and fully flushed");
+            {   size_t const decSize = ZSTD_decompress(decodedBuffer, CNBufferSize, compressedBuffer, outBuf.pos);
+                CHECK_Z(decSize);
+                CHECK(decSize != srcSize2, "regenerated %u bytes, instead of %u", (unsigned)decSize, (unsigned)srcSize2);
+                CHECK(memcmp(CNBuffer, decodedBuffer, srcSize2) != 0, "regenerated data different from original");
+            }
+            ZSTD_freeCCtx(cctx2);
+        }
+        DISPLAYLEVEL(3, "OK \n");
+
         DISPLAYLEVEL(3, "test%3i : ZSTD_compressStream2() with ZSTD_c_stableOutBuffer only : ", testNb++);
         CHECK_Z(ZSTD_CCtx_reset(cctx, ZSTD_reset_session_and_parameters));
         CHECK_Z(ZSTD_CCtx_setParameter(cctx, ZSTD_c_checksumFlag, 1));

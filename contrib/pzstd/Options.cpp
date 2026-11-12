@@ -40,6 +40,16 @@ unsigned parseUnsigned(const char **arg) {
   return result;
 }
 
+unsigned long long parseUnsignedLL(const char **arg) {
+  unsigned long long result = 0;
+  while (**arg >= '0' && **arg <= '9') {
+    result *= 10;
+    result += **arg - '0';
+    ++(*arg);
+  }
+  return result;
+}
+
 const char *getArgument(const char *options, const char **argv, int &i,
                         int argc) {
   if (options[1] != 0) {
@@ -95,6 +105,7 @@ void usage() {
   std::fprintf(stderr, "  -C, --check            : integrity check (default)\n");
   std::fprintf(stderr, "      --no-check         : no integrity check\n");
   std::fprintf(stderr, "  -t, --test             : test compressed file integrity\n");
+  std::fprintf(stderr, "      --stream-size=#    : specify known total input size for stdin compression\n");
   std::fprintf(stderr, "  --                     : all arguments after \"--\" are treated as files\n");
 }
 } // anonymous namespace
@@ -103,7 +114,7 @@ Options::Options()
     : numThreads(defaultNumThreads()), maxWindowLog(23),
       compressionLevel(kDefaultCompressionLevel), decompress(false),
       overwrite(false), keepSource(true), writeMode(WriteMode::Auto),
-      checksum(true), verbosity(2) {}
+      checksum(true), verbosity(2), streamSrcSize(0) {}
 
 Options::Status Options::parse(int argc, const char **argv) {
   bool test = false;
@@ -135,6 +146,27 @@ Options::Status Options::parse(int argc, const char **argv) {
         maxWindowLog = 0;
       } else if (!std::strcmp(arg, "--no-check")) {
         checksum = false;
+      } else if (!std::strncmp(arg, "--stream-size", 13)) {
+        const char *val = nullptr;
+        if (arg[13] == '=') {
+          val = arg + 14;
+        } else if (arg[13] == 0) {
+          ++i;
+          if (i == argc) {
+            std::fprintf(stderr, "Option --stream-size requires an argument\n");
+            return Status::Failure;
+          }
+          val = argv[i];
+        } else {
+          isLongOption = false;
+        }
+        if (val != nullptr) {
+          if (*val < '0' || *val > '9') {
+            std::fprintf(stderr, "Option --stream-size expects a number, but '%s' provided\n", val);
+            return Status::Failure;
+          }
+          streamSrcSize = parseUnsignedLL(&val);
+        }
       } else if (!std::strcmp(arg, "--sparse")) {
         writeMode = WriteMode::Sparse;
         notSupported("Sparse mode");

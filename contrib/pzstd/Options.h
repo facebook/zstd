@@ -35,6 +35,7 @@ struct Options {
   WriteMode writeMode;
   bool checksum;
   int verbosity;
+  unsigned long long streamSrcSize;
 
   enum class Status {
     Success, // Successfully parsed options
@@ -46,22 +47,24 @@ struct Options {
   Options(unsigned numThreads, unsigned maxWindowLog, unsigned compressionLevel,
           bool decompress, std::vector<std::string> inputFiles,
           std::string outputFile, bool overwrite, bool keepSource,
-          WriteMode writeMode, bool checksum, int verbosity)
+          WriteMode writeMode, bool checksum, int verbosity,
+          unsigned long long streamSrcSize = 0)
       : numThreads(numThreads), maxWindowLog(maxWindowLog),
         compressionLevel(compressionLevel), decompress(decompress),
         inputFiles(std::move(inputFiles)), outputFile(std::move(outputFile)),
         overwrite(overwrite), keepSource(keepSource), writeMode(writeMode),
-        checksum(checksum), verbosity(verbosity) {}
+        checksum(checksum), verbosity(verbosity),
+        streamSrcSize(streamSrcSize) {}
 
   Status parse(int argc, const char **argv);
 
   ZSTD_parameters determineParameters() const {
-    ZSTD_parameters params = ZSTD_getParams(compressionLevel, 0, 0);
-    params.fParams.contentSizeFlag = 0;
+    ZSTD_parameters params = ZSTD_getParams(compressionLevel, streamSrcSize, 0);
+    params.fParams.contentSizeFlag = (streamSrcSize > 0);
     params.fParams.checksumFlag = checksum;
     if (maxWindowLog != 0 && params.cParams.windowLog > maxWindowLog) {
       params.cParams.windowLog = maxWindowLog;
-      params.cParams = ZSTD_adjustCParams(params.cParams, 0, 0);
+      params.cParams = ZSTD_adjustCParams(params.cParams, streamSrcSize, 0);
     }
     return params;
   }

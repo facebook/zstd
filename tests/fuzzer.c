@@ -723,6 +723,39 @@ static void test_decompressSplitLitBuffer(unsigned tnb)
     free(src);
 }
 
+static void test_decompressContinueWithoutBegin(unsigned tnb)
+{
+    char src[1000];
+    char compressed[ZSTD_COMPRESSBOUND(sizeof(src))];
+    char decoded[sizeof(src)];
+    ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+    size_t cSize, cPos = 0, dPos = 0;
+    CHECK(dctx != NULL);
+
+    DISPLAYLEVEL(3, "test%3u : ZSTD_decompressContinue() without ZSTD_decompressBegin() : ", tnb);
+    memset(src, 'a', sizeof(src));
+    CHECK_VAR(cSize, ZSTD_compress(compressed, sizeof(compressed), src, sizeof(src), 1));
+
+    /* new context */
+    CHECK_EQ(ZSTD_nextSrcSizeToDecompress(dctx), 0);
+    CHECK_EQ(ZSTD_getErrorCode(ZSTD_decompressContinue(dctx, decoded, sizeof(decoded), NULL, 0)), ZSTD_error_stage_wrong);
+
+    /* finished frame */
+    CHECK_Z(ZSTD_decompressBegin(dctx));
+    while (ZSTD_nextSrcSizeToDecompress(dctx) != 0) {
+        size_t const inSize = ZSTD_nextSrcSizeToDecompress(dctx);
+        CHECK_NEWV(outSize, ZSTD_decompressContinue(dctx, decoded + dPos, sizeof(decoded) - dPos, compressed + cPos, inSize));
+        cPos += inSize;
+        dPos += outSize;
+    }
+    CHECK_EQ(cPos, cSize);
+    CHECK_EQ(dPos, sizeof(src));
+    CHECK_EQ(ZSTD_getErrorCode(ZSTD_decompressContinue(dctx, decoded, sizeof(decoded), NULL, 0)), ZSTD_error_stage_wrong);
+    DISPLAYLEVEL(3, "OK \n");
+
+    ZSTD_freeDCtx(dctx);
+}
+
 static unsigned test_histCountWksp(unsigned seed, unsigned testNb)
 {
     static const unsigned symLowLimits[] =  {   0,  27,   0,   0,  27,  42,   0,   0, 27, 42, 27, 42 };
@@ -1531,6 +1564,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
     test_decompressBound(testNb++);
 
     test_decompressSplitLitBuffer(testNb++);
+
+    test_decompressContinueWithoutBegin(testNb++);
 
     test_setCParams(testNb++);
 

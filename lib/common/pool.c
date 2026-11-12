@@ -121,6 +121,9 @@ POOL_ctx* POOL_create_advanced(size_t numThreads, size_t queueSize,
     /* Allocate the context and zero initialize */
     ctx = (POOL_ctx*)ZSTD_customCalloc(sizeof(POOL_ctx), customMem);
     if (!ctx) { return NULL; }
+    /* Record the allocator before anything can fail: POOL_free() needs it to release the
+     * allocations below with the same allocator that produced them. */
+    ctx->customMem = customMem;
     /* Initialize the job queue.
      * It needs one extra space since one space is wasted to differentiate
      * empty and full queues.
@@ -143,7 +146,6 @@ POOL_ctx* POOL_create_advanced(size_t numThreads, size_t queueSize,
     ctx->threads = (ZSTD_pthread_t*)ZSTD_customCalloc(numThreads * sizeof(ZSTD_pthread_t), customMem);
     ctx->threadCapacity = 0;
     ctx->threadLimit = numThreads;
-    ctx->customMem = customMem;
     /* Check for errors */
     if (!ctx->threads || !ctx->queue) { POOL_free(ctx); return NULL; }
     /* Initialize the threads */

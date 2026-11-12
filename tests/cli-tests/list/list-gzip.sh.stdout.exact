@@ -1,0 +1,18 @@
+Frames  Skips  Compressed  Uncompressed  Ratio  Check  Filename
+     1      0      37   B        38   B  1.027  CRC32  hello.gz
+hello.gz 
+Format: Gzip
+Compressed Size: 37 B (37 B)
+Decompressed Size: 38 B (38 B)
+Ratio: 1.0270
+Check: CRC32 ac98f97e
+
+Frames  Skips  Compressed  Uncompressed  Ratio  Check  Filename
+     1      0      37   B        38   B  1.027  CRC32  hello.gz
+     1      0      37   B        38   B  1.027  CRC32  world.gz
+----------------------------------------------------------------- 
+     2      0      74   B        76   B  1.027  CRC32  2 files
+Frames  Skips  Compressed  Uncompressed  Ratio  Check  Filename
+File "plain.txt" not compressed by zstd 
+Frames  Skips  Compressed  Uncompressed  Ratio  Check  Filename
+File "truncated.gz" is truncated 

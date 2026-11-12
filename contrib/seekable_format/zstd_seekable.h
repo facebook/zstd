@@ -157,7 +157,7 @@ ZSTDLIB_API size_t ZSTD_seekable_writeSeekTable(ZSTD_frameLog* fl, ZSTD_outBuffe
 *  An `offset` past the end of the data is an error.
 *
 *  The seek table access functions can be used to obtain the data contained
-*  in the seek table.  If frameIndex is larger than the value returned by
+*  in the seek table.  If frameIndex is greater than or equal to
 *  ZSTD_seekable_getNumFrames(), they will return error codes checkable with
 *  ZSTD_isError().  Note that since the offset access functions return
 *  unsigned long long instead of size_t, in this case they will instead return

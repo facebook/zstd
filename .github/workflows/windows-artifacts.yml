@@ -93,7 +93,7 @@ jobs:
           mv bin/ zstd-${{ github.ref_name }}-${{matrix.ziparch}}/
 
       - name: Publish zstd-$VERSION-${{matrix.ziparch}}.zip for manual inspection
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # tag=v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # tag=v7.0.2
         with:
           compression-level: 9  # maximum compression
           if-no-files-found: error # defaults to `warn`

@@ -76,14 +76,14 @@ jobs:
 
   # lasts ~8mn
   tsan-zstreamtest:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # fails on ubuntu-26.04: no gold linker
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: thread sanitizer zstreamtest
       run: CC=clang ZSTREAM_TESTTIME=-T3mn make tsan-test-zstream
 
   uasan-zstreamtest:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # fails on ubuntu-26.04: no gold linker
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: ub + address sanitizer on zstreamtest
@@ -91,7 +91,7 @@ jobs:
 
   # lasts ~5mn
   tsan-fuzztest:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # fails on ubuntu-26.04: no gold linker
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: thread sanitizer fuzztest
@@ -109,7 +109,7 @@ jobs:
 
   # lasts ~8mn
   gcc-8-asan-ubsan-testzstd:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # fails on ubuntu-26.04: no gold linker
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: gcc-8 + ASan + UBSan + Test Zstd
@@ -121,14 +121,14 @@ jobs:
         CC=gcc-8 make -j uasan-test-zstd </dev/null V=1
 
   clang-asan-ubsan-testzstd:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # fails on ubuntu-26.04: no gold linker
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: clang + ASan + UBSan + Test Zstd
       run: CC=clang make -j uasan-test-zstd </dev/null V=1
 
   gcc-asan-ubsan-testzstd-32bit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # fails on ubuntu-26.04: no gold linker
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: ASan + UBSan + Test Zstd, 32bit mode
@@ -142,7 +142,7 @@ jobs:
     # so any data coming from these libraries is always considered "uninitialized"
 
   gcc-8-asan-ubsan-fuzz:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # fails on ubuntu-26.04: no gold linker
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: gcc-8 + ASan + UBSan + Fuzz Test
@@ -154,7 +154,7 @@ jobs:
         CC=gcc-8 FUZZER_FLAGS="--long-tests" make -j clean uasan-fuzztest
 
   clang-asan-ubsan-fuzz:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # fails on ubuntu-26.04: no gold linker
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: clang + ASan + UBSan + Fuzz Test
@@ -164,14 +164,14 @@ jobs:
   # fuzzers do build these decoders, but only reach them if an input
   # happens to carry a legacy magic number.
   clang-asan-ubsan-legacy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # fails on ubuntu-26.04: no gold linker
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: clang + ASan + UBSan + legacy decoders
       run: CC=clang make uasan-test-legacy
 
   gcc-asan-ubsan-fuzz32:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # fails on ubuntu-26.04: no gold linker
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: ASan + UBSan + Fuzz Test 32bit
@@ -181,7 +181,7 @@ jobs:
         CFLAGS="-O3 -m32" FUZZER_FLAGS="--long-tests" make -j uasan-fuzztest
 
   clang-asan-fuzz32:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # fails on ubuntu-26.04: no gold linker
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: clang + ASan + Fuzz Test 32bit
@@ -227,7 +227,7 @@ jobs:
       run: make -j msanregressiontest
 
   clang-msan-fuzz-unoptimized:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # fails on ubuntu-26.04: no gold linker
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
       - name: clang + MSan + Fuzz Test
@@ -239,7 +239,7 @@ jobs:
           CC=clang MOREFLAGS="-O0" FUZZERTEST=-T60s ZSTREAM_TESTTIME=-T30s make clean msan-fuzztest
 
   clang-msan-fuzz:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # fails on ubuntu-26.04: no gold linker
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: clang + MSan + Fuzz Test
@@ -249,7 +249,7 @@ jobs:
         CC=clang FUZZER_FLAGS="--long-tests" make clean msan-fuzztest
 
   clang-msan-testzstd:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04  # fails on ubuntu-26.04: no gold linker
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: clang + MSan + Test Zstd
@@ -259,7 +259,7 @@ jobs:
         CC=clang make -j msan-test-zstd HAVE_ZLIB=0 HAVE_LZ4=0 HAVE_LZMA=0 ZSTDRTTEST= V=1
 
   armfuzz:
-      runs-on: ubuntu-latest
+      runs-on: ubuntu-24.04  # fails on ubuntu-26.04: no qemu-user-static package
       steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
       - name: Qemu ARM emulation + Fuzz Test

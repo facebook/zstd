@@ -560,6 +560,15 @@ size_t ZSTD_seekable_decompress(ZSTD_seekable* zs, void* dst, size_t len, unsign
             if (toRead == 0) {
                 /* frame complete */
 
+                /* A short frame must not cause the same seek-table entry to
+                 * be selected and decompressed again. Check the declared
+                 * boundary for every source, including FILE and custom I/O. */
+                assert(targetFrame < zs->seekTable.tableLen);
+                if (zs->decompressedOffset != zs->seekTable.entries[targetFrame + 1].dOffset) {
+                    zs->curFrame = (U32)-1;
+                    return ERROR(corruption_detected);
+                }
+
                 /* verify checksum */
                 if (zs->seekTable.checksumFlag &&
                     (XXH64_digest(&zs->xxhState) & 0xFFFFFFFFU) !=

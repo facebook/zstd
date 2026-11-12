@@ -241,6 +241,17 @@ rm -f tmpCompressed
 zstd tmp -o tmpOut -c > tmpCompressed
 test -f tmpCompressed   # file must be created
 
+println "test : refuse output overwriting input through another spelling"
+cp tmp tmpRef
+zstd -f tmp -o ./tmp && die "should have refused to overwrite input through ./ prefix"
+cmp tmp tmpRef || die "refused ./ output modified the input file"
+if [ "$isWindows" = true ] ; then
+    println "test : refuse output overwriting input through a different case"
+    zstd -f tmp -o TMP && die "should have refused to overwrite input through a different case"
+    cmp tmp tmpRef || die "refused differently-cased output modified the input file"
+fi
+rm -f tmpRef
+
 println "test : forgotten argument"
 cp tmp tmp2
 zstd tmp2 -fo && die "-o must be followed by filename "

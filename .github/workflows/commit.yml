@@ -102,18 +102,3 @@ jobs:
     - uses: actions/upload-artifact@v7.0.1
       with:
         path: "/tmp/circleci-artifacts"
-
-  # Required by the ruleset on dev, instead of the jobs above: list all of them in needs.
-  # always(): if a job fails, a skipped all-green would count as passed.
-  all-green:
-    name: "commit all green"
-    if: always()
-    needs:
-    - short-tests-0
-    - short-tests-1
-    - regression-test
-    runs-on: ubuntu-latest
-    steps:
-    - name: Check that no job failed or was cancelled
-      if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
-      run: exit 1

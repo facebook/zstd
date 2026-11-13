@@ -27,6 +27,7 @@
 #include <string.h>         /* memset */
 #include <stdio.h>          /* fprintf, fopen, ftello64 */
 #include <errno.h>          /* errno */
+#include <limits.h>         /* INT_MAX */
 
 #include "timefn.h"         /* UTIL_time_t, UTIL_clockSpanMicro, UTIL_getTime */
 #include "../lib/common/debug.h" /* assert */
@@ -270,6 +271,7 @@ typedef struct {
  */
 static fileStats DiB_fileStats(const char** fileNamesTable, int nbFiles, size_t chunkSize, int displayLevel)
 {
+    size_t const maxNbSamples = MIN((size_t)INT_MAX, (size_t)-1 / sizeof(size_t));
     fileStats fs;
     int n;
     memset(&fs, 0, sizeof(fs));
@@ -279,6 +281,7 @@ static fileStats DiB_fileStats(const char** fileNamesTable, int nbFiles, size_t 
 
     for (n=0; n<nbFiles; n++) {
       S64 const fileSize = DiB_getFileSize(fileNamesTable[n]);
+      U64 fileNbSamples;
       /* TODO: is there a minimum sample size? What if the file is 1-byte? */
       /* Skip empty or invalid files */
       if (fileSize <= 0) {
@@ -292,10 +295,16 @@ static fileStats DiB_fileStats(const char** fileNamesTable, int nbFiles, size_t 
         continue;
       }
 
+      /* Count the final partial chunk without overflowing the numerator.
+       * Both the int sample count and the sampleSizes allocation must fit. */
+      fileNbSamples = chunkSize ? (U64)(fileSize - 1) / chunkSize + 1 : 1;
+      if (fileNbSamples > maxNbSamples - (size_t)fs.nbSamples)
+        EXM_THROW(14, "too many samples for dictionary training");
+      fs.nbSamples += (int)fileNbSamples;
+
       /* the case where we are breaking up files in sample chunks */
       if (chunkSize > 0) {
         /* TODO: is there a minimum sample size? Can we have a 1-byte sample? */
-        fs.nbSamples += (int)((fileSize + chunkSize-1) / chunkSize);
         fs.totalSizeToLoad += fileSize;
       }
       else {
@@ -308,7 +317,6 @@ static fileStats DiB_fileStats(const char** fileNamesTable, int nbFiles, size_t 
           DISPLAYLEVEL(3, "Sample file '%s' is too large, limiting to %d KB\n",
               fileNamesTable[n], SAMPLESIZE_MAX / (1 KB));
         }
-        fs.nbSamples += 1;
         fs.totalSizeToLoad += MIN(fileSize, SAMPLESIZE_MAX);
       }
     }
@@ -357,7 +365,7 @@ int DiB_trainFromFiles(const char* dictFileName, size_t maxDictSize,
             loadedSize = (size_t)MIN(loadedSize, memLimit);
         }
         srcBuffer = malloc(loadedSize+NOISELENGTH);
-        sampleSizes = (size_t*)malloc(fs.nbSamples * sizeof(size_t));
+        sampleSizes = (size_t*)malloc((size_t)fs.nbSamples * sizeof(*sampleSizes));
     }
 
     /* Checks */

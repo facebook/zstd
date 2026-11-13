@@ -270,6 +270,9 @@ static void ZSTD_initDCtx_internal(ZSTD_DCtx* dctx, ZSTD_customMem customMem)
 #if DYNAMIC_BMI2
     ZSTD_SET_BMI2(dctx->bmi2, ZSTD_cpuSupportsBmi2());
 #endif
+#if DYNAMIC_APXF
+    dctx->apxf = ZSTD_cpuSupportsApxf();
+#endif
     dctx->ddictSet = NULL;
     ZSTD_DCtx_resetParameters(dctx);
 #ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
@@ -1030,6 +1033,11 @@ static size_t ZSTD_decompressFrame(ZSTD_DCtx* dctx,
         RETURN_ERROR_IF(decodedSize > dctx->fParams.blockSizeMax, corruption_detected, "Decompressed Block Size Exceeds Maximum");
         DEBUGLOG(5, "Decompressed block of dSize = %u", (unsigned)decodedSize);
         if (dctx->validateChecksum) {
+#if DYNAMIC_APXF
+            if (dctx->apxf) {
+                XXH64_update_apxf(&dctx->xxhState, op, decodedSize);
+            } else
+#endif
             XXH64_update(&dctx->xxhState, op, decodedSize);
         }
         if (decodedSize) /* support dst = NULL,0 */ {
@@ -1371,7 +1379,14 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
             RETURN_ERROR_IF(rSize > dctx->fParams.blockSizeMax, corruption_detected, "Decompressed Block Size Exceeds Maximum");
             DEBUGLOG(5, "ZSTD_decompressContinue: decoded size from block : %u", (unsigned)rSize);
             dctx->decodedSize += rSize;
-            if (dctx->validateChecksum) XXH64_update(&dctx->xxhState, dst, rSize);
+            if (dctx->validateChecksum) {
+#if DYNAMIC_APXF
+                if (dctx->apxf) {
+                    XXH64_update_apxf(&dctx->xxhState, dst, rSize);
+                } else
+#endif
+                XXH64_update(&dctx->xxhState, dst, rSize);
+            }
             dctx->previousDstEnd = (char*)dst + rSize;
 
             /* Stay on the same stage until we are finished streaming the block. */

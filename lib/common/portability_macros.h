@@ -87,6 +87,17 @@
 #  define STATIC_BMI2 0
 #endif
 
+/* Compile time determination of APXF support */
+#ifndef STATIC_APXF
+#  if defined(__APX_F__)
+#    define STATIC_APXF 1
+#  endif
+#endif
+
+#ifndef STATIC_APXF
+#  define STATIC_APXF 0
+#endif
+
 /* Enable runtime BMI2 dispatch based on the CPU.
  * Enabled for clang & gcc >=4.8 on x86 when BMI2 isn't enabled by default.
  */
@@ -99,6 +110,23 @@
 #    define DYNAMIC_BMI2 1
 #  else
 #    define DYNAMIC_BMI2 0
+#  endif
+#endif
+
+/* Enable runtime APXF dispatch based on the CPU.
+ * Enabled for clang >=20 & gcc >=15 on x86-64 when APXF isn't enabled by default.
+ * Disabled in the Linux kernel, where code must not use the APX extended GPRs.
+ */
+#ifndef DYNAMIC_APXF
+#  if defined(ZSTD_LINUX_KERNEL)
+#    define DYNAMIC_APXF 0
+#  elif ((defined(__clang__) && __has_attribute(__target__) && (__clang_major__ >= 20)) \
+      || (defined(__GNUC__) && !defined(__clang__) && (__GNUC__ >= 15))) \
+      && (defined(__x86_64__) || defined(_M_X64)) \
+      && !defined(__APX_F__)
+#    define DYNAMIC_APXF 1
+#  else
+#    define DYNAMIC_APXF 0
 #  endif
 #endif
 

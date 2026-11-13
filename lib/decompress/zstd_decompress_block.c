@@ -159,6 +159,7 @@ static size_t ZSTD_decodeLiteralsBlock(ZSTD_DCtx* dctx,
                 size_t expectedWriteSize = MIN(blockSizeMax, dstCapacity);
                 int const flags = 0
                     | (ZSTD_DCtx_get_bmi2(dctx) ? HUF_flags_bmi2 : 0)
+                    | (ZSTD_DCtx_get_apxf(dctx) ? HUF_flags_apxf : 0)
                     | (dctx->disableHufAsm ? HUF_flags_disableAsm : 0);
                 switch(lhlCode)
                 {
@@ -2042,6 +2043,42 @@ ZSTD_decompressSequencesLong_bmi2(ZSTD_DCtx* dctx,
 
 #endif /* DYNAMIC_BMI2 */
 
+#if DYNAMIC_APXF
+
+#ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG
+static APXF_TARGET_ATTRIBUTE size_t
+DONT_VECTORIZE
+ZSTD_decompressSequences_apxf(ZSTD_DCtx* dctx,
+                                 void* dst, size_t maxDstSize,
+                           const void* seqStart, size_t seqSize, int nbSeq,
+                           const ZSTD_longOffset_e isLongOffset)
+{
+    return ZSTD_decompressSequences_body(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
+}
+static APXF_TARGET_ATTRIBUTE size_t
+DONT_VECTORIZE
+ZSTD_decompressSequencesSplitLitBuffer_apxf(ZSTD_DCtx* dctx,
+                                 void* dst, size_t maxDstSize,
+                           const void* seqStart, size_t seqSize, int nbSeq,
+                           const ZSTD_longOffset_e isLongOffset)
+{
+    return ZSTD_decompressSequences_bodySplitLitBuffer(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
+}
+#endif /* ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG */
+
+#ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT
+static APXF_TARGET_ATTRIBUTE size_t
+ZSTD_decompressSequencesLong_apxf(ZSTD_DCtx* dctx,
+                                 void* dst, size_t maxDstSize,
+                           const void* seqStart, size_t seqSize, int nbSeq,
+                           const ZSTD_longOffset_e isLongOffset)
+{
+    return ZSTD_decompressSequencesLong_body(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
+}
+#endif /* ZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT */
+
+#endif /* DYNAMIC_APXF */
+
 #ifndef ZSTD_FORCE_DECOMPRESS_SEQUENCES_LONG
 static size_t
 ZSTD_decompressSequences(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize,
@@ -2049,6 +2086,11 @@ ZSTD_decompressSequences(ZSTD_DCtx* dctx, void* dst, size_t maxDstSize,
                    const ZSTD_longOffset_e isLongOffset)
 {
     DEBUGLOG(5, "ZSTD_decompressSequences");
+#if DYNAMIC_APXF
+    if (ZSTD_DCtx_get_apxf(dctx)) {
+        return ZSTD_decompressSequences_apxf(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
+    }
+#endif
     if (ZSTD_USE_BMI2(ZSTD_DCtx_get_bmi2(dctx))) {
         return ZSTD_decompressSequences_bmi2(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
     }
@@ -2060,6 +2102,11 @@ ZSTD_decompressSequencesSplitLitBuffer(ZSTD_DCtx* dctx, void* dst, size_t maxDst
                                  const ZSTD_longOffset_e isLongOffset)
 {
     DEBUGLOG(5, "ZSTD_decompressSequencesSplitLitBuffer");
+#if DYNAMIC_APXF
+    if (ZSTD_DCtx_get_apxf(dctx)) {
+        return ZSTD_decompressSequencesSplitLitBuffer_apxf(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
+    }
+#endif
     if (ZSTD_USE_BMI2(ZSTD_DCtx_get_bmi2(dctx))) {
         return ZSTD_decompressSequencesSplitLitBuffer_bmi2(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
     }
@@ -2081,6 +2128,11 @@ ZSTD_decompressSequencesLong(ZSTD_DCtx* dctx,
                              const ZSTD_longOffset_e isLongOffset)
 {
     DEBUGLOG(5, "ZSTD_decompressSequencesLong");
+#if DYNAMIC_APXF
+    if (ZSTD_DCtx_get_apxf(dctx)) {
+        return ZSTD_decompressSequencesLong_apxf(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
+    }
+#endif
     if (ZSTD_USE_BMI2(ZSTD_DCtx_get_bmi2(dctx))) {
         return ZSTD_decompressSequencesLong_bmi2(dctx, dst, maxDstSize, seqStart, seqSize, nbSeq, isLongOffset);
     }

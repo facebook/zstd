@@ -107,7 +107,11 @@ typedef enum {
      * If set: Don't use the fast decoding loop, always use the fallback decoding loop.
      * If unset: Use the fast decoding loop when possible.
      */
-    HUF_flags_disableFast = (1 << 5)
+    HUF_flags_disableFast = (1 << 5),
+    /**
+     * If set: Use APX optimized loops if applicable
+     */
+    HUF_flags_apxf = (1 << 6)
 } HUF_flags_e;
 
 

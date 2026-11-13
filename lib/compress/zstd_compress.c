@@ -6603,6 +6603,21 @@ size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
 #ifdef ZSTD_MULTITHREAD
     if (cctx->appliedParams.nbWorkers > 0) {
         size_t flushMin;
+        /* control src size before handing input to workers :
+         * once a job is posted, its output can no longer be withheld.
+         * Once the frame is ended, remaining input belongs to the next frame. */
+        if ( (cctx->pledgedSrcSizePlusOne != 0)
+          && (!ZSTDMT_isFrameEnded(cctx->mtctx)) ) {
+            U64 const srcSizeIfAllConsumed = cctx->consumedSrcSize + cctx->stableIn_notConsumed + (U64)(input->size - input->pos);
+            ZSTD_STATIC_ASSERT(ZSTD_CONTENTSIZE_UNKNOWN == (unsigned long long)-1);
+            RETURN_ERROR_IF(
+                (srcSizeIfAllConsumed+1 > cctx->pledgedSrcSizePlusOne)
+             || ((endOp == ZSTD_e_end) && (srcSizeIfAllConsumed+1 != cctx->pledgedSrcSizePlusOne)),
+                srcSize_wrong,
+                "error : pledgedSrcSize = %u, while realSrcSize = %u",
+                (unsigned)cctx->pledgedSrcSizePlusOne-1,
+                (unsigned)srcSizeIfAllConsumed);
+        }
         if (cctx->cParamsChanged) {
             ZSTDMT_updateCParams_whileCompressing(cctx->mtctx, &cctx->requestedParams);
             cctx->cParamsChanged = 0;
@@ -6622,8 +6637,11 @@ size_t ZSTD_compressStream2( ZSTD_CCtx* cctx,
             cctx->producedCSize += (U64)(output->pos - opos);
             if ( ZSTD_isError(flushMin)
               || (endOp == ZSTD_e_end && flushMin == 0) ) { /* compression completed */
-                if (flushMin == 0)
+                if (flushMin == 0) {
+                    /* src size was controlled before handing input to workers */
+                    assert(cctx->pledgedSrcSizePlusOne == 0 || cctx->pledgedSrcSizePlusOne == cctx->consumedSrcSize+1);
                     ZSTD_CCtx_trace(cctx, 0);
+                }
                 ZSTD_CCtx_reset(cctx, ZSTD_reset_session_only);
             }
             FORWARD_IF_ERROR(flushMin, "ZSTDMT_compressStream_generic failed");

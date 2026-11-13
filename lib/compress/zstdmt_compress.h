@@ -61,6 +61,11 @@ size_t ZSTDMT_sizeof_CCtx(ZSTDMT_CCtx* mtctx);
 
 size_t ZSTDMT_nextInputSizeHint(const ZSTDMT_CCtx* mtctx);
 
+/*! ZSTDMT_isFrameEnded() :
+ *  @return 1 once the last job of the current frame is created :
+ *  remaining input then belongs to the next frame. */
+unsigned ZSTDMT_isFrameEnded(const ZSTDMT_CCtx* mtctx);
+
 /*! ZSTDMT_initCStream_internal() :
  *  Private use only. Init streaming operation.
  *  expects params to be valid.

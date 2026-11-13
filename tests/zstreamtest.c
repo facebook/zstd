@@ -260,6 +260,29 @@ static U32 badParameters(ZSTD_CCtx* zc, ZSTD_parameters const savedParams)
     return 0;
 }
 
+/* Compress @src with @pledgedSrcSize declared up-front, streaming the input so
+ * that a first ZSTD_e_end call doesn't auto-determine pledgedSrcSize instead.
+ * @return : the first error encountered, or 0, with *cSizePtr set. */
+static size_t FUZ_compressWithPledgedSrcSize(ZSTD_CCtx* cctx,
+                                             void* dst, size_t dstCapacity,
+                                       const void* src, size_t srcSize,
+                                             unsigned long long pledgedSrcSize,
+                                             size_t* cSizePtr)
+{
+    ZSTD_outBuffer out = { dst, dstCapacity, 0 };
+    ZSTD_inBuffer in = { src, srcSize, 0 };
+    size_t r = ZSTD_CCtx_reset(cctx, ZSTD_reset_session_only);
+    if (!ZSTD_isError(r)) r = ZSTD_CCtx_setPledgedSrcSize(cctx, pledgedSrcSize);
+    while ((in.pos < in.size) && !ZSTD_isError(r))
+        r = ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_continue);
+    do {
+        if (ZSTD_isError(r)) break;
+        r = ZSTD_compressStream2(cctx, &out, &in, ZSTD_e_end);
+    } while (r != 0);
+    *cSizePtr = out.pos;
+    return r;
+}
+
 static int basicUnitTests(U32 seed, double compressibility, int bigTests)
 {
     size_t const CNBufferSize = COMPRESSIBLE_NOISE_LENGTH;
@@ -1626,6 +1649,112 @@ static int basicUnitTests(U32 seed, double compressibility, int bigTests)
         if (compressedSize != outBuff.pos) goto _output_error;  /* must be a full valid frame */
     }
     DISPLAYLEVEL(3, "OK \n");
+
+    /* wrong pledgedSrcSize, multithreaded : the frame must span several jobs */
+    {   size_t const jobSize = 1 MB;
+        size_t const srcSize = 4 * jobSize;
+        assert(srcSize <= CNBufferSize);
+        CHECK_Z( ZSTD_CCtx_setParameter(mtctx, ZSTD_c_jobSize, (int)jobSize) );
+
+        DISPLAYLEVEL(3, "test%3i : too large srcSize with multiple threads : %u bytes : ", testNb++, (unsigned)srcSize);
+        {   size_t const r = FUZ_compressWithPledgedSrcSize(mtctx, compressedBuffer, compressedBufferSize, CNBuffer, srcSize, srcSize+1, &cSize);
+            if (ZSTD_getErrorCode(r) != ZSTD_error_srcSize_wrong) goto _output_error;   /* must fail : wrong srcSize */
+            if (!ZSTD_isError(ZSTD_findFrameCompressedSize(compressedBuffer, cSize))) goto _output_error;   /* must not emit a complete frame */
+            DISPLAYLEVEL(3, "OK (error detected : %s) \n", ZSTD_getErrorName(r));
+        }
+
+        DISPLAYLEVEL(3, "test%3i : reuse after wrong srcSize without reset : ", testNb++);
+        {   ZSTD_outBuffer out = { compressedBuffer, compressedBufferSize, 0 };
+            ZSTD_inBuffer in = { CNBuffer, srcSize, 0 };
+            size_t const r = ZSTD_compressStream2(mtctx, &out, &in, ZSTD_e_end);   /* must return, not block */
+            if (ZSTD_getErrorCode(r) != ZSTD_error_srcSize_wrong) goto _output_error;
+            DISPLAYLEVEL(3, "OK \n");
+        }
+
+        /* New input given while the end of a frame is still being flushed belongs to the next frame :
+         * the frame must complete, and the input must be left untouched, like the single-thread path.
+         * With an empty last job, accepting that input used to deadlock. */
+        {   static const char* const variants[3] = { "empty last job", "empty last job, pledged size", "last job with data" };
+            int variant;
+            for (variant = 0; variant < 3; variant++) {
+                size_t const lastChunkSize = (variant == 2) ? jobSize : 0;
+                ZSTD_outBuffer out = { compressedBuffer, compressedBufferSize, 0 };
+                ZSTD_inBuffer in = { CNBuffer, srcSize - lastChunkSize, 0 };
+                size_t r;
+                DISPLAYLEVEL(3, "test%3i : new input while flushing the end of a frame (%s) : ", testNb++, variants[variant]);
+                CHECK_Z( ZSTD_CCtx_reset(mtctx, ZSTD_reset_session_only) );
+                if (variant == 1) CHECK_Z( ZSTD_CCtx_setPledgedSrcSize(mtctx, srcSize) );
+                while (in.pos < in.size)
+                    CHECK_Z( ZSTD_compressStream2(mtctx, &out, &in, ZSTD_e_continue) );
+                do {
+                    r = ZSTD_compressStream2(mtctx, &out, &in, ZSTD_e_flush);   /* posts every job */
+                    CHECK_Z(r);
+                } while (r != 0);
+                in.size = srcSize;    /* last chunk, if any */
+                out.size = out.pos;   /* no room : the frame ends, and stays unfinished */
+                r = ZSTD_compressStream2(mtctx, &out, &in, ZSTD_e_end);
+                CHECK_Z(r);
+                if ((r == 0) || (in.pos != in.size)) goto _output_error;
+                in.pos = 0;   /* new input, for the next frame */
+                out.size = compressedBufferSize;
+                do {
+                    r = ZSTD_compressStream2(mtctx, &out, &in, ZSTD_e_end);   /* must not block */
+                    CHECK_Z(r);
+                } while (r != 0);
+                if (in.pos != 0) goto _output_error;   /* left for the next frame */
+                {   size_t const dSize = ZSTD_decompress(decodedBuffer, decodedBufferSize, compressedBuffer, out.pos);
+                    if (dSize != srcSize) goto _output_error;   /* exactly the first frame */
+                    if (memcmp(decodedBuffer, CNBuffer, srcSize) != 0) goto _output_error;
+                }
+                do {
+                    r = ZSTD_compressStream2(mtctx, &out, &in, ZSTD_e_end);   /* the next frame */
+                    CHECK_Z(r);
+                } while (r != 0);
+                {   size_t const dSize = ZSTD_decompress(decodedBuffer, decodedBufferSize, compressedBuffer, out.pos);
+                    if (dSize != 2 * srcSize) goto _output_error;
+                    if (memcmp((const char*)decodedBuffer + srcSize, CNBuffer, srcSize) != 0) goto _output_error;
+                }
+                DISPLAYLEVEL(3, "OK \n");
+            }
+        }
+
+        DISPLAYLEVEL(3, "test%3i : too small srcSize with multiple threads : %u bytes : ", testNb++, (unsigned)srcSize);
+        {   size_t const r = FUZ_compressWithPledgedSrcSize(mtctx, compressedBuffer, compressedBufferSize, CNBuffer, srcSize, srcSize-1, &cSize);
+            if (ZSTD_getErrorCode(r) != ZSTD_error_srcSize_wrong) goto _output_error;   /* must fail : wrong srcSize */
+            if (cSize != 0) goto _output_error;   /* must fail before emitting anything, like the single-thread path */
+            DISPLAYLEVEL(3, "OK (error detected : %s) \n", ZSTD_getErrorName(r));
+        }
+
+        DISPLAYLEVEL(3, "test%3i : exact srcSize with multiple threads : %u bytes : ", testNb++, (unsigned)srcSize);
+        CHECK_Z( FUZ_compressWithPledgedSrcSize(mtctx, compressedBuffer, compressedBufferSize, CNBuffer, srcSize, srcSize, &cSize) );
+        if (ZSTD_findDecompressedSize(compressedBuffer, cSize) != srcSize) goto _output_error;
+        CHECK_Z( ZSTD_decompress(decodedBuffer, decodedBufferSize, compressedBuffer, cSize) );
+        if (memcmp(decodedBuffer, CNBuffer, srcSize) != 0) goto _output_error;
+        DISPLAYLEVEL(3, "OK \n");
+
+        DISPLAYLEVEL(3, "test%3i : exact srcSize with multiple threads and stable input : %u bytes : ", testNb++, (unsigned)srcSize);
+        {   ZSTD_outBuffer out = { compressedBuffer, compressedBufferSize, 0 };
+            ZSTD_inBuffer in = { CNBuffer, 1 KB, 0 };
+            size_t r;
+            CHECK_Z( ZSTD_CCtx_reset(mtctx, ZSTD_reset_session_only) );
+            CHECK_Z( ZSTD_CCtx_setParameter(mtctx, ZSTD_c_stableInBuffer, 1) );
+            CHECK_Z( ZSTD_CCtx_setPledgedSrcSize(mtctx, srcSize) );
+            CHECK_Z( ZSTD_compressStream2(mtctx, &out, &in, ZSTD_e_continue) );   /* less than a block : not consumed yet */
+            in.size = srcSize;
+            do {
+                r = ZSTD_compressStream2(mtctx, &out, &in, ZSTD_e_end);
+                CHECK_Z(r);
+            } while (r != 0);
+            cSize = out.pos;
+            CHECK_Z( ZSTD_CCtx_setParameter(mtctx, ZSTD_c_stableInBuffer, 0) );
+        }
+        CHECK_Z( ZSTD_decompress(decodedBuffer, decodedBufferSize, compressedBuffer, cSize) );
+        if (memcmp(decodedBuffer, CNBuffer, srcSize) != 0) goto _output_error;
+        DISPLAYLEVEL(3, "OK \n");
+
+        CHECK_Z( ZSTD_CCtx_reset(mtctx, ZSTD_reset_session_only) );
+        CHECK_Z( ZSTD_CCtx_setParameter(mtctx, ZSTD_c_jobSize, 0) );
+    }
 
     /* Complex multithreading + dictionary test */
     {   U32 const nbWorkers = 2;

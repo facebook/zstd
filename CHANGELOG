@@ -4,6 +4,7 @@ api: legacy format support is now disabled by default
 api: experimental `ZSTD_d_refMultipleDDicts` now requires an exact match for nonzero frame dictionary IDs in the registered set; missing nonzero IDs return `ZSTD_error_dictionary_wrong` instead of falling back to the current dictionary. Frames with dictionary ID 0 use a registered ID-0 DDict if present, or no dictionary otherwise.
 api: set-based multi-DDict decoding no longer remembers a selected dictionary; legacy frames require single-dictionary or explicit-dictionary decoding
 api: disabling experimental `ZSTD_d_refMultipleDDicts` releases every dictionary reference in its set; no selected dictionary is retained for subsequent decompression
+api: removed the deprecated experimental functions `ZSTD_copyCCtx()` and `ZSTD_copyDCtx()`
 build: `ZSTD_LEGACY_SUPPORT` defaults to `0` in Makefile and CMake
 
 V1.5.7 (Feb 2025)

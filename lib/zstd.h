@@ -1495,7 +1495,8 @@ ZSTDLIB_STATIC_API unsigned long long ZSTD_findDecompressedSize(const void* src,
  *  @return : - upper-bound for the decompressed size of all data in all successive frames
  *            - if an error occurred: ZSTD_CONTENTSIZE_ERROR
  *
- *  note 1  : an error can occur if `src` contains an invalid or incorrectly formatted frame.
+ *  note 1  : an error can occur if `src` contains an invalid or incorrectly formatted frame,
+ *            or if the upper-bound does not fit in an `unsigned long long`.
  *  note 2  : the upper-bound is exact when the decompressed size field is available in every ZSTD encoded frame of `src`.
  *            in this case, `ZSTD_findDecompressedSize` and `ZSTD_decompressBound` return the same value.
  *  note 3  : when the decompressed size field isn't available, the upper-bound for that frame is calculated by:

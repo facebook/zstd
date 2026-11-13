@@ -600,6 +600,14 @@ static void test_decompressBound(unsigned tnb)
         free(outBuffer);
     }
 
+    /* Two frames declaring 2^63 bytes each : the sum must not wrap around to 0 */
+    {   static const BYTE frames[] = {
+            0x28, 0xB5, 0x2F, 0xFD, 0xE0, 0, 0, 0, 0, 0, 0, 0, 0x80, 0x01, 0, 0,
+            0x28, 0xB5, 0x2F, 0xFD, 0xE0, 0, 0, 0, 0, 0, 0, 0, 0x80, 0x01, 0, 0 };
+        CHECK_EQ( ZSTD_findDecompressedSize(frames, sizeof(frames)), ZSTD_CONTENTSIZE_ERROR );
+        CHECK_EQ( ZSTD_decompressBound(frames, sizeof(frames)), ZSTD_CONTENTSIZE_ERROR );
+    }
+
     DISPLAYLEVEL(3, "OK \n");
 }
 

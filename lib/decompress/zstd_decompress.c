@@ -831,6 +831,8 @@ unsigned long long ZSTD_decompressBound(const void* src, size_t srcSize)
         assert(srcSize >= compressedSize);
         src = (const BYTE*)src + compressedSize;
         srcSize -= compressedSize;
+        if (bound + decompressedBound < bound)
+            return ZSTD_CONTENTSIZE_ERROR; /* check for overflow */
         bound += decompressedBound;
     }
     return bound;

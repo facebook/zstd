@@ -160,6 +160,8 @@ ZSTDLIB_API size_t ZSTD_seekable_writeSeekTable(ZSTD_frameLog* fl, ZSTD_outBuffe
 *  It is smaller than `dstSize` only when the data ends before
 *  `offset + dstSize`, and it is 0 when `offset` is the end of the data.
 *  An `offset` past the end of the data is an error.
+*  On error, saved decompression state is discarded; a later call restarts
+*  from the beginning of its selected frame.
 *
 *  The seek table access functions can be used to obtain the data contained
 *  in the seek table.  If frameIndex is greater than or equal to

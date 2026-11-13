@@ -115,6 +115,8 @@ jobs:
     - name: gcc-8 + ASan + UBSan + Test Zstd
       # See https://askubuntu.com/a/1428822
       run: |
+        # the ASan runtime of gcc-8 loops on DEADLYSIGNAL with the 32-bit mmap ASLR of recent kernels
+        sudo sysctl -w vm.mmap_rnd_bits=28
         echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu focal main universe" | sudo tee -a /etc/apt/sources.list
         sudo apt-get -qqq update
         make gcc8install
@@ -155,6 +157,8 @@ jobs:
     - name: gcc-8 + ASan + UBSan + Fuzz Test
       # See https://askubuntu.com/a/1428822
       run: |
+        # the ASan runtime of gcc-8 loops on DEADLYSIGNAL with the 32-bit mmap ASLR of recent kernels
+        sudo sysctl -w vm.mmap_rnd_bits=28
         echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu focal main universe" | sudo tee -a /etc/apt/sources.list
         sudo apt-get -qqq update
         make gcc8install

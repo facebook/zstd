@@ -25,6 +25,7 @@ if not os.path.exists(file):
 	sys.exit(1)
 
 size = os.path.getsize(file)
+print(f"{file} is {size} bytes, {100 * size / limit:.0f}% of the limit of {limit} bytes")
 
 if size > limit:
 	print(f"file {file} is {size} bytes, which is greater than the limit of {limit} bytes")

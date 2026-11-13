@@ -97,49 +97,6 @@ void ZSTD_fillHashTable(ZSTD_MatchState_t* ms,
 }
 
 
-typedef int (*ZSTD_match4Found) (const BYTE* currentPtr, const BYTE* matchAddress, U32 matchIdx, U32 idxLowLimit);
-
-static int
-ZSTD_match4Found_cmov(const BYTE* currentPtr, const BYTE* matchAddress, U32 matchIdx, U32 idxLowLimit)
-{
-    /* Array of ~random data, should have low probability of matching data.
-     * Load from here if the index is invalid.
-     * Used to avoid unpredictable branches. */
-    static const BYTE dummy[] = {0x12,0x34,0x56,0x78};
-
-    /* currentIdx >= lowLimit is a (somewhat) unpredictable branch.
-     * However expression below compiles into conditional move.
-     */
-    const BYTE* mvalAddr = ZSTD_selectAddr(matchIdx, idxLowLimit, matchAddress, dummy);
-    /* Note: this used to be written as : return test1 && test2;
-     * Unfortunately, once inlined, these tests become branches,
-     * in which case it becomes critical that they are executed in the right order (test1 then test2).
-     * So we have to write these tests in a specific manner to ensure their ordering.
-     */
-    if (MEM_read32(currentPtr) != MEM_read32(mvalAddr)) return 0;
-    /* force ordering of these tests, which matters once the function is inlined, as they become branches */
-#if defined(__GNUC__)
-    __asm__("");
-#endif
-    return matchIdx >= idxLowLimit;
-}
-
-static int
-ZSTD_match4Found_branch(const BYTE* currentPtr, const BYTE* matchAddress, U32 matchIdx, U32 idxLowLimit)
-{
-    /* using a branch instead of a cmov,
-     * because it's faster in scenarios where matchIdx >= idxLowLimit is generally true,
-     * aka almost all candidates are within range */
-    U32 mval;
-    if (matchIdx >= idxLowLimit) {
-        mval = MEM_read32(matchAddress);
-    } else {
-        mval = MEM_read32(currentPtr) ^ 1; /* guaranteed to not match. */
-    }
-
-    return (MEM_read32(currentPtr) == mval);
-}
-
 
 /**
  * If you squint hard enough (and ignore repcodes), the search operation at any
@@ -232,7 +189,7 @@ size_t ZSTD_compressBlock_fast_noDict_generic(
     size_t step;
     const BYTE* nextStep;
     const size_t kStepIncr = (1 << (kSearchStrength - 1));
-    const ZSTD_match4Found matchFound = useCmov ? ZSTD_match4Found_cmov : ZSTD_match4Found_branch;
+    const ZSTD_matchFound matchFound = useCmov ? ZSTD_match4Found_cmov : ZSTD_match4Found_branch;
 
     DEBUGLOG(5, "ZSTD_compressBlock_fast_generic");
     ip0 += (ip0 == prefixStart);

@@ -208,7 +208,7 @@ Advanced compression options:
   --long[=#]                    Enable long distance matching with window log #. [Default: 27]
   --patch-from=REF              Use REF as the reference point for Zstandard's diff engine.
 
-  -T#                           Spawn # compression threads. [Default: 1-4, depending on physical cores; pass 0 for core count.]
+  -T#                           Spawn # compression threads. [Default: 1-4, depending on logical cores; pass 0 for core count.]
   --single-thread               Share a single thread for I/O and compression (slightly different than `-T1`).
   --auto-threads={physical|logical}
                                 Use physical/logical cores when using `-T0`. [Default: Physical]

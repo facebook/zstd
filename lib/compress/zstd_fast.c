@@ -97,20 +97,15 @@ void ZSTD_fillHashTable(ZSTD_MatchState_t* ms,
 }
 
 
-typedef int (*ZSTD_match4Found) (const BYTE* currentPtr, const BYTE* matchAddress, U32 matchIdx, U32 idxLowLimit);
+typedef int (*ZSTD_match4Found) (const BYTE* currentPtr, const BYTE* base, U32 matchIdx, U32 idxLowLimit);
 
 static int
-ZSTD_match4Found_cmov(const BYTE* currentPtr, const BYTE* matchAddress, U32 matchIdx, U32 idxLowLimit)
+ZSTD_match4Found_cmov(const BYTE* currentPtr, const BYTE* base, U32 matchIdx, U32 idxLowLimit)
 {
-    /* Array of ~random data, should have low probability of matching data.
-     * Load from here if the index is invalid.
-     * Used to avoid unpredictable branches. */
-    static const BYTE dummy[] = {0x12,0x34,0x56,0x78};
-
     /* currentIdx >= lowLimit is a (somewhat) unpredictable branch.
      * However expression below compiles into conditional move.
      */
-    const BYTE* mvalAddr = ZSTD_selectAddr(matchIdx, idxLowLimit, matchAddress, dummy);
+    const BYTE* mvalAddr = base + ZSTD_selectIdx(matchIdx, idxLowLimit);
     /* Note: this used to be written as : return test1 && test2;
      * Unfortunately, once inlined, these tests become branches,
      * in which case it becomes critical that they are executed in the right order (test1 then test2).
@@ -125,14 +120,14 @@ ZSTD_match4Found_cmov(const BYTE* currentPtr, const BYTE* matchAddress, U32 matc
 }
 
 static int
-ZSTD_match4Found_branch(const BYTE* currentPtr, const BYTE* matchAddress, U32 matchIdx, U32 idxLowLimit)
+ZSTD_match4Found_branch(const BYTE* currentPtr, const BYTE* base, U32 matchIdx, U32 idxLowLimit)
 {
     /* using a branch instead of a cmov,
      * because it's faster in scenarios where matchIdx >= idxLowLimit is generally true,
      * aka almost all candidates are within range */
     U32 mval;
     if (matchIdx >= idxLowLimit) {
-        mval = MEM_read32(matchAddress);
+        mval = MEM_read32(base + matchIdx);
     } else {
         mval = MEM_read32(currentPtr) ^ 1; /* guaranteed to not match. */
     }
@@ -289,7 +284,7 @@ _start: /* Requires: ip0 */
             goto _match;
         }
 
-         if (matchFound(ip0, base + matchIdx, matchIdx, prefixStartIndex)) {
+         if (matchFound(ip0, base, matchIdx, prefixStartIndex)) {
             /* Write next hash table entry (it's already calculated).
             * This write is known to be safe because the ip1 == ip0 + 1,
             * so searching will resume after ip1 */
@@ -314,7 +309,7 @@ _start: /* Requires: ip0 */
         current0 = (U32)(ip0 - base);
         hashTable[hash0] = current0;
 
-         if (matchFound(ip0, base + matchIdx, matchIdx, prefixStartIndex)) {
+         if (matchFound(ip0, base, matchIdx, prefixStartIndex)) {
             /* Write next hash table entry, since it's already calculated */
             if (step <= 4) {
                 /* Avoid writing an index if it's >= position where search will resume.
@@ -597,7 +592,7 @@ size_t ZSTD_compressBlock_fast_dictMatchState_generic(
                 }
             }
 
-            if (ZSTD_match4Found_cmov(ip0, match, matchIndex, prefixStartIndex)) {
+            if (ZSTD_match4Found_cmov(ip0, base, matchIndex, prefixStartIndex)) {
                 /* found a regular match of size >= 4 */
                 U32 const offset = (U32) (ip0 - match);
                 mLength = ZSTD_count(ip0 + 4, match + 4, iend) + 4;

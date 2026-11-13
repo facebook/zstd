@@ -836,8 +836,29 @@ static FILE* FIO_openSrcFile(const FIO_prefs_t* const prefs, const char* srcFile
     }
 
     {   FILE* const f = fopen(srcFileName, "rb");
-        if (f == NULL)
+        if (f == NULL) {
             DISPLAYLEVEL(1, "zstd: %s: %s \n", srcFileName, strerror(errno));
+            return NULL;
+        }
+        {   stat_t openedStat;
+            int const fd = fileno(f);
+            if (fd < 0 || !UTIL_fstat(fd, srcFileName, &openedStat)) {
+                DISPLAYLEVEL(1, "zstd: can't stat open file %s : %s -- ignored \n",
+                                srcFileName, strerror(errno));
+                fclose(f);
+                return NULL;
+            }
+            /* The pathname may have been replaced since UTIL_stat(). Never read
+             * a different file or copy the old file's permissions to its output. */
+            if (!UTIL_isSameFileStat(srcFileName, srcFileName, statbuf, &openedStat)) {
+                DISPLAYLEVEL(1, "zstd: %s changed while opening -- ignored\n", srcFileName);
+                fclose(f);
+                return NULL;
+            }
+            /* Use the opened file's metadata even when its identity is unchanged.
+             * In particular, its permissions may have changed before fopen(). */
+            *statbuf = openedStat;
+        }
         return f;
     }
 }

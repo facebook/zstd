@@ -119,7 +119,7 @@ jobs:
         sudo sysctl -w vm.mmap_rnd_bits=28
         echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu focal main universe" | sudo tee -a /etc/apt/sources.list
         sudo apt-get -qqq update
-        make gcc8install
+        sudo apt-get -yq --no-install-suggests --no-install-recommends install libc6-dev-i386 gcc-multilib gcc-8 gcc-8-multilib
         CC=gcc-8 make -j uasan-test-zstd </dev/null V=1
 
   clang-asan-ubsan-testzstd:
@@ -161,7 +161,7 @@ jobs:
         sudo sysctl -w vm.mmap_rnd_bits=28
         echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu focal main universe" | sudo tee -a /etc/apt/sources.list
         sudo apt-get -qqq update
-        make gcc8install
+        sudo apt-get -yq --no-install-suggests --no-install-recommends install libc6-dev-i386 gcc-multilib gcc-8 gcc-8-multilib
         CC=gcc-8 FUZZER_FLAGS="--long-tests" make -j clean uasan-fuzztest
 
   clang-asan-ubsan-fuzz:

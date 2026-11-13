@@ -446,6 +446,148 @@ static int testMultipleDDicts(void)
 }
 #endif
 
+#if (ZSTD_LEGACY_SUPPORT <= 2)
+/* Build a real v0.1/v0.2 frame with optional raw history, raw literals, and
+ * caller-supplied sequence headers/bitstream. The two versions use different
+ * frame magic and literal headers, but the sequence encoding is identical.
+ * This deliberately tiny encoder writes only the low byte of each size field.
+ * Return 0 rather than silently truncating an unsupported size. */
+static size_t buildLegacyOffsetFrame(unsigned char* dst, size_t dstCapacity,
+                                     unsigned version,
+                                     unsigned prefixSize, unsigned litSize,
+                                     const unsigned char* sequences, size_t seqSize)
+{
+    size_t pos = 4;
+    size_t blockHeader;
+    size_t payloadSize;
+    size_t prefixBlockSize;
+    if ((version != 1 && version != 2) || prefixSize > 255 || litSize > 252
+        || (version == 2 && litSize >= 64)
+        || seqSize > 255 - 3 - litSize) {
+        return 0;
+    }
+    payloadSize = 3 + litSize + seqSize;
+    prefixBlockSize = prefixSize == 0 ? 0 : 3 + prefixSize;
+    if (dstCapacity < 4 + prefixBlockSize + 3 + payloadSize + 3) return 0;
+    if (version == 1) {
+        dst[0] = 0xFD; dst[1] = 0x2F; dst[2] = 0xB5; dst[3] = 0x1E;
+    } else {
+        dst[0] = 0x22; dst[1] = 0xB5; dst[2] = 0x2F; dst[3] = 0xFD;
+    }
+    if (prefixSize != 0) {
+        dst[pos++] = 0x40; dst[pos++] = 0; dst[pos++] = (unsigned char)prefixSize;
+        memset(dst + pos, 'P', prefixSize);
+        pos += prefixSize;
+    }
+    blockHeader = pos;
+    pos += 3;
+    if (version == 1) {
+        dst[pos++] = 0x40; dst[pos++] = 0; dst[pos++] = (unsigned char)litSize;
+    } else {
+        /* v0.2: LE24 (literal size << 2) | raw type 1. The size limit
+         * above keeps both high bytes zero. */
+        dst[pos++] = (unsigned char)((litSize << 2) | 1);
+        dst[pos++] = 0; dst[pos++] = 0;
+    }
+    memset(dst + pos, 'A', litSize);
+    pos += litSize;
+    memcpy(dst + pos, sequences, seqSize);
+    pos += seqSize;
+    dst[blockHeader] = 0;
+    dst[blockHeader + 1] = 0;
+    dst[blockHeader + 2] = (unsigned char)payloadSize;
+    dst[pos++] = 0xC0; dst[pos++] = 0; dst[pos++] = 0;
+    return pos;
+}
+#endif
+
+static int testLegacyZeroOffsets(void)
+{
+#if (ZSTD_LEGACY_SUPPORT <= 2)
+    /* Sequence section: LE16 nbSeq, table modes, one-byte dumps length,
+     * serialized table symbols, then the reverse bitstream.
+     * 0xA8 selects RLE LL/offset/ML tables, whose symbols follow in that order.
+     * 0x98 selects RLE LL/ML and a raw offset table, so only LL/ML symbols are
+     * stored before the bitstream. That bitstream can switch offset symbols
+     * from explicit distance 1 to the historical repeat code 0. ML code 4
+     * means an eight-byte match. */
+    static const unsigned char firstZero[] = { 1, 0, 0xA8, 0, 8, 0, 4, 1 };
+    static const unsigned char laterZero[] = { 2, 0, 0xA8, 0, 0, 0, 4, 1 };
+    static const unsigned char initialRepeat[] = { 1, 0, 0xA8, 0, 0, 0, 4, 1 };
+    static const unsigned char explicitOffset[] = { 1, 0, 0xA8, 0, 8, 1, 4, 1 };
+    static const unsigned char laterRepeat[] = { 2, 0, 0x98, 0, 8, 4, 0, 0x84 };
+    static const unsigned char laterZeroLiteralRepeat[] = { 3, 0, 0x98, 0, 0, 4, 0, 0x84, 0x10 };
+    static const struct {
+        const char* name;
+        unsigned prefixSize;
+        unsigned litSize;
+        const unsigned char* sequences;
+        size_t seqSize;
+        size_t expectedSize;  /* zero means corruption_detected is expected */
+        unsigned char expectedByte;
+    } cases[] = {
+        { "first zero offset", 0, 8, firstZero, sizeof(firstZero), 0, 0 },
+        { "later zero offset", 8, 0, laterZero, sizeof(laterZero), 0, 0 },
+        { "initial repeat", 8, 0, initialRepeat, sizeof(initialRepeat), 16, 'P' },
+        { "explicit offset", 0, 8, explicitOffset, sizeof(explicitOffset), 16, 'A' },
+        { "later repeat", 0, 16, laterRepeat, sizeof(laterRepeat), 32, 'A' },
+        { "later zero-literal repeat", 8, 0, laterZeroLiteralRepeat,
+          sizeof(laterZeroLiteralRepeat), 32, 'P' }
+    };
+    unsigned char frame[128];
+    unsigned char output[128];
+    unsigned version;
+    size_t c;
+    unsigned pattern;
+    int failed = 0;
+
+    /* The file-level 0-to-8 normalization makes this start at 1 or 2. */
+    for (version = ZSTD_LEGACY_SUPPORT; version <= 2; ++version) {
+        for (c = 0; c < sizeof(cases) / sizeof(cases[0]); ++c) {
+            size_t const frameSize = buildLegacyOffsetFrame(frame, sizeof(frame), version,
+                    cases[c].prefixSize, cases[c].litSize,
+                    cases[c].sequences, cases[c].seqSize);
+            if (frameSize == 0) {
+                DISPLAY("ERROR: v0.%u %s exceeds tiny frame builder limits\n",
+                        version, cases[c].name);
+                return 1;
+            }
+            for (pattern = 0; pattern < 2; ++pattern) {
+                size_t ret;
+                size_t i;
+                memset(output, pattern ? 0xDE : 0xA5, sizeof(output));
+                ret = ZSTD_decompress(output, sizeof(output), frame, frameSize);
+                if (cases[c].expectedSize == 0) {
+                    if (ZSTD_getErrorCode(ret) != ZSTD_error_corruption_detected) {
+                        DISPLAY("ERROR: v0.%u %s accepted: %s (%zu)\n",
+                                version, cases[c].name, ZSTD_getErrorName(ret), ret);
+                        failed = 1;
+                    }
+                    continue;
+                }
+                if (ret != cases[c].expectedSize) {
+                    DISPLAY("ERROR: v0.%u %s: %s (%zu)\n",
+                            version, cases[c].name, ZSTD_getErrorName(ret), ret);
+                    failed = 1;
+                    continue;
+                }
+                for (i = 0; i < ret; ++i) {
+                    if (output[i] != cases[c].expectedByte) {
+                        DISPLAY("ERROR: v0.%u %s: wrong output at %zu\n",
+                                version, cases[c].name, i);
+                        failed = 1;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    if (failed) return 1;
+    DISPLAY("Legacy zero-offset checks OK\n");
+#endif
+    return 0;
+}
+
 int main(void)
 {
     size_t const blockSize = strlen(BLOCK);
@@ -492,6 +634,7 @@ int main(void)
 #if (ZSTD_LEGACY_SUPPORT <= 7)
         if (testMultipleDDicts()) break;
 #endif
+        if (testLegacyZeroOffsets()) break;
         result = 0;
     } while (0);
 

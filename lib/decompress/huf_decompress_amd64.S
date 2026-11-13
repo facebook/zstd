@@ -53,7 +53,7 @@
 /* Calling convention:
  *
  * %rdi (or %rcx on Windows) contains the first argument: HUF_DecompressAsmArgs*.
- * %rbp isn't maintained (no frame pointer).
+ * %rbp is maintained as the frame pointer.
  * %rsp contains the stack pointer that grows down.
  *      No red-zone is assumed, only addresses >= %rsp are used.
  * All register contents are preserved.
@@ -70,8 +70,9 @@ ZSTD_HIDE_ASM_FUNCTION(_HUF_decompress4X1_usingDTable_internal_fast_asm_loop)
 .text
 
 /* Sets up register mappings for clarity.
- * op[], bits[], dtable & ip[0] each get their own register.
- * ip[1,2,3] & olimit alias var[].
+ * op[], bits[], dtable each get their own register.
+ * ip[0] is stored on the stack & loaded into r15 for RELOAD_BITS.
+ * ip[0,1,2,3] & olimit alias var[].
  * %rax is a scratch register.
  */
 
@@ -80,19 +81,22 @@ ZSTD_HIDE_ASM_FUNCTION(_HUF_decompress4X1_usingDTable_internal_fast_asm_loop)
 #define op2    rcx
 #define op3    rdi
 
-#define ip0    r8
+/* ip0 is stored on the stack, loaded into r15 for RELOAD_BITS.
+ * It aliases olimit & var0, which are not live during RELOAD_BITS(0).
+ */
+#define ip0    r15
 #define ip1    r9
 #define ip2    r10
 #define ip3    r11
 
-#define bits0  rbp
+#define bits0  r8
 #define bits1  rdx
 #define bits2  r12
 #define bits3  r13
 #define dtable r14
 #define olimit r15
 
-/* var[] aliases ip[1,2,3] & olimit
+/* var[] aliases ip[0,1,2,3] & olimit
  * ip[1,2,3] are saved every iteration.
  * olimit is only used in compute_olimit.
  */
@@ -130,51 +134,40 @@ HUF_decompress4X1_usingDTable_internal_fast_asm_loop:
     .cfi_startproc
     .cfi_def_cfa_offset 8
     .cfi_offset %rip, -8
+    /* Set up the frame pointer */
+    push %rbp
+    .cfi_def_cfa_offset 16
+    .cfi_offset rbp, -16
+    movq %rsp, %rbp
+    .cfi_def_cfa_register rbp
     /* Save all registers - even if they are callee saved for simplicity. */
     push %rax
-    .cfi_def_cfa_offset 16
-    .cfi_offset rax, -16
+    .cfi_offset rax, -24
     push %rbx
-    .cfi_def_cfa_offset 24
-    .cfi_offset rbx, -24
+    .cfi_offset rbx, -32
     push %rcx
-    .cfi_def_cfa_offset 32
-    .cfi_offset rcx, -32
+    .cfi_offset rcx, -40
     push %rdx
-    .cfi_def_cfa_offset 40
-    .cfi_offset rdx, -40
-    push %rbp
-    .cfi_def_cfa_offset 48
-    .cfi_offset rbp, -48
+    .cfi_offset rdx, -48
     push %rsi
-    .cfi_def_cfa_offset 56
     .cfi_offset rsi, -56
     push %rdi
-    .cfi_def_cfa_offset 64
     .cfi_offset rdi, -64
     push %r8
-    .cfi_def_cfa_offset 72
     .cfi_offset r8, -72
     push %r9
-    .cfi_def_cfa_offset 80
     .cfi_offset r9, -80
     push %r10
-    .cfi_def_cfa_offset 88
     .cfi_offset r10, -88
     push %r11
-    .cfi_def_cfa_offset 96
     .cfi_offset r11, -96
     push %r12
-    .cfi_def_cfa_offset 104
     .cfi_offset r12, -104
     push %r13
-    .cfi_def_cfa_offset 112
     .cfi_offset r13, -112
     push %r14
-    .cfi_def_cfa_offset 120
     .cfi_offset r14, -120
     push %r15
-    .cfi_def_cfa_offset 128
     .cfi_offset r15, -128
 
     /* Read HUF_DecompressAsmArgs* args from %rax */
@@ -197,27 +190,26 @@ HUF_decompress4X1_usingDTable_internal_fast_asm_loop:
     movq 88(%rax), %bits3
     movq 96(%rax), %dtable
     push %rax      /* argument */
-    .cfi_def_cfa_offset 136
     push 104(%rax) /* ilowest */
-    .cfi_def_cfa_offset 144
     push 112(%rax) /* oend */
-    .cfi_def_cfa_offset 152
-    push %olimit   /* olimit space */
-    .cfi_def_cfa_offset 160
+    push 0(%rax)   /* ip0 */
 
-    subq $24, %rsp
-    .cfi_def_cfa_offset 184
+    /* 0(%rsp)  = ip1 / rbx */
+    /* 8(%rsp)  = ip2 / rdx */
+    /* 16(%rsp) = ip3 */
+    /* 24(%rsp) = olimit */
+    subq $32, %rsp
 
 LOCAL_LABEL(4X1_compute_olimit):
     /* Computes how many iterations we can do safely
      * %r15, %rax may be clobbered
      * rbx, rdx must be saved
-     * op3 & ip0 mustn't be clobbered
+     * op3 mustn't be clobbered
      */
     movq %rbx, 0(%rsp)
     movq %rdx, 8(%rsp)
 
-    movq 32(%rsp), %rax /* rax = oend */
+    movq 40(%rsp), %rax /* rax = oend */
     subq %op3,    %rax  /* rax = oend - op3 */
 
     /* r15 = (oend - op3) / 5 */
@@ -226,8 +218,8 @@ LOCAL_LABEL(4X1_compute_olimit):
     movq %rdx, %r15
     shrq $2, %r15
 
-    movq %ip0,     %rax /* rax = ip0 */
-    movq 40(%rsp), %rdx /* rdx = ilowest */
+    movq 32(%rsp), %rax /* rax = ip0 */
+    movq 48(%rsp), %rdx /* rdx = ilowest */
     subq %rdx,     %rax /* rax = ip0 - ilowest */
     movq %rax,     %rbx /* rbx = ip0 - ilowest */
 
@@ -258,7 +250,7 @@ LOCAL_LABEL(4X1_compute_olimit):
     je LOCAL_LABEL(4X1_exit)
 
     /* If (ip1 < ip0) go to exit */
-    cmpq %ip0, %ip1
+    cmpq 32(%rsp), %ip1
     jb LOCAL_LABEL(4X1_exit)
 
     /* If (ip2 < ip1) go to exit */
@@ -349,7 +341,10 @@ LOCAL_LABEL(4X1_loop_body):
     /* Reload each stream & fetch the next table entry
      * to prepare for the next iteration
      */
+    movq 32(%rsp), %ip0       /* load ip0 from stack */
     RELOAD_BITS(0)
+    movq %ip0, 32(%rsp)       /* store ip0 to stack */
+
     GET_NEXT_DELT(0)
 
     RELOAD_BITS(1)
@@ -381,18 +376,15 @@ LOCAL_LABEL(4X1_loop_body):
 #undef DECODE
 #undef RELOAD_BITS
 LOCAL_LABEL(4X1_exit):
-    addq $24, %rsp
-    .cfi_def_cfa_offset 160
+    /* Load ip0 from stack before cleanup */
+    movq 32(%rsp), %ip0
+    addq $32, %rsp
 
-    /* Restore stack (oend & olimit) */
-    pop %rax /* olimit */
-    .cfi_def_cfa_offset 152
+    /* Restore stack (ip0, oend, ilowest, arg) */
+    pop %rax /* ip0 */
     pop %rax /* oend */
-    .cfi_def_cfa_offset 144
     pop %rax /* ilowest */
-    .cfi_def_cfa_offset 136
     pop %rax /* arg */
-    .cfi_def_cfa_offset 128
 
     /* Save ip / op / bits */
     movq %ip0,  0(%rax)
@@ -411,49 +403,35 @@ LOCAL_LABEL(4X1_exit):
     /* Restore registers */
     pop %r15
     .cfi_restore r15
-    .cfi_def_cfa_offset 120
     pop %r14
     .cfi_restore r14
-    .cfi_def_cfa_offset 112
     pop %r13
     .cfi_restore r13
-    .cfi_def_cfa_offset 104
     pop %r12
     .cfi_restore r12
-    .cfi_def_cfa_offset 96
     pop %r11
     .cfi_restore r11
-    .cfi_def_cfa_offset 88
     pop %r10
     .cfi_restore r10
-    .cfi_def_cfa_offset 80
     pop %r9
     .cfi_restore r9
-    .cfi_def_cfa_offset 72
     pop %r8
     .cfi_restore r8
-    .cfi_def_cfa_offset 64
     pop %rdi
     .cfi_restore rdi
-    .cfi_def_cfa_offset 56
     pop %rsi
     .cfi_restore rsi
-    .cfi_def_cfa_offset 48
-    pop %rbp
-    .cfi_restore rbp
-    .cfi_def_cfa_offset 40
     pop %rdx
     .cfi_restore rdx
-    .cfi_def_cfa_offset 32
     pop %rcx
     .cfi_restore rcx
-    .cfi_def_cfa_offset 24
     pop %rbx
     .cfi_restore rbx
-    .cfi_def_cfa_offset 16
     pop %rax
     .cfi_restore rax
-    .cfi_def_cfa_offset 8
+    pop %rbp
+    .cfi_restore rbp
+    .cfi_def_cfa rsp, 8
     ret
     .cfi_endproc
 
@@ -463,51 +441,40 @@ HUF_decompress4X2_usingDTable_internal_fast_asm_loop:
     .cfi_startproc
     .cfi_def_cfa_offset 8
     .cfi_offset %rip, -8
+    /* Set up the frame pointer */
+    push %rbp
+    .cfi_def_cfa_offset 16
+    .cfi_offset rbp, -16
+    movq %rsp, %rbp
+    .cfi_def_cfa_register rbp
     /* Save all registers - even if they are callee saved for simplicity. */
     push %rax
-    .cfi_def_cfa_offset 16
-    .cfi_offset rax, -16
+    .cfi_offset rax, -24
     push %rbx
-    .cfi_def_cfa_offset 24
-    .cfi_offset rbx, -24
+    .cfi_offset rbx, -32
     push %rcx
-    .cfi_def_cfa_offset 32
-    .cfi_offset rcx, -32
+    .cfi_offset rcx, -40
     push %rdx
-    .cfi_def_cfa_offset 40
-    .cfi_offset rdx, -40
-    push %rbp
-    .cfi_def_cfa_offset 48
-    .cfi_offset rbp, -48
+    .cfi_offset rdx, -48
     push %rsi
-    .cfi_def_cfa_offset 56
     .cfi_offset rsi, -56
     push %rdi
-    .cfi_def_cfa_offset 64
     .cfi_offset rdi, -64
     push %r8
-    .cfi_def_cfa_offset 72
     .cfi_offset r8, -72
     push %r9
-    .cfi_def_cfa_offset 80
     .cfi_offset r9, -80
     push %r10
-    .cfi_def_cfa_offset 88
     .cfi_offset r10, -88
     push %r11
-    .cfi_def_cfa_offset 96
     .cfi_offset r11, -96
     push %r12
-    .cfi_def_cfa_offset 104
     .cfi_offset r12, -104
     push %r13
-    .cfi_def_cfa_offset 112
     .cfi_offset r13, -112
     push %r14
-    .cfi_def_cfa_offset 120
     .cfi_offset r14, -120
     push %r15
-    .cfi_def_cfa_offset 128
     .cfi_offset r15, -128
 
     /* Read HUF_DecompressAsmArgs* args from %rax */
@@ -530,43 +497,32 @@ HUF_decompress4X2_usingDTable_internal_fast_asm_loop:
     movq 88(%rax), %bits3
     movq 96(%rax), %dtable
     push %rax      /* argument */
-    .cfi_def_cfa_offset 136
     push %rax      /* olimit */
-    .cfi_def_cfa_offset 144
     push 104(%rax) /* ilowest */
-    .cfi_def_cfa_offset 152
 
     movq 112(%rax), %rax
     push %rax /* oend3 */
-    .cfi_def_cfa_offset 160
 
-    movq %op3, %rax
-    push %rax /* oend2 */
-    .cfi_def_cfa_offset 168
+    push %op3 /* oend2 */
+    push %op2 /* oend1 */
+    push %op1 /* oend0 */
 
-    movq %op2, %rax
-    push %rax /* oend1 */
-    .cfi_def_cfa_offset 176
-
-    movq %op1, %rax
-    push %rax /* oend0 */
-    .cfi_def_cfa_offset 184
+    push %ip0
 
     /* Scratch space */
     subq $8, %rsp
-    .cfi_def_cfa_offset 192
 
 LOCAL_LABEL(4X2_compute_olimit):
     /* Computes how many iterations we can do safely
      * %r15, %rax may be clobbered
      * rdx must be saved
-     * op[1,2,3,4] & ip0 mustn't be clobbered
+     * op[1,2,3,4] mustn't be clobbered
      */
     movq %rdx, 0(%rsp)
 
     /* We can consume up to 7 input bytes each iteration. */
-    movq %ip0,     %rax  /* rax = ip0 */
-    movq 40(%rsp), %rdx  /* rdx = ilowest */
+    movq 8(%rsp),  %rax  /* rax = ip0 */
+    movq 48(%rsp), %rdx  /* rdx = ilowest */
     subq %rdx,     %rax  /* rax = ip0 - ilowest */
     movq %rax,    %r15   /* r15 = ip0 - ilowest */
 
@@ -582,21 +538,21 @@ LOCAL_LABEL(4X2_compute_olimit):
     movq %rdx, %r15
 
     /* r15 = min(r15, min(oend0 - op0, oend1 - op1, oend2 - op2, oend3 - op3) / 10) */
-    movq 8(%rsp),  %rax /* rax = oend0 */
+    movq 16(%rsp), %rax /* rax = oend0 */
     subq %op0,     %rax /* rax = oend0 - op0 */
-    movq 16(%rsp), %rdx /* rdx = oend1 */
+    movq 24(%rsp), %rdx /* rdx = oend1 */
     subq %op1,     %rdx /* rdx = oend1 - op1 */
 
     cmpq  %rax,    %rdx
     cmova %rax,    %rdx /* rdx = min(%rdx, %rax) */
 
-    movq 24(%rsp), %rax /* rax = oend2 */
+    movq 32(%rsp), %rax /* rax = oend2 */
     subq %op2,     %rax /* rax = oend2 - op2 */
 
     cmpq  %rax,    %rdx
     cmova %rax,    %rdx /* rdx = min(%rdx, %rax) */
 
-    movq 32(%rsp), %rax /* rax = oend3 */
+    movq 40(%rsp), %rax /* rax = oend3 */
     subq %op3,     %rax /* rax = oend3 - op3 */
 
     cmpq  %rax,    %rdx
@@ -623,7 +579,7 @@ LOCAL_LABEL(4X2_compute_olimit):
     je LOCAL_LABEL(4X2_exit)
 
     /* If (ip1 < ip0) go to exit */
-    cmpq %ip0, %ip1
+    cmpq 8(%rsp), %ip1
     jb LOCAL_LABEL(4X2_exit)
 
     /* If (ip2 < ip1) go to exit */
@@ -637,10 +593,10 @@ LOCAL_LABEL(4X2_compute_olimit):
 #define DECODE(n, idx)              \
     movq %bits##n, %rax;            \
     shrq $53, %rax;                 \
-    movzwl 0(%dtable,%rax,4),%r8d;  \
+    movzwl 0(%dtable,%rax,4),%r15d; \
+    movw %r15w, (%op##n);           \
     movzbl 2(%dtable,%rax,4),%r15d; \
     movzbl 3(%dtable,%rax,4),%eax;  \
-    movw %r8w, (%op##n);            \
     shlxq %r15, %bits##n, %bits##n; \
     addq %rax, %op##n
 
@@ -655,14 +611,11 @@ LOCAL_LABEL(4X2_compute_olimit):
     shlxq %rax, %bits##n, %bits##n
 
 
-    movq %olimit, 48(%rsp)
+    movq %olimit, 56(%rsp)
 
     .p2align 6
 
 LOCAL_LABEL(4X2_loop_body):
-    /* We clobber r8, so store it on the stack */
-    movq %r8, 0(%rsp)
-
     /* Decode 5 symbols from each of the 4 streams (20 symbols total). */
     FOR_EACH_STREAM_WITH_INDEX(DECODE, 0)
     FOR_EACH_STREAM_WITH_INDEX(DECODE, 1)
@@ -670,12 +623,15 @@ LOCAL_LABEL(4X2_loop_body):
     FOR_EACH_STREAM_WITH_INDEX(DECODE, 3)
     FOR_EACH_STREAM_WITH_INDEX(DECODE, 4)
 
-    /* Reload r8 */
-    movq 0(%rsp), %r8
+    movq 8(%rsp), %ip0        /* load ip0 from stack */
+    RELOAD_BITS(0)
+    movq %ip0, 8(%rsp)        /* store ip0 to stack */
 
-    FOR_EACH_STREAM(RELOAD_BITS)
+    RELOAD_BITS(1)
+    RELOAD_BITS(2)
+    RELOAD_BITS(3)
 
-    cmp %op3, 48(%rsp)
+    cmp %op3, 56(%rsp)
     ja LOCAL_LABEL(4X2_loop_body)
     jmp LOCAL_LABEL(4X2_compute_olimit)
 
@@ -683,22 +639,15 @@ LOCAL_LABEL(4X2_loop_body):
 #undef RELOAD_BITS
 LOCAL_LABEL(4X2_exit):
     addq $8, %rsp
-    .cfi_def_cfa_offset 184
-    /* Restore stack (oend & olimit) */
+    /* Restore stack (ip0, oend0-3, ilowest, olimit, arg) */
+    pop %ip0 /* ip0 */
     pop %rax /* oend0 */
-    .cfi_def_cfa_offset 176
     pop %rax /* oend1 */
-    .cfi_def_cfa_offset 168
     pop %rax /* oend2 */
-    .cfi_def_cfa_offset 160
     pop %rax /* oend3 */
-    .cfi_def_cfa_offset 152
     pop %rax /* ilowest */
-    .cfi_def_cfa_offset 144
     pop %rax /* olimit */
-    .cfi_def_cfa_offset 136
     pop %rax /* arg */
-    .cfi_def_cfa_offset 128
 
     /* Save ip / op / bits */
     movq %ip0,  0(%rax)
@@ -717,49 +666,35 @@ LOCAL_LABEL(4X2_exit):
     /* Restore registers */
     pop %r15
     .cfi_restore r15
-    .cfi_def_cfa_offset 120
     pop %r14
     .cfi_restore r14
-    .cfi_def_cfa_offset 112
     pop %r13
     .cfi_restore r13
-    .cfi_def_cfa_offset 104
     pop %r12
     .cfi_restore r12
-    .cfi_def_cfa_offset 96
     pop %r11
     .cfi_restore r11
-    .cfi_def_cfa_offset 88
     pop %r10
     .cfi_restore r10
-    .cfi_def_cfa_offset 80
     pop %r9
     .cfi_restore r9
-    .cfi_def_cfa_offset 72
     pop %r8
     .cfi_restore r8
-    .cfi_def_cfa_offset 64
     pop %rdi
     .cfi_restore rdi
-    .cfi_def_cfa_offset 56
     pop %rsi
     .cfi_restore rsi
-    .cfi_def_cfa_offset 48
-    pop %rbp
-    .cfi_restore rbp
-    .cfi_def_cfa_offset 40
     pop %rdx
     .cfi_restore rdx
-    .cfi_def_cfa_offset 32
     pop %rcx
     .cfi_restore rcx
-    .cfi_def_cfa_offset 24
     pop %rbx
     .cfi_restore rbx
-    .cfi_def_cfa_offset 16
     pop %rax
     .cfi_restore rax
-    .cfi_def_cfa_offset 8
+    pop %rbp
+    .cfi_restore rbp
+    .cfi_def_cfa rsp, 8
     ret
     .cfi_endproc
 

@@ -889,7 +889,9 @@ size_t ZSTD_insertBlock(ZSTD_DCtx* dctx, const void* blockStart, size_t blockSiz
 {
     DEBUGLOG(5, "ZSTD_insertBlock: %u bytes", (unsigned)blockSize);
     ZSTD_checkContinuity(dctx, blockStart, blockSize);
-    dctx->previousDstEnd = (const char*)blockStart + blockSize;
+    /* An empty insertion must not replace the current history endpoint. */
+    if (blockSize != 0)
+        dctx->previousDstEnd = (const char*)blockStart + blockSize;
     return blockSize;
 }
 
@@ -1395,7 +1397,9 @@ size_t ZSTD_decompressContinue(ZSTD_DCtx* dctx, void* dst, size_t dstCapacity, c
             DEBUGLOG(5, "ZSTD_decompressContinue: decoded size from block : %u", (unsigned)rSize);
             dctx->decodedSize += rSize;
             if (dctx->validateChecksum) XXH64_update(&dctx->xxhState, dst, rSize);
-            dctx->previousDstEnd = (char*)dst + rSize;
+            /* No output means no new history; dst may be NULL. */
+            if (rSize != 0)
+                dctx->previousDstEnd = (char*)dst + rSize;
 
             /* Stay on the same stage until we are finished streaming the block. */
             if (dctx->expected > 0) {

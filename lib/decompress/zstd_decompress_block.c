@@ -2296,7 +2296,9 @@ size_t ZSTD_decompressBlock_deprecated(ZSTD_DCtx* dctx,
     ZSTD_checkContinuity(dctx, dst, dstCapacity);
     dSize = ZSTD_decompressBlock_internal(dctx, dst, dstCapacity, src, srcSize, not_streaming);
     FORWARD_IF_ERROR(dSize, "");
-    dctx->previousDstEnd = (char*)dst + dSize;
+    /* No output means no new history; dst may be NULL. */
+    if (dSize != 0)
+        dctx->previousDstEnd = (char*)dst + dSize;
     return dSize;
 }
 

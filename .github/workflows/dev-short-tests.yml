@@ -376,17 +376,19 @@ jobs:
         make clean && make check ZSTD_LIB_EXCLUDE_COMPRESSORS_DFAST_AND_UP=1 MOREFLAGS="-Werror"
         make clean && make check ZSTD_LIB_EXCLUDE_COMPRESSORS_GREEDY_AND_UP=1 MOREFLAGS="-Werror"
 
+  # -march=x86-64 starts from a target without BMI2:
+  # GCC on ubuntu-26.04 runners targets x86-64-v3, which enables BMI2 by default.
   dynamic-bmi2:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: dynamic bmi2 tests
       run: |
-        make clean && make -j check MOREFLAGS="-O0 -Werror -mbmi2"
-        make clean && make -j check MOREFLAGS="-O0 -Werror -DDYNAMIC_BMI2=1"
-        make clean && make -j check MOREFLAGS="-O0 -Werror -DDYNAMIC_BMI2=1 -mbmi2"
-        make clean && make -j check MOREFLAGS="-O0 -Werror -DDYNAMIC_BMI2=0"
-        make clean && make -j check MOREFLAGS="-O0 -Werror -DDYNAMIC_BMI2=0 -mbmi2"
+        make clean && make -j check MOREFLAGS="-O0 -Werror -march=x86-64 -mbmi2"
+        make clean && make -j check MOREFLAGS="-O0 -Werror -march=x86-64 -DDYNAMIC_BMI2=1"
+        make clean && make -j check MOREFLAGS="-O0 -Werror -march=x86-64 -DDYNAMIC_BMI2=1 -mbmi2"
+        make clean && make -j check MOREFLAGS="-O0 -Werror -march=x86-64 -DDYNAMIC_BMI2=0"
+        make clean && make -j check MOREFLAGS="-O0 -Werror -march=x86-64 -DDYNAMIC_BMI2=0 -mbmi2"
 
   test-variants:
     runs-on: ubuntu-latest

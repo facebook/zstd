@@ -21,6 +21,10 @@ zstd-release:
 LIBZSTD_MK_DIR = ../lib
 include $(LIBZSTD_MK_DIR)/libzstd.mk
 
+ifdef ZSTD_SELECTIVE_LAZY
+CPPFLAGS += -DZSTD_SELECTIVE_LAZY
+endif
+
 ifeq ($(shell $(CC) -v 2>&1 | $(GREP) -c "gcc version "), 1)
   ALIGN_LOOP = -falign-loops=32
 else

@@ -59,6 +59,13 @@ VERSION := $(ZSTD_VERSION)
 # -mt or -nomt to the build target (like lib-mt for multi-threaded, lib-nomt for single-threaded).
 
 
+# Selective lazy optimization: reduces lazy evaluation overhead for
+# structured binary data workloads with predictable match patterns.
+# Enable with: make ZSTD_SELECTIVE_LAZY=1
+ifdef ZSTD_SELECTIVE_LAZY
+CPPFLAGS += -DZSTD_SELECTIVE_LAZY
+endif
+
 CPPFLAGS_DYNLIB  += -DZSTD_MULTITHREAD # dynamic library build defaults to multi-threaded
 LDFLAGS_DYNLIB   += -pthread
 CPPFLAGS_STATICLIB +=                  # static library build defaults to single-threaded

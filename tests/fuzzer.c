@@ -4539,22 +4539,22 @@ static int basicUnitTests(U32 const seed, double compressibility)
         DISPLAYLEVEL(3, "OK, created dictionary of size %u \n", (unsigned)dictSize);
 
         DISPLAYLEVEL(3, "test%3i : COVER dictBuilder orders equal dmers by position : ", testNb++);
-        /* COVER sorts its suffix array with qsort(), breaking ties between
+        /* COVER sorts its suffix array by dmer, breaking ties between
          * equal dmers by sample position; COVER_group() relies on that order
          * to count how many samples contain a dmer. A tie-break that depends on
          * the sort's internal state instead (the former address comparison)
          * still produces a dictionary, just a different one. Low-entropy
          * samples make ties frequent, so train on them and compare against the
-         * dictionary the position order produces, for both comparator paths. */
+         * dictionary the position order produces, on each comparison path. */
         {   size_t const dictCapacity = 16 KB;
             void* const coverDict = malloc(dictCapacity);
-            unsigned const dValues[2] = { 8, 16 };  /* COVER_cmp8() and COVER_cmp() */
-            XXH64_hash_t const expectedHash[2] = { 0x77EB0C1D595FF7A3ULL, 0xE02EC0FD3A5BBF6DULL };
+            unsigned const dValues[3] = { 6, 8, 16 };  /* masked 8-byte compare, full 8-byte compare, memcmp() */
+            XXH64_hash_t const expectedHash[3] = { 0x54CA5F766977CEA4ULL, 0x77EB0C1D595FF7A3ULL, 0xE02EC0FD3A5BBF6DULL };
             unsigned dIdx;
             if (coverDict==NULL) goto _output_error;
             RDG_genBuffer(decodedBuffer, totalSampleSize, 0.5, 0.05, 1);  /* low-entropy: many repeated dmers */
             { U32 u; for (u=0; u<nbSamples; u++) samplesSizes[u] = sampleUnitSize; }
-            for (dIdx = 0; dIdx < 2; dIdx++) {
+            for (dIdx = 0; dIdx < 3; dIdx++) {
                 ZDICT_cover_params_t coverParams;
                 size_t coverDictSize;
                 XXH64_hash_t hash;

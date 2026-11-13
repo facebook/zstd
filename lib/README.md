@@ -208,11 +208,6 @@ The file structure is designed to make this selection manually achievable for an
   and assembly decoding loops. You may want to use this macro if these loops are
   slower on your platform.
 
-- The macro `ZDICT_QSORT` can enforce selection of a specific sorting variant,
-  which is useful when autodetection fails, for example with older versions of `musl`.
-  For this scenario, it can be set as `ZDICT_QSORT=ZDICT_QSORT_C90`.
-  Other selectable suffixes are `_GNU`, `_APPLE`, `_MSVC` and `_C11`.
-
 #### Windows : using MinGW+MSYS to create DLL
 
 DLL can be created using MinGW+MSYS with the `make libzstd` command.

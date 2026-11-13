@@ -1066,22 +1066,14 @@ COVER_dictSelection_t COVER_selectDict(BYTE* customDictContent, size_t dictBuffe
         size_t nbCheckSamples, size_t nbSamples, ZDICT_cover_params_t params, size_t* offsets, size_t totalCompressedSize) {
 
   size_t largestDict = 0;
-  size_t largestCompressed = 0;
-  size_t candidateContentSize = 0;
-  size_t candidateDict = 0;
-  BYTE* customDictContentEnd = customDictContent + dictContentSize;
 
   BYTE* largestDictbuffer = (BYTE*)malloc(dictBufferCapacity);
-  BYTE* candidateDictBuffer = (BYTE*)malloc(dictBufferCapacity);
-  double regressionTolerance = ((double)params.shrinkDictMaxRegression / 100.0) + 1.00;
 
-  if (!largestDictbuffer || !candidateDictBuffer) {
-    free(largestDictbuffer);
-    free(candidateDictBuffer);
+  if (!largestDictbuffer) {
     return COVER_dictSelectionError(dictContentSize);
   }
 
-  /* Initial dictionary size and compressed size */
+  /* Dictionary size and compressed size */
   memcpy(largestDictbuffer, customDictContent, dictContentSize);
   largestDict = ZDICT_finalizeDictionary(
     largestDictbuffer, dictBufferCapacity, customDictContent, dictContentSize,
@@ -1089,7 +1081,6 @@ COVER_dictSelection_t COVER_selectDict(BYTE* customDictContent, size_t dictBuffe
 
   if (ZDICT_isError(largestDict)) {
     free(largestDictbuffer);
-    free(candidateDictBuffer);
     return COVER_dictSelectionError(largestDict);
   }
 
@@ -1100,51 +1091,10 @@ COVER_dictSelection_t COVER_selectDict(BYTE* customDictContent, size_t dictBuffe
 
   if (ZSTD_isError(totalCompressedSize)) {
     free(largestDictbuffer);
-    free(candidateDictBuffer);
     return COVER_dictSelectionError(totalCompressedSize);
   }
 
-  if (params.shrinkDict == 0) {
-    free(candidateDictBuffer);
-    return setDictSelection(largestDictbuffer, largestDict, totalCompressedSize);
-  }
-
-  largestCompressed = totalCompressedSize;
-  candidateContentSize = ZDICT_DICTSIZE_MIN;
-
-  while (candidateContentSize < dictContentSize) {
-    memcpy(candidateDictBuffer, largestDictbuffer, largestDict);
-    candidateDict = ZDICT_finalizeDictionary(
-      candidateDictBuffer, dictBufferCapacity, customDictContentEnd - candidateContentSize, candidateContentSize,
-      samplesBuffer, samplesSizes, nbFinalizeSamples, params.zParams);
-
-    if (ZDICT_isError(candidateDict)) {
-      free(largestDictbuffer);
-      free(candidateDictBuffer);
-      return COVER_dictSelectionError(candidateDict);
-
-    }
-
-    totalCompressedSize = COVER_checkTotalCompressedSize(params, samplesSizes,
-                                                         samplesBuffer, offsets,
-                                                         nbCheckSamples, nbSamples,
-                                                         candidateDictBuffer, candidateDict);
-
-    if (ZSTD_isError(totalCompressedSize)) {
-      free(largestDictbuffer);
-      free(candidateDictBuffer);
-      return COVER_dictSelectionError(totalCompressedSize);
-    }
-
-    if ((double)totalCompressedSize <= (double)largestCompressed * regressionTolerance) {
-      free(largestDictbuffer);
-      return setDictSelection( candidateDictBuffer, candidateDict, totalCompressedSize );
-    }
-    candidateContentSize *= 2;
-  }
-  totalCompressedSize = largestCompressed;
-  free(candidateDictBuffer);
-  return setDictSelection( largestDictbuffer, largestDict, totalCompressedSize );
+  return setDictSelection(largestDictbuffer, largestDict, totalCompressedSize);
 }
 
 /**
@@ -1225,7 +1175,6 @@ ZDICTLIB_STATIC_API size_t ZDICT_optimizeTrainFromBuffer_cover(
   const unsigned kStepSize = MAX((kMaxK - kMinK) / kSteps, 1);
   const unsigned kIterations =
       (1 + (kMaxD - kMinD) / 2) * (1 + (kMaxK - kMinK) / kStepSize);
-  const unsigned shrinkDict = 0;
   /* Local variables */
   int displayLevel = (int)parameters->zParams.notificationLevel;
   unsigned iteration = 1;
@@ -1305,7 +1254,6 @@ ZDICTLIB_STATIC_API size_t ZDICT_optimizeTrainFromBuffer_cover(
       data->parameters.d = d;
       data->parameters.splitPoint = splitPoint;
       data->parameters.steps = kSteps;
-      data->parameters.shrinkDict = shrinkDict;
       data->parameters.zParams.notificationLevel = (unsigned)ctx.displayLevel;
       /* Check the parameters */
       if (!COVER_checkParameters(data->parameters, dictBufferCapacity)) {

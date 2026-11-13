@@ -2458,13 +2458,10 @@ static int basicUnitTests(U32 const seed, double compressibility)
             ZSTD_getDictID_fromDDict;
         ZSTD_DStream* (* const funcptr_createDStream)(
             ZSTD_customMem customMem) = ZSTD_createDStream_advanced;
-        void (* const funcptr_copyDCtx)(
-            ZSTD_DCtx* dctx, const ZSTD_DCtx* preparedDCtx) = ZSTD_copyDCtx;
         ZSTD_nextInputType_e (* const funcptr_nextInputType)(ZSTD_DCtx* dctx) =
             ZSTD_nextInputType;
         const void *voidptr_getDictID;
         const void *voidptr_createDStream;
-        const void *voidptr_copyDCtx;
         const void *voidptr_nextInputType;
         DEBUG_STATIC_ASSERT(sizeof(funcptr_getDictID) == sizeof(voidptr_getDictID));
         memcpy(
@@ -2476,16 +2473,11 @@ static int basicUnitTests(U32 const seed, double compressibility)
             (const void*)&funcptr_createDStream,
             sizeof(void*));
         memcpy(
-            (void*)&voidptr_copyDCtx,
-            (const void*)&funcptr_copyDCtx,
-            sizeof(void*));
-        memcpy(
             (void*)&voidptr_nextInputType,
             (const void*)&funcptr_nextInputType,
             sizeof(void*));
         DISPLAYLEVEL(3, "%p ", voidptr_getDictID);
         DISPLAYLEVEL(3, "%p ", voidptr_createDStream);
-        DISPLAYLEVEL(3, "%p ", voidptr_copyDCtx);
         DISPLAYLEVEL(3, "%p ", voidptr_nextInputType);
     }
     DISPLAYLEVEL(3, ": OK \n");
@@ -4224,19 +4216,12 @@ static int basicUnitTests(U32 const seed, double compressibility)
 
     /* Dictionary and CCtx Duplication tests */
     {   ZSTD_CCtx* const ctxOrig = ZSTD_createCCtx();
-        ZSTD_CCtx* const ctxDuplicated = ZSTD_createCCtx();
         ZSTD_DCtx* const dctx = ZSTD_createDCtx();
         static const size_t dictSize = 551;
-        assert(dctx != NULL); assert(ctxOrig != NULL); assert(ctxDuplicated != NULL);
-
-        DISPLAYLEVEL(3, "test%3i : copy context too soon : ", testNb++);
-        { size_t const copyResult = ZSTD_copyCCtx(ctxDuplicated, ctxOrig, 0);
-          if (!ZSTD_isError(copyResult)) goto _output_error; }   /* error must be detected */
-        DISPLAYLEVEL(3, "OK \n");
+        assert(dctx != NULL); assert(ctxOrig != NULL);
 
         DISPLAYLEVEL(3, "test%3i : load dictionary into context : ", testNb++);
         CHECK_Z( ZSTD_compressBegin_usingDict(ctxOrig, CNBuffer, dictSize, 2) );
-        CHECK_Z( ZSTD_copyCCtx(ctxDuplicated, ctxOrig, 0) ); /* Begin_usingDict implies unknown srcSize, so match that */
         DISPLAYLEVEL(3, "OK \n");
 
         DISPLAYLEVEL(3, "test%3i : compress with flat dictionary : ", testNb++);
@@ -4252,25 +4237,6 @@ static int basicUnitTests(U32 const seed, double compressibility)
                                        decodedBuffer, CNBuffSize,
                                        compressedBuffer, cSize,
                                        CNBuffer, dictSize),
-                  if (r != CNBuffSize - dictSize) goto _output_error);
-        DISPLAYLEVEL(3, "OK \n");
-
-        DISPLAYLEVEL(3, "test%3i : compress with duplicated context : ", testNb++);
-        {   size_t const cSizeOrig = cSize;
-            cSize = 0;
-            CHECKPLUS(r, ZSTD_compressEnd(ctxDuplicated,
-                                    compressedBuffer, compressedBufferSize,
-                       (const char*)CNBuffer + dictSize, CNBuffSize - dictSize),
-                      cSize += r);
-            if (cSize != cSizeOrig) goto _output_error;   /* should be identical ==> same size */
-        }
-        DISPLAYLEVEL(3, "OK (%u bytes : %.2f%%)\n", (unsigned)cSize, (double)cSize/CNBuffSize*100);
-
-        DISPLAYLEVEL(3, "test%3i : frame built with duplicated context should be decompressible : ", testNb++);
-        CHECKPLUS(r, ZSTD_decompress_usingDict(dctx,
-                                           decodedBuffer, CNBuffSize,
-                                           compressedBuffer, cSize,
-                                           CNBuffer, dictSize),
                   if (r != CNBuffSize - dictSize) goto _output_error);
         DISPLAYLEVEL(3, "OK \n");
 
@@ -4293,19 +4259,6 @@ static int basicUnitTests(U32 const seed, double compressibility)
             free(ddictBuffer);
             DISPLAYLEVEL(3, "OK (size of static DDict : %u) \n", (unsigned)ddictBufferSize);
         }
-
-        DISPLAYLEVEL(3, "test%3i : check content size on duplicated context : ", testNb++);
-        {   size_t const testSize = CNBuffSize / 3;
-            CHECK_Z( ZSTD_compressBegin(ctxOrig, ZSTD_defaultCLevel()) );
-            CHECK_Z( ZSTD_copyCCtx(ctxDuplicated, ctxOrig, testSize) );
-
-            CHECK_VAR(cSize, ZSTD_compressEnd(ctxDuplicated, compressedBuffer, ZSTD_compressBound(testSize),
-                                          (const char*)CNBuffer + dictSize, testSize) );
-            {   ZSTD_FrameHeader zfh;
-                if (ZSTD_getFrameHeader(&zfh, compressedBuffer, cSize)) goto _output_error;
-                if ((zfh.frameContentSize != testSize) && (zfh.frameContentSize != 0)) goto _output_error;
-        }   }
-        DISPLAYLEVEL(3, "OK \n");
 
 #if !defined(ZSTD_EXCLUDE_DFAST_BLOCK_COMPRESSOR) \
  && !defined(ZSTD_EXCLUDE_GREEDY_BLOCK_COMPRESSOR) \
@@ -4416,7 +4369,6 @@ static int basicUnitTests(U32 const seed, double compressibility)
 #endif
 
         ZSTD_freeCCtx(ctxOrig);
-        ZSTD_freeCCtx(ctxDuplicated);
         ZSTD_freeDCtx(dctx);
     }
 
@@ -6882,7 +6834,6 @@ static int fuzzerTests(U32 seed, unsigned nbTests, unsigned startTest, U32 const
     BYTE* const cBuffer = (BYTE*) malloc (cBufferSize);
     BYTE* const dstBuffer = (BYTE*) malloc (dstBufferSize);
     BYTE* const mirrorBuffer = (BYTE*) malloc (dstBufferSize);
-    ZSTD_CCtx* const refCtx = ZSTD_createCCtx();
     ZSTD_CCtx* const ctx = ZSTD_createCCtx();
     ZSTD_DCtx* const dctx = ZSTD_createDCtx();
     U32 result = 0;
@@ -6899,7 +6850,7 @@ static int fuzzerTests(U32 seed, unsigned nbTests, unsigned startTest, U32 const
     cNoiseBuffer[3] = (BYTE*)malloc (srcBufferSize);
     cNoiseBuffer[4] = (BYTE*)malloc (srcBufferSize);
     CHECK (!cNoiseBuffer[0] || !cNoiseBuffer[1] || !cNoiseBuffer[2] || !cNoiseBuffer[3] || !cNoiseBuffer[4]
-           || !dstBuffer || !mirrorBuffer || !cBuffer || !refCtx || !ctx || !dctx,
+           || !dstBuffer || !mirrorBuffer || !cBuffer || !ctx || !dctx,
            "Not enough memory, fuzzer tests cancelled");
 
     /* Create initial samples */
@@ -7082,16 +7033,15 @@ static int fuzzerTests(U32 seed, unsigned nbTests, unsigned startTest, U32 const
                             testNb, (unsigned)maxTestSize, cLevel, (unsigned)dictSize);
 
             if (FUZ_rand(&lseed) & 0xF) {
-                CHECK_Z ( ZSTD_compressBegin_usingDict(refCtx, dict, dictSize, cLevel) );
+                CHECK_Z ( ZSTD_compressBegin_usingDict(ctx, dict, dictSize, cLevel) );
             } else {
                 ZSTD_compressionParameters const cPar = ZSTD_getCParams(cLevel, ZSTD_CONTENTSIZE_UNKNOWN, dictSize);
                 ZSTD_frameParameters const fPar = { FUZ_rand(&lseed)&1 /* contentSizeFlag */,
                                                     !(FUZ_rand(&lseed)&3) /* contentChecksumFlag*/,
                                                     0 /*NodictID*/ };   /* note : since dictionary is fake, dictIDflag has no impact */
                 ZSTD_parameters const p = FUZ_makeParams(cPar, fPar);
-                CHECK_Z ( ZSTD_compressBegin_advanced(refCtx, dict, dictSize, p, 0) );
+                CHECK_Z ( ZSTD_compressBegin_advanced(ctx, dict, dictSize, p, ZSTD_CONTENTSIZE_UNKNOWN) );
             }
-            CHECK_Z( ZSTD_copyCCtx(ctx, refCtx, 0) );
         }
 
         {   U32 const nbChunks = (FUZ_rand(&lseed) & 127) + 2;
@@ -7155,7 +7105,6 @@ static int fuzzerTests(U32 seed, unsigned nbTests, unsigned startTest, U32 const
     DISPLAY("\r%u fuzzer tests completed   \n", testNb-1);
 
 _cleanup:
-    ZSTD_freeCCtx(refCtx);
     ZSTD_freeCCtx(ctx);
     ZSTD_freeDCtx(dctx);
     free(cNoiseBuffer[0]);

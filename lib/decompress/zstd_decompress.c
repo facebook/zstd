@@ -347,13 +347,6 @@ size_t ZSTD_freeDCtx(ZSTD_DCtx* dctx)
     }
 }
 
-/* no longer useful */
-void ZSTD_copyDCtx(ZSTD_DCtx* dstDCtx, const ZSTD_DCtx* srcDCtx)
-{
-    size_t const toCopy = (size_t)((char*)(&dstDCtx->inBuff) - (char*)dstDCtx);
-    ZSTD_memcpy(dstDCtx, srcDCtx, toCopy);  /* no need to copy workspace */
-}
-
 /* Look up the DDict for a complete, valid Zstandard frame header.
  * The result is for this frame only; it does not change the single-DDict state.
  *

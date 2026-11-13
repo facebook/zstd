@@ -146,10 +146,6 @@ size_t ZSTD_compressBlock_doubleFast_noDict_generic(
 
     const BYTE* ip = istart; /* the current position */
     const BYTE* ip1; /* the next position */
-    /* Array of ~random data, should have low probability of matching data
-     * we load from here instead of from tables, if matchl0/matchl1 are
-     * invalid indices. Used to avoid unpredictable branches. */
-    const BYTE dummy[] = {0x12,0x34,0x56,0x78,0x9a,0xbc,0xde,0xf0,0xe2,0xb4};
 
     DEBUGLOG(5, "ZSTD_compressBlock_doubleFast_noDict_generic");
 
@@ -200,7 +196,7 @@ size_t ZSTD_compressBlock_doubleFast_noDict_generic(
              * However expression below complies into conditional move. Since
              * match is unlikely and we only *branch* on idxl0 > prefixLowestIndex
              * if there is a match, all branches become predictable. */
-            {   const BYTE*  const matchl0_safe = ZSTD_selectAddr(idxl0, prefixLowestIndex, matchl0, &dummy[0]);
+            {   const BYTE*  const matchl0_safe = base + ZSTD_selectIdx(idxl0, prefixLowestIndex);
 
                 /* check prefix long match */
                 if (MEM_read64(matchl0_safe) == MEM_read64(ip) && matchl0_safe == matchl0) {
@@ -214,7 +210,7 @@ size_t ZSTD_compressBlock_doubleFast_noDict_generic(
             matchl1 = base + idxl1;
 
             /* Same optimization as matchl0 above */
-            matchs0_safe = ZSTD_selectAddr(idxs0, prefixLowestIndex, matchs0, &dummy[0]);
+            matchs0_safe = base + ZSTD_selectIdx(idxs0, prefixLowestIndex);
 
             /* check prefix short match */
             if(MEM_read32(matchs0_safe) == MEM_read32(ip) && matchs0_safe == matchs0) {

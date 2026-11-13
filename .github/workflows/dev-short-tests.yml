@@ -64,7 +64,7 @@ jobs:
       run: |
         echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu focal main universe" | sudo tee -a /etc/apt/sources.list
         sudo apt-get -qqq update
-        make gcc7install
+        sudo apt-get -yq --no-install-suggests --no-install-recommends install libc6-dev-i386 gcc-multilib gcc-7 gcc-7-multilib
         CC=gcc-7 CFLAGS=-Werror make -j all
         make clean
         LDFLAGS=-Wl,--no-undefined make -C lib libzstd-mt
@@ -183,7 +183,7 @@ jobs:
         run: |
           echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu focal main universe" | sudo tee -a /etc/apt/sources.list
           sudo apt-get -qqq update
-          make gcc8install
+          sudo apt-get -yq --no-install-suggests --no-install-recommends install libc6-dev-i386 gcc-multilib gcc-8 gcc-8-multilib
           CC=gcc-8 CFLAGS="-Werror" make -j all
 
   make-external-compressors:

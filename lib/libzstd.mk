@@ -49,9 +49,6 @@ else
   ZSTD_STRIP_ERROR_STRINGS ?= 0
 endif
 
-# Assembly support
-ZSTD_NO_ASM ?= 0
-
 ZSTD_LIB_EXCLUDE_COMPRESSORS_DFAST_AND_UP ?= 0
 ZSTD_LIB_EXCLUDE_COMPRESSORS_GREEDY_AND_UP ?= 0
 
@@ -151,11 +148,14 @@ ZSTD_LEGACY_FILES :=
 
 ZSTD_DECOMPRESS_AMD64_ASM_FILES := $(sort $(wildcard $(LIB_SRCDIR)/decompress/*_amd64.S))
 
-ifneq ($(ZSTD_NO_ASM), 0)
+# The assembly sources only have an x86_64 implementation, so only build
+# them when the compiler targets x86_64. Ask the compiler instead of using
+# uname so that cross-compiling and -m32 builds do the right thing.
+ZSTD_ASM_X86_64 := $(shell echo | $(CC) $(CPPFLAGS) $(CFLAGS) -dM -E - 2>$(VOID) | $(GREP) -c '__x86_64__')
+
+ifeq ($(ZSTD_ASM_X86_64), 0)
   CPPFLAGS += -DZSTD_DISABLE_ASM
 else
-  # Unconditionally add the ASM files they are disabled by
-  # macros in the .S file.
   ZSTD_DECOMPRESS_FILES += $(ZSTD_DECOMPRESS_AMD64_ASM_FILES)
 endif
 

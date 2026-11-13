@@ -32,7 +32,7 @@ REL_EXCLUDES = [
 ]
 
 def to_abs(d):
-    return os.path.normpath(os.path.join(ROOT, d)) + "/"
+    return os.path.normpath(os.path.join(ROOT, d)) + os.sep
 
 DIRS = [to_abs(d) for d in RELDIRS]
 EXCLUDES = [to_abs(d) for d in REL_EXCLUDES]

@@ -125,6 +125,8 @@ static size_t ZSTD_initDDict_internal(ZSTD_DDict* ddict,
                                       ZSTD_dictLoadMethod_e dictLoadMethod,
                                       ZSTD_dictContentType_e dictContentType)
 {
+    /* An empty dictionary has no referenced storage, even in by-copy mode. */
+    if (dictSize == 0) dict = NULL;
     if ((dictLoadMethod == ZSTD_dlm_byRef) || (!dict) || (!dictSize)) {
         ddict->dictBuffer = NULL;
         ddict->dictContent = dict;
@@ -212,10 +214,10 @@ const ZSTD_DDict* ZSTD_initStaticDDict(
     size_t const neededSpace = ZSTD_estimateDDictSize(dictSize, dictLoadMethod);
     ZSTD_DDict* const ddict = (ZSTD_DDict*)sBuffer;
     assert(sBuffer != NULL);
-    assert(dict != NULL);
+    assert(dict != NULL || dictSize == 0);
     if ((size_t)sBuffer & 7) return NULL;   /* 8-aligned */
     if (ZSTD_isError(neededSpace) || sBufferSize < neededSpace) return NULL;
-    if (dictLoadMethod == ZSTD_dlm_byCopy) {
+    if (dictLoadMethod == ZSTD_dlm_byCopy && dictSize != 0) {
         ZSTD_memcpy(ddict+1, dict, dictSize);  /* local copy */
         dict = ddict+1;
     }

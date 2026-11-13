@@ -48,6 +48,8 @@
 #include "compress/hist.h" /* HIST_count_wksp */
 #include "compress/zstd_compress_internal.h" /* ZSTD_get1BlockSummary */
 #include "decompress/zstd_decompress_internal.h" /* ZSTD_DCtx */
+#include "decompress/zstd_ddict.h" /* empty DDict storage invariants */
+#include "bitstream.h"    /* BIT_reloadDStream boundary tests */
 #include "dictBuilder/cover.h" /* COVER_selectDict */
 
 
@@ -2273,6 +2275,165 @@ static unsigned test_multipleDDicts(unsigned testNb)
     return testNb;
 }
 
+static void FUZ_checkEmptyDDict(const ZSTD_DDict* ddict)
+{
+    static const BYTE frame[] = {
+        0x28, 0xB5, 0x2F, 0xFD, 0x20, 4, 0x21, 0, 0, 'T', 'E', 'S', 'T'
+    };
+    BYTE dst[4];
+    ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+    CHECK(ddict != NULL && dctx != NULL);
+    CHECK(ZSTD_DDict_dictContent(ddict) == NULL);
+    CHECK_EQ(ZSTD_DDict_dictSize(ddict), 0);
+    CHECK_Z(ZSTD_decompressBegin_usingDDict(dctx, ddict));
+    CHECK(dctx->prefixStart == NULL && dctx->virtualStart == NULL);
+    CHECK(dctx->dictEnd == NULL && dctx->previousDstEnd == NULL);
+    ZSTD_copyDDictParameters(dctx, ddict);
+    CHECK(dctx->dictEnd == NULL && dctx->previousDstEnd == NULL);
+    CHECK_EQ(ZSTD_decompress_usingDDict(dctx, dst, sizeof(dst), frame, sizeof(frame), ddict), 4);
+    CHECK(!memcmp(dst, "TEST", 4));
+    CHECK_Z(ZSTD_DCtx_refDDict(dctx, ddict));
+    {   ZSTD_inBuffer in = { frame, sizeof(frame), 0 };
+        ZSTD_outBuffer out = { dst, sizeof(dst), 0 };
+        CHECK_EQ(ZSTD_decompressStream(dctx, &out, &in), 0);
+        CHECK_EQ(in.pos, sizeof(frame));
+        CHECK_EQ(out.pos, sizeof(dst));
+        CHECK(!memcmp(dst, "TEST", 4));
+    }
+    ZSTD_freeDCtx(dctx);
+}
+
+static void FUZ_checkHufBoundaries(HUF_DTable* dtable, HUF_CElt const* ctable)
+{
+    BYTE src[512];
+    BYTE compressed[1024];
+    BYTE decoded[sizeof(src)];
+    size_t i;
+    int const bmi2 = ZSTD_cpuSupportsBmi2() ? HUF_flags_bmi2 : 0;
+    int const flags[] = { 0, HUF_flags_disableAsm, HUF_flags_disableFast };
+    unsigned flagNb;
+    for (i = 0; i < sizeof(src); ++i) src[i] = (BYTE)(i & 1);
+    for (i = 1; i <= 17; ++i) {
+        size_t const cSize = HUF_compress1X_usingCTable(compressed, sizeof(compressed), src, i, ctable, 0);
+        CHECK_Z(cSize);
+        CHECK(cSize != 0);
+        CHECK_EQ(HUF_decompress1X_usingDTable(decoded, i, compressed, cSize, dtable, bmi2), i);
+        CHECK(!memcmp(src, decoded, i));
+    }
+    /* The two-symbol table is expanded to the fast decoder's table log.
+     * Each of these four streams is at least eight compressed bytes long. */
+    {   size_t const cSize = HUF_compress4X_usingCTable(compressed, sizeof(compressed), src, sizeof(src), ctable, 0);
+        CHECK_Z(cSize);
+        CHECK(cSize != 0);
+        for (flagNb = 0; flagNb < COUNTOF(flags); ++flagNb) {
+            CHECK_EQ(HUF_decompress4X_usingDTable(decoded, sizeof(decoded), compressed, cSize, dtable, bmi2 | flags[flagNb]), sizeof(decoded));
+            CHECK(!memcmp(src, decoded, sizeof(src)));
+        }
+    }
+}
+
+static void test_decoderPointerBoundaries(unsigned tnb)
+{
+    static const BYTE emptyFrame[] = {
+        0x28, 0xB5, 0x2F, 0xFD, 0, 0, 3, 0, 0, 'A'
+    };
+    ZSTD_dictLoadMethod_e const methods[] = { ZSTD_dlm_byCopy, ZSTD_dlm_byRef };
+    unsigned methodNb;
+    unsigned nullInput;
+    DISPLAYLEVEL(3, "test%3u : empty dictionaries and decoder pointer boundaries : ", tnb);
+    for (methodNb = 0; methodNb < COUNTOF(methods); ++methodNb) {
+        for (nullInput = 0; nullInput < 2; ++nullInput) {
+            BYTE* const input = (BYTE*)malloc(16);
+            ZSTD_DDict* ddict;
+            const ZSTD_DDict* staticDDict;
+            size_t const workspaceSize = ZSTD_estimateDDictSize(0, methods[methodNb]);
+            void* const workspace = malloc(workspaceSize);
+            CHECK(input != NULL && workspace != NULL);
+            memset(input, 0xA5, 16);
+            ddict = ZSTD_createDDict_advanced(nullInput ? NULL : input, 0,
+                                              methods[methodNb], ZSTD_dct_auto, ZSTD_defaultCMem);
+            staticDDict = ZSTD_initStaticDDict(workspace, workspaceSize, nullInput ? NULL : input, 0,
+                                               methods[methodNb], ZSTD_dct_auto);
+            free(input);
+            FUZ_checkEmptyDDict(ddict);
+            FUZ_checkEmptyDDict(staticDDict);
+            ZSTD_freeDDict(ddict);
+            free(workspace);
+        }
+        /* Do not change nonempty raw-dictionary copying/reference semantics. */
+        {   BYTE input[16];
+            ZSTD_DDict* ddict;
+            memset(input, 0x5A, sizeof(input));
+            ddict = ZSTD_createDDict_advanced(input, sizeof(input), methods[methodNb],
+                                            ZSTD_dct_rawContent, ZSTD_defaultCMem);
+            CHECK(ddict != NULL);
+            CHECK_EQ(ZSTD_DDict_dictSize(ddict), sizeof(input));
+            CHECK(!memcmp(ZSTD_DDict_dictContent(ddict), input, sizeof(input)));
+            CHECK((ZSTD_DDict_dictContent(ddict) == input) == (methods[methodNb] == ZSTD_dlm_byRef));
+            ZSTD_freeDDict(ddict);
+        }
+    }
+    {   ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+        size_t pos = 0;
+        CHECK(dctx != NULL);
+        CHECK_Z(ZSTD_decompressBegin(dctx));
+        while (ZSTD_nextSrcSizeToDecompress(dctx) != 0) {
+            size_t const next = ZSTD_nextSrcSizeToDecompress(dctx);
+            CHECK(next <= sizeof(emptyFrame) - pos);
+            CHECK_EQ(ZSTD_decompressContinue(dctx, NULL, 0, emptyFrame + pos, next), 0);
+            pos += next;
+        }
+        CHECK_EQ(pos, sizeof(emptyFrame));
+        CHECK_Z(ZSTD_DCtx_reset(dctx, ZSTD_reset_session_and_parameters));
+        CHECK_Z(ZSTD_DCtx_setParameter(dctx, ZSTD_d_stableOutBuffer, 1));
+        {   ZSTD_inBuffer in1 = { emptyFrame, 6, 0 };
+            ZSTD_inBuffer in2 = { emptyFrame + 6, sizeof(emptyFrame) - 6, 0 };
+            ZSTD_outBuffer out = { NULL, 0, 0 };
+            CHECK_Z(ZSTD_decompressStream(dctx, &out, &in1));
+            CHECK_EQ(ZSTD_decompressStream(dctx, &out, &in2), 0);
+            CHECK_EQ(out.pos, 0);
+        }
+        ZSTD_freeDCtx(dctx);
+    }
+    {   BYTE input[2 * sizeof(BitContainerType)];
+        size_t distance;
+        U32 nbBytes;
+        memset(input, 0xA5, sizeof(input));
+        for (distance = 1; distance < sizeof(BitContainerType); ++distance) {
+            for (nbBytes = 0; nbBytes <= sizeof(BitContainerType); ++nbBytes) {
+                BIT_DStream_t bit;
+                size_t const consumed = MIN(distance, (size_t)nbBytes);
+                CHECK_Z(BIT_initDStream(&bit, input, sizeof(input)));
+                bit.ptr = bit.start + distance;
+                bit.bitsConsumed = nbBytes * 8;
+                CHECK_EQ(BIT_reloadDStream(&bit), nbBytes > distance ? BIT_DStream_endOfBuffer : BIT_DStream_unfinished);
+                CHECK(bit.ptr == bit.start + distance - consumed);
+                CHECK_EQ(bit.bitsConsumed, (nbBytes - consumed) * 8);
+            }
+        }
+    }
+    {   static const BYTE header[] = { 128, 0x10 };
+        HUF_CREATE_STATIC_CTABLE(ctable, HUF_SYMBOLVALUE_MAX);
+        U32 workspace[HUF_DECOMPRESS_WORKSPACE_SIZE_U32];
+        unsigned maxSymbolValue = HUF_SYMBOLVALUE_MAX;
+        unsigned hasZeroWeights = 0;
+        CHECK_EQ(HUF_readCTable(ctable, &maxSymbolValue, header, sizeof(header), &hasZeroWeights), sizeof(header));
+#ifndef HUF_FORCE_DECOMPRESS_X2
+        {   HUF_CREATE_STATIC_DTABLEX1(dtable, HUF_TABLELOG_MAX);
+            CHECK_EQ(HUF_readDTableX1_wksp(dtable, header, sizeof(header), workspace, sizeof(workspace), 0), sizeof(header));
+            FUZ_checkHufBoundaries(dtable, ctable);
+        }
+#endif
+#ifndef HUF_FORCE_DECOMPRESS_X1
+        {   HUF_CREATE_STATIC_DTABLEX2(dtable, HUF_TABLELOG_MAX);
+            CHECK_EQ(HUF_readDTableX2_wksp(dtable, header, sizeof(header), workspace, sizeof(workspace), 0), sizeof(header));
+            FUZ_checkHufBoundaries(dtable, ctable);
+        }
+#endif
+    }
+    DISPLAYLEVEL(3, "OK \n");
+}
+
 static int basicUnitTests(U32 const seed, double compressibility)
 {
     size_t const CNBuffSize = 5 MB;
@@ -2322,6 +2483,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
     test_compressBound(testNb++);
 
     test_decompressBound(testNb++);
+
+    test_decoderPointerBoundaries(testNb++);
 
     test_decompressSplitLitBuffer(testNb++);
 

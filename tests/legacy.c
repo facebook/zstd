@@ -446,6 +446,170 @@ static int testMultipleDDicts(void)
 }
 #endif
 
+#if (ZSTD_LEGACY_SUPPORT <= 7)
+/* All these formats have a 128-KB decoded block limit. The three-byte
+ * block-size field can represent more, so test that oversized blocks are
+ * rejected by size inspection and by the decoder. */
+#define LEGACY_BLOCK_LIMIT (128U * 1024U)
+
+static size_t buildLegacyBlockFrame(unsigned char* dst, unsigned version,
+                                    unsigned type, size_t blockSize)
+{
+    size_t const headerSize = version < 4 ? 4 : version == 7 ? 6 : 5;
+    size_t const payloadSize = type == 2 ? 1 : blockSize;
+    if (version == 1) {
+        dst[0] = 0xFD; dst[1] = 0x2F; dst[2] = 0xB5; dst[3] = 0x1E;
+    } else {
+        dst[0] = (unsigned char)(0x20 + version);
+        dst[1] = 0xB5; dst[2] = 0x2F; dst[3] = 0xFD;
+    }
+    if (version >= 4) dst[4] = version == 6 ? 5 : 0;
+    if (version == 7) dst[5] = 0x38; /* 128-KB window, unknown content size */
+    dst[headerSize] = (unsigned char)((type << 6) | ((blockSize >> 16) & 7));
+    dst[headerSize + 1] = (unsigned char)(blockSize >> 8);
+    dst[headerSize + 2] = (unsigned char)blockSize;
+    memset(dst + headerSize + 3, 'X', payloadSize);
+    dst[headerSize + 3 + payloadSize] = 0xC0;
+    dst[headerSize + 4 + payloadSize] = 0;
+    dst[headerSize + 5 + payloadSize] = 0;
+    return headerSize + 6 + payloadSize;
+}
+#endif
+
+static int testLegacyBlockBounds(void)
+{
+#if (ZSTD_LEGACY_SUPPORT <= 7)
+    size_t const sizes[] = { LEGACY_BLOCK_LIMIT - 1, LEGACY_BLOCK_LIMIT,
+                            LEGACY_BLOCK_LIMIT + 1, 2 * LEGACY_BLOCK_LIMIT, 524287 };
+    unsigned char* const src = (unsigned char*)malloc(2 * (524287 + 12));
+    unsigned char* const decoded = (unsigned char*)malloc(524287 + 1);
+    unsigned version, type;
+    size_t s;
+    int failed = 1;
+    if (src == NULL || decoded == NULL) goto cleanup;
+    for (version = ZSTD_LEGACY_SUPPORT; version <= 7; ++version) {
+        for (type = 0; type < 3; ++type) {
+            for (s = 0; s < sizeof(sizes) / sizeof(sizes[0]); ++s) {
+                size_t const size = sizes[s];
+                int const reject = size > LEGACY_BLOCK_LIMIT;
+                size_t const srcSize = buildLegacyBlockFrame(src, version, type, size);
+                size_t const cSize = ZSTD_findFrameCompressedSize(src, srcSize);
+                unsigned long long const bound = ZSTD_decompressBound(src, srcSize);
+                if (reject) {
+                    if (ZSTD_getErrorCode(cSize) != ZSTD_error_corruption_detected
+                        || bound != ZSTD_CONTENTSIZE_ERROR) goto mismatch;
+                    if (ZSTD_getErrorCode(ZSTD_decompress(decoded, 524287 + 1, src, srcSize))
+                        != ZSTD_error_corruption_detected) goto mismatch;
+                } else {
+                    if (cSize != srcSize || bound != LEGACY_BLOCK_LIMIT) goto mismatch;
+                    /* Only decode raw blocks here: the compressed payload is
+                     * arbitrary 'X' bytes, and not all early versions support RLE. */
+                    if (type == 1) {
+                        size_t const result = ZSTD_decompress(decoded, 524287 + 1, src, srcSize);
+                        if (result != size || decoded[0] != 'X'
+                            || decoded[size - 1] != 'X') goto mismatch;
+                    }
+                }
+                continue;
+mismatch:
+                DISPLAY("ERROR: v0.%u block type %u size %u violates block bound\n",
+                        version, type, (unsigned)size);
+                goto cleanup;
+            }
+        }
+        {   size_t const first = buildLegacyBlockFrame(src, version, 1, LEGACY_BLOCK_LIMIT);
+            size_t const second = buildLegacyBlockFrame(src + first, version, 1, 1);
+            size_t const result = ZSTD_decompress(decoded, 524287 + 1, src, first + second);
+            if (ZSTD_decompressBound(src, first + second) != 2ULL * LEGACY_BLOCK_LIMIT
+                || result != LEGACY_BLOCK_LIMIT + 1) {
+                DISPLAY("ERROR: v0.%u concatenated raw frames violate block bound\n", version);
+                goto cleanup;
+            }
+            if (ZSTD_getErrorCode(ZSTD_decompress(decoded, LEGACY_BLOCK_LIMIT - 1,
+                                                  src, first)) != ZSTD_error_dstSize_tooSmall) {
+                DISPLAY("ERROR: v0.%u raw block accepted an undersized destination\n", version);
+                goto cleanup;
+            }
+        }
+    }
+    failed = 0;
+cleanup:
+    free(decoded);
+    free(src);
+    if (failed) DISPLAY("ERROR: Legacy block-size bound regression\n");
+    return failed;
+#else
+    return 0;
+#endif
+}
+
+#if (ZSTD_LEGACY_SUPPORT <= 4)
+static size_t buildLegacyRawLiteralsFrame(unsigned char* dst, unsigned version,
+                                          size_t litSize, unsigned extraDump)
+{
+    size_t const headerSize = version < 4 ? 4 : 5;
+    size_t const blockSize = litSize + 10 + extraDump;
+    size_t const frameSize = buildLegacyBlockFrame(dst, version, 0, blockSize);
+    unsigned char* const block = dst + headerSize + 3;
+    unsigned char* seq = block + 3 + litSize;
+    size_t i;
+    block[0] = (unsigned char)((litSize << 2) | 1);
+    block[1] = (unsigned char)(litSize >> 6);
+    block[2] = (unsigned char)(litSize >> 14);
+    for (i = 0; i < litSize; ++i) block[3 + i] = (unsigned char)('A' + i);
+    seq[0] = 0; seq[1] = 0; /* no sequences */
+    seq[2] = 0x54;         /* raw LL/OF/ML tables */
+    seq[3] = (unsigned char)extraDump;
+    if (extraDump) { seq[4] = 0; ++seq; }
+    seq[4] = 0; seq[5] = 0; seq[6] = 4; /* 18 initial-state bits */
+    return frameSize;
+}
+#endif
+
+static int testLegacyRawLiteralOffsets(void)
+{
+#if (ZSTD_LEGACY_SUPPORT <= 4)
+    unsigned version;
+    size_t const sizes[] = { 1, 4, 8, 16 };
+    unsigned char frame[64];
+    unsigned char decoded[32];
+    unsigned char expected[32];
+    for (version = ZSTD_LEGACY_SUPPORT < 2 ? 2 : ZSTD_LEGACY_SUPPORT; version <= 4; ++version) {
+        unsigned extraDump;
+        size_t s;
+        for (extraDump = 0; extraDump <= 1; ++extraDump) {
+            for (s = 0; s < sizeof(sizes) / sizeof(sizes[0]); ++s) {
+                size_t const litSize = sizes[s];
+                size_t const frameSize = buildLegacyRawLiteralsFrame(frame, version, litSize, extraDump);
+                size_t i;
+                size_t result;
+                for (i = 0; i < litSize; ++i) expected[i] = (unsigned char)('A' + i);
+                result = ZSTD_decompress(decoded, sizeof(decoded), frame, frameSize);
+                if (result != litSize || memcmp(decoded, expected, litSize) != 0) {
+                    DISPLAY("ERROR: v0.%u raw literals size %u, extra dump %u\n",
+                            version, (unsigned)litSize, extraDump);
+                    return 1;
+                }
+                /* A declared literal payload extending past the block must
+                 * still fail before the temporary-buffer copy. */
+                {   size_t const headerSize = version < 4 ? 4 : 5;
+                    size_t const badLitSize = litSize + 8 + extraDump;
+                    frame[headerSize + 3] = (unsigned char)((badLitSize << 2) | 1);
+                    frame[headerSize + 4] = (unsigned char)(badLitSize >> 6);
+                    frame[headerSize + 5] = (unsigned char)(badLitSize >> 14);
+                    result = ZSTD_decompress(decoded, sizeof(decoded), frame, frameSize);
+                    if (ZSTD_getErrorCode(result) != ZSTD_error_corruption_detected) {
+                        DISPLAY("ERROR: v0.%u accepted truncated raw literals\n", version);
+                        return 1;
+                    }
+                }
+            }
+        }
+    }
+#endif
+    return 0;
+}
+
 int main(void)
 {
     size_t const blockSize = strlen(BLOCK);
@@ -492,6 +656,8 @@ int main(void)
 #if (ZSTD_LEGACY_SUPPORT <= 7)
         if (testMultipleDDicts()) break;
 #endif
+        if (testLegacyBlockBounds()) break;
+        if (testLegacyRawLiteralOffsets()) break;
         result = 0;
     } while (0);
 

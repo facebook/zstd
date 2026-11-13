@@ -98,7 +98,7 @@ jobs:
         CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ CFLAGS="-Werror -O1" make zstd
 
   armbuild:
-    runs-on: ubuntu-24.04  # fails on ubuntu-26.04: no qemu-user-static package
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: ARM Build Test

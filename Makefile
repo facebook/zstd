@@ -238,19 +238,22 @@ ppcbuild: clean
 ppc64build: clean
 	CC=powerpc-linux-gnu-gcc CFLAGS="-m64 -Werror" $(MAKE) -j allzstd
 
+# qemu-user names its binaries qemu-<arch>; qemu-user-static, before Ubuntu 26.04, names them qemu-<arch>-static
+QEMU_SUFFIX = $(if $(shell command -v qemu-arm 2>/dev/null),,-static)
+
 .PHONY: armfuzz aarch64fuzz ppcfuzz ppc64fuzz
 armfuzz: clean
-	CC=arm-linux-gnueabi-gcc QEMU_SYS=qemu-arm-static MOREFLAGS="-static $(MOREFLAGS)" FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)" $(MAKE) -C $(TESTDIR) fuzztest
+	CC=arm-linux-gnueabi-gcc QEMU_SYS=qemu-arm$(QEMU_SUFFIX) MOREFLAGS="-static $(MOREFLAGS)" FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)" $(MAKE) -C $(TESTDIR) fuzztest
 
 aarch64fuzz: clean
 	ld -v
-	CC=aarch64-linux-gnu-gcc QEMU_SYS=qemu-aarch64-static MOREFLAGS="-static $(MOREFLAGS)" FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)" $(MAKE) -C $(TESTDIR) fuzztest
+	CC=aarch64-linux-gnu-gcc QEMU_SYS=qemu-aarch64$(QEMU_SUFFIX) MOREFLAGS="-static $(MOREFLAGS)" FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)" $(MAKE) -C $(TESTDIR) fuzztest
 
 ppcfuzz: clean
-	CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc-static MOREFLAGS="-static $(MOREFLAGS)" FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)" $(MAKE) -C $(TESTDIR) fuzztest
+	CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc$(QEMU_SUFFIX) MOREFLAGS="-static $(MOREFLAGS)" FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)" $(MAKE) -C $(TESTDIR) fuzztest
 
 ppc64fuzz: clean
-	CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc64-static MOREFLAGS="-m64 -static $(MOREFLAGS)" FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)" $(MAKE) -C $(TESTDIR) fuzztest
+	CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc64$(QEMU_SUFFIX) MOREFLAGS="-m64 -static $(MOREFLAGS)" FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)" $(MAKE) -C $(TESTDIR) fuzztest
 
 .PHONY: cxxtest gcc5test gcc6test armtest aarch64test ppctest ppc64test
 cxxtest: CXXFLAGS += -Wall -Wextra -Wundef -Wshadow -Wcast-align -Werror
@@ -267,26 +270,26 @@ gcc6test: clean
 
 armtest: clean
 	$(MAKE) -C $(TESTDIR) datagen   # use native, faster
-	$(MAKE) -C $(TESTDIR) test CC=arm-linux-gnueabi-gcc QEMU_SYS=qemu-arm-static ZSTDRTTEST= MOREFLAGS="-Werror -static $(MOREFLAGS)" FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)"
+	$(MAKE) -C $(TESTDIR) test CC=arm-linux-gnueabi-gcc QEMU_SYS=qemu-arm$(QEMU_SUFFIX) ZSTDRTTEST= MOREFLAGS="-Werror -static $(MOREFLAGS)" FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)"
 
 aarch64test:
 	$(MAKE) -C $(TESTDIR) datagen   # use native, faster
-	$(MAKE) -C $(TESTDIR) test CC=aarch64-linux-gnu-gcc QEMU_SYS=qemu-aarch64-static ZSTDRTTEST= MOREFLAGS="-Werror -static $(MOREFLAGS)" FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)"
+	$(MAKE) -C $(TESTDIR) test CC=aarch64-linux-gnu-gcc QEMU_SYS=qemu-aarch64$(QEMU_SUFFIX) ZSTDRTTEST= MOREFLAGS="-Werror -static $(MOREFLAGS)" FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)"
 
 ppctest: clean
 	$(MAKE) -C $(TESTDIR) datagen   # use native, faster
-	$(MAKE) -C $(TESTDIR) test CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc-static ZSTDRTTEST= MOREFLAGS="-Werror -Wno-attributes -static $(MOREFLAGS)" FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)"
+	$(MAKE) -C $(TESTDIR) test CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc$(QEMU_SUFFIX) ZSTDRTTEST= MOREFLAGS="-Werror -Wno-attributes -static $(MOREFLAGS)" FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)"
 
 ppc64test: clean
 	$(MAKE) -C $(TESTDIR) datagen   # use native, faster
-	$(MAKE) -C $(TESTDIR) test CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc64-static ZSTDRTTEST= MOREFLAGS="-m64 -static $(MOREFLAGS)" FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)"
+	$(MAKE) -C $(TESTDIR) test CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc64$(QEMU_SUFFIX) ZSTDRTTEST= MOREFLAGS="-m64 -static $(MOREFLAGS)" FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)"
 
 .PHONY: arm-ppc-compilation
 arm-ppc-compilation:
-	$(MAKE) -C $(PRGDIR) clean zstd CC=arm-linux-gnueabi-gcc QEMU_SYS=qemu-arm-static ZSTDRTTEST= MOREFLAGS="-Werror -static $(MOREFLAGS)"
-	$(MAKE) -C $(PRGDIR) clean zstd CC=aarch64-linux-gnu-gcc QEMU_SYS=qemu-aarch64-static ZSTDRTTEST= MOREFLAGS="-Werror -static $(MOREFLAGS)"
-	$(MAKE) -C $(PRGDIR) clean zstd CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc-static ZSTDRTTEST= MOREFLAGS="-Werror -Wno-attributes -static $(MOREFLAGS)"
-	$(MAKE) -C $(PRGDIR) clean zstd CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc64-static ZSTDRTTEST= MOREFLAGS="-m64 -static $(MOREFLAGS)"
+	$(MAKE) -C $(PRGDIR) clean zstd CC=arm-linux-gnueabi-gcc QEMU_SYS=qemu-arm$(QEMU_SUFFIX) ZSTDRTTEST= MOREFLAGS="-Werror -static $(MOREFLAGS)"
+	$(MAKE) -C $(PRGDIR) clean zstd CC=aarch64-linux-gnu-gcc QEMU_SYS=qemu-aarch64$(QEMU_SUFFIX) ZSTDRTTEST= MOREFLAGS="-Werror -static $(MOREFLAGS)"
+	$(MAKE) -C $(PRGDIR) clean zstd CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc$(QEMU_SUFFIX) ZSTDRTTEST= MOREFLAGS="-Werror -Wno-attributes -static $(MOREFLAGS)"
+	$(MAKE) -C $(PRGDIR) clean zstd CC=powerpc-linux-gnu-gcc QEMU_SYS=qemu-ppc64$(QEMU_SUFFIX) ZSTDRTTEST= MOREFLAGS="-m64 -static $(MOREFLAGS)"
 
 regressiontest:
 	$(MAKE) -C $(FUZZDIR) regressiontest
@@ -356,10 +359,10 @@ apt-add-repo:
 
 .PHONY: ppcinstall arminstall valgrindinstall libc6install gcc6install gcc7install gcc8install gpp6install clang38install
 ppcinstall:
-	APT_PACKAGES="qemu-system-ppc qemu-user-static gcc-powerpc-linux-gnu" $(MAKE) apt-install
+	APT_PACKAGES="qemu-system-ppc qemu-user gcc-powerpc-linux-gnu" $(MAKE) apt-install
 
 arminstall:
-	APT_PACKAGES="qemu-system-arm qemu-user-static gcc-arm-linux-gnueabi libc6-dev-armel-cross gcc-aarch64-linux-gnu libc6-dev-arm64-cross" $(MAKE) apt-install
+	APT_PACKAGES="qemu-system-arm qemu-user gcc-arm-linux-gnueabi libc6-dev-armel-cross gcc-aarch64-linux-gnu libc6-dev-arm64-cross" $(MAKE) apt-install
 
 valgrindinstall:
 	APT_PACKAGES="valgrind" $(MAKE) apt-install

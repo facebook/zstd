@@ -270,7 +270,7 @@ jobs:
         CC=clang make -j msan-test-zstd HAVE_ZLIB=0 HAVE_LZ4=0 HAVE_LZMA=0 ZSTDRTTEST= V=1
 
   armfuzz:
-      runs-on: ubuntu-24.04  # fails on ubuntu-26.04: no qemu-user-static package
+      runs-on: ubuntu-latest
       steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
       - name: Qemu ARM emulation + Fuzz Test

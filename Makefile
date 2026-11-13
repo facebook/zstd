@@ -322,14 +322,14 @@ asan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=address -Werror $(MOREFLAGS)"
 
 asan-%: clean
-	LDFLAGS=-fuse-ld=gold MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize=address -Werror $(MOREFLAGS)" $(MAKE) -C $(TESTDIR) $*
+	MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize=address -Werror $(MOREFLAGS)" $(MAKE) -C $(TESTDIR) $*
 
 msan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fsanitize=memory -fno-omit-frame-pointer -Werror $(MOREFLAGS)" HAVE_LZMA=0   # datagen.c fails this test for no obvious reason
 
 msan-%:
 	$(MAKE) clean
-	LDFLAGS=-fuse-ld=gold MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize=memory -fno-omit-frame-pointer -Werror $(MOREFLAGS)" FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)" $(MAKE) -j -C $(TESTDIR) HAVE_LZMA=0 $*
+	MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize=memory -fno-omit-frame-pointer -Werror $(MOREFLAGS)" FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)" $(MAKE) -j -C $(TESTDIR) HAVE_LZMA=0 $*
 
 asan32: clean
 	$(MAKE) -C $(TESTDIR) test32 CC=clang MOREFLAGS="-g -fsanitize=address $(MOREFLAGS)"
@@ -338,10 +338,10 @@ uasan: clean
 	$(MAKE) test CC=clang MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize=address,undefined -Werror $(MOREFLAGS)"
 
 uasan-%: clean
-	LDFLAGS=-fuse-ld=gold MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize=address,undefined -Werror $(MOREFLAGS)" $(MAKE) -C $(TESTDIR) $*
+	MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize=address,undefined -Werror $(MOREFLAGS)" $(MAKE) -C $(TESTDIR) $*
 
 tsan-%: clean
-	LDFLAGS=-fuse-ld=gold MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize=thread -Werror $(MOREFLAGS)" $(MAKE) -C $(TESTDIR) $* FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)"
+	MOREFLAGS="-g -fno-sanitize-recover=all -fsanitize=thread -Werror $(MOREFLAGS)" $(MAKE) -C $(TESTDIR) $* FUZZER_FLAGS="--no-big-tests $(FUZZER_FLAGS)"
 
 .PHONY: apt-install
 apt-install:

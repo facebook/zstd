@@ -31,6 +31,7 @@
 #define ZSTD_STATIC_LINKING_ONLY  /* ZSTD_compressContinue, ZSTD_compressBlock */
 #include "debug.h"        /* DEBUG_STATIC_ASSERT */
 #include "fse.h"
+#include "huf.h"
 #define ZSTD_DISABLE_DEPRECATE_WARNINGS /* No deprecation warnings, we still test some deprecated functions */
 #include "zstd.h"         /* ZSTD_VERSION_STRING */
 #include "zstd_errors.h"  /* ZSTD_getErrorCode */
@@ -600,6 +601,163 @@ static void test_decompressBound(unsigned tnb)
         free(outBuffer);
     }
 
+    DISPLAYLEVEL(3, "OK \n");
+}
+
+/* Write a compressed block with Huffman literals and no sequences. An empty
+ * table header selects repeat mode, otherwise this installs a new table. */
+static size_t FUZ_writeHuffmanLiteralBlock(BYTE* block, size_t capacity,
+        const BYTE* literals, size_t literalSize, const HUF_CElt* ctable,
+        const BYTE* tableHeader, size_t tableHeaderSize, int fourStreams)
+{
+    size_t hufSize;
+    size_t cLiteralSize;
+    CHECK((tableHeader == NULL) == (tableHeaderSize == 0));
+    CHECK(capacity > 4 + tableHeaderSize);
+    if (tableHeaderSize != 0)
+        memcpy(block + 3, tableHeader, tableHeaderSize);
+    hufSize = fourStreams
+        ? HUF_compress4X_usingCTable(block + 3 + tableHeaderSize,
+                capacity - 4 - tableHeaderSize, literals, literalSize, ctable, 0)
+        : HUF_compress1X_usingCTable(block + 3 + tableHeaderSize,
+                capacity - 4 - tableHeaderSize, literals, literalSize, ctable, 0);
+    CHECK_Z(hufSize);
+    CHECK(hufSize != 0);
+    cLiteralSize = tableHeaderSize + hufSize;
+    CHECK(literalSize < 1024 && cLiteralSize < 1024);
+    MEM_writeLE24(block, (U32)(tableHeaderSize ? set_compressed : set_repeat)
+                        | ((U32)fourStreams << 2)
+                        | ((U32)literalSize << 4) | ((U32)cLiteralSize << 14));
+    block[3 + cLiteralSize] = 0;  /* no sequences */
+    return 4 + cLiteralSize;
+}
+
+/* The malformed cases regress the forced-X2 dispatch bug. Default and
+ * forced-X1 builds already reject them and serve as compatibility controls. */
+static void test_decompressHuffmanTable(unsigned tnb)
+{
+    enum { dictionaryHeaderSize = 8, fseTableCount = 3, fseNCountSize = 2,
+           dictionaryContentSize = 16 };
+    BYTE literals[32];
+    BYTE output[128];
+    BYTE tableHeader[HUF_CTABLEBOUND];
+    BYTE block[128];
+    BYTE repeatBlock[128];
+    BYTE frame[256];
+    /* Magic/id, Huffman table, three FSE tables, repcodes, and content. */
+    BYTE dictionary[dictionaryHeaderSize + HUF_CTABLEBOUND
+                    + fseTableCount * fseNCountSize + ZSTD_REP_NUM * 4
+                    + dictionaryContentSize];
+    unsigned counts[HUF_SYMBOLVALUE_MAX + 1] = { 0 };
+    HUF_CREATE_STATIC_CTABLE(ctable, HUF_SYMBOLVALUE_MAX);
+    HUF_CREATE_STATIC_DTABLEX2(dtable, HUF_TABLELOG_MAX);
+    U64 workspace[HUF_WORKSPACE_SIZE_U64];
+    ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+    ZSTD_DDict* ddict;
+    size_t tableLog;
+    size_t tableHeaderSize;
+    size_t dictionarySize;
+    size_t repeatSize;
+    size_t i;
+    unsigned fourStreams;
+
+    DISPLAYLEVEL(3, "test%3u : require a table for compressed Huffman literals : ", tnb);
+    CHECK(dctx != NULL);
+    for (i = 0; i < sizeof(literals); ++i) {
+        literals[i] = (BYTE)(i & 1);
+        ++counts[literals[i]];
+    }
+    CHECK_VAR(tableLog, HUF_buildCTable_wksp(ctable, counts, 1,
+                HUF_TABLELOG_DEFAULT, workspace, sizeof(workspace)));
+    CHECK_VAR(tableHeaderSize, HUF_writeCTable_wksp(tableHeader,
+                sizeof(tableHeader), ctable, 1, (unsigned)tableLog,
+                workspace, sizeof(workspace)));
+    CHECK(tableHeaderSize != 0);
+
+    /* A formatted dictionary with this Huffman table, minimal FSE tables,
+     * repcodes of 4, and 16 bytes of content. */
+    MEM_writeLE32(dictionary, ZSTD_MAGIC_DICTIONARY);
+    MEM_writeLE32(dictionary + 4, 1);
+    memcpy(dictionary + dictionaryHeaderSize, tableHeader, tableHeaderSize);
+    dictionarySize = dictionaryHeaderSize + tableHeaderSize;
+    for (i = 0; i < fseTableCount; ++i) {
+        /* FSE NCount: tableLog 5, normalized count 32 for symbol 0. */
+        MEM_writeLE16(dictionary + dictionarySize, 0x03F0);
+        dictionarySize += fseNCountSize;
+    }
+    for (i = 0; i < ZSTD_REP_NUM; ++i) {
+        MEM_writeLE32(dictionary + dictionarySize, 4);
+        dictionarySize += 4;
+    }
+    memset(dictionary + dictionarySize, 0, dictionaryContentSize);
+    dictionarySize += dictionaryContentSize;
+    ddict = ZSTD_createDDict(dictionary, dictionarySize);
+    CHECK(ddict != NULL);
+
+    repeatSize = FUZ_writeHuffmanLiteralBlock(repeatBlock, sizeof(repeatBlock),
+            literals, sizeof(literals), ctable, NULL, 0, 0);
+    for (i = 0; i < 2; ++i) {
+        size_t const cLiteralSize = i == 0 ? 1 : 16;
+        size_t const blockSize = 4 + cLiteralSize;
+        size_t frameSize = 6;
+        unsigned withDict;
+        /* These are the generic HUF decoder's RLE and raw shortcuts, but
+         * neither is a valid Zstd compressed-literals Huffman table. */
+        MEM_writeLE24(block, set_compressed | (16U << 4)
+                            | ((U32)cLiteralSize << 14));
+        memset(block + 3, 'A', cLiteralSize);
+        block[3 + cLiteralSize] = 0;
+        for (withDict = 0; withDict < 2; ++withDict) {
+            CHECK_Z(ZSTD_decompressBegin_usingDDict(dctx, withDict ? ddict : NULL));
+            CHECK_EQ(ZSTD_getErrorCode(ZSTD_decompressBlock(dctx, output,
+                        sizeof(output), block, blockSize)), ZSTD_error_corruption_detected);
+        }
+
+        /* The originally reported two-block frame must stop at the malformed
+         * block instead of reaching its repeat block with invalid state. */
+        MEM_writeLE32(frame, ZSTD_MAGICNUMBER);
+        frame[4] = 0;
+        frame[5] = 0;
+        MEM_writeLE24(frame + frameSize, (U32)(blockSize << 3) | (bt_compressed << 1));
+        frameSize += 3;
+        memcpy(frame + frameSize, block, blockSize);
+        frameSize += blockSize;
+        MEM_writeLE24(frame + frameSize, (U32)(repeatSize << 3) | (bt_compressed << 1) | 1);
+        frameSize += 3;
+        memcpy(frame + frameSize, repeatBlock, repeatSize);
+        frameSize += repeatSize;
+        CHECK_EQ(ZSTD_getErrorCode(ZSTD_decompressDCtx(dctx, output,
+                    sizeof(output), frame, frameSize)), ZSTD_error_corruption_detected);
+    }
+
+    /* Valid one- and four-stream tables must still install reusable state.
+     * Also reuse the context after the preceding errors and test a DDict's
+     * caller-owned table without installing an in-frame Huffman table. */
+    for (fourStreams = 0; fourStreams < 2; ++fourStreams) {
+        size_t const blockSize = FUZ_writeHuffmanLiteralBlock(block, sizeof(block),
+                literals, sizeof(literals), ctable, tableHeader, tableHeaderSize, fourStreams);
+        repeatSize = FUZ_writeHuffmanLiteralBlock(repeatBlock, sizeof(repeatBlock),
+                literals, sizeof(literals), ctable, NULL, 0, fourStreams);
+        CHECK_Z(ZSTD_decompressBegin(dctx));
+        CHECK_EQ(ZSTD_decompressBlock(dctx, output, sizeof(output), block, blockSize), sizeof(literals));
+        CHECK_EQ(memcmp(output, literals, sizeof(literals)), 0);
+        CHECK_EQ(ZSTD_decompressBlock(dctx, output, sizeof(output), repeatBlock, repeatSize), sizeof(literals));
+        CHECK_EQ(memcmp(output, literals, sizeof(literals)), 0);
+        CHECK_Z(ZSTD_decompressBegin_usingDDict(dctx, ddict));
+        CHECK_EQ(ZSTD_decompressBlock(dctx, output, sizeof(output), repeatBlock, repeatSize), sizeof(literals));
+        CHECK_EQ(memcmp(output, literals, sizeof(literals)), 0);
+    }
+
+    /* The generic HUF API still promises its raw/RLE shortcuts. */
+    CHECK_EQ(HUF_decompress1X_DCtx_wksp(dtable, output, sizeof(literals),
+                "A", 1, workspace, sizeof(workspace), 0), sizeof(literals));
+    for (i = 0; i < sizeof(literals); ++i) CHECK_EQ(output[i], 'A');
+    CHECK_EQ(HUF_decompress1X_DCtx_wksp(dtable, output, sizeof(literals),
+                literals, sizeof(literals), workspace, sizeof(workspace), 0), sizeof(literals));
+    CHECK_EQ(memcmp(output, literals, sizeof(literals)), 0);
+
+    ZSTD_freeDDict(ddict);
+    ZSTD_freeDCtx(dctx);
     DISPLAYLEVEL(3, "OK \n");
 }
 
@@ -2322,6 +2480,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
     test_compressBound(testNb++);
 
     test_decompressBound(testNb++);
+
+    test_decompressHuffmanTable(testNb++);
 
     test_decompressSplitLitBuffer(testNb++);
 

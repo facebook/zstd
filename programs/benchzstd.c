@@ -464,20 +464,24 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
                         BMK_benchOutcome_t,
                         "Error while trying to assess decompressed size: data may be invalid");
             }
-            totalDSize64 += fSize64;
-            srcPtr += fileSizes[fileNb];
-        }
-        {
-            size_t const decodedSize = (size_t)totalDSize64;
-            assert((U64)decodedSize == totalDSize64); /* check overflow */
-            free(*resultBufferPtr);
-            if (totalDSize64 > decodedSize) { /* size_t overflow */
+            /* Check before adding, including narrowing to size_t. */
+            if (fSize64 > (U64)((size_t)-1) - totalDSize64) {
                 RETURN_ERROR(
                         32,
                         BMK_benchOutcome_t,
                         "decompressed size is too large for local system");
             }
-            *resultBufferPtr = malloc(decodedSize);
+            /* Decode-only mode uses exactly one result chunk per file. */
+            resSizes[fileNb] = (size_t)fSize64;
+            totalDSize64 += fSize64;
+            srcPtr += fileSizes[fileNb];
+        }
+        {
+            size_t const decodedSize = (size_t)totalDSize64;
+            assert((U64)decodedSize == totalDSize64); /* checked before summing */
+            free(*resultBufferPtr);
+            /* Keep a valid allocation even when all files decode to zero. */
+            *resultBufferPtr = malloc(decodedSize ? decodedSize : 1);
             if (!(*resultBufferPtr)) {
                 RETURN_ERROR(
                         33,
@@ -511,13 +515,15 @@ static BMK_benchOutcome_t BMK_benchMemAdvancedNoAlloc(
                              ? chunkSize
                              : ZSTD_compressBound(chunkSize);
                 resPtrs[chunkID]       = resPtr;
-                resSizes[chunkID]      = (adv->mode == BMK_decodeOnly)
-                                ? (size_t)ZSTD_findDecompressedSize(
-                                srcPtr, chunkSize)
-                                : chunkSize;
+                if (adv->mode == BMK_decodeOnly) {
+                    /* Reuse the validated per-file size from the first pass. */
+                    assert(chunkID == fileNb);
+                } else {
+                    resSizes[chunkID] = chunkSize;
+                }
                 srcPtr += chunkSize;
                 cPtr += cCapacities[chunkID];
-                resPtr += chunkSize;
+                resPtr += resSizes[chunkID];
                 remaining -= chunkSize;
                 if (adv->mode == BMK_decodeOnly) {
                     cSizes[chunkID]  = chunkSize;

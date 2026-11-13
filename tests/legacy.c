@@ -256,6 +256,43 @@ static int testFrameDecoding(const char* compressed, size_t compressedSize,
     return 0;
 }
 
+static int testDecompressBoundConcatenation(const char* compressed, size_t compressedSize)
+{
+    static const unsigned char frame[16] = {
+        0x28, 0xB5, 0x2F, 0xFD, 0xE0,
+        0, 0, 0, 0, 0, 0, 0, 0,
+        0x01, 0x00, 0x00
+    };
+    unsigned char combined[sizeof(frame) + ALL_FRAMES_SIZE];
+    unsigned long long const maxBound = ZSTD_CONTENTSIZE_ERROR - 1;
+    /* The tail exercises the estimators for the actual enabled frame
+     * generations, including legacy formats when supported. */
+    unsigned long long const tailBound = ZSTD_decompressBound(compressed, compressedSize);
+    unsigned delta;
+    /* Test the last representable sum and the first rejected sum. The tail
+     * must be nonempty so each leading frame is itself representable. */
+    if (tailBound == 0 || tailBound > maxBound) {
+        DISPLAY("ERROR: Legacy frame bound %llu is outside [1, %llu]\n",
+                tailBound, maxBound);
+        return 1;
+    }
+    memcpy(combined, frame, sizeof(frame));
+    memcpy(combined + sizeof(frame), compressed, compressedSize);
+    for (delta = 0; delta < 2; ++delta) {
+        unsigned long long const headSize = maxBound - tailBound + delta;
+        unsigned long long const expected = delta == 0 ? maxBound : ZSTD_CONTENTSIZE_ERROR;
+        unsigned i;
+        for (i = 0; i < 8; ++i)
+            combined[5 + i] = (unsigned char)(headSize >> (8 * i));
+        if (ZSTD_decompressBound(combined, sizeof(frame) + compressedSize) != expected) {
+            DISPLAY("ERROR: ZSTD_decompressBound accepted an unrepresentable concatenated bound\n");
+            return 1;
+        }
+    }
+    DISPLAY("Legacy bound concatenation OK\n");
+    return 0;
+}
+
 static int testDictionaryAPI(unsigned version,
                              const char* compressed, size_t compressedSize,
                              const void* dict, size_t dictSize)
@@ -484,6 +521,7 @@ int main(void)
 
         if (testSimpleAPI(compressed, compressedSize, expected, expectedSize)) break;
         if (testFrameDecoding(compressed, compressedSize, expectedSize)) break;
+        if (testDecompressBoundConcatenation(compressed, compressedSize)) break;
         /* all blocks being identical, the first @nbStreamFrames ones
          * are what the streaming subset must decode to */
         if (testStreamingAPI(streamable, streamableSize,

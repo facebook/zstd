@@ -603,6 +603,90 @@ static void test_decompressBound(unsigned tnb)
     DISPLAYLEVEL(3, "OK \n");
 }
 
+/* Size-inspection APIs trust the declared content size without decoding the
+ * blocks. Keep the frame structurally complete while varying that field. */
+static const BYTE FUZ_contentSizeFrame[] = {
+    0x28, 0xB5, 0x2F, 0xFD, 0xE0,
+    0, 0, 0, 0, 0, 0, 0, 0,
+    0x01, 0x00, 0x00
+};
+
+static void FUZ_writeContentSizeFrame(BYTE* dst, U64 contentSize)
+{
+    memcpy(dst, FUZ_contentSizeFrame, sizeof(FUZ_contentSizeFrame));
+    MEM_writeLE64(dst + ZSTD_FRAMEIDSIZE + 1, contentSize);
+}
+
+static void test_decompressBoundOverflow(unsigned tnb)
+{
+    static const U64 tails[] = { 0, 1, 0xFC, 0xFD, 0xFE, 0xFF, 0x100, 0x110 };
+    static const BYTE skippable[8] = { 0x50, 0x2A, 0x4D, 0x18, 0, 0, 0, 0 };
+    static const BYTE unknownSize[9] = {
+        0x28, 0xB5, 0x2F, 0xFD, 0x00, 0x00, 0x01, 0x00, 0x00
+    };
+    U64 const first = 0xFFFFFFFFFFFFFF00ULL;
+    U64 const maxBound = ZSTD_CONTENTSIZE_ERROR - 1;
+    size_t const frameSize = sizeof(FUZ_contentSizeFrame);
+    size_t const skippableEnd = frameSize + sizeof(skippable);
+    BYTE frames[2 * sizeof(FUZ_contentSizeFrame) + sizeof(skippable)];
+    size_t i;
+    DISPLAYLEVEL(3, "test%3u : decompressBound concatenation overflow : ", tnb);
+
+    CHECK_EQ(ZSTD_decompressBound(NULL, 0), 0);
+    FUZ_writeContentSizeFrame(frames, maxBound);
+    CHECK_EQ(ZSTD_decompressBound(frames, frameSize), maxBound);
+    FUZ_writeContentSizeFrame(frames, ZSTD_CONTENTSIZE_ERROR);
+    CHECK_EQ(ZSTD_decompressBound(frames, frameSize), ZSTD_CONTENTSIZE_ERROR);
+    FUZ_writeContentSizeFrame(frames, ZSTD_CONTENTSIZE_UNKNOWN);
+    /* Regardless of how the header parser treats this reserved field value,
+     * decompressBound() must return a numeric bound or ERROR, never UNKNOWN. */
+    CHECK(ZSTD_decompressBound(frames, frameSize) != ZSTD_CONTENTSIZE_UNKNOWN);
+    FUZ_writeContentSizeFrame(frames, first);
+    CHECK_EQ(ZSTD_decompressBound(frames, frameSize), first);
+    for (i = 0; i < COUNTOF(tails); ++i) {
+        U64 const expected = tails[i] <= maxBound - first
+                           ? first + tails[i] : ZSTD_CONTENTSIZE_ERROR;
+        FUZ_writeContentSizeFrame(frames + frameSize, tails[i]);
+        CHECK_EQ(ZSTD_decompressBound(frames, 2 * frameSize), expected);
+    }
+
+    /* The third addition must use the accumulated total, not the first size. */
+    {   BYTE threeFrames[3 * sizeof(FUZ_contentSizeFrame)];
+        FUZ_writeContentSizeFrame(threeFrames, first);
+        FUZ_writeContentSizeFrame(threeFrames + frameSize, 0x80);
+        FUZ_writeContentSizeFrame(threeFrames + 2 * frameSize, 0x7D);
+        CHECK_EQ(ZSTD_decompressBound(threeFrames, sizeof(threeFrames)), maxBound);
+        FUZ_writeContentSizeFrame(threeFrames + 2 * frameSize, 0x7E);
+        CHECK_EQ(ZSTD_decompressBound(threeFrames, sizeof(threeFrames)), ZSTD_CONTENTSIZE_ERROR);
+    }
+
+    /* A skippable frame contributes zero, including at the largest result. */
+    memcpy(frames + frameSize, skippable, sizeof(skippable));
+    FUZ_writeContentSizeFrame(frames + skippableEnd, maxBound - first);
+    CHECK_EQ(ZSTD_decompressBound(frames, sizeof(frames)), maxBound);
+    FUZ_writeContentSizeFrame(frames + skippableEnd, 0x100);
+    CHECK_EQ(ZSTD_decompressBound(frames, sizeof(frames)), ZSTD_CONTENTSIZE_ERROR);
+    CHECK_EQ(ZSTD_decompressBound(skippable, sizeof(skippable)), 0);
+
+    /* Unknown-size frames have a numeric bound, not an UNKNOWN sentinel. */
+    CHECK_EQ(ZSTD_getFrameContentSize(unknownSize, sizeof(unknownSize)), ZSTD_CONTENTSIZE_UNKNOWN);
+    CHECK_EQ(ZSTD_decompressBound(unknownSize, sizeof(unknownSize)), 1024);
+    FUZ_writeContentSizeFrame(frames, maxBound - 1024);
+    memcpy(frames + frameSize, unknownSize, sizeof(unknownSize));
+    CHECK_EQ(ZSTD_decompressBound(frames, frameSize + sizeof(unknownSize)), maxBound);
+    FUZ_writeContentSizeFrame(frames, maxBound - 1023);
+    CHECK_EQ(ZSTD_decompressBound(frames, frameSize + sizeof(unknownSize)), ZSTD_CONTENTSIZE_ERROR);
+
+    /* Zero-sized frames remain valid; malformed trailing data does not. */
+    FUZ_writeContentSizeFrame(frames, 0);
+    memcpy(frames + frameSize, skippable, sizeof(skippable));
+    CHECK_EQ(ZSTD_decompressBound(frames, skippableEnd), 0);
+    CHECK_EQ(ZSTD_decompressBound(frames, skippableEnd - 1), ZSTD_CONTENTSIZE_ERROR);
+    frames[skippableEnd] = 0;
+    CHECK_EQ(ZSTD_decompressBound(frames, skippableEnd + 1), ZSTD_CONTENTSIZE_ERROR);
+    DISPLAYLEVEL(3, "OK \n");
+}
+
 /* Size of the literals of the block built by FUZ_writeSplitLitBlock().
  * It is larger than the decoder's 64 KB extra literal buffer, so the first
  * kSplitLitInDst literals are stored at the end of the block's area in dst. */
@@ -2322,6 +2406,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
     test_compressBound(testNb++);
 
     test_decompressBound(testNb++);
+
+    test_decompressBoundOverflow(testNb++);
 
     test_decompressSplitLitBuffer(testNb++);
 

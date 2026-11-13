@@ -828,6 +828,11 @@ unsigned long long ZSTD_decompressBound(const void* src, size_t srcSize)
         unsigned long long const decompressedBound = frameSizeInfo.decompressedBound;
         if (ZSTD_isError(compressedSize) || decompressedBound == ZSTD_CONTENTSIZE_ERROR)
             return ZSTD_CONTENTSIZE_ERROR;
+        /* Invariant: bound < ZSTD_CONTENTSIZE_ERROR, so this subtraction
+         * cannot underflow. Keep the sum below both reserved values, which
+         * also prevents unsigned overflow. */
+        if (decompressedBound >= ZSTD_CONTENTSIZE_ERROR - bound)
+            return ZSTD_CONTENTSIZE_ERROR;
         assert(srcSize >= compressedSize);
         src = (const BYTE*)src + compressedSize;
         srcSize -= compressedSize;

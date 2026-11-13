@@ -756,6 +756,173 @@ static void test_decompressContinueWithoutBegin(unsigned tnb)
     ZSTD_freeDCtx(dctx);
 }
 
+typedef struct {
+    const void* prefixStart;
+    const void* virtualStart;
+    const void* dictEnd;
+    const void* previousDstEnd;
+} FUZ_DCtxHistory;
+
+static FUZ_DCtxHistory FUZ_getDCtxHistory(const ZSTD_DCtx* dctx)
+{
+    FUZ_DCtxHistory history;
+    history.prefixStart = dctx->prefixStart;
+    history.virtualStart = dctx->virtualStart;
+    history.dictEnd = dctx->dictEnd;
+    history.previousDstEnd = dctx->previousDstEnd;
+    return history;
+}
+
+static void FUZ_checkDCtxHistory(const ZSTD_DCtx* dctx, FUZ_DCtxHistory history)
+{
+    CHECK_EQ(dctx->prefixStart, history.prefixStart);
+    CHECK_EQ(dctx->virtualStart, history.virtualStart);
+    CHECK_EQ(dctx->dictEnd, history.dictEnd);
+    CHECK_EQ(dctx->previousDstEnd, history.previousDstEnd);
+}
+
+typedef enum {
+    /* Keep the three dictionary-configuration cases first. */
+    historyNone,
+    historyDictionary,
+    historyDDict,
+    historyInsertedPrefix,
+    historyDecodedPrefix,
+    historyCount
+} FUZ_HistoryKind;
+
+static void FUZ_beginHistory(ZSTD_DCtx* dctx, const ZSTD_DDict* ddict,
+                             FUZ_HistoryKind historyKind,
+                             const void* dictionary, size_t dictionarySize)
+{
+    if (historyKind == historyDDict) {
+        CHECK_Z(ZSTD_decompressBegin_usingDDict(dctx, ddict));
+    } else if (historyKind == historyDictionary) {
+        CHECK_Z(ZSTD_decompressBegin_usingDict(dctx, dictionary, dictionarySize));
+    } else {
+        CHECK_Z(ZSTD_decompressBegin(dctx));
+    }
+}
+
+static void test_decompressZeroByteHistory(unsigned tnb)
+{
+    enum {
+        emptyInsertion,
+        emptyDecompression,
+        emptyOperationCount
+    } emptyOperation;
+    /* Magic, no checksum/content size/dictionary ID, and a 1 KiB window. */
+    static const BYTE frameHeader[] = { 0x28, 0xB5, 0x2F, 0xFD, 0, 0 };
+    static const struct {
+        BYTE bytes[5];
+        size_t size;
+    } emptyBlocks[] = {
+        { { 0, 0, 0 }, 3 },          /* empty raw block */
+        { { 2, 0, 0, 'A' }, 4 },     /* empty RLE block */
+        { { 0x14, 0, 0, 0, 0 }, 5 } /* compressed block: no literals or sequences */
+    };
+    static const BYTE matchHeader[] = { 0x3D, 0, 0 };
+    /* No literals, one four-byte match at repeat offset 4. */
+    static const BYTE matchBlock[] = { 0, 1, 0x54, 0, 0, 1, 1 };
+    static const BYTE emptyCompressedBlock[] = { 0, 0 };
+    static const BYTE literalsBlock[] = { 0x20, 'w', 'x', 'y', 'z', 0 };
+    static const char dictionary[] = "0123456789abcdef";
+    static const char insertedPrefix[] = "wxyz";
+    BYTE output1[64];
+    BYTE output2[64];
+    BYTE decodedPrefix[64];
+    void* const emptyDsts[] = { NULL, output1, output2 };
+    void* const outputDsts[] = { output1, output2 };
+    ZSTD_DCtx* const dctx = ZSTD_createDCtx();
+    ZSTD_DDict* const ddict = ZSTD_createDDict(dictionary, sizeof(dictionary) - 1);
+    size_t blockType, emptyDstNb, outputDstNb;
+    FUZ_HistoryKind historyKind;
+    CHECK(dctx != NULL && ddict != NULL);
+
+    DISPLAYLEVEL(3, "test%3u : zero-byte decompression preserves history : ", tnb);
+
+    /* Bufferless frame decoding. Headers and empty raw/RLE/compressed blocks
+     * may be supplied with any zero-capacity destination, including NULL.
+     * They must neither invent history nor discard a real dictionary. */
+    for (historyKind = historyNone; historyKind < historyInsertedPrefix; ++historyKind) {
+        for (blockType = 0; blockType < COUNTOF(emptyBlocks); ++blockType) {
+            BYTE prefix[sizeof(frameHeader) + sizeof(emptyBlocks[0].bytes)];
+            size_t const prefixSize = sizeof(frameHeader) + emptyBlocks[blockType].size;
+            memcpy(prefix, frameHeader, sizeof(frameHeader));
+            memcpy(prefix + sizeof(frameHeader), emptyBlocks[blockType].bytes, emptyBlocks[blockType].size);
+            for (emptyDstNb = 0; emptyDstNb < COUNTOF(emptyDsts); ++emptyDstNb) {
+                for (outputDstNb = 0; outputDstNb < COUNTOF(outputDsts); ++outputDstNb) {
+                    FUZ_DCtxHistory history;
+                    size_t pos = 0;
+                    size_t result;
+                    FUZ_beginHistory(dctx, ddict, historyKind, dictionary, sizeof(dictionary) - 1);
+                    history = FUZ_getDCtxHistory(dctx);
+                    while (pos < prefixSize) {
+                        size_t const next = ZSTD_nextSrcSizeToDecompress(dctx);
+                        CHECK(next != 0 && next <= prefixSize - pos);
+                        CHECK_EQ(ZSTD_decompressContinue(dctx, emptyDsts[emptyDstNb], 0,
+                                prefix + pos, next), 0);
+                        pos += next;
+                    }
+                    FUZ_checkDCtxHistory(dctx, history);
+                    CHECK_EQ(ZSTD_nextSrcSizeToDecompress(dctx), sizeof(matchHeader));
+                    CHECK_EQ(ZSTD_decompressContinue(dctx, outputDsts[outputDstNb], sizeof(output1),
+                            matchHeader, sizeof(matchHeader)), 0);
+                    result = ZSTD_decompressContinue(dctx, outputDsts[outputDstNb], sizeof(output1),
+                            matchBlock, sizeof(matchBlock));
+                    if (historyKind != historyNone) {
+                        CHECK_EQ(result, 4);
+                        CHECK(!memcmp(outputDsts[outputDstNb], "cdef", 4));
+                    } else {
+                        CHECK_EQ(ZSTD_getErrorCode(result), ZSTD_error_corruption_detected);
+                    }
+                }
+            }
+        }
+    }
+
+    /* The block APIs have the same invariant. Exercise both empty insertion
+     * and empty compressed blocks with no history, raw and prepared dictionaries,
+     * an inserted raw prefix, and a previously decoded prefix. */
+    for (historyKind = historyNone; historyKind < historyCount; ++historyKind) {
+        for (emptyOperation = emptyInsertion; emptyOperation < emptyOperationCount; ++emptyOperation) {
+            for (emptyDstNb = 0; emptyDstNb < COUNTOF(emptyDsts); ++emptyDstNb) {
+                for (outputDstNb = 0; outputDstNb < COUNTOF(outputDsts); ++outputDstNb) {
+                    FUZ_DCtxHistory history;
+                    size_t result;
+                    FUZ_beginHistory(dctx, ddict, historyKind, dictionary, sizeof(dictionary) - 1);
+                    if (historyKind == historyInsertedPrefix)
+                        CHECK_EQ(ZSTD_insertBlock(dctx, insertedPrefix, sizeof(insertedPrefix) - 1), 4);
+                    if (historyKind == historyDecodedPrefix)
+                        CHECK_EQ(ZSTD_decompressBlock(dctx, decodedPrefix, sizeof(decodedPrefix),
+                                literalsBlock, sizeof(literalsBlock)), 4);
+                    history = FUZ_getDCtxHistory(dctx);
+                    if (emptyOperation == emptyInsertion) {
+                        CHECK_EQ(ZSTD_insertBlock(dctx, emptyDsts[emptyDstNb], 0), 0);
+                    } else {
+                        CHECK_EQ(ZSTD_decompressBlock(dctx, emptyDsts[emptyDstNb], 0,
+                                emptyCompressedBlock, sizeof(emptyCompressedBlock)), 0);
+                    }
+                    FUZ_checkDCtxHistory(dctx, history);
+                    result = ZSTD_decompressBlock(dctx, outputDsts[outputDstNb], sizeof(output1),
+                            matchBlock, sizeof(matchBlock));
+                    if (historyKind != historyNone) {
+                        CHECK_EQ(result, 4);
+                        CHECK(!memcmp(outputDsts[outputDstNb],
+                                historyKind == historyDictionary || historyKind == historyDDict ? "cdef" : "wxyz", 4));
+                    } else {
+                        CHECK_EQ(ZSTD_getErrorCode(result), ZSTD_error_corruption_detected);
+                    }
+                }
+            }
+        }
+    }
+
+    ZSTD_freeDCtx(dctx);
+    ZSTD_freeDDict(ddict);
+    DISPLAYLEVEL(3, "OK \n");
+}
+
 static unsigned test_histCountWksp(unsigned seed, unsigned testNb)
 {
     static const unsigned symLowLimits[] =  {   0,  27,   0,   0,  27,  42,   0,   0, 27, 42, 27, 42 };
@@ -2326,6 +2493,8 @@ static int basicUnitTests(U32 const seed, double compressibility)
     test_decompressSplitLitBuffer(testNb++);
 
     test_decompressContinueWithoutBegin(testNb++);
+
+    test_decompressZeroByteHistory(testNb++);
 
     test_setCParams(testNb++);
 

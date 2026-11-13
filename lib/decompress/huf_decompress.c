@@ -286,12 +286,13 @@ static size_t HUF_initRemainingDStream(BIT_DStream_t* bit, HUF_DecompressFastArg
     /* Validate that we haven't overwritten. */
     if (args->op[stream] > segmentEnd)
         return ERROR(corruption_detected);
-    /* Validate that we haven't read beyond iend[].
-        * Note that ip[] may be < iend[] because the MSB is
-        * the next bit to read, and we may have consumed 100%
-        * of the stream, so down to iend[i] - 8 is valid.
-        */
-    if (args->ip[stream] < args->iend[stream] - 8)
+    /* The MSB is the next bit to read, so ip[] may be up to 8 bytes before
+     * iend[] when the stream is fully consumed. Compare distances rather than
+     * forming iend[0] - 8, which can be before the compressed input.
+     * No loaded word may precede ilowest. */
+    if (args->ip[stream] < args->ilowest
+        || (args->ip[stream] < args->iend[stream]
+            && (size_t)(args->iend[stream] - args->ip[stream]) > 8))
         return ERROR(corruption_detected);
 
     /* Construct the BIT_DStream_t. */
@@ -1317,7 +1318,9 @@ HUF_decodeStreamX2(BYTE* p, BIT_DStream_t* bitDPtr, BYTE* const pEnd,
     if ((size_t)(pEnd - p) >= sizeof(bitDPtr->bitContainer)) {
         if (dtLog <= 11 && MEM_64bits()) {
             /* up to 10 symbols at a time */
-            while ((BIT_reloadDStream(bitDPtr) == BIT_DStream_unfinished) & (p < pEnd-9)) {
+            /* For an 8-byte output, pEnd - 9 would precede the buffer. */
+            BYTE* const pLimit = (size_t)(pEnd - p) >= 10 ? pEnd - 9 : p;
+            while ((BIT_reloadDStream(bitDPtr) == BIT_DStream_unfinished) & (p < pLimit)) {
                 HUF_DECODE_SYMBOLX2_0(p, bitDPtr);
                 HUF_DECODE_SYMBOLX2_0(p, bitDPtr);
                 HUF_DECODE_SYMBOLX2_0(p, bitDPtr);

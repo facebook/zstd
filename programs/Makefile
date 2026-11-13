@@ -186,6 +186,7 @@ zstd-release: DEBUGFLAGS_LD :=
 zstd-release: zstd
 
 CLEAN += zstd32
+zstd32 : LDFLAGS := $(LDFLAGS_32)
 zstd32 : CPPFLAGS += $(THREAD_CPP)
 zstd32 : LDFLAGS  += $(THREAD_LD)
 zstd32 : CPPFLAGS += -DZSTD_LEGACY_SUPPORT=$(ZSTD_LEGACY_SUPPORT)

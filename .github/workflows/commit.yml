@@ -34,7 +34,7 @@ jobs:
         make cxxtest; make clean
 
   short-tests-1:
-    runs-on: ubuntu-24.04  # fails on ubuntu-26.04: powerpc cross toolchain cannot find -lgcc
+    runs-on: ubuntu-latest
     services:
       docker:
         image: fbopensource/zstd-circleci-primary:0.0.1
@@ -44,7 +44,7 @@ jobs:
     - name: Install Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install gcc-powerpc-linux-gnu gcc-arm-linux-gnueabi gcc-aarch64-linux-gnu libc6-dev-ppc64-powerpc-cross libcurl4-gnutls-dev lib64gcc-13-dev-powerpc-cross
+        sudo apt-get install gcc-powerpc-linux-gnu gcc-arm-linux-gnueabi gcc-aarch64-linux-gnu libc6-dev-ppc64-powerpc-cross libcurl4-gnutls-dev gcc-multilib-powerpc-linux-gnu
     - name: gnu90 build
       run: make gnu90build && make clean
     - name: gnu99 build

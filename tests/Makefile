@@ -149,6 +149,7 @@ zstdmt_l_%.o : $(LIB_SRCDIR)/legacy/%.c
 FULLBENCHS := fullbench fullbench32
 CLEAN += $(FULLBENCHS)
 fullbench32: CPPFLAGS += -m32
+fullbench32: LDFLAGS := $(LDFLAGS_32)
 $(FULLBENCHS) : CPPFLAGS += $(MULTITHREAD_CPP) -Wno-deprecated-declarations
 $(FULLBENCHS) : LDFLAGS += $(MULTITHREAD_LD)
 $(FULLBENCHS) : DEBUGFLAGS = -DNDEBUG  # turn off assert() for speed measurements
@@ -174,6 +175,7 @@ fuzzer : $(ZSTDMT_OBJECTS)
 fuzzer fuzzer32 : $(ZDICT_FILES) $(PRGDIR)/util.c $(PRGDIR)/timefn.c $(PRGDIR)/datagen.c fuzzer.c
 
 fuzzer32 : CFLAGS += -m32 $(MULTITHREAD)
+fuzzer32 : LDFLAGS := $(LDFLAGS_32)
 fuzzer32 : $(ZSTD_FILES)
 	$(LINK.c) $^ -o $@$(EXT)
 
@@ -186,6 +188,7 @@ ZSTREAM_LOCAL_FILES := $(PRGDIR)/datagen.c $(PRGDIR)/util.c $(PRGDIR)/timefn.c s
 ZSTREAM_PROPER_FILES := $(ZDICT_FILES) $(ZSTREAM_LOCAL_FILES)
 ZSTREAMFILES := $(ZSTD_FILES) $(ZSTREAM_PROPER_FILES)
 zstreamtest32 : CFLAGS += -m32
+zstreamtest32 : LDFLAGS := $(LDFLAGS_32)
 zstreamtest zstreamtest32 : CPPFLAGS += $(MULTITHREAD_CPP)
 zstreamtest zstreamtest32 : LDFLAGS += $(MULTITHREAD_LD)
 zstreamtest : $(ZSTDMT_OBJECTS) $(ZSTREAM_PROPER_FILES)

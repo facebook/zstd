@@ -98,7 +98,7 @@ jobs:
         CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ CFLAGS="-Werror -O1" make zstd
 
   armbuild:
-    runs-on: ubuntu-24.04  # fails on ubuntu-26.04: no qemu-user-static package
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: ARM Build Test
@@ -339,19 +339,25 @@ jobs:
         /t:Clean,Build /p:Platform=${{matrix.platform}} /p:Configuration=${{matrix.configuration}} /warnaserror
         /p:InstructionSet=${{matrix.arch}}
 
-  # This tests that we don't accidentally grow the size too much.
+  # This tests that we don't accidentally grow the size too much,
+  # for example when a size reduction option stops working (#3066).
   # If the size grows intentionally, you can raise these numbers.
   # But we do need to think about binary size, since it is a concern.
+  # Each limit is the size measured with GCC 15.2 on 2026-11-12, plus about 30%, rounded up.
+  # -march=x86-64 makes the size independent of the compiler's default target:
+  # GCC 15 on ubuntu-26.04 runners targets x86-64-v3, which makes libzstd about 20% larger.
+  # When a limit is exceeded, check whether the growth comes from the code or the compiler,
+  # then measure again (check_size.py prints the sizes) and reset all limits with this rule.
   libzstd-size:
-    runs-on: ubuntu-24.04  # fails on ubuntu-26.04: libzstd.so is larger than the size limit
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: libzstd size test
       run: |
-        make clean && make -j -C lib libzstd && ./tests/check_size.py lib/libzstd.so 1100000
-        make clean && make -j -C lib libzstd ZSTD_LIB_COMPRESSION=0 ZSTD_LIB_DICTBUILDER=0 && ./tests/check_size.py lib/libzstd.so 400000
-        make clean && make -j -C lib libzstd ZSTD_LIB_MINIFY=1 && ./tests/check_size.py lib/libzstd.so 300000
-        make clean && make -j -C lib libzstd ZSTD_LIB_MINIFY=1 ZSTD_LIB_COMPRESSION=0 ZSTD_LIB_DICTBUILDER=0 && ./tests/check_size.py lib/libzstd.so 80000
+        make clean && make -j -C lib libzstd MOREFLAGS=-march=x86-64 && ./tests/check_size.py lib/libzstd.so 1200000
+        make clean && make -j -C lib libzstd MOREFLAGS=-march=x86-64 ZSTD_LIB_COMPRESSION=0 ZSTD_LIB_DICTBUILDER=0 && ./tests/check_size.py lib/libzstd.so 260000
+        make clean && make -j -C lib libzstd MOREFLAGS=-march=x86-64 ZSTD_LIB_MINIFY=1 && ./tests/check_size.py lib/libzstd.so 390000
+        make clean && make -j -C lib libzstd MOREFLAGS=-march=x86-64 ZSTD_LIB_MINIFY=1 ZSTD_LIB_COMPRESSION=0 ZSTD_LIB_DICTBUILDER=0 && ./tests/check_size.py lib/libzstd.so 100000
 
   minimal-decompressor-macros:
     runs-on: ubuntu-latest
@@ -370,17 +376,19 @@ jobs:
         make clean && make check ZSTD_LIB_EXCLUDE_COMPRESSORS_DFAST_AND_UP=1 MOREFLAGS="-Werror"
         make clean && make check ZSTD_LIB_EXCLUDE_COMPRESSORS_GREEDY_AND_UP=1 MOREFLAGS="-Werror"
 
+  # -march=x86-64 starts from a target without BMI2:
+  # GCC on ubuntu-26.04 runners targets x86-64-v3, which enables BMI2 by default.
   dynamic-bmi2:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: dynamic bmi2 tests
       run: |
-        make clean && make -j check MOREFLAGS="-O0 -Werror -mbmi2"
-        make clean && make -j check MOREFLAGS="-O0 -Werror -DDYNAMIC_BMI2=1"
-        make clean && make -j check MOREFLAGS="-O0 -Werror -DDYNAMIC_BMI2=1 -mbmi2"
-        make clean && make -j check MOREFLAGS="-O0 -Werror -DDYNAMIC_BMI2=0"
-        make clean && make -j check MOREFLAGS="-O0 -Werror -DDYNAMIC_BMI2=0 -mbmi2"
+        make clean && make -j check MOREFLAGS="-O0 -Werror -march=x86-64 -mbmi2"
+        make clean && make -j check MOREFLAGS="-O0 -Werror -march=x86-64 -DDYNAMIC_BMI2=1"
+        make clean && make -j check MOREFLAGS="-O0 -Werror -march=x86-64 -DDYNAMIC_BMI2=1 -mbmi2"
+        make clean && make -j check MOREFLAGS="-O0 -Werror -march=x86-64 -DDYNAMIC_BMI2=0"
+        make clean && make -j check MOREFLAGS="-O0 -Werror -march=x86-64 -DDYNAMIC_BMI2=0 -mbmi2"
 
   test-variants:
     runs-on: ubuntu-latest
@@ -589,7 +597,7 @@ jobs:
           ./simple LICENSE
 
   versions-compatibility:
-    runs-on: ubuntu-24.04  # fails on ubuntu-26.04: old versions do not compile in C23
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # tag=v7.0.1
     - name: Versions Compatibility Test

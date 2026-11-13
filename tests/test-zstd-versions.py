@@ -15,6 +15,7 @@ import filecmp
 import glob
 import hashlib
 import os
+import platform
 import shutil
 import sys
 import subprocess
@@ -23,7 +24,12 @@ from subprocess import Popen, PIPE
 repo_url = 'https://github.com/facebook/zstd.git'
 tmp_dir_name = 'tests/versionsTest'
 make_cmd = 'make'
-make_args = ['-j','CFLAGS=-O0']
+# Some old versions do not compile when the default target enables BMI2,
+# as GCC does on ubuntu-26.04 runners (x86-64-v3).
+cflags = '-O0'
+if platform.machine() in ('x86_64', 'AMD64'):
+    cflags += ' -march=x86-64'
+make_args = ['-j', 'CFLAGS=' + cflags]
 git_cmd = 'git'
 test_dat_src = 'README.md'
 test_dat = 'test_dat'

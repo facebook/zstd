@@ -1,0 +1,31 @@
+package(default_visibility = ["//visibility:public"])
+
+licenses(["notice"])
+
+cc_library(
+    name = "zstd",
+    srcs = glob([
+        "common/*.c",
+        "compress/*.c",
+        "decompress/*.c",
+        "deprecated/*.c",
+        "dictBuilder/*.c",
+    ]),
+    hdrs = glob([
+        "*.h",
+        "common/*.h",
+        "compress/*.h",
+        "decompress/*.h",
+        "deprecated/*.h",
+        "dictBuilder/*.h",
+    ]),
+    copts = select({
+        "@platforms//os:windows": ["/std:c11"],
+        "//conditions:default": [],
+    }),
+    includes = ["."],
+    local_defines = [
+        "XXH_NAMESPACE=ZSTD_",
+        "ZSTD_LEGACY_SUPPORT=0",
+    ],
+)

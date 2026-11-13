@@ -1219,6 +1219,10 @@ FIO_createFilename_fromOutDir(const char* path, const char* outDirName, const si
     const char* filenameStart;
     char separator;
     char* result;
+    size_t outDirLen;
+    size_t filenameLen;
+    size_t separatorLen;
+    size_t resultCapacity;
 
 #if defined(_MSC_VER) || defined(__MINGW32__) || defined (__MSVCRT__) /* windows support */
     separator = '\\';
@@ -1231,18 +1235,27 @@ FIO_createFilename_fromOutDir(const char* path, const char* outDirName, const si
     filenameStart = extractFilename(filenameStart, '/');  /* sometimes, '/' separator is also used on Windows (mingw+msys2) */
 #endif
 
-    result = (char*) calloc(1, strlen(outDirName) + 1 + strlen(filenameStart) + suffixLen + 1);
+    outDirLen = strlen(outDirName);
+    filenameLen = strlen(filenameStart);
+    separatorLen = (outDirLen == 0 || outDirName[outDirLen - 1] == separator) ? 0 : 1;
+
+    if (outDirLen > (size_t)-1 - separatorLen
+     || outDirLen + separatorLen > (size_t)-1 - filenameLen
+     || outDirLen + separatorLen + filenameLen > (size_t)-1 - suffixLen - 1) {
+        EXM_THROW(30, "zstd: FIO_createFilename_fromOutDir: output path too large");
+    }
+    resultCapacity = outDirLen + separatorLen + filenameLen + suffixLen + 1;
+
+    result = (char*)calloc(1, resultCapacity);
     if (!result) {
         EXM_THROW(30, "zstd: FIO_createFilename_fromOutDir: %s", strerror(errno));
     }
 
-    memcpy(result, outDirName, strlen(outDirName));
-    if (outDirName[strlen(outDirName)-1] == separator) {
-        memcpy(result + strlen(outDirName), filenameStart, strlen(filenameStart));
-    } else {
-        memcpy(result + strlen(outDirName), &separator, 1);
-        memcpy(result + strlen(outDirName) + 1, filenameStart, strlen(filenameStart));
+    memcpy(result, outDirName, outDirLen);
+    if (separatorLen) {
+        memcpy(result + outDirLen, &separator, 1);
     }
+    memcpy(result + outDirLen + separatorLen, filenameStart, filenameLen);
 
     return result;
 }
@@ -2446,6 +2459,7 @@ FIO_determineCompressedName(const char* srcFileName, const char* outDirName, con
     char* outDirFilename = NULL;
     size_t sfnSize = strlen(srcFileName);
     size_t const srcSuffixLen = strlen(suffix);
+    size_t requiredCapacity;
 
     if(!strcmp(srcFileName, stdinmark)) {
         return stdoutmark;
@@ -2453,14 +2467,23 @@ FIO_determineCompressedName(const char* srcFileName, const char* outDirName, con
 
     if (outDirName) {
         outDirFilename = FIO_createFilename_fromOutDir(srcFileName, outDirName, srcSuffixLen);
-        sfnSize = strlen(outDirFilename);
         assert(outDirFilename != NULL);
+        sfnSize = strlen(outDirFilename);
     }
 
-    if (dfnbCapacity <= sfnSize+srcSuffixLen+1) {
+    if (sfnSize > (size_t)-1 - srcSuffixLen - 1) {
+        EXM_THROW(30, "zstd: destination filename too large");
+    }
+    requiredCapacity = sfnSize + srcSuffixLen + 1;
+
+    if (dfnbCapacity <= requiredCapacity) {
         /* resize buffer for dstName */
         free(dstFileNameBuffer);
-        dfnbCapacity = sfnSize + srcSuffixLen + 30;
+        if (requiredCapacity > (size_t)-1 - FNSPACE) {
+            dfnbCapacity = requiredCapacity;
+        } else {
+            dfnbCapacity = requiredCapacity + FNSPACE;
+        }
         dstFileNameBuffer = (char*)malloc(dfnbCapacity);
         if (!dstFileNameBuffer) {
             EXM_THROW(30, "zstd: %s", strerror(errno));
@@ -3287,6 +3310,7 @@ FIO_determineDstName(const char* srcFileName, const char* outDirName)
     static size_t dfnbCapacity = 0;
     static char* dstFileNameBuffer = NULL;   /* using static allocation : this function cannot be multi-threaded */
     size_t dstFileNameEndPos;
+    size_t requiredCapacity;
     char* outDirFilename = NULL;
     const char* dstSuffix = "";
     size_t dstSuffixLen = 0;
@@ -3336,14 +3360,24 @@ FIO_determineDstName(const char* srcFileName, const char* outDirName)
 
     if (outDirName) {
         outDirFilename = FIO_createFilename_fromOutDir(srcFileName, outDirName, 0);
-        sfnSize = strlen(outDirFilename);
         assert(outDirFilename != NULL);
+        sfnSize = strlen(outDirFilename);
     }
 
-    if (dfnbCapacity+srcSuffixLen <= sfnSize+1+dstSuffixLen) {
+    dstFileNameEndPos = sfnSize - srcSuffixLen;
+    if (dstFileNameEndPos > (size_t)-1 - dstSuffixLen - 1) {
+        EXM_THROW(74, "%s : destination filename too large", strerror(errno));
+    }
+    requiredCapacity = dstFileNameEndPos + dstSuffixLen + 1;
+
+    if (dfnbCapacity <= requiredCapacity) {
         /* allocate enough space to write dstFilename into it */
         free(dstFileNameBuffer);
-        dfnbCapacity = sfnSize + 20;
+        if (requiredCapacity > (size_t)-1 - FNSPACE) {
+            dfnbCapacity = requiredCapacity;
+        } else {
+            dfnbCapacity = requiredCapacity + FNSPACE;
+        }
         dstFileNameBuffer = (char*)malloc(dfnbCapacity);
         if (dstFileNameBuffer==NULL)
             EXM_THROW(74, "%s : not enough memory for dstFileName",
@@ -3352,7 +3386,6 @@ FIO_determineDstName(const char* srcFileName, const char* outDirName)
 
     /* return dst name == src name truncated from suffix */
     assert(dstFileNameBuffer != NULL);
-    dstFileNameEndPos = sfnSize - srcSuffixLen;
     if (outDirFilename) {
         memcpy(dstFileNameBuffer, outDirFilename, dstFileNameEndPos);
         free(outDirFilename);
@@ -3362,7 +3395,7 @@ FIO_determineDstName(const char* srcFileName, const char* outDirName)
 
     /* The short tar extensions tzst, tgz, txz and tlz4 files should have "tar"
      * extension on decompression. Also writes terminating null. */
-    strcpy(dstFileNameBuffer + dstFileNameEndPos, dstSuffix);
+    memcpy(dstFileNameBuffer + dstFileNameEndPos, dstSuffix, dstSuffixLen + 1);
     return dstFileNameBuffer;
 
     /* note : dstFileNameBuffer memory is not going to be free */

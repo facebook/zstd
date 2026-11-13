@@ -281,6 +281,15 @@ static void ZSTDMT_releaseBuffer(ZSTDMT_bufferPool* bufPool, Buffer buf)
  * So we only need one seq buffer per worker. */
 #define SEQ_POOL_MAX_NB_BUFFERS(nbWorkers) (nbWorkers)
 
+/* Queue of the internal thread pool.
+ * Without a queue, POOL_tryAdd() fails until a worker has taken the previous job,
+ * so a job prepared faster than a worker wakes up has to wait for the oldest job to finish,
+ * and small jobs end up running one after another.
+ * A queued job doesn't hold any buffer : its input is already in the round buffer,
+ * and the worker gets an output buffer when it starts the job.
+ * The number of jobs in flight is still bounded by the jobs table and the round buffer. */
+#define ZSTDMT_POOL_QUEUE_SIZE(nbWorkers) (nbWorkers)
+
 /* =====   Seq Pool Wrapper   ====== */
 
 typedef ZSTDMT_bufferPool ZSTDMT_seqPool;
@@ -874,7 +883,7 @@ struct ZSTDMT_CCtx_s {
     ZSTD_CCtx_params params;
     size_t targetSectionSize;
     size_t targetPrefixSize;
-    int jobReady;        /* 1 => one job is already prepared, but pool has shortage of workers. Don't create a new job. */
+    int jobReady;        /* 1 => one job is already prepared, but the pool could not accept it. Don't create a new job. */
     InBuff_t inBuff;
     RoundBuff_t roundBuff;
     SerialState serial;
@@ -890,6 +899,7 @@ struct ZSTDMT_CCtx_s {
     ZSTD_customMem cMem;
     ZSTD_CDict* cdictLocal;
     const ZSTD_CDict* cdict;
+    unsigned factoryQueueSize;   /* queue size of the internal pool, unused with a provided pool */
     unsigned providedFactory: 1;
 };
 
@@ -972,7 +982,8 @@ MEM_STATIC ZSTDMT_CCtx* ZSTDMT_createCCtx_advanced_internal(unsigned nbWorkers, 
       mtctx->providedFactory = 1;
     }
     else {
-      mtctx->factory = POOL_create_advanced(nbWorkers, 0, cMem);
+      mtctx->factory = POOL_create_advanced(nbWorkers, ZSTDMT_POOL_QUEUE_SIZE(nbWorkers), cMem);
+      mtctx->factoryQueueSize = ZSTDMT_POOL_QUEUE_SIZE(nbWorkers);
       mtctx->providedFactory = 0;
     }
     mtctx->jobs = ZSTDMT_createJobsTable(&nbJobs, cMem);
@@ -1092,7 +1103,15 @@ size_t ZSTDMT_sizeof_CCtx(ZSTDMT_CCtx* mtctx)
 static size_t ZSTDMT_resize(ZSTDMT_CCtx* mtctx, unsigned nbWorkers)
 {
     if (!mtctx->providedFactory) {   /* a pool provided by the application keeps its size */
-        if (POOL_resize(mtctx->factory, nbWorkers)) return ERROR(memory_allocation);
+        if (ZSTDMT_POOL_QUEUE_SIZE(nbWorkers) > mtctx->factoryQueueSize) {
+            /* POOL_resize() can't enlarge the queue, so replace the internal pool.
+             * Its workers are idle : all jobs completed before resizing. */
+            POOL_ctx* const factory = POOL_create_advanced(nbWorkers, ZSTDMT_POOL_QUEUE_SIZE(nbWorkers), mtctx->cMem);
+            if (factory == NULL) return ERROR(memory_allocation);
+            POOL_free(mtctx->factory);
+            mtctx->factory = factory;
+            mtctx->factoryQueueSize = ZSTDMT_POOL_QUEUE_SIZE(nbWorkers);
+        } else if (POOL_resize(mtctx->factory, nbWorkers)) return ERROR(memory_allocation);
     }
     FORWARD_IF_ERROR( ZSTDMT_expandJobsTable(mtctx, nbWorkers) , "");
     mtctx->bufPool = ZSTDMT_expandBufferPool(mtctx->bufPool, BUF_POOL_MAX_NB_BUFFERS(nbWorkers));

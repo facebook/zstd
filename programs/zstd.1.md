@@ -121,8 +121,13 @@ the last one takes effect.
 * `--fast[=#]`:
     switch to ultra-fast compression levels.
     If `=#` is not present, it defaults to `1`.
+    `#` must be a positive integer. Values above the maximum supported by the
+    linked library (`-ZSTD_minCLevel()`, currently 131072) are clamped to that
+    maximum.
     The higher the value, the faster the compression speed,
     at the cost of some compression ratio.
+    Start with `--fast=1` or `--fast=4` and benchmark on your own data before
+    choosing a higher value; the speed and ratio trade-off depends on the input.
     This setting overwrites compression level if one was set previously.
     Similarly, if a compression level is set after `--fast`, it overrides it.
 * `-T#`, `--threads=#`:

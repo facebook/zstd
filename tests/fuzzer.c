@@ -2367,6 +2367,19 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : skippable frame with Frame_Size >= 0xFFFFFFF8 : ", testNb++);
+    {   /* User_Data can be up to 0xFFFFFFFF bytes (RFC 8878, 3.1.2).
+         * On 64-bit, this frame is valid but truncated here: report srcSize_wrong,
+         * the way ZSTD_decompressStream() accepts the frame (#4882).
+         * On 32-bit, the frame size doesn't fit in a size_t. */
+        BYTE const skippable8[] = { 0x50, 0x2a, 0x4d, 0x18, 0xf8, 0xff, 0xff, 0xff };
+        ZSTD_ErrorCode const expected = MEM_64bits() ? ZSTD_error_srcSize_wrong
+                                                     : ZSTD_error_frameParameter_unsupported;
+        CHECK_EQ(ZSTD_getErrorCode(ZSTD_findFrameCompressedSize(skippable8, sizeof(skippable8))), expected);
+        CHECK_EQ(ZSTD_getErrorCode(ZSTD_decompress(NULL, 0, skippable8, sizeof(skippable8))), expected);
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     DISPLAYLEVEL(3, "test%3i : ZSTD_getFrameContentSize test : ", testNb++);
     {   unsigned long long const rSize = ZSTD_getFrameContentSize(compressedBuffer, cSize);
         if (rSize != CNBuffSize) goto _output_error;

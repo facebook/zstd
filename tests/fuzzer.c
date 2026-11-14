@@ -4214,6 +4214,18 @@ static int basicUnitTests(U32 const seed, double compressibility)
     }
     DISPLAYLEVEL(3, "OK \n");
 
+    DISPLAYLEVEL(3, "test%3i : skippable frames don't require a dictionary : ", testNb++);
+    {   unsigned magicVariant;
+        for (magicVariant = 0; magicVariant < 16; magicVariant++) {
+            size_t const skippableSize = ZSTD_writeSkippableFrame(
+                                compressedBuffer, compressedBufferSize,
+                                CNBuffer, 10, magicVariant);
+            CHECK_Z(skippableSize);
+            CHECK_EQ(0, ZSTD_getDictID_fromFrame(compressedBuffer, skippableSize));
+        }
+    }
+    DISPLAYLEVEL(3, "OK \n");
+
     /* Dictionary and CCtx Duplication tests */
     {   ZSTD_CCtx* const ctxOrig = ZSTD_createCCtx();
         ZSTD_DCtx* const dctx = ZSTD_createDCtx();

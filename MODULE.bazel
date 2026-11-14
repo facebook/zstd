@@ -1,0 +1,5 @@
+module(
+    name = "zstd",
+    version = "1.6.0",
+)
+bazel_dep(name = "platforms", version = "0.0.11")

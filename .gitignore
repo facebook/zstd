@@ -28,6 +28,8 @@ projects/
 bin/
 .buckd/
 buck-out/
+bazel-*
+MODULE.bazel.lock
 build-*
 *.gcda
 cmakebuild/

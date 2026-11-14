@@ -401,20 +401,21 @@ jobs:
 
   qemu-consistency:
     name: QEMU ${{ matrix.name }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false  # 'false' means Don't stop matrix workflows even if some matrix failed.
       matrix:
         include: [
-          { name: ARM,      xcc_pkg: gcc-arm-linux-gnueabi,     xcc: arm-linux-gnueabi-gcc,     xemu_pkg: qemu-system-arm,    xemu: qemu-arm-static     },
-          { name: ARM64,    xcc_pkg: gcc-aarch64-linux-gnu,     xcc: aarch64-linux-gnu-gcc,     xemu_pkg: qemu-system-aarch64,xemu: qemu-aarch64-static },
-          { name: PPC,      xcc_pkg: gcc-powerpc-linux-gnu,     xcc: powerpc-linux-gnu-gcc,     xemu_pkg: qemu-system-ppc,    xemu: qemu-ppc-static     },
-          { name: PPC64LE,  xcc_pkg: gcc-powerpc64le-linux-gnu, xcc: powerpc64le-linux-gnu-gcc, xemu_pkg: qemu-system-ppc,    xemu: qemu-ppc64le-static },
-          { name: S390X,    xcc_pkg: gcc-s390x-linux-gnu,       xcc: s390x-linux-gnu-gcc,       xemu_pkg: qemu-system-s390x,  xemu: qemu-s390x-static   },
-          { name: MIPS,     xcc_pkg: gcc-mips-linux-gnu,        xcc: mips-linux-gnu-gcc,        xemu_pkg: qemu-system-mips,   xemu: qemu-mips-static    },
-          { name: RISC-V,   xcc_pkg: gcc-14-riscv64-linux-gnu,  xcc: riscv64-linux-gnu-gcc-14,  xemu_pkg: qemu-system-riscv64,xemu: qemu-riscv64-static },
-          { name: M68K,     xcc_pkg: gcc-m68k-linux-gnu,        xcc: m68k-linux-gnu-gcc,        xemu_pkg: qemu-system-m68k,   xemu: qemu-m68k-static    },
-          { name: SPARC,    xcc_pkg: gcc-sparc64-linux-gnu,     xcc: sparc64-linux-gnu-gcc,     xemu_pkg: qemu-system-sparc,  xemu: qemu-sparc64-static },
+          { name: ARM,      xcc_pkg: gcc-arm-linux-gnueabi,     xcc: arm-linux-gnueabi-gcc,     xemu: qemu-arm     },
+          { name: ARM64,    xcc_pkg: gcc-aarch64-linux-gnu,     xcc: aarch64-linux-gnu-gcc,     xemu: qemu-aarch64 },
+          { name: PPC,      xcc_pkg: gcc-powerpc-linux-gnu,     xcc: powerpc-linux-gnu-gcc,     xemu: qemu-ppc     },
+          { name: PPC64LE,  xcc_pkg: gcc-powerpc64le-linux-gnu, xcc: powerpc64le-linux-gnu-gcc, xemu: qemu-ppc64le },
+          { name: S390X,    xcc_pkg: gcc-s390x-linux-gnu,       xcc: s390x-linux-gnu-gcc,       xemu: qemu-s390x   },
+          # ubuntu-26.04 has no MIPS cross compiler: MIPS builds in a Debian container
+          { name: MIPS,     xcc_pkg: "",                        xcc: mips-linux-gnu-gcc,        xemu: qemu-mips    },
+          { name: RISC-V,   xcc_pkg: gcc-riscv64-linux-gnu,     xcc: riscv64-linux-gnu-gcc,     xemu: qemu-riscv64 },
+          { name: M68K,     xcc_pkg: gcc-m68k-linux-gnu,        xcc: m68k-linux-gnu-gcc,        xemu: qemu-m68k    },
+          { name: SPARC,    xcc_pkg: gcc-sparc64-linux-gnu,     xcc: sparc64-linux-gnu-gcc,     xemu: qemu-sparc64 },
         ]
     env:                        # Set environment variables
       XCC: ${{ matrix.xcc }}
@@ -424,9 +425,14 @@ jobs:
     - name: apt update & install
       run: |
         sudo apt-get update
-        sudo apt-get install gcc-multilib g++-multilib qemu-utils qemu-user-static
-        sudo apt-get install ${{ matrix.xcc_pkg }} ${{ matrix.xemu_pkg }}
+        # qemu-user-binfmt: the tests run the cross-compiled datagen directly
+        sudo apt-get install gcc-multilib g++-multilib qemu-user qemu-user-binfmt
+        sudo apt-get install ${{ matrix.xcc_pkg }}
+        # load the binfmt handlers of qemu-user-binfmt, and check the one of this target
+        sudo systemctl restart systemd-binfmt
+        cat /proc/sys/fs/binfmt_misc/$XEMU
     - name: Environment info
+      if: ${{ matrix.name != 'MIPS' }}
       run: |
         echo && which $XCC
         echo && $XCC --version
@@ -464,7 +470,10 @@ jobs:
     - name: MIPS
       if: ${{ matrix.name == 'MIPS' }}
       run: |
-        LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check
+        docker run --rm -v "$PWD":/zstd -w /zstd -e XCC -e XEMU debian:13 sh -c '
+          apt-get -qq update && apt-get -qq install -y file make gcc-mips-linux-gnu qemu-user >/dev/null &&
+          $XCC --version && $XEMU --version &&
+          LDFLAGS="-static" CC=$XCC QEMU_SYS=$XEMU make clean check'
     - name: RISC-V
       if: ${{ matrix.name == 'RISC-V' }}
       run: |

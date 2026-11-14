@@ -1,0 +1,7 @@
++ match in the first file
+file.zst:1234
++ match in the last file
+file.zst:1234
++ quiet, match in one file
++ no match in any file
++ grep error

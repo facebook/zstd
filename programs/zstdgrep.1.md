@@ -19,7 +19,9 @@ Note though that such alternatives may also feature some minor command line diff
 
 EXIT STATUS
 -----------
-In case of missing arguments or missing pattern, 1 will be returned, otherwise 0.
+`zstdgrep` returns 0 if a line is selected in at least one input, and 1 if no line is selected.
+If `grep`(1) reports an error, its exit status (greater than 1) is returned.
+In case of missing arguments or missing pattern, 1 will be returned.
 
 SEE ALSO
 --------

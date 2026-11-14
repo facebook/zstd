@@ -17,7 +17,7 @@ The \fIgrep\-flags\fR and \fIpattern\fR arguments are passed on to \fBgrep\fR(1)
 Note that modern \fBgrep\fR alternatives such as \fBripgrep\fR (\fBrg\fR(1)) support \fBzstd\fR\-compressed files out of the box, and can prove better alternatives than \fBzstdgrep\fR notably for unsupported complex pattern searches\. Note though that such alternatives may also feature some minor command line differences\.
 .
 .SH "EXIT STATUS"
-In case of missing arguments or missing pattern, 1 will be returned, otherwise 0\.
+\fBzstdgrep\fR returns 0 if a line is selected in at least one input, and 1 if no line is selected\. If \fBgrep\fR(1) reports an error, its exit status (greater than 1) is returned\. In case of missing arguments or missing pattern, 1 will be returned\.
 .
 .SH "SEE ALSO"
 \fBzstd\fR(1)

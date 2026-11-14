@@ -114,6 +114,8 @@ if [ "$#" -lt 1 ]; then
     set +f
 else
     # ... on all files given on the command line
+    # Like grep: 0 if any file has a match, 1 if none has, >1 if grep fails.
+    EXIT_CODE=1
     if [ "${silent}" -lt 1 ] && [ "$#" -gt 1 ]; then
         grep_args="-H ${grep_args}"
     fi
@@ -125,7 +127,12 @@ else
         else
             "${zcat}" -- "$1" | "${grep}" --label="${1}" ${grep_args} -- "${pattern}" -
         fi
-        [ "$?" -ne 0 ] && EXIT_CODE=1
+        ret=$?
+        if [ "${ret}" -gt 1 ]; then
+            EXIT_CODE=${ret}
+        elif [ "${ret}" -eq 0 ] && [ "${EXIT_CODE}" -eq 1 ]; then
+            EXIT_CODE=0
+        fi
         shift
     done
     set +f

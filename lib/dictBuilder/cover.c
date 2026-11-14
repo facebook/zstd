@@ -39,6 +39,16 @@
 #include <string.h> /* memset */
 #include <time.h>   /* clock */
 
+#if defined(__OHOS__)
+/* OpenHarmony (musl) exports qsort_r() with the GNU signature, but its headers
+ * do not declare it, so the call below would be an implicit declaration.
+ * Declare it locally to keep using the re-entrant GNU variant.
+ */
+extern void qsort_r(void *__base, size_t __nmemb, size_t __size,
+                    int (*__compar)(const void *, const void *, void *),
+                    void *__arg);
+#endif
+
 #ifndef ZDICT_STATIC_LINKING_ONLY
 #  define ZDICT_STATIC_LINKING_ONLY
 #endif

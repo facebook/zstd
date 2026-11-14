@@ -117,6 +117,17 @@
 #  endif
 #endif
 
+/* portable `restrict` qualifier */
+#ifndef ZSTD_RESTRICT
+#  if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L) && !defined(__cplusplus)
+#    define ZSTD_RESTRICT restrict
+#  elif defined(__GNUC__) || defined(__clang__)
+#    define ZSTD_RESTRICT __restrict__
+#  else
+#    define ZSTD_RESTRICT
+#  endif
+#endif
+
 
 /* target attribute */
 #if defined(__GNUC__) || defined(__IAR_SYSTEMS_ICC__)

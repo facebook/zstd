@@ -1183,9 +1183,9 @@ ZSTD_row_getMatchMask(const BYTE* const tagRow, const BYTE tag, const U32 headGr
 FORCE_INLINE_TEMPLATE
 ZSTD_ALLOW_POINTER_OVERFLOW_ATTR
 size_t ZSTD_RowFindBestMatch(
-                        ZSTD_MatchState_t* ms,
-                        const BYTE* const ip, const BYTE* const iLimit,
-                        size_t* offsetPtr,
+                        ZSTD_MatchState_t* ZSTD_RESTRICT ms,
+                        const BYTE* const ZSTD_RESTRICT ip, const BYTE* const iLimit,
+                        size_t* ZSTD_RESTRICT offsetPtr,
                         const U32 mls, const ZSTD_dictMode_e dictMode,
                         const U32 rowLog)
 {

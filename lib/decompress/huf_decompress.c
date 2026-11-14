@@ -1802,6 +1802,28 @@ static size_t HUF_decompress4X2_DCtx_wksp(HUF_DTable* dctx, void* dst, size_t ds
 
 #if !defined(HUF_FORCE_DECOMPRESS_X1) && !defined(HUF_FORCE_DECOMPRESS_X2)
 typedef struct { U32 tableTime; U32 decode256Time; } algo_time_t;
+#if defined(__aarch64__) || defined(__arm64__) || defined(_M_ARM64) || defined(_M_ARM64EC)
+static const algo_time_t algoTime[16 /* Quantization */][2 /* single, double */] =
+{
+    /* single, double, quad */
+    {{0,0}, {1,1}},  /* Q==0 : impossible */
+    {{0,0}, {1,1}},  /* Q==1 : impossible */
+    {{ 150,216}, { 381,119}},   /* Q == 2 : 12-18% */
+    {{ 314,167}, { 349,102}},   /* Q == 3 : 18-25% */
+    {{ 291,167}, { 448,103}},   /* Q == 4 : 25-32% */
+    {{ 197,194}, { 644,107}},   /* Q == 5 : 32-38% */
+    {{ 170,167}, { 296,102}},   /* Q == 6 : 38-44% */
+    {{ 173,167}, { 339,103}},   /* Q == 7 : 44-50% */
+    {{ 229,169}, { 539,108}},   /* Q == 8 : 50-56% */
+    {{ 258,168}, { 631,103}},   /* Q == 9 : 56-62% */
+    {{ 688,187}, {1712,122}},   /* Q ==10 : 62-69% */
+    {{ 825,186}, {1965,136}},   /* Q ==11 : 69-75% */
+    {{ 515,169}, {1327,180}},   /* Q ==12 : 75-81% */
+    {{ 543,169}, { 862,199}},   /* Q ==13 : 81-87% */
+    {{1377,185}, {1731,202}},   /* Q ==14 : 87-93% */
+    {{1412,185}, {1695,202}},   /* Q ==15 : 93-99% */
+};
+#else
 static const algo_time_t algoTime[16 /* Quantization */][2 /* single, double */] =
 {
     /* single, double, quad */
@@ -1822,6 +1844,7 @@ static const algo_time_t algoTime[16 /* Quantization */][2 /* single, double */]
     {{1377,185}, {1731,202}},   /* Q ==14 : 87-93% */
     {{1412,185}, {1695,202}},   /* Q ==15 : 93-99% */
 };
+#endif
 #endif
 
 /** HUF_selectDecoder() :

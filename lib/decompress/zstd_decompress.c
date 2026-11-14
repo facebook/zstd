@@ -591,7 +591,9 @@ static size_t readSkippableFrameSize(void const* src, size_t srcSize)
     RETURN_ERROR_IF(srcSize < ZSTD_SKIPPABLEHEADERSIZE, srcSize_wrong, "");
 
     sizeU32 = MEM_readLE32((BYTE const*)src + ZSTD_FRAMEIDSIZE);
-    RETURN_ERROR_IF((U32)(sizeU32 + ZSTD_SKIPPABLEHEADERSIZE) < sizeU32,
+    /* Frame_Size can be up to 0xFFFFFFFF. Only reject it when the total
+     * frame size can't be represented in a size_t (32-bit builds). */
+    RETURN_ERROR_IF(skippableHeaderSize + sizeU32 < skippableHeaderSize,
                     frameParameter_unsupported, "");
     {   size_t const skippableSize = skippableHeaderSize + sizeU32;
         RETURN_ERROR_IF(skippableSize > srcSize, srcSize_wrong, "");
